@@ -129,3 +129,71 @@ test('duplicate legacy routes redirect to maintained product surfaces', () => {
     assert.ok(app.includes(`path="${from}" element={<Navigate to="${to}" replace />}`), `missing redirect ${from} -> ${to}`);
   }
 });
+
+
+test('shared dialogs trap focus, restore focus and lock background scrolling', () => {
+  const modal = read('src/components/Modal.tsx');
+  const hook = read('src/hooks/useDialogAccessibility.ts');
+  assert.match(modal, /useDialogAccessibility/);
+  assert.match(modal, /role="dialog"/);
+  assert.match(hook, /document\.body\.style\.overflow = 'hidden'/);
+  assert.match(hook, /event\.key === 'Escape'/);
+  assert.match(hook, /event\.key !== 'Tab'/);
+  assert.match(hook, /previousFocus\.focus/);
+});
+
+test('root-cause and lead timeline dialogs use shared accessibility behavior', () => {
+  for (const path of [
+    'src/components/RootCauseDrawer.tsx',
+    'src/components/MarketingRootCauseDrawer.tsx',
+    'src/pages/LeadExplorerIntelligence.tsx',
+  ]) {
+    const source = read(path);
+    assert.match(source, /useDialogAccessibility/);
+    assert.match(source, /aria-modal="true"/);
+  }
+});
+
+test('legacy lead timeline request carries the selected workspace scope', () => {
+  const timeline = read('src/components/LeadTimelineModal.tsx');
+  assert.match(timeline, /useClient/);
+  assert.match(timeline, /clientId: selectedClient/);
+  assert.match(timeline, /encodeURIComponent\(leadId\)/);
+  assert.match(timeline, /credentials: 'same-origin'/);
+});
+
+test('login and access-state screens do not claim unverified live infrastructure state', () => {
+  const login = read('src/components/LoginView.tsx');
+  const pending = read('src/components/PendingApprovalView.tsx');
+  const suspended = read('src/components/SuspendedView.tsx');
+
+  assert.doesNotMatch(login, /BIGQUERY SYNCED/);
+  assert.doesNotMatch(login, /\bLIVE\b/);
+  assert.doesNotMatch(login, /TLS 1\.3/);
+  assert.doesNotMatch(login, /8 Tenants/);
+  assert.match(login, /ACCESS-CONTROLLED WORKSPACE/);
+
+  assert.doesNotMatch(pending, /administrators have been notified/i);
+  assert.doesNotMatch(pending, /window\.location\.reload/);
+  assert.match(pending, /monitored while this page is open/i);
+
+  assert.doesNotMatch(suspended, /mailto:/);
+  assert.match(suspended, /platform administrator or internal support owner/);
+});
+
+test('route changes reset overlays, scroll to top and move focus to main content', () => {
+  const app = read('src/App.tsx');
+  assert.match(app, /setMobile\(false\)/);
+  assert.match(app, /setCommand\(false\)/);
+  assert.match(app, /window\.scrollTo/);
+  assert.match(app, /getElementById\('main-content'\)\?\.focus/);
+});
+
+test('evidence reports and Firebase are split from the main application bundle', () => {
+  const app = read('src/App.tsx');
+  const vite = read('vite.config.ts');
+  assert.match(app, /const VersionedReports = React\.lazy/);
+  assert.doesNotMatch(app, /import VersionedReports from/);
+  assert.match(vite, /vendor-firebase/);
+  assert.match(vite, /node_modules\/firebase/);
+});
