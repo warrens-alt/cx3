@@ -8,12 +8,15 @@ import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import { downloadCsv } from '../lib/formatters';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
+import { useOperatingControls } from '../hooks/useOperatingControls';
+import { SlaBandsPanel } from '../components/OfferNetControlPanels';
 
 const pct = (numerator: number, denominator: number, digits = 1) =>
   denominator > 0 ? Number(((numerator / denominator) * 100).toFixed(digits)) : 0;
 
 export default function FunnelIntelligence() {
   const scoped = useScopedNavigationTarget();
+  const controls = useOperatingControls();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
   const [data, setData] = useState<FunnelData | null>(null);
@@ -57,7 +60,7 @@ export default function FunnelIntelligence() {
 
   return (
     <div className="cx-command-page">
-      <OffernetFilterBar onRefresh={() => loadData(true)} onExportCsv={handleExportCsv} />
+      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} onExportCsv={handleExportCsv} />
 
       <div className="cx-command-content">
         <OperationalPageHeader
@@ -155,6 +158,8 @@ export default function FunnelIntelligence() {
                 </table>
               </div>
             </section>
+
+            {controls.data && <SlaBandsPanel data={controls.data} />}
 
             <div className="cx-command-grid cx-diagnostic-grid">
               <section className="cx-command-panel">
