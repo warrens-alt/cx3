@@ -913,17 +913,38 @@ async function executeLiveCliQuery(
 
   const campaignCol = fields.has('campaign_id') ? 'campaign_id' : fields.has('campaign_name') ? 'campaign_name' : null;
   const vendorCol = fields.has('vendor') ? 'vendor' : null;
-  const dateCol = fields.has('call_start_date') ? 'call_start_date' : 'date';
+  const dateCol = fields.has('call_start_date') ? 'call_start_date' : fields.has('date') ? 'date' : null;
+  const hasLeadId = fields.has('dialer_lead_id');
 
-  const params: Record<string, Scalar> = {};
+  for (const required of ['is_rpc', 'is_sale', 'length_in_sec']) {
+    if (!fields.has(required)) {
+      throw new RequestError(`CLI analytics requires the source field '${required}' to avoid inferred performance values.`, 422);
+    }
+  }
+  if ((scope.startDate || scope.endDate) && !dateCol) {
+    throw new RequestError('The CLI source has no supported call date field, so the selected date scope cannot be applied safely.', 422);
+  }
+
+  const params: Record<string, any> = {
+    tenantTimezone: clientConfig.timezone || 'Africa/Johannesburg',
+  };
   const clauses: string[] = [];
 
+  if (clientConfig.id !== 'default_tenant' && clientConfig.id !== 'offernet_master') {
+    const tenantVendors = clientConfig.semanticMappings.partners || [];
+    if (!vendorCol || tenantVendors.length === 0) {
+      throw new RequestError('The configured CLI source cannot be safely scoped to this tenant because a vendor mapping is unavailable.', 422);
+    }
+    clauses.push(`LOWER(CAST(s.\`${vendorCol}\` AS STRING)) IN UNNEST(@tenantVendors)`);
+    params.tenantVendors = tenantVendors.map(value => value.toLowerCase());
+  }
+
   if (scope.startDate) {
-    clauses.push(`DATE(${validTimestampSql(`s.\`${dateCol}\``)}) >= @startDate`);
+    clauses.push(`DATE(${validTimestampSql(`s.\`${dateCol!}\``)}, @tenantTimezone) >= @startDate`);
     params.startDate = scope.startDate;
   }
   if (scope.endDate) {
-    clauses.push(`DATE(${validTimestampSql(`s.\`${dateCol}\``)}) <= @endDate`);
+    clauses.push(`DATE(${validTimestampSql(`s.\`${dateCol!}\``)}, @tenantTimezone) <= @endDate`);
     params.endDate = scope.endDate;
   }
 
@@ -936,16 +957,15 @@ async function executeLiveCliQuery(
   if (scope.filters?.vendor && vendorCol) {
     clauses.push(conditionSql(`CAST(s.\`${vendorCol}\` AS STRING)`, scope.filters.vendor, 'filter_vendor', params));
   }
-
   const whereSql = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
 
   const query = `
     SELECT
       CAST(s.\`${cliCol}\` AS STRING) AS cli,
-      ${campaignCol ? `CAST(s.\`${campaignCol}\` AS STRING)` : "'Default Campaign'"} AS campaign,
-      ${vendorCol ? `CAST(s.\`${vendorCol}\` AS STRING)` : "'Default Vendor'"} AS vendor,
+      ${campaignCol ? `CAST(s.\`${campaignCol}\` AS STRING)` : "'Unknown Campaign'"} AS campaign,
+      ${vendorCol ? `CAST(s.\`${vendorCol}\` AS STRING)` : "'Unknown Vendor'"} AS vendor,
       COUNT(*) AS total_calls,
-      COUNT(DISTINCT dialer_lead_id) AS distinct_leads,
+      ${hasLeadId ? 'COUNT(DISTINCT dialer_lead_id)' : 'CAST(NULL AS INT64)'} AS distinct_leads,
       COUNTIF(is_rpc IS TRUE) AS contact_count,
       COUNTIF(is_sale IS TRUE) AS sale_count,
       SUM(SAFE_CAST(length_in_sec AS INT64)) AS total_duration,
@@ -963,7 +983,7 @@ async function executeLiveCliQuery(
   const result = await client.execute({ query, params });
   const records: CliPerformanceRecord[] = result.rows.map(r => {
     const totalCalls = String(r.total_calls || '0');
-    const distinctLeads = String(r.distinct_leads || '0');
+    const distinctLeads = r.distinct_leads === null || r.distinct_leads === undefined ? null : String(r.distinct_leads);
     const contactCount = String(r.contact_count || '0');
     const saleCount = String(r.sale_count || '0');
     const d1m = String(r.duration_ge_1m || '0');
@@ -976,7 +996,7 @@ async function executeLiveCliQuery(
       vendor: r.vendor || 'Unknown',
       totalCalls,
       distinctLeads,
-      callsPerLead: distinctLeads !== '0' ? (Number(totalCalls) / Number(distinctLeads)).toFixed(2) : '0.00',
+      callsPerLead: distinctLeads && distinctLeads !== '0' ? (Number(totalCalls) / Number(distinctLeads)).toFixed(2) : null,
       asrCount: null,
       asrRate: null,
       answeredCount: null,
