@@ -1,6 +1,13 @@
 import { getBigQueryClient } from './client';
-import { getClientConfig, type MarketingSourceContract } from './config';
+import { getClientConfig, tableIdentifier, type MarketingSourceContract } from './config';
 import { RequestError } from './filters';
+
+function configuredSourceTable(clientId: string, role: 'leads' | 'calls' | 'timeToDial' | 'activations' | 'marketing') {
+  const config = getClientConfig(clientId);
+  const table = config.semanticMappings.tables[role];
+  if (!table) throw new RequestError(`No configured ${role} source table exists for tenant ${config.id}`, 422);
+  return tableIdentifier(table);
+}
 
 export interface OffernetQueryParams {
   clientId: string;
@@ -315,7 +322,7 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
         hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' AS is_activated,
         SAFE_CAST(hlc.sale AS TIMESTAMP) AS sale_ts,
         SAFE_CAST(hlc.activated AS TIMESTAMP) AS activation_ts
-      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${whereSql}
     ),
@@ -584,7 +591,7 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
 
 // 1. EXECUTIVE OVERVIEW
 export async function getExecutiveOverview(params: OffernetQueryParams) {
-  const client = getBigQueryClient('dashboards-422710');
+  const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const clientConfig = getClientConfig(params.clientId);
   const { whereSql, queryParams } = buildFilterClause(params);
 
@@ -608,7 +615,7 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
         TIMESTAMP_DIFF(SAFE_CAST(hlc.first_call_date AS TIMESTAMP), SAFE_CAST(hlc.delivered AS TIMESTAMP), SECOND) AS delivery_to_dial_sec,
         TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(hlc.delivered AS TIMESTAMP), SECOND) AS delivery_age_sec,
         COALESCE(hlc.revenue_generated, 0) AS revenue
-      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${whereSql}
     ),
@@ -798,7 +805,7 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
             hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' AS is_sale,
             hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' AS is_activated,
             COALESCE(hlc.revenue_generated, 0) AS revenue
-          FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+          FROM ${configuredSourceTable(params.clientId, 'leads')} l
           LEFT JOIN UNNEST(l.hlc_details) hlc
           ${previousScope.whereSql}
         )
@@ -906,7 +913,7 @@ export async function getRootCauseAnalysis(params: OffernetQueryParams) {
   const previousStartDate = previousStart.toISOString().slice(0, 10);
   const previousEndDate = previousEnd.toISOString().slice(0, 10);
 
-  const client = getBigQueryClient('dashboards-422710');
+  const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const baseScope = buildFilterClause({ ...params, startDate: undefined, endDate: undefined, metric: undefined });
   const queryParams = {
     ...baseScope.queryParams,
@@ -929,7 +936,7 @@ export async function getRootCauseAnalysis(params: OffernetQueryParams) {
         SAFE_CAST(hlc.rpc AS INT64) > 0 AS is_rpc,
         hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' AS is_sale,
         hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' AS is_activated
-      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${baseScope.whereSql}
     ),
@@ -1107,7 +1114,7 @@ export async function getRootCauseAnalysis(params: OffernetQueryParams) {
 
 // 2. FUNNEL INTELLIGENCE
 export async function getFunnelIntelligence(params: OffernetQueryParams) {
-  const client = getBigQueryClient('dashboards-422710');
+  const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const { whereSql, queryParams } = buildFilterClause(params);
 
   const query = `
@@ -1129,7 +1136,7 @@ export async function getFunnelIntelligence(params: OffernetQueryParams) {
         TIMESTAMP_DIFF(SAFE_CAST(hlc.first_call_date AS TIMESTAMP), SAFE_CAST(hlc.delivered AS TIMESTAMP), SECOND) as delivery_to_first_dial_sec,
         TIMESTAMP_DIFF(SAFE_CAST(hlc.sale AS TIMESTAMP), SAFE_CAST(hlc.first_call_date AS TIMESTAMP), SECOND) as dial_to_sale_sec,
         TIMESTAMP_DIFF(SAFE_CAST(hlc.activated AS TIMESTAMP), SAFE_CAST(hlc.sale AS TIMESTAMP), SECOND) as sale_to_act_sec
-      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${whereSql}
     ),
@@ -1239,7 +1246,7 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
         CAST(FORMAT_TIMESTAMP('%u', SAFE_CAST(l.fetched AS TIMESTAMP), @tenantTimezone) AS INT64) NOT IN UNNEST(@operatingWorkdays)
           OR FORMAT_TIMESTAMP('%H:%M:%S', SAFE_CAST(l.fetched AS TIMESTAMP), @tenantTimezone) < @operatingStart
           OR FORMAT_TIMESTAMP('%H:%M:%S', SAFE_CAST(l.fetched AS TIMESTAMP), @tenantTimezone) >= @operatingEnd AS is_after_hours
-      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${whereSql}
     ),
@@ -1420,7 +1427,7 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
 
 // 4. CONTACT STRATEGY
 export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
-  const client = getBigQueryClient('dashboards-422710');
+  const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const { whereSql, queryParams } = buildFilterClause(params);
 
   const query = `
@@ -1432,7 +1439,7 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
         hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' AS is_sale,
         hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' AS is_activated,
         COALESCE(hlc.revenue_generated, 0) AS revenue
-      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${whereSql}
     ),
@@ -1534,7 +1541,7 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
 
 // 5. VENDOR & LEAD QUALITY
 export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
-  const client = getBigQueryClient('dashboards-422710');
+  const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const { whereSql, queryParams } = buildFilterClause(params);
 
   const query = `
@@ -1555,7 +1562,7 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
         COALESCE(hlc.total_calls, 0) AS total_calls,
         COALESCE(hlc.revenue_generated, 0) AS revenue,
         TIMESTAMP_DIFF(SAFE_CAST(hlc.first_call_date AS TIMESTAMP), SAFE_CAST(hlc.delivered AS TIMESTAMP), SECOND) AS deliv_to_dial_sec
-      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${whereSql}
     ),
@@ -1719,7 +1726,7 @@ export async function getTemporalAnalytics(params: OffernetQueryParams) {
         COUNTIF(SAFE_CAST(hlc.rpc AS INT64) > 0) > 0 AS is_rpc,
         COUNTIF(hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '') > 0 AS is_sale,
         COUNTIF(hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '') > 0 AS is_activated
-      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${whereSql}
       GROUP BY l.lead_id
@@ -1823,7 +1830,7 @@ export async function getTemporalAnalytics(params: OffernetQueryParams) {
 
 // 7. SALES & ACTIVATION INTELLIGENCE
 export async function getSalesActivationAnalytics(params: OffernetQueryParams) {
-  const client = getBigQueryClient('dashboards-422710');
+  const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const { whereSql, queryParams } = buildFilterClause(params);
 
   const query = `
@@ -1839,7 +1846,7 @@ export async function getSalesActivationAnalytics(params: OffernetQueryParams) {
         hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' as is_sale,
         hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' as is_activated,
         COALESCE(hlc.revenue_generated, 0) as revenue
-      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${whereSql}
     ),
@@ -2137,7 +2144,7 @@ export async function getSourceObservability(params: Pick<OffernetQueryParams, '
 
 // 9. DATA INTEGRITY (DATA HEALTH)
 export async function getDataIntegrityAnalytics(params: OffernetQueryParams) {
-  const client = getBigQueryClient('dashboards-422710');
+  const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const { whereSql, queryParams } = buildFilterClause(params);
 
   const query = `
@@ -2149,7 +2156,7 @@ export async function getDataIntegrityAnalytics(params: OffernetQueryParams) {
       COUNTIF(hlc.vendor IS NULL OR hlc.vendor = '') AS unassigned_vendor_leads,
       COUNTIF(hlc.delivered IS NOT NULL AND (hlc.last_dialer_status IS NULL OR hlc.last_dialer_status = '')) AS missing_dispositions,
       COUNTIF(l.consumer_id IS NULL OR l.consumer_id = 0) AS unmatched_consumer_ids
-    FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+    FROM ${configuredSourceTable(params.clientId, 'leads')} l
     LEFT JOIN UNNEST(l.hlc_details) hlc
     ${whereSql}
   `;
@@ -2218,7 +2225,7 @@ export async function getDataIntegrityAnalytics(params: OffernetQueryParams) {
 
 // 10. AGENT PERFORMANCE
 export async function getAgentPerformanceAnalytics(params: OffernetQueryParams) {
-  const client = getBigQueryClient('dashboards-422710');
+  const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const clientConfig = getClientConfig(params.clientId);
 
   if (params.source || params.medium || params.grade || params.campaign) {
@@ -2263,7 +2270,7 @@ export async function getAgentPerformanceAnalytics(params: OffernetQueryParams) 
       SUM(length_in_sec) AS total_talk_time_sec,
       ROUND(AVG(length_in_sec), 1) AS avg_duration_sec,
       COUNTIF(is_callback = true) AS callbacks_booked
-    FROM \`dashboards-422710.lead_ledger.lead_ledger_all_vicidial_insights\`
+    FROM ${configuredSourceTable(params.clientId, 'calls')}
     WHERE ${conditions.join(' AND ')}
     GROUP BY user, vendor
     ORDER BY total_calls DESC
@@ -2895,7 +2902,7 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
         COUNT(DISTINCT CASE WHEN hlc.sale IS NOT NULL AND hlc.sale != '' AND hlc.sale NOT LIKE '1900%' AND hlc.sale NOT LIKE '1970%' THEN l.lead_id END) AS sales,
         COUNT(DISTINCT CASE WHEN hlc.activated IS NOT NULL AND hlc.activated != '' AND hlc.activated NOT LIKE '1900%' AND hlc.activated NOT LIKE '1970%' THEN l.lead_id END) AS activations,
         SUM(COALESCE(hlc.revenue_generated, 0)) AS recorded_revenue
-      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${operationalWhere}
       GROUP BY join_key
@@ -2986,7 +2993,7 @@ export async function getAiInsightsAnalytics(_params: OffernetQueryParams) {
 
 // 13. RAW DATA EXPLORER & LEAD TIMELINE
 export async function getRawLeads(params: OffernetQueryParams) {
-  const client = getBigQueryClient('dashboards-422710');
+  const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const limit = Math.min(Math.max(Number(params.limit) || 50, 10), 200);
   const offset = Math.max(Number(params.offset) || 0, 0);
   const { whereSql, queryParams } = buildFilterClause(params);
@@ -3141,7 +3148,7 @@ export async function getRawLeads(params: OffernetQueryParams) {
       hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' as sale,
       hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' as activated,
       COALESCE(hlc.revenue_generated, 0) as revenue
-    FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+    FROM ${configuredSourceTable(params.clientId, 'leads')} l
     LEFT JOIN UNNEST(l.hlc_details) hlc
     ${whereSql}
     ${searchCondition}
@@ -3167,7 +3174,7 @@ export async function getRawLeads(params: OffernetQueryParams) {
 
 // LEAD TIMELINE MODAL DATA
 export async function getLeadTimeline(leadId: string, params: Pick<OffernetQueryParams, 'clientId' | 'vendor'>) {
-  const client = getBigQueryClient('dashboards-422710');
+  const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const clientConfig = getClientConfig(params.clientId);
   const conditions = ['l.lead_id = @leadId'];
   const queryParams: Record<string, any> = { leadId };
@@ -3202,7 +3209,7 @@ export async function getLeadTimeline(leadId: string, params: Pick<OffernetQuery
       l.valid_idno,
       l.phone_valid,
       hlc.*
-    FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+    FROM ${configuredSourceTable(params.clientId, 'leads')} l
     LEFT JOIN UNNEST(l.hlc_details) hlc
     WHERE ${conditions.join(' AND ')}
     ORDER BY SAFE_CAST(hlc.delivered AS TIMESTAMP) DESC
@@ -3227,7 +3234,7 @@ export async function getLeadTimeline(leadId: string, params: Pick<OffernetQuery
           is_sale,
           is_callback,
           called_count
-        FROM \`dashboards-422710.lead_ledger.lead_ledger_all_vicidial_insights\`
+        FROM ${configuredSourceTable(params.clientId, 'calls')}
         WHERE ${callConditions.join(' AND ')}
         ORDER BY SAFE_CAST(call_start_date AS TIMESTAMP) ASC
         LIMIT 500
