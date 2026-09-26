@@ -186,7 +186,9 @@ test('route changes reset overlays, scroll to top and move focus to main content
   assert.match(app, /setMobile\(false\)/);
   assert.match(app, /setCommand\(false\)/);
   assert.match(app, /window\.scrollTo/);
-  assert.match(app, /getElementById\('main-content'\)\?\.focus/);
+  assert.match(app, /const main = document\.getElementById\('main-content'\)/);
+  assert.match(app, /main\?\.scrollTo/);
+  assert.match(app, /main\?\.focus/);
 });
 
 test('evidence reports and Firebase are split from the main application bundle', () => {
