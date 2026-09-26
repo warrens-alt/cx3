@@ -11,14 +11,11 @@ import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import {
   type CliPerformanceResponse,
-  type CliPerformanceRecord,
-  type CliValidationAnomaly,
   CLI_METRIC_DEFINITIONS,
 } from '../../contracts/cliPerformance';
 import { exactNumber } from '../../contracts/format';
 import { compareExactDecimal } from '../../contracts/exactDecimal';
 import {
-  PhoneForwarded,
   Upload,
   Download,
   AlertTriangle,
@@ -29,18 +26,8 @@ import {
   ArrowUpDown,
   Search,
   X,
-  RefreshCw,
-  TrendingUp,
-  TrendingDown,
-  BarChart2,
-  ShieldAlert,
   Clock,
   Sparkles,
-  PhoneCall,
-  SlidersHorizontal,
-  ChevronRight,
-  Database,
-  Calendar,
   Filter,
 } from 'lucide-react';
 import {
@@ -52,8 +39,6 @@ import {
   Tooltip,
   CartesianGrid,
   Legend,
-  LineChart,
-  Line,
   Cell,
   AreaChart,
   Area,
