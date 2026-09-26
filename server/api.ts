@@ -283,8 +283,15 @@ analyticsRouter.get('/offernet/raw-leads', cacheResponse(30), asyncRoute(async (
 }));
 
 analyticsRouter.get('/offernet/lead-timeline/:leadId', cacheResponse(60), asyncRoute(async (req, res) => {
-  const leadId = String(req.params.leadId);
-  const data = await singleFlight(res, 'offernet-lead-timeline', { leadId }, () => offernetAnalytics.getLeadTimeline(leadId));
+  const leadId = scalarString(req.params.leadId, 'leadId', 100);
+  if (!leadId) throw new RequestError('leadId is required');
+  const params = buildOffernetQueryParams(req, res);
+  const data = await singleFlight(
+    res,
+    'offernet-lead-timeline',
+    { leadId, clientId: params.clientId, vendor: params.vendor },
+    () => offernetAnalytics.getLeadTimeline(leadId, params)
+  );
   res.json({ success: true, data });
 }));
 
