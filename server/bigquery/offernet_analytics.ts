@@ -207,16 +207,7 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
   // Period-over-period comparisons are withheld until the comparison window is
   // explicitly requested and independently calculated. Splitting an arbitrary
   // trend series in half is not a valid comparison methodology.
-  const comparison = {
-    fetchedDelta: null,
-    deliveryRateDelta: null,
-    dialRateDelta: null,
-    contactRateDelta: null,
-    saleRateDelta: null,
-    activationRateDelta: null,
-    revenueDelta: null,
-    contributionDelta: null
-  };
+  const comparison = null;
 
   return {
     kpis: {
