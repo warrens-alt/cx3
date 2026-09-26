@@ -1676,6 +1676,23 @@ export async function getRawLeads(params: OffernetQueryParams) {
           AND NOT ${validDialled}
           AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(h.delivered AS TIMESTAMP), SECOND) ${suffix}
       )`;
+    } else if (drill === 'lead-age') {
+      const timing = "TIMESTAMP_DIFF(SAFE_CAST(h.first_call_date AS TIMESTAMP), SAFE_CAST(h.delivered AS TIMESTAMP), SECOND)";
+      const conditions: Record<string, string> = {
+        'Not delivered': `NOT EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered})`,
+        'Undialled': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered}) AND NOT EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDialled})`,
+        'Invalid timing': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} < 0)`,
+        '0–5m': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} BETWEEN 0 AND 300)`,
+        '5–15m': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} > 300 AND ${timing} <= 900)`,
+        '15–30m': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} > 900 AND ${timing} <= 1800)`,
+        '30–60m': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} > 1800 AND ${timing} <= 3600)`,
+        '1–6h': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} > 3600 AND ${timing} <= 21600)`,
+        '6–24h': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} > 21600 AND ${timing} <= 86400)`,
+        '24h+': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} > 86400)`,
+      };
+      const condition = conditions[value];
+      if (!condition) throw new RequestError('Unsupported lead-age drill bucket', 422);
+      drillCondition = `AND ${condition}`;
     } else if (drill === 'funnel-loss') {
       const conditions: Record<string, string> = {
         'fetched-to-delivered': `NOT EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered})`,
