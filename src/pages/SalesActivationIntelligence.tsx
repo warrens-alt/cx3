@@ -8,9 +8,11 @@ import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import { downloadCsv } from '../lib/formatters';
 
+import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 const money = (value: number) => `R ${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
 export default function SalesActivationIntelligence() {
+  const scoped = useScopedNavigationTarget();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
   const [data, setData] = useState<SalesActivationData | null>(null);
@@ -63,7 +65,7 @@ export default function SalesActivationIntelligence() {
           title="Sales & activation"
           description="Track recorded sales, activation fulfilment and revenue without mixing in assumed profitability."
           actions={
-            <Link to="/commercial" className="cx-button-secondary">
+            <Link to={scoped('/commercial')} className="cx-button-secondary">
               Spend & commercial <ArrowRight size={13}/>
             </Link>
           }
@@ -180,8 +182,8 @@ export default function SalesActivationIntelligence() {
             </section>
 
             <section className="cx-command-shortcuts">
-              <Link to="/commercial"><DollarSign size={16}/><span><strong>Spend & commercial</strong><small>Relate observed media spend to recorded outcomes</small></span><ArrowRight size={14}/></Link>
-              <Link to="/funnel"><PackageCheck size={16}/><span><strong>Funnel</strong><small>Trace where leads stop before sale and activation</small></span><ArrowRight size={14}/></Link>
+              <Link to={scoped('/commercial')}><DollarSign size={16}/><span><strong>Spend & commercial</strong><small>Relate observed media spend to recorded outcomes</small></span><ArrowRight size={14}/></Link>
+              <Link to={scoped('/funnel')}><PackageCheck size={16}/><span><strong>Funnel</strong><small>Trace where leads stop before sale and activation</small></span><ArrowRight size={14}/></Link>
               <button type="button" onClick={handleExportCsv}><Download size={16}/><span><strong>Export outcomes</strong><small>Download current vendor outcome table</small></span><ArrowRight size={14}/></button>
             </section>
           </>
