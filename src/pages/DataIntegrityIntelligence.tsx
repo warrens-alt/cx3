@@ -10,6 +10,7 @@ import { DataCompletenessPanel } from '../components/OfferNetControlPanels';
 import { formatTableNumber } from '../lib/formatters';
 import '../styles/tableReadability.css';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
+import { RankedMetricChart } from '../components/charts/OperationalVisuals';
 
 export default function DataIntegrityIntelligence() {
   const { selectedClient } = useClient();
