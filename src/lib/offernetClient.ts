@@ -795,6 +795,18 @@ interface CacheEntry<T> {
 const memoryCache = new Map<string, CacheEntry<any>>();
 const inFlightRequests = new Map<string, Promise<any>>();
 const CACHE_TTL_MS = 60 * 1000; // 60 seconds
+const CACHE_MAX_ENTRIES = 200;
+
+function pruneOffernetCache(now = Date.now()) {
+  for (const [key, entry] of memoryCache) {
+    if (now - entry.timestamp >= CACHE_TTL_MS) memoryCache.delete(key);
+  }
+  if (memoryCache.size <= CACHE_MAX_ENTRIES) return;
+  const oldest = [...memoryCache.entries()]
+    .sort((a, b) => a[1].timestamp - b[1].timestamp)
+    .slice(0, memoryCache.size - CACHE_MAX_ENTRIES);
+  oldest.forEach(([key]) => memoryCache.delete(key));
+}
 
 export function invalidateOffernetCache() {
   memoryCache.clear();
@@ -803,6 +815,7 @@ export function invalidateOffernetCache() {
 
 export async function fetchOffernetJson<T>(url: string, forceRefresh = false): Promise<T> {
   const now = Date.now();
+  pruneOffernetCache(now);
   if (!forceRefresh && memoryCache.has(url)) {
     const entry = memoryCache.get(url)!;
     if (now - entry.timestamp < CACHE_TTL_MS) {
@@ -830,6 +843,7 @@ export async function fetchOffernetJson<T>(url: string, forceRefresh = false): P
       const json = await response.json();
       const result = json.data as T;
       memoryCache.set(url, { data: result, timestamp: Date.now() });
+      pruneOffernetCache();
       return result;
     } finally {
       inFlightRequests.delete(url);
