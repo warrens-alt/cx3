@@ -60,8 +60,7 @@ service cloud.firestore {
         && data.status in ['active', 'pending', 'suspended']
         && (
           isSuperAdmin()
-          || (data.role == 'admin' && exists(/databases/$(database)/documents/admins/$(request.auth.uid)))
-          || (data.role in ['analyst', 'viewer'] && data.status in ['pending', 'active'])
+          || (data.role in ['analyst', 'viewer'] && data.status == 'pending')
         )
         && (!('allowedTenants' in data) || data.allowedTenants == null || (data.allowedTenants is list && data.allowedTenants.size() <= 50));
     }
