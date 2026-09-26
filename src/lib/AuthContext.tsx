@@ -107,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Check for pre-existing invite for this email
           let assignedRole: UserRole = 'viewer';
           let assignedStatus: UserStatus = 'pending';
-          let assignedTenants: string[] = ['*'];
+          let assignedTenants: string[] = [];
 
           if (isSuperAdmin) {
             assignedRole = 'admin';
@@ -120,9 +120,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const inviteSnap = await getDoc(inviteRef);
               if (inviteSnap.exists()) {
                 const inviteData = inviteSnap.data() as AccessInvite;
-                assignedRole = inviteData.role || 'analyst';
-                assignedStatus = 'active';
-                assignedTenants = inviteData.allowedTenants || ['*'];
+                assignedRole = inviteData.role === 'admin' ? 'analyst' : (inviteData.role || 'analyst');
+                // Firestore is deliberately fail-closed: every non-bootstrap account
+                // remains pending until an existing administrator activates it.
+                assignedStatus = 'pending';
+                assignedTenants = inviteData.allowedTenants || [];
               }
             } catch {
               // fallback
