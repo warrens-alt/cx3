@@ -19,11 +19,13 @@ A local development identity is available only when `NODE_ENV` is not `productio
 
 - Removed unrestricted BigQuery project, dataset, table and `SELECT *` preview endpoints.
 - Converted Lead Ledger into an admin-only, tenant-scoped analytical record view.
-- Restricted raw lead/timeline endpoints to administrators.
+- Restricted raw lead/timeline endpoints and record-grain exports to administrators.
 - Made the server-authorised tenant list authoritative for the live workspace selector.
 - Enforced tenant permission checks on evidence-reporting catalogue and exception requests.
 - Scoped Offernet lead timelines to the authorised tenant/vendor population.
 - Scoped agent analytics to tenant/date/vendor and reject unsupported cross-grain filters.
+- Restricted CLI report import/sample/clear mutations to administrators; synthetic sample loading is disabled in production by default.
+- Live CLI analytics now require tenant-safe vendor scoping and fail closed when required source fields are absent.
 - New Firebase profiles can no longer self-activate; non-bootstrap accounts remain pending until administrator approval.
 - Operational analytics responses are labelled `UNVERIFIED`, not `VERIFIED`.
 - Production runs the freshly built `dist/server/server.mjs`; generated `server.js` is no longer tracked.
@@ -42,7 +44,8 @@ The hardening revision removes or withholds results that were not supported by v
 - observed media spend is accepted only from the explicit marketing API-table contract and only when the contracted spend grain passes duplicate-grain validation;
 - no R45/R14.50/overhead profitability model;
 - no vendor contribution or margin derived from assumed unit costs;
-- no arbitrary split-half “current vs previous” comparison.
+- no arbitrary split-half “current vs previous” comparison;
+- no synthetic CLI duration, lead-age distribution, median, or prior-period baseline when the source does not provide the required evidence.
 
 Where the source supports an observed value, it is returned. Where a required contract is missing, the API returns `null`, `UNAVAILABLE`, `PARTIAL`, `NOT_VERIFIED`, or a 4xx/5xx response rather than manufacturing a number.
 
@@ -73,7 +76,7 @@ Observed media spend is supported from the configured marketing API table. The a
 
 Tenant-level campaign reporting is enabled only after exact API-table `client_name` values are configured through `CX_MARKETING_CLIENT_MAP_JSON`. CX3 does not infer tenant identity from display names.
 
-Marketing-to-lead attribution is implemented but fail-closed. It activates only through `CX_MARKETING_ATTRIBUTION_JSON` with explicitly named source keys. Even when active, attributed outputs remain `NOT_VERIFIED` until key coverage and semantics are reconciled.
+Marketing-to-lead attribution is implemented but fail-closed. It activates only through `CX_MARKETING_ATTRIBUTION_JSON` with explicitly named source keys. It validates the selected spend grain, propagates only equivalent cross-source scope, exposes matched/unmatched key coverage, and withholds unsupported filters rather than mixing all spend with a narrower operational denominator. Even when active, attributed outputs remain `NOT_VERIFIED` until key coverage and semantics are reconciled.
 
 The following remain withheld:
 
