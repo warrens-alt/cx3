@@ -16,11 +16,14 @@ import { useClient } from '../lib/ClientContext';
 import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
 import { fetchVendorQuality, type VendorQualityData } from '../lib/offernetClient';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
+import { useOperatingControls } from '../hooks/useOperatingControls';
+import { VendorControlsPanel } from '../components/OfferNetControlPanels';
 
 const fmt = (value: number) => value.toLocaleString();
 
 export default function VendorLeadQuality() {
   const scoped = useScopedNavigationTarget();
+  const controls = useOperatingControls();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
   const [data, setData] = useState<VendorQualityData | null>(null);
@@ -64,7 +67,7 @@ export default function VendorLeadQuality() {
 
   return (
     <div className="cx-command-page">
-      <OffernetFilterBar onRefresh={() => loadData(true)} />
+      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />
       <div className="cx-command-content">
         <header className="cx-command-hero">
           <div>
@@ -185,6 +188,8 @@ export default function VendorLeadQuality() {
                 </table>
               </div>
             </section>
+
+            {controls.data && <VendorControlsPanel data={controls.data} />}
 
             <section className="cx-command-panel">
               <header>
