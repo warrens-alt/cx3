@@ -7,9 +7,11 @@ import { useAuth } from '../lib/AuthContext';
 import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
 import { fetchOverview, type OverviewData } from '../lib/offernetClient';
 
+import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 const fmt = (value: number) => value.toLocaleString();
 
 export default function Exceptions() {
+  const scoped = useScopedNavigationTarget();
   const { selectedClient } = useClient();
   const { isAdmin } = useAuth();
   const { startDate, endDate, filters } = useFilters();
@@ -67,7 +69,7 @@ export default function Exceptions() {
             <h1>Exceptions</h1>
             <p>Current populations that require investigation or operational follow-up in the selected scope.</p>
           </div>
-          <Link to="/reports" className="cx-trust-pill">
+          <Link to={scoped('/reports')} className="cx-trust-pill">
             <ShieldCheck size={15} />
             <span>
               <strong>{data?.validationStatus || 'NOT_VERIFIED'}</strong>
@@ -142,7 +144,7 @@ export default function Exceptions() {
                     <h2>First-dial backlog</h2>
                     <p>Delivered leads still waiting for their first recorded dial.</p>
                   </div>
-                  <Link to="/speed-to-lead">Open contact analysis <ArrowRight size={13} /></Link>
+                  <Link to={scoped('/speed-to-lead')}>Open contact analysis <ArrowRight size={13} /></Link>
                 </header>
                 <div className="cx-exception-buckets">
                   {data.backlog.buckets.map(bucket => {
@@ -161,7 +163,7 @@ export default function Exceptions() {
                     <h2>Vendor backlog</h2>
                     <p>Where the undialled population is concentrated.</p>
                   </div>
-                  <Link to="/vendor-quality">Performance view <ArrowRight size={13} /></Link>
+                  <Link to={scoped('/vendor-quality')}>Performance view <ArrowRight size={13} /></Link>
                 </header>
                 <div className="cx-backlog-vendors">
                   {data.backlog.byVendor.length ? data.backlog.byVendor.map((vendor, index) => {
