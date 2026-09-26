@@ -25,7 +25,7 @@ import {
   CLI_METRIC_DEFINITIONS,
   calculateExactRate,
 } from '../../contracts/cliPerformance';
-import { getClientConfig, tableIdentifier } from './config';
+import { getClientConfig, tableIdentifier, tenantVendorScopeValues } from './config';
 import { flatSchema, sourceAccess, type SourceAccess, type TableMetadata } from './sourceAccess';
 import { sourceTable } from './sourceCatalog';
 import { RequestError, validateScope, conditionSql, type QueryScope, type Scalar } from './filters';
@@ -975,12 +975,12 @@ async function executeLiveCliQuery(
   const clauses: string[] = [];
 
   if (clientConfig.id !== 'default_tenant' && clientConfig.id !== 'offernet_master') {
-    const tenantVendors = clientConfig.semanticMappings.partners || [];
+    const tenantVendors = tenantVendorScopeValues(clientConfig);
     if (!vendorCol || tenantVendors.length === 0) {
       throw new RequestError('The configured CLI source cannot be safely scoped to this tenant because a vendor mapping is unavailable.', 422);
     }
     clauses.push(`LOWER(CAST(s.\`${vendorCol}\` AS STRING)) IN UNNEST(@tenantVendors)`);
-    params.tenantVendors = tenantVendors.map(value => value.toLowerCase());
+    params.tenantVendors = tenantVendors;
   }
 
   if (scope.startDate) {
