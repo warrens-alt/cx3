@@ -21,7 +21,7 @@ interface FirestoreDocument {
 
 function decodeClaims(token: string): FirebaseClaims {
   const parts = token.split('.');
-  if (parts.length !== 3 || token.length > 16000) throw new RequestError('Invalid Firebase preview identity', 401);
+  if (parts.length !== 3 || token.length > 16000) throw new RequestError('Invalid Firebase identity', 401);
   try {
     const claims = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8')) as FirebaseClaims;
     const uid = claims.sub || claims.user_id;
@@ -30,7 +30,7 @@ function decodeClaims(token: string): FirebaseClaims {
     }
     return claims;
   } catch {
-    throw new RequestError('Invalid Firebase preview identity', 401);
+    throw new RequestError('Invalid Firebase identity', 401);
   }
 }
 
@@ -40,7 +40,7 @@ async function readFirestoreDocument(path: string, token: string): Promise<Fires
   if (response.status === 404) return null;
   if (!response.ok) {
     throw new RequestError(response.status === 401 || response.status === 403
-      ? 'Firebase preview identity could not be verified'
+      ? 'Firebase identity could not be verified'
       : 'Firebase access profile could not be loaded', response.status === 401 || response.status === 403 ? 401 : 503);
   }
   return await response.json() as FirestoreDocument;
@@ -51,13 +51,14 @@ const stringArrayField = (doc: FirestoreDocument, name: string) =>
   (doc.fields?.[name]?.arrayValue?.values || []).map(value => value.stringValue || '').filter(Boolean);
 
 /**
- * AI Studio Preview identity.
+ * Resolve a Firebase-authenticated analytical principal.
  *
- * The JWT payload is used only to select the caller's own Firestore profile path.
- * Firestore then validates the bearer token and its security rules require that the
- * authenticated uid owns that document. No decoded claim grants access by itself.
+ * The decoded JWT payload is used only to select the caller's own Firestore profile
+ * path. Firestore independently validates the bearer token and applies the deployed
+ * security rules before returning that profile. A decoded claim alone never grants
+ * analytical access.
  */
-export async function resolveFirebasePreviewPrincipal(token: string): Promise<Principal> {
+export async function resolveFirebasePrincipal(token: string): Promise<Principal> {
   const claims = decodeClaims(token);
   const uid = claims.sub || claims.user_id!;
   const email = claims.email!.toLowerCase();
@@ -94,3 +95,6 @@ export async function resolveFirebasePreviewPrincipal(token: string): Promise<Pr
   if (!tenants.length) throw new RequestError('This account has no authorised workspaces', 403);
   return { subject: uid, email, tenants, role };
 }
+
+/** Backwards-compatible name retained for Preview tests and older imports. */
+export const resolveFirebasePreviewPrincipal = resolveFirebasePrincipal;
