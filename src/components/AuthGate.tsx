@@ -14,7 +14,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
           <div className="absolute inset-0 rounded-full border-2 border-slate-200" />
           <div className="absolute inset-0 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
         </div>
-        <p className="text-xs text-slate-500 font-mono tracking-wide">Verifying authentication & security scope…</p>
+        <p className="text-xs text-slate-500 font-mono tracking-wide">Checking account access…</p>
       </div>
     );
   }
