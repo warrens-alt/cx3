@@ -2895,6 +2895,17 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
   if (!contract || !clientConfig.capabilities.marketing) {
     return { status: 'UNAVAILABLE', reason: 'No marketing contract is configured.', rows: [], summary: null };
   }
+  const incompatibleScope = ['vendor', 'source', 'medium', 'grade', 'agent', 'campaign']
+    .filter(key => Boolean((params as Record<string, unknown>)[key]));
+  if (incompatibleScope.length) {
+    return {
+      status: 'UNAVAILABLE',
+      reason: `Attribution is withheld because the active reporting scope includes operational dimensions that are not reconciled to the marketing source: ${incompatibleScope.join(', ')}.`,
+      rows: [],
+      contract: contract.attribution,
+    };
+  }
+
   if (contract.attribution.status !== 'ACTIVE') {
     return {
       status: 'UNAVAILABLE',
@@ -2930,6 +2941,14 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
 
   const client = getBigQueryClient(clientConfig.bigQueryProject);
   const resolved = await resolveMarketingContract(client, contract);
+  if (resolved.missingRequired.length) {
+    return {
+      status: 'INVALID_CONTRACT',
+      reason: `Configured marketing fields are missing: ${resolved.missingRequired.join(', ')}`,
+      rows: [],
+      contract: contract.attribution,
+    };
+  }
   const spendValue = marketingSpendExpression(contract, resolved.spendColumn);
   if (!spendValue) {
     return { status: 'UNAVAILABLE', reason: 'Attribution requires an approved observed spend field.', rows: [], summary: null };
