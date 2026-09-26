@@ -7,8 +7,8 @@ import { fetchAgentPerformance, type AgentPerformanceData } from '../lib/offerne
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import { downloadCsv } from '../lib/formatters';
-
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
+
 export default function AgentPerformanceIntelligence() {
   const scoped = useScopedNavigationTarget();
   const { selectedClient } = useClient();
