@@ -16,6 +16,12 @@ export interface OperatingControlsData {
     weekendSharePct: number;
     sla15Rate: number;
     sla60Rate: number;
+    awaitingFirstDial: number;
+    oldestDeliveryWait: string;
+    captureToDialMedian: string;
+    captureToDialP90: string;
+    captureWithin15mRate: number;
+    captureWithin60mRate: number;
     activationBacklog14d: number;
     afterHoursRpcRate: number;
     operatingHoursRpcRate: number;
@@ -40,6 +46,17 @@ export interface OperatingControlsData {
     saleRate: number;
   }>;
   activationAgeing: Array<{ bucket: string; leads: number }>;
+  hourlyFlow: Array<{ hour: number; captured: number; firstDials: number }>;
+  dailyTurnaround: Array<{
+    date: string;
+    leads: number;
+    dialled: number;
+    undialled: number;
+    median: string;
+    p90: string;
+    within15mRate: number;
+    within60mRate: number;
+  }>;
   vendorControls: Array<{
     vendor: string;
     leads: number;
@@ -67,6 +84,8 @@ export interface OperatingControlsData {
     callCount: string;
     vendor: string;
     operatingHours: string;
+    captureTurnaround: string;
+    realtimeDialler: string;
   };
   validationStatus: string;
 }
