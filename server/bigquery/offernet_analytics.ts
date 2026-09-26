@@ -2212,6 +2212,28 @@ export async function getSourceObservability(params: Pick<OffernetQueryParams, '
       : 'No activation table is configured.',
   });
 
+  sources.push({
+    key: 'diallerRealtime',
+    label: 'VICIdial real-time / hopper API',
+    status: 'UNCONFIGURED',
+    table: null,
+    latestRecordAt: null,
+    ageHours: null,
+    rowCount: null,
+    detail: 'Required for live agent states, hopper priority/levels, dial level, drop rate and hopper-reset events. Historical BigQuery call rows do not provide this live control-plane state.',
+  });
+
+  sources.push({
+    key: 'activationLifecycle',
+    label: 'BLC Rubix / activation lifecycle contract',
+    status: 'CONTRACT_REQUIRED',
+    table: clientConfig.semanticMappings.tables.activations || null,
+    latestRecordAt: null,
+    ageHours: null,
+    rowCount: null,
+    detail: 'Contract ID, Rubix status, activation status, activation timestamp and deal/color need a reconciled record-level source contract before CX3 treats lifecycle stages as canonical.',
+  });
+
   return {
     status: 'OBSERVED',
     generatedAt: new Date().toISOString(),
