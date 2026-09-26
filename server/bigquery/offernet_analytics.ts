@@ -2936,7 +2936,7 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
     return { status: 'UNAVAILABLE', reason: 'No marketing contract is configured.', rows: [], summary: null };
   }
   const incompatibleScope = ['vendor', 'source', 'medium', 'grade', 'agent', 'campaign']
-    .filter(key => Boolean((params as Record<string, unknown>)[key]));
+    .filter(key => Boolean((params as unknown as Record<string, unknown>)[key]));
   if (incompatibleScope.length) {
     return {
       status: 'UNAVAILABLE',
