@@ -47,22 +47,9 @@ export default function LoginView() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-2.5 py-1 text-xs rounded-md bg-slate-50 border border-slate-200 font-mono">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-            </span>
-            <span className="font-semibold text-slate-700 text-[10.5px] tracking-tight">
-              BIGQUERY SYNCED
-            </span>
-            <span className="text-slate-300" aria-hidden="true">·</span>
-            <span className="text-[9.5px] text-slate-500 uppercase font-semibold">LIVE</span>
-          </div>
-          <div className="hidden md:flex items-center gap-1.5 text-xs text-slate-500 font-mono pl-3 border-l border-slate-200">
-            <Shield className="w-3.5 h-3.5 text-blue-600" />
-            <span>Bastionflowe Production</span>
-          </div>
+        <div className="flex items-center gap-2 px-2.5 py-1 text-xs rounded-md bg-slate-50 border border-slate-200 font-mono">
+          <Shield className="w-3.5 h-3.5 text-blue-600" />
+          <span className="font-semibold text-slate-700 text-[10.5px] tracking-tight">ACCESS-CONTROLLED WORKSPACE</span>
         </div>
       </header>
 
