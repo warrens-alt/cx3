@@ -43,9 +43,9 @@ export default function AgentPerformanceIntelligence() {
   const handleExportCsv = () => {
     if (!data) return;
     const rows = [
-      ['Agent ID', 'Vendor', 'Total Calls', 'Unique Leads', 'Contacts', 'Contact Rate %', 'Sales', 'Sale Rate %', 'Total Talk Time', 'Avg Handle', 'Tier'],
+      ['Agent ID', 'Vendor', 'Total Calls', 'Unique Leads', 'Contacts', 'Contact Rate %', 'Sales', 'Sale Rate %', 'Total Talk Time', 'Avg Handle'],
       ...data.agents.map(a => [
-        a.agentId, a.vendor, a.totalCalls, a.uniqueLeads, a.contactCount, `${a.contactRate}%`, a.salesCount, `${a.saleRate}%`, a.totalTalkTime, a.avgHandleTime, a.performanceTier
+        a.agentId, a.vendor, a.totalCalls, a.uniqueLeads, a.contactCount, `${a.contactRate}%`, a.salesCount, `${a.saleRate}%`, a.totalTalkTime, a.avgHandleTime
       ])
     ];
     downloadCsv(`agent_performance_${selectedClient}_${startDate || 'total'}_${endDate || 'all'}`, rows);
@@ -63,7 +63,7 @@ export default function AgentPerformanceIntelligence() {
       <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6 space-y-6 transition-all duration-200">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">Agent Performance & Telephony Analytics</h1>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">Agent Performance</h1>
             <span className="text-[12px] font-medium text-slate-500 flex items-center gap-1.5 ml-2">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500" />
               Vicidial Call Records
@@ -75,7 +75,7 @@ export default function AgentPerformanceIntelligence() {
             )}
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Individual and vendor agent productivity, right party contact rates, talk time handle durations, and sales conversions.
+            Observed call activity and outcome rates by agent. No performance tier or composite score is assigned.
           </p>
         </div>
 
@@ -213,7 +213,7 @@ export default function AgentPerformanceIntelligence() {
                                 a.performanceTier === 'Consistent' ? 'bg-blue-500' :
                                 'bg-amber-500'
                               }`} />
-                              {a.performanceTier}
+                              {a.performanceTier || 'Not scored'}
                             </span>
                           </div>
                         </div>
