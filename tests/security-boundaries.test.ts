@@ -56,7 +56,7 @@ test('record drill-down remains admin-only and drill populations are allow-liste
   const analytics = read('server/bigquery/offernet_analytics.ts');
   assert.match(api, /analyticsRouter\.get\('\/offernet\/raw-leads', requireAdmin/);
   assert.match(analytics, /Unsupported drill-down population/);
-  for (const drill of ['awaiting-first-dial', 'missing-disposition', 'unactivated-sales', 'sla-breach', 'backlog-age', 'funnel-loss', 'lead-age']) {
+  for (const drill of ['awaiting-first-dial', 'missing-disposition', 'unactivated-sales', 'sla-breach', 'backlog-age', 'funnel-loss', 'funnel-stage', 'lead-age']) {
     assert.ok(analytics.includes(`drill === '${drill}'`), `missing drill allow-list entry: ${drill}`);
   }
 });
