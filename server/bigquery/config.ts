@@ -34,6 +34,7 @@ export interface MarketingSourceContract {
   approvedSpendFields: string[];
   spendUnitByField: Record<string, 'currency' | 'micros'>;
   approvedBudgetFields: string[];
+  spendGrainFields: string[];
   attribution: MarketingAttributionContract;
 }
 
@@ -147,6 +148,7 @@ const BASE_MARKETING_CONTRACT: Omit<MarketingSourceContract, 'mappingStatus' | '
     spend_micros: 'micros',
   },
   approvedBudgetFields: ['budget', 'campaign_budget', 'daily_budget'],
+  spendGrainFields: ['date', 'client_name', 'channel', 'Channel_Campaign_Name', 'channel_adset_name'],
   attribution: {
     status: 'UNCONFIGURED',
     notes: 'Cross-source attribution requires an explicitly approved marketing-to-lead key contract.',
