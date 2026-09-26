@@ -1,0 +1,23 @@
+{
+  "name": "cx3",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-09-26",
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "vars": {
+    "NODE_ENV": "production",
+    "CX_AUTH_MODE": "firebase",
+    "BIGQUERY_MAX_BYTES_BILLED": "1000000000",
+    "ENABLE_CLI_SAMPLE_DATA": "false"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "build": {
+    "command": "npm run build"
+  }
+}
