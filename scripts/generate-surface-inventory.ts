@@ -11,9 +11,9 @@ const reportingSource = read('server/reporting/router.ts');
 function routeTarget(element: string) {
   const nav = element.match(/<Navigate\s+to="([^"]+)"/);
   if (nav) return `redirect → ${nav[1]}`;
+  if (/cx-route-error/.test(element)) return 'inline 404';
   const component = element.match(/<([A-Z][A-Za-z0-9_]*)\b/);
   if (component) return component[1];
-  if (/cx-route-error/.test(element)) return 'inline 404';
   return element.replace(/\s+/g, ' ').trim().slice(0, 80);
 }
 
@@ -26,7 +26,7 @@ function extractUiRoutes(source: string) {
 
 function directRoutes(source: string, routerName: string, prefix: string, sourceLabel: string) {
   const out: Array<{ method: string; path: string; source: string }> = [];
-  const expression = new RegExp(`${routerName}\\.(get|post|put|patch|delete)\\(\\s*['"\\`]([^'"\\`]+)['"\\`]`, 'g');
+  const expression = new RegExp(`${routerName}\\.(get|post|put|patch|delete)\\(\\s*['\"]([^'\"]+)['\"]`, 'g');
   for (const match of source.matchAll(expression)) {
     out.push({ method: match[1].toUpperCase(), path: `${prefix}${match[2]}`, source: sourceLabel });
   }

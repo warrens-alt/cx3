@@ -53,7 +53,7 @@
 | `/lead-ledger` | LeadLedger |
 | `/platform-insights` | redirect → /campaigns |
 | `/validation` | AdminValidation |
-| `*` | Link |
+| `*` | inline 404 |
 
 ## API routes
 
