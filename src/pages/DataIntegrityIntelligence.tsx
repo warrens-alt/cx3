@@ -4,9 +4,12 @@ import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import { useClient } from '../lib/ClientContext';
 import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
 import { fetchDataIntegrity, type DataIntegrityData } from '../lib/offernetClient';
+import { useOperatingControls } from '../hooks/useOperatingControls';
+import { DataCompletenessPanel } from '../components/OfferNetControlPanels';
 
 export default function DataIntegrityIntelligence() {
   const { selectedClient } = useClient();
+  const controls = useOperatingControls();
   const { startDate, endDate, filters } = useFilters();
   const [data, setData] = useState<DataIntegrityData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +49,7 @@ export default function DataIntegrityIntelligence() {
 
   return (
     <div className="cx-command-page">
-      <OffernetFilterBar onRefresh={() => loadData(true)} />
+      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />
       <div className="cx-command-content">
         <header className="cx-command-hero">
           <div>
@@ -84,6 +87,8 @@ export default function DataIntegrityIntelligence() {
                 ))}
               </div>
             </section>
+
+            {controls.data && <DataCompletenessPanel data={controls.data} />}
 
             <section className="cx-exception-summary">
               <article><span>Distinct leads audited</span><strong>{data.totalRecordsAudited.toLocaleString()}</strong><small>Selected operational scope</small></article>
