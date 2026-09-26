@@ -2787,27 +2787,46 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
   const clientConfig = getClientConfig(params.clientId);
   const contract = clientConfig.marketing;
   if (!contract || !clientConfig.capabilities.marketing) {
-    return { status: 'UNAVAILABLE', reason: 'No marketing contract is configured.', rows: [] };
+    return { status: 'UNAVAILABLE', reason: 'No marketing contract is configured.', rows: [], summary: null };
   }
   if (contract.attribution.status !== 'ACTIVE') {
     return {
       status: 'UNAVAILABLE',
       reason: contract.attribution.notes || 'Marketing-to-lead attribution is not configured.',
       rows: [],
+      summary: null,
       contract: contract.attribution,
     };
   }
+
+  const unsupportedScope = [
+    ['vendor', params.vendor],
+    ['medium', params.medium],
+    ['grade', params.grade],
+    ['agent', params.agent],
+    ['campaign', params.campaign],
+  ].filter(([, value]) => Boolean(value)).map(([key]) => key);
+  if (unsupportedScope.length) {
+    return {
+      status: 'UNAVAILABLE',
+      reason: `Attribution is withheld because the selected ${unsupportedScope.join(', ')} filter(s) do not have an approved equivalent marketing-side mapping.`,
+      rows: [],
+      summary: null,
+      contract: contract.attribution,
+    };
+  }
+
   const marketingSourceField = contract.attribution.marketingSourceField;
   const leadSourceField = contract.attribution.leadSourceField;
   if (!marketingSourceField || !leadSourceField) {
-    return { status: 'INVALID_CONTRACT', reason: 'Active attribution requires both marketingSourceField and leadSourceField.', rows: [] };
+    return { status: 'INVALID_CONTRACT', reason: 'Active attribution requires both marketingSourceField and leadSourceField.', rows: [], summary: null };
   }
 
   const client = getBigQueryClient(clientConfig.bigQueryProject);
   const resolved = await resolveMarketingContract(client, contract);
   const spendValue = marketingSpendExpression(contract, resolved.spendColumn);
   if (!spendValue) {
-    return { status: 'UNAVAILABLE', reason: 'Attribution requires an approved observed spend field.', rows: [] };
+    return { status: 'UNAVAILABLE', reason: 'Attribution requires an approved observed spend field.', rows: [], summary: null };
   }
 
   const tenantFilter = marketingTenantFilter(contract);
@@ -2816,6 +2835,7 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
   const leadSource = safeAliasedColumn('l', leadSourceField);
   const conditions = [...(tenantFilter.sql ? [tenantFilter.sql] : [])];
   const queryParams: Record<string, any> = { ...tenantFilter.params };
+
   if (params.startDate) {
     conditions.push(`DATE(${marketingDate}) >= @startDate`);
     queryParams.startDate = params.startDate;
@@ -2824,9 +2844,37 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
     conditions.push(`DATE(${marketingDate}) <= @endDate`);
     queryParams.endDate = params.endDate;
   }
-  const marketingWhere = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  if (params.source) {
+    conditions.push(`LOWER(TRIM(CAST(${marketingSource} AS STRING))) = LOWER(@attributionSource)`);
+    queryParams.attributionSource = params.source;
+  }
 
-  const operationalScope = buildFilterClause(params);
+  const marketingConditions = conditions.length ? conditions : ['TRUE'];
+  const grain = await validateMarketingSpendGrain(client, contract, marketingConditions, queryParams);
+  if (grain.status !== 'VALID') {
+    return {
+      status: 'INVALID_GRAIN',
+      reason: `Attribution is withheld because the selected marketing population contains ${grain.duplicateGrainRows.toLocaleString()} duplicate rows at the approved spend grain.`,
+      rows: [],
+      summary: null,
+      contract: contract.attribution,
+      grain,
+    };
+  }
+
+  const operationalScope = buildFilterClause({
+    ...params,
+    source: undefined,
+    vendor: undefined,
+    medium: undefined,
+    grade: undefined,
+    agent: undefined,
+    campaign: undefined,
+  });
+  const operationalWhere = params.source
+    ? `${operationalScope.whereSql} AND LOWER(TRIM(CAST(${leadSource} AS STRING))) = LOWER(@attributionSource)`
+    : operationalScope.whereSql;
+
   const query = `
     WITH marketing AS (
       SELECT
@@ -2834,7 +2882,7 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
         SUM(${spendValue}) AS spend,
         SUM(SAFE_CAST(${safeWarehouseColumn(contract.leadsField)} AS FLOAT64)) AS platform_leads
       FROM \`${contract.table}\`
-      ${marketingWhere}
+      WHERE ${marketingConditions.join(' AND ')}
       GROUP BY join_key
     ),
     operations AS (
@@ -2849,11 +2897,13 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
         SUM(COALESCE(hlc.revenue_generated, 0)) AS recorded_revenue
       FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
       LEFT JOIN UNNEST(l.hlc_details) hlc
-      ${operationalScope.whereSql}
+      ${operationalWhere}
       GROUP BY join_key
     )
     SELECT
       COALESCE(marketing.join_key, operations.join_key) AS join_key,
+      marketing.join_key IS NOT NULL AS has_marketing,
+      operations.join_key IS NOT NULL AS has_operations,
       marketing.spend,
       marketing.platform_leads,
       operations.fetched,
@@ -2874,31 +2924,53 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
     params: { ...queryParams, ...operationalScope.queryParams },
   });
 
+  const mappedRows = rows.map((row: any) => {
+    const spend = row.spend === null || row.spend === undefined ? null : Number(row.spend || 0);
+    const fetched = Number(row.fetched || 0);
+    const sales = Number(row.sales || 0);
+    const activations = Number(row.activations || 0);
+    return {
+      key: row.join_key || 'Unmatched',
+      hasMarketing: Boolean(row.has_marketing),
+      hasOperations: Boolean(row.has_operations),
+      spend,
+      platformLeads: Number(row.platform_leads || 0),
+      fetched,
+      delivered: Number(row.delivered || 0),
+      dialled: Number(row.dialled || 0),
+      rpc: Number(row.rpc || 0),
+      sales,
+      activations,
+      recordedRevenue: Number(row.recorded_revenue || 0),
+      spendPerFetchedLead: spend !== null && fetched > 0 ? Number((spend / fetched).toFixed(2)) : null,
+      spendPerSale: spend !== null && sales > 0 ? Number((spend / sales).toFixed(2)) : null,
+      spendPerActivation: spend !== null && activations > 0 ? Number((spend / activations).toFixed(2)) : null,
+    };
+  });
+
+  const totalSpend = mappedRows.reduce((sum, row) => sum + (row.spend || 0), 0);
+  const matchedSpend = mappedRows
+    .filter(row => row.hasMarketing && row.hasOperations)
+    .reduce((sum, row) => sum + (row.spend || 0), 0);
+  const unmatchedMarketingSpend = mappedRows
+    .filter(row => row.hasMarketing && !row.hasOperations)
+    .reduce((sum, row) => sum + (row.spend || 0), 0);
+
   return {
     status: 'OBSERVED_UNRECONCILED',
-    reason: 'Rows use the explicitly configured marketing-to-lead attribution key. Results remain NOT_VERIFIED until source-owner reconciliation confirms key coverage and one-to-one semantics.',
+    reason: 'Rows use the explicitly configured marketing-to-lead attribution key. Only source scope is propagated across both populations; unsupported cross-source filters are withheld. Results remain NOT_VERIFIED until key coverage and semantics are reconciled.',
     contract: contract.attribution,
-    rows: rows.map((row: any) => {
-      const spend = row.spend === null || row.spend === undefined ? null : Number(row.spend || 0);
-      const fetched = Number(row.fetched || 0);
-      const sales = Number(row.sales || 0);
-      const activations = Number(row.activations || 0);
-      return {
-        key: row.join_key || 'Unmatched',
-        spend,
-        platformLeads: Number(row.platform_leads || 0),
-        fetched,
-        delivered: Number(row.delivered || 0),
-        dialled: Number(row.dialled || 0),
-        rpc: Number(row.rpc || 0),
-        sales,
-        activations,
-        recordedRevenue: Number(row.recorded_revenue || 0),
-        spendPerFetchedLead: spend !== null && fetched > 0 ? Number((spend / fetched).toFixed(2)) : null,
-        spendPerSale: spend !== null && sales > 0 ? Number((spend / sales).toFixed(2)) : null,
-        spendPerActivation: spend !== null && activations > 0 ? Number((spend / activations).toFixed(2)) : null,
-      };
-    }),
+    grain,
+    summary: {
+      totalSpend: Number(totalSpend.toFixed(2)),
+      matchedSpend: Number(matchedSpend.toFixed(2)),
+      unmatchedMarketingSpend: Number(unmatchedMarketingSpend.toFixed(2)),
+      matchedSpendSharePct: totalSpend > 0 ? Number(((matchedSpend / totalSpend) * 100).toFixed(1)) : null,
+      matchedKeys: mappedRows.filter(row => row.hasMarketing && row.hasOperations).length,
+      marketingOnlyKeys: mappedRows.filter(row => row.hasMarketing && !row.hasOperations).length,
+      operationsOnlyKeys: mappedRows.filter(row => !row.hasMarketing && row.hasOperations).length,
+    },
+    rows: mappedRows,
   };
 }
 
