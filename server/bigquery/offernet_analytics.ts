@@ -769,11 +769,10 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
     const totalCalls = Number(v.total_calls || 0);
     const revenue = Number(v.revenue || 0);
 
-    const directCost = Math.round(leads * 45);
-    const deliveryCost = Math.round(delivered * 14);
-    const totalCost = directCost + deliveryCost;
-    const contribution = revenue - totalCost;
-    const marginPct = revenue > 0 ? Number(((contribution / revenue) * 100).toFixed(1)) : 0;
+    const directCost: number | null = null;
+    const deliveryCost: number | null = null;
+    const contribution: number | null = null;
+    const marginPct: number | null = null;
 
     return {
       vendor: v.vendor,
@@ -797,7 +796,9 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
     vendors,
     sources: data.sources || [],
     grades: data.grades || [],
-    vetting: data.vetting || []
+    vetting: data.vetting || [],
+    commercialStatus: 'UNAVAILABLE',
+    commercialReason: 'Vendor contribution and margin are withheld until approved cost contracts are configured.'
   };
 }
 
