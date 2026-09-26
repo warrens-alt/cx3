@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, Clock, Shield, LogOut, RefreshCw, Mail } from 'lucide-react';
+import { Activity, Clock, Shield, LogOut, Mail } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
 import { BRAND } from '../../contracts/naming';
 
@@ -93,17 +93,11 @@ export default function PendingApprovalView() {
           </div>
 
           <div className="p-3 rounded-md bg-blue-50/70 border border-blue-100 text-blue-800 text-[11px] leading-relaxed text-left">
-            Platform administrators have been notified of your access request. Once approved, refreshing will provide direct access to your designated workspace.
+            Your access status is monitored while this page is open. Once an administrator activates your account, the workspace will become available automatically.
           </div>
 
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="btn-primary w-full !h-9 text-xs font-semibold gap-2 shadow-2xs"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Check Approval Status</span>
-          </button>
+          <p className="text-[11px] text-slate-500">No manual refresh is required.</p>
+
         </div>
       </main>
 
@@ -115,7 +109,7 @@ export default function PendingApprovalView() {
           <span>Security & Access Governance</span>
         </div>
         <div>
-          <span>Protected Enterprise BigQuery Warehouse</span>
+          <span>Protected analytical workspace</span>
         </div>
       </footer>
     </div>
