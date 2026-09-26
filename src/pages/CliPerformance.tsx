@@ -125,7 +125,7 @@ export default function CliPerformance() {
 
     try {
       const text = await file.text();
-      const res = await importCliReport(text, file.name);
+      const res = await importCliReport(text, file.name, selectedClient);
       setUploadSuccess(`Successfully imported ${res.count} CLI records from ${file.name}.`);
       await loadData(true);
       setTimeout(() => setShowImportModal(false), 1200);
@@ -142,7 +142,7 @@ export default function CliPerformance() {
     setUploading(true);
     setUploadError(null);
     try {
-      await loadSampleCliDataset();
+      await loadSampleCliDataset(selectedClient);
       await loadData(true);
       setShowImportModal(false);
     } catch (err: any) {
@@ -157,7 +157,7 @@ export default function CliPerformance() {
     if (!window.confirm('Clear imported CLI report data and return to live warehouse check?')) return;
     setLoading(true);
     try {
-      await clearCliImport();
+      await clearCliImport(selectedClient);
       await loadData(true);
     } catch (err: any) {
       setError(err.message || 'Failed to clear imported report');
