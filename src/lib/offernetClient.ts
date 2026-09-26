@@ -534,6 +534,7 @@ export interface CampaignData {
     cpm: number | null;
     cpl: number | null;
   } | null;
+  comparisonReason?: string | null;
   comparison?: {
     spendDeltaPct: number | null;
     cpcDeltaPct: number | null;
@@ -651,6 +652,21 @@ export interface MarketingRootCauseData {
 export interface MarketingAttributionData {
   status: string;
   reason: string;
+  summary?: {
+    totalSpend: number;
+    matchedSpend: number;
+    unmatchedMarketingSpend: number;
+    matchedSpendSharePct: number | null;
+    matchedKeys: number;
+    marketingOnlyKeys: number;
+    operationsOnlyKeys: number;
+  } | null;
+  grain?: {
+    status: string;
+    rowCount: number;
+    distinctGrainCount: number;
+    duplicateGrainRows: number;
+  };
   contract?: {
     status: string;
     marketingSourceField?: string;
@@ -661,6 +677,8 @@ export interface MarketingAttributionData {
   };
   rows: Array<{
     key: string;
+    hasMarketing: boolean;
+    hasOperations: boolean;
     spend: number | null;
     platformLeads: number;
     fetched: number;
