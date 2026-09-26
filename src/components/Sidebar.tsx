@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Activity, Search, X, ChevronDown, Settings, Layers, LogOut, Info, RefreshCw, BarChart3, Database, Shield } from 'lucide-react';
+import { Activity, Search, X, ChevronDown, Settings, Layers, LogOut, Shield } from 'lucide-react';
 import { BRAND } from '../../contracts/naming';
 import { NAV_GROUPS } from '../lib/navigation';
 import { isCurrentPage, navigationTarget } from '../lib/presentation';
@@ -15,13 +15,19 @@ export default function Sidebar({ onClose, onSearch }: { onClose?: () => void; o
   const [bqStatus, setBqStatus] = useState<boolean>(true);
 
   useEffect(() => {
-    fetch('/api/bq/status')
-      .then(res => res.json())
-      .then(d => {
-        if (d.success) setBqStatus(Boolean(d.connected));
-      })
-      .catch(() => setBqStatus(false));
-  }, []);
+    if (!clientConfig?.id) return;
+    const controller = new AbortController();
+    fetch(`/api/analytics/health?clientId=${encodeURIComponent(clientConfig.id)}`, {
+      credentials: 'same-origin',
+      signal: controller.signal,
+    })
+      .then(res => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
+      .then(d => setBqStatus(Boolean(d.success && d.health?.status === 'Connected')))
+      .catch(() => {
+        if (!controller.signal.aborted) setBqStatus(false);
+      });
+    return () => controller.abort();
+  }, [clientConfig?.id]);
 
   const q = query.trim().toLowerCase();
   const groups = NAV_GROUPS.map(group => ({
@@ -59,23 +65,6 @@ export default function Sidebar({ onClose, onSearch }: { onClose?: () => void; o
             <X size={15} />
           </button>
         )}
-      </div>
-
-      {/* Primary Link: Platform Insights */}
-      <div className="px-3 pb-1 pt-1">
-        <Link
-          to="/acquisition"
-          onClick={onClose}
-          aria-current={location.pathname === '/acquisition' || location.pathname === '/platform-insights' ? 'page' : undefined}
-          className={`cx-nav-link !py-2 !px-3 font-semibold text-xs rounded-md transition-all ${
-            location.pathname === '/acquisition' || location.pathname === '/platform-insights'
-              ? 'bg-blue-50 text-blue-700 border border-blue-200 shadow-xs'
-              : 'hover:bg-slate-50 text-slate-700'
-          }`}
-        >
-          <BarChart3 size={15} aria-hidden="true" className="text-blue-600" />
-          <span>Platform Insights</span>
-        </Link>
       </div>
 
       <nav aria-label="Main navigation" className="cx-navigation">
@@ -133,10 +122,10 @@ export default function Sidebar({ onClose, onSearch }: { onClose?: () => void; o
               <span className={`relative inline-flex rounded-full h-2 w-2 ${bqStatus ? 'bg-emerald-500' : 'bg-amber-500'}`} />
             </span>
             <span className="font-semibold text-slate-700 text-[10.5px] tracking-tight">
-              {bqStatus ? 'BIGQUERY SYNCED' : 'BQ RECONNECTING'}
+              {bqStatus ? 'WAREHOUSE CONNECTED' : 'WAREHOUSE UNAVAILABLE'}
             </span>
           </div>
-          <span className="text-[9.5px] text-slate-400 font-mono uppercase tracking-wider font-semibold">LIVE</span>
+          <span className="text-[9.5px] text-slate-400 font-mono uppercase tracking-wider font-semibold">SCOPE</span>
         </div>
 
         <button type="button" onClick={onSearch} className="cx-nav-command mb-1.5">
