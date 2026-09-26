@@ -46,6 +46,14 @@ export default function ContactStrategyIntelligence() {
         {error && <div className="cx-command-error"><AlertTriangle size={17}/>{error}</div>}
         {loading && !data && <div className="cx-command-loading"><div className="cx-command-spinner"/>Loading call outcomes…</div>}
         {data && <>
+          {data.summary && (
+            <section className="cx-command-metrics cx-contact-metrics" aria-label="Contact governance summary">
+              <article className="cx-command-metric"><span>Zero-call leads</span><strong>{data.summary.zeroCallLeads.toLocaleString()}</strong><div><small>No recorded call count</small></div></article>
+              <article className="cx-command-metric"><span>One-call share</span><strong>{data.summary.singleAttemptSharePct}%</strong><div><small>{data.summary.oneCallLeads.toLocaleString()} leads</small></div></article>
+              <article className="cx-command-metric"><span>Multi-call share</span><strong>{data.summary.multiAttemptSharePct}%</strong><div><small>{data.summary.multiAttemptLeads.toLocaleString()} leads</small></div></article>
+              <article className="cx-command-metric"><span>5+ calls, no RPC</span><strong>{data.summary.fivePlusNoRpcLeads.toLocaleString()}</strong><div><small>High effort without contact</small></div></article>
+            </section>
+          )}
           <section className="cx-command-panel">
             <header><div><span className="cx-command-section-kicker">Distribution</span><h2>Outcomes by total recorded calls</h2><p>This is descriptive, not a recommended stop-threshold model.</p></div></header>
             <div className="cx-command-chart">
@@ -73,7 +81,7 @@ export default function ContactStrategyIntelligence() {
           </section>
           <section className="cx-command-panel">
             <header><div><span className="cx-command-section-kicker">Guardrail</span><h2>Recommendation status</h2></div></header>
-            <div className="cx-command-empty"><ShieldCheck size={18}/>{data.noAnswerAnalysis.reason}</div>
+            <div className="cx-command-empty"><ShieldCheck size={18}/><span>{data.noAnswerAnalysis.reason}{data.methodology ? ` ${data.methodology}` : ''}</span></div>
           </section>
         </>}
       </div>
