@@ -332,6 +332,8 @@ export interface CommercialData {
     volume: number;
     cpl: number | null;
     cpc: number | null;
+    cpm: number | null;
+    mediaSpend: number | null;
     conversionRate: number;
     revenuePerSale: number | null;
     fixedOverhead: number | null;
@@ -342,6 +344,19 @@ export interface CommercialData {
     costPerSale: number | null;
     costPerActivation: number | null;
     breakEvenVolume: number | null;
+    blendedCostPerFetchedLead: number | null;
+    blendedCostPerSale: number | null;
+    blendedCostPerActivation: number | null;
+    revenueToMediaSpendRatio: number | null;
+  };
+  media: {
+    status: string;
+    reason: string;
+    spendSourceColumn: string | null;
+    spendSourceTable: string | null;
+    platformLeads: number;
+    platformClicks: number;
+    platformImpressions: number;
   };
   currency: string;
   pAndLBreakdown: Array<{
@@ -389,17 +404,40 @@ export interface AgentPerformanceData {
 export interface CampaignData {
   status?: string;
   reason?: string;
+  summary: {
+    spend: number | null;
+    impressions: number;
+    clicks: number;
+    leads: number;
+    ctr: number;
+    cpc: number | null;
+    cpm: number | null;
+    cpl: number | null;
+  } | null;
+  spendSource?: {
+    status: string;
+    column: string | null;
+    table: string | null;
+    reason?: string | null;
+  };
+  budgetSource?: {
+    status: string;
+    column: string | null;
+    table: string | null;
+  };
   campaigns: Array<{
     client: string;
     channel: string;
     campaign: string;
     adset: string;
     spend: number | null;
+    latestBudget: number | null;
     impressions: number;
     clicks: number;
     ctr: number;
     leads: number;
     cpc: number | null;
+    cpm: number | null;
     cpl: number | null;
   }>;
 }
