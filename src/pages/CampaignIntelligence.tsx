@@ -1,9 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, Megaphone } from 'lucide-react';
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, Megaphone, ShieldCheck } from 'lucide-react';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import { useClient } from '../lib/ClientContext';
 import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
 import { fetchCampaigns, type CampaignData } from '../lib/offernetClient';
+
+const money = (value: number | null) => value == null ? '—' : `R ${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+const num = (value: number) => value.toLocaleString();
+
+function Delta({ value, unit = '%' }: { value: number | null | undefined; unit?: string }) {
+  if (value == null || !Number.isFinite(value)) return <span className="cx-command-change muted">No comparison</span>;
+  const Icon = value >= 0 ? ArrowUpRight : ArrowDownRight;
+  return <span className={`cx-command-change ${value > 0 ? 'positive' : value < 0 ? 'negative' : 'muted'}`}><Icon size={12}/>{value > 0 ? '+' : ''}{value}{unit}</span>;
+}
 
 export default function CampaignIntelligence() {
   const { selectedClient } = useClient();
@@ -20,7 +29,7 @@ export default function CampaignIntelligence() {
         clientId: selectedClient,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
-        ...extractOffernetFilters(filters),
+        campaign: extractOffernetFilters(filters).campaign,
       }, forceRefresh);
       setData(result);
     } catch (err: any) {
@@ -34,80 +43,133 @@ export default function CampaignIntelligence() {
     if (selectedClient) loadData();
   }, [selectedClient, startDate, endDate, filters]);
 
+  const summary = data?.summary;
+
   return (
-    <div className="min-h-screen bg-slate-50 pb-16">
-      <OffernetFilterBar onRefresh={() => loadData(true)} showVendorFilter={false} showGradeFilter={false} />
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <Megaphone size={18} className="text-blue-600" />
-            <h1 className="text-xl font-bold text-slate-900">Client & Campaign Performance</h1>
-          </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Observed delivery metrics from the marketing source. Budget is not treated as incurred spend.
-          </p>
-        </div>
+    <div className="cx-command-page">
+      <OffernetFilterBar
+        onRefresh={() => loadData(true)}
+        showVendorFilter={false}
+        showSourceFilter={false}
+        showGradeFilter={false}
+      />
 
-        {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-xs text-red-800 flex items-center gap-2">
-            <AlertTriangle size={16} />
-            <span>{error}</span>
+      <div className="cx-command-content">
+        <header className="cx-command-hero">
+          <div>
+            <span className="cx-command-eyebrow">Media performance</span>
+            <h1>Campaigns & spend</h1>
+            <p>Observed platform delivery and incurred media spend when the marketing source exposes a recognised spend/cost field.</p>
           </div>
-        )}
+        </header>
 
-        {loading && !data ? (
-          <div className="rounded-lg border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
-            Loading campaign evidence…
-          </div>
-        ) : data && (
+        {error && <div className="cx-command-error"><AlertTriangle size={17}/>{error}</div>}
+        {loading && !data && <div className="cx-command-loading"><div className="cx-command-spinner"/>Loading media performance…</div>}
+
+        {data && (
           <>
-            <div className={`rounded-lg border p-4 text-sm ${data.status === 'UNAVAILABLE' ? 'border-amber-200 bg-amber-50 text-amber-950' : 'border-blue-200 bg-blue-50 text-blue-950'}`}>
-              <div className="font-semibold">Financial measurement: {data.status || 'PARTIAL'}</div>
-              <p className="text-xs mt-1">{data.reason || 'Spend, CPC and CPL require an approved incurred-cost source.'}</p>
-            </div>
-
-            <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-200 bg-slate-50">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800">Observed campaign metrics</h2>
+            <section className="cx-command-panel cx-spend-status">
+              <header>
+                <div>
+                  <span className="cx-command-section-kicker">Data contract</span>
+                  <h2>Financial measurement: {data.status || 'PARTIAL'}</h2>
+                  <p>{data.reason}</p>
+                </div>
+                <ShieldCheck size={17} className="text-slate-400"/>
+              </header>
+              <div className="cx-spend-source">
+                <div><span>Spend field</span><strong>{data.spendSource?.column || 'Unavailable'}</strong></div>
+                <div><span>Marketing table</span><strong>{data.spendSource?.table || 'Unavailable'}</strong></div>
+                <div><span>Budget field</span><strong>{data.budgetSource?.column || 'Unavailable'}</strong><small>Planning field only</small></div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead className="border-b border-slate-200 text-[10px] uppercase tracking-wider text-slate-500">
+            </section>
+
+            {summary && (
+              <section className="cx-command-metrics cx-media-metrics" aria-label="Media performance summary">
+                <article className="cx-command-metric">
+                  <span>Recorded media spend</span>
+                  <strong>{money(summary.spend)}</strong>
+                  <div><small>Actual source field only</small><Delta value={data.comparison?.spendDeltaPct}/></div>
+                </article>
+                <article className="cx-command-metric">
+                  <span>Platform CPL</span>
+                  <strong>{money(summary.cpl)}</strong>
+                  <div><small>Spend / recorded leads</small><Delta value={data.comparison?.cplDeltaPct}/></div>
+                </article>
+                <article className="cx-command-metric">
+                  <span>CPC</span>
+                  <strong>{money(summary.cpc)}</strong>
+                  <div><small>Spend / clicks</small><Delta value={data.comparison?.cpcDeltaPct}/></div>
+                </article>
+                <article className="cx-command-metric">
+                  <span>CPM</span>
+                  <strong>{money(summary.cpm)}</strong>
+                  <div><small>Spend / 1,000 impressions</small><Delta value={data.comparison?.cpmDeltaPct}/></div>
+                </article>
+                <article className="cx-command-metric">
+                  <span>Recorded leads</span>
+                  <strong>{num(summary.leads)}</strong>
+                  <div><small>{summary.ctr}% CTR · {num(summary.clicks)} clicks</small><Delta value={data.comparison?.leadsDeltaPct}/></div>
+                </article>
+              </section>
+            )}
+
+            {data.comparison && (
+              <p className="cx-media-comparison-note">
+                Compared with {data.comparison.previousStartDate} → {data.comparison.previousEndDate}. CTR changed {data.comparison.ctrDeltaPp > 0 ? '+' : ''}{data.comparison.ctrDeltaPp}pp.
+              </p>
+            )}
+
+            <section className="cx-command-panel">
+              <header>
+                <div>
+                  <span className="cx-command-section-kicker">Campaign detail</span>
+                  <h2>Spend & delivery efficiency</h2>
+                  <p>Budget is shown separately as the latest recorded planning value and is never substituted for spend.</p>
+                </div>
+              </header>
+              <div className="cx-performance-table-wrap">
+                <table className="cx-performance-table cx-campaign-table">
+                  <thead>
                     <tr>
-                      <th className="px-4 py-3 text-left">Channel</th>
-                      <th className="px-4 py-3 text-left">Campaign</th>
-                      <th className="px-4 py-3 text-left">Adset</th>
-                      <th className="px-4 py-3 text-right">Impressions</th>
-                      <th className="px-4 py-3 text-right">Clicks</th>
-                      <th className="px-4 py-3 text-right">CTR</th>
-                      <th className="px-4 py-3 text-right">Recorded Leads</th>
-                      <th className="px-4 py-3 text-right">Spend / CPL</th>
+                      <th>Channel</th>
+                      <th>Campaign</th>
+                      <th>Adset</th>
+                      <th>Spend</th>
+                      <th>Latest budget</th>
+                      <th>Impressions</th>
+                      <th>Clicks</th>
+                      <th>CTR</th>
+                      <th>Leads</th>
+                      <th>CPC</th>
+                      <th>CPM</th>
+                      <th>CPL</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody>
                     {data.campaigns.map((campaign, index) => (
-                      <tr key={`${campaign.channel}-${campaign.campaign}-${index}`} className="hover:bg-slate-50">
-                        <td className="px-4 py-3 font-medium text-slate-900">{campaign.channel}</td>
-                        <td className="px-4 py-3 text-slate-700">{campaign.campaign}</td>
-                        <td className="px-4 py-3 text-slate-500">{campaign.adset}</td>
-                        <td className="px-4 py-3 text-right font-mono">{campaign.impressions.toLocaleString()}</td>
-                        <td className="px-4 py-3 text-right font-mono">{campaign.clicks.toLocaleString()}</td>
-                        <td className="px-4 py-3 text-right font-mono">{campaign.ctr}%</td>
-                        <td className="px-4 py-3 text-right font-mono font-semibold text-blue-700">{campaign.leads.toLocaleString()}</td>
-                        <td className="px-4 py-3 text-right font-mono text-slate-400">UNAVAILABLE</td>
+                      <tr key={`${campaign.channel}-${campaign.campaign}-${campaign.adset}-${index}`}>
+                        <th>{campaign.channel}</th>
+                        <td>{campaign.campaign}</td>
+                        <td>{campaign.adset}</td>
+                        <td>{money(campaign.spend)}</td>
+                        <td>{money(campaign.latestBudget)}</td>
+                        <td>{num(campaign.impressions)}</td>
+                        <td>{num(campaign.clicks)}</td>
+                        <td>{campaign.ctr}%</td>
+                        <td>{num(campaign.leads)}</td>
+                        <td>{money(campaign.cpc)}</td>
+                        <td>{money(campaign.cpm)}</td>
+                        <td>{money(campaign.cpl)}</td>
                       </tr>
                     ))}
-                    {data.campaigns.length === 0 && (
-                      <tr>
-                        <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
-                          No campaign rows are available for the selected, approved scope.
-                        </td>
-                      </tr>
+                    {!data.campaigns.length && (
+                      <tr><td colSpan={12}><div className="cx-command-empty">No campaign rows are available for the selected approved scope.</div></td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
-            </div>
+            </section>
           </>
         )}
       </div>

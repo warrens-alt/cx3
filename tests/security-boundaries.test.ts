@@ -70,3 +70,22 @@ test('root-cause dimensions are reduced to exclusive lead-level segments', () =>
   assert.match(analytics, /'leadAge'/);
   assert.match(analytics, /contributions within each exclusive dimension reconcile/);
 });
+
+
+test('marketing spend never falls back to budget', () => {
+  const analytics = read('server/bigquery/offernet_analytics.ts');
+  assert.match(analytics, /ACTUAL_SPEND_COLUMN_PRIORITY/);
+  assert.match(analytics, /BUDGET_COLUMN_PRIORITY/);
+  assert.match(analytics, /latest_budget/);
+  assert.match(analytics, /Budget remains visible only as the latest recorded planning value and is not treated as spend/);
+  assert.doesNotMatch(analytics, /SUM\(budget\)\s+AS\s+(?:recorded_spend|spend|total_spend)/i);
+});
+
+test('observed media efficiency is derived only when a spend field exists', () => {
+  const analytics = read('server/bigquery/offernet_analytics.ts');
+  assert.match(analytics, /const hasSpend = Boolean\(columns\.spendColumn\)/);
+  assert.match(analytics, /cpc: hasSpend && totals\.clicks > 0/);
+  assert.match(analytics, /cpm: hasSpend && totals\.impressions > 0/);
+  assert.match(analytics, /cpl: hasSpend && totals\.leads > 0/);
+  assert.match(analytics, /cross-source ratios and are not attribution or full profitability/);
+});

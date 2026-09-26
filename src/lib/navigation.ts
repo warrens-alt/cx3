@@ -36,9 +36,9 @@ export const SECONDARY_DESTINATIONS = [
   { name: 'Agent Performance', path: '/agent-performance' },
   { name: 'Temporal Analysis', path: '/temporal' },
   { name: 'Sales & Activation', path: '/sales-activation' },
-  { name: 'Campaigns', path: '/campaigns' },
+  { name: 'Campaigns & Spend', path: '/campaigns' },
   { name: 'Data Integrity', path: '/data-integrity' },
-  { name: 'Commercial Evidence', path: '/commercial' },
+  { name: 'Spend & Commercial', path: '/commercial' },
   { name: 'Vendor Evidence', path: '/vendors' },
   { name: 'Reconciliation', path: '/reconciliation' },
 ] as const;

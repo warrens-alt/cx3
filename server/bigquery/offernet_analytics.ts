@@ -103,6 +103,57 @@ function buildFilterClause(params: OffernetQueryParams, alias = 'l', hlcAlias = 
   };
 }
 
+const ACTUAL_SPEND_COLUMN_PRIORITY = [
+  'spend',
+  'amount_spent',
+  'actual_spend',
+  'media_spend',
+  'ad_spend',
+  'total_spend',
+  'cost',
+  'cost_micros',
+  'spend_micros',
+] as const;
+
+const BUDGET_COLUMN_PRIORITY = [
+  'budget',
+  'campaign_budget',
+  'daily_budget',
+] as const;
+
+function parseConfiguredTable(table: string) {
+  const match = /^([a-zA-Z0-9_-]+)\.([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]+)$/.exec(table);
+  if (!match) throw new RequestError('Configured marketing table identifier is invalid', 500);
+  return { project: match[1], dataset: match[2], table: match[3] };
+}
+
+function safeWarehouseColumn(column: string) {
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column)) throw new RequestError('Unsafe warehouse column identifier', 500);
+  return `\`${column}\``;
+}
+
+async function resolveMarketingCostColumns(client: ReturnType<typeof getBigQueryClient>, marketingTable: string) {
+  const parsed = parseConfiguredTable(marketingTable);
+  const [rows] = await client.query({
+    query: `
+      SELECT column_name
+      FROM \`${parsed.project}.${parsed.dataset}.INFORMATION_SCHEMA.COLUMNS\`
+      WHERE table_name = @tableName
+    `,
+    params: { tableName: parsed.table }
+  });
+  const byLower = new Map<string, string>(
+    rows.map((row: any) => [String(row.column_name || '').toLowerCase(), String(row.column_name || '')])
+  );
+  const spendColumn = ACTUAL_SPEND_COLUMN_PRIORITY.map(name => byLower.get(name)).find(Boolean) || null;
+  const budgetColumn = BUDGET_COLUMN_PRIORITY.map(name => byLower.get(name)).find(Boolean) || null;
+  return {
+    spendColumn,
+    budgetColumn,
+    table: marketingTable,
+  };
+}
+
 // 1. EXECUTIVE OVERVIEW
 export async function getExecutiveOverview(params: OffernetQueryParams) {
   const client = getBigQueryClient('dashboards-422710');
@@ -1335,13 +1386,51 @@ export async function getCommercialAnalytics(params: OffernetQueryParams) {
   const overview = await getExecutiveOverview(params);
   const kpis = overview.kpis;
 
+  let campaignData: Awaited<ReturnType<typeof getClientCampaignAnalytics>> | null = null;
+  let mediaReason = 'Media spend is unavailable for this scope.';
+  const campaignCompatible = !params.vendor && !params.source && !params.medium && !params.grade && !params.agent;
+
+  if (campaignCompatible) {
+    try {
+      campaignData = await getClientCampaignAnalytics(params);
+      mediaReason = campaignData.reason || mediaReason;
+    } catch (error) {
+      mediaReason = error instanceof Error ? error.message : mediaReason;
+    }
+  } else {
+    mediaReason = 'Media spend is not shown while operational vendor/source/grade/agent filters are active because those filters are not yet reconciled to the marketing source.';
+  }
+
+  const mediaSpend = campaignData?.summary?.spend ?? null;
+  const platformCpl = campaignData?.summary?.cpl ?? null;
+  const platformCpc = campaignData?.summary?.cpc ?? null;
+  const platformCpm = campaignData?.summary?.cpm ?? null;
+  const spendObserved = mediaSpend !== null;
+
+  const blendedCostPerFetchedLead = spendObserved && kpis.fetchedLeads > 0
+    ? Number((mediaSpend / kpis.fetchedLeads).toFixed(2))
+    : null;
+  const blendedCostPerSale = spendObserved && kpis.saleLeads > 0
+    ? Number((mediaSpend / kpis.saleLeads).toFixed(2))
+    : null;
+  const blendedCostPerActivation = spendObserved && kpis.activatedLeads > 0
+    ? Number((mediaSpend / kpis.activatedLeads).toFixed(2))
+    : null;
+  const revenueToMediaSpendRatio = spendObserved && mediaSpend > 0
+    ? Number((kpis.revenue / mediaSpend).toFixed(2))
+    : null;
+
   return {
-    status: 'UNAVAILABLE',
-    reason: 'Profitability, CPL, CPC, contribution and break-even metrics are withheld until approved incurred-cost and rate-card contracts are configured.',
+    status: spendObserved ? 'PARTIAL' : 'UNAVAILABLE',
+    reason: spendObserved
+      ? 'Observed media spend and platform CPC/CPM/CPL are available. Blended cost-per-fetched-lead/sale/activation and recorded-revenue-to-media-spend are period-level cross-source ratios and are not attribution or full profitability. Telephony, commission, overhead and other operating costs remain withheld.'
+      : 'Profitability and media efficiency remain unavailable until an approved incurred-spend source is present for this scope.',
     baseline: {
       volume: kpis.fetchedLeads,
-      cpl: null,
-      cpc: null,
+      cpl: platformCpl,
+      cpc: platformCpc,
+      cpm: platformCpm,
+      mediaSpend,
       conversionRate: kpis.leadToSaleRate,
       revenuePerSale: kpis.saleLeads > 0 ? Number((kpis.revenue / kpis.saleLeads).toFixed(2)) : null,
       fixedOverhead: null,
@@ -1351,11 +1440,25 @@ export async function getCommercialAnalytics(params: OffernetQueryParams) {
       marginPct: null,
       costPerSale: null,
       costPerActivation: null,
-      breakEvenVolume: null
+      breakEvenVolume: null,
+      blendedCostPerFetchedLead,
+      blendedCostPerSale,
+      blendedCostPerActivation,
+      revenueToMediaSpendRatio
+    },
+    media: {
+      status: campaignData?.spendSource?.status || 'UNAVAILABLE',
+      reason: mediaReason,
+      spendSourceColumn: campaignData?.spendSource?.column || null,
+      spendSourceTable: campaignData?.spendSource?.table || null,
+      platformLeads: campaignData?.summary?.leads || 0,
+      platformClicks: campaignData?.summary?.clicks || 0,
+      platformImpressions: campaignData?.summary?.impressions || 0,
     },
     currency: overview.currency,
     pAndLBreakdown: [
-      { item: 'Recorded Revenue', amount: kpis.revenue, type: 'recorded_revenue' }
+      { item: 'Recorded Revenue', amount: kpis.revenue, type: 'recorded_revenue' },
+      ...(spendObserved ? [{ item: 'Observed Media Spend', amount: -mediaSpend, type: 'observed_media_spend' }] : []),
     ]
   };
 }
@@ -1527,17 +1630,45 @@ export async function getAgentPerformanceAnalytics(params: OffernetQueryParams) 
 export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
   const client = getBigQueryClient('dashboards-422710');
   const clientConfig = getClientConfig(params.clientId);
+  const marketingTable = clientConfig.semanticMappings.tables.marketing;
+
+  if (!marketingTable || !clientConfig.capabilities.marketing) {
+    return {
+      campaigns: [],
+      summary: null,
+      status: 'UNAVAILABLE',
+      reason: 'No approved marketing source is configured for this tenant.',
+      spendSource: { status: 'UNAVAILABLE', column: null, table: marketingTable || null, reason: 'No approved marketing table is configured.' },
+      budgetSource: { status: 'UNAVAILABLE', column: null, table: marketingTable || null },
+    };
+  }
 
   if (clientConfig.id !== 'default_tenant') {
     return {
       campaigns: [],
+      summary: null,
       status: 'UNAVAILABLE',
-      reason: 'Tenant-to-marketing-client mappings are not yet approved for campaign reporting.'
+      reason: 'Tenant-to-marketing-client mappings are not yet approved for campaign reporting.',
+      spendSource: { status: 'UNAVAILABLE', column: null, table: marketingTable, reason: 'Marketing client identity is not mapped to this tenant.' },
+      budgetSource: { status: 'UNAVAILABLE', column: null, table: marketingTable },
     };
   }
+
   if (params.vendor || params.source || params.medium || params.grade || params.agent) {
     throw new RequestError('Campaign reporting currently supports date and campaign scope only.', 422);
   }
+
+  const columns = await resolveMarketingCostColumns(client, marketingTable);
+  const spendIdentifier = columns.spendColumn ? safeWarehouseColumn(columns.spendColumn) : null;
+  const budgetIdentifier = columns.budgetColumn ? safeWarehouseColumn(columns.budgetColumn) : null;
+  const spendValue = spendIdentifier
+    ? (['cost_micros', 'spend_micros'].includes(String(columns.spendColumn).toLowerCase())
+        ? `SAFE_CAST(REGEXP_REPLACE(CAST(${spendIdentifier} AS STRING), r'[^0-9.-]', '') AS FLOAT64) / 1000000`
+        : `SAFE_CAST(REGEXP_REPLACE(CAST(${spendIdentifier} AS STRING), r'[^0-9.-]', '') AS FLOAT64)`)
+    : null;
+  const budgetValue = budgetIdentifier
+    ? `SAFE_CAST(REGEXP_REPLACE(CAST(${budgetIdentifier} AS STRING), r'[^0-9.-]', '') AS FLOAT64)`
+    : null;
 
   const conditions = ['client_name IS NOT NULL'];
   const queryParams: Record<string, any> = {};
@@ -1562,37 +1693,141 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
       channel_adset_name AS adset_name,
       SUM(impressions) AS impressions,
       SUM(clicks) AS clicks,
-      SUM(actions_lead) AS recorded_leads
-    FROM \`dashboards-422710.lead_ledger.lead_ledger_platform_insights\`
+      SUM(actions_lead) AS recorded_leads,
+      ${spendValue ? `SUM(${spendValue})` : 'CAST(NULL AS FLOAT64)'} AS recorded_spend,
+      ${budgetValue ? `ARRAY_AGG(${budgetValue} IGNORE NULLS ORDER BY date DESC LIMIT 1)[SAFE_OFFSET(0)]` : 'CAST(NULL AS FLOAT64)'} AS latest_budget
+    FROM \`${marketingTable}\`
     WHERE ${conditions.join(' AND ')}
     GROUP BY 1, 2, 3, 4
     ORDER BY recorded_leads DESC
-    LIMIT 100
+    LIMIT 250
   `;
 
   const [rows] = await client.query({ query, params: queryParams });
   const campaigns = rows.map((r: any) => {
-    const imp = Number(r.impressions || 0);
+    const impressions = Number(r.impressions || 0);
     const clicks = Number(r.clicks || 0);
+    const leads = Number(r.recorded_leads || 0);
+    const spend = columns.spendColumn && r.recorded_spend !== null ? Number(r.recorded_spend || 0) : null;
+    const latestBudget = columns.budgetColumn && r.latest_budget !== null ? Number(r.latest_budget || 0) : null;
     return {
       client: r.client_name,
       channel: r.channel || 'Unknown',
       campaign: r.campaign_name || 'Unknown',
       adset: r.adset_name || 'Unknown',
-      spend: null,
-      impressions: imp,
+      spend,
+      latestBudget,
+      impressions,
       clicks,
-      ctr: imp > 0 ? Number(((clicks / imp) * 100).toFixed(2)) : 0,
-      leads: Number(r.recorded_leads || 0),
-      cpc: null,
-      cpl: null
+      ctr: impressions > 0 ? Number(((clicks / impressions) * 100).toFixed(2)) : 0,
+      leads,
+      cpc: spend !== null && clicks > 0 ? Number((spend / clicks).toFixed(2)) : null,
+      cpm: spend !== null && impressions > 0 ? Number(((spend / impressions) * 1000).toFixed(2)) : null,
+      cpl: spend !== null && leads > 0 ? Number((spend / leads).toFixed(2)) : null,
     };
   });
 
+  const totals = campaigns.reduce((acc, row) => {
+    acc.impressions += row.impressions;
+    acc.clicks += row.clicks;
+    acc.leads += row.leads;
+    if (row.spend !== null) acc.spend += row.spend;
+    return acc;
+  }, { spend: 0, impressions: 0, clicks: 0, leads: 0 });
+
+  const hasSpend = Boolean(columns.spendColumn);
+  const summary = {
+    spend: hasSpend ? Number(totals.spend.toFixed(2)) : null,
+    impressions: totals.impressions,
+    clicks: totals.clicks,
+    leads: totals.leads,
+    ctr: totals.impressions > 0 ? Number(((totals.clicks / totals.impressions) * 100).toFixed(2)) : 0,
+    cpc: hasSpend && totals.clicks > 0 ? Number((totals.spend / totals.clicks).toFixed(2)) : null,
+    cpm: hasSpend && totals.impressions > 0 ? Number(((totals.spend / totals.impressions) * 1000).toFixed(2)) : null,
+    cpl: hasSpend && totals.leads > 0 ? Number((totals.spend / totals.leads).toFixed(2)) : null,
+  };
+
+  let comparison: null | {
+    spendDeltaPct: number | null;
+    cpcDeltaPct: number | null;
+    cpmDeltaPct: number | null;
+    cplDeltaPct: number | null;
+    ctrDeltaPp: number | null;
+    leadsDeltaPct: number | null;
+    previousStartDate: string;
+    previousEndDate: string;
+  } = null;
+
+  if (params.startDate && params.endDate) {
+    const startMs = Date.parse(params.startDate + 'T00:00:00Z');
+    const endMs = Date.parse(params.endDate + 'T00:00:00Z');
+    const days = Math.floor((endMs - startMs) / 86400000) + 1;
+    if (days > 0 && days <= 366) {
+      const previousEnd = new Date(startMs - 86400000);
+      const previousStart = new Date(previousEnd.getTime() - (days - 1) * 86400000);
+      const previousStartDate = previousStart.toISOString().slice(0, 10);
+      const previousEndDate = previousEnd.toISOString().slice(0, 10);
+      const priorConditions = ['client_name IS NOT NULL', 'DATE(date) >= @previousStartDate', 'DATE(date) <= @previousEndDate'];
+      const priorParams: Record<string, any> = { previousStartDate, previousEndDate };
+      if (params.campaign) {
+        priorConditions.push('LOWER(Channel_Campaign_Name) = LOWER(@campaign)');
+        priorParams.campaign = params.campaign;
+      }
+      const priorQuery = `
+        SELECT
+          SUM(impressions) AS impressions,
+          SUM(clicks) AS clicks,
+          SUM(actions_lead) AS recorded_leads,
+          ${spendValue ? `SUM(${spendValue})` : 'CAST(NULL AS FLOAT64)'} AS recorded_spend
+        FROM \`${marketingTable}\`
+        WHERE ${priorConditions.join(' AND ')}
+      `;
+      const [priorRows] = await client.query({ query: priorQuery, params: priorParams });
+      const prior = priorRows[0] || {};
+      const priorSpend = hasSpend && prior.recorded_spend !== null ? Number(prior.recorded_spend || 0) : null;
+      const priorImpressions = Number(prior.impressions || 0);
+      const priorClicks = Number(prior.clicks || 0);
+      const priorLeads = Number(prior.recorded_leads || 0);
+      const priorCtr = priorImpressions > 0 ? (priorClicks / priorImpressions) * 100 : 0;
+      const priorCpc = priorSpend !== null && priorClicks > 0 ? priorSpend / priorClicks : null;
+      const priorCpm = priorSpend !== null && priorImpressions > 0 ? (priorSpend / priorImpressions) * 1000 : null;
+      const priorCpl = priorSpend !== null && priorLeads > 0 ? priorSpend / priorLeads : null;
+      const pct = (current: number | null, previous: number | null) =>
+        current !== null && previous !== null && previous !== 0
+          ? Number((((current - previous) / previous) * 100).toFixed(1))
+          : null;
+      comparison = {
+        spendDeltaPct: pct(summary.spend, priorSpend),
+        cpcDeltaPct: pct(summary.cpc, priorCpc),
+        cpmDeltaPct: pct(summary.cpm, priorCpm),
+        cplDeltaPct: pct(summary.cpl, priorCpl),
+        ctrDeltaPp: Number((summary.ctr - priorCtr).toFixed(2)),
+        leadsDeltaPct: pct(summary.leads, priorLeads),
+        previousStartDate,
+        previousEndDate,
+      };
+    }
+  }
+
   return {
     campaigns,
-    status: 'PARTIAL',
-    reason: 'Budget is not treated as incurred spend. Spend, CPC and CPL are withheld until an approved cost source exists.'
+    summary,
+    comparison,
+    status: hasSpend ? 'OBSERVED' : 'PARTIAL',
+    reason: hasSpend
+      ? `Recorded media spend is sourced from ${columns.spendColumn}. CPC, CPM and CPL are derived from that same spend population and platform delivery metrics.`
+      : 'No actual incurred-spend column was found in the approved marketing table. Budget remains visible only as the latest recorded planning value and is not treated as spend.',
+    spendSource: {
+      status: hasSpend ? 'OBSERVED' : 'UNAVAILABLE',
+      column: columns.spendColumn,
+      table: marketingTable,
+      reason: hasSpend ? null : 'No allow-listed actual spend/cost column exists in the current marketing schema.',
+    },
+    budgetSource: {
+      status: columns.budgetColumn ? 'OBSERVED_PLANNING_FIELD' : 'UNAVAILABLE',
+      column: columns.budgetColumn,
+      table: marketingTable,
+    },
   };
 }
 
