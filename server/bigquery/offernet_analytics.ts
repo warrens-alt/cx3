@@ -959,31 +959,27 @@ export async function getCommercialAnalytics(params: OffernetQueryParams) {
   const overview = await getExecutiveOverview(params);
   const kpis = overview.kpis;
 
-  const baseline = {
-    volume: kpis.fetchedLeads,
-    cpl: 45,
-    cpc: 14.50,
-    conversionRate: kpis.leadToSaleRate,
-    revenuePerSale: kpis.saleLeads > 0 ? Number((kpis.revenue / kpis.saleLeads).toFixed(2)) : 350,
-    fixedOverhead: kpis.allocatedCost,
-    revenue: kpis.revenue,
-    totalCost: kpis.totalCost,
-    contribution: kpis.contribution,
-    marginPct: kpis.marginPct,
-    costPerSale: kpis.costPerSale,
-    costPerActivation: kpis.costPerActivation,
-    breakEvenVolume: kpis.breakEvenSales
-  };
-
   return {
-    baseline,
+    status: 'UNAVAILABLE',
+    reason: 'Profitability, CPL, CPC, contribution and break-even metrics are withheld until approved incurred-cost and rate-card contracts are configured.',
+    baseline: {
+      volume: kpis.fetchedLeads,
+      cpl: null,
+      cpc: null,
+      conversionRate: kpis.leadToSaleRate,
+      revenuePerSale: kpis.saleLeads > 0 ? Number((kpis.revenue / kpis.saleLeads).toFixed(2)) : null,
+      fixedOverhead: null,
+      revenue: kpis.revenue,
+      totalCost: null,
+      contribution: null,
+      marginPct: null,
+      costPerSale: null,
+      costPerActivation: null,
+      breakEvenVolume: null
+    },
     currency: overview.currency,
     pAndLBreakdown: [
-      { item: 'Gross Commercial Revenue', amount: kpis.revenue, type: 'revenue' },
-      { item: 'Direct Media & Lead Acquisition', amount: -kpis.directCost, type: 'direct_cost' },
-      { item: 'Dialler, Telephony & Agent Execution', amount: -kpis.deliveryAgentCost, type: 'delivery_cost' },
-      { item: 'Allocated Fixed Platform & Network Fee', amount: -kpis.allocatedCost, type: 'overhead' },
-      { item: 'Net Operational Contribution', amount: kpis.contribution, type: 'contribution' }
+      { item: 'Recorded Revenue', amount: kpis.revenue, type: 'recorded_revenue' }
     ]
   };
 }
