@@ -44,14 +44,14 @@ export function formatChartTooltip(val: number, isCurrency: boolean = false, isR
 export function formatTableNumber(val: number | string | null | undefined): string {
   if (val === null || val === undefined || val === '') return '—';
   const num = Number(val);
-  if (isNaN(num) || !isFinite(num)) return String(val);
+  if (isNaN(num) || !isFinite(num)) return '—';
   return num.toLocaleString('en-US');
 }
 
 export function formatTableCurrency(val: number | string | null | undefined, prefix: string = 'R'): string {
   if (val === null || val === undefined || val === '') return '—';
   const num = Number(val);
-  if (isNaN(num) || !isFinite(num)) return String(val);
+  if (isNaN(num) || !isFinite(num)) return '—';
   const sign = num < 0 ? '-' : '';
   const abs = Math.abs(num);
   return `${sign}${prefix} ${abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -62,6 +62,18 @@ export function formatPercent(val: number | string | null | undefined, decimals:
   const num = Number(val);
   if (isNaN(num) || !isFinite(num)) return '—';
   return `${num.toFixed(decimals)}%`;
+}
+
+export function formatRatioPercent(
+  numerator: number | string | null | undefined,
+  denominator: number | string | null | undefined,
+  decimals: number = 1,
+): string {
+  if (numerator === null || numerator === undefined || numerator === '' || denominator === null || denominator === undefined || denominator === '') return '—';
+  const num = Number(numerator);
+  const den = Number(denominator);
+  if (!Number.isFinite(num) || !Number.isFinite(den) || den <= 0) return '—';
+  return formatPercent((num / den) * 100, decimals);
 }
 
 export function formatCurrency(val: number | string | null | undefined, decimals: number = 2): string {

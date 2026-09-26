@@ -7,6 +7,7 @@ import {
   formatCurrency,
   formatKpiValue,
   formatPercent,
+  formatRatioPercent,
   formatTableNumber,
 } from '../src/lib/formatters';
 
@@ -21,6 +22,9 @@ test('unavailable or invalid metrics are never rendered as measured zero', () =>
   assert.equal(formatPercent('not-a-number'), '—');
   assert.equal(formatCurrency(Number.NaN), '—');
   assert.equal(formatTableNumber(null), '—');
+  assert.equal(formatTableNumber('not-a-number'), '—');
+  assert.equal(formatRatioPercent(3, 0), '—');
+  assert.equal(formatRatioPercent(undefined, 10), '—');
 });
 
 test('real measured zero remains visibly zero', () => {
@@ -28,6 +32,7 @@ test('real measured zero remains visibly zero', () => {
   assert.equal(formatPercent(0), '0.0%');
   assert.equal(formatCurrency(0), 'R 0.00');
   assert.equal(formatTableNumber(0), '0');
+  assert.equal(formatRatioPercent(1, 4), '25.0%');
 });
 
 test('OfferNet control panels do not invent missing operating configuration or metric values', () => {
@@ -37,4 +42,17 @@ test('OfferNet control panels do not invent missing operating configuration or m
   assert.doesNotMatch(source, /\?\?\s*0}%/);
   assert.match(source, /Operating-hours configuration is unavailable for this scope/);
   assert.match(source, /formatPercent/);
+});
+
+test('operational pages preserve unavailable metrics instead of displaying fallback zeroes', () => {
+  for (const path of [
+    'src/pages/ExecutiveOverview.tsx',
+    'src/pages/Exceptions.tsx',
+    'src/pages/ContactStrategyIntelligence.tsx',
+    'src/pages/DataIntegrityIntelligence.tsx',
+  ]) {
+    const source = fs.readFileSync(path, 'utf8');
+    assert.doesNotMatch(source, /Number\([^\n]*\|\|\s*0\)\.toLocaleString\(\)/);
+    assert.doesNotMatch(source, /\?\?\s*0}%/);
+  }
 });

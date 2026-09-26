@@ -5,6 +5,7 @@ import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import { useClient } from '../lib/ClientContext';
 import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
 import { fetchContactStrategy, type ContactStrategyData } from '../lib/offernetClient';
+import { formatPercent, formatTableNumber } from '../lib/formatters';
 
 export default function ContactStrategyIntelligence() {
   const { selectedClient } = useClient();
@@ -48,10 +49,10 @@ export default function ContactStrategyIntelligence() {
         {data && <>
           {data.summary && (
             <section className="cx-command-metrics cx-contact-metrics" aria-label="Contact governance summary">
-              <article className="cx-command-metric"><span>Zero-call leads</span><strong>{Number(data.summary.zeroCallLeads || 0).toLocaleString()}</strong><div><small>No recorded call count</small></div></article>
-              <article className="cx-command-metric"><span>One-call share</span><strong>{data.summary.singleAttemptSharePct ?? 0}%</strong><div><small>{Number(data.summary.oneCallLeads || 0).toLocaleString()} leads</small></div></article>
-              <article className="cx-command-metric"><span>Multi-call share</span><strong>{data.summary.multiAttemptSharePct ?? 0}%</strong><div><small>{Number(data.summary.multiAttemptLeads || 0).toLocaleString()} leads</small></div></article>
-              <article className="cx-command-metric"><span>5+ calls, no RPC</span><strong>{Number(data.summary.fivePlusNoRpcLeads || 0).toLocaleString()}</strong><div><small>High effort without contact</small></div></article>
+              <article className="cx-command-metric"><span>Zero-call leads</span><strong>{formatTableNumber(data.summary.zeroCallLeads)}</strong><div><small>No recorded call count</small></div></article>
+              <article className="cx-command-metric"><span>One-call share</span><strong>{formatPercent(data.summary.singleAttemptSharePct)}</strong><div><small>{formatTableNumber(data.summary.oneCallLeads)} leads</small></div></article>
+              <article className="cx-command-metric"><span>Multi-call share</span><strong>{formatPercent(data.summary.multiAttemptSharePct)}</strong><div><small>{formatTableNumber(data.summary.multiAttemptLeads)} leads</small></div></article>
+              <article className="cx-command-metric"><span>5+ calls, no RPC</span><strong>{formatTableNumber(data.summary.fivePlusNoRpcLeads)}</strong><div><small>High effort without contact</small></div></article>
             </section>
           )}
           <section className="cx-command-panel">
@@ -75,7 +76,7 @@ export default function ContactStrategyIntelligence() {
             <div className="cx-performance-table-wrap">
               <table className="cx-performance-table">
                 <thead><tr><th>Call-count bucket</th><th>Leads</th><th>Share</th><th>RPC</th><th>RPC rate</th><th>Sales</th><th>Sale rate</th><th>Activations</th></tr></thead>
-                <tbody>{(data.attemptPerformance || []).map(row=><tr key={row.bucket}><th>{row.bucket}</th><td>{Number(row.leads || 0).toLocaleString()}</td><td>{row.sharePct}%</td><td>{Number(row.contacted || 0).toLocaleString()}</td><td>{row.contactRate}%</td><td>{Number(row.sales || 0).toLocaleString()}</td><td>{row.saleRate}%</td><td>{Number(row.activations || 0).toLocaleString()}</td></tr>)}</tbody>
+                <tbody>{(data.attemptPerformance || []).map(row=><tr key={row.bucket}><th>{row.bucket}</th><td>{formatTableNumber(row.leads)}</td><td>{formatPercent(row.sharePct)}</td><td>{formatTableNumber(row.contacted)}</td><td>{formatPercent(row.contactRate)}</td><td>{formatTableNumber(row.sales)}</td><td>{formatPercent(row.saleRate, 2)}</td><td>{formatTableNumber(row.activations)}</td></tr>)}</tbody>
               </table>
             </div>
           </section>

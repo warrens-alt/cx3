@@ -6,6 +6,7 @@ import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
 import { fetchDataIntegrity, type DataIntegrityData } from '../lib/offernetClient';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { DataCompletenessPanel } from '../components/OfferNetControlPanels';
+import { formatTableNumber } from '../lib/formatters';
 
 export default function DataIntegrityIntelligence() {
   const { selectedClient } = useClient();
@@ -91,7 +92,7 @@ export default function DataIntegrityIntelligence() {
             {controls.data && <DataCompletenessPanel data={controls.data} />}
 
             <section className="cx-exception-summary">
-              <article><span>Distinct leads audited</span><strong>{Number(data.totalRecordsAudited || 0).toLocaleString()}</strong><small>Selected operational scope</small></article>
+              <article><span>Distinct leads audited</span><strong>{formatTableNumber(data.totalRecordsAudited)}</strong><small>Selected operational scope</small></article>
               <article><span>Validation status</span><strong className="text-base">{data.validationStatus || data.healthGrade}</strong><small>No synthetic score is assigned</small></article>
               <article><span>Observed checks</span><strong>{data.checks.length}</strong><small>Concrete discrepancy populations</small></article>
             </section>
@@ -107,7 +108,7 @@ export default function DataIntegrityIntelligence() {
                         <th>{check.checkName}</th>
                         <td>{check.category}</td>
                         <td>{badge(check.status)}</td>
-                        <td>{Number(check.discrepancyCount || 0).toLocaleString()}</td>
+                        <td>{formatTableNumber(check.discrepancyCount)}</td>
                         <td><strong className="font-mono text-[10px]">{check.evidence}</strong><br/><span>{check.detail}</span></td>
                       </tr>
                     ))}

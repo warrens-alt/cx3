@@ -9,8 +9,9 @@ import { fetchOverview, type OverviewData } from '../lib/offernetClient';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { ContactGovernancePanel } from '../components/OfferNetControlPanels';
+import { formatPercent, formatTableNumber } from '../lib/formatters';
 
-const fmt = (value: number | null | undefined) => (value == null || Number.isNaN(Number(value)) ? '0' : Number(value).toLocaleString());
+const fmt = (value: number | string | null | undefined) => formatTableNumber(value);
 
 export default function Exceptions() {
   const scoped = useScopedNavigationTarget();
@@ -100,7 +101,7 @@ export default function Exceptions() {
               </article>
               <article>
                 <span>15-minute SLA</span>
-                <strong>{data.sla?.complianceRate ?? 0}%</strong>
+                <strong>{formatPercent(data.sla?.complianceRate)}</strong>
                 <small>Delivered leads dialled within target</small>
               </article>
             </section>
@@ -176,7 +177,7 @@ export default function Exceptions() {
                 </header>
                 <div className="cx-backlog-vendors">
                   {data.backlog.byVendor.length ? data.backlog.byVendor.map((vendor, index) => {
-                    const content = <><span>{vendor.vendor}</span><strong>{fmt(Number(vendor.awaiting_first_dial || 0))}</strong><small>{fmt(Number(vendor.over_60m || 0))} &gt;60m</small></>;
+                    const content = <><span>{vendor.vendor}</span><strong>{fmt(vendor.awaiting_first_dial)}</strong><small>{fmt(vendor.over_60m)} &gt;60m</small></>;
                     return isAdmin
                       ? <Link key={`${vendor.vendor}-${index}`} to={recordLink('awaiting-first-dial', undefined, { vendor: vendor.vendor })}>{content}</Link>
                       : <div key={`${vendor.vendor}-${index}`}>{content}</div>;

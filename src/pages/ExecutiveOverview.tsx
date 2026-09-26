@@ -23,8 +23,9 @@ import RootCauseDrawer from '../components/RootCauseDrawer';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { OperatingControlStrip } from '../components/OfferNetControlPanels';
+import { formatTableNumber } from '../lib/formatters';
 
-const fmt = (value: number | null | undefined) => (value == null || Number.isNaN(Number(value)) ? '0' : Number(value).toLocaleString());
+const fmt = (value: number | string | null | undefined) => formatTableNumber(value);
 type RootMetric = RootCauseData['metric']['id'];
 
 function Change({ value, unit = '%' }: { value: number | null | undefined; unit?: string }) {
@@ -258,7 +259,7 @@ export default function ExecutiveOverview() {
                 </header>
                 <div className="cx-backlog-vendors">
                   {data.backlog.byVendor.length ? data.backlog.byVendor.map((vendor, index) => {
-                    const body = <><span>{vendor.vendor}</span><strong>{fmt(Number(vendor.awaiting_first_dial || 0))}</strong><small>{fmt(Number(vendor.over_60m || 0))} &gt;60m</small></>;
+                    const body = <><span>{vendor.vendor}</span><strong>{fmt(vendor.awaiting_first_dial)}</strong><small>{fmt(vendor.over_60m)} &gt;60m</small></>;
                     return isAdmin ? (
                       <Link key={`${vendor.vendor}-${index}`} to={recordLink('awaiting-first-dial', undefined, { vendor: vendor.vendor })}>{body}</Link>
                     ) : <div key={`${vendor.vendor}-${index}`}>{body}</div>;
