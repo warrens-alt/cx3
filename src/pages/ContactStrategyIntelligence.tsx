@@ -340,38 +340,19 @@ export default function ContactStrategyIntelligence() {
               </div>
             </div>
 
-            {/* REPEATED NO-ANSWER ANALYSIS & CEILING RECOMMENDATION */}
-            <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-2xs">
+            {/* RECOMMENDATION CONTRACT STATUS */}
+            <div className="bg-white border border-amber-200 rounded-lg p-5 shadow-2xs">
               <div className="flex items-center gap-2 mb-3">
-                <ShieldAlert size={16} className="text-red-600" />
+                <ShieldAlert size={16} className="text-amber-600" />
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800">
-                  Contact Fatigue & Optimal Stop Threshold
+                  Redial Recommendation Status
                 </h3>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                  <span className="text-[10px] uppercase font-bold text-amber-900 block font-sans">Stop Threshold</span>
-                  <div className="text-base font-bold text-amber-900 mt-1 font-sans">{data.noAnswerAnalysis.stopThresholdRecommendation}</div>
-                  <p className="text-[11px] text-amber-800 mt-1 font-sans">
-                    Dialling leads beyond 4 attempts incurs disproportionate carrier penalties and lowers campaign-level reputation.
-                  </p>
-                </div>
-
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <span className="text-[10px] uppercase font-bold text-blue-900 block font-sans">Callback Execution</span>
-                  <div className="text-base font-bold text-blue-900 mt-1 font-sans">{data.noAnswerAnalysis.callbackFollowupRate}</div>
-                  <p className="text-[11px] text-blue-800 mt-1 font-sans">
-                    Scheduled agent callbacks convert to sales at {data.noAnswerAnalysis.callbackSaleConversion} (3.5x higher than blind redials).
-                  </p>
-                </div>
-
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                  <span className="text-[10px] uppercase font-bold text-slate-500 block font-sans">Operational Directive</span>
-                  <p className="text-slate-700 text-xs mt-1 font-sans">
-                    Re-allocate dialler capacity from 5th-attempt non-responders to leads aged under 30 minutes in the fresh intake hopper.
-                  </p>
-                </div>
+              <div className="rounded-md bg-amber-50 border border-amber-200 p-4 text-sm text-amber-950">
+                <div className="font-semibold">{data.noAnswerAnalysis.status || 'UNAVAILABLE'}</div>
+                <p className="text-xs mt-1">
+                  {data.noAnswerAnalysis.reason || 'No approved redial-cost, callback or carrier-reputation contract is configured. Stop-threshold recommendations are withheld.'}
+                </p>
               </div>
             </div>
           </>
