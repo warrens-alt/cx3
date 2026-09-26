@@ -12,7 +12,7 @@
 8. **Document ID Format Guard**: Guarded write paths require IDs of 1–128 characters containing letters, digits, underscores or hyphens.
 9. **Atomic Access Changes**: `changeUserAccess` reads and changes the profile and its authority marker in one transaction. An active admin receives a marker containing the matching UID and email; suspension or demotion removes it. `removeUserAccess` deletes both documents in one batch. `saveBootstrapProfile` creates both atomically, with `getAfter()` validation in the rules.
 
-The browser and rules share the bootstrap identities in `src/lib/authAccess.ts` and `firestore.rules`. Ordinary registration remains pending, including when an invitation supplies a desired role. Firebase administration is separate from analytical API access: signed IAP identity and `CX_ACCESS_POLICY_JSON` still govern server-side tenant grants.
+The browser and rules share the bootstrap identities in `src/lib/authAccess.ts` and `firestore.rules`. Ordinary registration remains pending, including when an invitation supplies a desired role. Analytical API authentication is selected explicitly with `CX_AUTH_MODE`: IAP mode uses signed IAP identity plus `CX_ACCESS_POLICY_JSON`; Firebase mode requires a verified Firebase bearer token and derives workspace authority from the caller's active Firestore profile and, for administrators, the matching `/admins/{uid}` marker. Production defaults to IAP when the mode is unset.
 
 ---
 
@@ -96,4 +96,4 @@ The command runs `scripts/test-firestore-rules.mjs`. It downloads the official F
 
 Publish the reviewed `firestore.rules` to the intended Firebase project/database through the approved deployment process and confirm that the deployed rules match this revision. Repository commits, application builds, and emulator tests do not deploy Firestore rules. Until that separate deployment is completed, production Firestore continues to enforce its existing rules.
 
-The emulator suite validates local rule behaviour with synthetic identities and records. Production IAP configuration, live Firebase token issuance, deployed rule state, and BigQuery tenant grants require separate deployment verification.
+The emulator suite validates local rule behaviour with synthetic identities and records. Production identity configuration for the selected `CX_AUTH_MODE`, live Firebase token issuance where Firebase mode is used, deployed rule state, and BigQuery tenant grants require separate deployment verification.

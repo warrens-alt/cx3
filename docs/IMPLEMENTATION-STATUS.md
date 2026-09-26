@@ -4,12 +4,12 @@
 
 CX3 is an operational analytics application with an emerging evidence-reporting architecture. It is **not** currently certified as a fully reconciled reporting system.
 
-Production analytical routes are fail-closed and require:
+Production analytical routes are fail-closed and use one explicit identity mode:
 
-- a configured Google IAP audience;
-- a valid signed IAP assertion;
-- an explicit `CX_ACCESS_POLICY_JSON` tenant/role grant;
-- server-side BigQuery credentials with only the access required by the application.
+- production defaults to `CX_AUTH_MODE=iap` when the mode is unset;
+- IAP mode requires `IAP_AUDIENCE`, a valid signed IAP assertion, and an explicit `CX_ACCESS_POLICY_JSON` tenant/role grant;
+- `CX_AUTH_MODE=firebase` requires a valid Firebase bearer token, an active matching Firestore user profile, and the administrator marker for admin authority;
+- all modes require server-side BigQuery credentials with only the access required by the application.
 
 The only unauthenticated API route is `/api/health`.
 
@@ -32,7 +32,7 @@ A local development identity is available only when `NODE_ENV` is not `productio
 - Operational analytics responses are labelled `UNVERIFIED`, not `VERIFIED`.
 - Production runs the freshly built `dist/server/server.mjs`; generated `server.js` is no longer tracked.
 
-The bootstrap exceptions are the configured trusted UID and the configured bootstrap email with a verified email claim. Keep the frontend constants and `firestore.rules` aligned. Deploy the reviewed rules separately to the intended Firebase project: repository changes and emulator runs do not replace the deployed rules. The server's IAP access policy remains a separate authority from Firebase profile management.
+The bootstrap exceptions are the configured trusted UID and the configured bootstrap email with a verified email claim. Keep the frontend constants and `firestore.rules` aligned. Deploy the reviewed rules separately to the intended Firebase project: repository changes and emulator runs do not replace the deployed rules. IAP mode and Firebase mode intentionally use different server-side authority sources; the deployment must select one explicitly.
 
 ## Analytical trust changes
 
@@ -116,7 +116,7 @@ Cohort sale, activation, RPC and call maturation use their respective event time
 
 ## Commercial and campaign status
 
-Observed media spend is supported from the configured marketing API table. The active contract validates required fields, approved spend fields and the declared date/client/channel/campaign/adset grain. CPC, CPM and platform CPL are derived only from that observed spend population. Budget remains a separate planning field.
+The marketing contract supports observed media spend only when the live table contains an approved observed-spend field and the declared date/client/channel/campaign/adset grain passes validation. The supplied 26 September 2026 schema contains `budget` but no observed-spend field, so total spend, CPC, CPM and spend-derived CPL are currently withheld. Budget remains a separate planning field and is never substituted for spend.
 
 Tenant-level campaign reporting is enabled only after exact API-table `client_name` values are configured through `CX_MARKETING_CLIENT_MAP_JSON`. CX3 does not infer tenant identity from display names.
 
@@ -145,7 +145,7 @@ GitHub Actions runs the same checks, `npm run test:rules` with Java 21 and a loc
 
 The repository currently does not include the previously referenced Dataform warehouse tree or Playwright tooling package, so CI does not claim to execute those checks.
 
-Passing repository CI is necessary but is **not** evidence of live BigQuery source completeness, source-owner reconciliation, production IAP acceptance or financial certification.
+Passing repository CI is necessary but is **not** evidence of live BigQuery source completeness, source-owner reconciliation, production acceptance of the selected authentication mode or financial certification.
 
 ## Remaining work
 
@@ -156,5 +156,5 @@ Passing repository CI is necessary but is **not** evidence of live BigQuery sour
 5. Configure approved tenant marketing `client_name` mappings in production.
 6. Reconcile and activate explicit marketing-to-lead attribution keys where available.
 7. Source remaining operating costs from approved tables/contracts before adding contribution or margin.
-8. Run production IAP acceptance and tenant-isolation tests.
+8. Run production acceptance and tenant-isolation tests for the selected `CX_AUTH_MODE` (IAP or Firebase).
 9. Perform live source-owner reconciliation before changing operational outputs from `NOT_VERIFIED`.

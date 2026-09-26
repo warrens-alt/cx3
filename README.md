@@ -12,10 +12,12 @@ The `/reports` area currently provides a tenant-scoped registry of immutable rep
 
 ## Security
 
-Production analytical access is fail-closed.
+Production analytical access is fail-closed and the identity provider is explicit through `CX_AUTH_MODE`.
 
-- Signed Google IAP identity is required in production.
-- `CX_ACCESS_POLICY_JSON` is the server-side tenant/role authority.
+- Production defaults to `CX_AUTH_MODE=iap` when no mode is configured.
+- IAP mode requires a signed Google IAP assertion, `IAP_AUDIENCE`, and `CX_ACCESS_POLICY_JSON`.
+- `CX_AUTH_MODE=firebase` is supported for deployments such as Cloudflare. The API requires a Firebase bearer token, an active matching Firestore user profile, and the administrator marker for admin authority.
+- Firebase mode does not trust decoded JWT claims by themselves: Firestore validates the bearer token and applies the deployed security rules before the analytical principal is created.
 - A local development identity is available only when `CX_ALLOW_DEV_AUTH=true` and `NODE_ENV` is not `production`.
 - Arbitrary BigQuery project/dataset/table browsing is disabled.
 - Raw lead inspection and record-grain exports are administrator-only and flow through bounded, tenant-scoped analytical endpoints.
@@ -24,7 +26,7 @@ Production analytical access is fail-closed.
 - The browser workspace list is sourced from the server-authorised tenant list; there is no compiled production fallback tenant.
 - Shared-source aggregate queries apply mandatory tenant ownership predicates independently of optional user filters. Missing ownership mappings fail with HTTP 422.
 
-Firestore access rules must be deployed separately to the intended Firebase project. Committing `firestore.rules`, building the application, and running emulator tests do not update deployed rules. Firebase user administration also does not change the server's IAP/`CX_ACCESS_POLICY_JSON` grants. See `.env.example`, `security_spec.md`, and `docs/SOURCE_API.md` for the separate configuration boundaries.
+Firestore access rules must be deployed separately to the intended Firebase project. Committing `firestore.rules`, building the application, and running emulator tests do not update deployed rules. In IAP mode, `CX_ACCESS_POLICY_JSON` remains the analytical tenant authority. In Firebase mode, the active Firestore profile and admin marker become the server-side workspace authority. See `.env.example`, `security_spec.md`, and `docs/SOURCE_API.md` for the configuration boundaries.
 
 ## Measurement
 
@@ -73,6 +75,23 @@ Production `npm start` runs the generated `dist/server/server.mjs` bundle. Gener
 
 The rules runner starts a local Firestore emulator for the isolated `demo-cx3-access` project. Its first run downloads the pinned official emulator JAR; subsequent runs reuse the verified cache. Plain `npm test` skips emulator cases when `FIRESTORE_EMULATOR_HOST` is absent. See `security_spec.md` for the runner's prerequisites and scope.
 
+## Cloudflare production
+
+For a Cloudflare deployment that uses the existing Firebase Google sign-in, configure the Worker/runtime with:
+
+```bash
+NODE_ENV=production
+CX_AUTH_MODE=firebase
+BIGQUERY_CREDENTIALS='<complete service-account JSON>'
+BIGQUERY_MAX_BYTES_BILLED=1000000000
+CX_MARKETING_SPEND_FIELD_JSON=
+ENABLE_CLI_SAMPLE_DATA=false
+```
+
+The deployed hostname must also be present in Firebase Authentication **Authorized domains**. AI Studio secrets and Cloudflare Worker secrets are separate stores; configure the production values in Cloudflare as well. `BIGQUERY_PROJECT_ID` and `BIGQUERY_DATASET` are not runtime inputs in this repository revision because the approved project/dataset/table identities live in the server-side source contract.
+
+If deploying behind Google IAP instead, use `CX_AUTH_MODE=iap` with `IAP_AUDIENCE` and `CX_ACCESS_POLICY_JSON`; do not enable both identity models implicitly.
+
 ## Demo mode
 
 `/overview?mode=demo` is a separate client-only synthetic workspace. It does not make live analytics or BigQuery requests and should never be interpreted as validated business performance.
@@ -87,7 +106,7 @@ The main remaining trust work is:
 - approve exact tenant-to-`client_name` mappings through `CX_MARKETING_CLIENT_MAP_JSON` for tenant-level campaign reporting;
 - activate and reconcile `CX_MARKETING_ATTRIBUTION_JSON` only after marketing/lead join-key semantics are source-owner approved;
 - source telephony, commission and overhead costs from approved tables/contracts before restoring full profitability metrics;
-- add production IAP acceptance tests and live source-owner reconciliation evidence.
+- add production acceptance tests for each deployed auth mode (IAP and/or Firebase) and live source-owner reconciliation evidence.
 
 See `docs/IMPLEMENTATION-STATUS.md` for the current deployment boundary.
 
@@ -98,7 +117,7 @@ The historical `scripts/ingest-canonical.ts`, `scripts/publish-release.ts`, and 
 
 Marketing spend is sourced from the configured API table, currently `lead_ledger_platform_insights`.
 
-The contract defines the client, date, channel, campaign, adset, impression, click, lead, spend and budget fields plus the allowed spend aggregation grain. Runtime schema inspection validates that contract; it does not decide business meaning.
+The contract defines the client, date, channel, campaign, adset, impression, click, lead and budget fields plus candidate observed-spend fields and the allowed spend aggregation grain. The supplied 26 September 2026 marketing schema contains `budget` but no observed-spend column, so total spend and spend-derived metrics remain unavailable. Runtime schema inspection will enable them only if a separately approved observed-spend field later exists.
 
 Tenant mappings are deployment configuration:
 
