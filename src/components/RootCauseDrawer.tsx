@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, BarChart3, ChevronDown, ChevronUp, ExternalLink, X } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useClient } from '../lib/ClientContext';
+import { useAuth } from '../lib/AuthContext';
 import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
 import { fetchRootCause, type RootCauseData } from '../lib/offernetClient';
 
@@ -17,6 +18,7 @@ export default function RootCauseDrawer({
   onClose: () => void;
 }) {
   const { selectedClient } = useClient();
+  const { isAdmin } = useAuth();
   const { startDate, endDate, filters } = useFilters();
   const [searchParams] = useSearchParams();
   const [data, setData] = useState<RootCauseData | null>(null);
@@ -130,9 +132,9 @@ export default function RootCauseDrawer({
                   <b className={driver.contribution >= 0 ? 'positive' : 'negative'}>
                     {driver.contribution > 0 ? '+' : ''}{driver.contribution} {data.metric.deltaUnit}
                   </b>
-                  <Link to={exploreLink(driver.dimension, driver.name)} onClick={onClose}>
+                  {isAdmin && <Link to={exploreLink(driver.dimension, driver.name)} onClick={onClose}>
                     Inspect <ExternalLink size={12} />
-                  </Link>
+                  </Link>}
                 </div>
               ))}
             </section>
@@ -160,7 +162,7 @@ export default function RootCauseDrawer({
                             <b className={segment.contribution >= 0 ? 'positive' : 'negative'}>
                               {segment.contribution > 0 ? '+' : ''}{segment.contribution} {data.metric.deltaUnit}
                             </b>
-                            <Link to={exploreLink(dimension.key, segment.name)} onClick={onClose}>Records <ArrowRight size={11} /></Link>
+                            {isAdmin ? <Link to={exploreLink(dimension.key, segment.name)} onClick={onClose}>Records <ArrowRight size={11} /></Link> : <span />}
                           </div>
                         ))}
                       </div>
