@@ -87,7 +87,7 @@ export default function PendingApprovalView() {
             </div>
 
             <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
-              <span className="text-slate-500 font-mono">Requested Role:</span>
+              <span className="text-slate-500 font-mono">Pending Role:</span>
               <span className="font-semibold text-slate-700 capitalize font-mono">{profile?.role || 'Pending Assignment'}</span>
             </div>
           </div>
