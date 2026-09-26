@@ -5,12 +5,12 @@ import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import { useClient } from '../lib/ClientContext';
 import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
 import {
-import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
   fetchCommercial,
   fetchMarketingAttribution,
   type CommercialData,
   type MarketingAttributionData,
 } from '../lib/offernetClient';
+import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 
 const money = (value: number | null) => value == null ? '—' : `R ${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
