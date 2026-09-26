@@ -753,22 +753,14 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
 
   const [rows] = await client.query({ query, params: queryParams });
   
-  // Calculate marginal conversion and diminishing returns
-  let cumulativeSales = 0;
-  let cumulativeCost = 0;
-  const unitCallCost = 2.80; // ZAR per outbound dial attempt
   const totalLeads = rows.reduce((acc: number, r: any) => acc + Number(r.leads || 0), 0);
 
-  const attemptPerformance = rows.map((r: any, idx: number) => {
+  const attemptPerformance = rows.map((r: any) => {
     const leads = Number(r.leads || 0);
     const contacted = Number(r.contacted || 0);
     const sales = Number(r.sales || 0);
     const activations = Number(r.activations || 0);
     const revenue = Number(r.revenue || 0);
-    const cost = Math.round(leads * (idx === 0 ? 0 : idx) * unitCallCost);
-    
-    cumulativeSales += sales;
-    cumulativeCost += cost;
 
     return {
       bucket: r.attempt_bucket,
@@ -781,9 +773,9 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
       activations,
       activationRate: sales > 0 ? Number(((activations / sales) * 100).toFixed(1)) : 0,
       revenue,
-      callCost: cost,
-      marginalSales: sales,
-      marginalCostPerSale: sales > 0 ? Number((cost / sales).toFixed(2)) : 0
+      callCost: null,
+      marginalSales: null,
+      marginalCostPerSale: null
     };
   });
 
