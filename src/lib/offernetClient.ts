@@ -916,11 +916,12 @@ export async function fetchCliPerformance(params: Record<string, any> = {}, forc
   return fetchOffernetJson<any>(`/api/analytics/cli-performance${buildQueryString(params)}`, forceRefresh);
 }
 
-export async function importCliReport(csvText: string, filename?: string): Promise<{ success: boolean; message: string; count: number; anomalies: any[] }> {
+export async function importCliReport(csvText: string, filename: string | undefined, clientId: string): Promise<{ success: boolean; message: string; count: number; anomalies: any[] }> {
   const res = await fetch('/api/analytics/cli-performance/import', {
     method: 'POST',
+    credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ csvText, filename }),
+    body: JSON.stringify({ clientId, csvText, filename }),
   });
   const data = await res.json();
   if (!res.ok || !data.success) {
@@ -930,11 +931,12 @@ export async function importCliReport(csvText: string, filename?: string): Promi
   return data;
 }
 
-export async function loadSampleCliDataset(): Promise<{ success: boolean; message: string; count: number }> {
+export async function loadSampleCliDataset(clientId: string): Promise<{ success: boolean; message: string; count: number }> {
   const res = await fetch('/api/analytics/cli-performance/load-sample', {
     method: 'POST',
+    credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ clientId }),
   });
   const data = await res.json();
   if (!res.ok || !data.success) {
@@ -943,9 +945,10 @@ export async function loadSampleCliDataset(): Promise<{ success: boolean; messag
   return data;
 }
 
-export async function clearCliImport(): Promise<{ success: boolean; message: string }> {
-  const res = await fetch('/api/analytics/cli-performance/import', {
+export async function clearCliImport(clientId: string): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`/api/analytics/cli-performance/import?clientId=${encodeURIComponent(clientId)}`, {
     method: 'DELETE',
+    credentials: 'same-origin',
   });
   const data = await res.json();
   if (!res.ok || !data.success) {
