@@ -27,6 +27,7 @@ export const PAGE_TITLES: Readonly<Record<string, string>> = {
   '/reconciliation': 'Commercial Reconciliation',
   '/explore': 'Data Explorer',
   '/routing': 'Lead Routing',
+  '/cohorts': 'Cohort Maturation',
   '/call-performance': 'Call Performance',
   '/cli-performance': 'CLI Performance',
   '/quality': 'Lead Validation & Vetting',
