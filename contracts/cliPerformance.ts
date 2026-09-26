@@ -24,16 +24,16 @@ export interface CliFieldCoverage {
 }
 
 export interface CliDurationBands {
-  under1mCount: string;
-  under1mPct: string;
-  oneTo5mCount: string;
-  oneTo5mPct: string;
-  fiveTo15mCount: string;
-  fiveTo15mPct: string;
-  over15mCount: string;
-  over15mPct: string;
-  totalDurationSeconds: string;
-  avgDurationSeconds: string;
+  under1mCount: string | null;
+  under1mPct: string | null;
+  oneTo5mCount: string | null;
+  oneTo5mPct: string | null;
+  fiveTo15mCount: string | null;
+  fiveTo15mPct: string | null;
+  over15mCount: string | null;
+  over15mPct: string | null;
+  totalDurationSeconds: string | null;
+  avgDurationSeconds: string | null;
   medianDurationSeconds: string | null;
 }
 
@@ -72,14 +72,14 @@ export interface CliPerformanceRecord {
   salePerCallRate: string;
   salePerAnswerRate: string | null;
   salePerContactRate: string | null;
-  durationGe1mCount: string;
-  durationGe1mPct: string;
-  durationGe5mCount: string;
-  durationGe5mPct: string;
-  durationGe15mCount: string;
-  durationGe15mPct: string;
-  avgDurationSeconds: string;
-  totalDurationSeconds: string;
+  durationGe1mCount: string | null;
+  durationGe1mPct: string | null;
+  durationGe5mCount: string | null;
+  durationGe5mPct: string | null;
+  durationGe15mCount: string | null;
+  durationGe15mPct: string | null;
+  avgDurationSeconds: string | null;
+  totalDurationSeconds: string | null;
   avgLeadAgeDays: string | null;
   activations: string | null;
   recordedValue: string | null;
@@ -104,9 +104,9 @@ export interface CliSummary {
   salePerCallRate: string;
   salePerAnswerRate: string | null;
   salePerContactRate: string | null;
-  durationGe5mRate: string;
-  avgDurationSeconds: string;
-  totalDurationSeconds: string;
+  durationGe5mRate: string | null;
+  avgDurationSeconds: string | null;
+  totalDurationSeconds: string | null;
   avgLeadAgeDays: string | null;
   activations: string | null;
   recordedValue: string | null;
@@ -149,7 +149,7 @@ export interface CliTrendPoint {
   saleRate: number;
   answeredRate: number | null;
   asrRate: number | null;
-  durationGe5mRate: number;
+  durationGe5mRate: number | null;
   byCli?: Record<string, { calls: number; contactRate: number; saleRate: number }>;
 }
 
