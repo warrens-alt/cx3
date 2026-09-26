@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { resolveFirebasePreviewPrincipal } from '../server/firebasePreviewAuth';
+import { resolveFirebasePrincipal } from '../server/firebasePreviewAuth';
+import { configuredAuthMode } from '../server/security';
 
 const jwt = (payload: Record<string, unknown>) =>
   `header.${Buffer.from(JSON.stringify(payload)).toString('base64url')}.signature`;
@@ -27,7 +28,7 @@ test('AI Studio Preview has a Vite API bridge instead of returning the SPA for /
   assert.match(transport, /getIdToken/);
 });
 
-test('verified Firebase preview viewer receives only active profile tenants', async context => {
+test('verified Firebase viewer receives only active profile tenants', async context => {
   const uid = 'preview-user';
   const email = 'viewer@example.test';
   context.mock.method(globalThis, 'fetch', async (input: any) => {
@@ -41,11 +42,11 @@ test('verified Firebase preview viewer receives only active profile tenants', as
     return documentResponse(404);
   });
 
-  const principal = await resolveFirebasePreviewPrincipal(jwt({ sub: uid, email, email_verified: true }));
+  const principal = await resolveFirebasePrincipal(jwt({ sub: uid, email, email_verified: true }));
   assert.deepEqual(principal, { subject: uid, email, role: 'viewer', tenants: ['mondo', 'mtn'] });
 });
 
-test('Firebase preview admin requires its authority marker and receives configured workspaces', async context => {
+test('Firebase admin requires its authority marker and receives configured workspaces', async context => {
   const uid = 'preview-admin';
   const email = 'admin@example.test';
   context.mock.method(globalThis, 'fetch', async (input: any) => {
@@ -62,13 +63,13 @@ test('Firebase preview admin requires its authority marker and receives configur
     return documentResponse(404);
   });
 
-  const principal = await resolveFirebasePreviewPrincipal(jwt({ sub: uid, email, email_verified: true }));
+  const principal = await resolveFirebasePrincipal(jwt({ sub: uid, email, email_verified: true }));
   assert.equal(principal.role, 'admin');
   assert.ok(principal.tenants.includes('default_tenant'));
   assert.ok(principal.tenants.includes('mtn'));
 });
 
-test('inactive Firebase preview profile fails closed', async context => {
+test('inactive Firebase profile fails closed', async context => {
   const uid = 'inactive-user';
   const email = 'inactive@example.test';
   context.mock.method(globalThis, 'fetch', async () => documentResponse(200, {
@@ -76,7 +77,7 @@ test('inactive Firebase preview profile fails closed', async context => {
     allowedTenants: list(['mtn']),
   }));
   await assert.rejects(
-    resolveFirebasePreviewPrincipal(jwt({ sub: uid, email, email_verified: true })),
+    resolveFirebasePrincipal(jwt({ sub: uid, email, email_verified: true })),
     /not active/,
   );
 });
@@ -116,3 +117,15 @@ test('installAuthenticatedApiFetch does not crash when fetch has only a getter',
   }
 });
 
+
+
+test('production defaults to IAP while Cloudflare Firebase mode requires explicit configuration', () => {
+  assert.equal(configuredAuthMode({ NODE_ENV: 'production' } as NodeJS.ProcessEnv), 'iap');
+  assert.equal(configuredAuthMode({ NODE_ENV: 'production', CX_AUTH_MODE: 'firebase' } as NodeJS.ProcessEnv), 'firebase');
+  assert.equal(configuredAuthMode({ NODE_ENV: 'development' } as NodeJS.ProcessEnv), 'firebase');
+  assert.equal(configuredAuthMode({ NODE_ENV: 'development', CX_AUTH_MODE: 'iap' } as NodeJS.ProcessEnv), 'iap');
+  assert.throws(
+    () => configuredAuthMode({ NODE_ENV: 'production', CX_AUTH_MODE: 'open' } as NodeJS.ProcessEnv),
+    /CX_AUTH_MODE must be either iap or firebase/,
+  );
+});

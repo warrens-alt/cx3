@@ -36,12 +36,16 @@ function readClient(): string {
   return facade + '\n' + readAll(dir);
 }
 
-test('production authentication is fail closed and local bypass is explicit', () => {
+test('production authentication is fail closed and deployment auth mode is explicit', () => {
   const server = read('server.ts') + read('server/apiApp.ts') + read('server/security.ts');
   assert.ok(server.includes("process.env.NODE_ENV !== 'production' && process.env.CX_ALLOW_DEV_AUTH === 'true'"));
   assert.ok(server.includes(': authenticate();'));
-  assert.match(server, /process\.env\.NODE_ENV !== 'production'.*CX_ALLOW_FIREBASE_PREVIEW_AUTH/s);
+  assert.match(server, /CX_AUTH_MODE/);
+  assert.match(server, /env\.NODE_ENV === 'production' \? 'iap' : 'firebase'/);
+  assert.match(server, /mode === 'iap'/);
   assert.match(server, /x-goog-iap-jwt-assertion/);
+  assert.match(server, /resolveFirebasePrincipal/);
+  assert.doesNotMatch(server, /CX_ALLOW_FIREBASE_PREVIEW_AUTH/);
 });
 
 test('arbitrary BigQuery browsing is retired', () => {
