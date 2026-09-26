@@ -86,7 +86,8 @@ export default function SuspendedView() {
             </div>
           </div>
 
-          <p className="text-[11.5px] text-slate-500 leading-relaxed">            If you believe this suspension is in error, contact your platform administrator or internal support owner.
+          <p className="text-[11.5px] text-slate-500 leading-relaxed">
+            If you believe this suspension is in error, contact your platform administrator or internal support owner.
           </p>
 
           <button
