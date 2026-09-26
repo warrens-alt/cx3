@@ -67,7 +67,7 @@ export default function LoginView() {
               Identity & Access Verification
             </h1>
             <p className="text-xs text-slate-500 leading-relaxed max-w-sm mx-auto">
-              Single Sign-On authentication for verified analysts, operational teams, and workspace managers across Offernet.
+              Google sign-in for Offernet workspace access. Workspace permissions are applied after authentication.
             </p>
           </div>
 
