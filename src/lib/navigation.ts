@@ -1,72 +1,44 @@
-import { 
-  LayoutDashboard, 
-  Filter, 
-  Zap, 
-  PhoneCall, 
-  ShieldCheck, 
-  Clock, 
-  Award, 
-  DollarSign, 
-  Database, 
-  Users, 
-  Megaphone, 
-  Sparkles, 
-  FileText,
-  Building2,
+import {
+  LayoutDashboard,
+  GitFork,
+  PhoneCall,
+  BarChart3,
   AlertTriangle,
-  History,
-  Layers,
-  PhoneForwarded
+  ShieldCheck,
+  Search,
+  Settings,
 } from 'lucide-react';
 
 export const NAV_GROUPS = [
   {
-    title: 'Executive & Funnel',
+    title: 'Operate',
     items: [
-      { name: 'Executive Overview', path: '/overview', icon: LayoutDashboard },
-      { name: 'Funnel Intelligence', path: '/funnel', icon: Filter },
-      { name: 'Speed to Lead', path: '/speed-to-lead', icon: Zap },
+      { name: 'Overview', path: '/overview', icon: LayoutDashboard },
+      { name: 'Funnel', path: '/funnel', icon: GitFork },
+      { name: 'Contact', path: '/speed-to-lead', icon: PhoneCall },
+      { name: 'Performance', path: '/vendor-quality', icon: BarChart3 },
+      { name: 'Exceptions', path: '/exceptions', icon: AlertTriangle },
+      { name: 'Evidence', path: '/reports', icon: ShieldCheck },
+      { name: 'Explore', path: '/lead-explorer', icon: Search },
     ]
   },
   {
-    title: 'Telephony & Contact',
+    title: 'Administration',
     items: [
-      { name: 'Contact Strategy', path: '/contact-strategy', icon: PhoneCall },
-      { name: 'CLI Performance', path: '/cli-performance', icon: PhoneForwarded },
-      { name: 'Agent Performance', path: '/agent-performance', icon: Users },
-      { name: 'Temporal Intelligence', path: '/temporal', icon: Clock },
-    ]
-  },
-  {
-    title: 'Commercial & Quality',
-    items: [
-      { name: 'Vendor & Lead Quality', path: '/vendor-quality', icon: ShieldCheck },
-      { name: 'Sales & Activation', path: '/sales-activation', icon: Award },
-      { name: 'Commercial Intelligence', path: '/commercial', icon: DollarSign },
-    ]
-  },
-  {
-    title: 'Data & Platform',
-    items: [
-      { name: 'Client & Campaigns', path: '/campaigns', icon: Megaphone },
-      { name: 'AI Insights Engine', path: '/ai-insights', icon: Sparkles },
-      { name: 'Data Health & Integrity', path: '/data-integrity', icon: Database },
-      { name: 'Raw Data Explorer', path: '/lead-explorer', icon: FileText },
-    ]
-  },
-  {
-    title: 'Warehouse Reports',
-    items: [
-      { name: 'Evidence Reports', path: '/reports', icon: Layers },
-      { name: 'Vendor Performance Ledger', path: '/vendors', icon: Building2 },
-      { name: 'Vendor Reconciliations', path: '/reconciliation', icon: History },
-      { name: 'Exceptions & Flags', path: '/exceptions', icon: AlertTriangle },
-    ]
-  },
-  {
-    title: 'Access & Governance',
-    items: [
-      { name: 'User & Access Control', path: '/access-control', icon: ShieldCheck },
+      { name: 'Settings', path: '/admin', icon: Settings },
     ]
   }
 ];
+
+export const SECONDARY_DESTINATIONS = [
+  { name: 'Contact Strategy', path: '/contact-strategy' },
+  { name: 'CLI Performance', path: '/cli-performance' },
+  { name: 'Agent Performance', path: '/agent-performance' },
+  { name: 'Temporal Analysis', path: '/temporal' },
+  { name: 'Sales & Activation', path: '/sales-activation' },
+  { name: 'Campaigns', path: '/campaigns' },
+  { name: 'Data Integrity', path: '/data-integrity' },
+  { name: 'Commercial Evidence', path: '/commercial' },
+  { name: 'Vendor Evidence', path: '/vendors' },
+  { name: 'Reconciliation', path: '/reconciliation' },
+] as const;

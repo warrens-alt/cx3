@@ -58,10 +58,10 @@ export default function FunnelIntelligence() {
       <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6 space-y-6 transition-all duration-200">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">Funnel Intelligence</h1>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">Funnel</h1>
             <span className="text-[12px] font-medium text-slate-500 flex items-center gap-1.5 ml-2">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500" />
-              Stage Velocity & Leak Diagnosis
+              Stage progression & loss
             </span>
             {!startDate && !endDate && Object.keys(extractOffernetFilters(filters)).length === 0 && (
               <span className="text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full ml-1">
@@ -121,7 +121,7 @@ export default function FunnelIntelligence() {
                     <div className="text-[10.5px] uppercase font-semibold text-blue-800 tracking-wider">First Dial → Contact</div>
                     <div className="text-xl sm:text-2xl font-bold text-blue-700 mt-1 font-mono tabular-nums tracking-tight">{data.velocity.firstDialToContact}</div>
                   </div>
-                  <div className="text-[10px] text-slate-500 mt-2 pt-1.5 border-t border-blue-200/60">Redial cycle to RPC</div>
+                  <div className="text-[10px] text-slate-500 mt-2 pt-1.5 border-t border-blue-200/60">RPC event timestamp is not independently modelled</div>
                 </div>
 
                 <div className="p-3.5 bg-emerald-50/40 rounded-lg border border-emerald-200/80 hover:border-emerald-300 transition-all flex flex-col justify-between">
@@ -141,11 +141,10 @@ export default function FunnelIntelligence() {
                 </div>
               </div>
 
-              {/* FUNNEL LEAK DETECTION ALERT */}
-              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md flex items-start gap-2 text-xs text-amber-900">
-                <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+              <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-md flex items-start gap-2 text-xs text-slate-700">
+                <AlertTriangle size={15} className="text-slate-500 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold">Detected Funnel Leak: Delivery → First Dial Latency.</span> Average wait time in dialler hopper is {data.velocity.deliveryToFirstDial}. Leads dialed after 60 minutes experience a 64% drop in contact rate compared to immediate dials.
+                  <span className="font-semibold">Latency interpretation:</span> delivery → first dial is measured from source timestamps. First dial → RPC remains unavailable until an RPC event timestamp is independently validated.
                 </div>
               </div>
             </div>

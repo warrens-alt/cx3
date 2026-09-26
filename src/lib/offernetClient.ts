@@ -30,13 +30,14 @@ export interface OverviewData {
     actualVsBreakEven: number | null;
   };
   funnelStages: Array<{
+    key: string;
     name: string;
     volume: number;
     rate: number;
-    dropoffPct: number;
-    itemNo?: number;
-    costMetric?: string;
+    loss: number;
+    transitionRate: number;
   }>;
+  funnelLeak: { from: string; to: string; loss: number; rate: number };
   dailyTrends: Array<{
     date: string;
     leads: number;
@@ -47,16 +48,37 @@ export interface OverviewData {
     activations: number;
     revenue: number;
   }>;
+  backlog: {
+    awaitingFirstDial: number;
+    over60Minutes: number;
+    buckets: Array<{ bucket: string; count: number; severity: string }>;
+    byVendor: Array<{ vendor: string; awaiting_first_dial: number; over_60m: number }>;
+  };
+  sla: {
+    firstDialTargetMinutes: number;
+    complianceRate: number;
+    medianDeliveryToDial: string;
+    p90DeliveryToDial: string;
+  };
+  attention: Array<{
+    id: string;
+    title: string;
+    value: number;
+    severity: 'high' | 'medium' | 'low';
+    detail: string;
+    path: string;
+  }>;
   comparison: {
-    fetchedDelta: number;
-    deliveryRateDelta: number;
-    dialRateDelta: number;
-    contactRateDelta: number;
-    saleRateDelta: number;
-    activationRateDelta: number;
-    revenueDelta: number;
-    contributionDelta: number;
+    fetchedDelta: number | null;
+    deliveryRateDelta: number | null;
+    dialRateDelta: number | null;
+    contactRateDelta: number | null;
+    saleRateDelta: number | null;
+    activationRateDelta: number | null;
+    revenueDelta: number | null;
+    contributionDelta: null;
   } | null;
+  comparisonWindow: { startDate: string; endDate: string } | null;
   commercialStatus: string;
   commercialReason: string;
   validationStatus: string;
@@ -101,10 +123,10 @@ export interface SpeedToLeadData {
   timingStages: Array<{
     stage: string;
     description: string;
-    avgSec: number;
-    medianSec: number;
-    p75Sec: number;
-    p90Sec: number;
+    avgSec: number | null;
+    medianSec: number | null;
+    p75Sec: number | null;
+    p90Sec: number | null;
     avg: string;
     median: string;
     p75: string;
@@ -141,9 +163,9 @@ export interface ContactStrategyData {
     activations: number;
     activationRate: number;
     revenue: number;
-    callCost: number;
-    marginalSales: number;
-    marginalCostPerSale: number;
+    callCost: number | null;
+    marginalSales: number | null;
+    marginalCostPerSale: number | null;
   }>;
   attemptCadence: Array<{
     transition: string;
@@ -168,10 +190,12 @@ export interface VendorQualityData {
     vendor: string;
     leads: number;
     deliveryRate: number;
+    dialRate: number;
     contactRate: number;
     saleRate: number;
     activationRate: number;
     medianFirstDial: string;
+    medianFirstDialSec: number | null;
     callsPerLead: number;
     invalidRate: number;
     revenue: number;
@@ -183,10 +207,17 @@ export interface VendorQualityData {
   sources: Array<{
     source: string;
     leads: number;
+    delivered: number;
+    dialled: number;
     contacted: number;
     sales: number;
     activations: number;
-    revenue: number;
+    deliveryRate: number;
+    dialRate: number;
+    contactRate: number;
+    leadToSaleRate: number;
+    activationRate: number;
+    invalidRate: number;
   }>;
   grades: Array<{
     grade: string;
@@ -194,7 +225,9 @@ export interface VendorQualityData {
     contacted: number;
     sales: number;
     activations: number;
-    revenue: number;
+    contactRate: number;
+    leadToSaleRate: number;
+    activationRate: number;
   }>;
   vetting: Array<{
     vetting_color: string;
@@ -202,6 +235,9 @@ export interface VendorQualityData {
     contacted: number;
     sales: number;
     activations: number;
+    contactRate: number;
+    leadToSaleRate: number;
+    activationRate: number;
   }>;
 }
 

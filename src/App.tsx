@@ -80,7 +80,7 @@ function Shell() {
     '/', '/overview', '/funnel', '/speed-to-lead', '/contact-strategy', 
     '/cli-performance',
     '/vendor-quality', '/temporal', '/sales-activation', '/commercial', 
-    '/data-integrity', '/agent-performance', '/campaigns', '/ai-insights', '/lead-explorer'
+    '/data-integrity', '/agent-performance', '/campaigns', '/ai-insights', '/lead-explorer', '/exceptions'
   ];
   const isOperationalPage = operationalRoutes.includes(location.pathname);
   const evidencePage = ['/reports','/vendors','/exceptions','/reconciliation','/lead-ledger','/admin','/access-control','/users'].includes(location.pathname) || isOperationalPage;
