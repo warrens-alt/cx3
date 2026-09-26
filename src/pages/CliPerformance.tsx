@@ -50,6 +50,7 @@ export default function CliPerformance() {
   const { isAdmin } = useAuth();
   const { startDate, endDate, filters, setFilter } = useFilters();
   const currency = clientConfig?.currency || 'ZAR';
+  const sampleDataEnabled = isAdmin && import.meta.env.DEV;
 
   const [data, setData] = useState<CliPerformanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
