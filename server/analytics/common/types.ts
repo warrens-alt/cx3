@@ -20,6 +20,8 @@ export interface OffernetQueryParams {
   offset?: number;
 }
 
+export * from './metrics';
+
 // Format seconds into human readable duration
 export function formatDuration(seconds: number | null | undefined): string {
   if (seconds === null || seconds === undefined || isNaN(seconds) || seconds < 0) return '—';
@@ -28,3 +30,4 @@ export function formatDuration(seconds: number | null | undefined): string {
   if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}h`;
   return `${(seconds / 86400).toFixed(1)}d`;
 }
+

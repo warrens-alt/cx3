@@ -3,6 +3,7 @@ import { getClientConfig } from '../config';
 import { getBaseSemanticLayer } from '../views';
 import type { BaseQueryParams } from './types';
 import { buildWhereClause } from './types';
+import { percentOrNull, ratioOrNull } from '../../analytics/common/metrics';
 
 export async function getOverviewStats(params: BaseQueryParams) {
   const client = getClientConfig(params.clientId);
@@ -199,20 +200,20 @@ export async function getOverviewStats(params: BaseQueryParams) {
     revenue,
     transactions,
     callsTotal,
-    deliveryRate: leads > 0 ? Number(((delivered / leads) * 100).toFixed(1)) : 0,
-    callCoverage: delivered > 0 ? Number(((called / delivered) * 100).toFixed(1)) : 0,
-    rpcRate: called > 0 ? Number(((rpcs / called) * 100).toFixed(1)) : 0,
-    saleRate: called > 0 ? Number(((sales / called) * 100).toFixed(1)) : 0,
-    leadToSaleRate: leads > 0 ? Number(((sales / leads) * 100).toFixed(1)) : 0,
-    billableSaleRate: sales > 0 ? Number(((billableSales / sales) * 100).toFixed(1)) : 0,
-    activationRate: billableSales > 0 ? Number(((activations / billableSales) * 100).toFixed(1)) : 0,
-    revenuePerLead: leads > 0 ? Number((revenue / leads).toFixed(2)) : 0,
-    revenuePerBillableSale: billableSales > 0 ? Number((revenue / billableSales).toFixed(2)) : 0,
-    callsPerLead: leads > 0 ? Number((callsTotal / leads).toFixed(2)) : 0,
-    callsPerCalledLead: called > 0 ? Number((callsTotal / called).toFixed(2)) : 0,
+    deliveryRate: percentOrNull(delivered, leads, 1),
+    callCoverage: percentOrNull(called, delivered, 1),
+    rpcRate: percentOrNull(rpcs, called, 1),
+    saleRate: percentOrNull(sales, called, 1),
+    leadToSaleRate: percentOrNull(sales, leads, 1),
+    billableSaleRate: percentOrNull(billableSales, sales, 1),
+    activationRate: percentOrNull(activations, billableSales, 1),
+    revenuePerLead: ratioOrNull(revenue, leads, 2),
+    revenuePerBillableSale: ratioOrNull(revenue, billableSales, 2),
+    callsPerLead: ratioOrNull(callsTotal, leads, 2),
+    callsPerCalledLead: ratioOrNull(callsTotal, called, 2),
     spend,
-    cpa: leads > 0 ? Number((spend / leads).toFixed(2)) : 0,
-    roas: spend > 0 ? Number(((revenue / spend) * 100).toFixed(1)) : 0,
+    cpa: ratioOrNull(spend, leads, 2),
+    roas: percentOrNull(revenue, spend, 1),
     trend,
     sources,
     attentionItems,

@@ -17,13 +17,17 @@ export function isChunkLoadError(error: unknown): boolean {
 }
 
 function isChunkErrorMessage(msg: string): boolean {
+  const lower = msg.toLowerCase();
   return (
-    msg.includes('dynamically imported module') ||
-    msg.includes('Failed to fetch') ||
-    msg.includes('Loading chunk') ||
-    msg.includes('error loading dynamically imported module') ||
-    msg.includes('Failed to fetch dynamically imported module') ||
-    msg.includes('Unable to preload CSS')
+    lower.includes('dynamically imported module') ||
+    lower.includes('failed to fetch') ||
+    lower.includes('loading chunk') ||
+    lower.includes('error loading') ||
+    lower.includes('unable to preload css') ||
+    lower.includes('importing a module script failed') ||
+    lower.includes('failed to load module script') ||
+    lower.includes('error resolving module specifier') ||
+    lower.includes('failed to load resource')
   );
 }
 

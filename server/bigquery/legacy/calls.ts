@@ -4,6 +4,7 @@ import { getBaseSemanticLayer } from '../views';
 import { METRIC_DEFINITIONS } from '../metrics';
 import type { BaseQueryParams } from './types';
 import { buildWhereClause } from './types';
+import { percentOrNull, ratioOrNull } from '../../analytics/common/metrics';
 
 export async function getCallPerformanceStats(params: BaseQueryParams) {
   const client = getClientConfig(params.clientId);
@@ -158,10 +159,10 @@ export async function getCallPerformanceStats(params: BaseQueryParams) {
       bucket: b,
       current,
       previous: Number(row.previous ?? row.previous_leads) || 0,
-      rpc: current > 0 ? Number(((Number(row.rpc_count) / current) * 100).toFixed(1)) : 0,
-      sale: current > 0 ? Number(((Number(row.sale_count) / current) * 100).toFixed(1)) : 0,
-      activation: current > 0 ? Number(((Number(row.activation_count) / current) * 100).toFixed(1)) : 0,
-      revPerLead: current > 0 ? Number((Number(row.total_revenue) / current).toFixed(2)) : 0,
+      rpc: percentOrNull(row.rpc_count, current, 1),
+      sale: percentOrNull(row.sale_count, current, 1),
+      activation: percentOrNull(row.activation_count, current, 1),
+      revPerLead: ratioOrNull(row.total_revenue, current, 2),
       totalRevenue: Number(row.total_revenue) || 0,
       avgDurationSec: current > 0 ? Math.round(Number(row.bucket_duration_seconds || 0) / current) : 0
     };
@@ -176,8 +177,8 @@ export async function getCallPerformanceStats(params: BaseQueryParams) {
       hour: hourNum,
       label,
       volume: vol,
-      rpcRate: vol > 0 ? Number(((Number(r.rpc_count) / vol) * 100).toFixed(1)) : 0,
-      saleRate: vol > 0 ? Number(((Number(r.sale_count) / vol) * 100).toFixed(1)) : 0,
+      rpcRate: percentOrNull(r.rpc_count, vol, 1),
+      saleRate: percentOrNull(r.sale_count, vol, 1),
       revenue: Number(r.revenue) || 0
     };
   });
@@ -190,8 +191,8 @@ export async function getCallPerformanceStats(params: BaseQueryParams) {
     return {
       day: dayName,
       volume: vol,
-      rpcRate: vol > 0 ? Number(((Number(r.rpc_count) / vol) * 100).toFixed(1)) : 0,
-      saleRate: vol > 0 ? Number(((Number(r.sale_count) / vol) * 100).toFixed(1)) : 0,
+      rpcRate: percentOrNull(r.rpc_count, vol, 1),
+      saleRate: percentOrNull(r.sale_count, vol, 1),
       revenue: Number(r.revenue) || 0
     };
   });
@@ -205,13 +206,13 @@ export async function getCallPerformanceStats(params: BaseQueryParams) {
       totalLeads: Number(r.total_leads) || 0,
       calledLeads: called,
       totalCalls: calls,
-      avgCallsPerLead: called > 0 ? Number((calls / called).toFixed(1)) : 0,
-      oneCallRate: called > 0 ? Number(((Number(r.one_call_leads) / called) * 100).toFixed(1)) : 0,
-      rpcRate: called > 0 ? Number(((Number(r.rpc_count) / called) * 100).toFixed(1)) : 0,
-      saleRate: called > 0 ? Number(((Number(r.sale_count) / called) * 100).toFixed(1)) : 0,
-      activationRate: called > 0 ? Number(((Number(r.activation_count) / called) * 100).toFixed(1)) : 0,
+      avgCallsPerLead: ratioOrNull(calls, called, 1),
+      oneCallRate: percentOrNull(r.one_call_leads, called, 1),
+      rpcRate: percentOrNull(r.rpc_count, called, 1),
+      saleRate: percentOrNull(r.sale_count, called, 1),
+      activationRate: percentOrNull(r.activation_count, called, 1),
       revenue: Number(r.total_revenue) || 0,
-      revPerLead: called > 0 ? Number((Number(r.total_revenue) / called).toFixed(2)) : 0
+      revPerLead: ratioOrNull(r.total_revenue, called, 2)
     };
   });
 
@@ -222,9 +223,9 @@ export async function getCallPerformanceStats(params: BaseQueryParams) {
     return {
       disposition: r.disposition,
       volume: vol,
-      share: totalDispVolume > 0 ? Number(((vol / totalDispVolume) * 100).toFixed(1)) : 0,
-      rpcRate: vol > 0 ? Number(((Number(r.rpc_count) / vol) * 100).toFixed(1)) : 0,
-      saleRate: vol > 0 ? Number(((Number(r.sale_count) / vol) * 100).toFixed(1)) : 0,
+      share: percentOrNull(vol, totalDispVolume, 1),
+      rpcRate: percentOrNull(r.rpc_count, vol, 1),
+      saleRate: percentOrNull(r.sale_count, vol, 1),
       revenue: Number(r.total_revenue) || 0
     };
   });
@@ -325,15 +326,15 @@ export async function getSpeedToLeadStats(params: BaseQueryParams) {
     bucket: label,
     leads,
     rpcCount,
-    rpc: leads > 0 ? Number(((rpcCount / leads) * 100).toFixed(1)) : 0,
+    rpc: percentOrNull(rpcCount, leads, 1),
     saleCount,
-    sale: leads > 0 ? Number(((saleCount / leads) * 100).toFixed(1)) : 0,
+    sale: percentOrNull(saleCount, leads, 1),
     billableCount,
-    billableRate: saleCount > 0 ? Number(((billableCount / saleCount) * 100).toFixed(1)) : 0,
+    billableRate: percentOrNull(billableCount, saleCount, 1),
     actCount,
-    activation: saleCount > 0 ? Number(((actCount / saleCount) * 100).toFixed(1)) : 0,
+    activation: percentOrNull(actCount, saleCount, 1),
     revenue: rev,
-    revPerLead: leads > 0 ? Number((rev / leads).toFixed(2)) : 0
+    revPerLead: ratioOrNull(rev, leads, 2)
   });
   
   return {

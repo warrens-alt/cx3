@@ -1,41 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import path from 'node:path';
 
-const read = (p: string) => fs.readFileSync(p, 'utf8');
-
-function readClient(): string {
-  const facade = read('src/lib/offernetClient.ts');
-  const dir = path.resolve('src/lib/offernet');
-  if (!fs.existsSync(dir)) return facade;
-  function readAll(d: string): string {
-    let out = '';
-    for (const ent of fs.readdirSync(d, { withFileTypes: true })) {
-      const target = path.join(d, ent.name);
-      if (ent.isDirectory()) out += '\n' + readAll(target);
-      else if (ent.isFile() && ent.name.endsWith('.ts')) out += '\n' + fs.readFileSync(target, 'utf8');
-    }
-    return out;
-  }
-  return facade + '\n' + readAll(dir);
-}
-
-function readCli(): string {
-  const facade = read('src/pages/CliPerformance.tsx');
-  const dir = path.resolve('src/components/cli');
-  if (!fs.existsSync(dir)) return facade;
-  function readAll(d: string): string {
-    let out = '';
-    for (const ent of fs.readdirSync(d, { withFileTypes: true })) {
-      const target = path.join(d, ent.name);
-      if (ent.isDirectory()) out += '\n' + readAll(target);
-      else if (ent.isFile() && (ent.name.endsWith('.ts') || ent.name.endsWith('.tsx'))) out += '\n' + fs.readFileSync(target, 'utf8');
-    }
-    return out;
-  }
-  return facade + '\n' + readAll(dir);
-}
+const read = (path: string) => fs.readFileSync(path, 'utf8');
 
 test('primary operational pages use the shared command-centre shell', () => {
   for (const path of [
@@ -129,7 +96,7 @@ test('advanced pages no longer expose redundant table-versus-graph view toggles'
 });
 
 test('CLI funnel never fabricates answered or activation stages', () => {
-  const cli = readCli();
+  const cli = read('src/pages/CliPerformance.tsx');
   assert.doesNotMatch(cli, /Math\.round\(calls\s*\*\s*0\.54\)/);
   assert.doesNotMatch(cli, /Math\.round\(sales\s*\*\s*0\.68\)/);
   assert.match(cli, /s\.answeredCount !== null/);
@@ -345,7 +312,7 @@ test('record-level audit UI reflects admin-only access', () => {
 });
 
 test('CLI mutation controls are admin-only and production sample is hidden', () => {
-  const cli = readCli();
+  const cli = read('src/pages/CliPerformance.tsx');
   assert.match(cli, /isAdmin &&/);
   assert.match(cli, /sampleDataEnabled/);
   assert.match(cli, /\(import\.meta as any\)\.env\?\.DEV === true/);
@@ -355,7 +322,7 @@ test('CLI mutation controls are admin-only and production sample is hidden', () 
 
 test('Campaigns surfaces contracted reach and outbound-click analytics', () => {
   const page = read('src/pages/CampaignIntelligence.tsx');
-  const client = readClient();
+  const client = read('src/lib/offernetClient.ts');
   assert.match(page, /Reach, outbound traffic & lead capture/);
   assert.match(page, /Outbound CTR/);
   assert.match(page, /Click → lead/);
@@ -364,16 +331,15 @@ test('Campaigns surfaces contracted reach and outbound-click analytics', () => {
 });
 
 test('frontend analytics cache is bounded and prunes stale entries', () => {
-  const client = readClient();
+  const client = read('src/lib/offernetClient.ts');
   assert.match(client, /CACHE_MAX_ENTRIES = 200/);
   assert.match(client, /function pruneOffernetCache/);
   assert.match(client, /memoryCache\.delete/);
 });
 
 
-
 test('CLI import UI matches the scoped source contract and renders unavailable metrics safely', () => {
-  const cli = readCli();
+  const cli = read('src/pages/CliPerformance.tsx');
   assert.match(cli, /report_date, cli_number, campaign_code, total_calls, contact_count, sale_count/);
   assert.match(cli, /Missing optional metrics remain unavailable; CX3 never estimates them/);
   assert.match(cli, /summary\.distinctLeads !== null/);

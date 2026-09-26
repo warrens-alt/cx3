@@ -80,3 +80,39 @@ test('inactive Firebase preview profile fails closed', async context => {
     /not active/,
   );
 });
+
+test('installAuthenticatedApiFetch does not crash when fetch has only a getter', async () => {
+  const { installAuthenticatedApiFetch, _resetInstalledForTesting } = await import('../src/lib/apiFetch');
+  _resetInstalledForTesting();
+  const originalFetch = globalThis.fetch;
+  try {
+    // Configure globalThis.fetch to have only a getter (simulating Window.prototype.fetch)
+    Object.defineProperty(globalThis, 'fetch', {
+      get() {
+        return originalFetch;
+      },
+      configurable: true,
+      enumerable: true,
+    });
+
+    // Calling installAuthenticatedApiFetch must not throw
+    assert.doesNotThrow(() => {
+      installAuthenticatedApiFetch();
+    });
+    // And globalThis.fetch should now be the wrapped function
+    assert.equal(typeof globalThis.fetch, 'function');
+  } finally {
+    _resetInstalledForTesting();
+    try {
+      globalThis.fetch = originalFetch;
+    } catch {
+      Object.defineProperty(globalThis, 'fetch', {
+        value: originalFetch,
+        writable: true,
+        configurable: true,
+        enumerable: true,
+      });
+    }
+  }
+});
+

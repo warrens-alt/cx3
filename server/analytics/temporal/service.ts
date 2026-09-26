@@ -1,14 +1,16 @@
 import { getBigQueryClient } from '../../bigquery/client';
 import { getClientConfig } from '../../bigquery/config';
 import type { OffernetQueryParams } from '../common/types';
+import { configuredSourceTable } from '../common/warehouse';
 import { buildFilterClause } from '../common/scope';
-import { operationalLeadCtes, metricPercent } from '../common/leadMetrics';
+import { percentOrNull } from '../common/metrics';
+import { metricPercent } from '../common/leadMetrics';
 
 // 6. TEMPORAL INTELLIGENCE (Day x Hour Heatmaps)
 export async function getTemporalAnalytics(params: OffernetQueryParams) {
   const clientConfig = getClientConfig(params.clientId);
   const client = getBigQueryClient(clientConfig.bigQueryProject);
-  const { queryParams } = buildFilterClause(params);
+  const { whereSql, queryParams } = buildFilterClause(params);
   const operating = clientConfig.operationalConfig?.operatingHours || { start: '08:00', end: '17:30', workdays: [1, 2, 3, 4, 5] };
   queryParams.tenantTimezone = clientConfig.timezone || 'Africa/Johannesburg';
   queryParams.operatingStart = operating.start.length === 5 ? operating.start + ':00' : operating.start;
@@ -16,7 +18,19 @@ export async function getTemporalAnalytics(params: OffernetQueryParams) {
   queryParams.operatingWorkdays = operating.workdays;
 
   const query = `
-    WITH ${operationalLeadCtes(params)},
+    WITH lead_level AS (
+      SELECT
+        l.lead_id,
+        ANY_VALUE(SAFE_CAST(l.fetched AS TIMESTAMP)) AS fetched_ts,
+        COUNTIF(SAFE_CAST(hlc.rpc AS INT64) > 0) > 0 AS is_rpc,
+        COUNTIF(hlc.first_call_date NOT LIKE '1970%' AND hlc.first_call_date NOT LIKE '1900%' AND hlc.first_call_date IS NOT NULL AND hlc.first_call_date != '') > 0 AS is_dialled,
+        COUNTIF(hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '') > 0 AS is_sale,
+        COUNTIF(hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '') > 0 AS is_activated
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
+      LEFT JOIN UNNEST(l.hlc_details) hlc
+      ${whereSql}
+      GROUP BY l.lead_id
+    ),
     classified AS (
       SELECT
         *,
@@ -25,15 +39,15 @@ export async function getTemporalAnalytics(params: OffernetQueryParams) {
         CAST(FORMAT_TIMESTAMP('%u', fetched_ts, @tenantTimezone) AS INT64) NOT IN UNNEST(@operatingWorkdays)
           OR FORMAT_TIMESTAMP('%H:%M:%S', fetched_ts, @tenantTimezone) < @operatingStart
           OR FORMAT_TIMESTAMP('%H:%M:%S', fetched_ts, @tenantTimezone) >= @operatingEnd AS is_after_hours
-      FROM operational_leads
+      FROM lead_level
     ),
     matrix AS (
       SELECT
         iso_day,
         hour_of_day,
         COUNT(*) AS volume,
-        COUNTIF(is_rpc) AS contacted,
         COUNTIF(is_dialled) AS dialled,
+        COUNTIF(is_rpc) AS contacted,
         COUNTIF(is_sale) AS sales,
         COUNTIF(is_activated) AS activations
       FROM classified
@@ -51,8 +65,8 @@ export async function getTemporalAnalytics(params: OffernetQueryParams) {
       SELECT
         is_after_hours,
         COUNT(*) AS leads,
-        COUNTIF(is_rpc) AS contacted,
         COUNTIF(is_dialled) AS dialled,
+        COUNTIF(is_rpc) AS contacted,
         COUNTIF(is_sale) AS sales
       FROM classified
       GROUP BY is_after_hours
@@ -65,6 +79,14 @@ export async function getTemporalAnalytics(params: OffernetQueryParams) {
 
   const [rows] = await client.query({ query, params: queryParams });
   const data = rows[0] || { matrix: [], operating_summary: [] };
+  return buildTemporalResult(data, clientConfig, operating);
+}
+
+export function buildTemporalResult(
+  data: any,
+  clientConfig: { timezone?: string } = {},
+  operating: { start: string; end: string; workdays: number[] } = { start: '08:00', end: '17:30', workdays: [1, 2, 3, 4, 5] }
+) {
   const rowsByCell = data.matrix || [];
   const isoDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const heatmap: any[] = [];
@@ -73,6 +95,7 @@ export async function getTemporalAnalytics(params: OffernetQueryParams) {
     for (let h = 0; h < 24; h++) {
       const match = rowsByCell.find((row: any) => Number(row.iso_day) === d && Number(row.hour_of_day) === h);
       const volume = match ? Number(match.volume || 0) : 0;
+      const dialled = match && match.dialled !== undefined ? Number(match.dialled) : volume;
       const contacted = match ? Number(match.contacted || 0) : 0;
       const sales = match ? Number(match.sales || 0) : 0;
       const activations = match ? Number(match.activations || 0) : 0;
@@ -81,33 +104,39 @@ export async function getTemporalAnalytics(params: OffernetQueryParams) {
         dayName: isoDays[d - 1],
         hour: h,
         volume,
-        contactRate: metricPercent(contacted, Number(match?.dialled || 0)),
-        saleRate: metricPercent(sales, volume, 2),
-        activationRate: metricPercent(activations, sales, 1)
+        contactRate: percentOrNull(contacted, dialled, 1),
+        saleRate: percentOrNull(sales, volume, 2),
+        activationRate: percentOrNull(activations, sales, 1)
       });
     }
   }
 
   const peakWindows = heatmap
-    .filter(cell => cell.volume > 0 && cell.contactRate !== null)
+    .filter(cell => cell.volume > 0)
     .sort((a, b) => ((b.contactRate ?? -1) - (a.contactRate ?? -1)) || (b.volume - a.volume))
     .slice(0, 6)
     .map(cell => ({
       window: `${cell.dayName} ${String(cell.hour).padStart(2, '0')}:00–${String((cell.hour + 1) % 24).padStart(2, '0')}:00`,
-      contactRate: `${cell.contactRate!.toFixed(1)}%`,
-      saleIndex: cell.saleRate === null ? '—' : cell.saleRate.toFixed(2),
+      contactRate: cell.contactRate !== null ? `${cell.contactRate.toFixed(1)}%` : '—',
+      saleIndex: cell.saleRate !== null ? cell.saleRate.toFixed(2) : '—',
       verdict: 'Observed high-contact capture window'
     }));
 
   const operatingComparison = (data.operating_summary || []).map((row: any) => {
     const leads = Number(row.leads || 0);
+    const dialled = row.dialled !== undefined ? Number(row.dialled) : leads;
     const contacted = Number(row.contacted || 0);
     const sales = Number(row.sales || 0);
+    const type = row.is_after_hours === null || row.is_after_hours === undefined
+      ? 'Unrecorded capture time'
+      : row.is_after_hours
+        ? 'Outside configured operating hours'
+        : 'Inside configured operating hours';
     return {
-      type: row.is_after_hours == null ? 'Unrecorded capture time' : row.is_after_hours ? 'Outside configured operating hours' : 'Inside configured operating hours',
+      type,
       leads,
-      contactRate: metricPercent(contacted, Number(row.dialled || 0)),
-      saleRate: metricPercent(sales, leads, 2),
+      contactRate: percentOrNull(contacted, dialled, 1),
+      saleRate: percentOrNull(sales, leads, 2),
     };
   });
 

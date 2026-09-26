@@ -3,6 +3,7 @@ import { getClientConfig } from '../config';
 import { getBaseSemanticLayer } from '../views';
 import type { BaseQueryParams } from './types';
 import { buildWhereClause } from './types';
+import { percentOrNull, ratioOrNull } from '../../analytics/common/metrics';
 
 export async function getSourcesStats(params: BaseQueryParams) {
   const client = getClientConfig(params.clientId);
@@ -44,25 +45,25 @@ export async function getSourcesStats(params: BaseQueryParams) {
     return {
       source: r.source || 'Unknown',
       leads: current,
-      share: totalLeads > 0 ? Number(((current / totalLeads) * 100).toFixed(1)) : 0,
+      share: percentOrNull(current, totalLeads, 1),
       delivered: deliv,
-      delivery: current > 0 ? Number(((deliv / current) * 100).toFixed(1)) : 0,
-      deliveryRate: current > 0 ? Number(((deliv / current) * 100).toFixed(1)) : 0,
+      delivery: percentOrNull(deliv, current, 1),
+      deliveryRate: percentOrNull(deliv, current, 1),
       called: called,
-      callRate: current > 0 ? Number(((called / current) * 100).toFixed(1)) : 0,
-      callCoverage: deliv > 0 ? Number(((called / deliv) * 100).toFixed(1)) : 0,
+      callRate: percentOrNull(called, current, 1),
+      callCoverage: percentOrNull(called, deliv, 1),
       rpcs: rpcs,
-      rpcRate: called > 0 ? Number(((rpcs / called) * 100).toFixed(1)) : 0,
+      rpcRate: percentOrNull(rpcs, called, 1),
       sales: sales,
-      saleRate: called > 0 ? Number(((sales / called) * 100).toFixed(1)) : 0,
-      leadToSaleRate: current > 0 ? Number(((sales / current) * 100).toFixed(1)) : 0,
+      saleRate: percentOrNull(sales, called, 1),
+      leadToSaleRate: percentOrNull(sales, current, 1),
       billableSales: billableSales,
-      billableSaleRate: sales > 0 ? Number(((billableSales / sales) * 100).toFixed(1)) : 0,
+      billableSaleRate: percentOrNull(billableSales, sales, 1),
       activations: activations,
-      activationRate: billableSales > 0 ? Number(((activations / billableSales) * 100).toFixed(1)) : 0,
+      activationRate: percentOrNull(activations, billableSales, 1),
       revenue: revenue,
-      revPerLead: current > 0 ? Number((revenue / current).toFixed(2)) : 0,
-      revPerSale: sales > 0 ? Number((revenue / sales).toFixed(2)) : 0
+      revPerLead: ratioOrNull(revenue, current, 2),
+      revPerSale: ratioOrNull(revenue, sales, 2)
     };
   });
 }

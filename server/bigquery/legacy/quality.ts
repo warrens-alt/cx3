@@ -3,6 +3,7 @@ import { getClientConfig } from '../config';
 import { getBaseSemanticLayer } from '../views';
 import type { BaseQueryParams } from './types';
 import { buildWhereClause } from './types';
+import { percentOrNull, ratioOrNull } from '../../analytics/common/metrics';
 
 export async function getDataHealthStats(params: BaseQueryParams) {
   const client = getClientConfig(params.clientId);
@@ -177,7 +178,7 @@ export async function getQualityStats(params: BaseQueryParams) {
       { name: 'Duplicate', value: failed, color: '#f43f5e' },
       { name: 'Valid', value: passed, color: '#10b981' }
     ],
-    passRate: total > 0 ? Number(((passed / total) * 100).toFixed(1)) : 0,
+    passRate: percentOrNull(passed, total, 1),
     avgScore: 'A-',
     fullFunnelSummary: {
       leads: total,
@@ -190,13 +191,13 @@ export async function getQualityStats(params: BaseQueryParams) {
       billableSales: Number(stats.billable_sales) || 0,
       activations: Number(stats.activations) || 0,
       revenue: Number(stats.revenue) || 0,
-      deliveryRate: total > 0 ? Number(((Number(stats.delivered) / total) * 100).toFixed(1)) : 0,
-      callRate: total > 0 ? Number(((Number(stats.called) / total) * 100).toFixed(1)) : 0,
-      rpcRate: Number(stats.called) > 0 ? Number(((Number(stats.rpcs) / Number(stats.called)) * 100).toFixed(1)) : 0,
-      saleRate: total > 0 ? Number(((Number(stats.sales) / total) * 100).toFixed(1)) : 0,
-      billableSaleRate: Number(stats.sales) > 0 ? Number(((Number(stats.billable_sales) / Number(stats.sales)) * 100).toFixed(1)) : 0,
-      activationRate: Number(stats.sales) > 0 ? Number(((Number(stats.activations) / Number(stats.sales)) * 100).toFixed(1)) : 0,
-      revPerLead: total > 0 ? Number((Number(stats.revenue) / total).toFixed(2)) : 0
+      deliveryRate: percentOrNull(stats.delivered, total, 1),
+      callRate: percentOrNull(stats.called, total, 1),
+      rpcRate: percentOrNull(stats.rpcs, stats.called, 1),
+      saleRate: percentOrNull(stats.sales, total, 1),
+      billableSaleRate: percentOrNull(stats.billable_sales, stats.sales, 1),
+      activationRate: percentOrNull(stats.activations, stats.sales, 1),
+      revPerLead: ratioOrNull(stats.revenue, total, 2)
     },
     fullFunnelByGrade,
     chart: fullFunnelByGrade.map(g => ({
@@ -206,8 +207,8 @@ export async function getQualityStats(params: BaseQueryParams) {
       sale: g.sales
     })),
     reasons: [
-      { reason: 'Duplicate Record', count: failed, percentage: total > 0 ? Number(((failed / total) * 100).toFixed(1)) : 0 },
-      { reason: 'Standard Passed', count: passed, percentage: total > 0 ? Number(((passed / total) * 100).toFixed(1)) : 0 }
+      { reason: 'Duplicate Record', count: failed, percentage: percentOrNull(failed, total, 1) },
+      { reason: 'Standard Passed', count: passed, percentage: percentOrNull(passed, total, 1) }
     ]
   };
 }

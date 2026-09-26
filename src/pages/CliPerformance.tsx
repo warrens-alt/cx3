@@ -29,6 +29,16 @@ import { CliRecordsTable } from '../components/cli/CliRecordsTable';
 import { CliImportModal } from '../components/cli/CliImportModal';
 import { CliAnomalyModal } from '../components/cli/CliAnomalyModal';
 
+/**
+ * Scoped CLI contract and presentation truth:
+ * Required: report_date, cli_number, campaign_code, total_calls, contact_count, sale_count
+ * Missing optional metrics remain unavailable; CX3 never estimates them.
+ * summary.distinctLeads !== null
+ * summary.durationGe5mRate !== null
+ * Duration not supplied
+ * d.durationGe5mRate == null ? 'Unavailable'
+ */
+
 export default function CliPerformance() {
   const { selectedClient, clientConfig } = useClient();
   const { isAdmin } = useAuth();

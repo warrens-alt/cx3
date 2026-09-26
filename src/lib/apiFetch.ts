@@ -33,15 +33,55 @@ export function authenticatedApiFetch(baseFetch: FetchLike, tokenProvider: Token
 
 let installed = false;
 
+export function _resetInstalledForTesting() {
+  installed = false;
+}
+
 /** Install once before React mounts so every same-origin /api request receives
  * the signed-in Firebase token. Production IAP still remains authoritative on
  * the server; the bearer token is consumed only by non-production Preview. */
 export function installAuthenticatedApiFetch() {
   if (installed || typeof globalThis.fetch !== 'function') return;
   const baseFetch = globalThis.fetch.bind(globalThis) as FetchLike;
-  globalThis.fetch = authenticatedApiFetch(baseFetch, async () => {
+  const authFetch = authenticatedApiFetch(baseFetch, async () => {
     const user = auth.currentUser;
     return user ? await user.getIdToken() : null;
   });
-  installed = true;
+
+  try {
+    globalThis.fetch = authFetch;
+    installed = true;
+    return;
+  } catch {
+    // In browser environments where Window.prototype.fetch has only a getter,
+    // direct assignment throws "TypeError: Cannot set property fetch of #<Window> which has only a getter".
+  }
+
+  try {
+    Object.defineProperty(globalThis, 'fetch', {
+      value: authFetch,
+      writable: true,
+      configurable: true,
+      enumerable: true,
+    });
+    installed = true;
+    return;
+  } catch (err) {
+    // Non-fatal fallback if environment prevents redefining fetch
+    console.warn('Unable to redefine global fetch with authenticated wrapper:', err);
+  }
+
+  if (typeof window !== 'undefined' && (window as unknown) !== (globalThis as unknown)) {
+    try {
+      Object.defineProperty(window, 'fetch', {
+        value: authFetch,
+        writable: true,
+        configurable: true,
+        enumerable: true,
+      });
+      installed = true;
+    } catch {
+      // Non-fatal fallback
+    }
+  }
 }

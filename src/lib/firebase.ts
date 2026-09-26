@@ -20,4 +20,6 @@ async function testConnection() {
   }
 }
 
-testConnection().catch(() => {});
+if (typeof window !== 'undefined') {
+  testConnection().catch(() => {});
+}
