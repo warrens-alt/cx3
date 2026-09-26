@@ -4,10 +4,10 @@
  * Implements:
  * 1. Live BigQuery schema discovery and grouped SQL queries at the raw call event grain
  * 2. Visible schema gap reporting when underlying table lacks CLI column
- * 3. Fallback CSV report ingestion engine with strict schema & anomaly validation
+ * 3. CSV report ingestion aligned to the observed OfferNet daily CLI export schema
  * 4. Exact decimal aggregation (SUM/SUM, never AVG of percentages)
- * 5. Period comparison with deterministic business observations
- * 6. Duration bands (<1m, 1–5m, 5–15m, 15m+) and lead age bands
+ * 5. Explicit withholding when matched historical populations are unavailable
+ * 6. Duration-band and source-reported lead-age evidence without inferred distributions
  */
 
 import {
@@ -117,6 +117,12 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
   if (callsIdx === -1) {
     errors.push("Missing required call volume column. Expected 'total_calls' or 'calls'.");
   }
+  if (campaignIdx === -1) {
+    errors.push("Missing required campaign column. Expected 'campaign_code', 'campaign', or 'campaign_id'.");
+  }
+  if (dateIdx === -1) {
+    errors.push("Missing required report date column. Expected 'report_date', 'date', or 'call_date'.");
+  }
 
   if (errors.length > 0) {
     return { records: [], trend: [], leadAgeBands: emptyLeadAgeBands(), anomalies, errors };
@@ -178,8 +184,8 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
       });
     }
 
-    const campaign = campaignIdx !== -1 && cells[campaignIdx] ? cells[campaignIdx].trim() : 'Standard Outbound';
-    const vendor = vendorIdx !== -1 && cells[vendorIdx] ? cells[vendorIdx].trim() : 'Default Vendor';
+    const campaign = campaignIdx !== -1 && cells[campaignIdx] ? cells[campaignIdx].trim() : 'Unavailable';
+    const vendor = vendorIdx !== -1 && cells[vendorIdx] ? cells[vendorIdx].trim() : 'Unavailable';
     const totalCallsNum = Math.max(0, parseInt(cells[callsIdx] || '0', 10) || 0);
     const totalCalls = String(totalCallsNum);
 
@@ -232,8 +238,42 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
     const valuePerCall = recordedValue ? (parseFloat(recordedValue) / totalCallsNum).toFixed(2) : null;
     const valuePerLead = recordedValue && distinctLeadsNum !== null ? (parseFloat(recordedValue) / distinctLeadsNum).toFixed(2) : null;
 
+    const reportedRates = {
+      asr: asrPctIdx !== -1 && cells[asrPctIdx] ? parsePct(cells[asrPctIdx]) : null,
+      answered: answeredPctIdx !== -1 && cells[answeredPctIdx] ? parsePct(cells[answeredPctIdx]) : null,
+      contact: contactPctIdx !== -1 && cells[contactPctIdx] ? parsePct(cells[contactPctIdx]) : null,
+      salePerContact: salePctIdx !== -1 && cells[salePctIdx] ? parsePct(cells[salePctIdx]) : null,
+      duration1m: d1mPctIdx !== -1 && cells[d1mPctIdx] ? parsePct(cells[d1mPctIdx]) : null,
+      duration5m: d5mPctIdx !== -1 && cells[d5mPctIdx] ? parsePct(cells[d5mPctIdx]) : null,
+      duration15m: d15mPctIdx !== -1 && cells[d15mPctIdx] ? parsePct(cells[d15mPctIdx]) : null,
+    };
+
     // Mathematical Sanity & Anomaly Checks
     const rowAnomalies: string[] = [];
+    const validateRate = (label: string, reported: string | null, derived: string | null) => {
+      if (reported === null || derived === null) return;
+      const difference = Math.abs(Number(reported) - Number(derived));
+      if (!Number.isFinite(difference)) return;
+      if (difference > 0.2) {
+        anomalies.push({
+          type: 'PERCENTAGE_MISMATCH',
+          severity: 'WARNING',
+          cli,
+          message: `${label} in the source report (${reported}%) differs from count-derived ${derived}% by ${difference.toFixed(2)}pp.`,
+          rawValues: { reported, derived },
+        });
+        rowAnomalies.push(`${label} percentage mismatch`);
+      }
+    };
+
+    validateRate('ASR', reportedRates.asr, asrCount ? calculateExactRate(asrCount, totalCalls) : null);
+    validateRate('Answered rate', reportedRates.answered, answeredCount ? calculateExactRate(answeredCount, totalCalls) : null);
+    validateRate('RPC rate', reportedRates.contact, contactRate);
+    // In the observed OfferNet daily export sale_pct is Sale / RPC, not Sale / Call.
+    validateRate('Sale / RPC rate', reportedRates.salePerContact, salePerContactRate);
+    validateRate('Calls ≥1m share', reportedRates.duration1m, durationGe1mPct);
+    validateRate('Calls ≥5m share', reportedRates.duration5m, durationGe5mPct);
+    validateRate('Calls ≥15m share', reportedRates.duration15m, durationGe15mPct);
     if (saleCountNum > totalCallsNum) {
       anomalies.push({
         type: 'SALES_EXCEED_CALLS',
@@ -255,7 +295,7 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
       rowAnomalies.push('Sales exceed RPC contacts');
     }
 
-    if (parseFloat(avgDuration) < 0) {
+    if (avgDuration !== null && parseFloat(avgDuration) < 0) {
       anomalies.push({
         type: 'NEGATIVE_DURATION',
         severity: 'CRITICAL',
@@ -344,10 +384,10 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
   return { records, trend, leadAgeBands, anomalies, errors };
 }
 
-function parsePct(val: string): string {
+function parsePct(val: string): string | null {
   const clean = val.replace('%', '').trim();
   const num = parseFloat(clean);
-  if (isNaN(num)) return '0.00';
+  if (!Number.isFinite(num)) return null;
   // If provided as 0.05 instead of 5%
   if (num > 0 && num <= 1 && clean.includes('.')) {
     return (num * 100).toFixed(2);
@@ -870,16 +910,16 @@ export async function getCliPerformance(
     cliPerformance: [],
     trend: [],
     durationBands: {
-      under1mCount: '0',
-      under1mPct: '0.00',
-      oneTo5mCount: '0',
-      oneTo5mPct: '0.00',
-      fiveTo15mCount: '0',
-      fiveTo15mPct: '0.00',
-      over15mCount: '0',
-      over15mPct: '0.00',
-      totalDurationSeconds: '0',
-      avgDurationSeconds: '0.0',
+      under1mCount: null,
+      under1mPct: null,
+      oneTo5mCount: null,
+      oneTo5mPct: null,
+      fiveTo15mCount: null,
+      fiveTo15mPct: null,
+      over15mCount: null,
+      over15mPct: null,
+      totalDurationSeconds: null,
+      avgDurationSeconds: null,
       medianDurationSeconds: null,
     },
     leadAgeBands: emptyLeadAgeBands(),
