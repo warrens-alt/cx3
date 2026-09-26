@@ -4,7 +4,6 @@ import { BarChart3, GitFork, LayoutDashboard, Menu, PhoneCall } from 'lucide-rea
 
 interface MobileBottomNavProps {
   onOpenMenu: () => void;
-  onOpenSearch: () => void;
 }
 
 export default function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
