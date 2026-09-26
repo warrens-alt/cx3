@@ -63,8 +63,8 @@ export const ClientProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       const authorised = json.data as ClientListItem[];
       const requested = typeof window === 'undefined'
-        ? selectedClient
-        : new URLSearchParams(window.location.search).get('clientId') || selectedClient;
+        ? ''
+        : new URLSearchParams(window.location.search).get('clientId') || '';
       const selected = authorised.some(client => client.id === requested) ? requested : authorised[0].id;
       const match = authorised.find(client => client.id === selected)!;
       setClients(authorised);
@@ -84,7 +84,7 @@ export const ClientProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } finally {
       setLoading(false);
     }
-  }, [setSearchParams, selectedClient]);
+  }, [setSearchParams]);
 
   useEffect(() => {
     loadConfig();
