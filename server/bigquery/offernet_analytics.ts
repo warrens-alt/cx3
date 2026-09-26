@@ -1291,11 +1291,32 @@ export async function getRawLeads(params: OffernetQueryParams) {
 }
 
 // LEAD TIMELINE MODAL DATA
-export async function getLeadTimeline(leadId: string) {
+export async function getLeadTimeline(leadId: string, params: Pick<OffernetQueryParams, 'clientId' | 'vendor'>) {
   const client = getBigQueryClient('dashboards-422710');
+  const clientConfig = getClientConfig(params.clientId);
+  const conditions = ['l.lead_id = @leadId'];
+  const queryParams: Record<string, any> = { leadId };
+  const callConditions = ['CAST(dialer_lead_id AS STRING) = @leadId'];
+
+  if (clientConfig.id !== 'default_tenant') {
+    const tenantVendors = clientConfig.semanticMappings.partners || [];
+    if (!tenantVendors.length) throw new RequestError('No approved vendor mapping exists for this tenant', 422);
+    conditions.push('LOWER(hlc.vendor) IN UNNEST(@tenantVendors)');
+    callConditions.push('LOWER(vendor) IN UNNEST(@tenantVendors)');
+    queryParams.tenantVendors = tenantVendors.map(value => value.toLowerCase());
+  }
+
+  const cleanVendor = params.vendor && !['all', 'all vendors', 'undefined', 'null'].includes(params.vendor.trim().toLowerCase())
+    ? params.vendor.trim()
+    : undefined;
+  if (cleanVendor) {
+    conditions.push('LOWER(hlc.vendor) = LOWER(@vendor)');
+    callConditions.push('LOWER(vendor) = LOWER(@vendor)');
+    queryParams.vendor = cleanVendor;
+  }
 
   const query = `
-    SELECT 
+    SELECT
       l.lead_id,
       l.consumer_id,
       l.fetched,
@@ -1308,20 +1329,20 @@ export async function getLeadTimeline(leadId: string) {
       hlc.*
     FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
     LEFT JOIN UNNEST(l.hlc_details) hlc
-    WHERE l.lead_id = @leadId
+    WHERE ${conditions.join(' AND ')}
+    ORDER BY SAFE_CAST(hlc.delivered AS TIMESTAMP) DESC
     LIMIT 1
   `;
 
-  const [rows] = await client.query({ query, params: { leadId } });
+  const [rows] = await client.query({ query, params: queryParams });
   const row = rows[0];
   if (!row) return null;
 
-  // Also query vicidial insight calls for this lead if available
   let vicidialCalls: any[] = [];
   try {
     const [callRows] = await client.query({
       query: `
-        SELECT 
+        SELECT
           call_start_date,
           call_end_date,
           length_in_sec,
@@ -1332,92 +1353,86 @@ export async function getLeadTimeline(leadId: string) {
           is_callback,
           called_count
         FROM \`dashboards-422710.lead_ledger.lead_ledger_all_vicidial_insights\`
-        WHERE CAST(dialer_lead_id AS STRING) = @leadId
+        WHERE ${callConditions.join(' AND ')}
         ORDER BY SAFE_CAST(call_start_date AS TIMESTAMP) ASC
+        LIMIT 500
       `,
-      params: { leadId }
+      params: queryParams
     });
     vicidialCalls = callRows;
-  } catch (e) {
-    // If table not indexed by string or empty
+  } catch {
+    vicidialCalls = [];
   }
 
-  // Construct Chronological Timeline Events
   const events: any[] = [];
 
-  // 1. Captured & Fetched
-  if (row.fetched && !row.fetched.startsWith('1900') && !row.fetched.startsWith('1970')) {
+  if (row.fetched && !String(row.fetched).startsWith('1900') && !String(row.fetched).startsWith('1970')) {
     events.push({
       stage: 'Captured',
       title: 'Lead Captured & Ingested',
       timestamp: row.fetched,
       status: 'SUCCESS',
-      details: `Source: ${row.offershop_source || 'Unknown'} | Medium: ${row.offernet_medium || 'Unknown'} | Grade: ${row.offershop_grade || 'Standard'}`
+      details: `Source: ${row.offershop_source || 'Unknown'} | Medium: ${row.offernet_medium || 'Unknown'} | Grade: ${row.offershop_grade || 'Unknown'}`
     });
   }
 
-  // 2. Delivered
-  if (row.delivered && !row.delivered.startsWith('1900') && !row.delivered.startsWith('1970')) {
+  if (row.delivered && !String(row.delivered).startsWith('1900') && !String(row.delivered).startsWith('1970')) {
     events.push({
       stage: 'Delivered',
-      title: `Delivered to Vendor (${row.vendor || 'Unknown'})`,
+      title: `Delivery recorded for ${row.vendor || 'Unknown'}`,
       timestamp: row.delivered,
       status: 'SUCCESS',
       details: `Transaction ID: ${row.transaction_id || 'N/A'}`
     });
   }
 
-  // 3. Dial Attempts (from Vicidial if present, else first/last call dates)
   if (vicidialCalls.length > 0) {
     vicidialCalls.forEach((call, index) => {
       events.push({
         stage: `Attempt ${call.called_count || index + 1}`,
-        title: `Dial Attempt ${call.called_count || index + 1} (${call.status_name || 'Dispositioned'})`,
+        title: `Dial attempt ${call.called_count || index + 1} (${call.status_name || 'Disposition recorded'})`,
         timestamp: call.call_start_date,
         status: call.is_rpc ? 'SUCCESS' : 'INFO',
-        details: `Agent: ${call.user || 'System'} | Duration: ${call.length_in_sec || 0}s | RPC: ${call.is_rpc ? 'Yes' : 'No'} | Sale: ${call.is_sale ? 'Yes' : 'No'}`
+        details: `Agent: ${call.user || 'Unknown'} | Duration: ${call.length_in_sec || 0}s | RPC: ${call.is_rpc ? 'Yes' : 'No'} | Sale flag: ${call.is_sale ? 'Yes' : 'No'}`
       });
     });
-  } else if (row.first_call_date && !row.first_call_date.startsWith('1900') && !row.first_call_date.startsWith('1970')) {
+  } else if (row.first_call_date && !String(row.first_call_date).startsWith('1900') && !String(row.first_call_date).startsWith('1970')) {
     events.push({
       stage: 'Dialled',
-      title: `First Dial Attempt (${row.last_dialer_status || 'Handled'})`,
+      title: `First dial timestamp recorded (${row.last_dialer_status || 'No disposition'})`,
       timestamp: row.first_call_date,
-      status: 'SUCCESS',
-      details: `Total calls recorded: ${row.total_calls || 1}`
+      status: 'INFO',
+      details: `Cumulative call counter: ${row.total_calls ?? 'Unknown'}`
     });
   }
 
-  // 4. Contact (RPC)
-  if (row.rpc > 0 || vicidialCalls.some(c => c.is_rpc)) {
+  if (Number(row.rpc || 0) > 0 || vicidialCalls.some(call => call.is_rpc)) {
     events.push({
       stage: 'Contacted',
-      title: 'Right Party Contact (RPC) Established',
+      title: 'Right Party Contact flag recorded',
       timestamp: row.first_call_date || row.delivered,
-      status: 'SUCCESS',
-      details: 'Customer verified identity and engaged in offer discussion.'
+      status: 'INFO',
+      details: 'RPC evidence is shown as recorded by the source system; no additional customer-verification claim is inferred.'
     });
   }
 
-  // 5. Sale
-  if (row.sale && !row.sale.startsWith('1900') && !row.sale.startsWith('1970')) {
+  if (row.sale && !String(row.sale).startsWith('1900') && !String(row.sale).startsWith('1970')) {
     events.push({
       stage: 'Sale',
-      title: 'Sale Executed & Contract Recorded',
+      title: 'Sale timestamp recorded',
       timestamp: row.sale,
-      status: 'SUCCESS',
-      details: `Revenue: ZAR ${Number(row.revenue_generated || 0).toLocaleString()}`
+      status: 'INFO',
+      details: `Recorded revenue field: ZAR ${Number(row.revenue_generated || 0).toLocaleString()}`
     });
   }
 
-  // 6. Activation
-  if (row.activated && !row.activated.startsWith('1900') && !row.activated.startsWith('1970')) {
+  if (row.activated && !String(row.activated).startsWith('1900') && !String(row.activated).startsWith('1970')) {
     events.push({
       stage: 'Activated',
-      title: 'Service Activated on Network',
+      title: 'Activation timestamp recorded',
       timestamp: row.activated,
-      status: 'SUCCESS',
-      details: 'First debit / SIM provisioning confirmed active.'
+      status: 'INFO',
+      details: 'Activation is reported exactly as represented in the source row; provisioning or collection is not inferred.'
     });
   }
 
@@ -1427,6 +1442,7 @@ export async function getLeadTimeline(leadId: string) {
     vendor: row.vendor,
     source: row.offershop_source,
     grade: row.offershop_grade,
-    events
+    events: events.sort((a, b) => Date.parse(a.timestamp || '') - Date.parse(b.timestamp || ''))
   };
 }
+
