@@ -621,7 +621,7 @@
 .cx-command-chart { height: 230px; padding: 13px 12px 8px 4px; }
 .cx-command-shortcuts {
   display: grid;
-  grid-template-columns: repeat(3,minmax(0,1fr));
+  grid-template-columns: repeat(4,minmax(0,1fr));
   gap: 12px;
 }
 .cx-command-shortcuts>a {
