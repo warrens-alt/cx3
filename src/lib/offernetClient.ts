@@ -1,3 +1,76 @@
+export interface OperatingControlsData {
+  summary: {
+    totalLeads: number;
+    deliveredLeads: number;
+    dialledLeads: number;
+    zeroCallLeads: number;
+    oneCallLeads: number;
+    multiCallLeads: number;
+    highAttemptNoRpcLeads: number;
+    singleAttemptSharePct: number;
+    multiAttemptSharePct: number;
+    dispositionCompletenessPct: number;
+    afterHoursLeads: number;
+    afterHoursSharePct: number;
+    weekendLeads: number;
+    weekendSharePct: number;
+    sla15Rate: number;
+    sla60Rate: number;
+    activationBacklog14d: number;
+    afterHoursRpcRate: number;
+    operatingHoursRpcRate: number;
+    afterHoursSaleRate: number;
+    operatingHoursSaleRate: number;
+  };
+  attemptBuckets: Array<{
+    bucket: string;
+    leads: number;
+    sharePct: number;
+    contacted: number;
+    contactRate: number;
+    sales: number;
+    saleRate: number;
+    activations: number;
+  }>;
+  slaBands: Array<{
+    band: string;
+    leads: number;
+    sharePct: number;
+    contactRate: number;
+    saleRate: number;
+  }>;
+  activationAgeing: Array<{ bucket: string; leads: number }>;
+  vendorControls: Array<{
+    vendor: string;
+    leads: number;
+    oneCallSharePct: number;
+    highAttemptNoRpc: number;
+    dispositionCompletenessPct: number;
+    sla15Rate: number;
+    medianFirstDial: string;
+    rpcRate: number;
+    leadToSaleRate: number;
+  }>;
+  dataCompleteness: {
+    missingSource: number;
+    missingGrade: number;
+    missingVendor: number;
+    missingDisposition: number;
+  };
+  operatingContext: {
+    timezone: string;
+    start: string;
+    end: string;
+    workdays: number[];
+  };
+  methodology: {
+    callCount: string;
+    vendor: string;
+    operatingHours: string;
+  };
+  validationStatus: string;
+}
+
 export interface OverviewData {
   kpis: {
     fetchedLeads: number;
@@ -682,6 +755,10 @@ export async function fetchOffernetJson<T>(url: string, forceRefresh = false): P
 
   inFlightRequests.set(url, fetchPromise);
   return fetchPromise;
+}
+
+export async function fetchOperatingControls(params: Record<string, any> = {}, forceRefresh = false): Promise<OperatingControlsData> {
+  return fetchOffernetJson<OperatingControlsData>(`/api/analytics/offernet/operating-controls${buildQueryString(params)}`, forceRefresh);
 }
 
 export async function fetchOverview(params: Record<string, any> = {}, forceRefresh = false): Promise<OverviewData> {
