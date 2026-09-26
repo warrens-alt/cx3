@@ -123,10 +123,10 @@ export interface SpeedToLeadData {
   timingStages: Array<{
     stage: string;
     description: string;
-    avgSec: number;
-    medianSec: number;
-    p75Sec: number;
-    p90Sec: number;
+    avgSec: number | null;
+    medianSec: number | null;
+    p75Sec: number | null;
+    p90Sec: number | null;
     avg: string;
     median: string;
     p75: string;
