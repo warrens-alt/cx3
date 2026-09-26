@@ -62,13 +62,8 @@ export default function ExecutiveOverview() {
       ['Activation Rate', `${data.kpis.activationRate}%`, 'percentage'],
       ['Total Calls Dialled', data.kpis.totalCalls, 'calls'],
       ['Calls per Lead', data.kpis.callsPerLead, 'ratio'],
-      ['Gross Revenue', `R ${data.kpis.revenue.toLocaleString()}`, 'ZAR'],
-      ['Total Operational Cost', `R ${data.kpis.totalCost.toLocaleString()}`, 'ZAR'],
-      ['Net Contribution', `R ${data.kpis.contribution.toLocaleString()}`, 'ZAR'],
-      ['Contribution Margin', `${data.kpis.marginPct}%`, 'percentage'],
-      ['Cost per Sale (CPS)', `R ${data.kpis.costPerSale}`, 'ZAR'],
-      ['Cost per Activation (CPA)', `R ${data.kpis.costPerActivation}`, 'ZAR'],
-      ['Break-even Volume', data.kpis.breakEvenSales, 'sales']
+      ['Recorded Revenue', `R ${data.kpis.revenue.toLocaleString()}`, 'ZAR'],
+      ['Recorded Revenue per Lead', `R ${data.kpis.revenuePerLead}`, 'ZAR']
     ];
     const csvContent = 'data:text/csv;charset=utf-8,' + rows.map(e => e.join(',')).join('\n');
     const encodedUri = encodeURI(csvContent);
@@ -104,7 +99,7 @@ export default function ExecutiveOverview() {
               )}
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              End-to-end operational funnel and commercial profitability waterfall across {data?.clientName || 'Master Platform'}.
+              End-to-end operational funnel across {data?.clientName || 'Master Platform'}. Commercial cost and profitability outputs remain withheld until approved cost contracts are available.
             </p>
           </div>
 
@@ -421,200 +416,30 @@ export default function ExecutiveOverview() {
               </div>
             </div>
 
-            {/* COMMERCIAL PROFITABILITY WATERFALL & UNIT ECONOMICS */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2 bg-white border border-slate-200 rounded-lg p-5 shadow-2xs">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                  <div className="flex items-center gap-2">
-                    <DollarSign size={16} className="text-emerald-600" />
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800">
-                      Commercial Profitability Waterfall
-                    </h3>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5 text-xs">
-                      <button
-                        type="button"
-                        onClick={() => setCommercialView('table')}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 font-medium rounded ${
-                          commercialView === 'table'
-                            ? 'bg-white text-blue-700 shadow-2xs font-semibold'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        <TableIcon size={12} /> Table
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCommercialView('graph')}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 font-medium rounded ${
-                          commercialView === 'graph'
-                            ? 'bg-white text-blue-700 shadow-2xs font-semibold'
-                            : 'text-slate-600 hover:text-slate-900'
-                        }`}
-                      >
-                        <BarChart2 size={12} /> Graph
-                      </button>
-                    </div>
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
-                      Net Contribution Model
-                    </span>
-                  </div>
-                </div>
-
-                {commercialView === 'table' ? (
-                  <div className="space-y-2.5 text-xs font-mono">
-                    <div className="flex items-center justify-between py-2 border-b border-slate-100">
-                      <span className="text-slate-700 font-sans font-medium">Gross Recorded Revenue</span>
-                      <span className="font-bold text-slate-900 text-sm tabular-nums">R {kpis.revenue.toLocaleString()}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between py-1.5 border-b border-slate-100 text-rose-700">
-                      <span className="font-sans">– Direct Media / Lead Acquisition Cost (R45 / lead)</span>
-                      <span className="font-semibold tabular-nums">-R {kpis.directCost.toLocaleString()}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between py-1.5 border-b border-slate-100 text-rose-700">
-                      <span className="font-sans">– Telephony, Dialler & Agent Cost (R14.50 / dialled)</span>
-                      <span className="font-semibold tabular-nums">-R {kpis.deliveryAgentCost.toLocaleString()}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between py-1.5 border-b border-slate-100 text-rose-700">
-                      <span className="font-sans">– Allocated Platform & Fixed Overhead (10% + Base)</span>
-                      <span className="font-semibold tabular-nums">-R {kpis.allocatedCost.toLocaleString()}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between py-2.5 border-t-2 border-slate-200 font-bold text-sm">
-                      <span className={`font-sans ${kpis.contribution >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                        = Net Operational Contribution
-                      </span>
-                      <span className={`tabular-nums ${kpis.contribution >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                        R {kpis.contribution.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="h-48 w-full pt-1">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart 
-                        data={[
-                          { name: 'Gross Revenue', amount: kpis.revenue, type: 'revenue', pct: 100 },
-                          { name: 'Media Cost', amount: -kpis.directCost, type: 'cost', pct: kpis.revenue > 0 ? ((kpis.directCost / kpis.revenue) * 100).toFixed(1) : 0 },
-                          { name: 'Telephony Cost', amount: -kpis.deliveryAgentCost, type: 'cost', pct: kpis.revenue > 0 ? ((kpis.deliveryAgentCost / kpis.revenue) * 100).toFixed(1) : 0 },
-                          { name: 'Allocated Overhead', amount: -kpis.allocatedCost, type: 'cost', pct: kpis.revenue > 0 ? ((kpis.allocatedCost / kpis.revenue) * 100).toFixed(1) : 0 },
-                          { name: 'Net Contribution', amount: kpis.contribution, type: kpis.contribution >= 0 ? 'profit' : 'loss', pct: kpis.revenue > 0 ? ((kpis.contribution / kpis.revenue) * 100).toFixed(1) : 0 },
-                        ]}
-                        margin={{ top: 12, right: 10, left: 0, bottom: 20 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" />
-                        <YAxis tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" tickFormatter={(v) => `R${(Math.abs(v)/1000).toFixed(0)}k`} />
-                        <Tooltip
-                          content={({ active, payload }) => {
-                            if (!active || !payload || !payload.length) return null;
-                            const item = payload[0].payload;
-                            return (
-                              <div className="bg-white/95 backdrop-blur-md border border-slate-200 rounded-lg shadow-lg p-3 text-xs min-w-[190px] ring-1 ring-black/5">
-                                <div className="font-semibold text-slate-800 border-b border-slate-100 pb-1 mb-2">
-                                  {item.name}
-                                </div>
-                                <div className="space-y-1.5">
-                                  <div className="flex items-center justify-between gap-3">
-                                    <span className="text-slate-500">Amount</span>
-                                    <span className={`font-mono font-bold tabular-nums ${item.amount < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
-                                      R {item.amount.toLocaleString()}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center justify-between gap-3 text-slate-500">
-                                    <span>Share of Revenue</span>
-                                    <span className="font-mono font-semibold tabular-nums">
-                                      {item.name === 'Gross Revenue' ? '100%' : `${item.pct}%`}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          }}
-                        />
-                        <Bar dataKey="amount" radius={[4, 4, 0, 0]} maxBarSize={44}>
-                          {[
-                            { fill: '#059669' },
-                            { fill: '#e11d48' },
-                            { fill: '#ea580c' },
-                            { fill: '#d97706' },
-                            { fill: kpis.contribution >= 0 ? '#059669' : '#e11d48' }
-                          ].map((entry, idx) => (
-                            <Cell key={`bar-${idx}`} fill={entry.fill} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3 mt-4 pt-3 border-t border-slate-100 font-mono">
-                  <div className="bg-slate-50/80 p-3 rounded-md border border-slate-200/90">
-                    <div className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Contribution Margin</div>
-                    <div className={`text-lg font-bold mt-1 tabular-nums ${kpis.marginPct >= 15 ? 'text-emerald-700' : 'text-amber-700'}`}>
-                      {kpis.marginPct}%
-                    </div>
-                  </div>
-
-                  <div className="bg-slate-50/80 p-3 rounded-md border border-slate-200/90">
-                    <div className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Cost per Sale (CPS)</div>
-                    <div className="text-lg font-bold text-slate-900 mt-1 tabular-nums">
-                      R {kpis.costPerSale}
-                    </div>
-                  </div>
-
-                  <div className="bg-slate-50/80 p-3 rounded-md border border-slate-200/90">
-                    <div className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">Cost per Activation (CPA)</div>
-                    <div className="text-lg font-bold text-slate-900 mt-1 tabular-nums">
-                      R {kpis.costPerActivation.toLocaleString()}
-                    </div>
-                  </div>
-                </div>
+            {/* COMMERCIAL DATA STATUS */}
+            <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-2xs">
+              <div className="flex items-center gap-2 mb-3">
+                <DollarSign size={16} className="text-blue-600" />
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800">
+                  Recorded Revenue & Commercial Status
+                </h3>
               </div>
-
-              {/* BREAK-EVEN & SAFETY MARGIN */}
-              <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-2xs flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Activity size={16} className="text-blue-600" />
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800">
-                      Break-Even Economics
-                    </h3>
-                  </div>
-
-                  <p className="text-xs text-slate-500 mb-4">
-                    Required unit performance to cover total direct, telephony, and platform allocated fixed overheads.
-                  </p>
-
-                  <div className="space-y-3 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Break-even Volume:</span>
-                      <span className="font-bold text-slate-800">{kpis.breakEvenSales.toLocaleString()} sales</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Actual Recorded Sales:</span>
-                      <span className="font-bold text-slate-800">{kpis.saleLeads.toLocaleString()} sales</span>
-                    </div>
-                    <div className="flex justify-between border-t border-slate-100 pt-2">
-                      <span className="text-slate-500">Variance to Break-even:</span>
-                      <span className={`font-bold ${kpis.actualVsBreakEven >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                        {kpis.actualVsBreakEven >= 0 ? `+${kpis.actualVsBreakEven.toLocaleString()} surplus` : `${kpis.actualVsBreakEven.toLocaleString()} deficit`}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Revenue per Lead (RPL):</span>
-                      <span className="font-semibold text-slate-800">R {kpis.revenuePerLead}</span>
-                    </div>
-                  </div>
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 mb-4">
+                <span className="font-semibold">Profitability metrics withheld.</span>{' '}
+                {data.commercialReason || 'Approved incurred-cost and rate-card contracts are required before contribution, margin, CPS, CPA or break-even values can be reported.'}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                  <div className="text-[10px] uppercase font-semibold tracking-wider text-slate-500">Recorded Revenue</div>
+                  <div className="mt-1 text-lg font-bold font-mono tabular-nums text-slate-900">R {kpis.revenue.toLocaleString()}</div>
                 </div>
-
-                <div className="mt-4 p-3 bg-blue-50/70 border border-blue-200 rounded-md text-[11px] text-blue-900">
-                  <span className="font-bold block mb-0.5">Commercial Guidance:</span>
-                  Maintain direct acquisition cost below R48.50 per lead and keep dialler hopper velocity under 15 minutes to guarantee target 18% contribution margin.
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                  <div className="text-[10px] uppercase font-semibold tracking-wider text-slate-500">Recorded Revenue / Lead</div>
+                  <div className="mt-1 text-lg font-bold font-mono tabular-nums text-slate-900">R {kpis.revenuePerLead}</div>
+                </div>
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                  <div className="text-[10px] uppercase font-semibold tracking-wider text-slate-500">Commercial Validation</div>
+                  <div className="mt-1 text-sm font-bold font-mono text-amber-700">{data.commercialStatus || 'UNAVAILABLE'}</div>
                 </div>
               </div>
             </div>
