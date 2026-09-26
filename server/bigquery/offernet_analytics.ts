@@ -1,5 +1,5 @@
 import { getBigQueryClient } from './client';
-import { getClientConfig } from './config';
+import { getClientConfig, type MarketingSourceContract } from './config';
 import { RequestError } from './filters';
 
 export interface OffernetQueryParams {
@@ -103,24 +103,6 @@ function buildFilterClause(params: OffernetQueryParams, alias = 'l', hlcAlias = 
   };
 }
 
-const ACTUAL_SPEND_COLUMN_PRIORITY = [
-  'spend',
-  'amount_spent',
-  'actual_spend',
-  'media_spend',
-  'ad_spend',
-  'total_spend',
-  'cost',
-  'cost_micros',
-  'spend_micros',
-] as const;
-
-const BUDGET_COLUMN_PRIORITY = [
-  'budget',
-  'campaign_budget',
-  'daily_budget',
-] as const;
-
 function parseConfiguredTable(table: string) {
   const match = /^([a-zA-Z0-9_-]+)\.([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]+)$/.exec(table);
   if (!match) throw new RequestError('Configured marketing table identifier is invalid', 500);
@@ -128,29 +110,142 @@ function parseConfiguredTable(table: string) {
 }
 
 function safeWarehouseColumn(column: string) {
-  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column)) throw new RequestError('Unsafe warehouse column identifier', 500);
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column)) {
+    throw new RequestError('Unsafe warehouse column identifier', 500);
+  }
   return `\`${column}\``;
 }
 
-async function resolveMarketingCostColumns(client: ReturnType<typeof getBigQueryClient>, marketingTable: string) {
-  const parsed = parseConfiguredTable(marketingTable);
+async function resolveMarketingContract(
+  client: ReturnType<typeof getBigQueryClient>,
+  contract: MarketingSourceContract,
+) {
+  const parsed = parseConfiguredTable(contract.table);
   const [rows] = await client.query({
     query: `
       SELECT column_name
       FROM \`${parsed.project}.${parsed.dataset}.INFORMATION_SCHEMA.COLUMNS\`
       WHERE table_name = @tableName
     `,
-    params: { tableName: parsed.table }
+    params: { tableName: parsed.table },
   });
+
   const byLower = new Map<string, string>(
-    rows.map((row: any) => [String(row.column_name || '').toLowerCase(), String(row.column_name || '')])
+    rows.map((row: any) => [String(row.column_name || '').toLowerCase(), String(row.column_name || '')]),
   );
-  const spendColumn = ACTUAL_SPEND_COLUMN_PRIORITY.map(name => byLower.get(name)).find(Boolean) || null;
-  const budgetColumn = BUDGET_COLUMN_PRIORITY.map(name => byLower.get(name)).find(Boolean) || null;
+
+  const requiredFields = [
+    contract.clientNameField,
+    contract.dateField,
+    contract.channelField,
+    contract.campaignField,
+    contract.adsetField,
+    contract.impressionsField,
+    contract.clicksField,
+    contract.leadsField,
+  ];
+  const missingRequired = requiredFields.filter(field => !byLower.has(field.toLowerCase()));
+  const spendColumn = contract.approvedSpendFields.map(name => byLower.get(name.toLowerCase())).find(Boolean) || null;
+  const budgetColumn = contract.approvedBudgetFields.map(name => byLower.get(name.toLowerCase())).find(Boolean) || null;
+
   return {
+    table: contract.table,
+    columns: Array.from(byLower.values()).sort(),
+    missingRequired,
     spendColumn,
     budgetColumn,
-    table: marketingTable,
+  };
+}
+
+function marketingSpendExpression(contract: MarketingSourceContract, spendColumn: string | null) {
+  if (!spendColumn) return null;
+  const identifier = safeWarehouseColumn(spendColumn);
+  const unit = contract.spendUnitByField[spendColumn.toLowerCase()] || contract.spendUnitByField[spendColumn] || 'currency';
+  const numeric = `SAFE_CAST(REGEXP_REPLACE(CAST(${identifier} AS STRING), r'[^0-9.-]', '') AS FLOAT64)`;
+  return unit === 'micros' ? `(${numeric} / 1000000)` : numeric;
+}
+
+function marketingTenantFilter(contract: MarketingSourceContract) {
+  if (contract.mappingStatus === 'MASTER') return { sql: '', params: {} as Record<string, any> };
+  if (contract.mappingStatus !== 'MAPPED' || !contract.clientNames.length) {
+    throw new RequestError('Marketing client mapping is unresolved for this tenant', 422);
+  }
+  return {
+    sql: `LOWER(${safeWarehouseColumn(contract.clientNameField)}) IN UNNEST(@marketingClientNames)`,
+    params: { marketingClientNames: contract.clientNames.map(value => value.toLowerCase()) },
+  };
+}
+
+export async function getMarketingSourceDiscovery(params: Pick<OffernetQueryParams, 'clientId'>) {
+  const clientConfig = getClientConfig(params.clientId);
+  const contract = clientConfig.marketing;
+  if (!contract || !clientConfig.capabilities.marketing) {
+    return {
+      status: 'UNAVAILABLE',
+      reason: 'No marketing contract is configured for this tenant.',
+      contract: null,
+      schema: null,
+      availableClientNames: [],
+    };
+  }
+
+  const client = getBigQueryClient(clientConfig.bigQueryProject);
+  const resolved = await resolveMarketingContract(client, contract);
+  const clientNameField = safeWarehouseColumn(contract.clientNameField);
+  const dateField = safeWarehouseColumn(contract.dateField);
+  const [nameRows] = resolved.missingRequired.includes(contract.clientNameField)
+    ? [[]]
+    : await client.query({
+        query: `
+          SELECT
+            CAST(${clientNameField} AS STRING) AS client_name,
+            COUNT(*) AS rows,
+            MIN(DATE(${dateField})) AS earliest_date,
+            MAX(DATE(${dateField})) AS latest_date
+          FROM \`${contract.table}\`
+          WHERE ${clientNameField} IS NOT NULL
+          GROUP BY 1
+          ORDER BY rows DESC
+          LIMIT 200
+        `,
+      });
+
+  return {
+    status: resolved.missingRequired.length ? 'INVALID_CONTRACT' : contract.mappingStatus,
+    reason: resolved.missingRequired.length
+      ? `Configured marketing fields are missing from the API table: ${resolved.missingRequired.join(', ')}`
+      : contract.mappingStatus === 'UNRESOLVED'
+        ? 'Choose and configure the approved client_name values for this tenant before tenant-level campaign reporting is enabled.'
+        : 'Marketing API-table contract is structurally valid.',
+    contract: {
+      table: contract.table,
+      mappingStatus: contract.mappingStatus,
+      configuredClientNames: contract.clientNames,
+      fields: {
+        clientName: contract.clientNameField,
+        date: contract.dateField,
+        channel: contract.channelField,
+        campaign: contract.campaignField,
+        adset: contract.adsetField,
+        impressions: contract.impressionsField,
+        clicks: contract.clicksField,
+        leads: contract.leadsField,
+      },
+      approvedSpendFields: contract.approvedSpendFields,
+      resolvedSpendField: resolved.spendColumn,
+      resolvedBudgetField: resolved.budgetColumn,
+      attribution: contract.attribution,
+    },
+    schema: {
+      columns: resolved.columns,
+      missingRequired: resolved.missingRequired,
+    },
+    availableClientNames: nameRows.map((row: any) => ({
+      value: row.client_name,
+      rows: Number(row.rows || 0),
+      earliestDate: row.earliest_date?.value || row.earliest_date || null,
+      latestDate: row.latest_date?.value || row.latest_date || null,
+    })),
   };
 }
 
