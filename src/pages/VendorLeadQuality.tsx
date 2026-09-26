@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowRight, BarChart3, ShieldCheck } from 'lucide-react';
 import {
+import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
   CartesianGrid,
   ResponsiveContainer,
   Scatter,
@@ -19,6 +20,7 @@ import { fetchVendorQuality, type VendorQualityData } from '../lib/offernetClien
 const fmt = (value: number) => value.toLocaleString();
 
 export default function VendorLeadQuality() {
+  const scoped = useScopedNavigationTarget();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
   const [data, setData] = useState<VendorQualityData | null>(null);
@@ -71,9 +73,9 @@ export default function VendorLeadQuality() {
             <p>Compare operational execution and test whether lead-quality signals are associated with better downstream outcomes.</p>
           </div>
           <div className="flex gap-2 flex-wrap justify-end items-center">
-            <Link to="/campaigns" className="cx-button-secondary">Campaigns & spend</Link>
-            <Link to="/commercial" className="cx-button-secondary">Commercial</Link>
-            <Link to="/reports" className="cx-trust-pill">
+            <Link to={scoped('/campaigns')} className="cx-button-secondary">Campaigns & spend</Link>
+            <Link to={scoped('/commercial')} className="cx-button-secondary">Commercial</Link>
+            <Link to={scoped('/reports')} className="cx-trust-pill">
               <ShieldCheck size={15} />
               <span><strong>NOT_VERIFIED</strong><small>Observed operational metrics</small></span>
               <ArrowRight size={14} />
