@@ -25,7 +25,7 @@ export default function Modal({ open, isOpen, onClose, label, className = '', ch
       className={`fixed inset-0 z-50 flex ${isNavModal ? 'items-stretch justify-start p-0' : 'items-center justify-center p-3 sm:p-4'} bg-black/50 backdrop-blur-2xs transition-opacity duration-200`}
       role="dialog"
       aria-modal="true"
-      aria-label={label}
+      aria-label={label || 'Dialog'}
     >
       <div className="fixed inset-0" onMouseDown={onClose} aria-hidden="true" />
       <div
