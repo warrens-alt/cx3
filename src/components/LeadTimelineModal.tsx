@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, Clock, CheckCircle2, User, Phone, DollarSign, Activity } from 'lucide-react';
+import { useClient } from '../lib/ClientContext';
+import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 
 interface Props {
   leadId: string;
@@ -7,11 +9,14 @@ interface Props {
 }
 
 export function LeadTimelineModal({ leadId, onClose }: Props) {
+  const { selectedClient } = useClient();
+  const dialogRef = useDialogAccessibility<HTMLDivElement>(Boolean(leadId), onClose);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/analytics/lead-timeline/${leadId}`)
+    const query = new URLSearchParams({ clientId: selectedClient });
+    fetch(`/api/analytics/lead-timeline/${encodeURIComponent(leadId)}?${query.toString()}`, { credentials: 'same-origin' })
       .then(res => res.json())
       .then(res => {
         if (res.success && res.data) {
@@ -20,13 +25,13 @@ export function LeadTimelineModal({ leadId, onClose }: Props) {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [leadId]);
+  }, [leadId, selectedClient]);
 
   if (!leadId) return null;
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 sm:p-8 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`Lead timeline for ${leadId}`} className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="px-6 py-4 border-b border-border-subtle flex justify-between items-center bg-surface/50">
           <div>
             <h2 className="text-lg font-semibold text-text-main flex items-center gap-2">
@@ -36,7 +41,9 @@ export function LeadTimelineModal({ leadId, onClose }: Props) {
             <p className="text-sm text-text-sec mt-1">Full transaction timeline and vendor handoffs.</p>
           </div>
           <button 
+            type="button"
             onClick={onClose}
+            aria-label="Close lead timeline"
             className="p-2 text-text-sec hover:bg-surface-sec hover:text-text-main rounded-md transition-colors"
           >
             <X className="w-5 h-5" />
@@ -45,7 +52,7 @@ export function LeadTimelineModal({ leadId, onClose }: Props) {
 
         <div className="flex-1 overflow-y-auto p-6 bg-surface-sec/30">
           {loading ? (
-            <div className="flex justify-center py-20 text-text-sec">Loading timeline...</div>
+            <div className="flex justify-center py-20 text-text-sec" role="status">Loading timeline…</div>
           ) : !data || data.length === 0 ? (
             <div className="flex justify-center py-20 text-text-sec">No timeline data found for this lead.</div>
           ) : (
