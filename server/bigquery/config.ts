@@ -334,24 +334,69 @@ function configuredMarketingClientNames(tenantId: string): string[] | null {
   return Array.from(new Set(value.map(item => item.trim())));
 }
 
+function configuredMarketingAttribution(tenantId: string): MarketingAttributionContract | null {
+  const raw = process.env.CX_MARKETING_ATTRIBUTION_JSON;
+  if (!raw) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('CX_MARKETING_ATTRIBUTION_JSON must be valid JSON');
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('CX_MARKETING_ATTRIBUTION_JSON must be an object keyed by tenant ID');
+  }
+  const value = (parsed as Record<string, unknown>)[tenantId];
+  if (value === undefined) return null;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`CX_MARKETING_ATTRIBUTION_JSON.${tenantId} must be an object`);
+  }
+  const entry = value as Record<string, unknown>;
+  const marketingSourceField = typeof entry.marketingSourceField === 'string' ? entry.marketingSourceField.trim() : '';
+  const leadSourceField = typeof entry.leadSourceField === 'string' ? entry.leadSourceField.trim() : '';
+  if (!marketingSourceField || !leadSourceField) {
+    throw new Error(`CX_MARKETING_ATTRIBUTION_JSON.${tenantId} requires marketingSourceField and leadSourceField`);
+  }
+  for (const field of [marketingSourceField, leadSourceField]) {
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(field)) throw new Error(`Invalid attribution field for ${tenantId}`);
+  }
+  const marketingCampaignField = typeof entry.marketingCampaignField === 'string' && entry.marketingCampaignField.trim()
+    ? entry.marketingCampaignField.trim()
+    : undefined;
+  const leadCampaignField = typeof entry.leadCampaignField === 'string' && entry.leadCampaignField.trim()
+    ? entry.leadCampaignField.trim()
+    : undefined;
+  return {
+    status: 'ACTIVE',
+    marketingSourceField,
+    leadSourceField,
+    marketingCampaignField,
+    leadCampaignField,
+    notes: 'Activated from explicit CX_MARKETING_ATTRIBUTION_JSON deployment configuration.',
+  };
+}
+
 export function getClientConfig(clientId: string): TenantConfiguration {
   const key = clientId === 'default' ? 'default_tenant' : clientId;
   const tenant = Object.hasOwn(TENANTS, key) ? TENANTS[key] : undefined;
   if (!tenant || !tenant.active) throw new RequestError('Unknown or inactive tenant', 404);
 
   const configuredNames = configuredMarketingClientNames(tenant.id);
-  if (!tenant.marketing || tenant.marketing.mappingStatus === 'MASTER' || configuredNames === null) {
-    return tenant;
-  }
+  const configuredAttribution = configuredMarketingAttribution(tenant.id);
+  if (!tenant.marketing) return tenant;
 
-  return {
-    ...tenant,
-    marketing: {
-      ...tenant.marketing,
-      mappingStatus: configuredNames.length ? 'MAPPED' : 'UNRESOLVED',
-      clientNames: configuredNames,
-    },
+  const marketing = {
+    ...tenant.marketing,
+    ...(tenant.marketing.mappingStatus !== 'MASTER' && configuredNames !== null
+      ? {
+          mappingStatus: configuredNames.length ? 'MAPPED' as const : 'UNRESOLVED' as const,
+          clientNames: configuredNames,
+        }
+      : {}),
+    ...(configuredAttribution ? { attribution: configuredAttribution } : {}),
   };
+
+  return { ...tenant, marketing };
 }
 
 export function getAllClients(): TenantConfiguration[] {
