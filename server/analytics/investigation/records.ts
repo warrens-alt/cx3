@@ -2,6 +2,7 @@ import { getBigQueryClient } from '../../bigquery/client';
 import { getClientConfig } from '../../bigquery/config';
 import { configuredSourceTable } from '../common/warehouse';
 import { RequestError } from '../../bigquery/filters';
+import { validTimestampSql } from '../../bigquery/integrity';
 import { buildFilterClause } from '../common/scope';
 import type { OffernetQueryParams } from '../common/types';
 
@@ -10,6 +11,10 @@ export async function getRawLeads(params: OffernetQueryParams) {
   const limit = Math.min(Math.max(Number(params.limit) || 50, 10), 200);
   const offset = Math.max(Number(params.offset) || 0, 0);
   const { whereSql, queryParams } = buildFilterClause(params);
+  // Every drill predicate must inspect the same vendor population as the outer row.
+  const vendorPredicates: string[] = [];
+  if (queryParams.tenantVendors) vendorPredicates.push('LOWER(h.vendor) IN UNNEST(@tenantVendors)');
+  if (queryParams.vendor) vendorPredicates.push('LOWER(h.vendor) = LOWER(@vendor)');
 
   let searchCondition = '';
   if (params.search) {
@@ -23,10 +28,10 @@ export async function getRawLeads(params: OffernetQueryParams) {
     queryParams.search = `%${params.search}%`;
   }
 
-  const validDelivered = "(h.delivered IS NOT NULL AND h.delivered NOT LIKE '1900%' AND h.delivered NOT LIKE '1970%')";
-  const validDialled = "(h.first_call_date IS NOT NULL AND h.first_call_date NOT LIKE '1900%' AND h.first_call_date NOT LIKE '1970%')";
-  const validSale = "(h.sale IS NOT NULL AND h.sale != '' AND h.sale NOT LIKE '1900%' AND h.sale NOT LIKE '1970%')";
-  const validActivation = "(h.activated IS NOT NULL AND h.activated != '' AND h.activated NOT LIKE '1900%' AND h.activated NOT LIKE '1970%')";
+  const validDelivered = `(${validTimestampSql('h.delivered')} IS NOT NULL)`;
+  const validDialled = `(${validTimestampSql('h.first_call_date')} IS NOT NULL)`;
+  const validSale = `(${validTimestampSql('h.sale')} IS NOT NULL)`;
+  const validActivation = `(${validTimestampSql('h.activated')} IS NOT NULL)`;
   let drillCondition = '';
 
   if (params.drill) {
@@ -138,6 +143,13 @@ export async function getRawLeads(params: OffernetQueryParams) {
   }
 
   const query = `
+    WITH scoped_leads AS (
+      SELECT l.* REPLACE (
+        ARRAY(SELECT AS STRUCT h.* FROM UNNEST(l.hlc_details) h
+          WHERE ${vendorPredicates.length ? vendorPredicates.join(' AND ') : 'TRUE'}) AS hlc_details
+      )
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
+    )
     SELECT
       l.lead_id,
       l.consumer_id,
@@ -161,7 +173,7 @@ export async function getRawLeads(params: OffernetQueryParams) {
       hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' as sale,
       hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' as activated,
       COALESCE(hlc.revenue_generated, 0) as revenue
-    FROM ${configuredSourceTable(params.clientId, 'leads')} l
+    FROM scoped_leads l
     LEFT JOIN UNNEST(l.hlc_details) hlc
     ${whereSql}
     ${searchCondition}

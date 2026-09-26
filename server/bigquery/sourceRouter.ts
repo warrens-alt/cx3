@@ -1,8 +1,10 @@
+import { analyticalRoute } from '../analyticalWork';
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { SOURCE_ROLES, type SourceRole } from '../../contracts/sourceCoverage';
 import { RequestError, validateScope, validateFilters } from './filters';
 import { sourceAccess, type SourceAccess } from './sourceAccess';
 import { sourceCatalogue } from './sourceCatalog';
+import { getClientConfig } from './config';
 import { getSourceMetrics } from './sourceMetrics';
 
 export function createSourceRouter(accessProvider?: () => SourceAccess) {
@@ -23,9 +25,9 @@ export function createSourceRouter(accessProvider?: () => SourceAccess) {
     return accessProvider ? accessProvider() : sourceAccess(clientId);
   }
 
-  router.get('/source-coverage', async (req: Request, res: Response, next: NextFunction) => {
+  router.get('/source-coverage', analyticalRoute(async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const clientId = String(req.query.clientId || 'default_tenant');
+      const clientId = getClientConfig(String(res.locals.scope?.clientId || req.query.clientId || 'default_tenant')).id;
       checkAuth(req, res, clientId);
       if (res.locals.principal?.role !== 'admin') {
         throw new RequestError('Admin access required', 403);
@@ -35,13 +37,13 @@ export function createSourceRouter(accessProvider?: () => SourceAccess) {
     } catch (err) {
       next(err);
     }
-  });
+  }));
 
-  router.get('/acquisition', async (req: Request, res: Response, next: NextFunction) => {
+  router.get('/acquisition', analyticalRoute(async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const clientId = String(req.query.clientId || 'default_tenant');
+      const clientId = getClientConfig(String(res.locals.scope?.clientId || req.query.clientId || 'default_tenant')).id;
       checkAuth(req, res, clientId);
-      const scope = validateScope({
+      const scope = res.locals.scope || validateScope({
         clientId,
         startDate: req.query.startDate as string,
         endDate: req.query.endDate as string,
@@ -61,17 +63,17 @@ export function createSourceRouter(accessProvider?: () => SourceAccess) {
     } catch (err) {
       next(err);
     }
-  });
+  }));
 
-  router.get('/source-metrics/:role', async (req: Request, res: Response, next: NextFunction) => {
+  router.get('/source-metrics/:role', analyticalRoute(async (req: Request, res: Response, next: NextFunction) => {
     try {
       const role = req.params.role as SourceRole;
       if (!SOURCE_ROLES.includes(role)) {
         throw new RequestError('Unknown source role', 404);
       }
-      const clientId = String(req.query.clientId || 'default_tenant');
+      const clientId = getClientConfig(String(res.locals.scope?.clientId || req.query.clientId || 'default_tenant')).id;
       checkAuth(req, res, clientId);
-      const scope = validateScope({
+      const scope = res.locals.scope || validateScope({
         clientId,
         startDate: req.query.startDate as string,
         endDate: req.query.endDate as string,
@@ -82,7 +84,7 @@ export function createSourceRouter(accessProvider?: () => SourceAccess) {
     } catch (err) {
       next(err);
     }
-  });
+  }));
 
   return router;
 }

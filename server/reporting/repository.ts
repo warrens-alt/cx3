@@ -4,6 +4,7 @@ import { validateRelease } from './release';
 import type { QueryExecutionEvidence, ReleaseManifest } from '../../contracts/reporting';
 import type { CompiledQuery } from './query';
 import { readOnlyQueryOptions } from '../bigquery/readOnly';
+import { trackAnalyticalWork } from '../analyticalWork';
 export interface ReportRepository {
   configured: boolean;
   release(tenant: string, releaseId?: string): Promise<ReleaseManifest | null>;
@@ -65,18 +66,20 @@ export class BigQueryReportRepository implements ReportRepository {
     }));
   }
   async query(compiled: CompiledQuery) {
-    const started = Date.now();
-    const [job] = await this.bq.createQueryJob(readOnlyQueryOptions(compiled, this.budget));
-    const [rows] = await job.getQueryResults();
-    const [metadata] = await job.getMetadata();
-    const statistics = metadata.statistics?.query;
-    const selectStatements = compiled.query.match(/\bSELECT\b/gi)?.length ?? 0;
-    return { rows, jobId: job.id || 'unavailable', evidence: {
-      durationMs: Date.now() - started,
-      bytesProcessed: typeof statistics?.totalBytesProcessed === 'string' ? statistics.totalBytesProcessed : null,
-      cacheHit: typeof statistics?.cacheHit === 'boolean' ? statistics.cacheHit : null,
-      subqueryCount: Math.max(0, selectStatements - 1),
-      completion: 'COMPLETED' as const,
-    } };
+    return trackAnalyticalWork(async () => {
+      const started = Date.now();
+      const [job] = await this.bq.createQueryJob(readOnlyQueryOptions(compiled, this.budget));
+      const [rows] = await job.getQueryResults();
+      const [metadata] = await job.getMetadata();
+      const statistics = metadata.statistics?.query;
+      const selectStatements = compiled.query.match(/\bSELECT\b/gi)?.length ?? 0;
+      return { rows, jobId: job.id || 'unavailable', evidence: {
+        durationMs: Date.now() - started,
+        bytesProcessed: typeof statistics?.totalBytesProcessed === 'string' ? statistics.totalBytesProcessed : null,
+        cacheHit: typeof statistics?.cacheHit === 'boolean' ? statistics.cacheHit : null,
+        subqueryCount: Math.max(0, selectStatements - 1),
+        completion: 'COMPLETED' as const,
+      } };
+    });
   }
 }

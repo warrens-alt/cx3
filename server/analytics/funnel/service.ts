@@ -1,3 +1,4 @@
+import { validTimestampSql } from '../../bigquery/integrity';
 import { getBigQueryClient } from '../../bigquery/client';
 import { getClientConfig } from '../../bigquery/config';
 import type { OffernetQueryParams } from '../common/types';
@@ -14,21 +15,21 @@ export async function getFunnelIntelligence(params: OffernetQueryParams) {
     WITH base AS (
       SELECT 
         l.lead_id,
-        SAFE_CAST(l.fetched AS TIMESTAMP) as fetched_ts,
-        SAFE_CAST(hlc.delivered AS TIMESTAMP) as delivered_ts,
-        SAFE_CAST(hlc.first_call_date AS TIMESTAMP) as first_dial_ts,
+        ${validTimestampSql('l.fetched')} as fetched_ts,
+        ${validTimestampSql('hlc.delivered')} as delivered_ts,
+        ${validTimestampSql('hlc.first_call_date')} as first_dial_ts,
         COALESCE(hlc.vendor, 'Unknown') as vendor,
         COALESCE(l.offershop_source, 'Unknown') as source,
         COALESCE(l.offershop_grade, 'Standard') as grade,
-        SAFE_CAST(hlc.sale AS TIMESTAMP) as sale_ts,
-        SAFE_CAST(hlc.activated AS TIMESTAMP) as activation_ts,
+        ${validTimestampSql('hlc.sale')} as sale_ts,
+        ${validTimestampSql('hlc.activated')} as activation_ts,
         SAFE_CAST(hlc.rpc AS INT64) > 0 as is_rpc,
-        hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' as is_sale,
-        hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' as is_activated,
-        TIMESTAMP_DIFF(SAFE_CAST(hlc.delivered AS TIMESTAMP), SAFE_CAST(l.fetched AS TIMESTAMP), SECOND) as fetch_to_delivery_sec,
-        TIMESTAMP_DIFF(SAFE_CAST(hlc.first_call_date AS TIMESTAMP), SAFE_CAST(hlc.delivered AS TIMESTAMP), SECOND) as delivery_to_first_dial_sec,
-        TIMESTAMP_DIFF(SAFE_CAST(hlc.sale AS TIMESTAMP), SAFE_CAST(hlc.first_call_date AS TIMESTAMP), SECOND) as dial_to_sale_sec,
-        TIMESTAMP_DIFF(SAFE_CAST(hlc.activated AS TIMESTAMP), SAFE_CAST(hlc.sale AS TIMESTAMP), SECOND) as sale_to_act_sec
+        ${validTimestampSql('hlc.sale')} IS NOT NULL as is_sale,
+        ${validTimestampSql('hlc.activated')} IS NOT NULL as is_activated,
+        TIMESTAMP_DIFF(${validTimestampSql('hlc.delivered')}, ${validTimestampSql('l.fetched')}, SECOND) as fetch_to_delivery_sec,
+        TIMESTAMP_DIFF(${validTimestampSql('hlc.first_call_date')}, ${validTimestampSql('hlc.delivered')}, SECOND) as delivery_to_first_dial_sec,
+        TIMESTAMP_DIFF(${validTimestampSql('hlc.sale')}, ${validTimestampSql('hlc.first_call_date')}, SECOND) as dial_to_sale_sec,
+        TIMESTAMP_DIFF(${validTimestampSql('hlc.activated')}, ${validTimestampSql('hlc.sale')}, SECOND) as sale_to_act_sec
       FROM ${configuredSourceTable(params.clientId, 'leads')} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${whereSql}

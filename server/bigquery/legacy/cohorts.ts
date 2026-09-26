@@ -3,6 +3,7 @@ import { getClientConfig } from '../config';
 import { getBaseSemanticLayer } from '../views';
 import type { BaseQueryParams } from './types';
 import { buildWhereClause } from './types';
+import { RequestError } from '../filters';
 
 export async function getCohortStats(params: BaseQueryParams & { cohortType?: string; metricType?: string }) {
   const client = getClientConfig(params.clientId);
@@ -19,52 +20,25 @@ export async function getCohortStats(params: BaseQueryParams & { cohortType?: st
     cohortExpr = `FORMAT_DATE('%Y-%m', capture_date)`;
   }
 
-  let maturationExpr = `
-    COUNTIF(has_sale = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 0) as m_d0,
-    COUNTIF(has_sale = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 1) as m_d1,
-    COUNTIF(has_sale = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 3) as m_d3,
-    COUNTIF(has_sale = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 7) as m_d7,
-    COUNTIF(has_sale = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 14) as m_d14,
-    COUNTIF(has_sale = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 30) as m_d30
-  `;
-
-  if (metricType === 'call_coverage') {
-    maturationExpr = `
-      COUNTIF(has_call = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 0) as m_d0,
-      COUNTIF(has_call = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 1) as m_d1,
-      COUNTIF(has_call = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 3) as m_d3,
-      COUNTIF(has_call = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 7) as m_d7,
-      COUNTIF(has_call = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 14) as m_d14,
-      COUNTIF(has_call = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 30) as m_d30
-    `;
-  } else if (metricType === 'rpc') {
-    maturationExpr = `
-      COUNTIF(has_rpc = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 0) as m_d0,
-      COUNTIF(has_rpc = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 1) as m_d1,
-      COUNTIF(has_rpc = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 3) as m_d3,
-      COUNTIF(has_rpc = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 7) as m_d7,
-      COUNTIF(has_rpc = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 14) as m_d14,
-      COUNTIF(has_rpc = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 30) as m_d30
-    `;
-  } else if (metricType === 'activation') {
-    maturationExpr = `
-      COUNTIF(has_activation = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 0) as m_d0,
-      COUNTIF(has_activation = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 1) as m_d1,
-      COUNTIF(has_activation = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 3) as m_d3,
-      COUNTIF(has_activation = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 7) as m_d7,
-      COUNTIF(has_activation = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 14) as m_d14,
-      COUNTIF(has_activation = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 30) as m_d30
-    `;
-  } else if (metricType === 'revenue') {
-    maturationExpr = `
-      SUM(CASE WHEN TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 0 THEN IFNULL(total_revenue, 0) ELSE 0 END) as m_d0,
-      SUM(CASE WHEN TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 1 THEN IFNULL(total_revenue, 0) ELSE 0 END) as m_d1,
-      SUM(CASE WHEN TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 3 THEN IFNULL(total_revenue, 0) ELSE 0 END) as m_d3,
-      SUM(CASE WHEN TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 7 THEN IFNULL(total_revenue, 0) ELSE 0 END) as m_d7,
-      SUM(CASE WHEN TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 14 THEN IFNULL(total_revenue, 0) ELSE 0 END) as m_d14,
-      SUM(CASE WHEN TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 30 THEN IFNULL(total_revenue, 0) ELSE 0 END) as m_d30
-    `;
-  }
+  const outcomeFields: Record<string, { flag: string; timestamp: string }> = {
+    call_coverage: { flag: 'has_call', timestamp: 'first_call_timestamp' },
+    sale: { flag: 'has_sale', timestamp: 'sale_timestamp' },
+    rpc: { flag: 'has_rpc', timestamp: 'rpc_timestamp' },
+    activation: { flag: 'has_activation', timestamp: 'activation_timestamp' },
+  };
+  if (!['daily', 'weekly', 'monthly'].includes(cohortType)) throw new RequestError('Unsupported cohort type', 422);
+  if (metricType !== 'revenue' && !Object.hasOwn(outcomeFields, metricType)) throw new RequestError('Unsupported cohort metric', 422);
+  const outcome = outcomeFields[metricType];
+  // A cumulative revenue balance cannot establish when each amount was earned.
+  const missingTiming = outcome ? `COUNTIF(${outcome.flag} AND ${outcome.timestamp} IS NULL)` : 'COUNT(*)';
+  const maturationExpr = [0, 1, 3, 7, 14, 30].map(day => {
+    if (!outcome) return `CAST(NULL AS INT64) AS m_d${day}`;
+    return `CASE WHEN ${missingTiming} > 0 THEN NULL ELSE COUNTIF(
+      ${outcome.flag} AND ${outcome.timestamp} >= capture_timestamp
+      AND ${outcome.timestamp} <= CURRENT_TIMESTAMP()
+      AND TIMESTAMP_DIFF(${outcome.timestamp}, capture_timestamp, DAY) <= ${day}
+    ) END AS m_d${day}`;
+  }).join(',\n');
 
   const query = `
     ${getBaseSemanticLayer(client)}
@@ -78,6 +52,7 @@ export async function getCohortStats(params: BaseQueryParams & { cohortType?: st
       COUNTIF(has_billable_sale = true) as billable_sales,
       COUNTIF(has_activation = true) as activations,
       SUM(IFNULL(total_revenue, 0)) as revenue,
+      ${missingTiming} AS missing_event_timestamps,
       ${maturationExpr}
     FROM vw_leads
     ${sql}
@@ -125,6 +100,12 @@ export async function getCohortStats(params: BaseQueryParams & { cohortType?: st
       activationRate: billableSales > 0 ? Number(((activations / billableSales) * 100).toFixed(1)) : 0,
       revenue,
       revPerLead: size > 0 ? Number((revenue / size).toFixed(2)) : 0,
+      maturationStatus: !outcome || Number(r.missing_event_timestamps || 0) > 0 ? 'UNAVAILABLE' : 'OBSERVED',
+      maturationReason: !outcome
+        ? 'Revenue maturation requires dated revenue events; the current source contains cumulative balances.'
+        : Number(r.missing_event_timestamps || 0) > 0
+          ? 'Some recorded outcomes have no event timestamp; cumulative maturation is withheld for this cohort.'
+          : null,
       metrics: {
         d0: calcMetric(r.m_d0),
         d1: calcMetric(r.m_d1),

@@ -5,6 +5,7 @@ import { getBaseSemanticLayer } from './views';
 import { buildLeadWhere, boundedInteger, RequestError, validateScope, type QueryScope } from './filters';
 import { MODEL_VERSION, safeCsvCell } from './integrity';
 import { withAnalyticsScope } from '../analyticsContext';
+import type { SourceAccess } from './sourceAccess';
 export function toCsv(rows: Record<string, unknown>[], headers: string[]): string {
   const cell = (input: unknown) => {
     let value = input;
@@ -14,15 +15,19 @@ export function toCsv(rows: Record<string, unknown>[], headers: string[]): strin
   };
   return '\uFEFF' + [headers.map(cell).join(','), ...rows.map(row => headers.map(h => cell(row[h])).join(','))].join('\r\n');
 }
-export async function exportData(input: QueryScope & { grain: string; format?: string; limit?: number }) {
+export async function exportData(input: QueryScope & { grain: string; format?: string; limit?: number; search?: string }, access?: SourceAccess) {
   const scope = validateScope(input);
+  const limit = boundedInteger(input.limit, 10000, 50000, 1);
+  if (input.search?.trim() && input.grain !== 'cli') throw new RequestError('Substring search is supported only for CLI exports.', 422);
   return withAnalyticsScope(scope, async () => {
     if (input.grain === 'cli') {
-      const { getTenantImport } = await import('./cli_analytics');
-      const tenantImport = getTenantImport(scope.clientId);
-      const records = tenantImport?.records || [];
+      const { getCliPerformance } = await import('./cli_analytics');
+      const report = await getCliPerformance({ ...scope, search: input.search }, access, { limit });
+      if (report.status !== 'AVAILABLE') throw new RequestError(report.sourceStatus.reason || 'CLI data is unavailable for export.', 422);
+      const records = report.cliPerformance;
       const columns = [
         'CLI Number',
+        'Report Date',
         'Campaign',
         'Vendor',
         'Total Calls',
@@ -36,8 +41,9 @@ export async function exportData(input: QueryScope & { grain: string; format?: s
         'Avg Duration Seconds',
         'Avg Lead Age Days'
       ];
-      const rows = records.map(r => ({
+      const rows = records.slice(0, limit).map(r => ({
         'CLI Number': r.cli,
+        'Report Date': r.reportDate ?? null,
         'Campaign': r.campaign || 'N/A',
         'Vendor': r.vendor || 'N/A',
         'Total Calls': r.totalCalls,
@@ -53,16 +59,24 @@ export async function exportData(input: QueryScope & { grain: string; format?: s
       }));
       const metadata = {
         grain: 'cli',
-        dataSource: 'IMPORTED REPORT',
+        dataSource: report.provenance === 'LIVE_BIGQUERY' ? 'LIVE BIGQUERY' : 'IMPORTED REPORT',
+        provenance: report.provenance,
+        clientId: scope.clientId,
+        startDate: scope.startDate ?? null,
+        endDate: scope.endDate ?? null,
+        filters: scope.filters,
+        search: report.metadata.search ?? null,
+        sourceTable: report.sourceStatus.table,
+        modelVersion: report.metadata.modelVersion,
         rowCount: rows.length,
-        truncated: false,
+        limit,
+        truncated: Boolean(report.metadata.truncated) || records.length > limit,
         generatedAt: new Date().toISOString(),
       };
       return { rows, metadata, csv: toCsv(rows, columns) };
     }
     if (!['lead', 'semantic', 'transaction'].includes(input.grain)) throw new RequestError('Raw source exports are disabled until a reviewed redaction policy is configured', 422);
     const client = getClientConfig(scope.clientId), { sql, queryParams } = buildLeadWhere(scope), base = getBaseSemanticLayer(client);
-    const limit = boundedInteger(input.limit, 10000, 50000, 1);
     const columns = input.grain === 'transaction'
       ? ['lead_id', 'vendor', 'transaction_id', 'attempted_delivery_timestamp', 'delivery_timestamp', 'first_call_timestamp', 'last_call_timestamp', 'latest_dialer_status', 'total_calls', 'total_call_duration_seconds', 'rpc', 'sale', 'activation', 'revenue']
       : ['lead_id', 'consumer_id', 'capture_date', 'source', 'medium', 'valid_lead', 'valid_idno', 'phone_valid', 'grade', 'vetting', 'vendor_count', 'total_transactions', 'has_delivery', 'has_call', 'has_rpc', 'has_sale', 'has_activation', 'total_revenue', 'total_calls'];

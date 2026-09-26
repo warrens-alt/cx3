@@ -25,24 +25,27 @@ service cloud.firestore {
     }
 
     function isVerified() {
-      return isSignedIn() && (
-        !('email_verified' in request.auth.token) ||
-        request.auth.token.email_verified == true
-      );
+      return isSignedIn()
+        && ('email_verified' in request.auth.token)
+        && request.auth.token.email_verified == true;
     }
 
     function isSuperAdmin() {
       return isSignedIn() && (
         request.auth.uid == 'lb9z5IHnOsYRRcqcS7WD5WcURK13' ||
-        ('email' in request.auth.token && request.auth.token.email.matches('(?i)^warrens@bastionflowe\\.com$')) ||
-        ('email' in request.auth.token && request.auth.token.email == 'warrens@bastionflowe.com')
+        (isVerified() && 'email' in request.auth.token
+          && request.auth.token.email.lower() == 'warrens@bastionflowe.com')
       );
     }
 
     function isAdmin() {
       return isSignedIn() && (
         isSuperAdmin() ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        (isVerified()
+          && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'active')
       );
     }
 
@@ -54,6 +57,7 @@ service cloud.firestore {
         && data.uid == request.auth.uid
         && data.uid == userId
         && data.email is string && data.email.size() <= 256
+        && ('email' in request.auth.token) && data.email == request.auth.token.email.lower()
         && (!('displayName' in data) || data.displayName == null || (data.displayName is string && data.displayName.size() <= 512))
         && (!('photoURL' in data) || data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 4096))
         && data.role in ['admin', 'analyst', 'viewer']
@@ -84,22 +88,25 @@ service cloud.firestore {
         && (!('displayName' in data) || data.displayName == null || (data.displayName is string && data.displayName.size() <= 512))
         && (!('photoURL' in data) || data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 4096))
         && data.role == existing().role
-        && data.status == existing().status
-        && data.allowedTenants == existing().allowedTenants;
+        && data.status == existing().status;
     }
 
-    function isValidAdmin() {
+    function isValidAdmin(adminId) {
       let data = incoming();
+      let profile = getAfter(/databases/$(database)/documents/users/$(adminId)).data;
       return data.keys().hasAll(['uid', 'email'])
         && data.keys().hasOnly(['uid', 'email', 'createdAt', 'assignedAt'])
-        && data.uid is string && isValidId(data.uid)
-        && data.email is string && data.email.size() <= 256;
+        && data.uid == adminId && isValidId(data.uid)
+        && data.email is string && data.email.size() <= 256
+        && data.email == profile.email
+        && profile.role == 'admin' && profile.status == 'active';
     }
 
-    function isValidAccessInvite() {
+    function isValidAccessInvite(inviteId) {
       let data = incoming();
       return data.keys().hasAll(['email', 'role', 'invitedBy'])
-        && data.keys().hasOnly(['email', 'role', 'allowedTenants', 'invitedBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'email', 'role', 'allowedTenants', 'invitedBy', 'createdAt', 'updatedAt'])
+        && (!('id' in data) || data.id == inviteId)
         && data.email is string && data.email.size() <= 256
         && data.role in ['admin', 'analyst', 'viewer']
         && data.invitedBy is string && data.invitedBy.size() <= 256
@@ -130,8 +137,10 @@ service cloud.firestore {
     }
 
     match /admins/{adminId} {
-      allow read: if isSignedIn();
-      allow write: if (isAdmin() || isSuperAdmin()) && isValidId(adminId) && isValidAdmin();
+      allow get: if isSignedIn() && (request.auth.uid == adminId || isAdmin());
+      allow list: if isAdmin();
+      allow create, update: if isAdmin() && isValidId(adminId) && isValidAdmin(adminId);
+      allow delete: if isAdmin() && isValidId(adminId);
     }
 
     match /accessInvites/{inviteId} {
@@ -141,7 +150,8 @@ service cloud.firestore {
         && resource.data.email == request.auth.token.email
       );
       allow list: if isAdmin() || isSuperAdmin();
-      allow write: if (isAdmin() || isSuperAdmin()) && isValidId(inviteId) && isValidAccessInvite();
+      allow create, update: if isAdmin() && isValidId(inviteId) && isValidAccessInvite(inviteId);
+      allow delete: if isAdmin() && isValidId(inviteId);
     }
 
     match /auditLogs/{logId} {

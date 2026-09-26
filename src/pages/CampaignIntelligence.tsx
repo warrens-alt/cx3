@@ -1,3 +1,4 @@
+import { useOperationalData } from '../lib/useOperationalData';
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, Search, ShieldCheck } from 'lucide-react';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
@@ -54,33 +55,15 @@ export default function CampaignIntelligence() {
   const { selectedClient } = useClient();
   const { isAdmin } = useAuth();
   const { startDate, endDate, filters } = useFilters();
-  const [data, setData] = useState<CampaignData | null>(null);
   const [discovery, setDiscovery] = useState<MarketingDiscoveryData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [rootMetric, setRootMetric] = useState<MediaMetric | null>(null);
 
-  const loadData = async (forceRefresh = false) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await fetchCampaigns({
-        clientId: selectedClient,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        ...extractOffernetFilters(filters),
-      }, forceRefresh);
-      setData(result);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load campaign evidence');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (selectedClient) loadData();
-  }, [selectedClient, startDate, endDate, filters]);
+  const { data, loading, error, loadData } = useOperationalData<CampaignData>('CampaignIntelligence', {
+    clientId: selectedClient,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+    ...extractOffernetFilters(filters),
+  }, fetchCampaigns);
 
   useEffect(() => {
     if (!isAdmin || !selectedClient) {

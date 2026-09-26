@@ -1,6 +1,7 @@
 import { getBigQueryClient } from './client';
 import { getClientConfig, tableIdentifier } from './config';
 import { RequestError } from './filters';
+import { trackAnalyticalWork } from '../analyticalWork';
 
 export interface SchemaField {
   name: string;
@@ -70,19 +71,21 @@ export function sourceAccess(clientId: string): SourceAccess {
       return tables.map((t: any) => `${project}.${dataset}.${t.id}`);
     },
     async execute(options: { query: string; params?: Record<string, any> }) {
-      const [job] = await client.createQueryJob({
-        query: options.query,
-        params: options.params,
-        useLegacySql: false,
+      return trackAnalyticalWork(async () => {
+        const [job] = await client.createQueryJob({
+          query: options.query,
+          params: options.params,
+          useLegacySql: false,
+        });
+        const [rows] = await job.getQueryResults();
+        const [meta] = await job.getMetadata();
+        return {
+          rows,
+          jobId: job.id || 'job',
+          referencedTables: meta.statistics?.query?.referencedTables?.map((t: any) => `${t.projectId}.${t.datasetId}.${t.tableId}`) || [],
+          bytesProcessed: meta.statistics?.query?.totalBytesProcessed || '0',
+        };
       });
-      const [rows] = await job.getQueryResults();
-      const [meta] = await job.getMetadata();
-      return {
-        rows,
-        jobId: job.id || 'job',
-        referencedTables: meta.statistics?.query?.referencedTables?.map((t: any) => `${t.projectId}.${t.datasetId}.${t.tableId}`) || [],
-        bytesProcessed: meta.statistics?.query?.totalBytesProcessed || '0',
-      };
     },
   };
 }

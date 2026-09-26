@@ -17,6 +17,8 @@ import { requireAdmin } from './security';
 import { cacheResponse } from './cacheMiddleware';
 import { MODEL_VERSION } from './bigquery/integrity';
 import { serverQueryCache } from './cache';
+import { analyticalRoute as asyncRoute } from './analyticalWork';
+import { operationalFilterValues } from './offernetScope';
 import {
   getCliPerformance,
   parseAndValidateCliCsv,
@@ -68,9 +70,6 @@ function metadata(res: Response, view: string) {
     startDate: scope.startDate ?? null, endDate: scope.endDate ?? null, dateBasis: 'lead_capture_cohort', attribution: 'selected_vendor_transactions',
     sourceDependencies: metricTableLineage(scope.clientId).legacy,
     source: { type: 'bigquery', project: client.bigQueryProject, dataset: client.bigQueryDatasets[0], analyticsView: view } };
-}
-function asyncRoute(handler: (req: Request, res: Response) => Promise<unknown> | unknown) {
-  return (req: Request, res: Response, next: NextFunction) => Promise.resolve().then(() => handler(req, res)).catch(next);
 }
 function singleFlight<T>(res: Response, operation: string, input: unknown, work: () => Promise<T>, ttlSeconds = 120): Promise<T> {
   const principal = res.locals.principal;
@@ -142,7 +141,7 @@ analyticsRouter.get('/export', requireAdminForRecordExport, asyncRoute(async (re
   if (!['csv', 'json'].includes(format)) throw new RequestError('Unsupported export format');
   if (req.query.segment || req.query.chartBucket || req.query.metrics) throw new RequestError('Use explicit supported filters for chart exports; unsupported drill-down parameters are not ignored', 422);
   const result = await exportData({ ...res.locals.scope, grain: scalarString(req.query.grain, 'grain') || 'lead',
-    format, limit: boundedInteger(req.query.limit, 10000, 50000, 1) });
+    search: scalarString(req.query.search, 'search', 200), format, limit: boundedInteger(req.query.limit, 10000, 50000, 1) });
   console.info(JSON.stringify({ action: 'DATA_EXPORT', requestId: res.locals.requestId, subject: res.locals.principal.subject, clientId: res.locals.scope.clientId, rowCount: result.metadata.rowCount, truncated: result.metadata.truncated, modelVersion: MODEL_VERSION }));
   if (format === 'json') return res.json({ success: true, metadata: result.metadata, data: result.rows });
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -167,55 +166,21 @@ for (const route of ['/explore', '/insights', '/drivers']) {
 import * as offernetAnalytics from './bigquery/offernet_analytics';
 
 // Offernet Operational Intelligence Endpoints
-function cleanFilterValue(val: unknown): string | undefined {
-  if (!val) return undefined;
-  const s = String(val).trim();
-  if (['all', 'all vendors', 'all sources', 'all grades', 'undefined', 'null'].includes(s.toLowerCase())) {
-    return undefined;
-  }
-  return s;
-}
-
-function extractFilterValue(filter: any): string | undefined {
-  if (!filter) return undefined;
-  if (filter.operator === 'in' && Array.isArray(filter.values) && filter.values.length > 0) {
-    return cleanFilterValue(filter.values[0]);
-  }
-  if (filter.operator === 'equals' && filter.value !== undefined) {
-    return cleanFilterValue(filter.value);
-  }
-  return undefined;
-}
-
 function buildOffernetQueryParams(req: Request, res: Response): offernetAnalytics.OffernetQueryParams {
-  const scope = res.locals.scope;
-  const filters = scope?.filters || {};
-
-  const rawVendor = (req.query.vendor as string) ||
-    extractFilterValue(filters.vendor) ||
-    extractFilterValue(filters.partner) ||
-    extractFilterValue(filters.ror_partner);
-
-  const rawSource = (req.query.source as string) || extractFilterValue(filters.source);
-  const rawMedium = (req.query.medium as string) || extractFilterValue(filters.medium);
-  const rawGrade = (req.query.grade as string) || extractFilterValue(filters.grade);
-
+  const scope = res.locals.scope as QueryScope;
+  const values = operationalFilterValues(scope.filters, req.path);
+  if (req.query.agent) throw new RequestError('Agent filtering is not supported by this operational report', 422);
   return {
-    clientId: scope?.clientId || 'default_tenant',
-    startDate: (req.query.startDate as string) || scope?.startDate,
-    endDate: (req.query.endDate as string) || scope?.endDate,
-    vendor: cleanFilterValue(rawVendor),
-    source: cleanFilterValue(rawSource),
-    medium: cleanFilterValue(rawMedium),
-    grade: cleanFilterValue(rawGrade),
-    agent: cleanFilterValue(req.query.agent),
-    campaign: cleanFilterValue(req.query.campaign),
-    search: req.query.search as string,
-    drill: cleanFilterValue(req.query.drill),
-    drillValue: cleanFilterValue(req.query.drillValue),
-    metric: cleanFilterValue(req.query.metric),
-    limit: req.query.limit ? Number(req.query.limit) : undefined,
-    offset: req.query.offset ? Number(req.query.offset) : undefined
+    clientId: scope.clientId,
+    startDate: scope.startDate,
+    endDate: scope.endDate,
+    ...values,
+    search: scalarString(req.query.search, 'search', 200),
+    drill: scalarString(req.query.drill, 'drill'),
+    drillValue: scalarString(req.query.drillValue, 'drillValue'),
+    metric: scalarString(req.query.metric, 'metric'),
+    limit: boundedInteger(req.query.limit, 50, 200, 10),
+    offset: boundedInteger(req.query.offset, 0, 100000),
   };
 }
 
@@ -450,4 +415,3 @@ analyticsRouter.delete('/cli-performance/import', requireAdmin, asyncRoute(async
   serverQueryCache.invalidateNamespace(scope.clientId);
   res.json({ success: true, message: 'Cleared imported CLI performance data.' });
 }));
-

@@ -9,12 +9,13 @@ import {
   Search,
   X,
 } from 'lucide-react';
-import { useFilters, extractOffernetFilters } from '../lib/FilterContext';
+import { useFilters, extractOffernetFilters, singleFilterValue } from '../lib/FilterContext';
 import { useClient } from '../lib/ClientContext';
 import { fetchRawLeads, fetchLeadTimeline, type RawLeadsData, type LeadTimelineData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import { downloadCsv } from '../lib/formatters';
 import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
+import { useOperationalData } from '../lib/useOperationalData';
 
 const DRILL_LABELS: Record<string, string> = {
   'awaiting-first-dial': 'Delivered leads awaiting first dial',
@@ -44,17 +45,27 @@ export default function LeadExplorerIntelligence() {
   const drill = params.get('drill') || '';
   const drillValue = params.get('drillValue') || '';
   const appliedSearch = params.get('search') || '';
-  const [data, setData] = useState<RawLeadsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState(appliedSearch);
-  const [page, setPage] = useState(0);
+  const scopeKey = JSON.stringify([selectedClient, startDate, endDate, filters, drill, drillValue, appliedSearch]);
+  const [pagination, setPagination] = useState({ scopeKey, page: 0 });
+  const page = pagination.scopeKey === scopeKey ? pagination.page : 0;
+  const setPage = (value: number | ((previous: number) => number)) => {
+    setPagination(previous => ({
+      scopeKey,
+      page: typeof value === 'function' ? value(previous.scopeKey === scopeKey ? previous.page : 0) : value,
+    }));
+  };
   const pageSize = 50;
 
-  const [selectedLead, setSelectedLead] = useState<string | null>(null);
-  const [timelineData, setTimelineData] = useState<LeadTimelineData | null>(null);
-  const [timelineLoading, setTimelineLoading] = useState(false);
-  const timelineDialogRef = useDialogAccessibility<HTMLElement>(Boolean(selectedLead), () => setSelectedLead(null));
+  const [timelineSelection, setTimelineSelection] = useState<{ leadId: string; vendor?: string; scopeKey: string } | null>(null);
+  const selectedLead = timelineSelection?.scopeKey === scopeKey ? timelineSelection.leadId : null;
+  const closeTimeline = () => setTimelineSelection(null);
+  const timelineDialogRef = useDialogAccessibility<HTMLElement>(Boolean(selectedLead), closeTimeline);
+  const { data: timelineData, loading: timelineLoading, error: timelineError } = useOperationalData<LeadTimelineData>('lead-timeline', {
+    clientId: selectedClient,
+    leadId: selectedLead,
+    vendor: timelineSelection?.vendor,
+  }, ({ leadId, ...scope }, forceRefresh) => fetchLeadTimeline(leadId, scope, forceRefresh), Boolean(selectedLead));
 
   const investigation = useMemo(() => {
     if (!drill) return null;
@@ -63,40 +74,21 @@ export default function LeadExplorerIntelligence() {
     return drillValue ? `${base}: ${drillValue}` : base;
   }, [drill, drillValue]);
 
-  const loadData = async (forceRefresh = false) => {
-    if (!data) setLoading(true);
-    setError(null);
-    try {
-      const result = await fetchRawLeads({
-        clientId: selectedClient,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        ...extractOffernetFilters(filters),
-        search: appliedSearch || undefined,
-        drill: drill || undefined,
-        drillValue: drillValue || undefined,
-        limit: pageSize,
-        offset: page * pageSize,
-      }, forceRefresh);
-      setData(result);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to query lead records');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    setPage(0);
-  }, [selectedClient, startDate, endDate, filters, drill, drillValue, appliedSearch]);
+  const { data, loading, error, loadData } = useOperationalData<RawLeadsData>('lead-explorer', {
+    clientId: selectedClient,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+    ...extractOffernetFilters(filters),
+    search: appliedSearch || undefined,
+    drill: drill || undefined,
+    drillValue: drillValue || undefined,
+    limit: pageSize,
+    offset: page * pageSize,
+  }, fetchRawLeads);
 
   useEffect(() => {
     setSearch(appliedSearch);
   }, [appliedSearch]);
-
-  useEffect(() => {
-    if (selectedClient) loadData();
-  }, [selectedClient, startDate, endDate, filters, drill, drillValue, appliedSearch, page]);
 
   const handleSearchSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -128,21 +120,8 @@ export default function LeadExplorerIntelligence() {
     setPage(0);
   };
 
-  const handleOpenTimeline = async (leadId: string, vendor?: string) => {
-    setSelectedLead(leadId);
-    setTimelineLoading(true);
-    setTimelineData(null);
-    try {
-      const result = await fetchLeadTimeline(leadId, {
-        clientId: selectedClient,
-        vendor: vendor || extractOffernetFilters(filters).vendor,
-      });
-      setTimelineData(result);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load lead timeline');
-    } finally {
-      setTimelineLoading(false);
-    }
+  const handleOpenTimeline = (leadId: string, vendor?: string) => {
+    setTimelineSelection({ leadId, vendor: vendor || singleFilterValue(filters.vendor), scopeKey });
   };
 
   const handleExportCsv = () => {
@@ -269,22 +248,24 @@ export default function LeadExplorerIntelligence() {
             <span>Page {page + 1}</span>
             <div>
               <button type="button" className="cx-button-secondary" disabled={page === 0} onClick={() => setPage(value => Math.max(0, value - 1))}><ChevronLeft size={14} />Previous</button>
-              <button type="button" className="cx-button-secondary" disabled={!data || data.rows.length < pageSize} onClick={() => setPage(value => value + 1)}>Next<ChevronRight size={14} /></button>
+              <button type="button" className="cx-button-secondary" disabled={loading || !data || data.rows.length < pageSize} onClick={() => setPage(value => value + 1)}>Next<ChevronRight size={14} /></button>
             </div>
           </footer>
         </section>
       </div>
 
       {selectedLead && (
-        <div className="cx-timeline-backdrop" onMouseDown={event => { if (event.currentTarget === event.target) setSelectedLead(null); }}>
+        <div className="cx-timeline-backdrop" onMouseDown={event => { if (event.currentTarget === event.target) closeTimeline(); }}>
           <aside ref={timelineDialogRef} tabIndex={-1} className="cx-timeline-modal" role="dialog" aria-modal="true" aria-label="Lead timeline">
             <header>
               <div><span>Lead audit trail</span><h2>{selectedLead}</h2></div>
-              <button type="button" onClick={() => setSelectedLead(null)} aria-label="Close lead timeline"><X size={18} /></button>
+              <button type="button" onClick={closeTimeline} aria-label="Close lead timeline"><X size={18} /></button>
             </header>
 
             {timelineLoading ? (
               <div className="cx-command-loading"><div className="cx-command-spinner" />Loading source events…</div>
+            ) : timelineError ? (
+              <div className="cx-command-error" role="alert">{timelineError}</div>
             ) : timelineData ? (
               <div className="cx-timeline-body">
                 <div className="cx-timeline-context">

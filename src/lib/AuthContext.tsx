@@ -11,19 +11,13 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
-  onSnapshot,
-  collection,
-  serverTimestamp,
-  query,
-  orderBy,
-  limit,
-  addDoc
+  onSnapshot
 } from 'firebase/firestore';
 import { auth, db, googleProvider } from './firebase';
 import { handleFirestoreError, OperationType } from './firestoreErrors';
-import type { UserProfile, UserRole, UserStatus, AccessInvite, AuditLogEntry, PlatformConfig } from '../types/auth';
-
-const SUPER_ADMIN_EMAIL = 'warrens@bastionflowe.com';
+import type { UserProfile, UserRole, UserStatus, AccessInvite, PlatformConfig } from '../types/auth';
+import { authAccess, isBootstrapAdmin } from './authAccess';
+import { changeUserAccess, removeUserAccess, saveBootstrapProfile } from './authAdministration';
 
 interface AuthContextType {
   user: User | null;
@@ -54,6 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [hasAdminMarker, setHasAdminMarker] = useState(false);
 
   // Helper to record audit logs
   const logAudit = async (action: string, targetEmail: string, details: string) => {
@@ -75,184 +70,128 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    let unsubscribeProfile: (() => void) | null = null;
+    let generation = 0;
+    let disposed = false;
+    let subscriptions: (() => void)[] = [];
+    const clearSubscriptions = () => {
+      subscriptions.forEach(unsubscribe => unsubscribe());
+      subscriptions = [];
+    };
 
-    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async currentUser => {
+      const currentGeneration = ++generation;
+      const isCurrent = () => !disposed && currentGeneration === generation;
+      clearSubscriptions();
       setLoading(true);
       setUser(currentUser);
-
-      if (unsubscribeProfile) {
-        unsubscribeProfile();
-        unsubscribeProfile = null;
-      }
-
+      setProfile(null);
+      setHasAdminMarker(false);
       if (!currentUser) {
-        setProfile(null);
         setLoading(false);
         return;
       }
 
       try {
         const userRef = doc(db, 'users', currentUser.uid);
-        let userSnap;
-        try {
-          userSnap = await getDoc(userRef);
-        } catch (err) {
-          handleFirestoreError(err, OperationType.GET, `users/${currentUser.uid}`);
-        }
-
-        const isSuperAdmin = currentUser.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
-
+        const userSnap = await getDoc(userRef);
+        if (!isCurrent()) return;
+        const bootstrap = isBootstrapAdmin(currentUser);
+        const timestamp = new Date().toISOString();
         if (!userSnap.exists()) {
-          // Check for pre-existing invite for this email
-          let assignedRole: UserRole = 'viewer';
-          let assignedStatus: UserStatus = 'pending';
-          let assignedTenants: string[] = [];
-
-          if (isSuperAdmin) {
-            assignedRole = 'admin';
-            assignedStatus = 'active';
-            assignedTenants = ['*'];
-          } else {
-            // Check invite collection
+          let role: UserRole = bootstrap ? 'admin' : 'viewer';
+          let allowedTenants = bootstrap ? ['*'] : [];
+          if (!bootstrap) {
             try {
-              const inviteRef = doc(db, 'accessInvites', (currentUser.email || '').toLowerCase().replace(/[^a-z0-9]/g, '_'));
-              const inviteSnap = await getDoc(inviteRef);
-              if (inviteSnap.exists()) {
-                const inviteData = inviteSnap.data() as AccessInvite;
-                assignedRole = inviteData.role === 'admin' ? 'analyst' : (inviteData.role || 'analyst');
-                // Firestore is deliberately fail-closed: every non-bootstrap account
-                // remains pending until an existing administrator activates it.
-                assignedStatus = 'pending';
-                assignedTenants = inviteData.allowedTenants || [];
+              const inviteId = (currentUser.email || '').toLowerCase().replace(/[^a-z0-9]/g, '_');
+              const invite = await getDoc(doc(db, 'accessInvites', inviteId));
+              if (!isCurrent()) return;
+              if (invite.exists()) {
+                const data = invite.data() as AccessInvite;
+                // An invite never activates an account or grants administrator authority.
+                role = data.role === 'viewer' ? 'viewer' : 'analyst';
+                allowedTenants = data.allowedTenants || [];
               }
             } catch {
-              // fallback
+              // Registration still creates a pending account when no invite is readable.
             }
           }
-
+          if (!isCurrent()) return;
           const newProfile: UserProfile = {
             uid: currentUser.uid,
             email: (currentUser.email || '').toLowerCase(),
-            displayName: currentUser.displayName || (isSuperAdmin ? 'Warren Stear' : currentUser.email?.split('@')[0] || 'User'),
-            photoURL: currentUser.photoURL ? currentUser.photoURL.substring(0, 1024) : null,
-            role: assignedRole,
-            status: assignedStatus,
-            allowedTenants: assignedTenants,
-            createdAt: new Date().toISOString(),
-            lastLoginAt: new Date().toISOString()
+            displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'User',
+            photoURL: currentUser.photoURL?.substring(0, 1024) || null,
+            role,
+            status: bootstrap ? 'active' : 'pending',
+            allowedTenants,
+            createdAt: timestamp,
+            lastLoginAt: timestamp,
           };
-
-          try {
-            await setDoc(userRef, newProfile);
-          } catch (err) {
-            console.warn('Initial profile creation note:', err);
-            setProfile(newProfile);
-          }
-
-          if (isSuperAdmin) {
-            try {
-              await setDoc(doc(db, 'admins', currentUser.uid), {
-                uid: currentUser.uid,
-                email: (currentUser.email || '').toLowerCase(),
-                createdAt: new Date().toISOString()
-              }, { merge: true });
-            } catch (err) {
-              console.warn('Admin marker write notice:', err);
-            }
-          }
-
-          await logAudit('USER_REGISTERED', currentUser.email || '', `First login registered with status: ${assignedStatus}, role: ${assignedRole}`);
+          if (bootstrap) await saveBootstrapProfile(db, newProfile);
+          else await setDoc(userRef, newProfile);
+          if (!isCurrent()) return;
+          await logAudit('USER_REGISTERED', currentUser.email || '', `First login registered with status: ${newProfile.status}, role: ${role}`);
         } else {
-          // Existing user - update last login timestamp and enforce super admin if applicable
-          const existingData = userSnap.data() as UserProfile;
-          const updates: Record<string, any> = {
-            lastLoginAt: new Date().toISOString()
+          const existing = userSnap.data() as UserProfile;
+          const updates = {
+            lastLoginAt: timestamp,
+            ...(currentUser.displayName ? { displayName: currentUser.displayName } : {}),
+            ...(currentUser.photoURL ? { photoURL: currentUser.photoURL.substring(0, 1024) } : {}),
           };
-          if (currentUser.displayName && currentUser.displayName !== existingData.displayName) {
-            updates.displayName = currentUser.displayName;
-          }
-          if (currentUser.photoURL && currentUser.photoURL !== existingData.photoURL) {
-            updates.photoURL = currentUser.photoURL.substring(0, 1024);
-          }
-
-          // Always guarantee super-admin rights for warrens@bastionflowe.com
-          if (isSuperAdmin && (existingData.role !== 'admin' || existingData.status !== 'active')) {
-            updates.role = 'admin';
-            updates.status = 'active';
-            updates.allowedTenants = ['*'];
-          }
-
-          try {
+          if (bootstrap) {
+            await saveBootstrapProfile(db, {
+              ...existing, ...updates, role: 'admin', status: 'active', allowedTenants: ['*'],
+            });
+          } else {
             await updateDoc(userRef, updates);
-          } catch (err) {
-            console.warn('Profile update notice:', err);
-          }
-
-          if (isSuperAdmin) {
-            try {
-              await setDoc(doc(db, 'admins', currentUser.uid), {
-                uid: currentUser.uid,
-                email: (currentUser.email || '').toLowerCase(),
-                createdAt: new Date().toISOString()
-              }, { merge: true });
-            } catch {
-              // ignore
-            }
           }
         }
+        if (!isCurrent()) return;
 
-        // Attach real-time listener to user's profile
-        unsubscribeProfile = onSnapshot(
-          userRef,
-          (docSnap) => {
-            if (docSnap.exists()) {
-              const data = docSnap.data() as UserProfile;
-              setProfile(data);
-            } else if (isSuperAdmin) {
-              setProfile({
-                uid: currentUser.uid,
-                email: currentUser.email || 'warrens@bastionflowe.com',
-                displayName: currentUser.displayName || 'Warren Stear',
-                photoURL: currentUser.photoURL || null,
-                role: 'admin',
-                status: 'active',
-                allowedTenants: ['*'],
-                createdAt: new Date().toISOString(),
-                lastLoginAt: new Date().toISOString()
-              });
-            } else {
-              setProfile(null);
-            }
-            setLoading(false);
-          },
-          (error) => {
-            console.warn('User profile sync notice:', error);
-            if (isSuperAdmin) {
-              setProfile({
-                uid: currentUser.uid,
-                email: currentUser.email || 'warrens@bastionflowe.com',
-                displayName: currentUser.displayName || 'Warren Stear',
-                photoURL: currentUser.photoURL || null,
-                role: 'admin',
-                status: 'active',
-                allowedTenants: ['*'],
-                createdAt: new Date().toISOString(),
-                lastLoginAt: new Date().toISOString()
-              });
-            }
-            setLoading(false);
-          }
-        );
-      } catch (err) {
-        console.error('Auth initialization error:', err);
+        let profileReady = false;
+        let markerReady = false;
+        const finishLoading = () => {
+          if (isCurrent() && profileReady && markerReady) setLoading(false);
+        };
+        subscriptions.push(onSnapshot(userRef, snapshot => {
+          if (!isCurrent()) return;
+          setProfile(snapshot.exists() ? snapshot.data() as UserProfile : null);
+          profileReady = true;
+          finishLoading();
+        }, error => {
+          if (!isCurrent()) return;
+          console.warn('User profile sync failed:', error);
+          setProfile(null);
+          profileReady = true;
+          finishLoading();
+        }));
+        subscriptions.push(onSnapshot(doc(db, 'admins', currentUser.uid), snapshot => {
+          if (!isCurrent()) return;
+          setHasAdminMarker(snapshot.exists());
+          markerReady = true;
+          finishLoading();
+        }, error => {
+          if (!isCurrent()) return;
+          console.warn('Administrator authority sync failed:', error);
+          setHasAdminMarker(false);
+          markerReady = true;
+          finishLoading();
+        }));
+      } catch (error) {
+        if (!isCurrent()) return;
+        // No locally invented active/admin profile on denied writes or sync failure.
+        console.error('Auth initialization failed:', error);
+        setProfile(null);
+        setHasAdminMarker(false);
         setLoading(false);
       }
     });
 
     return () => {
+      disposed = true;
+      generation++;
       unsubscribeAuth();
-      if (unsubscribeProfile) unsubscribeProfile();
+      clearSubscriptions();
     };
   }, []);
 
@@ -275,31 +214,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile(null);
   };
 
-  const isAdmin = profile?.role === 'admin' || user?.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
-  const isAnalyst = profile?.role === 'analyst' || isAdmin;
-  const isViewer = profile?.role === 'viewer' || isAnalyst;
-  const isActive = profile?.status === 'active' || (Boolean(user) && user?.email?.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase());
-  const isPending = profile?.status === 'pending' && !isActive;
-  const isSuspended = profile?.status === 'suspended' && !isActive;
+  const { isAdmin, isAnalyst, isViewer, isActive, isPending, isSuspended } = authAccess(user, profile, hasAdminMarker);
 
   const hasClientAccess = (clientId: string): boolean => {
-    if (!profile) return false;
+    if (!isActive || !profile) return false;
     if (isAdmin) return true;
-    if (!profile.allowedTenants || profile.allowedTenants.includes('*')) return true;
-    return profile.allowedTenants.includes(clientId);
+    return Boolean(profile.allowedTenants?.includes('*') || profile.allowedTenants?.includes(clientId));
   };
 
   // Administrative actions
   const updateUserRole = async (uid: string, role: UserRole) => {
     if (!isAdmin) throw new Error('Unauthorized');
-    const userRef = doc(db, 'users', uid);
     try {
-      await updateDoc(userRef, { role, updatedAt: new Date().toISOString() });
-      if (role === 'admin') {
-        await setDoc(doc(db, 'admins', uid), { uid, createdAt: new Date().toISOString() }, { merge: true });
-      } else {
-        await deleteDoc(doc(db, 'admins', uid)).catch(() => {});
-      }
+      await changeUserAccess(db, uid, { role });
       await logAudit('UPDATE_USER_ROLE', uid, `Role changed to: ${role}`);
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `users/${uid}`);
@@ -308,9 +235,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateUserStatus = async (uid: string, status: UserStatus) => {
     if (!isAdmin) throw new Error('Unauthorized');
-    const userRef = doc(db, 'users', uid);
     try {
-      await updateDoc(userRef, { status, updatedAt: new Date().toISOString() });
+      await changeUserAccess(db, uid, { status });
       await logAudit('UPDATE_USER_STATUS', uid, `Status changed to: ${status}`);
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `users/${uid}`);
@@ -331,8 +257,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const deleteUserAccount = async (uid: string) => {
     if (!isAdmin) throw new Error('Unauthorized');
     try {
-      await deleteDoc(doc(db, 'users', uid));
-      await deleteDoc(doc(db, 'admins', uid)).catch(() => {});
+      await removeUserAccess(db, uid);
       await logAudit('DELETE_USER', uid, 'User account deleted by admin');
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `users/${uid}`);

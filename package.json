@@ -14,6 +14,7 @@
     "clean": "rm -rf dist build",
     "lint": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
+    "test:rules": "node scripts/test-firestore-rules.mjs",
     "verify": "npm run lint && npm test && npm run docs:surfaces:check && npm run build",
     "sources:check": "tsx scripts/check-source-api.ts",
     "docs:surfaces": "tsx scripts/generate-surface-inventory.ts",
@@ -50,7 +51,9 @@
     "typescript": "~5.8.2",
     "vite": "^6.2.3"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2"
+  },
   "overrides": {
     "baseline-browser-mapping": "^2.11.25",
     "browserslist": "^4.29.0",

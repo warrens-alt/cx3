@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { RequestError } from './bigquery/filters';
+import { requestWork } from './analyticalWork';
 
 const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const REQUEST_ID_HEADER = 'X-Request-Id';
@@ -117,9 +118,10 @@ export function analyticalConcurrency(limits: ConcurrencyLimits = concurrencyLim
       if (remaining > 0) bySubject.set(subject, remaining);
       else bySubject.delete(subject);
     };
-    res.once('finish', release);
-    res.once('close', release);
-    next();
+    const work = requestWork(release);
+    res.once('finish', work.end);
+    res.once('close', work.end);
+    work.run(next);
   };
 }
 

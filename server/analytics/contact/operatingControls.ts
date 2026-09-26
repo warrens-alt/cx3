@@ -1,3 +1,4 @@
+import { validTimestampSql } from '../../bigquery/integrity';
 import { getBigQueryClient } from '../../bigquery/client';
 import { getClientConfig } from '../../bigquery/config';
 import type { OffernetQueryParams } from '../common/types';
@@ -23,19 +24,19 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
     WITH raw AS (
       SELECT
         l.lead_id,
-        SAFE_CAST(l.fetched AS TIMESTAMP) AS fetched_ts,
+        ${validTimestampSql('l.fetched')} AS fetched_ts,
         COALESCE(l.offershop_source, '') AS source,
         COALESCE(l.offershop_grade, '') AS grade,
         hlc.vendor,
-        SAFE_CAST(hlc.delivered AS TIMESTAMP) AS delivered_ts,
-        SAFE_CAST(hlc.first_call_date AS TIMESTAMP) AS first_call_ts,
+        ${validTimestampSql('hlc.delivered')} AS delivered_ts,
+        ${validTimestampSql('hlc.first_call_date')} AS first_call_ts,
         COALESCE(SAFE_CAST(hlc.total_calls AS INT64), 0) AS total_calls,
         COALESCE(hlc.last_dialer_status, '') AS last_dialer_status,
         SAFE_CAST(hlc.rpc AS INT64) > 0 AS is_rpc,
-        hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' AS is_sale,
-        hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' AS is_activated,
-        SAFE_CAST(hlc.sale AS TIMESTAMP) AS sale_ts,
-        SAFE_CAST(hlc.activated AS TIMESTAMP) AS activation_ts
+        ${validTimestampSql('hlc.sale')} IS NOT NULL AS is_sale,
+        ${validTimestampSql('hlc.activated')} IS NOT NULL AS is_activated,
+        ${validTimestampSql('hlc.sale')} AS sale_ts,
+        ${validTimestampSql('hlc.activated')} AS activation_ts
       FROM ${configuredSourceTable(params.clientId, 'leads')} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${whereSql}

@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useOperationalData } from '../lib/useOperationalData';
+import React, { useMemo } from 'react';
 import { AlertTriangle, ArrowRight, BarChart3, ShieldCheck } from 'lucide-react';
 import {
   CartesianGrid,
@@ -26,31 +27,13 @@ export default function VendorLeadQuality() {
   const controls = useOperatingControls();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
-  const [data, setData] = useState<VendorQualityData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  const loadData = async (forceRefresh = false) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await fetchVendorQuality({
-        clientId: selectedClient,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        ...extractOffernetFilters(filters),
-      }, forceRefresh);
-      setData(result);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load performance analysis');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (selectedClient) loadData();
-  }, [selectedClient, startDate, endDate, filters]);
+  const { data, loading, error, loadData } = useOperationalData<VendorQualityData>('VendorLeadQuality', {
+    clientId: selectedClient,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+    ...extractOffernetFilters(filters),
+  }, fetchVendorQuality);
 
   const scatter = useMemo(
     () => (data?.vendors || [])

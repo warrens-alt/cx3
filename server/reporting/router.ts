@@ -1,3 +1,4 @@
+import { analyticalRoute } from '../analyticalWork';
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { BigQueryReportRepository } from './repository';
 import { RequestError } from '../bigquery/filters';
@@ -16,7 +17,7 @@ export function createReportingRouter(repoFactory?: (() => BigQueryReportReposit
     return candidate;
   };
 
-  router.get('/catalogue', async (req: Request, res: Response, next: NextFunction) => {
+  router.get('/catalogue', analyticalRoute(async (req: Request, res: Response, next: NextFunction) => {
     try {
       const repo = getRepo();
       const tenant = tenantFor(req, res, req.query.tenantId);
@@ -33,9 +34,9 @@ export function createReportingRouter(repoFactory?: (() => BigQueryReportReposit
     } catch (err) {
       next(err);
     }
-  });
+  }));
 
-  router.get('/exceptions', async (req: Request, res: Response, next: NextFunction) => {
+  router.get('/exceptions', analyticalRoute(async (req: Request, res: Response, next: NextFunction) => {
     try {
       const repo = getRepo();
       const tenant = tenantFor(req, res, req.query.tenantId);
@@ -68,9 +69,9 @@ export function createReportingRouter(repoFactory?: (() => BigQueryReportReposit
     } catch (err) {
       next(err);
     }
-  });
+  }));
 
-  router.post('/', async (req: Request, res: Response, next: NextFunction) => {
+  router.post('/', analyticalRoute(async (req: Request, res: Response, next: NextFunction) => {
     try {
       const repo = getRepo();
       const tenant = tenantFor(req, res, req.body?.tenantId);
@@ -91,9 +92,9 @@ export function createReportingRouter(repoFactory?: (() => BigQueryReportReposit
     } catch (err) {
       next(err);
     }
-  });
+  }));
 
-  router.post('/replay', async (req: Request, res: Response, next: NextFunction) => {
+  router.post('/replay', analyticalRoute(async (req: Request, res: Response, next: NextFunction) => {
     try {
       tenantFor(req, res, req.body?.tenantId);
       return res.status(501).json({
@@ -104,7 +105,7 @@ export function createReportingRouter(repoFactory?: (() => BigQueryReportReposit
     } catch (err) {
       next(err);
     }
-  });
+  }));
 
   return router;
 }

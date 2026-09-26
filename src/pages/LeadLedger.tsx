@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useOperationalData } from '../lib/useOperationalData';
+import React, { useMemo } from 'react';
 import { AlertCircle, BookOpen, ShieldCheck } from 'lucide-react';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import { useClient } from '../lib/ClientContext';
@@ -8,33 +9,15 @@ import { fetchRawLeads, type RawLeadsData } from '../lib/offernetClient';
 export default function LeadLedger() {
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
-  const [data, setData] = useState<RawLeadsData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  const loadData = async (forceRefresh = false) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await fetchRawLeads({
-        clientId: selectedClient,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        ...extractOffernetFilters(filters),
-        limit: 50,
-        offset: 0,
-      }, forceRefresh);
-      setData(result);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load scoped lead records');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (selectedClient) loadData();
-  }, [selectedClient, startDate, endDate, filters]);
+  const { data, loading, error, loadData } = useOperationalData<RawLeadsData>('LeadLedger', {
+    clientId: selectedClient,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+    ...extractOffernetFilters(filters),
+    limit: 50,
+    offset: 0,
+  }, fetchRawLeads);
 
   const columns = useMemo(() => {
     const set = new Set<string>();

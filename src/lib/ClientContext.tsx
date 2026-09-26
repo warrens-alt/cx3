@@ -1,5 +1,6 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { selectAuthorizedClient } from './clientSelection';
 
 export interface ClientConfig {
   id: string;
@@ -41,60 +42,53 @@ const ClientContext = createContext<ClientContextType | undefined>(undefined);
 
 export const ClientProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [clientConfig, setClientConfig] = useState<ClientConfig | null>(null);
   const [clients, setClients] = useState<ClientListItem[]>([]);
-  const [selectedClient, setSelectedClientState] = useState(() =>
+  const [previousClient, setPreviousClient] = useState(() =>
     typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('clientId') || ''
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const activeLoad = useRef<AbortController | null>(null);
+  const clientConfig = selectAuthorizedClient(clients, searchParams.get('clientId'), previousClient) as ClientConfig | null;
+  const selectedClient = clientConfig?.id || '';
 
   const loadConfig = useCallback(async () => {
+    activeLoad.current?.abort();
+    const controller = new AbortController();
+    activeLoad.current = controller;
     setLoading(true);
     setError(null);
     setReady(false);
     try {
-      const res = await fetch('/api/analytics/clients', { credentials: 'same-origin' });
+      const res = await fetch('/api/analytics/clients', { credentials: 'same-origin', signal: controller.signal });
       const json = await res.json().catch(() => ({}));
+      if (controller.signal.aborted) return;
       if (!res.ok || !json.success || !Array.isArray(json.data) || json.data.length === 0) {
         throw new Error(json.error || `Workspace access failed with HTTP ${res.status}`);
       }
 
-      const authorised = json.data as ClientListItem[];
-      const requested = typeof window === 'undefined'
-        ? ''
-        : new URLSearchParams(window.location.search).get('clientId') || '';
-      const selected = authorised.some(client => client.id === requested) ? requested : authorised[0].id;
-      const match = authorised.find(client => client.id === selected)!;
-      setClients(authorised);
-      setSelectedClientState(selected);
-      setClientConfig(match as ClientConfig);
-      setSearchParams(previous => {
-        const next = new URLSearchParams(previous);
-        next.set('clientId', selected);
-        return next;
-      }, { replace: true });
+      setClients(json.data as ClientListItem[]);
       setReady(true);
     } catch (err: any) {
+      if (controller.signal.aborted) return;
       setClients([]);
-      setClientConfig(null);
       setError(err?.message || 'Failed to load authorised workspaces');
       setReady(false);
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
-  }, [setSearchParams]);
+  }, []);
 
   useEffect(() => {
-    loadConfig();
+    void loadConfig();
+    return () => activeLoad.current?.abort();
   }, [loadConfig]);
 
   const setSelectedClient = useCallback((id: string) => {
     const match = clients.find(client => client.id === id);
     if (!match) return;
-    setSelectedClientState(id);
-    setClientConfig(match as ClientConfig);
+    setPreviousClient(id);
     setSearchParams(previous => {
       const next = new URLSearchParams(previous);
       next.set('clientId', id);
@@ -103,16 +97,19 @@ export const ClientProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [clients, setSearchParams]);
 
   useEffect(() => {
-    if (!clients.length) return;
-    const requested = searchParams.get('clientId');
-    if (!requested || requested === selectedClient) return;
-    const match = clients.find(client => client.id === requested);
-    if (!match) return;
-    setSelectedClientState(requested);
-    setClientConfig(match as ClientConfig);
-  }, [searchParams, clients, selectedClient]);
+    if (!ready || !selectedClient) return;
+    setPreviousClient(selectedClient);
+    if (searchParams.get('clientId') === selectedClient) return;
+    setSearchParams(previous => {
+      const next = new URLSearchParams(previous);
+      next.set('clientId', selectedClient);
+      return next;
+    }, { replace: true });
+  }, [ready, selectedClient, searchParams, setSearchParams]);
 
   const reportAuthenticationFailure = useCallback((reason = 'Workspace authentication failed') => {
+    activeLoad.current?.abort();
+    setLoading(false);
     setError(reason);
     setReady(false);
   }, []);

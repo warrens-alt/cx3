@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useFilters, extractOffernetFilters } from '../lib/FilterContext';
+import { useOperationalData } from '../lib/useOperationalData';
+import { cliExportUrl } from '../lib/cliExport';
+import { useFilters, extractOffernetFilters, singleFilterValue } from '../lib/FilterContext';
 import { useClient } from '../lib/ClientContext';
 import { useAuth } from '../lib/AuthContext';
 import {
@@ -32,9 +34,8 @@ export default function CliPerformance() {
   const currency = clientConfig?.currency || 'ZAR';
   const sampleDataEnabled = isAdmin && (import.meta as any).env?.DEV === true;
 
-  const [data, setData] = useState<CliPerformanceResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setLoading] = useState(false);
+  const [actionError, setError] = useState<string | null>(null);
 
   // Table filtering and sorting state
   const [searchCli, setSearchCli] = useState('');
@@ -42,12 +43,7 @@ export default function CliPerformance() {
   const [selectedVendor, setSelectedVendor] = useState<string>('all');
 
   useEffect(() => {
-    const activeFilters = extractOffernetFilters(filters);
-    if (activeFilters.vendor) {
-      setSelectedVendor(activeFilters.vendor);
-    } else {
-      setSelectedVendor('all');
-    }
+    setSelectedVendor(singleFilterValue(filters.vendor) || 'all');
   }, [filters]);
 
   const [sortField, setSortField] = useState<string>('totalCalls');
@@ -69,31 +65,19 @@ export default function CliPerformance() {
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const query = useOperationalData<CliPerformanceResponse>('cli-performance', {
+    clientId: selectedClient,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+    ...extractOffernetFilters(filters),
+  }, fetchCliPerformance);
+  const data = query.data;
+  const loading = query.loading || actionLoading;
+  const error = query.error || actionError;
   const loadData = async (forceRefresh = false) => {
-    if (!data) setLoading(true);
     setError(null);
-    try {
-      const activeFilters = extractOffernetFilters(filters);
-      const res = await fetchCliPerformance(
-        {
-          clientId: selectedClient,
-          startDate: startDate || undefined,
-          endDate: endDate || undefined,
-          ...activeFilters,
-        },
-        forceRefresh
-      );
-      setData(res);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load CLI performance analytics');
-    } finally {
-      setLoading(false);
-    }
+    await query.loadData(forceRefresh);
   };
-
-  useEffect(() => {
-    loadData();
-  }, [selectedClient, startDate, endDate, filters]);
 
   // Handle CSV file selection
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -149,9 +133,15 @@ export default function CliPerformance() {
 
   // Export handlers
   const handleExportCsv = () => {
-    if (!data) return;
-    const url = `/api/analytics/export?grain=cli&clientId=${selectedClient}&startDate=${startDate || ''}&endDate=${endDate || ''}`;
-    window.location.href = url;
+    if (!data || !filteredRecords.length) return;
+    try {
+      window.location.href = cliExportUrl(
+        { clientId: selectedClient, startDate, endDate, filters },
+        { campaign: selectedCampaign, vendor: selectedVendor, search: searchCli },
+      );
+    } catch (err: any) {
+      setError(err?.message || 'The selected table scope cannot be exported.');
+    }
   };
 
   const handleExportJson = () => {
@@ -321,6 +311,16 @@ export default function CliPerformance() {
             </div>
           }
         />
+
+        {error && <div className="cx-command-error" role="alert"><AlertTriangle size={17}/><span>{error}</span></div>}
+        {loading && !data && <div className="cx-command-loading" role="status"><div className="cx-command-spinner"/>Loading CLI performance…</div>}
+
+        {data?.metadata.truncated && (
+          <div className="cx-command-error" role="status">
+            <AlertTriangle size={17} />
+            <span>Showing the first {(data.metadata.rowLimit ?? data.cliPerformance.length).toLocaleString()} CLI groups. Metrics and local search describe this partial result; narrow the reporting scope to inspect the remaining groups.</span>
+          </div>
+        )}
 
         {/* Schema Gap Diagnostic Banner */}
         {isSchemaUnavailable && data?.sourceStatus && (

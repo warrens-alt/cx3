@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useOperationalData } from '../lib/useOperationalData';
+import React, { useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, Database, ShieldCheck } from 'lucide-react';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
@@ -20,31 +21,13 @@ export default function Exceptions() {
   const { isAdmin } = useAuth();
   const { startDate, endDate, filters } = useFilters();
   const [searchParams] = useSearchParams();
-  const [data, setData] = useState<OverviewData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const loadData = async (forceRefresh = false) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await fetchOverview({
-        clientId: selectedClient,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        ...extractOffernetFilters(filters),
-      }, forceRefresh);
-      setData(result);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load operational exceptions');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (selectedClient) loadData();
-  }, [selectedClient, startDate, endDate, filters]);
+  const { data, loading, error, loadData } = useOperationalData<OverviewData>('Exceptions', {
+    clientId: selectedClient,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+    ...extractOffernetFilters(filters),
+  }, fetchOverview);
 
   const recordLink = (drill: string, drillValue?: string, extra?: Record<string, string>) => {
     const next = new URLSearchParams(searchParams);

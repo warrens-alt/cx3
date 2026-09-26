@@ -14,6 +14,22 @@ The five existing configured physical sources now have explicit, read-only query
 
 Source aggregate APIs require explicit `startDate`, `endDate`, and the permitted `clientId`. Where a source has no verified source/vendor/medium mapping, that filter produces HTTP 422 rather than being dropped. Diagnostics in Source Field Mappings intentionally use source-specific dates without applying the legacy cohort filter dimensions; this is displayed in the interface.
 
+## Tenant ownership
+
+Authorisation to select a workspace and ownership of rows in a shared source are separate checks. Source aggregates always apply the following ownership contract before optional caller filters; selecting a different vendor or omitting filters cannot widen the authorised tenant population.
+
+| Source role | Tenant ownership requirement |
+| --- | --- |
+| `leads` | A configured tenant-specific source view distinct from the master ledger. |
+| `calls` | An approved tenant vendor mapping and a scalar STRING `vendor` column; the query binds the tenant's vendor values. |
+| `marketing` | A resolved, approved `client_name` mapping and a scalar STRING ownership column; wildcard mappings are rejected. |
+| `activations` | The explicitly configured BLC-only source is available to `ontact_blc`; other tenant ownership remains unestablished. |
+| `timeToDial` | Non-master aggregation is unavailable until an approved ownership/join mapping exists. |
+
+The explicitly authorised `default_tenant` master workspace may query its configured source population. Other tenants receive HTTP 422 when the required mapping, field shape, or ownership contract is absent. Schema discovery alone does not establish ownership. The predicates and failure cases are implemented in `server/bigquery/sourceTenantScope.ts` and exercised by `tests/query-boundaries.test.ts`.
+
+## Coverage and lineage
+
 `/api/analytics/source-coverage` retrieves the complete table listing returned by each authorised dataset and independently checks all five configured source schemas. Extra tables are reported as unmapped rather than auto-joined. Listing failure means incomplete inventory, not an empty dataset. Nested `hlc_details` schema paths are retained. Metadata row counts remain strings and are not described as period-filtered counts. `populated` remains unknown until an aggregate query is actually performed.
 
 `/api/analytics/metric-lineage` lists the physical legacy model dependencies and the canonical facts required by each of the 12 approved-report metric definitions. `/api/reporting/catalogue` now exposes the actual pinned snapshot identities for each metric when a release exists. No release means no snapshot identity; a raw-table configuration cannot impersonate a published fact release.

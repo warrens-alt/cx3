@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { useOperationalData } from '../lib/useOperationalData';
+import React from 'react';
 import { AlertTriangle, ArrowRight, Clock3, DollarSign, Download, PackageCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useFilters, extractOffernetFilters } from '../lib/FilterContext';
@@ -18,30 +19,13 @@ export default function SalesActivationIntelligence() {
   const controls = useOperatingControls();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
-  const [data, setData] = useState<SalesActivationData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const loadData = async (forceRefresh = false) => {
-    if (!data) setLoading(true);
-    setError(null);
-    try {
-      setData(await fetchSalesActivation({
-        clientId: selectedClient,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        ...extractOffernetFilters(filters),
-      }, forceRefresh));
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load sales and activation analysis');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (selectedClient) loadData();
-  }, [selectedClient, startDate, endDate, filters]);
+  const { data, loading, error, loadData } = useOperationalData<SalesActivationData>('SalesActivationIntelligence', {
+    clientId: selectedClient,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+    ...extractOffernetFilters(filters),
+  }, fetchSalesActivation);
 
   const handleExportCsv = () => {
     if (!data) return;

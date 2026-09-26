@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { useOperationalData } from '../lib/useOperationalData';
+import React from 'react';
 import { AlertTriangle, PhoneCall, ShieldCheck } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
@@ -10,28 +11,13 @@ import { formatPercent, formatTableNumber } from '../lib/formatters';
 export default function ContactStrategyIntelligence() {
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
-  const [data, setData] = useState<ContactStrategyData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const loadData = async (forceRefresh = false) => {
-    setLoading(true);
-    setError(null);
-    try {
-      setData(await fetchContactStrategy({
-        clientId: selectedClient,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        ...extractOffernetFilters(filters),
-      }, forceRefresh));
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load contact strategy');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { if (selectedClient) loadData(); }, [selectedClient, startDate, endDate, filters]);
+  const { data, loading, error, loadData } = useOperationalData<ContactStrategyData>('ContactStrategyIntelligence', {
+    clientId: selectedClient,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+    ...extractOffernetFilters(filters),
+  }, fetchContactStrategy);
 
   return (
     <div className="cx-command-page">

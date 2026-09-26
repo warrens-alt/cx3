@@ -26,9 +26,13 @@ A local development identity is available only when `NODE_ENV` is not `productio
 - Scoped agent analytics to tenant/date/vendor and reject unsupported cross-grain filters.
 - Restricted CLI report import/sample/clear mutations to administrators; synthetic sample loading is disabled in production by default.
 - Live CLI analytics now require tenant-safe vendor scoping and fail closed when required source fields are absent.
+- Shared-source aggregate queries enforce ownership independently of caller filters: tenant vendor mappings for calls, approved client-name mappings for marketing, tenant-specific lead views, and explicitly supported activation ownership. Unestablished ownership returns HTTP 422; see `SOURCE_API.md`.
 - New Firebase profiles can no longer self-activate; non-bootstrap accounts remain pending until administrator approval.
+- Ordinary Firebase administrators require a verified identity, an active admin profile, and its authority marker. Role/status changes use a transaction; deletion and bootstrap creation use atomic batches. Stale markers do not authorise suspended, demoted, or deleted ordinary accounts.
 - Operational analytics responses are labelled `UNVERIFIED`, not `VERIFIED`.
 - Production runs the freshly built `dist/server/server.mjs`; generated `server.js` is no longer tracked.
+
+The bootstrap exceptions are the configured trusted UID and the configured bootstrap email with a verified email claim. Keep the frontend constants and `firestore.rules` aligned. Deploy the reviewed rules separately to the intended Firebase project: repository changes and emulator runs do not replace the deployed rules. The server's IAP access policy remains a separate authority from Firebase profile management.
 
 ## Analytical trust changes
 
@@ -70,12 +74,45 @@ However, the current repository does **not** contain a complete v2 report compil
 
 Do not describe this repository revision as having completed reproducible evidence-report execution.
 
+### Unsupported historical reporting scripts
+
+These scripts are retained as unfinished design history. They are not wired into `package.json`, and `tsconfig.json` does not include the scripts directory. Passing `npm run verify` therefore does not establish that these entrypoints run.
+
+| Script | Missing implementation or fixture |
+| --- | --- |
+| `scripts/ingest-canonical.ts` | `server/reporting/ingestion` and its `normalizeBatch` implementation. |
+| `scripts/publish-release.ts` | `server/reporting/checks` (`releaseCheckQueries`) and `server/reporting/scope` (`isoTimestamp`). |
+| `scripts/warehouse-reference.ts` | `compileReport`/`compileEvidence` exports from `server/reporting/query`, `server/reporting/scope` (`reportRequest`), and `tests/fixtures/reporting-reference.json`. |
+
+Module loading fails before their planning or `--execute` guards. Do not use these scripts for ingestion, release publication, or warehouse validation. Restoring them requires the reviewed reporting implementation and fixtures. The supported read-only integration check is `npm run sources:check`; it does not ingest or publish data.
+
 ## Date and filter behaviour
 
 - Operational reports default to all-time when no date scope is supplied.
 - Date presets are generated dynamically from the current date.
 - Vetting does **not** silently turn all-time into a 90-day period; it requires an explicit start and end date.
 - Unsupported cross-grain filters fail explicitly instead of being silently ignored.
+
+The `/api/analytics/offernet/*` adapter accepts one string equality value per supported dimension (`equals` or a one-element `in` list). Multiple values, comparison operators, conflicting aliases, and unsupported dimensions return HTTP 422. Remove a filter to select all values; a literal `all` condition is rejected.
+
+| Operational report | Supported optional dimensions |
+| --- | --- |
+| Standard lead-based reports | `vendor`, `source`, `medium`, `grade`. |
+| Agent performance and individual lead timelines | `vendor`. |
+| Campaigns and marketing root-cause | `campaign`; their services reject operational source/vendor/medium/grade scope that cannot be mapped to marketing. |
+| Marketing discovery and source observability | No optional dimension filters. |
+
+`partner` and `ror_partner` are vendor aliases where vendor filtering is supported. Route-specific contracts can further restrict combinations, especially cross-source marketing attribution. CLI analytics separately support `cli`, `campaign`, and `vendor` inclusion/equality/exclusion filters; unsupported dimensions fail explicitly. The frontend preserves filter operators when forming requests and hides stale results when scope or tenant permission changes.
+
+### CLI exports and outcome timing
+
+CSV imports preserve empty columns, quoted delimiters, escaped quotes, and multiline fields. Invalid quotes, duplicate/empty headers, and wrong column counts reject the import before records are stored.
+
+CLI exports use the dashboard's source-resolution path: a supported live CLI source takes precedence over an import, and a failed live query is propagated. Date, CLI/campaign/vendor filters and literal case-insensitive CLI-or-campaign substring search apply before limiting results. Export limits are 1–50,000 rows; live queries request one extra group to detect truncation. JSON metadata includes the applied scope, source provenance, row count and truncation; CSV responses expose `X-Export-Row-Count` and `X-Export-Truncated`. Imported trend and lead-age summaries are rebuilt from selected records.
+
+Operating controls and funnel metrics normalise 1900/1970 sentinel timestamps before success counts and latency calculations. Record drill-downs use the same selected-vendor HLC population for both positive and negative existence checks.
+
+Cohort sale, activation, RPC and call maturation use their respective event timestamps, excluding negative chronology and future events. A cohort with a recorded outcome but no matching event timestamp has unavailable maturation cells. Revenue maturation remains unavailable because cumulative balances do not identify when each amount occurred. The UI displays the returned reason. These corrections do not certify upstream event identities or source completeness.
 
 ## Commercial and campaign status
 
@@ -101,9 +138,10 @@ Recorded source revenue remains a source field and must not be described as audi
 
 1. TypeScript type checking;
 2. repository contract/regression tests;
-3. production client/server build.
+3. generated UI/API surface inventory freshness;
+4. production client/server build.
 
-GitHub Actions runs the same checks plus a dependency audit.
+GitHub Actions runs the same checks, `npm run test:rules` with Java 21 and a local Firestore emulator, and a dependency audit. The rules suite exercises atomic promotion/revocation, bootstrap identity claims, pending registration and invite mutations against `firestore.rules`; it does not deploy those rules.
 
 The repository currently does not include the previously referenced Dataform warehouse tree or Playwright tooling package, so CI does not claim to execute those checks.
 

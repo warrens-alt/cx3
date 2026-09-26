@@ -1,3 +1,4 @@
+import { analyticalRoute } from '../analyticalWork';
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { compileVetting, vettingScope } from './query';
 import { sourceAccess } from '../bigquery/sourceAccess';
@@ -6,7 +7,7 @@ import { sourceTable } from '../bigquery/sourceCatalog';
 export function createVettingRouter() {
   const router = Router();
 
-  router.get('/vetting', async (req: Request, res: Response, next: NextFunction) => {
+  router.get('/vetting', analyticalRoute(async (req: Request, res: Response, next: NextFunction) => {
     try {
       const scope = res.locals.scope;
       const access = sourceAccess(scope.clientId);
@@ -24,7 +25,7 @@ export function createVettingRouter() {
     } catch (err) {
       next(err);
     }
-  });
+  }));
 
   return router;
 }

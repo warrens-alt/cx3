@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useOperationalData } from '../lib/useOperationalData';
+import React, { useMemo } from 'react';
 import { AlertTriangle, ArrowRight, Clock3, Download, Moon, Sun, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useFilters, extractOffernetFilters } from '../lib/FilterContext';
@@ -16,30 +17,13 @@ export default function SpeedToLeadIntelligence() {
   const controls = useOperatingControls();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
-  const [data, setData] = useState<SpeedToLeadData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const loadData = async (forceRefresh = false) => {
-    if (!data) setLoading(true);
-    setError(null);
-    try {
-      setData(await fetchSpeedToLead({
-        clientId: selectedClient,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        ...extractOffernetFilters(filters),
-      }, forceRefresh));
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load contact timing analysis');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (selectedClient) loadData();
-  }, [selectedClient, startDate, endDate, filters]);
+  const { data, loading, error, loadData } = useOperationalData<SpeedToLeadData>('SpeedToLeadIntelligence', {
+    clientId: selectedClient,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+    ...extractOffernetFilters(filters),
+  }, fetchSpeedToLead);
 
   const handleExportCsv = () => {
     if (!data) return;

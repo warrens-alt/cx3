@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { useOperationalData } from '../lib/useOperationalData';
+import React from 'react';
 import { AlertTriangle, Clock3, Database, ShieldCheck } from 'lucide-react';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import { useClient } from '../lib/ClientContext';
@@ -12,30 +13,13 @@ export default function DataIntegrityIntelligence() {
   const { selectedClient } = useClient();
   const controls = useOperatingControls();
   const { startDate, endDate, filters } = useFilters();
-  const [data, setData] = useState<DataIntegrityData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  const loadData = async (forceRefresh = false) => {
-    setLoading(true);
-    setError(null);
-    try {
-      setData(await fetchDataIntegrity({
-        clientId: selectedClient,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        ...extractOffernetFilters(filters),
-      }, forceRefresh));
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load data-integrity evidence');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (selectedClient) loadData();
-  }, [selectedClient, startDate, endDate, filters]);
+  const { data, loading, error, loadData } = useOperationalData<DataIntegrityData>('DataIntegrityIntelligence', {
+    clientId: selectedClient,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+    ...extractOffernetFilters(filters),
+  }, fetchDataIntegrity);
 
   const badge = (status: string) => {
     const healthy = ['HEALTHY', 'OBSERVED'].includes(status);

@@ -28,7 +28,7 @@ import {
 import { getClientConfig, tableIdentifier, tenantVendorScopeValues } from './config';
 import { flatSchema, sourceAccess, type SourceAccess, type TableMetadata } from './sourceAccess';
 import { sourceTable } from './sourceCatalog';
-import { RequestError, validateScope, conditionSql, type QueryScope, type Scalar } from './filters';
+import { RequestError, validateScope, conditionSql, boundedInteger, scalarString, type QueryScope, type Scalar, type FilterCondition } from './filters';
 import { validTimestampSql } from './integrity';
 import { exactDecimal, addExactDecimals, compareExactDecimal, subtractExactDecimals, divideExactDecimal } from '../../contracts/exactDecimal';
 
@@ -76,6 +76,46 @@ export function findCliColumn(fields: Map<string, { type: string }>): string | n
   return null;
 }
 
+/** Preserve CSV field positions, including quoted commas, newlines and escaped quotes. */
+function parseCsvRows(input: string): string[][] {
+  const text = input.replace(/^\uFEFF/, '');
+  const rows: string[][] = [];
+  let row: string[] = [], field = '', quoted = false, closedQuote = false;
+  const finishField = () => { row.push(field); field = ''; closedQuote = false; };
+  const finishRow = () => {
+    finishField();
+    if (row.some(value => value.trim() !== '')) rows.push(row);
+    row = [];
+  };
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (quoted) {
+      if (char === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else { quoted = false; closedQuote = true; }
+      } else field += char;
+      continue;
+    }
+    if (char === ',') { finishField(); continue; }
+    if (char === '\r' || char === '\n') {
+      finishRow();
+      if (char === '\r' && text[i + 1] === '\n') i++;
+      continue;
+    }
+    if (closedQuote) {
+      if (char === ' ' || char === '\t') continue;
+      throw new Error(`Unexpected content after a closing quote in CSV record ${rows.length + 1}.`);
+    }
+    if (char === '"') {
+      if (field.trim() !== '') throw new Error(`Unexpected quote in CSV record ${rows.length + 1}.`);
+      field = ''; quoted = true;
+    } else field += char;
+  }
+  if (quoted) throw new Error(`Unclosed quoted field in CSV record ${rows.length + 1}.`);
+  finishRow();
+  return rows;
+}
+
 /** Parse and validate CSV data */
 export function parseAndValidateCliCsv(csvText: string, filename = 'imported_report.csv'): {
   records: CliPerformanceRecord[];
@@ -86,7 +126,12 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
 } {
   const errors: string[] = [];
   const anomalies: CliValidationAnomaly[] = [];
-  const lines = csvText.trim().split(/\r?\n/).filter(line => line.trim().length > 0);
+  let lines: string[][];
+  try { lines = parseCsvRows(csvText); }
+  catch (error) {
+    errors.push(error instanceof Error ? error.message : 'Invalid CSV.');
+    return { records: [], trend: [], leadAgeBands: emptyLeadAgeBands(), anomalies, errors };
+  }
 
   if (lines.length < 2) {
     errors.push('CSV report must contain at least a header row and one data row.');
@@ -94,7 +139,14 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
   }
 
   // Parse header
-  const rawHeaders = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, '').toLowerCase());
+  const rawHeaders = lines[0].map(h => h.trim().toLowerCase());
+  if (rawHeaders.some(header => !header) || new Set(rawHeaders).size !== rawHeaders.length) {
+    errors.push('CSV headers must be non-empty and unique.');
+  }
+  lines.slice(1).forEach((cells, index) => {
+    if (cells.length !== rawHeaders.length) errors.push(`CSV record ${index + 2} has ${cells.length} fields; expected ${rawHeaders.length}.`);
+  });
+  if (errors.length) return { records: [], trend: [], leadAgeBands: emptyLeadAgeBands(), anomalies, errors };
   const headerMap = new Map<string, number>();
   rawHeaders.forEach((h, i) => headerMap.set(h, i));
 
@@ -156,12 +208,8 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
   }
 
   const records: CliPerformanceRecord[] = [];
-  const trendMap = new Map<string, { calls: number; contacts: number; sales: number; answered: number; duration5m: number; duration5mKnown: boolean }>();
-
   for (let rowIdx = 1; rowIdx < lines.length; rowIdx++) {
-    const rawLine = lines[rowIdx];
-    // Split on commas while respecting quotes
-    const cells = rawLine.match(/(?:[^\s",]+|"[^"]*")+/g)?.map(c => c.trim().replace(/^["']|["']$/g, '')) || rawLine.split(',');
+    const cells = lines[rowIdx].map(cell => cell.trim());
 
     const cli = (cells[cliIdx] || '').trim();
     if (!cli) {
@@ -316,19 +364,6 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
         message: `Report date '${rawDate}' is invalid and was excluded from the trend.`,
       });
     }
-    if (reportDate) {
-      const existingTrend = trendMap.get(reportDate) || { calls: 0, contacts: 0, sales: 0, answered: 0, duration5m: 0, duration5mKnown: false };
-      existingTrend.calls += totalCallsNum;
-      existingTrend.contacts += contactCountNum;
-      existingTrend.sales += saleCountNum;
-      if (answeredCount) existingTrend.answered += parseInt(answeredCount, 10) || 0;
-      if (d5mNum !== null) {
-        existingTrend.duration5m += d5mNum;
-        existingTrend.duration5mKnown = true;
-      }
-      trendMap.set(reportDate, existingTrend);
-    }
-
     records.push({
       cli,
       campaign,
@@ -365,23 +400,43 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
     });
   }
 
-  // Construct trend
-  const trend: CliTrendPoint[] = Array.from(trendMap.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([date, t]) => ({
-      date,
-      totalCalls: t.calls,
-      contactRate: t.calls > 0 ? Number(((t.contacts / t.calls) * 100).toFixed(2)) : 0,
-      saleRate: t.calls > 0 ? Number(((t.sales / t.calls) * 100).toFixed(2)) : 0,
-      answeredRate: t.calls > 0 && t.answered > 0 ? Number(((t.answered / t.calls) * 100).toFixed(2)) : null,
-      asrRate: null,
-      durationGe5mRate: t.duration5mKnown && t.calls > 0 ? Number(((t.duration5m / t.calls) * 100).toFixed(2)) : null,
-    }));
+  const trend = aggregateCliTrend(records);
 
   // Construct Lead Age Bands
   const leadAgeBands = computeLeadAgeBands(records);
 
   return { records, trend, leadAgeBands, anomalies, errors };
+}
+
+function aggregateCliTrend(records: CliPerformanceRecord[]): CliTrendPoint[] {
+  const byDate = new Map<string, CliPerformanceRecord[]>();
+  for (const record of records) {
+    if (!record.reportDate) continue;
+    const group = byDate.get(record.reportDate) || [];
+    group.push(record);
+    byDate.set(record.reportDate, group);
+  }
+  return [...byDate.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, group]) => {
+    const calls = group.reduce((sum, record) => sum + BigInt(record.totalCalls), 0n).toString();
+    const rate = (field: 'contactCount' | 'saleCount' | 'answeredCount' | 'asrCount' | 'durationGe5mCount') => {
+      if (group.some(record => record[field] === null)) return null;
+      const count = group.reduce((sum, record) => sum + BigInt(record[field]!), 0n).toString();
+      const value = calculateExactRate(count, calls);
+      return value === null ? null : Number(value);
+    };
+    return { date, totalCalls: Number(calls), contactRate: rate('contactCount') ?? 0,
+      saleRate: rate('saleCount') ?? 0, answeredRate: rate('answeredCount'),
+      asrRate: rate('asrCount'), durationGe5mRate: rate('durationGe5mCount') };
+  });
+}
+
+function matchesImportedFilter(value: string, filter: FilterCondition, ignoreCase = false): boolean {
+  const normalize = (input: unknown) => ignoreCase ? String(input).trim().toLowerCase() : String(input);
+  const actual = normalize(value);
+  if (filter.operator === 'in') return filter.values!.some(candidate => normalize(candidate) === actual);
+  if (filter.operator === 'equals') return actual === normalize(filter.value);
+  if (filter.operator === 'not_equals') return actual !== normalize(filter.value);
+  throw new RequestError('CLI dimensions support inclusion and equality filters only.', 422);
 }
 
 function parsePct(val: string): string | null {
@@ -792,10 +847,16 @@ export function getCliFieldCoverage(
 
 /** Primary analytical API query handler */
 export async function getCliPerformance(
-  input: QueryScope,
-  access?: SourceAccess
+  input: QueryScope & { search?: string },
+  access?: SourceAccess,
+  options: { limit?: number } = {},
 ): Promise<CliPerformanceResponse> {
   const scope = validateScope(input);
+  const search = scalarString(input.search, 'search', 200)?.trim().toLowerCase() || undefined;
+  const rowLimit = boundedInteger(options.limit, 2000, 50000, 1);
+  for (const key of Object.keys(scope.filters || {})) {
+    if (!['cli', 'campaign', 'vendor'].includes(key)) throw new RequestError(`CLI analytics does not support the '${key}' filter.`, 422);
+  }
   const clientConfig = getClientConfig(scope.clientId);
   const configuredTable = clientConfig.semanticMappings.tables.cliPerformance || clientConfig.semanticMappings.tables.calls || 'dashboards-422710.lead_ledger.lead_ledger_all_vicidial_insights';
 
@@ -821,7 +882,7 @@ export async function getCliPerformance(
 
   // If live CLI column is available in BigQuery, execute live SQL query
   if (schemaChecked && cliColumn) {
-    return executeLiveCliQuery(scope, configuredTable, cliColumn, fieldsMap);
+    return executeLiveCliQuery(scope, configuredTable, cliColumn, fieldsMap, access, rowLimit, search);
   }
 
   // If an imported report is available, serve it with IMPORTED_REPORT provenance
@@ -833,26 +894,12 @@ export async function getCliPerformance(
     }
     if (scope.startDate) records = records.filter(record => record.reportDate && record.reportDate >= scope.startDate!);
     if (scope.endDate) records = records.filter(record => record.reportDate && record.reportDate <= scope.endDate!);
+    if (search) records = records.filter(record => record.cli.toLowerCase().includes(search) || record.campaign.toLowerCase().includes(search));
 
     // Apply filters to imported records
-    if (scope.filters) {
-      if (scope.filters.cli && scope.filters.cli.operator === 'in') {
-        const allowed = new Set(scope.filters.cli.values!.map(String));
-        records = records.filter(r => allowed.has(r.cli));
-      }
-      if (scope.filters.campaign && scope.filters.campaign.operator === 'in') {
-        const allowed = new Set(scope.filters.campaign.values!.map(String));
-        records = records.filter(r => allowed.has(r.campaign));
-      }
-      if (scope.filters.vendor) {
-        const rawVals = scope.filters.vendor.operator === 'in' 
-          ? scope.filters.vendor.values || [] 
-          : scope.filters.vendor.value !== undefined ? [scope.filters.vendor.value] : [];
-        const allowed = new Set(rawVals.map(v => String(v).trim().toLowerCase()).filter(v => !['all', 'all vendors'].includes(v)));
-        if (allowed.size > 0) {
-          records = records.filter(r => r.vendor && allowed.has(r.vendor.trim().toLowerCase()));
-        }
-      }
+    for (const key of ['cli', 'campaign', 'vendor'] as const) {
+      const filter = scope.filters?.[key];
+      if (filter) records = records.filter(record => matchesImportedFilter(record[key], filter, key === 'vendor'));
     }
 
     const summary = computeCliSummary(records);
@@ -867,16 +914,16 @@ export async function getCliPerformance(
       sourceStatus: {
         table: configuredTable,
         configured: true,
-        schemaChecked: true,
+        schemaChecked,
         cliFieldPresent: false,
         totalColumnsFound: fieldsMap.size,
-        reason: `Live BigQuery table '${configuredTable}' lacks an outbound CLI column. Data is sourced from validated imported report '${tenantImport.filename}' (uploaded ${tenantImport.uploadedAt}).`,
+        reason: `${schemaChecked ? `Live BigQuery table '${configuredTable}' lacks an outbound CLI column.` : `Live BigQuery schema inspection could not be completed for '${configuredTable}'.`} Data is sourced from imported report '${tenantImport.filename}' (uploaded ${tenantImport.uploadedAt}).`,
       },
       summary,
       cliPerformance: records,
-      trend: tenantImport.trend,
+      trend: aggregateCliTrend(records),
       durationBands,
-      leadAgeBands: tenantImport.leadAgeBands,
+      leadAgeBands: computeLeadAgeBands(records),
       campaigns,
       periodComparison,
       fieldCoverage,
@@ -887,9 +934,11 @@ export async function getCliPerformance(
         startDate: scope.startDate || null,
         endDate: scope.endDate || null,
         filters: scope.filters || {},
+        search: search ?? null,
         modelVersion: 'cx.cli.1.0.0',
         generatedAt: new Date().toISOString(),
         rowCount: records.length,
+        truncated: false,
         validationStatus: tenantImport.anomalies.length > 0 ? 'VALIDATED_WITH_ANOMALIES' : 'VALIDATED_REPORT',
       },
     };
@@ -950,10 +999,13 @@ async function executeLiveCliQuery(
   scope: QueryScope,
   table: string,
   cliCol: string,
-  fields: Map<string, { type: string }>
+  fields: Map<string, { type: string }>,
+  access?: SourceAccess,
+  rowLimit = 2000,
+  search?: string,
 ): Promise<CliPerformanceResponse> {
   const clientConfig = getClientConfig(scope.clientId);
-  const client = sourceAccess(scope.clientId);
+  const client = access || sourceAccess(scope.clientId);
 
   const campaignCol = fields.has('campaign_id') ? 'campaign_id' : fields.has('campaign_name') ? 'campaign_name' : null;
   const vendorCol = fields.has('vendor') ? 'vendor' : null;
@@ -971,6 +1023,7 @@ async function executeLiveCliQuery(
 
   const params: Record<string, any> = {
     tenantTimezone: clientConfig.timezone || 'Africa/Johannesburg',
+    cliRowLimit: rowLimit + 1,
   };
   const clauses: string[] = [];
 
@@ -995,11 +1048,22 @@ async function executeLiveCliQuery(
   if (scope.filters?.cli) {
     clauses.push(conditionSql(`CAST(s.\`${cliCol}\` AS STRING)`, scope.filters.cli, 'filter_cli', params));
   }
+  if (scope.filters?.campaign && !campaignCol) throw new RequestError('The CLI source has no supported campaign field for the selected filter.', 422);
+  if (scope.filters?.vendor && !vendorCol) throw new RequestError('The CLI source has no vendor field for the selected filter.', 422);
   if (scope.filters?.campaign && campaignCol) {
     clauses.push(conditionSql(`CAST(s.\`${campaignCol}\` AS STRING)`, scope.filters.campaign, 'filter_camp', params));
   }
   if (scope.filters?.vendor && vendorCol) {
     clauses.push(conditionSql(`CAST(s.\`${vendorCol}\` AS STRING)`, scope.filters.vendor, 'filter_vendor', params));
+  }
+  if (search) {
+    const cliLabel = `COALESCE(NULLIF(CAST(s.\`${cliCol}\` AS STRING), ''), 'Unknown CLI')`;
+    const campaignLabel = campaignCol
+      ? `COALESCE(NULLIF(CAST(s.\`${campaignCol}\` AS STRING), ''), 'Unknown')`
+      : "'Unknown Campaign'";
+    // STRPOS matches literal substrings, so user-entered % and _ are not SQL wildcards.
+    clauses.push(`(STRPOS(LOWER(${cliLabel}), @cliSearch) > 0 OR STRPOS(LOWER(${campaignLabel}), @cliSearch) > 0)`);
+    params.cliSearch = search;
   }
   const whereSql = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
   const distinctLeadExpr = fields.has('dialer_lead_id') ? 'COUNT(DISTINCT dialer_lead_id)' : 'CAST(NULL AS INT64)';
@@ -1028,8 +1092,8 @@ async function executeLiveCliQuery(
     FROM ${tableIdentifier(table)} s
     ${whereSql}
     GROUP BY cli, campaign, vendor
-    ORDER BY total_calls DESC
-    LIMIT 2000
+    ORDER BY total_calls DESC, cli, campaign, vendor
+    LIMIT @cliRowLimit
   `;
 
   if (!fields.has('is_rpc') || !fields.has('is_sale')) {
@@ -1037,7 +1101,7 @@ async function executeLiveCliQuery(
   }
 
   const result = await client.execute({ query, params });
-  const records: CliPerformanceRecord[] = result.rows.map(r => {
+  const records: CliPerformanceRecord[] = result.rows.slice(0, rowLimit).map(r => {
     const totalCalls = String(r.total_calls || '0');
     const distinctLeads = r.distinct_leads === null || r.distinct_leads === undefined ? null : String(r.distinct_leads);
     const contactCount = String(r.contact_count || '0');
@@ -1113,9 +1177,12 @@ async function executeLiveCliQuery(
       startDate: scope.startDate || null,
       endDate: scope.endDate || null,
       filters: scope.filters || {},
+      search: search ?? null,
       modelVersion: 'cx.cli.1.0.0',
       generatedAt: new Date().toISOString(),
       rowCount: records.length,
+      rowLimit,
+      truncated: result.rows.length > rowLimit,
       validationStatus: 'LIVE_SQL_AGGREGATED',
     },
   };

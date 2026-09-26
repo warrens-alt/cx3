@@ -273,7 +273,9 @@ test('Explorer record loading follows applied URL search state', () => {
   const explorer = read('src/pages/LeadExplorerIntelligence.tsx');
   assert.match(explorer, /const appliedSearch = params\.get\('search'\) \|\| ''/);
   assert.match(explorer, /search: appliedSearch \|\| undefined/);
-  assert.match(explorer, /\[selectedClient, startDate, endDate, filters, drill, drillValue, appliedSearch, page\]/);
+  assert.match(explorer, /\[selectedClient, startDate, endDate, filters, drill, drillValue, appliedSearch\]/);
+  assert.match(explorer, /offset: page \* pageSize/);
+  assert.match(explorer, /useOperationalData<RawLeadsData>/);
   assert.match(explorer, /setSearch\(appliedSearch\)/);
 });
 

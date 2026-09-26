@@ -4,6 +4,7 @@ import { flatSchema,sourceAccess,sourceMetricFieldAvailable,type SourceAccess,ty
 import { sourceTable } from './sourceCatalog';
 import { tableIdentifier } from './config';
 import { validTimestampSql } from './integrity';
+import { sourceTenantPredicate } from './sourceTenantScope';
 export interface CompiledSourceMetrics {query:string;params:Record<string,Scalar>;metrics:SourceMetric[];available:boolean[];table:string;dateField:string;grouping:string|null;}
 const atom=(name:string)=>{if(!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name))throw new RequestError('Invalid configured field identifier',503);return `s.\`${name}\``;};
 const text=(field:string)=>`NULLIF(TRIM(CAST(${atom(field)} AS STRING)), '')`;
@@ -26,6 +27,8 @@ export function compileSourceMetrics(role:SourceRole,input:QueryScope,meta:Table
   if(grouping&&!sourceMetricFieldAvailable(grouping,fields))throw new RequestError(`The ${grouping} field is not available`,422);
   const params:Record<string,Scalar>={startDate:scope.startDate,endDate:scope.endDate};
   const clauses=[`DATE(${validTimestampSql(atom(dateField))}) BETWEEN @startDate AND @endDate`];
+  const ownership = sourceTenantPredicate(scope.clientId, role, meta, params);
+  if (ownership) clauses.push(ownership);
   for(const [key,condition]of Object.entries(scope.filters||{})){
     const field=def.filters[key as keyof typeof def.filters];
     if(!field||!fields.has(field))throw new RequestError(`${def.label} has no verified ${key} mapping. That filter cannot be silently ignored.`,422);

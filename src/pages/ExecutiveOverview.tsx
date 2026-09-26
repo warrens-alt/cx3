@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useOperationalData } from '../lib/useOperationalData';
+import React, { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -79,32 +80,14 @@ export default function ExecutiveOverview() {
   const { isAdmin } = useAuth();
   const { startDate, endDate, filters } = useFilters();
   const [searchParams] = useSearchParams();
-  const [data, setData] = useState<OverviewData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [rootMetric, setRootMetric] = useState<RootMetric | null>(null);
 
-  const loadData = async (forceRefresh = false) => {
-    if (!data) setLoading(true);
-    setError(null);
-    try {
-      const result = await fetchOverview({
-        clientId: selectedClient,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        ...extractOffernetFilters(filters),
-      }, forceRefresh);
-      setData(result);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load operational overview');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (selectedClient) loadData();
-  }, [selectedClient, startDate, endDate, filters]);
+  const { data, loading, error, loadData } = useOperationalData<OverviewData>('ExecutiveOverview', {
+    clientId: selectedClient,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+    ...extractOffernetFilters(filters),
+  }, fetchOverview);
 
   const hasComparison = Boolean(startDate && endDate && data?.comparisonWindow);
   const investigate = (metric: RootMetric) => hasComparison && setRootMetric(metric);

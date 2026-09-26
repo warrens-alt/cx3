@@ -36,5 +36,14 @@ jobs:
       - name: Verify types, contracts, tests and production build
         run: npm run verify
 
+      - name: Set up Java for Firestore rules tests
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Verify Firestore access lifecycle in the local emulator
+        run: npm run test:rules
+
       - name: Audit production dependency graph
         run: npm audit --audit-level=high

@@ -106,6 +106,10 @@ test('Export with grain: cli returns enriched rows with data source provenance a
   const exportResult = await exportData({
     clientId: tenant,
     grain: 'cli',
+  }, {
+    metadata: async () => ({ type: 'TABLE', schema: { fields: [] } }),
+    listTables: async () => [],
+    execute: async () => { throw new Error('Imported export must not execute a warehouse query'); },
   });
 
   assert.ok(exportResult.rows.length > 0);

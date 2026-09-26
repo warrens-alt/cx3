@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { useOperationalData } from '../lib/useOperationalData';
 import { AlertTriangle, ArrowRight, Database, DollarSign, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
@@ -7,7 +8,6 @@ import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
 import {
   fetchCommercial,
   fetchMarketingAttribution,
-  type CommercialData,
   type MarketingAttributionData,
 } from '../lib/offernetClient';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
@@ -19,41 +19,21 @@ export default function CommercialIntelligence() {
   const scoped = useScopedNavigationTarget();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
-  const [data, setData] = useState<CommercialData | null>(null);
-  const [attribution, setAttribution] = useState<MarketingAttributionData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadData = async (forceRefresh = false) => {
-    setLoading(true);
-    setError(null);
-    const scope = {
-      clientId: selectedClient,
-      startDate: startDate || undefined,
-      endDate: endDate || undefined,
-      ...extractOffernetFilters(filters),
-    };
-    try {
-      const [commercial, attributionData] = await Promise.all([
-        fetchCommercial(scope, forceRefresh),
-        fetchMarketingAttribution(scope, forceRefresh).catch(err => ({
-          status: 'UNAVAILABLE',
-          reason: err?.message || 'Attribution unavailable',
-          rows: [],
-        } as MarketingAttributionData)),
-      ]);
-      setData(commercial);
-      setAttribution(attributionData);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load commercial evidence');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (selectedClient) loadData();
-  }, [selectedClient, startDate, endDate, filters]);
+  const { data: result, loading, error, loadData } = useOperationalData('commercial', {
+    clientId: selectedClient,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+    ...extractOffernetFilters(filters),
+  }, async (scope, forceRefresh) => Promise.all([
+    fetchCommercial(scope, forceRefresh),
+    fetchMarketingAttribution(scope, forceRefresh).catch(err => ({
+      status: 'UNAVAILABLE',
+      reason: err?.message || 'Attribution unavailable',
+      rows: [],
+    } as MarketingAttributionData)),
+  ]));
+  const data = result?.[0] ?? null;
+  const attribution = result?.[1] ?? null;
 
   const baseline = data?.baseline;
 

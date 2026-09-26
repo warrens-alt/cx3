@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { useOperationalData } from '../lib/useOperationalData';
+import React from 'react';
 import { AlertTriangle, Sparkles, ShieldCheck } from 'lucide-react';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import { useClient } from '../lib/ClientContext';
@@ -8,31 +9,13 @@ import { fetchAiInsights, type AiInsightsData } from '../lib/offernetClient';
 export default function AiOperationalInsights() {
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
-  const [data, setData] = useState<AiInsightsData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  const loadData = async (forceRefresh = false) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await fetchAiInsights({
-        clientId: selectedClient,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        ...extractOffernetFilters(filters),
-      }, forceRefresh);
-      setData(result);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load AI insight status');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (selectedClient) loadData();
-  }, [selectedClient, startDate, endDate, filters]);
+  const { data, loading, error, loadData } = useOperationalData<AiInsightsData>('AiOperationalInsights', {
+    clientId: selectedClient,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+    ...extractOffernetFilters(filters),
+  }, fetchAiInsights);
 
   return (
     <div className="min-h-screen bg-slate-50 pb-16">

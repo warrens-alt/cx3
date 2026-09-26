@@ -322,9 +322,12 @@ export interface CliPerformanceResponse {
     startDate: string | null;
     endDate: string | null;
     filters: Record<string, any>;
+    search?: string | null;
     modelVersion: string;
     generatedAt: string;
     rowCount: number;
+    rowLimit?: number;
+    truncated?: boolean;
     validationStatus: string;
   };
 }

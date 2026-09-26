@@ -2,6 +2,7 @@ import { BigQuery, type Query } from '@google-cloud/bigquery';
 import { vendorScope } from '../analyticsContext';
 import { tableIdentifier } from './config';
 import { readOnlyQueryOptions } from './readOnly';
+import { trackAnalyticalWork } from '../analyticalWork';
 const clients = new Map<string, AnalyticsBigQueryClient>();
 export function guardedQueryOptions(options: Query): Query {
   const queryStr = typeof options === 'string' ? options : (options.query || '');
@@ -15,7 +16,7 @@ export function guardedQueryOptions(options: Query): Query {
 /** Keep the SDK behind one scoped query boundary so older reporting modules receive the same vendor bindings. */
 export class AnalyticsBigQueryClient {
   constructor(private readonly bq: BigQuery) {}
-  query(options: Query) { return this.bq.query(guardedQueryOptions(options)); }
+  query(options: Query) { return trackAnalyticalWork(() => this.bq.query(guardedQueryOptions(options))); }
   createQueryJob(options: Query) { return this.bq.createQueryJob(guardedQueryOptions(options)); }
   getDatasets() { return this.bq.getDatasets(); }
   dataset(datasetId: string) { return this.bq.dataset(datasetId); }

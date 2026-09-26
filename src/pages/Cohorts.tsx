@@ -29,6 +29,9 @@ export default function Cohorts() {
 
   const formatMetric = (value: number | null | undefined) =>
     value == null ? '—' : `${Number(value).toFixed(1)}%`;
+  const maturationReasons = Array.from(new Set<string>((cohorts || [])
+    .filter((row: any) => row.maturationStatus === 'UNAVAILABLE' && row.maturationReason)
+    .map((row: any) => String(row.maturationReason))));
 
   return (
     <div className="cx-command-page">
@@ -81,6 +84,13 @@ export default function Cohorts() {
                 <CalendarDays size={16} className="text-slate-400"/>
               </header>
 
+              {maturationReasons.length > 0 && (
+                <div className="cx-command-empty" role="status">
+                  <AlertTriangle size={17}/>
+                  <div><strong>Some cohort measures are unavailable.</strong>{maturationReasons.map(reason => <p key={reason}>{reason}</p>)}</div>
+                </div>
+              )}
+
               <div className="cx-cohort-matrix-wrap">
                 <table className="cx-cohort-matrix">
                   <thead>
@@ -89,7 +99,7 @@ export default function Cohorts() {
                   <tbody>
                     {cohorts.map((row:any,index:number)=>(
                       <tr key={`${row.cohort}-${index}`}>
-                        <th>{row.cohort}</th>
+                        <th>{row.cohort}{row.maturationStatus === 'UNAVAILABLE' && <small className="block" title={row.maturationReason}>Maturation unavailable</small>}</th>
                         <td>{formatTableNumber(row.size)}</td>
                         {intervals.map(interval=>{
                           const value=row.metrics?.[interval] == null ? null : Number(row.metrics[interval]);

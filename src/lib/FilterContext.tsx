@@ -27,15 +27,11 @@ function cleanString(val: unknown): string | undefined {
   return s;
 }
 
-function readFilters(params: URLSearchParams): Filters {
+export function readFilters(params: URLSearchParams): Filters {
   let result: Filters = {};
   const encoded = params.get('filters');
   if (encoded) {
-    try {
-      result = validateFilters(encoded);
-    } catch {
-      result = {};
-    }
+    result = validateFilters(encoded);
   }
   for (const key of SUPPORTED_STANDALONE_KEYS) { 
     const value = params.get(key); 
@@ -55,31 +51,15 @@ export interface AppliedFilterItem {
   value: string;
 }
 
-export function extractOffernetFilters(filters: Filters): {
-  vendor?: string;
-  source?: string;
-  medium?: string;
-  grade?: string;
-  cli?: string;
-  campaign?: string;
-} {
-  const getVal = (key: string): string | undefined => {
-    const f = filters[key];
-    if (!f) return undefined;
-    let v: string | undefined = undefined;
-    if (f.operator === 'in' && Array.isArray(f.values) && f.values.length > 0) v = String(f.values[0]);
-    else if (f.operator === 'equals' && f.value !== undefined) v = String(f.value);
-    return cleanString(v);
-  };
+export function extractOffernetFilters(filters: Filters): { filters: string } {
+  // Keep the complete contract so the API can apply or explicitly reject it.
+  return { filters: JSON.stringify(validateFilters(filters)) };
+}
 
-  return {
-    vendor: getVal('vendor'),
-    source: getVal('source'),
-    medium: getVal('medium'),
-    grade: getVal('grade'),
-    cli: getVal('cli'),
-    campaign: getVal('campaign'),
-  };
+export function singleFilterValue(condition: FilterCondition | undefined): string | undefined {
+  if (condition?.operator === 'equals' && typeof condition.value === 'string') return cleanString(condition.value);
+  if (condition?.operator === 'in' && condition.values?.length === 1 && typeof condition.values[0] === 'string') return cleanString(condition.values[0]);
+  return undefined;
 }
 
 interface FilterContextType {
