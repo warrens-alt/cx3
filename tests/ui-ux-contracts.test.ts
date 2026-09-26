@@ -334,3 +334,14 @@ test('frontend analytics cache is bounded and prunes stale entries', () => {
   assert.match(client, /function pruneOffernetCache/);
   assert.match(client, /memoryCache\.delete/);
 });
+
+
+test('CLI import UI matches the scoped source contract and renders unavailable metrics safely', () => {
+  const cli = read('src/pages/CliPerformance.tsx');
+  assert.match(cli, /report_date, cli_number, campaign_code, total_calls, contact_count, sale_count/);
+  assert.match(cli, /Missing optional metrics remain unavailable; CX3 never estimates them/);
+  assert.match(cli, /summary\.distinctLeads !== null/);
+  assert.match(cli, /summary\.durationGe5mRate !== null/);
+  assert.match(cli, /Duration not supplied/);
+  assert.match(cli, /d\.durationGe5mRate == null \? 'Unavailable'/);
+});
