@@ -1,6 +1,6 @@
 import { getBigQueryClient } from './client';
-import { getClientConfig, type TenantConfiguration } from './config';
-import { GoogleGenAI } from '@google/genai';
+import { getClientConfig } from './config';
+import { RequestError } from './filters';
 
 export interface OffernetQueryParams {
   clientId: string;
@@ -158,12 +158,12 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
       FROM lead_records
       WHERE fetched_date IS NOT NULL
       GROUP BY fetched_date
-      ORDER BY fetched_date ASC
+      ORDER BY fetched_date DESC
       LIMIT 60
     )
     SELECT 
       summary.*,
-      ARRAY(SELECT AS STRUCT * FROM daily_trends) as daily_trends
+      ARRAY(SELECT AS STRUCT * FROM daily_trends ORDER BY date) as daily_trends
     FROM summary
   `;
 
@@ -180,21 +180,18 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
   const revenue = Number(data.total_revenue || 0);
   const totalCalls = Number(data.total_calls_recorded || 0);
 
-  // Commercial costs model
-  const unitLeadCost = 45; // ZAR direct lead acquisition cost
-  const unitDialCost = 14.50; // ZAR telephony/delivery/agent cost per dialled lead
-  const allocatedOverheadPct = 0.10; // 10% allocated fixed/platform overhead
-  
-  const directCost = Math.round(fetched * unitLeadCost);
-  const deliveryAgentCost = Math.round(dialled * unitDialCost);
-  const allocatedCost = Math.round(revenue * allocatedOverheadPct + (fetched > 0 ? 5000 : 0));
-  const totalCost = directCost + deliveryAgentCost + allocatedCost;
-  const contribution = revenue - totalCost;
-  const marginPct = revenue > 0 ? Number(((contribution / revenue) * 100).toFixed(1)) : 0;
-  const costPerSale = sales > 0 ? Number((totalCost / sales).toFixed(2)) : 0;
-  const costPerActivation = activated > 0 ? Number((totalCost / activated).toFixed(2)) : 0;
+  // Commercial cost inputs are intentionally withheld until an approved,
+  // versioned rate-card contract exists for this tenant.
+  const directCost: number | null = null;
+  const deliveryAgentCost: number | null = null;
+  const allocatedCost: number | null = null;
+  const totalCost: number | null = null;
+  const contribution: number | null = null;
+  const marginPct: number | null = null;
+  const costPerSale: number | null = null;
+  const costPerActivation: number | null = null;
   const revenuePerLead = fetched > 0 ? Number((revenue / fetched).toFixed(2)) : 0;
-  const breakEvenSales = revenue > 0 && sales > 0 ? Math.ceil(totalCost / (revenue / sales)) : 0;
+  const breakEvenSales: number | null = null;
 
   // Funnel Stage Array (7 canonical stages from warehouse ingestion to activation)
   const funnelStages = [
@@ -207,67 +204,19 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
     { name: 'Activated Sales', itemNo: 46, costMetric: 'CPS.Activated', volume: activated, rate: sales > 0 ? Number(((activated / sales) * 100).toFixed(1)) : 0, dropoffPct: 0 }
   ];
 
-  // Matched period comparison deltas computed from daily trend series
-  const dailyTrends = data.daily_trends || [];
-  let comparison = {
-    fetchedDelta: 0,
-    deliveryRateDelta: 0,
-    dialRateDelta: 0,
-    contactRateDelta: 0,
-    saleRateDelta: 0,
-    activationRateDelta: 0,
-    revenueDelta: 0,
-    contributionDelta: 0
+  // Period-over-period comparisons are withheld until the comparison window is
+  // explicitly requested and independently calculated. Splitting an arbitrary
+  // trend series in half is not a valid comparison methodology.
+  const comparison = {
+    fetchedDelta: null,
+    deliveryRateDelta: null,
+    dialRateDelta: null,
+    contactRateDelta: null,
+    saleRateDelta: null,
+    activationRateDelta: null,
+    revenueDelta: null,
+    contributionDelta: null
   };
-
-  if (dailyTrends.length >= 2) {
-    const mid = Math.floor(dailyTrends.length / 2);
-    const priorSlice = dailyTrends.slice(0, mid);
-    const currSlice = dailyTrends.slice(mid);
-
-    const sumField = (arr: any[], f: string) => arr.reduce((acc: number, r: any) => acc + Number(r[f] || 0), 0);
-    const priorFetched = sumField(priorSlice, 'leads');
-    const currFetched = sumField(currSlice, 'leads');
-    const priorDelivered = sumField(priorSlice, 'delivered');
-    const currDelivered = sumField(currSlice, 'delivered');
-    const priorDialled = sumField(priorSlice, 'dialled');
-    const currDialled = sumField(currSlice, 'dialled');
-    const priorContacted = sumField(priorSlice, 'contacted');
-    const currContacted = sumField(currSlice, 'contacted');
-    const priorSales = sumField(priorSlice, 'sales');
-    const currSales = sumField(currSlice, 'sales');
-    const priorActivations = sumField(priorSlice, 'activations');
-    const currActivations = sumField(currSlice, 'activations');
-    const priorRev = sumField(priorSlice, 'revenue');
-    const currRev = sumField(currSlice, 'revenue');
-
-    const priorDeliveryRate = priorFetched > 0 ? (priorDelivered / priorFetched) * 100 : 0;
-    const currDeliveryRate = currFetched > 0 ? (currDelivered / currFetched) * 100 : 0;
-    const priorDialRate = priorDelivered > 0 ? (priorDialled / priorDelivered) * 100 : 0;
-    const currDialRate = currDelivered > 0 ? (currDialled / currDelivered) * 100 : 0;
-    const priorContactRate = priorDialled > 0 ? (priorContacted / priorDialled) * 100 : 0;
-    const currContactRate = currDialled > 0 ? (currContacted / currDialled) * 100 : 0;
-    const priorSaleRate = priorFetched > 0 ? (priorSales / priorFetched) * 100 : 0;
-    const currSaleRate = currFetched > 0 ? (currSales / currFetched) * 100 : 0;
-    const priorActivationRate = priorSales > 0 ? (priorActivations / priorSales) * 100 : 0;
-    const currActivationRate = currSales > 0 ? (currActivations / currSales) * 100 : 0;
-
-    const priorCost = Math.round(priorFetched * unitLeadCost + priorDialled * unitDialCost + priorRev * allocatedOverheadPct);
-    const currCost = Math.round(currFetched * unitLeadCost + currDialled * unitDialCost + currRev * allocatedOverheadPct);
-    const priorCont = priorRev - priorCost;
-    const currCont = currRev - currCost;
-
-    comparison = {
-      fetchedDelta: priorFetched > 0 ? Number((((currFetched - priorFetched) / priorFetched) * 100).toFixed(1)) : 0,
-      deliveryRateDelta: Number((currDeliveryRate - priorDeliveryRate).toFixed(1)),
-      dialRateDelta: Number((currDialRate - priorDialRate).toFixed(1)),
-      contactRateDelta: Number((currContactRate - priorContactRate).toFixed(1)),
-      saleRateDelta: Number((currSaleRate - priorSaleRate).toFixed(2)),
-      activationRateDelta: Number((currActivationRate - priorActivationRate).toFixed(1)),
-      revenueDelta: priorRev > 0 ? Number((((currRev - priorRev) / priorRev) * 100).toFixed(1)) : 0,
-      contributionDelta: priorCont !== 0 ? Number((((currCont - priorCont) / Math.abs(priorCont)) * 100).toFixed(1)) : 0
-    };
-  }
 
   return {
     kpis: {
@@ -298,11 +247,14 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
       costPerActivation,
       revenuePerLead,
       breakEvenSales,
-      actualVsBreakEven: sales - breakEvenSales
+      actualVsBreakEven: null
     },
     funnelStages,
     dailyTrends: data.daily_trends || [],
     comparison,
+    commercialStatus: 'UNAVAILABLE',
+    commercialReason: 'Commercial costs and profitability are withheld until an approved rate-card contract is configured.',
+    validationStatus: 'NOT_VERIFIED',
     currency: clientConfig.currency || 'ZAR',
     clientName: clientConfig.name
   };
