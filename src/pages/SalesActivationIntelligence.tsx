@@ -7,8 +7,8 @@ import { fetchSalesActivation, type SalesActivationData } from '../lib/offernetC
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import { downloadCsv } from '../lib/formatters';
-
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
+
 const money = (value: number) => `R ${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
 export default function SalesActivationIntelligence() {
