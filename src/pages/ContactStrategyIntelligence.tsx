@@ -61,7 +61,7 @@ export default function ContactStrategyIntelligence() {
             />
             <VolumeRateComboChart
               title="Observed yield by call-count bucket"
-              subtitle="Descriptive outcome rates only — not a recommended stop-threshold model."
+              subtitle="This is descriptive, not a recommended stop-threshold model."
               data={data.attemptPerformance}
               xKey="bucket"
               volumeKey="leads"
