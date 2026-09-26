@@ -461,7 +461,7 @@ export async function getRootCauseAnalysis(params: OffernetQueryParams) {
         ANY_VALUE(source) AS source,
         ANY_VALUE(grade) AS grade,
         COALESCE(
-          ARRAY_AGG(vendor IGNORE NULLS ORDER BY delivered_ts ASC NULLS LAST LIMIT 1)[SAFE_OFFSET(0)],
+          ARRAY_AGG(vendor IGNORE NULLS ORDER BY IF(delivered_ts IS NULL, 1, 0), delivered_ts ASC LIMIT 1)[SAFE_OFFSET(0)],
           'Unknown'
         ) AS vendor,
         COUNTIF(delivered_ts IS NOT NULL) > 0 AS is_delivered,
@@ -1676,6 +1676,18 @@ export async function getRawLeads(params: OffernetQueryParams) {
           AND NOT ${validDialled}
           AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(h.delivered AS TIMESTAMP), SECOND) ${suffix}
       )`;
+    } else if (drill === 'funnel-stage') {
+      const conditions: Record<string, string> = {
+        'fetched': 'TRUE',
+        'delivered': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered})`,
+        'dialled': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDialled})`,
+        'rpc': 'EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE SAFE_CAST(h.rpc AS INT64) > 0)',
+        'sales': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validSale})`,
+        'activated': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validActivation})`,
+      };
+      const condition = conditions[value];
+      if (!condition) throw new RequestError('Unsupported funnel-stage drill', 422);
+      drillCondition = `AND ${condition}`;
     } else if (drill === 'lead-age') {
       const timing = "TIMESTAMP_DIFF(SAFE_CAST(h.first_call_date AS TIMESTAMP), SAFE_CAST(h.delivered AS TIMESTAMP), SECOND)";
       const conditions: Record<string, string> = {
