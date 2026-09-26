@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Download, Search, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useFilters, extractOffernetFilters } from '../lib/FilterContext';
 import { useClient } from '../lib/ClientContext';
 import { fetchAgentPerformance, type AgentPerformanceData } from '../lib/offernetClient';
@@ -153,7 +154,7 @@ export default function AgentPerformanceIntelligence() {
 
             <section className="cx-command-shortcuts">
               <button type="button" onClick={handleExportCsv}><Download size={16}/><span><strong>Export agent activity</strong><small>Download the scoped roster</small></span></button>
-              <a href="/cli-performance"><Users size={16}/><span><strong>CLI performance</strong><small>Inspect outbound caller-ID outcomes</small></span></a>
+              <Link to="/cli-performance"><Users size={16}/><span><strong>CLI performance</strong><small>Inspect outbound caller-ID outcomes</small></span></Link>
             </section>
           </>
         )}
