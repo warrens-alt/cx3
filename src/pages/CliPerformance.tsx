@@ -1331,8 +1331,8 @@ export default function CliPerformance() {
                 </label>
               </div>
               <p className="text-[11px] text-slate-500">
-                Required columns: <code className="text-slate-700 font-semibold">cli_number, total_calls, contact_count, sale_count</code>.<br />
-                Optional: <code className="text-slate-700">report_date, campaign_code, vendor, distinct_leads, asr_count, answered_count, duration_ge_1m_count, duration_ge_5m_count, duration_ge_15m_count, avg_duration_sec, avg_lead_age_days</code>.
+                Required columns: <code className="text-slate-700 font-semibold">report_date, cli_number, campaign_code, total_calls, contact_count, sale_count</code>.<br />
+                Optional: <code className="text-slate-700">vendor, distinct_leads, asr_count, answered_count, duration_ge_1m_count, duration_ge_5m_count, duration_ge_15m_count, avg_duration_sec, avg_lead_age_days</code>. Missing optional metrics remain unavailable; CX3 never estimates them.
               </p>
             </div>
 
