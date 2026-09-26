@@ -34,7 +34,7 @@ export const SECONDARY_DESTINATIONS = [
   { name: 'Contact Strategy', path: '/contact-strategy' },
   { name: 'CLI Performance', path: '/cli-performance' },
   { name: 'Agent Performance', path: '/agent-performance' },
-  { name: 'Temporal Analysis', path: '/temporal' },
+  { name: 'Time & Day Performance', path: '/temporal' },
   { name: 'Sales & Activation', path: '/sales-activation' },
   { name: 'Campaigns & Spend', path: '/campaigns' },
   { name: 'Data Integrity', path: '/data-integrity' },
@@ -42,5 +42,5 @@ export const SECONDARY_DESTINATIONS = [
   { name: 'Vendor Evidence', path: '/vendors' },
   { name: 'Reconciliation', path: '/reconciliation' },
   { name: 'Routing', path: '/routing' },
-  { name: 'Cohorts', path: '/cohorts' },
+  { name: 'Cohort Maturation', path: '/cohorts' },
 ] as const;
