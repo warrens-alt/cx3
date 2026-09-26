@@ -1,3 +1,4 @@
+import { formatTableNumber } from '../lib/formatters';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, BarChart3, ChevronDown, ChevronUp, ExternalLink, X } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -54,9 +55,10 @@ export default function RootCauseDrawer({
     next.delete('drill');
     next.delete('drillValue');
     if (dimension === 'vendor' || dimension === 'source' || dimension === 'grade') {
-      next.set(dimension, name);
+      if (!name.trim() || (dimension === 'vendor' && name === 'Unknown')) { next.delete(dimension); next.set('drill', `missing-${dimension}`); }
+      else next.set(dimension, name);
     } else if (dimension === 'leadAge') {
-      next.set('drill', 'lead-age');
+      next.set('drill', 'delivery-age');
       next.set('drillValue', name);
     }
     return `/lead-explorer?${next.toString()}`;
@@ -65,9 +67,9 @@ export default function RootCauseDrawer({
   const headline = useMemo(() => {
     if (!data) return null;
     const top = data.drivers[0];
-    if (!top) return null;
+    if (!top || data.metric.delta === null) return null;
     return {
-      direction: data.metric.delta > 0 ? 'increased' : data.metric.delta < 0 ? 'decreased' : 'did not change',
+      direction: (data.metric.delta ?? 0) > 0 ? 'increased' : data.metric.delta < 0 ? 'decreased' : 'did not change',
       top,
     };
   }, [data]);
@@ -100,14 +102,14 @@ export default function RootCauseDrawer({
             <section className="cx-rootcause-summary">
               <span>{data.metric.label}</span>
               <div>
-                <strong>{data.metric.currentValue.toLocaleString()}{data.metric.kind === 'rate' ? '%' : ''}</strong>
+                <strong>{formatTableNumber(data.metric.currentValue)}{data.metric.kind === 'rate' ? '%' : ''}</strong>
                 <small>Current</small>
                 <ArrowRight size={16} />
-                <strong>{data.metric.previousValue.toLocaleString()}{data.metric.kind === 'rate' ? '%' : ''}</strong>
+                <strong>{formatTableNumber(data.metric.previousValue)}{data.metric.kind === 'rate' ? '%' : ''}</strong>
                 <small>Previous</small>
               </div>
               <p>
-                {data.metric.delta > 0 ? '+' : ''}{data.metric.delta.toLocaleString()} {data.metric.deltaUnit}
+                {(data.metric.delta ?? 0) > 0 ? '+' : ''}{formatTableNumber(data.metric.delta)} {data.metric.deltaUnit}
                 {' '}vs {data.previousWindow.startDate} → {data.previousWindow.endDate}
               </p>
             </section>
@@ -118,21 +120,21 @@ export default function RootCauseDrawer({
                 <div>
                   <strong>{data.metric.label} {headline.direction}.</strong>
                   <p>
-                    The largest single segment contribution is {headline.top.dimensionLabel}: <b>{headline.top.name}</b>
-                    {' '}({headline.top.contribution > 0 ? '+' : ''}{headline.top.contribution.toLocaleString()} {data.metric.deltaUnit}).
+                    The largest vendor contribution is {headline.top.dimensionLabel}: <b>{headline.top.name}</b>
+                    {' '}({(headline.top.contribution ?? 0) > 0 ? '+' : ''}{formatTableNumber(headline.top.contribution)} {data.metric.deltaUnit}).
                   </p>
                 </div>
               </section>
             )}
 
             <section className="cx-rootcause-drivers">
-              <h3>Largest drivers</h3>
+              <h3>Largest vendor contributions</h3>
               {data.drivers.slice(0, 6).map((driver, index) => (
                 <div key={`${driver.dimension}-${driver.name}-${index}`}>
                   <span>{driver.dimensionLabel}</span>
                   <strong>{driver.name}</strong>
-                  <b className={driver.contribution >= 0 ? 'positive' : 'negative'}>
-                    {driver.contribution > 0 ? '+' : ''}{driver.contribution} {data.metric.deltaUnit}
+                  <b className={(driver.contribution ?? 0) >= 0 ? 'positive' : 'negative'}>
+                    {(driver.contribution ?? 0) > 0 ? '+' : ''}{formatTableNumber(driver.contribution)} {data.metric.deltaUnit}
                   </b>
                   {isAdmin && <Link to={exploreLink(driver.dimension, driver.name)} onClick={onClose}>
                     Inspect <ExternalLink size={12} />
@@ -148,7 +150,7 @@ export default function RootCauseDrawer({
                   <div key={dimension.key}>
                     <button type="button" onClick={() => setExpanded(isOpen ? '' : dimension.key)}>
                       <span>{dimension.label}</span>
-                      <small>{dimension.segments.length} segments</small>
+                      <small>{dimension.segments.length} segments · {dimension.reconciliationStatus || 'NOT_VERIFIED'}</small>
                       {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </button>
                     {isOpen && (
@@ -159,10 +161,10 @@ export default function RootCauseDrawer({
                         {dimension.segments.map(segment => (
                           <div key={segment.name}>
                             <strong>{segment.name}</strong>
-                            <span>{segment.currentValue.toLocaleString()}{data.metric.kind === 'rate' ? '%' : ''}</span>
-                            <span>{segment.previousValue.toLocaleString()}{data.metric.kind === 'rate' ? '%' : ''}</span>
-                            <b className={segment.contribution >= 0 ? 'positive' : 'negative'}>
-                              {segment.contribution > 0 ? '+' : ''}{segment.contribution} {data.metric.deltaUnit}
+                            <span>{formatTableNumber(segment.currentValue)}{data.metric.kind === 'rate' ? '%' : ''}</span>
+                            <span>{formatTableNumber(segment.previousValue)}{data.metric.kind === 'rate' ? '%' : ''}</span>
+                            <b className={(segment.contribution ?? 0) >= 0 ? 'positive' : 'negative'}>
+                              {(segment.contribution ?? 0) > 0 ? '+' : ''}{formatTableNumber(segment.contribution)} {data.metric.deltaUnit}
                             </b>
                             {isAdmin ? <Link to={exploreLink(dimension.key, segment.name)} onClick={onClose}>Records <ArrowRight size={11} /></Link> : <span />}
                           </div>

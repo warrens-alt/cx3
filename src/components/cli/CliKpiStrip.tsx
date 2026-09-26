@@ -151,7 +151,7 @@ export const CliKpiStrip: React.FC<CliKpiStripProps> = ({
             </button>
           </div>
           <div className="text-xl font-bold text-[#1E3A8A] tracking-tight">
-            {summary.contactRate}%
+            {summary.contactRate === null ? 'Unavailable' : `${summary.contactRate}%`}
           </div>
           <div className="text-[11px] text-slate-600 mt-1 flex items-center justify-between">
             <span>{exactNumber(summary.contactCount)} contacts</span>
@@ -177,7 +177,7 @@ export const CliKpiStrip: React.FC<CliKpiStripProps> = ({
             </button>
           </div>
           <div className="text-xl font-bold text-emerald-900 tracking-tight">
-            {summary.salePerCallRate}%
+            {summary.salePerCallRate === null ? 'Unavailable' : `${summary.salePerCallRate}%`}
           </div>
           <div className="text-[11px] text-emerald-700 mt-1 flex items-center justify-between">
             <span>{exactNumber(summary.saleCount)} sales</span>

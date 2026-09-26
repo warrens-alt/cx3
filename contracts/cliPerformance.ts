@@ -78,6 +78,8 @@ export interface CliLeadAgeBands {
 }
 
 export interface CliPerformanceRecord {
+  callsPerSale?: string | null;
+  rpcSaleCount?: string | null;
   cli: string;
   campaign: string;
   vendor: string;
@@ -90,9 +92,9 @@ export interface CliPerformanceRecord {
   answeredCount: string | null;
   answeredRate: string | null;
   contactCount: string;
-  contactRate: string;
+  contactRate: string | null;
   saleCount: string;
-  salePerCallRate: string;
+  salePerCallRate: string | null;
   salePerAnswerRate: string | null;
   salePerContactRate: string | null;
   durationGe1mCount: string | null;
@@ -122,9 +124,9 @@ export interface CliSummary {
   answeredCount: string | null;
   answeredRate: string | null;
   contactCount: string;
-  contactRate: string;
+  contactRate: string | null;
   saleCount: string;
-  salePerCallRate: string;
+  salePerCallRate: string | null;
   salePerAnswerRate: string | null;
   salePerContactRate: string | null;
   durationGe5mRate: string | null;
@@ -180,7 +182,7 @@ export interface CliCampaignAggregate {
   campaign: string;
   calls: string;
   contacts: string;
-  contactRate: string;
+  contactRate: string | null;
   sales: string;
   saleRate: string;
   cliCount: number;
@@ -296,6 +298,13 @@ export const CLI_METRIC_DEFINITIONS: Record<string, CliMetricDefinition> = {
 };
 
 export interface CliPerformanceResponse {
+  diagnostics?: {
+    timezone: string;
+    trendStatus: string;
+    breakdowns: Array<{ dimension: string; bucket: string | null; cli: string; calls: number; rpc: number | null; sales: number | null }>;
+    breakdownsTruncated: boolean;
+    reason: string;
+  };
   provenance: CliProvenance;
   status: 'AVAILABLE' | 'SCHEMA_UNAVAILABLE' | 'NO_DATA';
   sourceStatus: {

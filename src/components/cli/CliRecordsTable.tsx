@@ -279,22 +279,22 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
                   {r.answeredRate ? `${r.answeredRate}%` : <span className="text-slate-400">N/A</span>}
                 </td>
                 <td className="px-3 py-2.5 text-right font-mono font-semibold text-[#315EAD]">
-                  {r.contactRate}%
+                  {r.contactRate === null ? 'Unavailable' : `${r.contactRate}%`}
                 </td>
                 <td className="px-3 py-2.5 text-right font-mono font-semibold text-emerald-800">
                   {exactNumber(r.saleCount)}
                 </td>
                 <td className="px-3 py-2.5 text-right font-mono font-semibold text-emerald-800">
-                  {r.salePerCallRate}%
+                  {r.salePerCallRate === null ? 'Unavailable' : `${r.salePerCallRate}%`}
                 </td>
                 <td className="px-3 py-2.5 text-right font-mono text-slate-700">
                   {r.salePerContactRate ? `${r.salePerContactRate}%` : <span className="text-slate-400">N/A</span>}
                 </td>
                 <td className="px-3 py-2.5 text-right font-mono text-slate-700">
-                  {r.durationGe5mPct}%
+                  {r.durationGe5mPct === null ? 'Unavailable' : `${r.durationGe5mPct}%`}
                 </td>
                 <td className="px-3 py-2.5 text-right font-mono text-slate-600">
-                  {r.avgDurationSeconds}s
+                  {r.avgDurationSeconds === null ? 'Unavailable' : `${r.avgDurationSeconds}s`}
                 </td>
                 <td className="px-3 py-2.5 text-right font-mono text-slate-600">
                   {r.avgLeadAgeDays ? `${r.avgLeadAgeDays}d` : <span className="text-slate-400">N/A</span>}

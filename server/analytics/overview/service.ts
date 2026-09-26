@@ -4,17 +4,19 @@ import type { OffernetQueryParams } from '../common/types';
 import { formatDuration } from '../common/types';
 import { buildFilterClause } from '../common/scope';
 import { operationalLeadCtes, metricPercent } from '../common/leadMetrics';
+import { assembleLifecycleDiagnostics, getLifecycleDiagnostics } from '../common/lifecycleDiagnostics';
 
 // 1. EXECUTIVE OVERVIEW
-export async function getExecutiveOverview(params: OffernetQueryParams) {
+export async function getExecutiveOverview(params: OffernetQueryParams, options: { includeDiagnostics?: boolean } = {}) {
   const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const clientConfig = getClientConfig(params.clientId);
   const { queryParams } = buildFilterClause(params);
+  queryParams.overviewTimezone = clientConfig.timezone || 'Africa/Johannesburg';
 
   const mainQuery = `
     WITH ${operationalLeadCtes(params)},
     lead_records AS (
-      SELECT *, DATE(fetched_ts) AS fetched_date,
+      SELECT *, DATE(fetched_ts, @overviewTimezone) AS fetched_date,
         TIMESTAMP_DIFF(first_call_ts, delivered_ts, SECOND) AS delivery_to_dial_sec,
         TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), delivered_ts, SECOND) AS delivery_age_sec
       FROM operational_leads
@@ -27,10 +29,14 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
         COUNT(DISTINCT CASE WHEN is_rpc THEN lead_id END) AS contacted_leads,
         COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) AS sale_leads,
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) AS activated_leads,
-        SUM(revenue) AS total_revenue,
+        SUM(revenue) AS total_revenue, COUNTIF(revenue IS NULL) AS missing_revenue_leads,
         CASE WHEN COUNTIF(recorded_call_count IS NULL) > 0 THEN NULL ELSE COALESCE(SUM(recorded_call_count), 0) END AS total_calls_recorded,
         COALESCE(SUM(recorded_call_count), 0) AS recorded_calls_subtotal,
-        COUNTIF(recorded_call_count IS NULL) AS unrecorded_call_leads
+        CASE WHEN COUNTIF(is_dialled AND recorded_call_count IS NULL) > 0 THEN NULL
+          ELSE COALESCE(SUM(IF(is_dialled, recorded_call_count, 0)), 0) END AS dialled_calls_recorded,
+        COUNTIF(recorded_call_count IS NULL) AS unrecorded_call_leads,
+        COUNTIF(recorded_call_count = 0) AS zero_call_leads, COUNTIF(is_dialled AND recorded_call_count = 1) AS one_call_leads,
+        COUNTIF(is_dialled AND recorded_call_count >= 2) AS multi_call_leads, COUNTIF(recorded_call_count >= 5 AND is_rpc IS FALSE) AS five_plus_no_rpc
       FROM lead_records
     ),
     daily_trends AS (
@@ -64,7 +70,18 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
         COUNT(DISTINCT CASE WHEN is_dialled AND NOT has_disposition THEN lead_id END) AS dialled_missing_disposition,
         COUNT(DISTINCT CASE WHEN is_sale AND NOT is_activated AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), sale_ts, DAY) > 14 THEN lead_id END) AS sales_unactivated_14d,
         APPROX_QUANTILES(CASE WHEN is_dialled AND delivery_to_dial_sec >= 0 THEN delivery_to_dial_sec END, 100)[OFFSET(50)] AS median_delivery_to_dial_sec,
-        APPROX_QUANTILES(CASE WHEN is_dialled AND delivery_to_dial_sec >= 0 THEN delivery_to_dial_sec END, 100)[OFFSET(90)] AS p90_delivery_to_dial_sec
+        APPROX_QUANTILES(CASE WHEN is_dialled AND delivery_to_dial_sec >= 0 THEN delivery_to_dial_sec END, 100)[OFFSET(90)] AS p90_delivery_to_dial_sec,
+        APPROX_QUANTILES(CASE WHEN first_call_ts >= fetched_ts THEN TIMESTAMP_DIFF(first_call_ts, fetched_ts, SECOND) END, 100)[OFFSET(50)] AS median_capture_to_dial_sec,
+        APPROX_QUANTILES(CASE WHEN first_call_ts >= fetched_ts THEN TIMESTAMP_DIFF(first_call_ts, fetched_ts, SECOND) END, 100)[OFFSET(90)] AS p90_capture_to_dial_sec,
+        COUNTIF(delivery_to_dial_sec BETWEEN 0 AND 1800) AS within_30m, COUNTIF(delivery_to_dial_sec BETWEEN 0 AND 3600) AS within_60m,
+        COUNTIF(is_delivered AND NOT is_dialled AND delivery_age_sec > 900) AS backlog_over_15m,
+        COUNTIF(is_delivered AND NOT is_dialled AND delivery_age_sec > 1800) AS backlog_over_30m,
+        COUNTIF(is_delivered AND NOT is_dialled AND delivery_age_sec > 21600) AS backlog_over_6h,
+        COUNTIF(is_delivered AND NOT is_dialled AND delivery_age_sec > 43200) AS backlog_over_12h,
+        COUNTIF(is_sale AND NOT is_activated) AS awaiting_activation,
+        COUNTIF(is_sale AND NOT is_activated AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), sale_ts, SECOND) > 259200) AS activation_over_3d,
+        COUNTIF(is_sale AND NOT is_activated AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), sale_ts, SECOND) > 604800) AS activation_over_7d,
+        COUNTIF(is_sale AND NOT is_activated AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), sale_ts, SECOND) > 2592000) AS activation_over_30d
       FROM lead_records
     ),
     backlog_vendor AS (
@@ -87,7 +104,7 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
     CROSS JOIN operational
   `;
 
-  const [rows] = await client.query({ query: mainQuery, params: queryParams });
+  const [[rows], lifecycle] = await Promise.all([client.query({ query: mainQuery, params: queryParams }), options.includeDiagnostics === false ? Promise.resolve(assembleLifecycleDiagnostics([], null)) : getLifecycleDiagnostics(params)]);
   const data = rows[0] || {};
 
   const fetched = Number(data.fetched_leads || 0);
@@ -96,7 +113,7 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
   const contacted = Number(data.contacted_leads || 0);
   const sales = Number(data.sale_leads || 0);
   const activated = Number(data.activated_leads || 0);
-  const revenue = Number(data.total_revenue || 0);
+  const revenue = data.total_revenue == null ? null : Number(data.total_revenue);
   const totalCalls = data.total_calls_recorded == null ? null : Number(data.total_calls_recorded);
 
   const rates = {
@@ -117,8 +134,9 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
     { key: 'activated', name: 'Activated', volume: activated, rate: rates.activationRate },
   ].map((stage, index, stages) => {
     const previous = index === 0 ? null : stages[index - 1];
-    const loss = previous ? Math.max(previous.volume - stage.volume, 0) : 0;
-    const transitionRate = previous ? metricPercent(stage.volume, previous.volume) : fetched > 0 ? 100 : null;
+    const evidence = options.includeDiagnostics !== false && previous ? lifecycle.transitions[index - 1] : null;
+    const loss = evidence ? evidence.lost : previous ? Math.max(previous.volume - stage.volume, 0) : 0;
+    const transitionRate = evidence ? evidence.conversionRate : previous ? metricPercent(stage.volume, previous.volume) : fetched > 0 ? 100 : null;
     return { ...stage, loss, transitionRate };
   });
 
@@ -169,64 +187,32 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
     },
   ].filter(item => item.value > 0);
 
-  let comparison: null | {
-    fetchedDelta: number | null;
-    deliveryRateDelta: number | null;
-    dialRateDelta: number | null;
-    contactRateDelta: number | null;
-    saleRateDelta: number | null;
-    activationRateDelta: number | null;
-    revenueDelta: number | null;
-    contributionDelta: null;
-  } = null;
-  let comparisonWindow: { startDate: string; endDate: string } | null = null;
-
-  if (params.startDate && params.endDate) {
-    const startMs = Date.parse(params.startDate + 'T00:00:00Z');
-    const endMs = Date.parse(params.endDate + 'T00:00:00Z');
-    const days = Math.floor((endMs - startMs) / 86400000) + 1;
-    if (days > 0 && days <= 366) {
-      const previousEnd = new Date(startMs - 86400000);
-      const previousStart = new Date(previousEnd.getTime() - (days - 1) * 86400000);
-      const previousParams = {
-        ...params,
-        startDate: previousStart.toISOString().slice(0, 10),
-        endDate: previousEnd.toISOString().slice(0, 10),
-      };
-      comparisonWindow = { startDate: previousParams.startDate, endDate: previousParams.endDate };
-      const previousScope = buildFilterClause(previousParams);
-      const previousQuery = `
-        WITH ${operationalLeadCtes(previousParams)}
-        SELECT
-          COUNT(DISTINCT lead_id) AS fetched,
-          COUNT(DISTINCT CASE WHEN is_delivered THEN lead_id END) AS delivered,
-          COUNT(DISTINCT CASE WHEN is_dialled THEN lead_id END) AS dialled,
-          COUNT(DISTINCT CASE WHEN is_rpc THEN lead_id END) AS contacted,
-          COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) AS sales,
-          COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) AS activated,
-          SUM(revenue) AS revenue
-        FROM operational_leads
-      `;
-      const [previousRows] = await client.query({ query: previousQuery, params: previousScope.queryParams });
-      const previous = previousRows[0] || {};
-      const pf = Number(previous.fetched || 0), pd = Number(previous.delivered || 0), pdi = Number(previous.dialled || 0);
-      const pc = Number(previous.contacted || 0), ps = Number(previous.sales || 0), pa = Number(previous.activated || 0), pr = Number(previous.revenue || 0);
-      const pctDelta = (current: number, prior: number) => prior > 0 ? Number((((current - prior) / prior) * 100).toFixed(1)) : null;
-      const ppDelta = (current: number | null, prior: number | null, decimals = 1) => current === null || prior === null ? null : Number((current - prior).toFixed(decimals));
-      comparison = {
-        fetchedDelta: pctDelta(fetched, pf),
-        deliveryRateDelta: ppDelta(rates.deliveryRate, metricPercent(pd, pf)),
-        dialRateDelta: ppDelta(rates.dialRate, metricPercent(pdi, pd)),
-        contactRateDelta: ppDelta(rates.contactRate, metricPercent(pc, pdi)),
-        saleRateDelta: ppDelta(rates.leadToSaleRate, metricPercent(ps, pf, 2), 2),
-        activationRateDelta: ppDelta(rates.activationRate, metricPercent(pa, ps)),
-        revenueDelta: pctDelta(revenue, pr),
-        contributionDelta: null,
-      };
-    }
-  }
+  const changes = lifecycle.comparisons;
+  const comparisonWindow = lifecycle.period?.previous || null;
+  const roundedChange = (value: number | null, decimals = 1) => value === null ? null : Number(value.toFixed(decimals));
+  const comparison = lifecycle.period ? {
+    fetchedDelta: roundedChange(changes.fetched.percentageChange),
+    deliveryRateDelta: roundedChange(changes.deliveryRate.percentagePointChange),
+    dialRateDelta: roundedChange(changes.dialRate.percentagePointChange),
+    contactRateDelta: roundedChange(changes.rpcRate.percentagePointChange),
+    saleRateDelta: roundedChange(changes.saleRate.percentagePointChange),
+    activationRateDelta: roundedChange(changes.activationRate.percentagePointChange),
+    revenueDelta: roundedChange(changes.revenue.percentageChange),
+    contributionDelta: null,
+  } : null;
 
   return {
+    lifecycle,
+    revenueEvidence: { missingLeadValues: Number(data.missing_revenue_leads || 0), basis: 'Sum of available recorded source values; missing revenue is not imputed.' },
+    contactEvidence: {
+      zeroCallLeads: Number(data.zero_call_leads || 0), oneCallLeads: Number(data.one_call_leads || 0),
+      oneCallShare: metricPercent(Number(data.one_call_leads || 0), dialled), multiCallShare: metricPercent(Number(data.multi_call_leads || 0), dialled),
+      fivePlusNoRpc: Number(data.five_plus_no_rpc || 0),
+      medianCaptureToDial: formatDuration(data.median_capture_to_dial_sec), p90CaptureToDial: formatDuration(data.p90_capture_to_dial_sec),
+      within30m: metricPercent(Number(data.within_30m || 0), delivered), within60m: metricPercent(Number(data.within_60m || 0), delivered),
+      backlogOver15m: Number(data.backlog_over_15m || 0), backlogOver30m: Number(data.backlog_over_30m || 0), backlogOver6h: Number(data.backlog_over_6h || 0), backlogOver12h: Number(data.backlog_over_12h || 0),
+      awaitingActivation: Number(data.awaiting_activation || 0), activationOver3d: Number(data.activation_over_3d || 0), activationOver7d: Number(data.activation_over_7d || 0), activationOver30d: Number(data.activation_over_30d || 0),
+    },
     kpis: {
       fetchedLeads: fetched,
       deliveredLeads: delivered,
@@ -245,7 +231,7 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
       recordedCallsSubtotal: Number(data.recorded_calls_subtotal || 0),
       unrecordedCallLeads: Number(data.unrecorded_call_leads || 0),
       callsPerLead: totalCalls !== null && fetched > 0 ? Number((totalCalls / fetched).toFixed(1)) : null,
-      callsPerDialledLead: totalCalls !== null && dialled > 0 ? Number((totalCalls / dialled).toFixed(1)) : null,
+      callsPerDialledLead: data.dialled_calls_recorded != null && dialled > 0 ? Number((Number(data.dialled_calls_recorded) / dialled).toFixed(1)) : null,
       revenue,
       directCost: null,
       deliveryAgentCost: null,
@@ -255,7 +241,7 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
       marginPct: null,
       costPerSale: null,
       costPerActivation: null,
-      revenuePerLead: fetched > 0 ? Number((revenue / fetched).toFixed(2)) : 0,
+      revenuePerLead: fetched > 0 && revenue != null ? Number((revenue / fetched).toFixed(2)) : null,
       breakEvenSales: null,
       actualVsBreakEven: null
     },

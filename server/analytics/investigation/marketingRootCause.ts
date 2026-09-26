@@ -1,3 +1,4 @@
+import { matchedPeriodWindow } from '../../../contracts/periodComparison';
 import { getBigQueryClient } from '../../bigquery/client';
 import { getClientConfig } from '../../bigquery/config';
 import { RequestError } from '../../bigquery/filters';
@@ -6,6 +7,7 @@ import {
   resolveMarketingContract,
   marketingTenantFilter,
   marketingSpendExpression,
+  marketingMissingGrainExpression,
 } from '../common/marketing';
 import { getClientCampaignAnalytics } from '../campaigns/performance';
 import type { OffernetQueryParams } from '../common/types';
@@ -32,19 +34,16 @@ export async function getMarketingRootCauseAnalysis(params: OffernetQueryParams)
   if (!currentCampaign.summary) {
     return { status: currentCampaign.status, reason: currentCampaign.reason, metric: null, dimensions: [], drivers: [] };
   }
-  if (['spend', 'cpc', 'cpm', 'cpl'].includes(metric) && currentCampaign.summary.spend === null) {
+  if (currentCampaign.summary[metric as keyof typeof currentCampaign.summary] == null) {
     return { status: 'UNAVAILABLE', reason: currentCampaign.reason, metric: null, dimensions: [], drivers: [] };
   }
 
-  const startMs = Date.parse(params.startDate + 'T00:00:00Z');
-  const endMs = Date.parse(params.endDate + 'T00:00:00Z');
-  const days = Math.floor((endMs - startMs) / 86400000) + 1;
-  if (!Number.isFinite(days) || days <= 0 || days > 366) throw new RequestError('Marketing root-cause date range must be between 1 and 366 days', 422);
-
-  const previousEnd = new Date(startMs - 86400000);
-  const previousStart = new Date(previousEnd.getTime() - (days - 1) * 86400000);
-  const previousStartDate = previousStart.toISOString().slice(0, 10);
-  const previousEndDate = previousEnd.toISOString().slice(0, 10);
+  if (currentCampaign.grainStatus !== 'VALID' || currentCampaign.comparisonReason) {
+    return { status: 'NOT_VERIFIED', reason: currentCampaign.comparisonReason || currentCampaign.reason, metric: null, dimensions: [], drivers: [] };
+  }
+  const window = matchedPeriodWindow(params.startDate, params.endDate);
+  if (!window) throw new RequestError('Marketing root-cause date range must be between 1 and 366 days', 422);
+  const { startDate: previousStartDate, endDate: previousEndDate } = window.previous;
 
   const client = getBigQueryClient(clientConfig.bigQueryProject);
   const resolved = await resolveMarketingContract(client, contract);
@@ -73,16 +72,23 @@ export async function getMarketingRootCauseAnalysis(params: OffernetQueryParams)
     queryParams.campaign = params.campaign;
   }
 
+  for (const [value, field, parameter] of [[params.channel, channelField, 'channel'], [params.adset, adsetField, 'adset']] as const) {
+    if (value) { conditions.push(`LOWER(CAST(${field} AS STRING)) = LOWER(@${parameter})`); queryParams[parameter] = value; }
+  }
+
+  const grainKey = `TO_JSON_STRING(STRUCT(${contract.spendGrainFields.map(safeWarehouseColumn).join(', ')}))`;
   const query = `
     WITH base AS (
       SELECT
         DATE(${dateField}) AS report_date,
+        ${grainKey} AS grain_key,
+        (${marketingMissingGrainExpression(contract)}) AS incomplete_grain,
         COALESCE(CAST(${channelField} AS STRING), 'Unknown') AS channel,
         COALESCE(CAST(${campaignField} AS STRING), 'Unknown') AS campaign,
         COALESCE(CAST(${adsetField} AS STRING), 'Unknown') AS adset,
-        SAFE_CAST(${impressionsField} AS FLOAT64) AS impressions,
-        SAFE_CAST(${clicksField} AS FLOAT64) AS clicks,
-        SAFE_CAST(${leadsField} AS FLOAT64) AS leads,
+        SAFE_CAST(${impressionsField} AS NUMERIC) AS impressions,
+        SAFE_CAST(${clicksField} AS NUMERIC) AS clicks,
+        SAFE_CAST(${leadsField} AS NUMERIC) AS leads,
         ${spendValue ? spendValue : 'CAST(NULL AS FLOAT64)'} AS spend
       FROM \`${contract.table}\`
       WHERE ${conditions.join(' AND ')}
@@ -96,6 +102,16 @@ export async function getMarketingRootCauseAnalysis(params: OffernetQueryParams)
           ELSE NULL
         END AS period
       FROM base
+    ),
+    snapshot_guard AS (
+      SELECT period,
+        COUNT(*) - COUNT(DISTINCT grain_key) AS duplicate_grain_rows,
+        COUNTIF(incomplete_grain) AS incomplete_grain_rows,
+        COUNTIF(spend IS NULL) AS missing_spend_rows,
+        COUNTIF(impressions IS NULL OR impressions < 0) AS missing_impressions_rows,
+        COUNTIF(clicks IS NULL OR clicks < 0) AS missing_clicks_rows,
+        COUNTIF(leads IS NULL OR leads < 0) AS missing_leads_rows
+      FROM periodized WHERE period IS NOT NULL GROUP BY period
     ),
     dimensional AS (
       SELECT period, 'channel' AS dimension, channel AS segment,
@@ -114,21 +130,29 @@ export async function getMarketingRootCauseAnalysis(params: OffernetQueryParams)
         SUM(spend), SUM(impressions), SUM(clicks), SUM(leads)
       FROM periodized WHERE period IS NOT NULL GROUP BY period
     )
-    SELECT * FROM dimensional
+    SELECT dimensional.*, snapshot_guard.* EXCEPT(period) FROM dimensional JOIN snapshot_guard USING (period)
   `;
 
   const [rows] = await client.query({ query, params: queryParams });
+  if (rows.some((row: any) => Number(row.duplicate_grain_rows || 0) > 0 || Number(row.incomplete_grain_rows || 0) > 0)) {
+    return { status: 'INVALID_GRAIN', reason: 'Media diagnostic snapshot contains duplicate or incomplete spend grain keys; drivers are withheld.', metric: null, dimensions: [], drivers: [] };
+  }
+  const requirements: Record<string, string[]> = { spend: ['missing_spend_rows'], cpc: ['missing_spend_rows', 'missing_clicks_rows'],
+    cpm: ['missing_spend_rows', 'missing_impressions_rows'], cpl: ['missing_spend_rows', 'missing_leads_rows'], ctr: ['missing_clicks_rows', 'missing_impressions_rows'], leads: ['missing_leads_rows'] };
+  if (rows.some((row: any) => requirements[metric].some(field => Number(row[field] || 0) > 0))) {
+    return { status: 'UNAVAILABLE', reason: 'Requested media metric has missing or invalid numerator/denominator observations in the current or prior diagnostic snapshot.', metric: null, dimensions: [], drivers: [] };
+  }
   const value = (row: any) => {
     const spend = row?.spend === null || row?.spend === undefined ? null : Number(row.spend || 0);
-    const impressions = Number(row?.impressions || 0);
-    const clicks = Number(row?.clicks || 0);
-    const leads = Number(row?.leads || 0);
+    const impressions = row?.impressions == null ? null : Number(row.impressions);
+    const clicks = row?.clicks == null ? null : Number(row.clicks);
+    const leads = row?.leads == null ? null : Number(row.leads);
     switch (metric) {
       case 'spend': return spend;
       case 'cpc': return spend !== null && clicks > 0 ? Number((spend / clicks).toFixed(2)) : null;
       case 'cpm': return spend !== null && impressions > 0 ? Number(((spend / impressions) * 1000).toFixed(2)) : null;
       case 'cpl': return spend !== null && leads > 0 ? Number((spend / leads).toFixed(2)) : null;
-      case 'ctr': return impressions > 0 ? Number(((clicks / impressions) * 100).toFixed(2)) : 0;
+      case 'ctr': return clicks !== null && impressions > 0 ? Number(((clicks / impressions) * 100).toFixed(2)) : null;
       default: return leads;
     }
   };
@@ -137,6 +161,7 @@ export async function getMarketingRootCauseAnalysis(params: OffernetQueryParams)
   const previousOverall = rows.find((row: any) => row.dimension === 'overall' && row.period === 'previous') || {};
   const currentValue = value(currentOverall);
   const previousValue = value(previousOverall);
+  if (currentValue === null || previousValue === null) return { status: 'UNAVAILABLE', reason: 'The requested metric requires observed current and prior values with valid positive denominators.', metric: null, dimensions: [], drivers: [] };
   const delta = currentValue !== null && previousValue !== null
     ? Number((currentValue - previousValue).toFixed(2))
     : null;
@@ -145,7 +170,7 @@ export async function getMarketingRootCauseAnalysis(params: OffernetQueryParams)
     spend: 'Media spend',
     cpc: 'CPC',
     cpm: 'CPM',
-    cpl: 'CPL',
+    cpl: 'Platform CPL',
     ctr: 'CTR',
     leads: 'Recorded leads',
   };

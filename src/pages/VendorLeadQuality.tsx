@@ -1,3 +1,6 @@
+import ExportAnalysisButton from '../components/ExportAnalysisButton';
+import type { LifecycleExtension } from '../../contracts/lifecycleAnalytics';
+import { LifecycleSegmentsPanel } from '../components/LifecycleDiagnostics';
 import { useOperationalData } from '../lib/useOperationalData';
 import React, { useMemo } from 'react';
 import { AlertTriangle, ArrowRight, BarChart3, ShieldCheck } from 'lucide-react';
@@ -30,7 +33,7 @@ export default function VendorLeadQuality() {
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
 
-  const { data, loading, error, loadData } = useOperationalData<VendorQualityData>('VendorLeadQuality', {
+  const { data, loading, error, loadData } = useOperationalData<VendorQualityData & LifecycleExtension & { vendorGrades?: Array<{vendor:string;grade:string;leads:number}>; qualityEvidence?:string }>('VendorLeadQuality', {
     clientId: selectedClient,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
@@ -76,6 +79,9 @@ export default function VendorLeadQuality() {
 
         {data && (
           <>
+            {data.lifecycle && <LifecycleSegmentsPanel data={data.lifecycle} />}
+            {data.vendorGrades && <section className="cx-command-panel"><header><div><h2>Vendor grade distribution</h2><p>{data.qualityEvidence}</p></div><ExportAnalysisButton filename="vendor_grade_distribution" rows={[["Vendor","Grade","Leads"], ...data.vendorGrades.map(r=>[r.vendor,r.grade,r.leads])]} definitions={[data.qualityEvidence || 'Lead/vendor grain']} /></header><div className="cx-performance-table-wrap"><table className="cx-performance-table"><thead><tr><th>Vendor</th><th>Grade</th><th>Leads</th></tr></thead><tbody>{data.vendorGrades.map(r => <tr key={`${r.vendor}-${r.grade}`}><th>{r.vendor}</th><td>{r.grade}</td><td>{fmt(r.leads)}</td></tr>)}</tbody></table></div></section>}
+
             <section className="cx-command-panel">
               <header>
                 <div>

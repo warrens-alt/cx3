@@ -16,7 +16,7 @@ export function defaultDateRange(now = new Date()) {
   return { start: localDate(start), end: localDate(end) };
 }
 
-const SUPPORTED_STANDALONE_KEYS = ['source', 'vendor', 'medium', 'grade', 'cli', 'campaign'] as const;
+const SUPPORTED_STANDALONE_KEYS = ['source', 'vendor', 'medium', 'grade', 'cli', 'campaign', 'channel', 'adset', 'agent'] as const;
 
 function cleanString(val: unknown): string | undefined {
   if (!val) return undefined;

@@ -13,6 +13,8 @@ import {
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import type { CliPerformanceResponse } from '../../contracts/cliPerformance';
+import ExportAnalysisButton from '../components/ExportAnalysisButton';
+import { formatPercent, formatTableNumber, formatRatioPercent } from '../lib/formatters';
 import { compareExactDecimal } from '../../contracts/exactDecimal';
 import {
   Upload,
@@ -434,6 +436,22 @@ export default function CliPerformance() {
             summary={summary}
           />
         )}
+
+        {data?.diagnostics && <section className="rounded-lg border border-slate-200 bg-white p-4 space-y-4">
+          <div><h2 className="text-sm font-semibold text-slate-900">CLI call distribution and observed outcomes</h2><p className="text-xs text-slate-600 mt-1">{data.diagnostics.reason} Timezone: {data.diagnostics.timezone}. Trend: {data.diagnostics.trendStatus}.</p></div>
+          <div className="overflow-x-auto"><table className="cx-performance-table"><thead><tr><th>CLI</th><th>Campaign</th><th>Vendor</th><th>Calls</th><th>RPC / call</th><th>Sales</th><th>Calls / sale</th><th>Evidence</th></tr></thead><tbody>
+            {filteredRecords.map((row, index) => <tr key={`${row.cli}-${row.campaign}-${row.vendor}-${index}`}><th>{row.cli}</th><td>{row.campaign}</td><td>{row.vendor}</td><td>{row.totalCalls}</td><td>{row.contactRate === null ? 'Unavailable' : `${row.contactRate}%`}</td><td>{row.saleCount}</td><td>{row.callsPerSale ?? 'Unavailable'}</td><td>{Number(row.totalCalls) > 0 && Number(row.saleCount) === 0 ? 'Recorded calls, no sales' : 'Recorded call outcomes'}</td></tr>)}
+          </tbody></table></div>
+          <ExportAnalysisButton filename="cli_outcome_diagnostics" dateBasis="call_start_date" validationStatus={data.metadata.validationStatus} truncated={data.metadata.truncated} definitions={data.diagnostics.reason} rows={[
+            ['CLI', 'Campaign', 'Vendor', 'Calls', 'RPC', 'Sales', 'Calls / sale'],
+            ...filteredRecords.map(row => [row.cli, row.campaign, row.vendor, row.totalCalls, row.contactCount, row.saleCount, row.callsPerSale]),
+          ]} />
+          <h3 className="text-sm font-semibold">Hour and disposition evidence</h3>
+          <p className="text-xs text-slate-600">{data.diagnostics.breakdownsTruncated ? 'Display limit reached; groups shown below are partial.' : 'Observed CLI groups in the selected scope.'} Missing dispositions and hours remain unavailable.</p>
+          <div className="overflow-x-auto"><table className="cx-performance-table"><thead><tr><th>Dimension</th><th>Bucket</th><th>CLI</th><th>Calls</th><th>RPC</th><th>RPC / calls</th><th>Sales</th><th>Sale / calls</th></tr></thead><tbody>
+            {data.diagnostics.breakdowns.map((row, index) => <tr key={`${row.dimension}-${row.bucket}-${row.cli}-${index}`}><th>{row.dimension}</th><td>{row.bucket ?? 'Unavailable'}</td><td>{row.cli}</td><td>{formatTableNumber(row.calls)}</td><td>{formatTableNumber(row.rpc)}</td><td>{formatRatioPercent(row.rpc, row.calls)}</td><td>{formatTableNumber(row.sales)}</td><td>{formatRatioPercent(row.sales, row.calls)}</td></tr>)}
+          </tbody></table></div>
+        </section>}
 
         {/* Detail Records Table */}
         {data && !isSchemaUnavailable && (

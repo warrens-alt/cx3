@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader';
 import KpiCard from '../components/KpiCard';
 import { TableSkeleton } from '../components/Skeleton';
 import { useAnalyticsData } from '../lib/useAnalyticsData';
+import { useAuth } from '../lib/AuthContext';
 import { useClient } from '../lib/ClientContext';
 import { DataState } from '../components/DataState';
 import { Users, Repeat, DollarSign, TrendingDown, Layers, CheckCircle2, ShieldCheck, AlertCircle, Table as TableIcon, BarChart2 } from 'lucide-react';
@@ -12,6 +13,7 @@ import { ResponsiveContainer, BarChart, Bar, AreaChart, Area, XAxis, YAxis, Tool
 
 export default function ConsumerReentry() {
   const { clientConfig } = useClient();
+  const { isAdmin } = useAuth();
   const currencyPrefix = clientConfig?.currency === 'ZAR' ? 'R ' : clientConfig?.currency === 'GBP' ? '£' : '$';
   const { data, loading, error, refetch } = useAnalyticsData('consumers');
   const [activeTab, setActiveTab] = useState<'tiers' | 'sequence' | 'sample'>('tiers');
@@ -124,6 +126,7 @@ export default function ConsumerReentry() {
         <button
           type="button"
           onClick={() => setActiveTab('sample')}
+          disabled={!isAdmin} title={!isAdmin ? 'Individual consumer records require administrator access' : undefined}
           data-active={activeTab === 'sample'}
           className="cx-tab-item"
         >
@@ -342,7 +345,7 @@ export default function ConsumerReentry() {
         </div>
       )}
 
-      {activeTab === 'sample' && (
+      {isAdmin && activeTab === 'sample' && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div>

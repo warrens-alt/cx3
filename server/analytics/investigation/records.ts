@@ -5,6 +5,7 @@ import { RequestError } from '../../bigquery/filters';
 import { validTimestampSql } from '../../bigquery/integrity';
 import { buildFilterClause } from '../common/scope';
 import { operationalLeadCtes } from '../common/leadMetrics';
+import { exceptionPredicate } from './exceptionPredicates';
 import type { OffernetQueryParams } from '../common/types';
 
 export async function getRawLeads(params: OffernetQueryParams) {
@@ -35,8 +36,8 @@ export async function getRawLeads(params: OffernetQueryParams) {
   let drillCondition = '';
   if (params.drill) {
     const value = params.drillValue || '';
-    let condition: string | undefined;
-    switch (params.drill) {
+    let condition: string | undefined = exceptionPredicate(params.drill);
+    if (!condition) switch (params.drill) {
       case 'awaiting-first-dial': condition = 'm.is_delivered AND NOT m.is_dialled'; break;
       case 'missing-disposition': condition = 'm.is_dialled AND NOT m.has_disposition'; break;
       case 'unactivated-sales': condition = 'm.is_sale AND NOT m.is_activated AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), m.sale_ts, DAY) > 14'; break;
@@ -58,7 +59,9 @@ export async function getRawLeads(params: OffernetQueryParams) {
         break;
       }
       case 'funnel-stage': condition = ({ fetched: 'TRUE', delivered: 'm.is_delivered', dialled: 'm.is_dialled', rpc: 'm.is_rpc', sales: 'm.is_sale', activated: 'm.is_activated' } as Record<string, string>)[value]; break;
+      case 'delivery-age':
       case 'lead-age': {
+        const timing = params.drill === 'lead-age' ? 'TIMESTAMP_DIFF(m.first_call_ts, m.fetched_ts, SECOND)' : 'TIMESTAMP_DIFF(m.first_call_ts, m.delivered_ts, SECOND)';
         const buckets: Record<string, string> = {
           'Invalid timing': `${timing} < 0`,
           '0–5m': `${timing} BETWEEN 0 AND 300`,
@@ -66,11 +69,15 @@ export async function getRawLeads(params: OffernetQueryParams) {
           '5–15m': `${timing} > 300 AND ${timing} <= 900`,
           '15–30m': `${timing} > 900 AND ${timing} <= 1800`,
           '30–60m': `${timing} > 1800 AND ${timing} <= 3600`,
+          '1–3h': `${timing} > 3600 AND ${timing} <= 10800`,
+          '3–6h': `${timing} > 10800 AND ${timing} <= 21600`,
+          '6–12h': `${timing} > 21600 AND ${timing} <= 43200`,
+          '12–24h': `${timing} > 43200 AND ${timing} <= 86400`,
           '1–6h': `${timing} > 3600 AND ${timing} <= 21600`,
           '6–24h': `${timing} > 21600 AND ${timing} <= 86400`,
           '24h+': `${timing} > 86400`,
         };
-        condition = value === 'Not delivered' ? 'NOT m.is_delivered' : value === 'Undialled' ? 'm.is_delivered AND NOT m.is_dialled' : buckets[value] ? `m.is_delivered AND m.is_dialled AND ${buckets[value]}` : undefined;
+        condition = value === 'Not delivered' ? 'NOT m.is_delivered' : value === 'Undialled' ? (params.drill === 'lead-age' ? 'NOT m.is_dialled' : 'm.is_delivered AND NOT m.is_dialled') : buckets[value] ? `m.is_dialled AND ${buckets[value]}` : undefined;
         break;
       }
       case 'funnel-loss': condition = ({
@@ -97,10 +104,10 @@ export async function getRawLeads(params: OffernetQueryParams) {
     SELECT
       l.lead_id,
       l.consumer_id,
-      FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', m.fetched_ts) as fetched,
+      FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', m.fetched_ts) as fetched,
       COALESCE(l.offershop_source, 'Unknown') as source,
       COALESCE(l.offernet_medium, 'Unknown') as medium,
-      COALESCE(l.offershop_grade, 'Standard') as grade,
+      COALESCE(l.offershop_grade, 'Unknown') as grade,
       COALESCE(l.offershop_color_vetting, 'Unvetted') as vetting,
       l.valid_lead,
       l.valid_idno,
@@ -109,14 +116,14 @@ export async function getRawLeads(params: OffernetQueryParams) {
       hlc.transaction_id,
       hlc.status,
       hlc.last_dialer_status,
-      FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', m.delivered_ts) as delivered_time,
-      FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', m.first_call_ts) as first_call_time,
+      FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', m.delivered_ts) as delivered_time,
+      FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', m.first_call_ts) as first_call_time,
       m.recorded_call_count as total_calls,
       m.is_dialled as dialled,
       m.is_rpc as contacted,
       m.is_sale as sale,
       m.is_activated as activated,
-      COALESCE(hlc.revenue_generated, 0) as revenue
+      m.revenue as revenue
     FROM scoped_leads l
     JOIN operational_leads m ON l.lead_id = m.lead_id
     LEFT JOIN UNNEST(l.hlc_details) hlc

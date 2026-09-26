@@ -1,3 +1,4 @@
+import { downloadAnalysisCsv } from '../lib/analysisExport';
 import { useOperationalData } from '../lib/useOperationalData';
 import React, { useMemo, useState } from 'react';
 import { AlertTriangle, Calendar, Clock3, Download, Sun } from 'lucide-react';
@@ -7,43 +8,48 @@ import { useClient } from '../lib/ClientContext';
 import { fetchTemporal, type TemporalData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
-import { downloadCsv, formatPercent, formatTableNumber } from '../lib/formatters';
+import { formatPercent, formatTableNumber } from '../lib/formatters';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { CaptureTurnaroundPanel, OperatingWindowPanel } from '../components/OfferNetControlPanels';
 import { heatmapColors } from '../lib/heatmapColors';
 
-type MetricView = 'contactRate' | 'saleRate' | 'volume';
+type MetricView = 'contactRate' | 'saleRate' | 'activationRate' | 'volume';
+type TimeBucket = { label:string; volume:number; rpc:number; sales:number; activations:number; contactRate:number|null; saleRate:number|null; activationRate:number|null };
+type TimeBasis = { basis:string; missingTimestampLeads:number; heatmap: TemporalData['heatmap']; byHour:TimeBucket[]; byDay:TimeBucket[]; weekType:TimeBucket[] };
 
 export default function TemporalIntelligence() {
   const scoped = useScopedNavigationTarget();
   const controls = useOperatingControls();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
+  const [timeBasis, setTimeBasis] = useState('Capture');
   const [metricView, setMetricView] = useState<MetricView>('contactRate');
 
-  const { data, loading, error, loadData } = useOperationalData<TemporalData>('TemporalIntelligence', {
+  const { data, loading, error, loadData } = useOperationalData<TemporalData & { timeBases?: TimeBasis[]; methodology?:string }>('TemporalIntelligence', {
     clientId: selectedClient,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
     ...extractOffernetFilters(filters),
   }, fetchTemporal);
 
+  const selectedBasis = data?.timeBases?.find(b => b.basis === timeBasis);
+  const activeHeatmap = selectedBasis?.heatmap || data?.heatmap || [];
   const handleExportCsv = () => {
     if (!data) return;
     const rows = [
       ['Day', 'Hour', 'Volume', 'RPC rate', 'Sale rate', 'Activation rate'],
-      ...data.heatmap.map(row => [row.dayName, `${row.hour}:00`, row.volume, row.contactRate, row.saleRate, row.activationRate]),
+      ...activeHeatmap.map(row => [row.dayName, `${row.hour}:00`, row.volume, row.contactRate, row.saleRate, row.activationRate]),
     ];
-    downloadCsv(`temporal_${selectedClient}_${startDate || 'all'}_${endDate || 'all'}`, rows);
+    downloadAnalysisCsv(`temporal_${timeBasis.toLowerCase().replaceAll(' ', '_')}_${selectedClient}_${startDate || 'all'}_${endDate || 'all'}`, rows, { clientId: selectedClient, startDate, endDate, filters, validationStatus: 'NOT_VERIFIED', definitions: `Selected capture cohort grouped by ${timeBasis.toLowerCase()} time in tenant timezone. RPC/dialled, sales/leads, activations/sales.` });
   };
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const hours = Array.from({ length: 24 }, (_, index) => index);
   const maxMetric = useMemo(() => {
-    if (!data?.heatmap.length) return 1;
-    return Math.max(1, ...data.heatmap.map(row => metricView === 'volume' ? row.volume : metricView === 'saleRate' ? row.saleRate ?? 0 : row.contactRate ?? 0));
-  }, [data?.heatmap, metricView]);
+    if (!activeHeatmap.length) return 1;
+    return Math.max(1, ...activeHeatmap.map(row => row[metricView] ?? 0));
+  }, [activeHeatmap, metricView]);
 
   return (
     <div className="cx-command-page">
@@ -57,6 +63,7 @@ export default function TemporalIntelligence() {
             <div className="cx-segmented-control" role="group" aria-label="Temporal metric">
               <button type="button" data-active={metricView === 'contactRate'} onClick={() => setMetricView('contactRate')}>RPC rate</button>
               <button type="button" data-active={metricView === 'saleRate'} onClick={() => setMetricView('saleRate')}>Sale rate</button>
+              <button type="button" data-active={metricView === 'activationRate'} onClick={() => setMetricView('activationRate')}>Activation rate</button>
               <button type="button" data-active={metricView === 'volume'} onClick={() => setMetricView('volume')}>Volume</button>
             </div>
           }
@@ -67,12 +74,13 @@ export default function TemporalIntelligence() {
 
         {data && (
           <>
+            <div className="cx-control-note"><label>Event time <select aria-label="Temporal event basis" value={timeBasis} onChange={e => setTimeBasis(e.target.value)}>{(data.timeBases || []).map(b => <option key={b.basis}>{b.basis}</option>)}</select></label> · {formatTableNumber(selectedBasis?.missingTimestampLeads)} leads without this event timestamp. {data.methodology}</div>
             <section className="cx-command-panel">
               <header>
                 <div>
                   <span className="cx-command-section-kicker">Observed pattern</span>
                   <h2>Day × hour matrix</h2>
-                  <p>{data.timeDimension || 'Lead capture time'} · {data.operatingContext?.timezone || 'tenant timezone'}. Intensity is scaled to the strongest observed cell in scope.</p>
+                  <p>{timeBasis} time · {data.operatingContext?.timezone || 'tenant timezone'}. Intensity is scaled to the strongest observed cell in scope.</p>
                 </div>
                 <Calendar size={16} className="text-slate-400"/>
               </header>
@@ -82,13 +90,13 @@ export default function TemporalIntelligence() {
                   <div className="cx-temporal-corner">Day / hour</div>
                   {hours.map(hour => <div key={hour} className="cx-temporal-hour">{String(hour).padStart(2, '0')}</div>)}
                   {days.map(day => {
-                    const dayRows = data.heatmap.filter(row => row.dayName === day);
+                    const dayRows = activeHeatmap.filter(row => row.dayName === day);
                     return (
                       <React.Fragment key={day}>
                         <div className="cx-temporal-day">{day}</div>
                         {hours.map(hour => {
                           const row = dayRows.find(item => item.hour === hour);
-                          const rawVal = row ? (metricView === 'volume' ? row.volume : metricView === 'saleRate' ? row.saleRate : row.contactRate) : null;
+                          const rawVal = row ? row[metricView] : null;
                           const numericValue = rawVal == null ? null : Number(rawVal);
                           const value = numericValue !== null && Number.isFinite(numericValue) ? numericValue : null;
                           const label = value === null
@@ -115,6 +123,7 @@ export default function TemporalIntelligence() {
               </div>
             </section>
 
+            {selectedBasis && ([['Hour',selectedBasis.byHour],['Day',selectedBasis.byDay],['Week',selectedBasis.weekType]] as const).map(([title,rows]) => <section className="cx-command-panel" key={title}><header><div><h2>{timeBasis} by {title.toLowerCase()}</h2><p>RPC / dialled · sales / leads · activations / sales.</p></div></header><div className="cx-performance-table-wrap"><table className="cx-performance-table"><thead><tr><th>{title}</th><th>Leads</th><th>RPC</th><th>RPC rate</th><th>Sales</th><th>Sale rate</th><th>Activations</th><th>Activation rate</th></tr></thead><tbody>{rows.map(r => <tr key={r.label}><th>{r.label}</th><td>{formatTableNumber(r.volume)}</td><td>{formatTableNumber(r.rpc)}</td><td>{formatPercent(r.contactRate)}</td><td>{formatTableNumber(r.sales)}</td><td>{formatPercent(r.saleRate)}</td><td>{formatTableNumber(r.activations)}</td><td>{formatPercent(r.activationRate)}</td></tr>)}</tbody></table></div></section>)}
             {controls.data && <OperatingWindowPanel data={controls.data} />}
             {controls.data && <CaptureTurnaroundPanel data={controls.data} />}
 
@@ -137,7 +146,7 @@ export default function TemporalIntelligence() {
                     </div>
                     <dl>
                       <div><dt>RPC</dt><dd>{row.contactRate}</dd></div>
-                      <div><dt>Sale</dt><dd>{row.saleIndex}%</dd></div>
+                      <div><dt>Sale</dt><dd>{row.saleIndex === '—' ? '—' : `${row.saleIndex}%`}</dd></div>
                     </dl>
                   </article>
                 ))}

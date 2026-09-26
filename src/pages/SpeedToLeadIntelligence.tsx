@@ -1,3 +1,4 @@
+import { downloadAnalysisCsv } from '../lib/analysisExport';
 import { useOperationalData } from '../lib/useOperationalData';
 import React, { useMemo } from 'react';
 import { AlertTriangle, ArrowRight, Clock3, Download, Moon, Sun, Zap } from 'lucide-react';
@@ -7,7 +8,7 @@ import { useClient } from '../lib/ClientContext';
 import { fetchSpeedToLead, type SpeedToLeadData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
-import { downloadCsv, formatPercent, formatTableNumber } from '../lib/formatters';
+import { formatPercent, formatTableNumber } from '../lib/formatters';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { CaptureTurnaroundPanel, SlaBandsPanel, OperatingWindowPanel } from '../components/OfferNetControlPanels';
@@ -18,7 +19,7 @@ export default function SpeedToLeadIntelligence() {
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
 
-  const { data, loading, error, loadData } = useOperationalData<SpeedToLeadData>('SpeedToLeadIntelligence', {
+  const { data, loading, error, loadData } = useOperationalData<Omit<SpeedToLeadData, 'timingStages'> & { timingStages: Array<SpeedToLeadData['timingStages'][number] & { p95?: string }>; backlog?: { awaitingFirstDial: number; currentSlaBreaches: number; completedDialBreaches: number; oldestUndialled: string }; methodology?: string }>('SpeedToLeadIntelligence', {
     clientId: selectedClient,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
@@ -40,7 +41,7 @@ export default function SpeedToLeadIntelligence() {
         row.activationRate,
       ]),
     ];
-    downloadCsv(`contact_timing_${selectedClient}_${startDate || 'all'}_${endDate || 'all'}`, rows);
+    downloadAnalysisCsv(`contact_timing_${selectedClient}_${startDate || 'all'}_${endDate || 'all'}`, rows, { clientId: selectedClient, startDate, endDate, filters, validationStatus: 'NOT_VERIFIED' });
   };
 
   const cohortMax = useMemo(() => Math.max(1, ...(data?.cohorts || []).map(row => row.leads)), [data?.cohorts]);
@@ -90,6 +91,8 @@ export default function SpeedToLeadIntelligence() {
               </article>
             </section>
 
+            {data.backlog && <section className="cx-command-metrics cx-contact-metrics"><article className="cx-command-metric"><span>Awaiting first dial</span><strong>{formatTableNumber(data.backlog.awaitingFirstDial)}</strong><div><small>Delivered cohort leads without a first dial</small></div></article><article className="cx-command-metric"><span>Current 15m breaches</span><strong>{formatTableNumber(data.backlog.currentSlaBreaches)}</strong><div><small>Delivered, undialled, waiting more than 15m</small></div></article><article className="cx-command-metric"><span>Oldest undialled lead</span><strong>{data.backlog.oldestUndialled}</strong><div><small>Time since delivery</small></div></article><article className="cx-command-metric"><span>Completed dial breaches</span><strong>{formatTableNumber(data.backlog.completedDialBreaches)}</strong><div><small>Measured delivery → dial above 15m</small></div></article></section>}
+            {data.methodology && <p className="cx-control-note">{data.methodology}</p>}
             {controls.data && <CaptureTurnaroundPanel data={controls.data} />}
 
             <section className="cx-command-panel">
@@ -110,7 +113,7 @@ export default function SpeedToLeadIntelligence() {
                       <th>Average</th>
                       <th>Median</th>
                       <th>P75</th>
-                      <th>P90</th>
+                      <th>P90</th><th>P95</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -121,7 +124,7 @@ export default function SpeedToLeadIntelligence() {
                         <td>{stage.avg}</td>
                         <td><strong>{stage.median}</strong></td>
                         <td>{stage.p75}</td>
-                        <td>{stage.p90}</td>
+                        <td>{stage.p90}</td><td>{stage.p95 || '—'}</td>
                       </tr>
                     ))}
                   </tbody>

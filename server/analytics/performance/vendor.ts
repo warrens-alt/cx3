@@ -4,6 +4,7 @@ import type { OffernetQueryParams } from '../common/types';
 import { formatDuration } from '../common/types';
 import { buildFilterClause } from '../common/scope';
 import { operationalLeadCtes, metricPercent } from '../common/leadMetrics';
+import { getLifecycleDiagnostics } from '../common/lifecycleDiagnostics';
 
 // 5. VENDOR & LEAD QUALITY
 export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
@@ -36,6 +37,9 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
       GROUP BY vendor
       ORDER BY leads DESC
       LIMIT 15
+    ),
+    vendor_grades AS (
+      SELECT vendor, grade, COUNT(*) AS leads FROM base GROUP BY vendor, grade
     ),
     source_matrix AS (
       SELECT
@@ -85,22 +89,24 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
     )
     SELECT
       ARRAY(SELECT AS STRUCT * FROM vendor_matrix) AS vendors,
+      ARRAY(SELECT AS STRUCT * FROM vendor_grades ORDER BY vendor, leads DESC) AS vendor_grades,
       ARRAY(SELECT AS STRUCT * FROM source_matrix) AS sources,
       ARRAY(SELECT AS STRUCT * FROM grade_matrix) AS grades,
       ARRAY(SELECT AS STRUCT * FROM vetting_matrix) AS vetting
   `;
 
-  const [rows] = await client.query({ query, params: queryParams });
+  const [[rows], lifecycle] = await Promise.all([client.query({ query, params: queryParams }), getLifecycleDiagnostics(params)]);
   const data = rows[0] || { vendors: [], sources: [], grades: [], vetting: [] };
 
   const vendors = (data.vendors || []).map((v: any) => {
     const leads = Number(v.leads || 0), delivered = Number(v.delivered || 0), dialled = Number(v.dialled || 0);
     const contacted = Number(v.contacted || 0), sales = Number(v.sales || 0), activations = Number(v.activations || 0);
-    const invalid = Number(v.invalid_leads || 0), totalCalls = v.total_calls == null ? null : Number(v.total_calls), revenue = Number(v.revenue || 0);
+    const invalid = Number(v.invalid_leads || 0), totalCalls = v.total_calls == null ? null : Number(v.total_calls), revenue = v.revenue == null ? null : Number(v.revenue);
     const medianFirstDialSec = v.med_first_dial_sec === null || v.med_first_dial_sec === undefined ? null : Number(v.med_first_dial_sec);
     return {
       vendor: v.vendor,
-      leads,
+      leads, delivered, dialled, contacted, sales, activations,
+      leadToSaleRate: metricPercent(sales, leads, 2),
       deliveryRate: metricPercent(delivered, leads, 1),
       dialRate: metricPercent(dialled, delivered, 1),
       contactRate: metricPercent(contacted, dialled, 1),
@@ -153,7 +159,10 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
   };
 
   return {
+    lifecycle,
     vendors,
+    vendorGrades: data.vendor_grades || [],
+    qualityEvidence: 'Vendor activity includes one row per lead/vendor and can overlap across vendors. Grade and invalid-lead flags come from the lead ledger; duplicate lead identity needs an approved identity contract and is unavailable.',
     sources,
     grades: (data.grades || []).map((row: any) => outcomeRates(row, 'grade')),
     vetting: (data.vetting || []).map((row: any) => outcomeRates(row, 'vetting_color')),

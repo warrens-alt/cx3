@@ -9,6 +9,7 @@ import { useOperatingControls } from '../hooks/useOperatingControls';
 import { DataCompletenessPanel } from '../components/OfferNetControlPanels';
 import { formatTableNumber } from '../lib/formatters';
 import '../styles/tableReadability.css';
+import ExportAnalysisButton from '../components/ExportAnalysisButton';
 
 export default function DataIntegrityIntelligence() {
   const { selectedClient } = useClient();
@@ -52,7 +53,7 @@ export default function DataIntegrityIntelligence() {
           <>
             <section className="cx-command-panel">
               <header>
-                <div><span className="cx-command-section-kicker">Sources</span><h2>Data source observability</h2><p>Freshness is observed from source timestamps. Missing contracts are surfaced explicitly.</p></div>
+                <div><span className="cx-command-section-kicker">Sources</span><h2>Data source observability</h2><p>Source cards cover all tenant-owned records, independent of the selected capture cohort. Freshness is observed from timestamps; a freshness SLA is not inferred. Missing contracts are surfaced explicitly.</p></div>
                 <Clock3 size={16} className="text-slate-400"/>
               </header>
               <div className="cx-source-grid">
@@ -83,6 +84,10 @@ export default function DataIntegrityIntelligence() {
             </section>
 
             <section className="cx-command-panel">
+              <div className="p-4"><ExportAnalysisButton filename="data_integrity_checks" rows={[
+                ['Check', 'Category', 'Status', 'Discrepancy count', 'Definition'],
+                ...data.checks.map(check => [check.checkName, check.category, check.status, check.discrepancyCount, check.detail]),
+              ]} validationStatus={data.validationStatus} definitions={data.reason} /></div>
               <header><div><span className="cx-command-section-kicker">Integrity</span><h2>Observed discrepancy checks</h2><p>{data.reason}</p></div><Database size={16} className="text-slate-400"/></header>
               <div className="cx-performance-table-wrap" role="region" aria-label="Observed discrepancy checks" tabIndex={0}>
                 <table className="cx-performance-table cx-integrity-table">

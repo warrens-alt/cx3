@@ -1,3 +1,5 @@
+import type { MatchedPeriodWindow, MetricComparison } from '../../../contracts/periodComparison';
+import type { AttributedEconomics, SpendReconciliation } from '../../../contracts/commercial';
 export interface OperatingControlsData {
   summary: {
     unrecordedCallLeads?: number;
@@ -111,7 +113,7 @@ export interface OverviewData {
     unrecordedCallLeads?: number;
     callsPerLead: number | null;
     callsPerDialledLead: number | null;
-    revenue: number;
+    revenue: number | null;
     directCost: number | null;
     deliveryAgentCost: number | null;
     allocatedCost: number | null;
@@ -141,7 +143,7 @@ export interface OverviewData {
     contacted: number;
     sales: number;
     activations: number;
-    revenue: number;
+    revenue: number | null;
   }>;
   backlog: {
     awaitingFirstDial: number;
@@ -186,9 +188,9 @@ export interface RootCauseData {
     id: 'fetchedLeads' | 'deliveryRate' | 'dialRate' | 'contactRate' | 'leadToSaleRate' | 'activationRate';
     label: string;
     kind: 'volume' | 'rate';
-    currentValue: number;
-    previousValue: number;
-    delta: number;
+    currentValue: number | null;
+    previousValue: number | null;
+    delta: number | null;
     deltaUnit: 'leads' | 'pp';
   };
   currentWindow: { startDate: string; endDate: string };
@@ -196,15 +198,17 @@ export interface RootCauseData {
   dimensions: Array<{
     key: 'vendor' | 'source' | 'grade' | 'leadAge';
     label: string;
+    reconciliationStatus?: string;
+    residual?: number | null;
     segments: Array<{
       name: string;
-      currentValue: number;
-      previousValue: number;
+      currentValue: number | null;
+      previousValue: number | null;
       currentNumerator: number;
       currentDenominator: number;
       previousNumerator: number;
       previousDenominator: number;
-      contribution: number;
+      contribution: number | null;
       shareOfDelta: number | null;
     }>;
   }>;
@@ -212,9 +216,9 @@ export interface RootCauseData {
     name: string;
     dimension: 'vendor' | 'source' | 'grade' | 'leadAge';
     dimensionLabel: string;
-    currentValue: number;
-    previousValue: number;
-    contribution: number;
+    currentValue: number | null;
+    previousValue: number | null;
+    contribution: number | null;
     shareOfDelta: number | null;
   }>;
   methodology: string;
@@ -458,18 +462,27 @@ export interface SalesActivationData {
 }
 
 export interface CommercialData {
+  mediaComparison?: CampaignData['comparison'];
+  attributionComparison?: { window: MatchedPeriodWindow | null; spend: MetricComparison; costPerSale: MetricComparison; costPerActivation: MetricComparison; fetched: MetricComparison; sales: MetricComparison; reason: string };
   status: string;
   reason: string;
+  economics?: AttributedEconomics;
+  attribution?: MarketingAttributionData;
+  reconciliation?: SpendReconciliation | null;
+  revenueReason?: string;
+  grainDiagnostics?: { rowCount: number; distinctGrainCount: number; duplicateGrainRows: number; missingGrainRows?: number; missingSpendRows?: number; fields?: string[] } | null;
   baseline: {
-    volume: number;
+    volume: number | null;
     cpl: number | null;
     cpc: number | null;
     cpm: number | null;
     mediaSpend: number | null;
-    conversionRate: number;
+    conversionRate: number | null;
     revenuePerSale: number | null;
+    revenuePerLead?: number | null;
+    revenuePerActivation?: number | null;
     fixedOverhead: number | null;
-    revenue: number;
+    revenue: number | null;
     totalCost: number | null;
     contribution: number | null;
     marginPct: number | null;
@@ -486,9 +499,11 @@ export interface CommercialData {
     reason: string;
     spendSourceColumn: string | null;
     spendSourceTable: string | null;
-    platformLeads: number;
-    platformClicks: number;
-    platformImpressions: number;
+    platformLeads: number | null;
+    platformClicks: number | null;
+    platformImpressions: number | null;
+    platformReach?: number | null;
+    platformOutboundClicks?: number | null;
   };
   currency: string;
   pAndLBreakdown: Array<{
@@ -538,6 +553,10 @@ export interface AgentPerformanceData {
 }
 
 export interface CampaignData {
+  denominatorDiagnostics?: Array<{ metric: string; missingRows: number; rows: number }>;
+  reconciliation?: SpendReconciliation;
+  reachDefinition?: string;
+  funnelStatus?: { status: string; reason: string };
   detailScope?: {
     totalCampaignGroups: number;
     displayedCampaignGroups: number;
@@ -556,6 +575,8 @@ export interface CampaignData {
     rowCount: number;
     distinctGrainCount: number;
     duplicateGrainRows: number;
+    missingGrainRows?: number;
+    missingSpendRows?: number;
     fields: string[];
   };
   attribution?: {
@@ -564,13 +585,13 @@ export interface CampaignData {
   };
   summary: {
     spend: number | null;
-    impressions: number;
+    impressions: number | null;
     reach: number | null;
     frequency: number | null;
-    clicks: number;
+    clicks: number | null;
     outboundClicks: number | null;
-    leads: number;
-    ctr: number;
+    leads: number | null;
+    ctr: number | null;
     outboundCtr: number | null;
     clickToLeadRate: number | null;
     cpc: number | null;
@@ -579,6 +600,8 @@ export interface CampaignData {
   } | null;
   comparisonReason?: string | null;
   comparison?: {
+    spendDelta?: number | null;
+    leadsDelta?: number | null;
     spendDeltaPct: number | null;
     cpcDeltaPct: number | null;
     cpmDeltaPct: number | null;
@@ -606,15 +629,15 @@ export interface CampaignData {
     adset: string;
     spend: number | null;
     latestBudget: number | null;
-    impressions: number;
+    impressions: number | null;
     reach: number | null;
     frequency: number | null;
-    clicks: number;
+    clicks: number | null;
     outboundClicks: number | null;
-    ctr: number;
+    ctr: number | null;
     outboundCtr: number | null;
     clickToLeadRate: number | null;
-    leads: number;
+    leads: number | null;
     cpc: number | null;
     cpm: number | null;
     cpl: number | null;
@@ -700,6 +723,10 @@ export interface MarketingRootCauseData {
 }
 
 export interface MarketingAttributionData {
+  economics?: AttributedEconomics;
+  detailScope?: { totalKeys: number; displayedKeys: number; rowLimit: number; truncated: boolean };
+  reconciliationStatus?: string;
+  validationStatus?: string;
   status: string;
   reason: string;
   summary?: {
@@ -737,7 +764,7 @@ export interface MarketingAttributionData {
     rpc: number;
     sales: number;
     activations: number;
-    recordedRevenue: number;
+    recordedRevenue: number | null;
     spendPerFetchedLead: number | null;
     spendPerSale: number | null;
     spendPerActivation: number | null;
@@ -786,10 +813,11 @@ export interface LeadTimelineData {
   vendor: string;
   source: string;
   grade: string;
+  callEvidence?: { status: string; rowLimit: number; displayedCalls: number; reason: string };
   events: Array<{
     stage: string;
     title: string;
-    timestamp: string;
+    timestamp: string | null;
     status: 'SUCCESS' | 'INFO' | 'WARNING';
     details: string;
   }>;

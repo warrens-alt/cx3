@@ -28,9 +28,10 @@ interface MetricLineageDrawerProps {
     [key: string]: any;
   };
   metadata?: any;
+  additionalContent?: React.ReactNode;
 }
 
-export default function MetricLineageDrawer({ isOpen, onClose, title, lineage, metadata }: MetricLineageDrawerProps) {
+export default function MetricLineageDrawer({ isOpen, onClose, title, lineage, metadata, additionalContent }: MetricLineageDrawerProps) {
   const dialogRef = useDialogAccessibility<HTMLDivElement>(isOpen, onClose);
   if (!isOpen) return null;
 
@@ -81,6 +82,7 @@ export default function MetricLineageDrawer({ isOpen, onClose, title, lineage, m
         </div>
         
         <div className="p-6 flex-1 overflow-y-auto space-y-6">
+          {additionalContent}
           
           {/* Official Taxonomy Specification Card */}
           {(costMetric || metricName || costMetricFormula || waterfallFormula) && (

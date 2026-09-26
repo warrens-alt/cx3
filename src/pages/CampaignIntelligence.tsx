@@ -1,3 +1,5 @@
+import ExportAnalysisButton from '../components/ExportAnalysisButton';
+import SpendReconciliationPanel from '../components/SpendReconciliationPanel';
 import { useOperationalData } from '../lib/useOperationalData';
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, Search, ShieldCheck } from 'lucide-react';
@@ -17,7 +19,7 @@ import {
 import { formatPercent } from '../lib/formatters';
 
 const money = (value: number | null) => value == null ? '—' : `R ${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
-const num = (value: number) => value.toLocaleString();
+const num = (value: number | null) => value == null ? '—' : value.toLocaleString();
 type MediaMetric = NonNullable<MarketingRootCauseData['metric']>['id'];
 
 function Delta({ value, unit = '%' }: { value: number | null | undefined; unit?: string }) {
@@ -121,6 +123,8 @@ export default function CampaignIntelligence() {
               </div>
             </section>
 
+            <SpendReconciliationPanel reconciliation={data.reconciliation} grain={data.grainDiagnostics} />
+
             {isAdmin && discovery && (
               <section className="cx-command-panel">
                 <header>
@@ -157,6 +161,7 @@ export default function CampaignIntelligence() {
               </section>
             )}
 
+            {data.denominatorDiagnostics?.some(item => item.missingRows > 0) && <div className="cx-control-note" role="status">Platform metrics with missing or invalid observations are unavailable: {data.denominatorDiagnostics.filter(item => item.missingRows > 0).map(item => `${item.metric}: ${item.missingRows} of ${item.rows} rows`).join('; ')}. Their derived ratios are withheld.</div>}
             {summary && (
               <section className="cx-command-metrics cx-media-metrics" aria-label="Media performance summary">
                 <MediaMetricCard label="Recorded media spend" value={money(summary.spend)} note="Approved API-table spend" delta={data.comparison?.spendDeltaPct} metric="spend" onInvestigate={metric => canCompare && setRootMetric(metric)} />
@@ -177,11 +182,11 @@ export default function CampaignIntelligence() {
                   </div>
                 </header>
                 <div className="cx-commercial-ratios">
-                  <div><span>Reach</span><strong>{summary.reach == null ? '—' : num(summary.reach)}</strong><small>Unique audience reached</small></div>
+                  <div><span>Reported reach sum</span><strong>{summary.reach == null ? '—' : num(summary.reach)}</strong><small>{data.reachDefinition || 'Reported row-level reach; audience overlap is not deduplicated'}</small></div>
                   <div><span>Frequency</span><strong>{summary.frequency == null ? '—' : summary.frequency.toFixed(2)}</strong><small>Impressions / reach</small></div>
                   <div><span>Outbound clicks</span><strong>{summary.outboundClicks == null ? '—' : num(summary.outboundClicks)}</strong><small>Clicks leaving the platform</small></div>
                   <div><span>Outbound CTR</span><strong>{summary.outboundCtr == null ? '—' : `${summary.outboundCtr.toFixed(2)}%`}</strong><small>Outbound clicks / impressions</small></div>
-                  <div><span>Click → lead</span><strong>{summary.clickToLeadRate == null ? '—' : `${summary.clickToLeadRate.toFixed(2)}%`}</strong><small>Platform lead events / {summary.outboundClicks != null && summary.outboundClicks > 0 ? 'outbound clicks' : 'clicks'}</small></div>
+                  <div><span>Click → lead</span><strong>{summary.clickToLeadRate == null ? '—' : `${summary.clickToLeadRate.toFixed(2)}%`}</strong><small>Platform lead events / {data.summary?.outboundClicks != null ? 'outbound clicks' : 'clicks'}</small></div>
                 </div>
               </section>
             )}
@@ -189,11 +194,10 @@ export default function CampaignIntelligence() {
 
             {data.comparison ? (
               <p className="cx-media-comparison-note">
-                Compared with {data.comparison.previousStartDate} → {data.comparison.previousEndDate}. {data.comparison.ctrDeltaPp == null ? 'CTR comparison unavailable.' : `CTR changed ${data.comparison.ctrDeltaPp > 0 ? '+' : ''}${data.comparison.ctrDeltaPp}pp.`}
+                Spend change: {money(data.comparison.spendDelta ?? null)} · Platform leads change: {data.comparison.leadsDelta == null ? '—' : num(data.comparison.leadsDelta)}. Compared with {data.comparison.previousStartDate} → {data.comparison.previousEndDate}. {data.comparison.ctrDeltaPp == null ? 'CTR comparison unavailable.' : `CTR changed ${data.comparison.ctrDeltaPp > 0 ? '+' : ''}${data.comparison.ctrDeltaPp}pp.`}
               </p>
-            ) : data.comparisonReason ? (
-              <div className="cx-command-error"><AlertTriangle size={15}/>{data.comparisonReason}</div>
             ) : null}
+            {data.comparisonReason && <div className="cx-command-error"><AlertTriangle size={15}/>{data.comparisonReason}</div>}
 
             <section className="cx-command-panel">
               <header>
@@ -203,6 +207,13 @@ export default function CampaignIntelligence() {
                   <p>Budget remains a separate planning field and is never substituted for observed spend.</p>
                 </div>
               </header>
+              <ExportAnalysisButton filename="campaign-performance.csv" validationStatus={data.reconciliation?.status || data.status || 'NOT_VERIFIED'} dateBasis="marketing_reporting_date"
+                definitions="Observed spend from the approved field at unique contracted grain. Platform leads are distinct from warehouse fetched leads. Reach is a sum of reported row-level reach, not deduplicated period audience."
+                truncated={data.detailScope?.truncated} rows={[
+                  ['Client', 'Channel', 'Campaign', 'Adset', 'Spend', 'Latest budget (planning only)', 'Impressions', 'Reported reach sum', 'Clicks', 'Outbound clicks', 'Platform leads', 'CTR %', 'Outbound CTR %', 'CPC', 'CPM', 'Platform CPL'],
+                  ...data.campaigns.map(row => [row.client, row.channel, row.campaign, row.adset, row.spend, row.latestBudget, row.impressions, row.reach, row.clicks, row.outboundClicks, row.leads, row.ctr, row.outboundCtr, row.cpc, row.cpm, row.cpl]),
+                ]} />
+              {data.funnelStatus && <p className="cx-control-note">Warehouse funnel: {data.funnelStatus.status}. {data.funnelStatus.reason}</p>}
               {data.detailScope?.truncated && (
                 <div className="cx-control-note" role="status">
                   Showing {num(data.detailScope.displayedCampaignGroups)} of {num(data.detailScope.totalCampaignGroups)} campaign/adset groups, ranked by platform lead events. Summary metrics cover the full selected scope.
@@ -218,7 +229,7 @@ export default function CampaignIntelligence() {
                       <th>Spend</th>
                       <th>Latest budget</th>
                       <th>Impressions</th>
-                      <th>Reach</th>
+                      <th>Reported reach sum</th>
                       <th>Frequency</th>
                       <th>Clicks</th>
                       <th>Outbound clicks</th>

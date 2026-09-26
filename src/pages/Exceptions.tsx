@@ -6,11 +6,14 @@ import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import { useClient } from '../lib/ClientContext';
 import { useAuth } from '../lib/AuthContext';
 import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
-import { fetchOverview, type OverviewData } from '../lib/offernetClient';
+import { fetchOverview, fetchExceptions, type OverviewData } from '../lib/offernetClient';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { ContactGovernancePanel } from '../components/OfferNetControlPanels';
 import { formatPercent, formatTableNumber } from '../lib/formatters';
+
+import type { ExceptionAnalyticsData } from '../../contracts/exceptionAnalytics';
+import ExportAnalysisButton from '../components/ExportAnalysisButton';
 
 const fmt = (value: number | string | null | undefined) => formatTableNumber(value);
 
@@ -29,6 +32,11 @@ export default function Exceptions() {
     ...extractOffernetFilters(filters),
   }, fetchOverview);
 
+  const queue = useOperationalData<ExceptionAnalyticsData>('exception-populations', {
+    clientId: selectedClient, startDate: startDate || undefined, endDate: endDate || undefined,
+    ...extractOffernetFilters(filters),
+  }, fetchExceptions);
+
   const recordLink = (drill: string, drillValue?: string, extra?: Record<string, string>) => {
     const next = new URLSearchParams(searchParams);
     next.delete('drill');
@@ -42,13 +50,13 @@ export default function Exceptions() {
 
   const severityRank = { high: 3, medium: 2, low: 1 } as const;
   const ordered = useMemo(
-    () => [...(data?.attention || [])].sort((a, b) => severityRank[b.severity] - severityRank[a.severity] || b.value - a.value),
-    [data?.attention],
+    () => [...(queue.data?.exceptions || [])].filter(item => item.count > 0).sort((a, b) => severityRank[b.severity] - severityRank[a.severity] || b.count - a.count),
+    [queue.data?.exceptions],
   );
 
   return (
     <div className="cx-command-page">
-      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />
+      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), queue.loadData(true), controls.refetch()]); }} />
       <div className="cx-command-content">
         <header className="cx-command-hero">
           <div>
@@ -66,7 +74,7 @@ export default function Exceptions() {
           </Link>
         </header>
 
-        {error && <div className="cx-command-error"><AlertTriangle size={17} />{error}</div>}
+        {(error || queue.error) && <div className="cx-command-error"><AlertTriangle size={17} />{error || queue.error}</div>}
         {loading && !data && <div className="cx-command-loading"><div className="cx-command-spinner" />Loading exception populations…</div>}
 
         {data && (
@@ -100,14 +108,22 @@ export default function Exceptions() {
                 <div>
                   <span className="cx-command-section-kicker">Prioritise</span>
                   <h2>Exception queue</h2>
-                  <p>Counts come directly from current warehouse observations. No synthetic thresholds or scores are added.</p>
+                  <p>{queue.data?.populationNote}</p>
                 </div>
               </header>
 
-              {ordered.length ? (
+              {queue.data && <div className="p-4 text-xs text-slate-600">
+                <p>{queue.data.comparisonReason}</p>
+                {queue.data.comparison && <p>Previous: {queue.data.comparison.previous.startDate} – {queue.data.comparison.previous.endDate} ({queue.data.comparison.days} days)</p>}
+                <ExportAnalysisButton filename="exception_populations" rows={[
+                  ['Exception', 'Count', 'Previous cohort', 'Absolute change', 'Change (%)', 'Severity', 'Definition'],
+                  ...queue.data.exceptions.map(item => [item.title, item.count, item.previousCount, item.absoluteChange, item.percentageChange, item.severity, item.detail]),
+                ]} definitions={queue.data.populationNote} validationStatus={queue.data.validationStatus} />
+              </div>}
+              {queue.loading && !queue.data ? <div className="cx-command-loading">Loading exact exception populations…</div> : ordered.length ? (
                 <div className="cx-live-exception-list">
                   {ordered.map(item => (
-                    <Link key={item.id} to={isAdmin ? recordLink(item.id) : item.path} className="cx-live-exception" data-severity={item.severity}>
+                    <Link key={item.id} to={isAdmin ? recordLink(item.id) : scoped('/data-integrity')} className="cx-live-exception" data-severity={item.severity}>
                       <div className="cx-live-exception-icon">
                         {item.id === 'awaiting-first-dial' ? <Clock3 size={17} /> : item.id === 'missing-disposition' ? <Database size={17} /> : <AlertTriangle size={17} />}
                       </div>
@@ -115,8 +131,11 @@ export default function Exceptions() {
                         <span className="cx-live-exception-severity">{item.severity}</span>
                         <h3>{item.title}</h3>
                         <p>{item.detail}</p>
+                        <p>Previous cohort: {fmt(item.previousCount)} · Δ {item.absoluteChange === null ? 'Unavailable' : `${item.absoluteChange > 0 ? '+' : ''}${fmt(item.absoluteChange)}`}</p>
+                        <p>Vendors: {item.byVendor.slice(0, 3).map(group => `${group.name} (${group.count.toLocaleString()})`).join(', ') || 'None'}</p>
+                        <p>Sources: {item.bySource.slice(0, 3).map(group => `${group.name} (${group.count.toLocaleString()})`).join(', ') || 'None'}</p>
                       </div>
-                      <strong>{fmt(item.value)}</strong>
+                      <strong>{fmt(item.count)}</strong>
                       <ArrowRight size={16} />
                     </Link>
                   ))}

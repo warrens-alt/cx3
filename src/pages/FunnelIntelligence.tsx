@@ -1,3 +1,6 @@
+import { downloadAnalysisCsv } from '../lib/analysisExport';
+import type { LifecycleExtension } from '../../contracts/lifecycleAnalytics';
+import { LifecycleFunnelPanel, LifecycleSegmentsPanel, MatchedPeriodPanel } from '../components/LifecycleDiagnostics';
 import { useOperationalData } from '../lib/useOperationalData';
 import React, { useMemo } from 'react';
 import { AlertTriangle, ArrowRight, Clock3, Download, GitFork } from 'lucide-react';
@@ -7,7 +10,7 @@ import { useClient } from '../lib/ClientContext';
 import { fetchFunnel, type FunnelData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
-import { downloadCsv, formatRatioPercent, formatTableNumber } from '../lib/formatters';
+import { formatRatioPercent, formatTableNumber } from '../lib/formatters';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { SlaBandsPanel } from '../components/OfferNetControlPanels';
@@ -20,7 +23,7 @@ export default function FunnelIntelligence() {
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
 
-  const { data, loading, error, loadData } = useOperationalData<FunnelData>('FunnelIntelligence', {
+  const { data, loading, error, loadData } = useOperationalData<FunnelData & LifecycleExtension>('FunnelIntelligence', {
     clientId: selectedClient,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
@@ -32,10 +35,10 @@ export default function FunnelIntelligence() {
     const rows = [
       ['Dimension', 'Segment', 'Fetched', 'Delivered', 'Dialled', 'RPC', 'Sales', 'Activations'],
       ...data.byVendor.map(v => ['Vendor', v.vendor, v.leads, v.delivered, v.dialled, v.contacted, v.sales, v.activations]),
-      ...data.bySource.map(s => ['Source', s.source, s.leads, '', '', s.contacted, s.sales, s.activations]),
-      ...data.byGrade.map(g => ['Grade', g.grade, g.leads, '', '', g.contacted, g.sales, g.activations]),
+      ...data.bySource.map(s => ['Source', s.source, s.leads, s.delivered, s.dialled, s.contacted, s.sales, s.activations]),
+      ...data.byGrade.map(g => ['Grade', g.grade, g.leads, g.delivered, g.dialled, g.contacted, g.sales, g.activations]),
     ];
-    downloadCsv(`funnel_${selectedClient}_${startDate || 'all'}_${endDate || 'all'}`, rows);
+    downloadAnalysisCsv(`funnel_${selectedClient}_${startDate || 'all'}_${endDate || 'all'}`, rows, { clientId: selectedClient, startDate, endDate, filters, validationStatus: 'NOT_VERIFIED' });
   };
 
   const sourceMax = useMemo(() => Math.max(1, ...(data?.bySource || []).map(row => row.leads)), [data?.bySource]);
@@ -62,6 +65,9 @@ export default function FunnelIntelligence() {
 
         {data && (
           <>
+            {data.lifecycle && <LifecycleFunnelPanel data={data.lifecycle} />}
+            {data.lifecycle && <LifecycleSegmentsPanel data={data.lifecycle} />}
+            {data.lifecycle && <MatchedPeriodPanel data={data.lifecycle} />}
             <section className="cx-command-panel">
               <header>
                 <div>

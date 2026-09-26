@@ -107,7 +107,7 @@ test('overview uses max cumulative controls and preserves unavailable counters a
   const values = oracle(fixture);
   let sql = '';
   context.mock.method(client, 'query', async (request: any) => {
-    sql = request.query;
+    if (request.query.includes('AS total_calls_recorded')) sql = request.query;
     return [[{
       fetched_leads: values.length,
       delivered_leads: values.filter(row => row.delivery !== null).length,
@@ -176,7 +176,8 @@ test('latency services use one normalized lead interval and preserve zero/missin
   assert.equal(speed.afterHours[0].type, 'Unrecorded capture time');
   assert.equal(speed.afterHours[0].contactRate, null);
   assert.match(queries[0], /FROM operational_leads/);
-  assert.match(queries[0], /WHERE capture_to_first_dial_sec >= 0/);
+  assert.match(queries[0], /WHEN NOT is_dialled THEN 'Undialled'/);
+  assert.match(queries[0], /capture_to_first_dial_sec IS NULL OR capture_to_first_dial_sec < 0/);
   assert.match(queries[0], /CASE WHEN delivery_to_first_dial_sec >= 0/);
   assert.ok(!queries[0].includes('delivery_to_first_dial_sec BETWEEN 0 AND 604800'));
   await getSalesActivationAnalytics(scope);
@@ -217,7 +218,7 @@ test('vendor, temporal and integrity report correct denominators, nulls and dist
     queries.push(request.query);
     if (request.query.includes('vendor_matrix AS')) return [[{ vendors: [{ vendor: 'V', leads: 10, delivered: 8, dialled: 4, contacted: 2, sales: 1, total_calls: null }], grades: [{ grade: 'G', leads: 10, dialled: 4, contacted: 2 }] }]] as any;
     if (request.query.includes('operating_summary AS')) return [[{ matrix: [{ iso_day: 1, hour_of_day: 8, volume: 10, dialled: 4, contacted: 2 }], operating_summary: [{ is_after_hours: null, leads: 1, dialled: 0 }] }]] as any;
-    if (request.query.includes('WITH lead_quality AS')) return [[{ total_leads: 2, invalid_id_numbers: 1, invalid_mobile_numbers: 1, invalid_lead_flags: 1, unrecorded_validation_flags: 1 }]] as any;
+    if (request.query.includes('lead_quality AS (')) return [[{ total_leads: 2, invalid_id_numbers: 1, invalid_mobile_numbers: 1, invalid_lead_flags: 1, unrecorded_validation_flags: 1 }]] as any;
     return [[{}]] as any;
   });
   const vendor = await getVendorQualityAnalytics(scope);
@@ -231,10 +232,10 @@ test('vendor, temporal and integrity report correct denominators, nulls and dist
   assert.equal(temporal.operatingComparison[0].type, 'Unrecorded capture time');
   assert.equal(temporal.operatingComparison[0].contactRate, null);
   const integrity = await getDataIntegrityAnalytics(scope);
-  const captureCheck = integrity.checks.find(check => check.category === 'Temporal Integrity')!;
+  const captureCheck = integrity.checks.find(check => check.checkName === 'Missing / Sentinel Capture Timestamps')!;
   assert.equal(captureCheck.status, 'UNAVAILABLE');
   assert.equal(captureCheck.discrepancyCount, null);
-  const integritySql = queries.find(query => query.includes('WITH lead_quality AS'))!;
+  const integritySql = queries.find(query => query.includes('lead_quality AS ('))!;
   assert.match(integritySql, /GROUP BY l.lead_id/);
   assert.match(integritySql, /LOWER\(TRIM\(l.valid_idno\)\) IN \('0', 'false'\)/);
   assert.match(integritySql, /l.valid_lead IS FALSE/);
@@ -268,7 +269,7 @@ test('campaign summary includes groups beyond the 250 detail limit and uses weig
         contract.impressionsField, contract.clicksField, contract.leadsField, contract.reachField, contract.outboundClicksField,
         contract.approvedSpendFields[0], contract.approvedBudgetFields[0]].filter(Boolean).map(column_name => ({ column_name }))] as any;
     }
-    if (request.query.includes('AS campaign_group_count')) return [[{ row_count: 251, distinct_grain_count: 251, duplicate_grain_rows: duplicateRows, campaign_group_count: 251, ...totals }]] as any;
+    if (request.query.includes('AS campaign_group_count')) return [[{ row_count: 251, distinct_grain_count: 251, duplicate_grain_rows: duplicateRows, campaign_group_count: 251, campaign_aggregation_spend: totals.recorded_spend, campaign_details: allGroups.slice(0, 250), ...totals }]] as any;
     return [allGroups.slice(0, 250)] as any;
   });
   const result = await getClientCampaignAnalytics({ ...scope, campaign: 'Synthetic Campaign' });
@@ -282,7 +283,8 @@ test('campaign summary includes groups beyond the 250 detail limit and uses weig
   assert.equal(result.metricDefinitions!.ledgerCpl.status, 'UNAVAILABLE');
   const fullTotalsQuery = queries.find(row => row.query.includes('AS campaign_group_count'))!;
   const detailQuery = queries.find(row => row.query.includes('LIMIT 250'))!;
-  assert.ok(!fullTotalsQuery.query.includes('LIMIT'));
+  assert.match(fullTotalsQuery.query, /ARRAY\(SELECT AS STRUCT \* FROM campaign_spend[\s\S]*LIMIT 250\) AS campaign_details/);
+  assert.match(fullTotalsQuery.query.trim(), /FROM scoped_marketing$/);
   assert.match(fullTotalsQuery.query, /SUM\(/);
   assert.match(fullTotalsQuery.query, /LOWER\(CAST\(`Channel_Campaign_Name` AS STRING\)\) = LOWER\(@campaign\)/);
   assert.equal(fullTotalsQuery.params.campaign, detailQuery.params.campaign);

@@ -3,8 +3,9 @@ import { AlertTriangle, CalendarDays, Layers3 } from 'lucide-react';
 import { useAnalyticsData } from '../lib/useAnalyticsData';
 import { useClient } from '../lib/ClientContext';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
+import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import OperationalPageHeader from '../components/OperationalPageHeader';
-import { formatTableNumber } from '../lib/formatters';
+import { formatTableNumber, formatPercent, formatTableCurrency } from '../lib/formatters';
 import { heatmapColors } from '../lib/heatmapColors';
 
 type CohortMetric = 'call_coverage' | 'sale' | 'activation';
@@ -73,6 +74,8 @@ export default function Cohorts() {
           <div className="cx-command-empty"><CalendarDays size={17}/>No cohort records were returned for this scope.</div>
         )}
 
+        {cohorts?.some((row:any) => row.detailTruncated) && <p className="cx-control-note">Showing the latest 16 cohort groups. CSV contains these displayed groups and marks the truncation.</p>}
+
         {cohorts && cohorts.length > 0 && (
           <>
             <section className="cx-command-panel">
@@ -82,7 +85,10 @@ export default function Cohorts() {
                   <h2>{metricLabel[metricType]} by days since capture</h2>
                   <p>Each cell shows the observed cumulative cohort metric at D0, D1, D3, D7, D14 and D30.</p>
                 </div>
-                <CalendarDays size={16} className="text-slate-400"/>
+                <ExportAnalysisButton filename={`cohorts-${cohortType}-${metricType}`} rows={[
+                  ['Cohort', 'Leads', ...intervals.map(interval => interval.toUpperCase())],
+                  ...cohorts.map((row:any) => [row.cohort, row.size, ...intervals.map(interval => row.metrics?.[interval])]),
+                ]} truncated={cohorts.some((row:any) => row.detailTruncated)} definitions={`${metricLabel[metricType]}; observed cumulative event dates. Missing event timing remains unavailable.`} />
               </header>
 
               {maturationReasons.length > 0 && (
@@ -132,14 +138,14 @@ export default function Cohorts() {
                       <tr key={`${row.cohort}-funnel-${index}`}>
                         <th>{row.cohort}</th>
                         <td>{formatTableNumber(row.size)}</td>
-                        <td>{formatTableNumber(row.delivered||0)} <small>{Number(row.deliveryRate||0).toFixed(1)}%</small></td>
-                        <td>{formatTableNumber(row.called||0)} <small>{Number(row.callCoverage||row.callRate||0).toFixed(1)}%</small></td>
-                        <td>{formatTableNumber(row.rpcs||0)} <small>{Number(row.rpcRate||0).toFixed(1)}%</small></td>
-                        <td>{formatTableNumber(row.sales||0)} <small>{Number(row.saleRate||0).toFixed(1)}%</small></td>
-                        <td>{formatTableNumber(row.billableSales||0)} <small>{Number(row.billableSaleRate||0).toFixed(1)}%</small></td>
-                        <td>{formatTableNumber(row.activations||0)} <small>{Number(row.activationRate||0).toFixed(1)}%</small></td>
-                        <td>{currencyPrefix}{formatTableNumber(row.revenue||0)}</td>
-                        <td>{currencyPrefix}{Number(row.revPerLead||0).toFixed(2)}</td>
+                        <td>{formatTableNumber(row.delivered)} <small>{formatPercent(row.deliveryRate)}</small></td>
+                        <td>{formatTableNumber(row.called)} <small>{formatPercent(row.callCoverage ?? row.callRate)}</small></td>
+                        <td>{formatTableNumber(row.rpcs)} <small>{formatPercent(row.rpcRate)}</small></td>
+                        <td>{formatTableNumber(row.sales)} <small>{formatPercent(row.saleRate)}</small></td>
+                        <td>{formatTableNumber(row.billableSales)} <small>{formatPercent(row.billableSaleRate)}</small></td>
+                        <td>{formatTableNumber(row.activations)} <small>{formatPercent(row.activationRate)}</small></td>
+                        <td>{formatTableCurrency(row.revenue, currencyPrefix)}</td>
+                        <td>{formatTableCurrency(row.revPerLead, currencyPrefix)}</td>
                       </tr>
                     ))}
                   </tbody>

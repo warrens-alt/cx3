@@ -24,3 +24,4 @@ export { getMarketingAttributionAnalytics } from './commercial/attribution';
 export { getAiInsightsAnalytics } from './investigation/aiInsights';
 export { getRawLeads } from './investigation/records';
 export { getLeadTimeline } from './investigation/timeline';
+export { getExceptionAnalytics } from './investigation/exceptions';

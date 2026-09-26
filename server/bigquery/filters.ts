@@ -10,7 +10,7 @@ export class RequestError extends Error {
 const FIELD_TYPES: Record<string, 'string' | 'number' | 'boolean'> = {
   source: 'string', vendor: 'string', medium: 'string', grade: 'string', vetting: 'string',
   lead_id: 'string', consumer_id: 'number', partner: 'string', ror_partner: 'string',
-  cli: 'string', campaign: 'string',
+  cli: 'string', campaign: 'string', channel: 'string', adset: 'string', agent: 'string',
   calls: 'number', total_calls: 'number', routing_depth: 'number', vendor_count: 'number',
   revenue: 'number', total_revenue: 'number', valid_lead: 'boolean', valid_idno: 'boolean',
   phone_valid: 'boolean', is_revetted: 'boolean', delivered: 'boolean', called: 'boolean',

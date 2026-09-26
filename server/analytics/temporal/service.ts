@@ -39,6 +39,14 @@ export async function getTemporalAnalytics(params: OffernetQueryParams) {
       FROM classified
       GROUP BY iso_day, hour_of_day
     ),
+    event_matrix AS (
+      SELECT basis, CAST(FORMAT_TIMESTAMP('%u', event_ts, @tenantTimezone) AS INT64) AS iso_day,
+        CAST(FORMAT_TIMESTAMP('%H', event_ts, @tenantTimezone) AS INT64) AS hour_of_day,
+        COUNT(*) AS volume, COUNTIF(is_dialled) AS dialled, COUNTIF(is_rpc) AS contacted,
+        COUNTIF(is_sale) AS sales, COUNTIF(is_activated) AS activations
+      FROM operational_leads CROSS JOIN UNNEST([STRUCT('Capture' AS basis, fetched_ts AS event_ts), STRUCT('Delivery', delivered_ts), STRUCT('First dial', first_call_ts)])
+      GROUP BY basis, iso_day, hour_of_day
+    ),
     operating_summary AS (
       SELECT
         is_after_hours,
@@ -51,6 +59,7 @@ export async function getTemporalAnalytics(params: OffernetQueryParams) {
     )
     SELECT
       ARRAY(SELECT AS STRUCT * FROM matrix) AS matrix,
+      ARRAY(SELECT AS STRUCT * FROM event_matrix) AS event_matrix,
       ARRAY(SELECT AS STRUCT * FROM operating_summary) AS operating_summary
   `;
 
@@ -102,8 +111,27 @@ export async function getTemporalAnalytics(params: OffernetQueryParams) {
     };
   });
 
+  const evidenceRows = (data.event_matrix || []) as any[];
+  const mapBucket = (label: string, evidence: any[]) => {
+    const sum = (key: string) => evidence.reduce((total, r) => total + Number(r[key] || 0), 0);
+    const volume = sum('volume'), rpc = sum('contacted'), sales = sum('sales'), activations = sum('activations');
+    return { label, volume, rpc, sales, activations, contactRate: metricPercent(rpc,sum('dialled')), saleRate: metricPercent(sales,volume,2), activationRate: metricPercent(activations,sales) };
+  };
+  const timeBases = ['Capture','Delivery','First dial'].map(basis => {
+    const observed = evidenceRows.filter(r => r.basis === basis);
+    return { basis, missingTimestampLeads: observed.filter(r => r.iso_day == null).reduce((n,r) => n+Number(r.volume || 0),0),
+      heatmap: Array.from({length:168},(_, index) => { const day = Math.floor(index/24)+1, hour = index%24;
+        return { ...mapBucket(`${isoDays[day-1]} ${hour}:00`, observed.filter(r => Number(r.iso_day) === day && Number(r.hour_of_day) === hour)), dayIndex:day, dayName:isoDays[day-1], hour }; }),
+      byHour: Array.from({length:24},(_,hour) => mapBucket(`${String(hour).padStart(2,'0')}:00`,observed.filter(r => r.hour_of_day != null && Number(r.hour_of_day) === hour))),
+      byDay: isoDays.map((day,index) => mapBucket(day,observed.filter(r => Number(r.iso_day) === index+1))),
+      weekType: [mapBucket('Weekday',observed.filter(r => Number(r.iso_day) >= 1 && Number(r.iso_day) <= 5)), mapBucket('Weekend',observed.filter(r => Number(r.iso_day) >= 6))],
+    };
+  });
+
   return {
     heatmap,
+    timeBases,
+    methodology: 'All bases use the selected capture cohort, grouped by the recorded event timestamp in tenant timezone. Missing event timestamps are reported separately. These are observed associations, not calling recommendations.',
     peakWindows,
     operatingComparison,
     operatingContext: {

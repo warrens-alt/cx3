@@ -20,6 +20,7 @@ export async function getSourceObservability(params: Pick<OffernetQueryParams, '
     ageHours: number | null;
     rowCount: number | null;
     detail: string;
+    missingTimestampRows?: number;
   }> = [];
 
   const pushFreshness = async (
@@ -41,6 +42,7 @@ export async function getSourceObservability(params: Pick<OffernetQueryParams, '
           SELECT
             MAX(${timestampExpression}) AS latest_record_at,
             COUNT(*) AS row_count,
+            COUNTIF(${timestampExpression} IS NULL) AS missing_timestamp_rows,
             TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), MAX(${timestampExpression}), HOUR) AS age_hours
           FROM \`${table}\` ${tableAlias}
           ${whereSql}
@@ -53,12 +55,13 @@ export async function getSourceObservability(params: Pick<OffernetQueryParams, '
       sources.push({
         key,
         label,
-        status: latest ? 'OBSERVED' : 'EMPTY',
+        status: latest ? 'OBSERVED' : Number(row.row_count || 0) > 0 ? 'TIMESTAMP_UNAVAILABLE' : 'EMPTY',
         table,
         latestRecordAt: latest ? String(latest) : null,
         ageHours,
         rowCount: Number(row.row_count || 0),
-        detail: latest ? 'Freshness is observed directly from the configured source table.' : 'No usable source timestamp was observed.',
+        missingTimestampRows: Number(row.missing_timestamp_rows || 0),
+        detail: latest ? `Freshness is observed across all tenant-owned source rows. ${Number(row.missing_timestamp_rows || 0)} rows have missing, invalid or sentinel timestamps; no freshness SLA is assumed.` : 'No usable source timestamp was observed; physical source rows are still counted.',
       });
     } catch (error) {
       const failure = safeSourceError(error);
@@ -76,6 +79,8 @@ export async function getSourceObservability(params: Pick<OffernetQueryParams, '
   };
 
   const leadScope = buildFilterClause({ clientId: params.clientId }, 'l', '');
+  // Source observability includes rows that cannot be assigned to a capture cohort.
+  leadScope.whereSql = leadScope.whereSql.replace(/l\.fetched NOT LIKE '1900%' AND l\.fetched NOT LIKE '1970%' AND l\.fetched IS NOT NULL/, 'TRUE');
   await pushFreshness(
     'leads',
     'Lead ledger',
@@ -87,7 +92,7 @@ export async function getSourceObservability(params: Pick<OffernetQueryParams, '
   );
 
   const callTable = clientConfig.semanticMappings.tables.calls;
-  const callConditions = [`${validTimestampSql('call_start_date')} IS NOT NULL`];
+  const callConditions = ['TRUE'];
   const callParams: Record<string, any> = {};
   let callOwnershipEstablished = true;
   if (clientConfig.id !== 'default_tenant') {

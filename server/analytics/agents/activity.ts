@@ -21,19 +21,20 @@ export async function getAgentPerformanceAnalytics(params: OffernetQueryParams) 
   const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const clientConfig = getClientConfig(params.clientId);
 
-  if (params.source || params.medium || params.grade || params.campaign) {
+  if (params.source || params.medium || params.grade || params.campaign || params.cli || params.channel || params.adset) {
     throw new RequestError('Agent performance supports date, tenant and vendor scope only until cross-source call joins are validated.', 422);
   }
 
   const conditions = ["user IS NOT NULL AND user != ''"];
-  const queryParams: Record<string, any> = {};
+  const queryParams: Record<string, any> = { agentTimezone: clientConfig.timezone };
+  if (params.agent) { conditions.push('CAST(user AS STRING) = @agent'); queryParams.agent = params.agent; }
 
   if (params.startDate) {
-    conditions.push(`DATE(${validTimestampSql('call_start_date')}) >= @startDate`);
+    conditions.push(`DATE(${validTimestampSql('call_start_date')}, @agentTimezone) >= @startDate`);
     queryParams.startDate = params.startDate;
   }
   if (params.endDate) {
-    conditions.push(`DATE(${validTimestampSql('call_start_date')}) <= @endDate`);
+    conditions.push(`DATE(${validTimestampSql('call_start_date')}, @agentTimezone) <= @endDate`);
     queryParams.endDate = params.endDate;
   }
 
@@ -55,6 +56,7 @@ export async function getAgentPerformanceAnalytics(params: OffernetQueryParams) 
   const query = `
     WITH scoped_calls AS (
       SELECT user AS agent_id, vendor, dialer_lead_id,
+        ${validTimestampSql('call_start_date')} AS call_ts,
         SAFE_CAST(is_rpc AS BOOL) AS rpc_flag,
         SAFE_CAST(is_sale AS BOOL) AS sale_flag,
         SAFE_CAST(is_callback AS BOOL) AS callback_flag,
@@ -68,6 +70,7 @@ export async function getAgentPerformanceAnalytics(params: OffernetQueryParams) 
       FROM scoped_calls
     )
     SELECT
+      d.dimension, d.bucket,
       agent_id,
       vendor,
       COUNT(*) AS total_calls,
@@ -84,13 +87,18 @@ export async function getAgentPerformanceAnalytics(params: OffernetQueryParams) 
       COUNTIF(callback_flag IS NOT NULL) AS callback_observed_calls,
       COUNTIF(callback_flag) AS callbacks_booked
     FROM normalized_calls
-    GROUP BY agent_id, vendor
-    ORDER BY total_calls DESC
-    LIMIT 100
+    CROSS JOIN UNNEST([
+      STRUCT('roster' AS dimension, 'All calls' AS bucket),
+      STRUCT('day' AS dimension, CAST(DATE(call_ts, @agentTimezone) AS STRING) AS bucket),
+      STRUCT('hour' AS dimension, CAST(EXTRACT(HOUR FROM DATETIME(call_ts, @agentTimezone)) AS STRING) AS bucket)
+    ]) d
+    GROUP BY d.dimension, d.bucket, agent_id, vendor
+    QUALIFY ROW_NUMBER() OVER (PARTITION BY d.dimension ORDER BY total_calls DESC, agent_id, vendor, d.bucket) <= 101
+    ORDER BY total_calls DESC, agent_id, vendor, d.bucket
   `;
 
   const [rows] = await client.query({ query, params: queryParams });
-  const agents = rows.map((r: any) => {
+  const mapped = rows.map((r: any) => {
     const calls = Number(r.total_calls || 0);
     const uniqueLeads = Number(r.unique_leads || 0);
     const rpcObserved = measuredNumber(r.rpc_observed_calls);
@@ -107,6 +115,8 @@ export async function getAgentPerformanceAnalytics(params: OffernetQueryParams) 
     const averageSec = durationObserved === calls && calls > 0 ? measuredNumber(r.avg_duration_sec) : null;
 
     return {
+      dimension: r.dimension || 'roster',
+      bucket: r.bucket || 'All calls',
       agentId: r.agent_id,
       vendor: r.vendor,
       totalCalls: calls,
@@ -130,8 +140,16 @@ export async function getAgentPerformanceAnalytics(params: OffernetQueryParams) 
     };
   });
 
+  const agents = mapped.filter(row => row.dimension === 'roster').slice(0, 100);
   return {
     agents,
+    breakdowns: {
+      day: mapped.filter(row => row.dimension === 'day').slice(0, 100),
+      hour: mapped.filter(row => row.dimension === 'hour').slice(0, 100),
+    },
+    scope: { timezone: clientConfig.timezone, dateBasis: 'call_start_date', rowLimitPerDimension: 100,
+      truncated: ['roster', 'day', 'hour'].some(dimension => mapped.filter(row => row.dimension === dimension).length > 100),
+      campaignStatus: 'UNAVAILABLE', campaignReason: 'Campaign grouping requires an approved call-campaign field contract.' },
     metricAvailabilityReason: 'Outcome counts and durations require recorded values for every call in their population. Missing or invalid observations remain unavailable; measured zeroes remain zero. Sales conversion counts sold RPC call rows divided by RPC call rows and requires complete RPC flags and sales flags on those RPC calls.',
     rankingStatus: 'UNAVAILABLE',
     rankingReason: 'Performance tiers are withheld until an approved agent-performance scoring contract exists.'

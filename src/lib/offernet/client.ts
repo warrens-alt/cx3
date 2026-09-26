@@ -21,6 +21,11 @@ import type {
   LeadTimelineData
 } from './types';
 import { fetchOffernetJson, buildQueryString } from './cache';
+import type { ExceptionAnalyticsData } from '../../../contracts/exceptionAnalytics';
+
+export async function fetchExceptions(params: Record<string, any> = {}, forceRefresh = false, signal?: AbortSignal): Promise<ExceptionAnalyticsData> {
+  return fetchOffernetJson<ExceptionAnalyticsData>(`/api/analytics/offernet/exceptions${buildQueryString(params)}`, forceRefresh, signal);
+}
 
 export async function fetchOperatingControls(params: Record<string, any> = {}, forceRefresh = false, signal?: AbortSignal): Promise<OperatingControlsData> {
   return fetchOffernetJson<OperatingControlsData>(`/api/analytics/offernet/operating-controls${buildQueryString(params)}`, forceRefresh, signal);

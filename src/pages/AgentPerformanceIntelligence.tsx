@@ -8,8 +8,14 @@ import { fetchAgentPerformance, type AgentPerformanceData } from '../lib/offerne
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import { downloadCsv, formatPercent, formatRatioPercent, formatTableNumber } from '../lib/formatters';
+import { downloadAnalysisCsv } from '../lib/analysisExport';
 import { sumRecordedValues } from '../lib/metricPresentation';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
+
+type AgentActivityData = AgentPerformanceData & {
+  breakdowns?: { day: Array<AgentPerformanceData['agents'][number] & { bucket: string }>; hour: Array<AgentPerformanceData['agents'][number] & { bucket: string }> };
+  scope?: { timezone: string; truncated: boolean; campaignReason: string };
+};
 
 export default function AgentPerformanceIntelligence() {
   const scoped = useScopedNavigationTarget();
@@ -17,7 +23,7 @@ export default function AgentPerformanceIntelligence() {
   const { startDate, endDate, filters } = useFilters();
   const [search, setSearch] = useState('');
 
-  const { data, loading, error, loadData } = useOperationalData<AgentPerformanceData>('AgentPerformanceIntelligence', {
+  const { data, loading, error, loadData } = useOperationalData<AgentActivityData>('AgentPerformanceIntelligence', {
     clientId: selectedClient,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
@@ -27,13 +33,13 @@ export default function AgentPerformanceIntelligence() {
   const handleExportCsv = () => {
     if (!data) return;
     const rows = [
-      ['Agent', 'Vendor', 'Calls', 'Unique leads', 'RPC', 'RPC rate', 'Sale calls', 'Sold RPC / RPC (%)', 'Talk time', 'Avg handle', 'Callbacks'],
+      ['Agent', 'Vendor', 'Calls', 'Unique leads', 'RPC', 'RPC rate', 'Sale calls', 'Sold RPC / RPC (%)', 'Recorded call duration', 'Avg call duration', 'Callbacks'],
       ...data.agents.map(row => [
         row.agentId, row.vendor, row.totalCalls, row.uniqueLeads, row.contactCount, row.contactRate,
         row.salesCount, row.saleRate, row.totalTalkTime, row.avgHandleTime, row.callbacksBooked,
       ]),
     ];
-    downloadCsv(`agent_activity_${selectedClient}_${startDate || 'all'}_${endDate || 'all'}`, rows);
+    downloadAnalysisCsv(`agent_activity_${selectedClient}_${startDate || 'all'}_${endDate || 'all'}`, rows, { clientId: selectedClient, startDate, endDate, filters, dateBasis: 'call_start_date', definitions: data.metricAvailabilityReason, truncated: data.scope?.truncated });
   };
 
   const filtered = useMemo(() => {
@@ -89,7 +95,7 @@ export default function AgentPerformanceIntelligence() {
                 <div>
                   <span className="cx-command-section-kicker">Roster</span>
                   <h2>Agent activity & outcomes</h2>
-                  <p>Summary totals cover the displayed roster: up to 100 agent/vendor groups with the most calls in the selected scope.</p>
+                  <p>Summary totals cover the displayed roster: up to 100 agent/vendor groups with the most calls in the selected scope. {data.scope?.truncated ? 'Some groups are omitted by the display limit.' : ''}</p>
                   <p>{data.rankingReason} A dash marks unavailable call evidence; recorded zeros remain zero. {data.metricAvailabilityReason}</p>
                 </div>
                 <Users size={16} className="text-slate-400"/>
@@ -115,8 +121,8 @@ export default function AgentPerformanceIntelligence() {
                       <th>RPC / calls</th>
                       <th>Sale calls</th>
                       <th>Sold RPC / RPC</th>
-                      <th>Talk time</th>
-                      <th>Avg handle</th>
+                      <th>Recorded call duration</th>
+                      <th>Avg call duration</th>
                       <th>Callbacks</th>
                     </tr>
                   </thead>
@@ -141,6 +147,16 @@ export default function AgentPerformanceIntelligence() {
               </div>
             </section>
 
+            {data.breakdowns && (['day', 'hour'] as const).map(dimension => <section className="cx-command-panel" key={dimension}>
+              <header><div><h2>Agent activity by {dimension}</h2><p>Call-start {dimension}, {data.scope?.timezone}. Up to 100 groups per dimension; each table is an alternative view of the same calls. Recorded call duration does not include an approved after-call-work duration.</p></div></header>
+              <div className="cx-performance-table-wrap" role="region" aria-label={`Agent activity by ${dimension}`} tabIndex={0}>
+                <table className="cx-performance-table"><thead><tr><th>{dimension}</th><th>Agent</th><th>Vendor</th><th>Calls</th><th>Unique leads</th><th>RPC / call</th><th>Sale / RPC</th><th>Avg call duration</th></tr></thead><tbody>
+                  {data.breakdowns![dimension].map((row, index) => <tr key={`${row.bucket}-${row.agentId}-${row.vendor}-${index}`}><th>{row.bucket ?? 'Unavailable'}</th><td>{row.agentId}</td><td>{row.vendor}</td><td>{formatTableNumber(row.totalCalls)}</td><td>{formatTableNumber(row.uniqueLeads)}</td><td>{formatPercent(row.contactRate)}</td><td>{formatPercent(row.saleRate)}</td><td>{row.avgHandleTime ?? 'Unavailable'}</td></tr>)}
+                  {!data.breakdowns![dimension].length && <tr><td colSpan={8}>No call groups in this scope.</td></tr>}
+                </tbody></table>
+              </div>
+            </section>)}
+            {data.scope?.campaignReason && <p className="text-xs text-slate-500">{data.scope.campaignReason}</p>}
             <section className="cx-command-shortcuts">
               <button type="button" onClick={handleExportCsv}><Download size={16}/><span><strong>Export agent activity</strong><small>Download the scoped roster</small></span></button>
               <Link to={scoped('/cli-performance')}><Users size={16}/><span><strong>CLI performance</strong><small>Inspect outbound caller-ID outcomes</small></span></Link>

@@ -199,14 +199,29 @@ test('time-of-day and after-hours analytics use the tenant timezone and configur
   assert.doesNotMatch(temporal, /EXTRACT\(HOUR FROM SAFE_CAST\(l\.fetched AS TIMESTAMP\)\)/);
 });
 
-test('source and grade funnel analytics include delivery and dial coverage', () => {
-  const funnel = read('server/analytics/funnel/service.ts');
-  const client = readClient();
-  assert.match(funnel, /export async function getFunnelIntelligence/);
-  assert.match(funnel, /by_source AS[\s\S]*delivered_ts IS NOT NULL[\s\S]*first_dial_ts IS NOT NULL/);
-  assert.match(funnel, /by_grade AS[\s\S]*delivered_ts IS NOT NULL[\s\S]*first_dial_ts IS NOT NULL/);
-  assert.match(client, /source: string;[\s\S]*delivered: number;[\s\S]*dialled: number;/);
-  assert.match(client, /grade: string;[\s\S]*delivered: number;[\s\S]*dialled: number;/);
+test('source and grade funnel analytics include delivery and dial coverage from one scoped lead aggregate', async context => {
+  const { getFunnelIntelligence } = await import('../server/analytics/funnel/service');
+  const { getBigQueryClient } = await import('../server/bigquery/client');
+  const { getClientConfig } = await import('../server/bigquery/config');
+  const client = getBigQueryClient(getClientConfig('default_tenant').bigQueryProject);
+  let query = '';
+  context.mock.method(client, 'query', async (request: any) => {
+    query = request.query;
+    assert.equal(request.params.vendor, 'V1');
+    return [[
+      { period:'current', dimension:'all', fetched:10, delivered:8, dialled:4, rpc:2, sales:1, activations:0 },
+      { period:'current', dimension:'source', segment:'Source A', fetched:10, delivered:8, dialled:4, rpc:2, sales:1, activations:0 },
+      { period:'current', dimension:'grade', segment:'Grade A', fetched:10, delivered:8, dialled:4, rpc:2, sales:1, activations:0 },
+    ]] as any;
+  });
+  const result = await getFunnelIntelligence({clientId:'default_tenant',vendor:'V1'});
+  assert.deepEqual(result.bySource, [{source:'Source A',leads:10,delivered:8,dialled:4,contacted:2,sales:1,activations:0}]);
+  assert.deepEqual(result.byGrade, [{grade:'Grade A',leads:10,delivered:8,dialled:4,contacted:2,sales:1,activations:0}]);
+  assert.match(query, /COUNTIF\(is_delivered\) AS delivered/);
+  assert.match(query, /COUNTIF\(is_dialled\) AS dialled/);
+  assert.match(query, /FROM operational_leads/);
+  assert.match(query, /GROUP BY period, dimension, segment/);
+  assert.match(query, /LOWER\(hlc.vendor\) = LOWER\(@vendor\)/);
 });
 
 
@@ -230,7 +245,9 @@ test('CLI analytics never synthesize missing production metrics', () => {
   assert.doesNotMatch(cli, /medianLeadAgeDays:\s*'0\.85'/);
   assert.doesNotMatch(cli, /avgLeadAgeDays[^\n]*'1\.18'/);
   assert.doesNotMatch(cli, /currentCalls \* 0\.94/);
-  assert.match(cli, /return null;\n}\n\n\/\*\* Generate realistic Benchmark/);
+  assert.match(cli, /matchedPeriodWindow\(scope.startDate, scope.endDate\)/);
+  assert.match(cli, /dailyRows.length <= rowLimit && comparisonWindow/);
+  assert.match(cli, /records.some\(record => !record.reportDate\)/);
 });
 
 test('CLI imported reports require observed RPC and sale counts and preserve tenant scope', () => {

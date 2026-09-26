@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BarChart3, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { useClient } from '../lib/ClientContext';
-import { useFilters } from '../lib/FilterContext';
+import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
 import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 import { fetchMarketingRootCause, type MarketingRootCauseData } from '../lib/offernetClient';
 
@@ -37,19 +37,12 @@ export default function MarketingRootCauseDrawer({
     setLoading(true);
     setError(null);
     setData(null);
-    const campaignFilter = filters.campaign;
-    const campaign = campaignFilter?.operator === 'in'
-      ? String(campaignFilter.values?.[0] || '')
-      : campaignFilter?.operator === 'equals'
-        ? String(campaignFilter.value || '')
-        : '';
-
     fetchMarketingRootCause({
       clientId: selectedClient,
       startDate,
       endDate,
       metric,
-      campaign: campaign || undefined,
+      ...extractOffernetFilters(filters),
     })
       .then(result => { if (!cancelled) setData(result); })
       .catch(err => { if (!cancelled) setError(err?.message || 'Failed to explain media change'); })

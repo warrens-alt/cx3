@@ -1,3 +1,6 @@
+import OverviewCommercialPanel from '../components/OverviewCommercialPanel';
+import type { LifecycleExtension } from '../../contracts/lifecycleAnalytics';
+import { MatchedPeriodPanel } from '../components/LifecycleDiagnostics';
 import { useOperationalData } from '../lib/useOperationalData';
 import React, { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -87,7 +90,7 @@ export default function ExecutiveOverview() {
   const [searchParams] = useSearchParams();
   const [rootMetric, setRootMetric] = useState<RootMetric | null>(null);
 
-  const { data, loading, error, loadData } = useOperationalData<OverviewData>('ExecutiveOverview', {
+  const { data, loading, error, loadData } = useOperationalData<OverviewData & LifecycleExtension & { revenueEvidence?: { missingLeadValues:number; basis:string }; contactEvidence?: { zeroCallLeads:number;oneCallLeads:number;oneCallShare:number|null;multiCallShare:number|null;fivePlusNoRpc:number;medianCaptureToDial:string;p90CaptureToDial:string;within30m:number|null;within60m:number|null;backlogOver15m:number;backlogOver30m:number;backlogOver6h:number;backlogOver12h:number;awaitingActivation:number;activationOver3d:number;activationOver7d:number;activationOver30d:number } }>('ExecutiveOverview', {
     clientId: selectedClient,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
@@ -147,6 +150,7 @@ export default function ExecutiveOverview() {
         {error && <OperationalError message={error} onRetry={() => { void loadData(true); }} retrying={loading} />}
         {loading && !data && <OverviewSkeleton />}
         {loading && data && <p className="cx-view-updating" role="status">Updating this overview…</p>}
+
 
         {data && (
           <>
@@ -290,6 +294,23 @@ export default function ExecutiveOverview() {
                 <DeferredOverviewTrend data={data.dailyTrends} />
               </section>
             </div>
+
+        {data?.lifecycle && <MatchedPeriodPanel data={data.lifecycle} />}
+        {data?.contactEvidence && <section className="cx-command-panel"><header><div><h2>Contact effort, speed and fulfilment</h2><p>Recorded call counters are distinct from missing counters. SLA percentages use delivered leads; call shares use dialled leads. Each call average requires recorded counters for all leads in its stated denominator.</p></div></header><div className="cx-performance-table-wrap"><table className="cx-performance-table"><thead><tr><th>Measure</th><th>Observed value</th></tr></thead><tbody>
+          <tr><th>Capture → first dial median / P90</th><td>{data.contactEvidence.medianCaptureToDial} / {data.contactEvidence.p90CaptureToDial}</td></tr>
+          <tr><th>Dialled within 30m / 60m of delivery</th><td>{formatPercent(data.contactEvidence.within30m)} / {formatPercent(data.contactEvidence.within60m)}</td></tr>
+          <tr><th>Zero-call leads / one-call leads</th><td>{fmt(data.contactEvidence.zeroCallLeads)} / {fmt(data.contactEvidence.oneCallLeads)}</td></tr>
+          <tr><th>One-call / multi-call share</th><td>{formatPercent(data.contactEvidence.oneCallShare)} / {formatPercent(data.contactEvidence.multiCallShare)}</td></tr>
+          <tr><th>Average recorded calls / lead</th><td>{fmt(data.kpis.callsPerLead)}</td></tr>
+          <tr><th>Average recorded calls / dialled lead</th><td>{fmt(data.kpis.callsPerDialledLead)}</td></tr>
+          <tr><th>Recorded sale / RPC · activation / sale</th><td>{formatPercent(data.kpis.contactToSaleRate)} / {formatPercent(data.kpis.activationRate)}</td></tr>
+          <tr><th>5+ calls with explicit no RPC</th><td>{fmt(data.contactEvidence.fivePlusNoRpc)}</td></tr>
+          <tr><th>Undialled backlog &gt;15m / &gt;30m / &gt;6h / &gt;12h</th><td>{fmt(data.contactEvidence.backlogOver15m)} / {fmt(data.contactEvidence.backlogOver30m)} / {fmt(data.contactEvidence.backlogOver6h)} / {fmt(data.contactEvidence.backlogOver12h)}</td></tr>
+          <tr><th>Sales awaiting activation</th><td>{fmt(data.contactEvidence.awaitingActivation)}</td></tr>
+          <tr><th>Awaiting activation &gt;3d / &gt;7d / &gt;30d</th><td>{fmt(data.contactEvidence.activationOver3d)} / {fmt(data.contactEvidence.activationOver7d)} / {fmt(data.contactEvidence.activationOver30d)}</td></tr>
+        </tbody></table></div></section>}
+        {data?.revenueEvidence && <p className="cx-control-note">{data.revenueEvidence.basis} {fmt(data.revenueEvidence.missingLeadValues)} lead values are missing.</p>}
+        {data && <OverviewCommercialPanel />}
 
             <section className="cx-command-shortcuts" aria-label="Analysis shortcuts">
               <Link to={scoped('/speed-to-lead')}><Clock3 size={16} /><span><strong>Contact</strong><small>Latency, cohorts and call strategy</small></span><ArrowRight size={14} /></Link>

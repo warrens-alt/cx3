@@ -13,6 +13,8 @@ import { useFilters, extractOffernetFilters, singleFilterValue } from '../lib/Fi
 import { useClient } from '../lib/ClientContext';
 import { fetchRawLeads, fetchLeadTimeline, type RawLeadsData, type LeadTimelineData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
+import { formatCurrency, formatTableNumber } from '../lib/formatters';
+import { downloadAnalysisCsv } from '../lib/analysisExport';
 import { downloadCsv } from '../lib/formatters';
 import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 import { useOperationalData } from '../lib/useOperationalData';
@@ -28,6 +30,12 @@ const DRILL_LABELS: Record<string, string> = {
   'lead-age': 'First-dial age cohort',
   'high-attempt-no-rpc': '5+ recorded calls without RPC',
   'one-call-only': 'Exactly one recorded call',
+  'waiting-over-hour': 'Delivered leads waiting longer than one hour',
+  'zero-call-leads': 'Zero recorded calls',
+  'sales-awaiting-activation': 'All sales awaiting activation',
+  'missing-source': 'Missing source', 'missing-vendor': 'Missing vendor', 'missing-grade': 'Missing grade',
+  'invalid-timestamps': 'Out-of-order lifecycle timestamps',
+  'delivery-age': 'Delivery to first dial age cohort',
 };
 
 const FUNNEL_LABELS: Record<string, string> = {
@@ -126,21 +134,21 @@ export default function LeadExplorerIntelligence() {
 
   const handleExportCsv = () => {
     if (!data?.rows.length) return;
-    const headers = ['Lead ID', 'Consumer ID', 'Fetched', 'Source', 'Vendor', 'Grade', 'Dialled', 'RPC', 'Sale', 'Activated', 'Revenue'];
+    const headers = ['Lead ID', 'Consumer ID', 'Fetched', 'Source', 'Vendor', 'Grade', 'Delivered', 'First dial', 'Calls', 'Latest disposition', 'Dialled', 'RPC', 'Sale', 'Activated', 'Revenue'];
     const rows = data.rows.map(row => [
       row.lead_id,
       row.consumer_id,
       row.fetched,
       row.source,
       row.vendor,
-      row.grade,
+      row.grade, row.delivered_time, row.first_call_time, row.total_calls, row.last_dialer_status,
       row.dialled ? 'Yes' : 'No',
-      row.contacted ? 'Yes' : 'No',
+      row.contacted == null ? 'Unavailable' : row.contacted ? 'Yes' : 'No',
       row.sale ? 'Yes' : 'No',
       row.activated ? 'Yes' : 'No',
       row.revenue,
     ]);
-    downloadCsv(`lead_records_${selectedClient}_p${page + 1}`, [headers, ...rows]);
+    downloadAnalysisCsv(`lead_records_${selectedClient}_p${page + 1}`, [headers, ...rows], { clientId: selectedClient, startDate, endDate, filters: { ...filters, drill, drillValue, search: appliedSearch }, definitions: 'Administrator record export. Current page only; one row per scoped lead.', truncated: true });
   };
 
   const shownStart = data?.rows.length ? page * pageSize + 1 : 0;
@@ -209,7 +217,7 @@ export default function LeadExplorerIntelligence() {
                     <th>Vendor</th>
                     <th>Source</th>
                     <th>Grade</th>
-                    <th>First dial</th>
+                    <th>Delivered</th><th>First dial</th><th>Calls</th><th>Disposition</th><th>Revenue</th>
                     <th>RPC</th>
                     <th>Sale</th>
                     <th>Activated</th>
@@ -225,8 +233,8 @@ export default function LeadExplorerIntelligence() {
                       <td>{row.vendor || '—'}</td>
                       <td>{row.source || '—'}</td>
                       <td>{row.grade || '—'}</td>
-                      <td>{row.first_call_time || '—'}</td>
-                      <td>{row.contacted ? 'Yes' : 'No'}</td>
+                      <td>{row.delivered_time || '—'}</td><td>{row.first_call_time || '—'}</td><td>{formatTableNumber(row.total_calls)}</td><td>{row.last_dialer_status || 'Unavailable'}</td><td>{formatCurrency(row.revenue)}</td>
+                      <td>{row.contacted == null ? 'Unavailable' : row.contacted ? 'Yes' : 'No'}</td>
                       <td>{row.sale ? 'Yes' : 'No'}</td>
                       <td>{row.activated ? 'Yes' : 'No'}</td>
                       <td>
@@ -237,7 +245,7 @@ export default function LeadExplorerIntelligence() {
                     </tr>
                   ))}
                   {!loading && data && data.rows.length === 0 && (
-                    <tr><td colSpan={11}><div className="cx-command-empty"><Search size={17} />No records match this investigation and reporting scope.</div></td></tr>
+                    <tr><td colSpan={15}><div className="cx-command-empty"><Search size={17} />No records match this investigation and reporting scope.</div></td></tr>
                   )}
                 </tbody>
               </table>
@@ -273,6 +281,7 @@ export default function LeadExplorerIntelligence() {
                   <div><span>Source</span><strong>{timelineData.source || '—'}</strong></div>
                   <div><span>Grade</span><strong>{timelineData.grade || '—'}</strong></div>
                 </div>
+                <p className="text-xs text-slate-500">{timelineData.callEvidence?.reason} {timelineData.callEvidence?.status}</p>
                 <div className="cx-timeline-events">
                   {timelineData.events.map((event, index) => (
                     <article key={`${event.stage}-${event.timestamp}-${index}`}>

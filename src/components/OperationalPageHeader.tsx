@@ -1,6 +1,7 @@
 import React from 'react';
 import { Info } from 'lucide-react';
 import { statusLabel as readableStatus } from '../lib/statusPresentation';
+import AnalyticsDefinitions from './AnalyticsDefinitions';
 
 export default function OperationalPageHeader({
   title,
@@ -24,6 +25,7 @@ export default function OperationalPageHeader({
       </div>
       <div className="cx-operational-page-actions">
         {actions}
+        <AnalyticsDefinitions />
         <div className="cx-trust-pill" role="note" aria-label={`${statusLabel}: ${readableStatus(status)}`}>
           <Info size={15} aria-hidden="true" />
           <span>

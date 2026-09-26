@@ -9,6 +9,9 @@ export interface OffernetQueryParams {
   grade?: string;
   agent?: string;
   campaign?: string;
+  channel?: string;
+  adset?: string;
+  cli?: string;
   search?: string;
   drill?: string;
   drillValue?: string;

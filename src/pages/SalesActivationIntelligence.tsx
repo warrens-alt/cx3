@@ -1,3 +1,5 @@
+import { downloadAnalysisCsv } from '../lib/analysisExport';
+import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import { useOperationalData } from '../lib/useOperationalData';
 import React from 'react';
 import { AlertTriangle, ArrowRight, Clock3, DollarSign, Download, PackageCheck } from 'lucide-react';
@@ -7,7 +9,7 @@ import { useClient } from '../lib/ClientContext';
 import { fetchSalesActivation, type SalesActivationData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
-import { downloadCsv, formatPercent, formatRatioPercent, formatTableCurrency, formatTableNumber } from '../lib/formatters';
+import { formatPercent, formatRatioPercent, formatTableCurrency, formatTableNumber } from '../lib/formatters';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { ActivationAgeingPanel } from '../components/OfferNetControlPanels';
@@ -20,7 +22,7 @@ export default function SalesActivationIntelligence() {
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
 
-  const { data, loading, error, loadData } = useOperationalData<SalesActivationData>('SalesActivationIntelligence', {
+  const { data, loading, error, loadData } = useOperationalData<Omit<SalesActivationData, 'reconciliation'> & { reconciliation: SalesActivationData['reconciliation'] & { salesWithRecordedRevenue?: number; medianTimeToSale?: string; medianTimeToActivation?: string }; bySource?: Array<{segment:string;sales:number;activations:number;revenue:number|null}>; byGrade?: Array<{segment:string;sales:number;activations:number;revenue:number|null}>; activationAgeing?: Array<{bucket:string;sales:number}>; revenueEvidence?: string; segmentMethodology?: string }>('SalesActivationIntelligence', {
     clientId: selectedClient,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
@@ -39,7 +41,7 @@ export default function SalesActivationIntelligence() {
         row.revenue,
       ]),
     ];
-    downloadCsv(`sales_activation_${selectedClient}_${startDate || 'all'}_${endDate || 'all'}`, rows);
+    downloadAnalysisCsv(`sales_activation_${selectedClient}_${startDate || 'all'}_${endDate || 'all'}`, rows, { clientId: selectedClient, startDate, endDate, filters, validationStatus: 'NOT_VERIFIED' });
   };
 
   return (
@@ -71,8 +73,8 @@ export default function SalesActivationIntelligence() {
               </article>
               <article className="cx-command-metric">
                 <span>Sales with revenue</span>
-                <strong>{formatTableNumber(data.reconciliation?.billableSales)}</strong>
-                <div><small>{formatTableNumber(data.reconciliation?.unbilledSales)} sales without recorded revenue</small></div>
+                <strong>{formatTableNumber(data.reconciliation?.salesWithRecordedRevenue ?? data.reconciliation?.billableSales)}</strong>
+                <div><small>{formatTableNumber(data.reconciliation?.unrecordedRevenueSales)} sales missing revenue; {formatTableNumber(data.reconciliation?.unbilledSales)} recorded zero</small></div>
               </article>
               <article className="cx-command-metric">
                 <span>Recorded activations</span>
@@ -99,7 +101,7 @@ export default function SalesActivationIntelligence() {
                 <div className="cx-outcome-latency">
                   <div><span>Average time to sale</span><strong>{data.reconciliation.avgTimeToSale}</strong></div>
                   <ArrowRight size={16}/>
-                  <div><span>Average sale → activation</span><strong>{data.reconciliation.avgTimeToActivation}</strong></div>
+                  <div><span>Average sale → activation</span><strong>{data.reconciliation.avgTimeToActivation}</strong></div><div><span>Median capture → sale</span><strong>{data.reconciliation.medianTimeToSale || '—'}</strong></div><div><span>Median sale → activation</span><strong>{data.reconciliation.medianTimeToActivation || '—'}</strong></div>
                 </div>
               </section>
 
@@ -133,6 +135,10 @@ export default function SalesActivationIntelligence() {
             </div>
 
             {controls.data && <ActivationAgeingPanel data={controls.data} />}
+            {data.revenueEvidence && <p className="cx-control-note">{data.revenueEvidence}</p>}
+            {data.activationAgeing && <section className="cx-command-panel"><header><div><h2>Sales awaiting activation by completed age</h2><p>Non-overlapping cohorts from the recorded sale timestamp.</p></div></header><div className="cx-performance-table-wrap"><table className="cx-performance-table"><thead><tr><th>Age</th><th>Sales</th></tr></thead><tbody>{data.activationAgeing.map(r => <tr key={r.bucket}><th>{r.bucket}</th><td>{formatTableNumber(r.sales)}</td></tr>)}</tbody></table></div></section>}
+            {([['Source',data.bySource],['Grade',data.byGrade]] as const).map(([dimension, rows]) => rows && <section className="cx-command-panel" key={dimension}><header><div><h2>{dimension} outcomes</h2><p>{data.segmentMethodology}</p></div><ExportAnalysisButton filename={`sales_activation_${dimension}`} rows={[[dimension,'Sales','Activations','Recorded revenue'], ...rows.map(r => [r.segment,r.sales,r.activations,r.revenue])]} definitions={[data.segmentMethodology || 'Recorded outcomes']} /></header><div className="cx-performance-table-wrap"><table className="cx-performance-table"><thead><tr><th>{dimension}</th><th>Sales</th><th>Activations</th><th>Activation / sale</th><th>Recorded revenue</th><th>Revenue / sale</th></tr></thead><tbody>{rows.map(r => <tr key={r.segment}><th>{r.segment}</th><td>{formatTableNumber(r.sales)}</td><td>{formatTableNumber(r.activations)}</td><td>{formatRatioPercent(r.activations,r.sales)}</td><td>{money(r.revenue)}</td><td>{r.revenue != null && r.sales > 0 ? money(r.revenue/r.sales) : '—'}</td></tr>)}</tbody></table></div></section>)}
+
 
             <section className="cx-command-panel">
               <header>
@@ -162,7 +168,7 @@ export default function SalesActivationIntelligence() {
                         <td>{formatTableNumber(row.activations)}</td>
                         <td>{formatRatioPercent(row.activations, row.sales)}</td>
                         <td>{money(row.revenue)}</td>
-                        <td>{row.sales > 0 ? money(row.revenue / row.sales) : '—'}</td>
+                        <td>{row.sales > 0 && row.revenue != null ? money(row.revenue / row.sales) : '—'}</td>
                       </tr>
                     ))}
                   </tbody>

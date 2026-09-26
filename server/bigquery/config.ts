@@ -431,6 +431,10 @@ function configuredMarketingAttribution(tenantId: string): MarketingAttributionC
   const leadCampaignField = typeof entry.leadCampaignField === 'string' && entry.leadCampaignField.trim()
     ? entry.leadCampaignField.trim()
     : undefined;
+  if (Boolean(marketingCampaignField) !== Boolean(leadCampaignField)) throw new Error(`CX_MARKETING_ATTRIBUTION_JSON.${tenantId} requires both campaign fields when either is supplied`);
+  for (const field of [marketingCampaignField, leadCampaignField].filter(Boolean)) {
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(field!)) throw new Error(`Invalid attribution campaign field for ${tenantId}`);
+  }
   return {
     status: 'ACTIVE',
     marketingSourceField,
@@ -457,8 +461,21 @@ export function getClientConfig(clientId: string): TenantConfiguration {
   const configuredAttribution = configuredMarketingAttribution(tenant.id);
   if (!tenant.marketing) return tenant;
 
+  let spendField: string | undefined;
+  if (process.env.CX_MARKETING_SPEND_FIELD_JSON) {
+    let mapping: unknown;
+    try { mapping = JSON.parse(process.env.CX_MARKETING_SPEND_FIELD_JSON); } catch { throw new Error('CX_MARKETING_SPEND_FIELD_JSON must be valid JSON'); }
+    if (!mapping || typeof mapping !== 'object' || Array.isArray(mapping)) throw new Error('CX_MARKETING_SPEND_FIELD_JSON must be an object keyed by tenant ID');
+    const selection = (mapping as Record<string, unknown>)[tenant.id];
+    if (selection !== undefined) {
+      if (typeof selection !== 'string' || !tenant.marketing.approvedSpendFields.includes(selection)) throw new Error(`CX_MARKETING_SPEND_FIELD_JSON.${tenant.id} must select one already approved observed-spend field`);
+      spendField = selection;
+    }
+  }
+
   const marketing = {
     ...tenant.marketing,
+    ...(spendField ? { approvedSpendFields: [spendField] } : {}),
     ...(tenant.marketing.mappingStatus !== 'MASTER' && configuredNames !== null
       ? {
           mappingStatus: configuredNames.length ? 'MAPPED' as const : 'UNRESOLVED' as const,

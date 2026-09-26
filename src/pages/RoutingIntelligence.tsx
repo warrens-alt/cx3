@@ -3,12 +3,16 @@ import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, GitBranch, GitFork, Ro
 import { Link } from 'react-router-dom';
 import { useAnalyticsData } from '../lib/useAnalyticsData';
 import { useClient } from '../lib/ClientContext';
+import { useAuth } from '../lib/AuthContext';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
+import ExportAnalysisButton from '../components/ExportAnalysisButton';
+import { formatPercent, formatTableNumber, formatTableCurrency } from '../lib/formatters';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 
 export default function RoutingIntelligence() {
   const scoped = useScopedNavigationTarget();
+  const { isAdmin } = useAuth();
   const { clientConfig } = useClient();
   const currency = clientConfig?.currency === 'GBP' ? '£' : clientConfig?.currency === 'USD' ? '$' : 'R ';
   const { data, loading, error, refetch } = useAnalyticsData('routing');
@@ -34,17 +38,20 @@ export default function RoutingIntelligence() {
           return (
             <>
               <section className="cx-command-metrics cx-routing-metrics">
-                <article className="cx-command-metric"><span>Routed leads</span><strong>{Number(overview.total_routed_leads || 0).toLocaleString()}</strong><div><small>{Number(overview.routed_lead_share_pct || 0).toFixed(1)}% of captured leads</small></div></article>
-                <article className="cx-command-metric"><span>Average route depth</span><strong>{Number(overview.avg_routing_depth || 0).toFixed(2)}</strong><div><small>Partners per routed lead</small></div></article>
-                <article className="cx-command-metric"><span>Multi-route leads</span><strong>{Number(overview.multi_route_leads || 0).toLocaleString()}</strong><div><small>Cascaded beyond one route</small></div></article>
-                <article className="cx-command-metric"><span>Matched handoff</span><strong>{Number(overview.handoff_rate_pct || 0).toFixed(1)}%</strong><div><small>{Number(overview.missing_handoff_leads || 0).toLocaleString()} unmatched</small></div></article>
-                <article className="cx-command-metric"><span>Recorded route revenue</span><strong>{currency}{Number(overview.routed_revenue || 0).toLocaleString(undefined,{maximumFractionDigits:0})}</strong><div><small>Source-recorded value only</small></div></article>
+                <article className="cx-command-metric"><span>Routed leads</span><strong>{formatTableNumber(overview.total_routed_leads)}</strong><div><small>{formatPercent(overview.routed_lead_share_pct)} of captured leads</small></div></article>
+                <article className="cx-command-metric"><span>Average route depth</span><strong>{overview.avg_routing_depth == null ? '—' : Number(overview.avg_routing_depth).toFixed(2)}</strong><div><small>Partners per routed lead</small></div></article>
+                <article className="cx-command-metric"><span>Multi-route leads</span><strong>{formatTableNumber(overview.multi_route_leads)}</strong><div><small>Cascaded beyond one route</small></div></article>
+                <article className="cx-command-metric"><span>Matched handoff</span><strong>{formatPercent(overview.handoff_rate_pct)}</strong><div><small>{formatTableNumber(overview.missing_handoff_leads)} unmatched</small></div></article>
+                <article className="cx-command-metric"><span>Recorded route revenue</span><strong>{formatTableCurrency(overview.routed_revenue, currency)}</strong><div><small>Source-recorded value only</small></div></article>
               </section>
 
               <section className="cx-command-panel">
                 <header>
                   <div><span className="cx-command-section-kicker">Depth</span><h2>Routing depth outcomes</h2><p>Lead-level distinct populations by the number of routing partners involved.</p></div>
-                  <Route size={16} className="text-slate-400"/>
+                  <ExportAnalysisButton filename="routing-depth" rows={[
+                  ['Depth', 'Leads', 'Handoff %', 'Delivery %', 'Dial %', 'Sale %', 'Recorded revenue'],
+                  ...depthBreakdown.map((row:any) => [row.depth_bucket, row.leads, row.handoff_rate_pct, row.delivery_rate_pct, row.call_rate_pct, row.sale_rate_pct, row.total_revenue]),
+                ]} definitions="Distinct lead outcomes grouped by observed routing depth. Revenue is recorded source value." />
                 </header>
                 <div className="cx-performance-table-wrap">
                   <table className="cx-performance-table cx-routing-table">
@@ -52,15 +59,15 @@ export default function RoutingIntelligence() {
                     <tbody>
                       {depthBreakdown.map((row:any,index:number)=><tr key={`${row.depth_bucket}-${index}`}>
                         <th>{row.depth_bucket}</th>
-                        <td>{Number(row.leads||0).toLocaleString()}</td>
-                        <td>{Number(row.lead_share_pct||0).toFixed(1)}%</td>
-                        <td>{Number(row.handoff_rate_pct||0).toFixed(1)}%</td>
-                        <td>{Number(row.delivery_rate_pct||0).toFixed(1)}%</td>
-                        <td>{Number(row.call_rate_pct||0).toFixed(1)}%</td>
-                        <td>{Number(row.sale_rate_pct||0).toFixed(1)}%</td>
-                        <td>{Number(row.billable_sale_rate_pct||0).toFixed(1)}%</td>
-                        <td>{currency}{Number(row.total_revenue||0).toLocaleString(undefined,{maximumFractionDigits:0})}</td>
-                        <td>{currency}{Number(row.rev_per_lead||0).toFixed(2)}</td>
+                        <td>{formatTableNumber(row.leads)}</td>
+                        <td>{formatPercent(row.lead_share_pct)}</td>
+                        <td>{formatPercent(row.handoff_rate_pct)}</td>
+                        <td>{formatPercent(row.delivery_rate_pct)}</td>
+                        <td>{formatPercent(row.call_rate_pct)}</td>
+                        <td>{formatPercent(row.sale_rate_pct)}</td>
+                        <td>{formatPercent(row.billable_sale_rate_pct)}</td>
+                        <td>{formatTableCurrency(row.total_revenue, currency)}</td>
+                        <td>{formatTableCurrency(row.rev_per_lead, currency)}</td>
                       </tr>)}
                     </tbody>
                   </table>
@@ -83,10 +90,10 @@ export default function RoutingIntelligence() {
                         ))}
                       </div>
                       <dl>
-                        <div><dt>Leads</dt><dd>{Number(row.leads||0).toLocaleString()}</dd></div>
-                        <div><dt>Delivery</dt><dd>{Number(row.deliv_pct||0).toFixed(1)}%</dd></div>
-                        <div><dt>Sale</dt><dd>{Number(row.sale_pct||0).toFixed(1)}%</dd></div>
-                        <div><dt>Revenue / lead</dt><dd>{currency}{Number(row.rev_per_lead||0).toFixed(2)}</dd></div>
+                        <div><dt>Leads</dt><dd>{formatTableNumber(row.leads)}</dd></div>
+                        <div><dt>Delivery</dt><dd>{formatPercent(row.deliv_pct)}</dd></div>
+                        <div><dt>Sale</dt><dd>{formatPercent(row.sale_pct)}</dd></div>
+                        <div><dt>Revenue / lead</dt><dd>{formatTableCurrency(row.rev_per_lead, currency)}</dd></div>
                       </dl>
                     </article>
                   ))}
@@ -103,15 +110,15 @@ export default function RoutingIntelligence() {
                     <thead><tr><th>Partner</th><th>Routed</th><th>First route</th><th>Cascade</th><th>Avg delay</th><th>Matched handoff</th><th>Handoff rate</th><th>Delivery</th><th>Revenue-matched sale</th><th>Recorded revenue</th></tr></thead>
                     <tbody>{partnerHandoff.map((row:any,index:number)=><tr key={`${row.partner}-${index}`}>
                       <th>{row.partner}</th>
-                      <td>{Number(row.routed_leads||0).toLocaleString()}</td>
-                      <td>{Number(row.first_route_leads||0).toLocaleString()}</td>
-                      <td>{Number(row.cascade_route_leads||0).toLocaleString()}</td>
+                      <td>{formatTableNumber(row.routed_leads)}</td>
+                      <td>{formatTableNumber(row.first_route_leads)}</td>
+                      <td>{formatTableNumber(row.cascade_route_leads)}</td>
                       <td>{row.avg_cascade_delay_sec==null?'—':`${Number(row.avg_cascade_delay_sec).toFixed(0)}s`}</td>
-                      <td>{Number(row.handoff_leads||0).toLocaleString()}</td>
-                      <td>{Number(row.handoff_rate_pct||0).toFixed(1)}%</td>
-                      <td>{Number(row.delivery_rate_pct||0).toFixed(1)}%</td>
-                      <td>{Number(row.billable_sale_rate_pct||0).toFixed(1)}%</td>
-                      <td>{currency}{Number(row.total_revenue||0).toLocaleString(undefined,{maximumFractionDigits:0})}</td>
+                      <td>{formatTableNumber(row.handoff_leads)}</td>
+                      <td>{formatPercent(row.handoff_rate_pct)}</td>
+                      <td>{formatPercent(row.delivery_rate_pct)}</td>
+                      <td>{formatPercent(row.billable_sale_rate_pct)}</td>
+                      <td>{formatTableCurrency(row.total_revenue, currency)}</td>
                     </tr>)}</tbody>
                   </table>
                 </div>
@@ -122,7 +129,7 @@ export default function RoutingIntelligence() {
                   <div><span className="cx-command-section-kicker">Exceptions</span><h2>Routing records without matched transactions</h2><p>These records need investigation; absence from this sample is not evidence of complete reconciliation.</p></div>
                   <AlertTriangle size={16} className="text-slate-400"/>
                 </header>
-                {missingSample.length ? (
+                {!isAdmin ? <div className="cx-command-empty">Individual routing records require administrator access.</div> : missingSample.length ? (
                   <div className="cx-performance-table-wrap">
                     <table className="cx-performance-table">
                       <thead><tr><th>Lead</th><th>Consumer</th><th>Partner</th><th>Route sequence</th><th>Source / medium</th><th>Route timestamp</th></tr></thead>

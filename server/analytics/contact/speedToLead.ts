@@ -30,26 +30,32 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
       FROM operational_leads
     ),
     cohorts AS (
-      SELECT 
-        CASE 
+      SELECT
+        CASE
+          WHEN NOT is_dialled THEN 'Undialled'
+          WHEN capture_to_first_dial_sec IS NULL OR capture_to_first_dial_sec < 0 THEN 'Invalid / unrecorded timing'
           WHEN capture_to_first_dial_sec <= 300 THEN '0–5 min'
           WHEN capture_to_first_dial_sec <= 900 THEN '5–15 min'
           WHEN capture_to_first_dial_sec <= 1800 THEN '15–30 min'
           WHEN capture_to_first_dial_sec <= 3600 THEN '30–60 min'
-          WHEN capture_to_first_dial_sec <= 21600 THEN '1–6 hrs'
+          WHEN capture_to_first_dial_sec <= 10800 THEN '1–3 hrs'
+          WHEN capture_to_first_dial_sec <= 21600 THEN '3–6 hrs'
           WHEN capture_to_first_dial_sec <= 43200 THEN '6–12 hrs'
           WHEN capture_to_first_dial_sec <= 86400 THEN '12–24 hrs'
           ELSE '24+ hrs'
         END as age_cohort,
-        CASE 
+        CASE
+          WHEN NOT is_dialled THEN 10
+          WHEN capture_to_first_dial_sec IS NULL OR capture_to_first_dial_sec < 0 THEN 11
           WHEN capture_to_first_dial_sec <= 300 THEN 1
           WHEN capture_to_first_dial_sec <= 900 THEN 2
           WHEN capture_to_first_dial_sec <= 1800 THEN 3
           WHEN capture_to_first_dial_sec <= 3600 THEN 4
-          WHEN capture_to_first_dial_sec <= 21600 THEN 5
-          WHEN capture_to_first_dial_sec <= 43200 THEN 6
-          WHEN capture_to_first_dial_sec <= 86400 THEN 7
-          ELSE 8
+          WHEN capture_to_first_dial_sec <= 10800 THEN 5
+          WHEN capture_to_first_dial_sec <= 21600 THEN 6
+          WHEN capture_to_first_dial_sec <= 43200 THEN 7
+          WHEN capture_to_first_dial_sec <= 86400 THEN 8
+          ELSE 9
         END as sort_order,
         COUNT(DISTINCT lead_id) as leads,
         COUNTIF(is_dialled) AS dialled,
@@ -57,12 +63,11 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
         COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) as sales,
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) as activations
       FROM stage_timings
-      WHERE capture_to_first_dial_sec >= 0
       GROUP BY 1, 2
       ORDER BY sort_order ASC
     ),
     after_hours AS (
-      SELECT 
+      SELECT
         is_after_hours,
         COUNT(DISTINCT lead_id) as leads,
         COUNTIF(is_dialled) AS dialled,
@@ -74,33 +79,41 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
       GROUP BY is_after_hours
     ),
     percentiles AS (
-      SELECT 
+      SELECT
         -- Stage 1: Capture -> Fetch
         ROUND(AVG(CASE WHEN capture_to_fetch_sec >= 0 THEN capture_to_fetch_sec END), 0) as avg_cap_fetch,
         APPROX_QUANTILES(CASE WHEN capture_to_fetch_sec >= 0 THEN capture_to_fetch_sec END, 100)[OFFSET(50)] as med_cap_fetch,
         APPROX_QUANTILES(CASE WHEN capture_to_fetch_sec >= 0 THEN capture_to_fetch_sec END, 100)[OFFSET(75)] as p75_cap_fetch,
         APPROX_QUANTILES(CASE WHEN capture_to_fetch_sec >= 0 THEN capture_to_fetch_sec END, 100)[OFFSET(90)] as p90_cap_fetch,
+        APPROX_QUANTILES(CASE WHEN capture_to_fetch_sec >= 0 THEN capture_to_fetch_sec END, 100)[OFFSET(95)] as p95_cap_fetch,
 
         -- Stage 2: Fetch -> Delivery
         ROUND(AVG(CASE WHEN fetch_to_delivery_sec >= 0 THEN fetch_to_delivery_sec END), 0) as avg_fetch_deliv,
         APPROX_QUANTILES(CASE WHEN fetch_to_delivery_sec >= 0 THEN fetch_to_delivery_sec END, 100)[OFFSET(50)] as med_fetch_deliv,
         APPROX_QUANTILES(CASE WHEN fetch_to_delivery_sec >= 0 THEN fetch_to_delivery_sec END, 100)[OFFSET(75)] as p75_fetch_deliv,
         APPROX_QUANTILES(CASE WHEN fetch_to_delivery_sec >= 0 THEN fetch_to_delivery_sec END, 100)[OFFSET(90)] as p90_fetch_deliv,
+        APPROX_QUANTILES(CASE WHEN fetch_to_delivery_sec >= 0 THEN fetch_to_delivery_sec END, 100)[OFFSET(95)] as p95_fetch_deliv,
 
         -- Stage 3: Delivery -> First Dial
         ROUND(AVG(CASE WHEN delivery_to_first_dial_sec >= 0 THEN delivery_to_first_dial_sec END), 0) as avg_deliv_dial,
         APPROX_QUANTILES(CASE WHEN delivery_to_first_dial_sec >= 0 THEN delivery_to_first_dial_sec END, 100)[OFFSET(50)] as med_deliv_dial,
         APPROX_QUANTILES(CASE WHEN delivery_to_first_dial_sec >= 0 THEN delivery_to_first_dial_sec END, 100)[OFFSET(75)] as p75_deliv_dial,
         APPROX_QUANTILES(CASE WHEN delivery_to_first_dial_sec >= 0 THEN delivery_to_first_dial_sec END, 100)[OFFSET(90)] as p90_deliv_dial,
+        APPROX_QUANTILES(CASE WHEN delivery_to_first_dial_sec >= 0 THEN delivery_to_first_dial_sec END, 100)[OFFSET(95)] as p95_deliv_dial,
 
         -- Stage 4: Capture -> First Dial
         ROUND(AVG(CASE WHEN capture_to_first_dial_sec >= 0 THEN capture_to_first_dial_sec END), 0) as avg_cap_dial,
         APPROX_QUANTILES(CASE WHEN capture_to_first_dial_sec >= 0 THEN capture_to_first_dial_sec END, 100)[OFFSET(50)] as med_cap_dial,
         APPROX_QUANTILES(CASE WHEN capture_to_first_dial_sec >= 0 THEN capture_to_first_dial_sec END, 100)[OFFSET(75)] as p75_cap_dial,
-        APPROX_QUANTILES(CASE WHEN capture_to_first_dial_sec >= 0 THEN capture_to_first_dial_sec END, 100)[OFFSET(90)] as p90_cap_dial
+        APPROX_QUANTILES(CASE WHEN capture_to_first_dial_sec >= 0 THEN capture_to_first_dial_sec END, 100)[OFFSET(90)] as p90_cap_dial,
+        APPROX_QUANTILES(CASE WHEN capture_to_first_dial_sec >= 0 THEN capture_to_first_dial_sec END, 100)[OFFSET(95)] as p95_cap_dial
       FROM stage_timings
     )
-    SELECT 
+    SELECT
+      (SELECT AS STRUCT COUNTIF(is_delivered AND NOT is_dialled) AS awaitingFirstDial,
+        COUNTIF(is_delivered AND NOT is_dialled AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), delivered_ts, SECOND) > 900) AS currentSlaBreaches,
+        MAX(IF(is_delivered AND NOT is_dialled AND delivered_ts <= CURRENT_TIMESTAMP(), TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), delivered_ts, SECOND), NULL)) AS oldestUndialledSec,
+        COUNTIF(delivery_to_first_dial_sec > 900) AS completedDialBreaches FROM stage_timings) AS backlog,
       (SELECT AS STRUCT * FROM percentiles) as percentiles,
       ARRAY(SELECT AS STRUCT * FROM cohorts) as cohorts,
       ARRAY(SELECT AS STRUCT * FROM after_hours) as after_hours
@@ -123,7 +136,8 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
       avg: formatDuration(numberOrNull(p.avg_cap_fetch)),
       median: formatDuration(numberOrNull(p.med_cap_fetch)),
       p75: formatDuration(numberOrNull(p.p75_cap_fetch)),
-      p90: formatDuration(numberOrNull(p.p90_cap_fetch))
+      p90: formatDuration(numberOrNull(p.p90_cap_fetch)),
+      p95: formatDuration(numberOrNull(p.p95_cap_fetch)), p95Sec: numberOrNull(p.p95_cap_fetch)
     },
     {
       stage: 'Capture → Delivery',
@@ -135,7 +149,8 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
       avg: formatDuration(numberOrNull(p.avg_fetch_deliv)),
       median: formatDuration(numberOrNull(p.med_fetch_deliv)),
       p75: formatDuration(numberOrNull(p.p75_fetch_deliv)),
-      p90: formatDuration(numberOrNull(p.p90_fetch_deliv))
+      p90: formatDuration(numberOrNull(p.p90_fetch_deliv)),
+      p95: formatDuration(numberOrNull(p.p95_fetch_deliv)), p95Sec: numberOrNull(p.p95_fetch_deliv)
     },
     {
       stage: 'Delivery → First Dial',
@@ -147,7 +162,8 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
       avg: formatDuration(numberOrNull(p.avg_deliv_dial)),
       median: formatDuration(numberOrNull(p.med_deliv_dial)),
       p75: formatDuration(numberOrNull(p.p75_deliv_dial)),
-      p90: formatDuration(numberOrNull(p.p90_deliv_dial))
+      p90: formatDuration(numberOrNull(p.p90_deliv_dial)),
+      p95: formatDuration(numberOrNull(p.p95_deliv_dial)), p95Sec: numberOrNull(p.p95_deliv_dial)
     },
     {
       stage: 'Capture → First Dial',
@@ -159,7 +175,8 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
       avg: formatDuration(numberOrNull(p.avg_cap_dial)),
       median: formatDuration(numberOrNull(p.med_cap_dial)),
       p75: formatDuration(numberOrNull(p.p75_cap_dial)),
-      p90: formatDuration(numberOrNull(p.p90_cap_dial))
+      p90: formatDuration(numberOrNull(p.p90_cap_dial)),
+      p95: formatDuration(numberOrNull(p.p95_cap_dial)), p95Sec: numberOrNull(p.p95_cap_dial)
     }
   ];
 
@@ -195,6 +212,8 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
 
   return {
     timingStages,
+    backlog: { awaitingFirstDial: Number(data.backlog?.awaitingFirstDial || 0), currentSlaBreaches: Number(data.backlog?.currentSlaBreaches || 0), completedDialBreaches: Number(data.backlog?.completedDialBreaches || 0), oldestUndialled: formatDuration(data.backlog?.oldestUndialledSec) },
+    methodology: 'Observed associations by capture-to-first-dial duration. RPC / dialled, sales / fetched, activations / sales. Undialled and invalid timing populations remain explicit; no causal or calling-policy inference.',
     cohorts,
     afterHours,
     operatingContext: {

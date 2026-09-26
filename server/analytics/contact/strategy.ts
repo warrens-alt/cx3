@@ -69,7 +69,7 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
       saleRate: metricPercent(sales, leads, 2),
       activations,
       activationRate: metricPercent(activations, sales, 1),
-      revenue: Number(row.revenue || 0),
+      revenue: row.revenue == null ? null : Number(row.revenue),
       callCost: null,
       marginalSales: null,
       marginalCostPerSale: null
@@ -90,6 +90,8 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
       totalLeads,
       dialledLeads,
       unrecordedCallLeads: attemptPerformance.find(row => row.bucket === 'Unrecorded')?.leads || 0,
+      oneCallNoRpcLeads: oneCall?.noRpc || 0,
+      zeroCallNoRpcLeads: attemptPerformance.find(row => row.bucket === '0 calls')?.noRpc || 0,
       zeroCallLeads: attemptPerformance.find(row => row.bucket === '0 calls')?.leads || 0,
       oneCallLeads: oneCall?.dialled || 0,
       singleAttemptSharePct: metricPercent(oneCall?.dialled || 0, dialledLeads),
@@ -98,6 +100,7 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
       fivePlusCallLeads: highAttempt?.leads || 0,
       fivePlusNoRpcLeads: highAttempt?.noRpc || 0,
     },
+    effortEvidence: { status: 'UNAVAILABLE', reason: 'Incremental attempt-level RPC and sale yield require the attempt that produced each outcome. Total-call snapshots support only exclusive bucket associations.' },
     noAnswerAnalysis: {
       status: 'UNAVAILABLE',
       reason: 'Event-level attempt spacing, callback completion and redial economics are not independently validated. Recommendations are withheld.',

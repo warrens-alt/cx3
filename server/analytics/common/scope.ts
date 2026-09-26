@@ -1,32 +1,39 @@
 import { getClientConfig, tenantVendorScopeValues } from '../../bigquery/config';
 import type { OffernetQueryParams } from './types';
+import { RequestError } from '../../bigquery/filters';
 
 // Build standard WHERE filter clause for clustered_lead_ledger queries
 export function buildFilterClause(params: OffernetQueryParams, alias = 'l', hlcAlias = 'hlc') {
+  for (const dimension of ['campaign', 'channel', 'adset', 'agent', 'cli'] as const) {
+    if (params[dimension]) throw new RequestError(`UNSUPPORTED_FILTER: ${dimension} has no approved mapping to this lead population.`, 422);
+  }
   const conditions: string[] = [
     `${alias}.fetched NOT LIKE '1900%'`,
     `${alias}.fetched NOT LIKE '1970%'`,
     `${alias}.fetched IS NOT NULL`
   ];
+  const clientConfig = getClientConfig(params.clientId);
   const queryParams: Record<string, any> = {};
 
   if (params.startDate) {
-    conditions.push(`DATE(SAFE_CAST(${alias}.fetched AS TIMESTAMP)) >= @startDate`);
+    conditions.push(`DATE(SAFE_CAST(${alias}.fetched AS TIMESTAMP), @scopeTimezone) >= @startDate`);
     queryParams.startDate = params.startDate;
+    queryParams.scopeTimezone = clientConfig.timezone;
   }
   if (params.endDate) {
-    conditions.push(`DATE(SAFE_CAST(${alias}.fetched AS TIMESTAMP)) <= @endDate`);
+    conditions.push(`DATE(SAFE_CAST(${alias}.fetched AS TIMESTAMP), @scopeTimezone) <= @endDate`);
     queryParams.endDate = params.endDate;
+    queryParams.scopeTimezone = clientConfig.timezone;
   }
 
   // Dedicated tenant views are already isolated. Add a tenant-vendor predicate only for shared lead sources.
-  const clientConfig = getClientConfig(params.clientId);
   if (
     clientConfig.dataSourceMode === 'shared' &&
     clientConfig.id !== 'default_tenant' &&
     clientConfig.id !== 'offernet_master'
   ) {
     const tenantVendors = tenantVendorScopeValues(clientConfig);
+    if (!tenantVendors.length) throw new RequestError('No approved vendor mapping exists for this shared tenant source.', 422);
     if (tenantVendors.length > 0) {
       conditions.push(`EXISTS (SELECT 1 FROM UNNEST(${alias}.hlc_details) h WHERE LOWER(h.vendor) IN UNNEST(@tenantVendors))`);
       if (hlcAlias) conditions.push(`LOWER(${hlcAlias}.vendor) IN UNNEST(@tenantVendors)`);

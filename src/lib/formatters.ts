@@ -88,7 +88,9 @@ export function formatCurrency(val: number | string | null | undefined, decimals
 export function downloadCsv(filename: string, rows: (string | number | boolean | null | undefined)[][]): void {
   const quote = (val: any) => {
     if (val === null || val === undefined) return '""';
-    const s = String(val);
+    // Numeric negatives remain numbers; source-controlled text cannot execute spreadsheet formulas.
+    const raw = String(val);
+    const s = typeof val === 'string' && /^[\s]*[=+@-]/.test(raw) ? `'${raw}` : raw;
     if (s.includes('"') || s.includes(',') || s.includes('\n') || s.includes('\r')) {
       return `"${s.replace(/"/g, '""')}"`;
     }

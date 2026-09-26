@@ -19,6 +19,8 @@ import { MODEL_VERSION } from './bigquery/integrity';
 import { serverQueryCache } from './cache';
 import { analyticalRoute as asyncRoute } from './analyticalWork';
 import { operationalFilterValues } from './offernetScope';
+import { operationalMetadata } from './analytics/common/lineage';
+import { redactReportRecords } from './analytics/common/reportAccess';
 import { analyticsRequestTenant } from './requestTenant';
 import {
   getCliPerformance,
@@ -35,7 +37,7 @@ function scopeFrom(req: Request): QueryScope {
     ? req.query
     : { ...req.query, ...(req.body || {}) };
   const filters = validateFilters(input.filters);
-  for (const key of ['source', 'medium', 'vendor', 'grade', 'cli', 'campaign']) {
+  for (const key of ['source', 'medium', 'vendor', 'grade', 'cli', 'campaign', 'channel', 'adset', 'agent']) {
     const value = scalarString(input[key], key, 500);
     if (value) {
       const values=value.split(',').map(v=>v.trim()).filter(Boolean);
@@ -111,7 +113,7 @@ for (const [routes, query, mixedGrain] of reports) {
       throw new RequestError('This report supports date, source, vendor and medium filters. Advanced cross-grain filters require further validation.', 422);
     }
     const data = await singleFlight(res, routes[0], null, () => query(scope));
-    res.json({ success: true, metadata: metadata(res, routes[0]), data });
+    res.json({ success: true, metadata: metadata(res, routes[0]), data: redactReportRecords(data, res.locals.principal.role === 'admin') });
   }));
 }
 analyticsRouter.get('/cohorts', cacheResponse(120), asyncRoute(async (req, res) => {
@@ -172,7 +174,6 @@ import * as offernetAnalytics from './bigquery/offernet_analytics';
 function buildOffernetQueryParams(req: Request, res: Response): offernetAnalytics.OffernetQueryParams {
   const scope = res.locals.scope as QueryScope;
   const values = operationalFilterValues(scope.filters, req.path);
-  if (req.query.agent) throw new RequestError('Agent filtering is not supported by this operational report', 422);
   return {
     clientId: scope.clientId,
     startDate: scope.startDate,
@@ -190,115 +191,121 @@ function buildOffernetQueryParams(req: Request, res: Response): offernetAnalytic
 analyticsRouter.get('/offernet/operating-controls', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-operating-controls', params, () => offernetAnalytics.getOperatingControlsAnalytics(params));
-  res.json({ success: true, data });
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
 analyticsRouter.get('/offernet/overview', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-overview', params, () => offernetAnalytics.getExecutiveOverview(params));
-  res.json({ success: true, data });
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
+}));
+
+analyticsRouter.get('/offernet/exceptions', cacheResponse(60), asyncRoute(async (req, res) => {
+  const params = buildOffernetQueryParams(req, res);
+  const data = await singleFlight(res, 'offernet-exceptions', params, () => offernetAnalytics.getExceptionAnalytics(params));
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, 'exceptions') });
 }));
 
 analyticsRouter.get('/offernet/root-cause', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-root-cause', params, () => offernetAnalytics.getRootCauseAnalysis(params));
-  res.json({ success: true, data });
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
 analyticsRouter.get('/offernet/marketing-root-cause', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-marketing-root-cause', params, () => offernetAnalytics.getMarketingRootCauseAnalysis(params));
-  res.json({ success: true, data });
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
 analyticsRouter.get('/offernet/marketing-attribution', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-marketing-attribution', params, () => offernetAnalytics.getMarketingAttributionAnalytics(params));
-  res.json({ success: true, data });
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
 analyticsRouter.get('/offernet/marketing-discovery', requireAdmin, cacheResponse(60), asyncRoute(async (_req, res) => {
   const params = buildOffernetQueryParams(_req, res);
   const data = await singleFlight(res, 'offernet-marketing-discovery', { clientId: params.clientId }, () => offernetAnalytics.getMarketingSourceDiscovery({ clientId: params.clientId }));
-  res.json({ success: true, data });
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
 analyticsRouter.get('/offernet/source-observability', cacheResponse(60), asyncRoute(async (_req, res) => {
   const params = buildOffernetQueryParams(_req, res);
   const data = await singleFlight(res, 'offernet-source-observability', { clientId: params.clientId }, () => offernetAnalytics.getSourceObservability({ clientId: params.clientId }));
-  res.json({ success: true, data });
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
 analyticsRouter.get('/offernet/funnel', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-funnel', params, () => offernetAnalytics.getFunnelIntelligence(params));
-  res.json({ success: true, data });
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
 analyticsRouter.get('/offernet/speed-to-lead', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-speed-to-lead', params, () => offernetAnalytics.getSpeedToLeadAnalytics(params));
-  res.json({ success: true, data });
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
 analyticsRouter.get('/offernet/contact-strategy', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-contact-strategy', params, () => offernetAnalytics.getContactStrategyAnalytics(params));
-  res.json({ success: true, data });
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
 analyticsRouter.get('/offernet/vendor-quality', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-vendor-quality', params, () => offernetAnalytics.getVendorQualityAnalytics(params));
-  res.json({ success: true, data });
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
 analyticsRouter.get('/offernet/temporal', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-temporal', params, () => offernetAnalytics.getTemporalAnalytics(params));
-  res.json({ success: true, data });
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
 analyticsRouter.get('/offernet/sales-activation', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-sales-activation', params, () => offernetAnalytics.getSalesActivationAnalytics(params));
-  res.json({ success: true, data });
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
 analyticsRouter.get('/offernet/commercial', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-commercial', params, () => offernetAnalytics.getCommercialAnalytics(params));
-  res.json({ success: true, data });
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
 analyticsRouter.get('/offernet/data-integrity', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-data-integrity', params, () => offernetAnalytics.getDataIntegrityAnalytics(params));
-  res.json({ success: true, data });
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
 analyticsRouter.get('/offernet/agent-performance', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-agent-performance', params, () => offernetAnalytics.getAgentPerformanceAnalytics(params));
-  res.json({ success: true, data });
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
 analyticsRouter.get('/offernet/campaigns', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-campaigns', params, () => offernetAnalytics.getClientCampaignAnalytics(params));
-  res.json({ success: true, data });
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
 analyticsRouter.get('/offernet/ai-insights', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-ai-insights', params, () => offernetAnalytics.getAiInsightsAnalytics(params));
-  res.json({ success: true, data });
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
 analyticsRouter.get('/offernet/raw-leads', requireAdmin, cacheResponse(30), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-raw-leads', params, () => offernetAnalytics.getRawLeads(params), 30);
-  res.json({ success: true, data });
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
 analyticsRouter.get('/offernet/lead-timeline/:leadId', requireAdmin, cacheResponse(60), asyncRoute(async (req, res) => {
@@ -311,7 +318,7 @@ analyticsRouter.get('/offernet/lead-timeline/:leadId', requireAdmin, cacheRespon
     { leadId, clientId: params.clientId, vendor: params.vendor },
     () => offernetAnalytics.getLeadTimeline(leadId, params)
   );
-  res.json({ success: true, data });
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
 analyticsRouter.get('/offernet/client-config', asyncRoute((_req, res) => {

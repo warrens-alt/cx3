@@ -4,9 +4,12 @@ import { RequestError, validateFilters, type Filters } from './bigquery/filters'
 export function operationalFilterValues(input: Filters | undefined, path: string): Record<string, string> {
   const filters = validateFilters(input);
   const allowed = new Set(['vendor', 'source', 'medium', 'grade']);
-  if (['/offernet/campaigns', '/offernet/marketing-root-cause'].includes(path)) allowed.add('campaign');
+  if (['/offernet/campaigns', '/offernet/commercial', '/offernet/marketing-attribution', '/offernet/marketing-root-cause'].includes(path)) {
+    for (const dimension of ['campaign', 'channel', 'adset']) allowed.add(dimension);
+  }
   if (path === '/offernet/agent-performance' || path.startsWith('/offernet/lead-timeline/')) {
     allowed.clear(); allowed.add('vendor');
+    if (path === '/offernet/agent-performance') allowed.add('agent');
   }
   if (['/offernet/marketing-discovery', '/offernet/source-observability'].includes(path)) allowed.clear();
   const values: Record<string, string> = {};

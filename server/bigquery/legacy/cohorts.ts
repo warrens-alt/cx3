@@ -3,12 +3,12 @@ import { getClientConfig } from '../config';
 import { getBaseSemanticLayer } from '../views';
 import type { BaseQueryParams } from './types';
 import { buildWhereClause } from './types';
-import { RequestError } from '../filters';
+import { RequestError, buildLeadWhere } from '../filters';
 
 export async function getCohortStats(params: BaseQueryParams & { cohortType?: string; metricType?: string }) {
   const client = getClientConfig(params.clientId);
   const bq = getBigQueryClient(client.bigQueryProject);
-  const { sql, queryParams } = buildWhereClause(params, 'vw_leads');
+  const { sql, queryParams } = buildLeadWhere(params);
   
   const cohortType = params.cohortType || 'weekly';
   const metricType = params.metricType || 'sale';
@@ -51,18 +51,19 @@ export async function getCohortStats(params: BaseQueryParams & { cohortType?: st
       COUNTIF(has_sale = true) as sales,
       COUNTIF(has_billable_sale = true) as billable_sales,
       COUNTIF(has_activation = true) as activations,
-      SUM(IFNULL(total_revenue, 0)) as revenue,
+      SUM(total_revenue) as revenue,
+      COUNTIF(total_revenue IS NULL) AS missing_revenue_leads,
       ${missingTiming} AS missing_event_timestamps,
       ${maturationExpr}
     FROM vw_leads
     ${sql}
     GROUP BY cohort
     ORDER BY cohort DESC
-    LIMIT 16
+    LIMIT 17
   `;
   
   const [rows] = await bq.query({ query, params: queryParams });
-  return rows.map((r: any) => {
+  return rows.slice(0, 16).map((r: any) => {
     const size = Number(r.size) || 0;
     const delivered = Number(r.delivered) || 0;
     const called = Number(r.called) || 0;
@@ -70,36 +71,39 @@ export async function getCohortStats(params: BaseQueryParams & { cohortType?: st
     const sales = Number(r.sales) || 0;
     const billableSales = Number(r.billable_sales) || 0;
     const activations = Number(r.activations) || 0;
-    const revenue = Number(r.revenue) || 0;
+    const revenue = r.revenue == null ? null : Number(r.revenue);
 
     const calcMetric = (val: any) => {
       if (val === null || val === undefined) return null;
       const num = Number(val) || 0;
       if (metricType === 'revenue') {
-        return size > 0 ? Number((num / size).toFixed(2)) : 0;
+        return size > 0 ? Number((num / size).toFixed(2)) : null;
       }
-      return size > 0 ? Number(((num / size) * 100).toFixed(1)) : 0;
+      return size > 0 ? Number(((num / size) * 100).toFixed(1)) : null;
     };
 
     return {
       cohort: r.cohort || 'Unknown',
+      detailTruncated: rows.length > 16,
+      rowLimit: 16,
+      missingRevenueLeads: Number(r.missing_revenue_leads || 0),
       size,
       delivered,
-      deliveryRate: size > 0 ? Number(((delivered / size) * 100).toFixed(1)) : 0,
+      deliveryRate: size > 0 ? Number(((delivered / size) * 100).toFixed(1)) : null,
       called,
-      callRate: size > 0 ? Number(((called / size) * 100).toFixed(1)) : 0,
-      callCoverage: delivered > 0 ? Number(((called / delivered) * 100).toFixed(1)) : 0,
+      callRate: size > 0 ? Number(((called / size) * 100).toFixed(1)) : null,
+      callCoverage: delivered > 0 ? Number(((called / delivered) * 100).toFixed(1)) : null,
       rpcs,
-      rpcRate: called > 0 ? Number(((rpcs / called) * 100).toFixed(1)) : 0,
+      rpcRate: called > 0 ? Number(((rpcs / called) * 100).toFixed(1)) : null,
       sales,
-      saleRate: called > 0 ? Number(((sales / called) * 100).toFixed(1)) : 0,
-      leadToSaleRate: size > 0 ? Number(((sales / size) * 100).toFixed(1)) : 0,
+      saleRate: size > 0 ? Number(((sales / size) * 100).toFixed(1)) : null,
+      leadToSaleRate: size > 0 ? Number(((sales / size) * 100).toFixed(1)) : null,
       billableSales,
-      billableSaleRate: sales > 0 ? Number(((billableSales / sales) * 100).toFixed(1)) : 0,
+      billableSaleRate: sales > 0 ? Number(((billableSales / sales) * 100).toFixed(1)) : null,
       activations,
-      activationRate: billableSales > 0 ? Number(((activations / billableSales) * 100).toFixed(1)) : 0,
+      activationRate: sales > 0 ? Number(((activations / sales) * 100).toFixed(1)) : null,
       revenue,
-      revPerLead: size > 0 ? Number((revenue / size).toFixed(2)) : 0,
+      revPerLead: revenue !== null && size > 0 ? Number((revenue / size).toFixed(2)) : null,
       maturationStatus: !outcome || Number(r.missing_event_timestamps || 0) > 0 ? 'UNAVAILABLE' : 'OBSERVED',
       maturationReason: !outcome
         ? 'Revenue maturation requires dated revenue events; the current source contains cumulative balances.'

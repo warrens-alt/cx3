@@ -30,6 +30,7 @@ import { flatSchema, sourceAccess, type SourceAccess, type TableMetadata } from 
 import { sourceTable } from './sourceCatalog';
 import { RequestError, validateScope, conditionSql, boundedInteger, scalarString, type QueryScope, type Scalar, type FilterCondition } from './filters';
 import { validTimestampSql } from './integrity';
+import { matchedPeriodWindow } from '../../contracts/periodComparison';
 import { exactDecimal, addExactDecimals, compareExactDecimal, subtractExactDecimals, divideExactDecimal } from '../../contracts/exactDecimal';
 
 // In-memory tenant cache for imported CLI reports
@@ -234,39 +235,44 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
 
     const campaign = campaignIdx !== -1 && cells[campaignIdx] ? cells[campaignIdx].trim() : 'Unavailable';
     const vendor = vendorIdx !== -1 && cells[vendorIdx] ? cells[vendorIdx].trim() : 'Unavailable';
-    const totalCallsNum = Math.max(0, parseInt(cells[callsIdx] || '0', 10) || 0);
+    const readCount = (index: number, label: string, required = false): number | null => {
+      const raw = index < 0 ? '' : cells[index];
+      if (!raw && !required) return null;
+      if (!raw || !/^\d+$/.test(raw) || !Number.isSafeInteger(Number(raw))) {
+        errors.push(`CSV record ${rowIdx + 1}: ${label} must be a recorded nonnegative integer${required ? ' (required)' : ' or blank'}.`);
+        return null;
+      }
+      return Number(raw);
+    };
+    const totalCallsNum = readCount(callsIdx, 'total_calls', true);
+    const contactCountNum = readCount(contactCountIdx, 'contact_count', true);
+    const saleCountNum = readCount(saleCountIdx, 'sale_count', true);
+    if (totalCallsNum === null || contactCountNum === null || saleCountNum === null) continue;
     const totalCalls = String(totalCallsNum);
-
-    if (totalCallsNum === 0) continue;
-
-    const distinctLeadsNum = distinctLeadsIdx !== -1 && cells[distinctLeadsIdx]
-      ? Math.max(1, parseInt(cells[distinctLeadsIdx], 10) || 1)
-      : null;
-    const distinctLeads = distinctLeadsNum === null ? null : String(Math.min(distinctLeadsNum, totalCallsNum));
-    const callsPerLead = distinctLeadsNum === null ? null : (totalCallsNum / distinctLeadsNum).toFixed(2);
-
-    // Counts
-    const asrCount = asrCountIdx !== -1 && cells[asrCountIdx] ? String(Math.max(0, parseInt(cells[asrCountIdx], 10) || 0)) : null;
-    const answeredCount = answeredCountIdx !== -1 && cells[answeredCountIdx] ? String(Math.max(0, parseInt(cells[answeredCountIdx], 10) || 0)) : null;
-    const contactCountNum = contactCountIdx !== -1 && cells[contactCountIdx] ? Math.max(0, parseInt(cells[contactCountIdx], 10) || 0) : 0;
+    const distinctLeadsNum = readCount(distinctLeadsIdx, 'distinct_leads');
+    if (distinctLeadsNum !== null && distinctLeadsNum > totalCallsNum) errors.push(`CSV record ${rowIdx + 1}: distinct_leads exceeds total_calls; the recorded count is not clamped.`);
+    const distinctLeads = distinctLeadsNum === null ? null : String(distinctLeadsNum);
+    const callsPerLead = distinctLeadsNum !== null && distinctLeadsNum > 0 ? (totalCallsNum / distinctLeadsNum).toFixed(2) : null;
+    const stringify = (value: number | null) => value === null ? null : String(value);
+    const asrCount = stringify(readCount(asrCountIdx, 'asr_count'));
+    const answeredCount = stringify(readCount(answeredCountIdx, 'answered_count'));
     const contactCount = String(contactCountNum);
-    const saleCountNum = saleCountIdx !== -1 && cells[saleCountIdx] ? Math.max(0, parseInt(cells[saleCountIdx], 10) || 0) : 0;
     const saleCount = String(saleCountNum);
-
-    // Duration counts remain unavailable unless supplied by the source report.
-    const d1mNum = d1mCountIdx !== -1 && cells[d1mCountIdx] ? Math.max(0, parseInt(cells[d1mCountIdx], 10) || 0) : null;
-    const d5mNum = d5mCountIdx !== -1 && cells[d5mCountIdx] ? Math.max(0, parseInt(cells[d5mCountIdx], 10) || 0) : null;
-    const d15mNum = d15mCountIdx !== -1 && cells[d15mCountIdx] ? Math.max(0, parseInt(cells[d15mCountIdx], 10) || 0) : null;
-
-    const durationGe1mCount = d1mNum === null ? null : String(Math.min(d1mNum, totalCallsNum));
-    const durationGe5mCount = d5mNum === null ? null : String(Math.min(d5mNum, totalCallsNum));
-    const durationGe15mCount = d15mNum === null ? null : String(Math.min(d15mNum, totalCallsNum));
+    const d1mNum = readCount(d1mCountIdx, 'duration_ge_1m_count');
+    const d5mNum = readCount(d5mCountIdx, 'duration_ge_5m_count');
+    const d15mNum = readCount(d15mCountIdx, 'duration_ge_15m_count');
+    if ([d1mNum, d5mNum, d15mNum].some(value => value !== null && value > totalCallsNum)
+      || (d1mNum !== null && d5mNum !== null && d5mNum > d1mNum)
+      || (d5mNum !== null && d15mNum !== null && d15mNum > d5mNum)) errors.push(`CSV record ${rowIdx + 1}: duration counts must be nested subsets of total_calls.`);
+    const durationGe1mCount = stringify(d1mNum);
+    const durationGe5mCount = stringify(d5mNum);
+    const durationGe15mCount = stringify(d15mNum);
 
     // Calculate exact rates from counts
     const asrRate = asrCount ? calculateExactRate(asrCount, totalCalls) : (asrPctIdx !== -1 && cells[asrPctIdx] ? parsePct(cells[asrPctIdx]) : null);
     const answeredRate = answeredCount ? calculateExactRate(answeredCount, totalCalls) : (answeredPctIdx !== -1 && cells[answeredPctIdx] ? parsePct(cells[answeredPctIdx]) : null);
-    const contactRate = calculateExactRate(contactCount, totalCalls) || '0.00';
-    const salePerCallRate = calculateExactRate(saleCount, totalCalls) || '0.00';
+    const contactRate = calculateExactRate(contactCount, totalCalls);
+    const salePerCallRate = calculateExactRate(saleCount, totalCalls);
     const salePerAnswerRate = answeredCount && Number(answeredCount) > 0 ? calculateExactRate(saleCount, answeredCount) : null;
     const salePerContactRate = contactCountNum > 0 ? calculateExactRate(saleCount, contactCount) : null;
 
@@ -274,17 +280,26 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
     const durationGe5mPct = durationGe5mCount === null ? null : calculateExactRate(durationGe5mCount, totalCalls);
     const durationGe15mPct = durationGe15mCount === null ? null : calculateExactRate(durationGe15mCount, totalCalls);
 
-    const avgDuration = avgDurationIdx !== -1 && cells[avgDurationIdx] && Number.isFinite(Number(cells[avgDurationIdx]))
-      ? Math.max(0, parseFloat(cells[avgDurationIdx])).toFixed(1)
-      : null;
-    const totalDurationSeconds = avgDuration === null ? null : String(Math.round(totalCallsNum * parseFloat(avgDuration)));
-
-    const avgLeadAgeDays = avgLeadAgeIdx !== -1 && cells[avgLeadAgeIdx] ? parseFloat(cells[avgLeadAgeIdx]).toFixed(2) : null;
-
-    const activations = activationsIdx !== -1 && cells[activationsIdx] ? String(Math.max(0, parseInt(cells[activationsIdx], 10) || 0)) : null;
-    const recordedValue = revenueIdx !== -1 && cells[revenueIdx] ? String(Math.max(0, parseFloat(cells[revenueIdx]) || 0)) : null;
-    const valuePerCall = recordedValue ? (parseFloat(recordedValue) / totalCallsNum).toFixed(2) : null;
-    const valuePerLead = recordedValue && distinctLeadsNum !== null ? (parseFloat(recordedValue) / distinctLeadsNum).toFixed(2) : null;
+    const readDecimal = (index: number, label: string, nonnegative = true): number | null => {
+      const raw = index < 0 ? '' : cells[index];
+      if (!raw) return null;
+      if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(raw) || !Number.isFinite(Number(raw)) || (nonnegative && Number(raw) < 0)) {
+        errors.push(`CSV record ${rowIdx + 1}: ${label} must contain a valid ${nonnegative ? 'nonnegative ' : ''}number or be blank.`);
+        return null;
+      }
+      return Number(raw);
+    };
+    const avgDurationValue = readDecimal(avgDurationIdx, 'avg_duration_sec');
+    const avgDuration = avgDurationValue === null ? null : avgDurationValue.toFixed(1);
+    // A reported average does not establish an exact total call duration.
+    const totalDurationSeconds = null;
+    const age = readDecimal(avgLeadAgeIdx, 'avg_lead_age_days');
+    const avgLeadAgeDays = age === null ? null : age.toFixed(2);
+    const activations = stringify(readCount(activationsIdx, 'activations'));
+    const revenue = readDecimal(revenueIdx, 'recorded_value', false);
+    const recordedValue = revenue === null ? null : String(revenue);
+    const valuePerCall = revenue !== null && totalCallsNum > 0 ? (revenue / totalCallsNum).toFixed(2) : null;
+    const valuePerLead = revenue !== null && distinctLeadsNum !== null && distinctLeadsNum > 0 ? (revenue / distinctLeadsNum).toFixed(2) : null;
 
     const reportedRates = {
       asr: asrPctIdx !== -1 && cells[asrPctIdx] ? parsePct(cells[asrPctIdx]) : null,
@@ -400,6 +415,7 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
     });
   }
 
+  if (errors.length) return { records: [], trend: [], leadAgeBands: emptyLeadAgeBands(), anomalies, errors };
   const trend = aggregateCliTrend(records);
 
   // Construct Lead Age Bands
@@ -542,8 +558,9 @@ export function computeCliSummary(records: CliPerformanceRecord[]): CliSummary {
   }
 
   const totalCalls = totalCallsBig.toString();
-  const distinctLeads = hasCompleteDistinctLeads ? distinctLeadsBig.toString() : null;
-  const callsPerLead = hasCompleteDistinctLeads && distinctLeadsBig > 0n
+  // Unique lead sets overlap across CLI/campaign/date groups; aggregate counts alone cannot deduplicate them.
+  const distinctLeads = hasCompleteDistinctLeads && records.length === 1 ? distinctLeadsBig.toString() : null;
+  const callsPerLead = distinctLeads !== null && distinctLeadsBig > 0n
     ? (Number(totalCallsBig) / Number(distinctLeadsBig)).toFixed(2)
     : null;
 
@@ -554,15 +571,15 @@ export function computeCliSummary(records: CliPerformanceRecord[]): CliSummary {
   const answeredRate = hasAnswered && totalCallsBig > 0n ? calculateExactRate(totalAnsweredBig.toString(), totalCalls) : null;
 
   const contactCount = totalContactsBig.toString();
-  const contactRate = calculateExactRate(contactCount, totalCalls) || '0.00';
+  const contactRate = calculateExactRate(contactCount, totalCalls);
 
   const saleCount = totalSalesBig.toString();
-  const salePerCallRate = calculateExactRate(saleCount, totalCalls) || '0.00';
+  const salePerCallRate = calculateExactRate(saleCount, totalCalls);
   const salePerAnswerRate = hasAnswered && totalAnsweredBig > 0n ? calculateExactRate(saleCount, totalAnsweredBig.toString()) : null;
   const salePerContactRate = totalContactsBig > 0n ? calculateExactRate(saleCount, contactCount) : null;
 
-  const durationGe5mRate = hasDuration5m && totalCallsBig > 0n ? calculateExactRate(totalD5mBig.toString(), totalCalls) : null;
-  const avgDurationSeconds = hasDurationTotal && totalCallsBig > 0n ? (Number(totalDurationSec) / Number(totalCallsBig)).toFixed(1) : null;
+  const durationGe5mRate = hasDuration5m && records.every(record => record.durationGe5mCount !== null) && totalCallsBig > 0n ? calculateExactRate(totalD5mBig.toString(), totalCalls) : null;
+  const avgDurationSeconds = hasDurationTotal && records.every(record => record.totalDurationSeconds !== null) && totalCallsBig > 0n ? (Number(totalDurationSec) / Number(totalCallsBig)).toFixed(1) : null;
 
   const validAges = records.map(r => r.avgLeadAgeDays).filter(Boolean).map(Number);
   const avgLeadAgeDays = validAges.length > 0 ? (validAges.reduce((a, b) => a + b, 0) / validAges.length).toFixed(2) : null;
@@ -584,7 +601,7 @@ export function computeCliSummary(records: CliPerformanceRecord[]): CliSummary {
     salePerContactRate,
     durationGe5mRate,
     avgDurationSeconds,
-    totalDurationSeconds: hasDurationTotal ? totalDurationSec.toString() : null,
+    totalDurationSeconds: hasDurationTotal && records.every(record => record.totalDurationSeconds !== null) ? totalDurationSec.toString() : null,
     avgLeadAgeDays,
     activations: hasActivations ? activationsBig.toString() : null,
     recordedValue: hasRevenue ? recordedValueSum.toFixed(2) : null,
@@ -655,13 +672,39 @@ export function computeDurationBands(records: CliPerformanceRecord[]): CliDurati
 
 /** Compute period comparison and deterministic observations */
 export function computePeriodComparison(
-  _records: CliPerformanceRecord[],
-  _scope: QueryScope
+  records: CliPerformanceRecord[],
+  scope: QueryScope
 ): CliPeriodComparison | null {
-  // A matched comparison requires event rows or a source-provided historical series
-  // that can be filtered to the same CLI/campaign/vendor scope. Aggregate snapshots
-  // are insufficient, so CX3 deliberately withholds this comparison.
-  return null;
+  const window = matchedPeriodWindow(scope.startDate, scope.endDate);
+  if (!window || records.some(record => !record.reportDate)) return null;
+  const select = (start: string, end: string) => records.filter(record => record.reportDate! >= start && record.reportDate! <= end);
+  const currentRows = select(window.current.startDate, window.current.endDate);
+  const previousRows = select(window.previous.startDate, window.previous.endDate);
+  const c = computeCliSummary(currentRows), p = computeCliSummary(previousRows);
+  const delta = (current: string | null, previous: string | null, isRate = false) => ({
+    current, previous,
+    delta: current === null || previous === null ? null : subtractExactDecimals(current, previous),
+    pctChange: isRate || current === null || previous === null || Number(previous) === 0 ? null
+      : ((Number(current) - Number(previous)) / Math.abs(Number(previous)) * 100).toFixed(2),
+  });
+  const rate = (summary: CliSummary, field: 'contactRate' | 'salePerCallRate') => Number(summary.totalCalls) > 0 ? summary[field] : null;
+  return {
+    currentPeriod: { start: window.current.startDate, end: window.current.endDate },
+    previousPeriod: { start: window.previous.startDate, end: window.previous.endDate },
+    metrics: {
+      calls: delta(c.totalCalls, p.totalCalls), sales: delta(c.saleCount, p.saleCount),
+      asrRate: delta(c.asrRate, p.asrRate, true), answeredRate: delta(c.answeredRate, p.answeredRate, true),
+      contactRate: delta(rate(c, 'contactRate'), rate(p, 'contactRate'), true),
+      saleRate: delta(rate(c, 'salePerCallRate'), rate(p, 'salePerCallRate'), true),
+      conversationGe5mRate: delta(c.durationGe5mRate, p.durationGe5mRate, true),
+      avgLeadAgeDays: delta(null, null),
+    },
+    cliDeltas: [],
+    observations: [
+      `Immediately preceding equal-length call-date periods (${window.days} days), in the tenant timezone; rate deltas are percentage points.`,
+      'Observed changes do not establish CLI overuse, causality or a statistically significant sudden change.',
+    ],
+  };
 }
 
 /** Generate realistic Benchmark / Sample CLI Dataset for testing & demonstration */
@@ -904,7 +947,7 @@ export async function getCliPerformance(
 
     const summary = computeCliSummary(records);
     const durationBands = computeDurationBands(records);
-    const periodComparison = computePeriodComparison(records, scope);
+    const periodComparison = null;
     const campaigns = aggregateCampaigns(records);
     const fieldCoverage = getCliFieldCoverage(configuredTable, cliColumn, fieldsMap);
 
@@ -1011,8 +1054,9 @@ async function executeLiveCliQuery(
   const vendorCol = fields.has('vendor') ? 'vendor' : null;
   const dateCol = fields.has('call_start_date') ? 'call_start_date' : fields.has('date') ? 'date' : null;
   const hasLeadId = fields.has('dialer_lead_id');
+  const comparisonWindow = matchedPeriodWindow(scope.startDate, scope.endDate);
 
-  for (const required of ['is_rpc', 'is_sale', 'length_in_sec']) {
+  for (const required of ['is_rpc', 'is_sale']) {
     if (!fields.has(required)) {
       throw new RequestError(`CLI analytics requires the source field '${required}' to avoid inferred performance values.`, 422);
     }
@@ -1037,8 +1081,9 @@ async function executeLiveCliQuery(
   }
 
   if (scope.startDate) {
-    clauses.push(`DATE(${validTimestampSql(`s.\`${dateCol!}\``)}, @tenantTimezone) >= @startDate`);
+    clauses.push(`DATE(${validTimestampSql(`s.\`${dateCol!}\``)}, @tenantTimezone) >= @scanStartDate`);
     params.startDate = scope.startDate;
+    params.scanStartDate = comparisonWindow?.previous.startDate || scope.startDate;
   }
   if (scope.endDate) {
     clauses.push(`DATE(${validTimestampSql(`s.\`${dateCol!}\``)}, @tenantTimezone) <= @endDate`);
@@ -1066,34 +1111,48 @@ async function executeLiveCliQuery(
     params.cliSearch = search;
   }
   const whereSql = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
-  const distinctLeadExpr = fields.has('dialer_lead_id') ? 'COUNT(DISTINCT dialer_lead_id)' : 'CAST(NULL AS INT64)';
-  const contactExpr = fields.has('is_rpc') ? 'COUNTIF(is_rpc IS TRUE)' : 'CAST(NULL AS INT64)';
-  const saleExpr = fields.has('is_sale') ? 'COUNTIF(is_sale IS TRUE)' : 'CAST(NULL AS INT64)';
-  const durationTotalExpr = fields.has('length_in_sec') ? 'SUM(SAFE_CAST(length_in_sec AS INT64))' : 'CAST(NULL AS INT64)';
-  const avgDurationExpr = fields.has('length_in_sec') ? 'ROUND(AVG(SAFE_CAST(length_in_sec AS INT64)), 1)' : 'CAST(NULL AS FLOAT64)';
-  const duration1mExpr = fields.has('length_in_sec') ? 'COUNTIF(SAFE_CAST(length_in_sec AS INT64) >= 60)' : 'CAST(NULL AS INT64)';
-  const duration5mExpr = fields.has('length_in_sec') ? 'COUNTIF(SAFE_CAST(length_in_sec AS INT64) >= 300)' : 'CAST(NULL AS INT64)';
-  const duration15mExpr = fields.has('length_in_sec') ? 'COUNTIF(SAFE_CAST(length_in_sec AS INT64) >= 900)' : 'CAST(NULL AS INT64)';
-
-  const query = `
-    SELECT
-      CAST(s.\`${cliCol}\` AS STRING) AS cli,
+  const callDate = dateCol ? `DATE(${validTimestampSql(`s.\`${dateCol}\``)}, @tenantTimezone)` : 'CAST(NULL AS DATE)';
+  const dispositionCol = fields.has('status_name') ? 'status_name' : fields.has('status') ? 'status' : null;
+  const aggregate = `COUNT(*) AS total_calls,
+    COUNT(DISTINCT lead_id) AS distinct_leads,
+    COUNTIF(rpc_flag IS NOT NULL) AS rpc_observed_calls,
+    COUNTIF(sale_flag IS NOT NULL) AS sale_observed_calls,
+    COUNTIF(rpc_flag) AS contact_count, COUNTIF(sale_flag) AS sale_count,
+    COUNTIF(rpc_flag AND sale_flag) AS rpc_sale_count,
+    IF(COUNTIF(duration_sec IS NULL) = 0, SUM(duration_sec), NULL) AS total_duration,
+    IF(COUNTIF(duration_sec IS NULL) = 0, AVG(duration_sec), NULL) AS avg_duration,
+    IF(COUNTIF(duration_sec IS NULL) = 0, COUNTIF(duration_sec >= 60), NULL) AS duration_ge_1m,
+    IF(COUNTIF(duration_sec IS NULL) = 0, COUNTIF(duration_sec >= 300), NULL) AS duration_ge_5m,
+    IF(COUNTIF(duration_sec IS NULL) = 0, COUNTIF(duration_sec >= 900), NULL) AS duration_ge_15m`;
+  const currentScope = scope.startDate && scope.endDate ? 'WHERE report_date BETWEEN @startDate AND @endDate' : '';
+  const query = `WITH scoped_calls AS (
+    SELECT CAST(s.\`${cliCol}\` AS STRING) AS cli,
       ${campaignCol ? `CAST(s.\`${campaignCol}\` AS STRING)` : "'Unknown Campaign'"} AS campaign,
       ${vendorCol ? `CAST(s.\`${vendorCol}\` AS STRING)` : "'Unknown Vendor'"} AS vendor,
-      COUNT(*) AS total_calls,
-      ${hasLeadId ? 'COUNT(DISTINCT dialer_lead_id)' : 'CAST(NULL AS INT64)'} AS distinct_leads,
-      COUNTIF(is_rpc IS TRUE) AS contact_count,
-      COUNTIF(is_sale IS TRUE) AS sale_count,
-      SUM(SAFE_CAST(length_in_sec AS INT64)) AS total_duration,
-      ROUND(AVG(SAFE_CAST(length_in_sec AS INT64)), 1) AS avg_duration,
-      COUNTIF(SAFE_CAST(length_in_sec AS INT64) >= 60) AS duration_ge_1m,
-      COUNTIF(SAFE_CAST(length_in_sec AS INT64) >= 300) AS duration_ge_5m,
-      COUNTIF(SAFE_CAST(length_in_sec AS INT64) >= 900) AS duration_ge_15m
-    FROM ${tableIdentifier(table)} s
-    ${whereSql}
-    GROUP BY cli, campaign, vendor
-    ORDER BY total_calls DESC, cli, campaign, vendor
-    LIMIT @cliRowLimit
+      ${hasLeadId ? "NULLIF(TRIM(CAST(s.dialer_lead_id AS STRING)), '')" : 'CAST(NULL AS STRING)'} AS lead_id,
+      CAST(${callDate} AS STRING) AS report_date,
+      ${dateCol ? `CAST(EXTRACT(HOUR FROM DATETIME(${validTimestampSql(`s.\`${dateCol}\``)}, @tenantTimezone)) AS STRING)` : 'CAST(NULL AS STRING)'} AS call_hour,
+      ${dispositionCol ? `CAST(s.\`${dispositionCol}\` AS STRING)` : 'CAST(NULL AS STRING)'} AS disposition,
+      SAFE_CAST(is_rpc AS BOOL) AS rpc_flag, SAFE_CAST(is_sale AS BOOL) AS sale_flag,
+      ${fields.has('length_in_sec') ? 'CASE WHEN SAFE_CAST(length_in_sec AS INT64) >= 0 THEN SAFE_CAST(length_in_sec AS INT64) END' : 'CAST(NULL AS INT64)'} AS duration_sec
+    FROM ${tableIdentifier(table)} s ${whereSql}
+  ) SELECT
+    ARRAY(SELECT AS STRUCT cli, campaign, vendor, ${aggregate}
+      FROM scoped_calls ${currentScope} GROUP BY cli, campaign, vendor
+      ORDER BY total_calls DESC, cli, campaign, vendor LIMIT @cliRowLimit) AS records,
+    ARRAY(SELECT AS STRUCT cli, campaign, vendor, report_date, ${aggregate}
+      FROM scoped_calls WHERE report_date IS NOT NULL GROUP BY cli, campaign, vendor, report_date
+      ORDER BY report_date, cli, campaign, vendor LIMIT @cliRowLimit) AS daily,
+    ARRAY(SELECT AS STRUCT d.dimension, d.bucket, cli, COUNT(*) AS calls,
+      IF(COUNTIF(rpc_flag IS NULL) = 0, COUNTIF(rpc_flag), NULL) AS rpc,
+      IF(COUNTIF(sale_flag IS NULL) = 0, COUNTIF(sale_flag), NULL) AS sales
+      FROM scoped_calls CROSS JOIN UNNEST([
+        STRUCT('hour' AS dimension, call_hour AS bucket),
+        STRUCT('disposition' AS dimension, disposition AS bucket)
+      ]) d ${currentScope} GROUP BY d.dimension, d.bucket, cli
+      ORDER BY calls DESC, cli, d.dimension, d.bucket LIMIT @cliRowLimit) AS breakdowns,
+    (SELECT COUNT(DISTINCT lead_id) FROM scoped_calls ${currentScope}) AS scope_distinct_leads,
+    (SELECT COUNT(*) FROM scoped_calls ${currentScope}) AS scope_calls
   `;
 
   if (!fields.has('is_rpc') || !fields.has('is_sale')) {
@@ -1101,16 +1160,25 @@ async function executeLiveCliQuery(
   }
 
   const result = await client.execute({ query, params });
-  const records: CliPerformanceRecord[] = result.rows.slice(0, rowLimit).map(r => {
+  const resultRow = result.rows[0] || {};
+  const rosterRows: any[] = Array.isArray(resultRow.records) ? resultRow.records : result.rows;
+  const mapLiveRecord = (r: any): CliPerformanceRecord => {
+    if ((r.rpc_observed_calls !== undefined && Number(r.rpc_observed_calls) !== Number(r.total_calls))
+      || (r.sale_observed_calls !== undefined && Number(r.sale_observed_calls) !== Number(r.total_calls))) {
+      throw new RequestError('CLI outcome evidence is incomplete: some call rows lack RPC or sale flags. Rates are unavailable rather than counting unrecorded outcomes as false.', 422);
+    }
     const totalCalls = String(r.total_calls || '0');
-    const distinctLeads = r.distinct_leads === null || r.distinct_leads === undefined ? null : String(r.distinct_leads);
+    const distinctLeads = !hasLeadId || r.distinct_leads === null || r.distinct_leads === undefined ? null : String(r.distinct_leads);
     const contactCount = String(r.contact_count || '0');
     const saleCount = String(r.sale_count || '0');
-    const d1m = String(r.duration_ge_1m || '0');
-    const d5m = String(r.duration_ge_5m || '0');
-    const d15m = String(r.duration_ge_15m || '0');
+    const d1m = r.duration_ge_1m == null ? null : String(r.duration_ge_1m);
+    const d5m = r.duration_ge_5m == null ? null : String(r.duration_ge_5m);
+    const d15m = r.duration_ge_15m == null ? null : String(r.duration_ge_15m);
 
     return {
+      reportDate: r.report_date || null,
+      callsPerSale: Number(saleCount) > 0 ? divideExactDecimal(totalCalls, saleCount, 2) : null,
+      rpcSaleCount: r.rpc_sale_count == null ? null : String(r.rpc_sale_count),
       cli: r.cli || 'Unknown CLI',
       campaign: r.campaign || 'Unknown',
       vendor: r.vendor || 'Unknown',
@@ -1122,11 +1190,11 @@ async function executeLiveCliQuery(
       answeredCount: null,
       answeredRate: null,
       contactCount,
-      contactRate: calculateExactRate(contactCount, totalCalls) || '0.00',
+      contactRate: calculateExactRate(contactCount, totalCalls),
       saleCount,
-      salePerCallRate: calculateExactRate(saleCount, totalCalls) || '0.00',
+      salePerCallRate: calculateExactRate(saleCount, totalCalls),
       salePerAnswerRate: null,
-      salePerContactRate: Number(contactCount) > 0 ? calculateExactRate(saleCount, contactCount) : null,
+      salePerContactRate: Number(contactCount) > 0 && r.rpc_sale_count != null ? calculateExactRate(String(r.rpc_sale_count), contactCount) : null,
       durationGe1mCount: d1m,
       durationGe1mPct: d1m === null ? null : calculateExactRate(d1m, totalCalls),
       durationGe5mCount: d5m,
@@ -1143,11 +1211,20 @@ async function executeLiveCliQuery(
       hasAnomalies: false,
       anomalies: [],
     };
-  });
-
+  };
+  const records = rosterRows.slice(0, rowLimit).map(mapLiveRecord);
+  const dailyRows: any[] = resultRow.daily || [];
+  const dailyRecords = dailyRows.slice(0, rowLimit).map(mapLiveRecord);
   const summary = computeCliSummary(records);
+  if (rosterRows.length <= rowLimit && hasLeadId && resultRow.scope_distinct_leads != null) {
+    summary.distinctLeads = String(resultRow.scope_distinct_leads);
+    summary.callsPerLead = Number(resultRow.scope_distinct_leads) > 0 ? divideExactDecimal(summary.totalCalls, summary.distinctLeads, 2) : null;
+  } else if (records.length > 1) { summary.distinctLeads = null; summary.callsPerLead = null; }
+  const rpcSales = records.every(record => record.rpcSaleCount !== null && record.rpcSaleCount !== undefined)
+    ? records.reduce((sum, record) => sum + BigInt(record.rpcSaleCount!), 0n).toString() : null;
+  summary.salePerContactRate = rpcSales !== null ? calculateExactRate(rpcSales, summary.contactCount) : null;
   const durationBands = computeDurationBands(records);
-  const periodComparison = computePeriodComparison(records, scope);
+  const periodComparison = dailyRows.length <= rowLimit && comparisonWindow ? computePeriodComparison(dailyRecords, scope) : null;
   const campaigns = aggregateCampaigns(records);
   const fieldCoverage = getCliFieldCoverage(table, cliCol, fields);
 
@@ -1164,7 +1241,14 @@ async function executeLiveCliQuery(
     },
     summary,
     cliPerformance: records,
-    trend: [],
+    trend: dailyRows.length <= rowLimit ? aggregateCliTrend(dailyRecords.filter(record => (!scope.startDate || record.reportDate! >= scope.startDate) && (!scope.endDate || record.reportDate! <= scope.endDate))) : [],
+    diagnostics: {
+      timezone: clientConfig.timezone,
+      trendStatus: !dateCol ? 'UNAVAILABLE' : dailyRows.length > rowLimit ? 'TRUNCATED' : 'OBSERVED',
+      breakdowns: (resultRow.breakdowns || []).slice(0, rowLimit).map((row: any) => ({ dimension: row.dimension, bucket: row.bucket, cli: row.cli, calls: Number(row.calls), rpc: row.rpc == null ? null : Number(row.rpc), sales: row.sales == null ? null : Number(row.sales) })),
+      breakdownsTruncated: (resultRow.breakdowns || []).length > rowLimit,
+      reason: 'Counts are call events. CLI/campaign/vendor and hour/disposition are alternative aggregations. Calls per sale is unavailable with no sales. Overuse and sudden-change thresholds require approved decision rules.',
+    },
     durationBands,
     leadAgeBands: emptyLeadAgeBands(),
     campaigns,
@@ -1182,7 +1266,7 @@ async function executeLiveCliQuery(
       generatedAt: new Date().toISOString(),
       rowCount: records.length,
       rowLimit,
-      truncated: result.rows.length > rowLimit,
+      truncated: rosterRows.length > rowLimit,
       validationStatus: 'LIVE_SQL_AGGREGATED',
     },
   };
