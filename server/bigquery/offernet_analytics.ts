@@ -181,6 +181,35 @@ function marketingTenantFilter(contract: MarketingSourceContract) {
   };
 }
 
+async function validateMarketingSpendGrain(
+  client: ReturnType<typeof getBigQueryClient>,
+  contract: MarketingSourceContract,
+  conditions: string[],
+  params: Record<string, any>,
+) {
+  const grainFields = contract.spendGrainFields.map(safeWarehouseColumn);
+  const grainExpression = `TO_JSON_STRING(STRUCT(${grainFields.join(', ')}))`;
+  const [rows] = await client.query({
+    query: `
+      SELECT
+        COUNT(*) AS row_count,
+        COUNT(DISTINCT ${grainExpression}) AS distinct_grain_count,
+        COUNT(*) - COUNT(DISTINCT ${grainExpression}) AS duplicate_grain_rows
+      FROM \`${contract.table}\`
+      WHERE ${conditions.join(' AND ')}
+    `,
+    params,
+  });
+  const row = rows[0] || {};
+  const duplicateGrainRows = Number(row.duplicate_grain_rows || 0);
+  return {
+    status: duplicateGrainRows > 0 ? 'DUPLICATE_GRAIN' as const : 'VALID' as const,
+    rowCount: Number(row.row_count || 0),
+    distinctGrainCount: Number(row.distinct_grain_count || 0),
+    duplicateGrainRows,
+  };
+}
+
 export async function getMarketingSourceDiscovery(params: Pick<OffernetQueryParams, 'clientId'>) {
   const clientConfig = getClientConfig(params.clientId);
   const contract = clientConfig.marketing;
