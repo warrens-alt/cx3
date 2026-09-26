@@ -7,8 +7,8 @@ import { fetchSpeedToLead, type SpeedToLeadData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import { downloadCsv } from '../lib/formatters';
-
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
+
 export default function SpeedToLeadIntelligence() {
   const scoped = useScopedNavigationTarget();
   const { selectedClient } = useClient();
