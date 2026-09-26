@@ -125,7 +125,17 @@ analyticsRouter.get('/lead-timeline/:leadId', requireAdmin, cacheResponse(120), 
   const data = await singleFlight(res, 'lead-timeline', {leadId}, () => getLeadTimeline({ ...res.locals.scope, leadId: leadId! }));
   res.json({ success: true, metadata: metadata(res, 'lead_timeline'), data });
 }));
-analyticsRouter.get('/export', asyncRoute(async (req, res) => {
+function requireAdminForRecordExport(req: Request, res: Response, next: NextFunction) {
+  try {
+    const grain = scalarString(req.query.grain, 'grain') || 'lead';
+    if (grain === 'cli') return next();
+    return requireAdmin(req, res, next);
+  } catch (error) {
+    next(error);
+  }
+}
+
+analyticsRouter.get('/export', requireAdminForRecordExport, asyncRoute(async (req, res) => {
   const format = scalarString(req.query.format, 'format') || 'csv';
   if (!['csv', 'json'].includes(format)) throw new RequestError('Unsupported export format');
   if (req.query.segment || req.query.chartBucket || req.query.metrics) throw new RequestError('Use explicit supported filters for chart exports; unsupported drill-down parameters are not ignored', 422);
@@ -383,7 +393,7 @@ analyticsRouter.get('/cli-performance', cacheResponse(30), asyncRoute(async (req
   res.json({ success: true, data });
 }));
 
-analyticsRouter.post('/cli-performance/import', asyncRoute(async (req, res) => {
+analyticsRouter.post('/cli-performance/import', requireAdmin, asyncRoute(async (req, res) => {
   const scope = res.locals.scope;
   const { csvText, filename } = req.body || {};
   if (!csvText || typeof csvText !== 'string') {
@@ -410,7 +420,10 @@ analyticsRouter.post('/cli-performance/import', asyncRoute(async (req, res) => {
   });
 }));
 
-analyticsRouter.post('/cli-performance/load-sample', asyncRoute(async (req, res) => {
+analyticsRouter.post('/cli-performance/load-sample', requireAdmin, asyncRoute(async (req, res) => {
+  if (process.env.NODE_ENV === 'production' && process.env.ENABLE_CLI_SAMPLE_DATA !== 'true') {
+    throw new RequestError('Benchmark CLI sample data is disabled in production', 403);
+  }
   const scope = res.locals.scope;
   const sample = generateBenchmarkCliDataset();
   setTenantImport(scope.clientId, {
@@ -429,7 +442,7 @@ analyticsRouter.post('/cli-performance/load-sample', asyncRoute(async (req, res)
   });
 }));
 
-analyticsRouter.delete('/cli-performance/import', asyncRoute(async (req, res) => {
+analyticsRouter.delete('/cli-performance/import', requireAdmin, asyncRoute(async (req, res) => {
   const scope = res.locals.scope;
   clearTenantImport(scope.clientId);
   serverQueryCache.invalidateNamespace(scope.clientId);
