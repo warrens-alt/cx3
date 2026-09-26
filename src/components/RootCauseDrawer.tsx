@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useClient } from '../lib/ClientContext';
 import { useAuth } from '../lib/AuthContext';
 import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
+import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 import { fetchRootCause, type RootCauseData } from '../lib/offernetClient';
 
 type RootCauseMetric = RootCauseData['metric']['id'];
@@ -25,6 +26,7 @@ export default function RootCauseDrawer({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string>('vendor');
+  const dialogRef = useDialogAccessibility<HTMLElement>(open, onClose);
 
   useEffect(() => {
     if (!open || !metric || !selectedClient || !startDate || !endDate) return;
@@ -76,7 +78,7 @@ export default function RootCauseDrawer({
     <div className="cx-rootcause-backdrop" role="presentation" onMouseDown={event => {
       if (event.currentTarget === event.target) onClose();
     }}>
-      <aside className="cx-rootcause-drawer" role="dialog" aria-modal="true" aria-label="Why did this change?">
+      <aside ref={dialogRef} tabIndex={-1} className="cx-rootcause-drawer" role="dialog" aria-modal="true" aria-label="Why did this change?">
         <header>
           <div>
             <span>Root-cause analysis</span>
