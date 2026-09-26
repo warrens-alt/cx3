@@ -60,8 +60,9 @@ export interface CliPerformanceRecord {
   campaign: string;
   vendor: string;
   totalCalls: string;
-  distinctLeads: string;
-  callsPerLead: string;
+  distinctLeads: string | null;
+  callsPerLead: string | null;
+  reportDate?: string | null;
   asrCount: string | null;
   asrRate: string | null;
   answeredCount: string | null;
@@ -92,8 +93,8 @@ export interface CliPerformanceRecord {
 export interface CliSummary {
   totalCalls: string;
   activeClis: number;
-  distinctLeads: string;
-  callsPerLead: string;
+  distinctLeads: string | null;
+  callsPerLead: string | null;
   asrCount: string | null;
   asrRate: string | null;
   answeredCount: string | null;
