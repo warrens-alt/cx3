@@ -32,8 +32,11 @@ export function navigationTarget(target: string, currentPath: string, search: st
   }
 
   const workspace = new URLSearchParams();
+  const currentParams = new URLSearchParams(search);
+  const clientId = currentParams.get('clientId');
+  if (clientId) workspace.set('clientId', clientId);
   // Preserve repeated invalid values so navigation does not silently broaden their scope.
-  for (const id of new URLSearchParams(search).getAll('workspace')) workspace.append('workspace', id);
+  for (const id of currentParams.getAll('workspace')) workspace.append('workspace', id);
   for (const [k, v] of targetParams.entries()) {
     workspace.set(k, v);
   }
