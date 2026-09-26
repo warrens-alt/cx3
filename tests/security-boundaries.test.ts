@@ -89,3 +89,42 @@ test('observed media efficiency is derived only when a spend field exists', () =
   assert.match(analytics, /cpl: hasSpend && totals\.leads > 0/);
   assert.match(analytics, /cross-source ratios and are not attribution or full profitability/);
 });
+
+
+test('tenant marketing contracts replace dormant hard-coded cost assumptions', () => {
+  const config = read('server/bigquery/config.ts');
+  assert.match(config, /interface MarketingSourceContract/);
+  assert.match(config, /spendGrainFields/);
+  assert.match(config, /CX_MARKETING_CLIENT_MAP_JSON/);
+  assert.match(config, /CX_MARKETING_ATTRIBUTION_JSON/);
+  assert.doesNotMatch(config, /leadCost\s*:/);
+  assert.doesNotMatch(config, /callMinuteCost\s*:/);
+  assert.doesNotMatch(config, /baseCommissionPerSale\s*:/);
+  assert.doesNotMatch(config, /fixedOverhead\s*:/);
+});
+
+test('tenant campaign reporting fails closed until explicit client_name mapping exists', () => {
+  const analytics = read('server/bigquery/offernet_analytics.ts');
+  assert.match(analytics, /Marketing API-table mapping is unresolved for this tenant/);
+  assert.match(analytics, /marketingTenantFilter\(contract\)/);
+  assert.doesNotMatch(analytics, /clientConfig\.id !== 'default_tenant'\)[\s\S]{0,300}Tenant-to-marketing-client mappings are not yet approved/);
+});
+
+test('spend grain is validated before incurred spend is returned', () => {
+  const analytics = read('server/bigquery/offernet_analytics.ts');
+  assert.match(analytics, /duplicate_grain_rows/);
+  assert.match(analytics, /grainStatus === 'VALID'/);
+  assert.match(analytics, /Spend is withheld because the API table violates the configured spend grain/);
+});
+
+test('marketing attribution is explicit and fail closed', () => {
+  const analytics = read('server/bigquery/offernet_analytics.ts');
+  assert.match(analytics, /contract\.attribution\.status !== 'ACTIVE'/);
+  assert.match(analytics, /Attribution requires an approved observed spend field/);
+  assert.match(analytics, /OBSERVED_UNRECONCILED/);
+});
+
+test('marketing discovery remains admin-only', () => {
+  const api = read('server/api.ts');
+  assert.match(api, /analyticsRouter\.get\('\/offernet\/marketing-discovery', requireAdmin/);
+});
