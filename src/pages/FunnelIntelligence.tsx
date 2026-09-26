@@ -178,8 +178,10 @@ export default function FunnelIntelligence() {
                         <small>{row.leads.toLocaleString()} leads</small>
                       </div>
                       <div className="cx-segment-track"><i style={{ width: `${(row.leads / sourceMax) * 100}%` }}/></div>
-                      <dl>
-                        <div><dt>RPC</dt><dd>{pct(row.contacted, row.leads)}%</dd></div>
+                      <dl className="cx-segment-funnel-rates">
+                        <div><dt>Delivery</dt><dd>{pct(row.delivered, row.leads)}%</dd></div>
+                        <div><dt>Dial</dt><dd>{pct(row.dialled, row.delivered)}%</dd></div>
+                        <div><dt>RPC</dt><dd>{pct(row.contacted, row.dialled)}%</dd></div>
                         <div><dt>Sale</dt><dd>{pct(row.sales, row.leads, 2)}%</dd></div>
                       </dl>
                     </div>
@@ -203,8 +205,10 @@ export default function FunnelIntelligence() {
                         <small>{row.leads.toLocaleString()} leads</small>
                       </div>
                       <div className="cx-segment-track"><i style={{ width: `${(row.leads / gradeMax) * 100}%` }}/></div>
-                      <dl>
-                        <div><dt>RPC</dt><dd>{pct(row.contacted, row.leads)}%</dd></div>
+                      <dl className="cx-segment-funnel-rates">
+                        <div><dt>Delivery</dt><dd>{pct(row.delivered, row.leads)}%</dd></div>
+                        <div><dt>Dial</dt><dd>{pct(row.dialled, row.delivered)}%</dd></div>
+                        <div><dt>RPC</dt><dd>{pct(row.contacted, row.dialled)}%</dd></div>
                         <div><dt>Sale</dt><dd>{pct(row.sales, row.leads, 2)}%</dd></div>
                       </dl>
                     </div>
