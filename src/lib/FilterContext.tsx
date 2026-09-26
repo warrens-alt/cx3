@@ -4,9 +4,16 @@ import { validateFilters, type FilterCondition, type Filters } from '../../serve
 export type { FilterCondition };
 export type UniversalFilters = Filters;
 
-export function defaultDateRange(now = new Date()) { 
-  const end = now.toISOString().slice(0, 10); 
-  return { start: new Date(Date.parse(end) - 29 * 86400000).toISOString().slice(0, 10), end }; 
+export function defaultDateRange(now = new Date()) {
+  const localDate = (value: Date) => {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const start = new Date(end.getFullYear(), end.getMonth(), end.getDate() - 29);
+  return { start: localDate(start), end: localDate(end) };
 }
 
 const SUPPORTED_STANDALONE_KEYS = ['source', 'vendor', 'medium', 'grade', 'cli', 'campaign'] as const;
