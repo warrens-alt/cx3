@@ -932,14 +932,9 @@ export async function getSalesActivationAnalytics(params: OffernetQueryParams) {
   const billable = Number(data.billable_sales || 0);
   const activations = Number(data.total_activations || 0);
 
-  // Maturation Cohort Curve (Days since sale to activation)
-  const maturationCurve = [
-    { day: 'Day 0 (Same day)', activationSharePct: 18.5, cumulativePct: 18.5 },
-    { day: 'Day 7', activationSharePct: 42.1, cumulativePct: 60.6 },
-    { day: 'Day 14', activationSharePct: 24.3, cumulativePct: 84.9 },
-    { day: 'Day 30', activationSharePct: 11.2, cumulativePct: 96.1 },
-    { day: 'Day 60+', activationSharePct: 3.9, cumulativePct: 100.0 }
-  ];
+  // A maturation curve requires a separately validated activation-event model.
+  // Do not substitute a static benchmark for observed cohort evidence.
+  const maturationCurve: Array<{ day: string; activationSharePct: number; cumulativePct: number }> = [];
 
   return {
     reconciliation: {
@@ -953,6 +948,8 @@ export async function getSalesActivationAnalytics(params: OffernetQueryParams) {
       avgTimeToActivation: formatDuration(data.avg_time_to_activation_sec)
     },
     maturationCurve,
+    maturationStatus: 'UNAVAILABLE',
+    maturationReason: 'Activation maturation is withheld until event-level activation joins are independently validated.',
     byVendor: data.vendors || []
   };
 }
