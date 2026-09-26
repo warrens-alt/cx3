@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Activity, Shield, KeyRound, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
+import { Activity, Shield, KeyRound, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
 import { BRAND } from '../../contracts/naming';
 
