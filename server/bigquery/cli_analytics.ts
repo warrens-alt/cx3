@@ -32,6 +32,7 @@ import { RequestError, validateScope, conditionSql, boundedInteger, scalarString
 import { validTimestampSql } from './integrity';
 import { matchedPeriodWindow } from '../../contracts/periodComparison';
 import { exactDecimal, addExactDecimals, compareExactDecimal, subtractExactDecimals, divideExactDecimal } from '../../contracts/exactDecimal';
+import { CALL_SOURCE_FIELDS, OFFERNET_SOURCE_TABLES } from '../../contracts/physicalSources';
 
 // In-memory tenant cache for imported CLI reports
 interface TenantImportCache {
@@ -58,16 +59,7 @@ export function clearTenantImport(clientId: string): boolean {
 }
 
 /** Possible column aliases for CLI in call tables */
-const CLI_COLUMN_CANDIDATES = [
-  'cli',
-  'caller_id',
-  'outbound_cid',
-  'source_cli',
-  'phone_presentation',
-  'cli_number',
-  'dialer_caller_id',
-  'outbound_caller_id',
-];
+export const CLI_COLUMN_CANDIDATES = [...CALL_SOURCE_FIELDS.cliCandidates];
 
 /** Check if table has a CLI field */
 export function findCliColumn(fields: Map<string, { type: string }>): string | null {
@@ -905,7 +897,7 @@ export async function getCliPerformance(
     if (!['cli', 'campaign', 'vendor'].includes(key)) throw new RequestError(`CLI analytics does not support the '${key}' filter.`, 422);
   }
   const clientConfig = getClientConfig(scope.clientId);
-  const configuredTable = clientConfig.semanticMappings.tables.cliPerformance || clientConfig.semanticMappings.tables.calls || 'dashboards-422710.lead_ledger.lead_ledger_all_vicidial_insights';
+  const configuredTable = clientConfig.semanticMappings.tables.cliPerformance || clientConfig.semanticMappings.tables.calls || OFFERNET_SOURCE_TABLES.calls;
 
   // 1. Inspect table metadata
   let metadata: TableMetadata | null = null;
@@ -1058,9 +1050,9 @@ async function executeLiveCliQuery(
   const client = access || sourceAccess(scope.clientId);
 
   const campaignCol = fields.has('campaign_id') ? 'campaign_id' : fields.has('campaign_name') ? 'campaign_name' : null;
-  const vendorCol = fields.has('vendor') ? 'vendor' : null;
-  const dateCol = fields.has('call_start_date') ? 'call_start_date' : fields.has('date') ? 'date' : null;
-  const hasLeadId = fields.has('dialer_lead_id');
+  const vendorCol = fields.has(CALL_SOURCE_FIELDS.vendor) ? CALL_SOURCE_FIELDS.vendor : null;
+  const dateCol = fields.has(CALL_SOURCE_FIELDS.date) ? CALL_SOURCE_FIELDS.date : fields.has('date') ? 'date' : null;
+  const hasLeadId = fields.has(CALL_SOURCE_FIELDS.leadId);
   // Exports need only current roster rows; prior-period scans and dashboard aggregations are unused.
   const comparisonWindow = detailOnly ? null : matchedPeriodWindow(scope.startDate, scope.endDate);
 
@@ -1137,12 +1129,12 @@ async function executeLiveCliQuery(
     SELECT CAST(s.\`${cliCol}\` AS STRING) AS cli,
       ${campaignCol ? `CAST(s.\`${campaignCol}\` AS STRING)` : "'Unknown Campaign'"} AS campaign,
       ${vendorCol ? `CAST(s.\`${vendorCol}\` AS STRING)` : "'Unknown Vendor'"} AS vendor,
-      ${hasLeadId ? "NULLIF(TRIM(CAST(s.dialer_lead_id AS STRING)), '')" : 'CAST(NULL AS STRING)'} AS lead_id,
+      ${hasLeadId ? `NULLIF(TRIM(CAST(s.\`${CALL_SOURCE_FIELDS.leadId}\` AS STRING)), '')` : 'CAST(NULL AS STRING)'} AS lead_id,
       CAST(${callDate} AS STRING) AS report_date,
       ${detailOnly ? '' : `${dateCol ? `CAST(EXTRACT(HOUR FROM DATETIME(${validTimestampSql(`s.\`${dateCol}\``)}, @tenantTimezone)) AS STRING)` : 'CAST(NULL AS STRING)'} AS call_hour,
       ${dispositionCol ? `CAST(s.\`${dispositionCol}\` AS STRING)` : 'CAST(NULL AS STRING)'} AS disposition,`}
       SAFE_CAST(is_rpc AS BOOL) AS rpc_flag, SAFE_CAST(is_sale AS BOOL) AS sale_flag,
-      ${fields.has('length_in_sec') ? 'CASE WHEN SAFE_CAST(length_in_sec AS INT64) >= 0 THEN SAFE_CAST(length_in_sec AS INT64) END' : 'CAST(NULL AS INT64)'} AS duration_sec
+      ${fields.has(CALL_SOURCE_FIELDS.durationSeconds) ? `CASE WHEN SAFE_CAST(\`${CALL_SOURCE_FIELDS.durationSeconds}\` AS INT64) >= 0 THEN SAFE_CAST(\`${CALL_SOURCE_FIELDS.durationSeconds}\` AS INT64) END` : 'CAST(NULL AS INT64)'} AS duration_sec
     FROM ${tableIdentifier(table)} s ${whereSql}
   ) SELECT
     ARRAY(SELECT AS STRUCT cli, campaign, vendor, ${aggregate}

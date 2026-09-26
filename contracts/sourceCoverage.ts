@@ -1,3 +1,5 @@
+import { CALL_SOURCE_FIELDS, MARKETING_SOURCE_FIELDS, TIME_TO_DIAL_SOURCE_FIELDS } from './physicalSources';
+
 /** Physical source roles are not interchangeable with approved, versioned reporting facts. */
 export const SOURCE_COVERAGE_VERSION = 'cx.sources.1.0.0';
 export const SOURCE_ROLES = ['leads', 'calls', 'timeToDial', 'activations', 'marketing'] as const;
@@ -25,21 +27,21 @@ export const SOURCE_DEFINITIONS: Record<SourceRole, SourceDefinition> = {
       {id:'valid_phone',label:'Rows with Valid Phone Flag',field:'phone_valid',operation:'true',unit:'records'}],
   },
   calls: {
-    label: 'Dialler Records', dateField:'call_start_date',dateMeaning:'Recorded call-start date',filters:{vendor:'vendor'},
-    requiredIdentityFields:['dialer_lead_id','vendor'], legacyConsumers:['overview','funnel','calls','outcomes','sources','cohorts','speed-to-lead','explore','export'],
+    label: 'Dialler Records', dateField:CALL_SOURCE_FIELDS.date,dateMeaning:'Recorded call-start date',filters:{vendor:CALL_SOURCE_FIELDS.vendor},
+    requiredIdentityFields:[CALL_SOURCE_FIELDS.leadId,CALL_SOURCE_FIELDS.vendor], legacyConsumers:['overview','funnel','calls','outcomes','sources','cohorts','speed-to-lead','explore','export'],
     warning:'A source row is not a deduplicated call event until the event-ID and ledger/dialler identity contracts are verified.',
     metrics:[{id:'source_rows',label:'Dialler Source Rows',operation:'count',unit:'records'},
-      {id:'dialler_lead_ids',label:'Distinct Dialler Lead IDs',field:'dialer_lead_id',operation:'distinct',unit:'records'},
-      {id:'rpc_rows',label:'Rows with RPC Flag',field:'is_rpc',operation:'true',unit:'records'},
-      {id:'sale_rows',label:'Rows with Sale Flag',field:'is_sale',operation:'true',unit:'records'},
-      {id:'duration_seconds',label:'Recorded Duration (Seconds)',field:'length_in_sec',operation:'sum',unit:'seconds'}],
+      {id:'dialler_lead_ids',label:'Distinct Dialler Lead IDs',field:CALL_SOURCE_FIELDS.leadId,operation:'distinct',unit:'records'},
+      {id:'rpc_rows',label:'Rows with RPC Flag',field:CALL_SOURCE_FIELDS.rpc,operation:'true',unit:'records'},
+      {id:'sale_rows',label:'Rows with Sale Flag',field:CALL_SOURCE_FIELDS.sale,operation:'true',unit:'records'},
+      {id:'duration_seconds',label:'Recorded Duration (Seconds)',field:CALL_SOURCE_FIELDS.durationSeconds,operation:'sum',unit:'seconds'}],
   },
   timeToDial: {
-    label:'Time-to-Dial Source',dateField:'expected_first_dial',dateMeaning:'Expected first-dial date (not an observed call date)',filters:{},
+    label:'Time-to-Dial Source',dateField:TIME_TO_DIAL_SOURCE_FIELDS.date,dateMeaning:'Expected first-dial date (not an observed call date)',filters:{},
     requiredIdentityFields:[],legacyConsumers:['source-metrics/timeToDial'],
     warning:'Expected first dial is a schedule field, not actual first dial. Joining this source to lead/vendor outcomes requires a verified key mapping; it is not silently merged with call logs.',
     metrics:[{id:'source_rows',label:'Time-to-Dial Source Rows',operation:'count',unit:'records'},
-      {id:'expected_first_dial_rows',label:'Rows with Valid Expected First Dial',field:'expected_first_dial',operation:'timestamp',unit:'records'}],
+      {id:'expected_first_dial_rows',label:'Rows with Valid Expected First Dial',field:TIME_TO_DIAL_SOURCE_FIELDS.date,operation:'timestamp',unit:'records'}],
   },
   activations: {
     label:'BLC Activation Source',dateField:'date_created',dateMeaning:'Activation-source creation date (not proof of service activation date)',filters:{},
@@ -50,11 +52,11 @@ export const SOURCE_DEFINITIONS: Record<SourceRole, SourceDefinition> = {
       {id:'expected_value',label:'Expected Value on Source Rows',field:'expected_ontact_revenue',operation:'sum',unit:'source_amount',note:'Source-row sum may include repeated transaction snapshots; not recognised revenue.'}],
   },
   marketing: {
-    label:'Platform Media Insights',dateField:'date',dateMeaning:'Media reporting date',filters:{},requiredIdentityFields:['date','channel'],
+    label:'Platform Media Insights',dateField:MARKETING_SOURCE_FIELDS.date,dateMeaning:'Media reporting date',filters:{},requiredIdentityFields:[...MARKETING_SOURCE_FIELDS.spendGrain],
     legacyConsumers:['acquisition'],warning:'Platform lead actions are not ledger leads. Reach, budgets and spend must not be treated as interchangeable or duplicated across vendors.',
     metrics:[{id:'source_rows',label:'Media Source Rows',operation:'count',unit:'records'},
-      {id:'impressions',label:'Reported Impressions',field:'impressions',operation:'sum',unit:'records'},
-      {id:'clicks',label:'Reported Clicks',field:'clicks',operation:'sum',unit:'records'},
-      {id:'platform_leads',label:'Platform Lead Actions',field:'actions_lead',operation:'sum',unit:'records'}],
+      {id:'impressions',label:'Reported Impressions',field:MARKETING_SOURCE_FIELDS.impressions,operation:'sum',unit:'records'},
+      {id:'clicks',label:'Reported Clicks',field:MARKETING_SOURCE_FIELDS.clicks,operation:'sum',unit:'records'},
+      {id:'platform_leads',label:'Platform Lead Actions',field:MARKETING_SOURCE_FIELDS.platformLeads,operation:'sum',unit:'records'}],
   },
 };

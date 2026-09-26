@@ -1,4 +1,5 @@
 import { RequestError } from './filters';
+import { CALL_SOURCE_FIELDS, MARKETING_SOURCE_FIELDS, OFFERNET_SOURCE_TABLES, TIME_TO_DIAL_SOURCE_FIELDS } from '../../contracts/physicalSources';
 
 export interface ClientOperationalConfig {
   operatingHours: { start: string; end: string; workdays: number[] };
@@ -76,6 +77,9 @@ export interface TenantConfiguration {
   operationalConfig?: ClientOperationalConfig;
 }
 
+void CALL_SOURCE_FIELDS;
+void TIME_TO_DIAL_SOURCE_FIELDS;
+
 const DEFAULT_OPERATIONAL_CONFIG: ClientOperationalConfig = {
   operatingHours: { start: '08:00', end: '17:30', workdays: [1, 2, 3, 4, 5] },
   grading: ['Gold', 'Silver', 'Bronze', 'Standard'],
@@ -110,49 +114,30 @@ const DEFAULT_OPERATIONAL_CONFIG: ClientOperationalConfig = {
 
 const BASE_TABLES = {
   leads: 'dashboards-422710.lead_ledger.clustered_lead_ledger',
-  marketing: 'dashboards-422710.lead_ledger.lead_ledger_platform_insights',
-  calls: 'dashboards-422710.lead_ledger.lead_ledger_all_vicidial_insights',
-  timeToDial: 'dashboards-422710.lead_ledger.lead_ledger_all_vicidial_insights_time_to_dial',
+  marketing: OFFERNET_SOURCE_TABLES.marketing,
+  calls: OFFERNET_SOURCE_TABLES.calls,
+  timeToDial: OFFERNET_SOURCE_TABLES.timeToDial,
   activations: 'dashboards-422710.lead_ledger.tbl_blc_activations',
-  cliPerformance: 'dashboards-422710.lead_ledger.lead_ledger_all_vicidial_insights',
+  // CLI analytics are a projection of the same approved VICIdial call source.
+  cliPerformance: OFFERNET_SOURCE_TABLES.calls,
 };
 
 const BASE_MARKETING_CONTRACT: Omit<MarketingSourceContract, 'mappingStatus' | 'clientNames'> = {
   table: BASE_TABLES.marketing,
-  clientNameField: 'client_name',
-  dateField: 'date',
-  channelField: 'channel',
-  campaignField: 'Channel_Campaign_Name',
-  adsetField: 'channel_adset_name',
-  impressionsField: 'impressions',
-  reachField: 'reach',
-  clicksField: 'clicks',
-  outboundClicksField: 'outbound_clicks',
-  leadsField: 'actions_lead',
-  approvedSpendFields: [
-    'spend',
-    'amount_spent',
-    'actual_spend',
-    'media_spend',
-    'ad_spend',
-    'total_spend',
-    'cost',
-    'cost_micros',
-    'spend_micros',
-  ],
-  spendUnitByField: {
-    spend: 'currency',
-    amount_spent: 'currency',
-    actual_spend: 'currency',
-    media_spend: 'currency',
-    ad_spend: 'currency',
-    total_spend: 'currency',
-    cost: 'currency',
-    cost_micros: 'micros',
-    spend_micros: 'micros',
-  },
-  approvedBudgetFields: ['budget', 'campaign_budget', 'daily_budget'],
-  spendGrainFields: ['date', 'client_name', 'channel', 'Channel_Campaign_Name', 'channel_adset_name'],
+  clientNameField: MARKETING_SOURCE_FIELDS.clientName,
+  dateField: MARKETING_SOURCE_FIELDS.date,
+  channelField: MARKETING_SOURCE_FIELDS.channel,
+  campaignField: MARKETING_SOURCE_FIELDS.campaign,
+  adsetField: MARKETING_SOURCE_FIELDS.adset,
+  impressionsField: MARKETING_SOURCE_FIELDS.impressions,
+  reachField: MARKETING_SOURCE_FIELDS.reach,
+  clicksField: MARKETING_SOURCE_FIELDS.clicks,
+  outboundClicksField: MARKETING_SOURCE_FIELDS.outboundClicks,
+  leadsField: MARKETING_SOURCE_FIELDS.platformLeads,
+  approvedSpendFields: [...MARKETING_SOURCE_FIELDS.spendCandidates],
+  spendUnitByField: { ...MARKETING_SOURCE_FIELDS.spendUnits },
+  approvedBudgetFields: [...MARKETING_SOURCE_FIELDS.budgetCandidates],
+  spendGrainFields: [...MARKETING_SOURCE_FIELDS.spendGrain],
   attribution: {
     status: 'UNCONFIGURED',
     notes: 'Cross-source attribution requires an explicitly approved marketing-to-lead key contract.',

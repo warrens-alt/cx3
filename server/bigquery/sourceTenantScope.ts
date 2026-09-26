@@ -1,4 +1,5 @@
 import type { SourceRole } from '../../contracts/sourceCoverage';
+import { CALL_SOURCE_FIELDS } from '../../contracts/physicalSources';
 import { getClientConfig, tenantVendorScopeValues } from './config';
 import { conditionSql, RequestError, type Scalar } from './filters';
 import { flatSchema, type TableMetadata } from './sourceAccess';
@@ -30,7 +31,7 @@ export function sourceTenantPredicate(clientId: string, role: SourceRole, meta: 
   if (role === 'calls') {
     const vendors = tenantVendorScopeValues(client);
     if (!vendors.length) throw new RequestError('Approved vendor ownership mapping is required for this tenant', 422);
-    return conditionSql(`LOWER(TRIM(${textField('vendor')}))`, { operator: 'in', values: vendors }, 'tenant_vendor', params);
+    return conditionSql(`LOWER(TRIM(${textField(CALL_SOURCE_FIELDS.vendor)}))`, { operator: 'in', values: vendors }, 'tenant_vendor', params);
   }
   if (role === 'leads' && client.dataSourceMode === 'separate' && client.semanticMappings.tables.leads !== getClientConfig('default_tenant').semanticMappings.tables.leads) {
     return null; // Configured tenant-specific source view, never the master ledger.

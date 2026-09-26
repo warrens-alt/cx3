@@ -12,6 +12,18 @@ The five existing configured physical sources now have explicit, read-only query
 | tbl_blc_activations | activations | /api/analytics/source-metrics/activations | Source-creation-dated rows, transaction IDs and recorded expected value. BLC data does not prove all-vendor activation coverage. |
 | lead_ledger_platform_insights | marketing | /api/analytics/acquisition and /api/analytics/source-metrics/marketing | Media-date impressions, clicks and platform lead actions. Budget is not treated as incurred spend. |
 
+### Canonical parameters for the three shared analytics tables
+
+The table names and known source parameters are centralized in `contracts/physicalSources.ts`; runtime code must reference this contract rather than maintain independent copies.
+
+| Table | Role | Contracted parameters |
+| --- | --- | --- |
+| `lead_ledger_platform_insights` | Marketing | `client_name`, `date`, `channel`, `Channel_Campaign_Name`, `channel_adset_name`, `impressions`, optional `reach`, `clicks`, optional `outbound_clicks`, `actions_lead`; actual spend is schema-discovered from the approved observed-spend candidates and is never guessed from budget. |
+| `lead_ledger_all_vicidial_insights` | Calls / Agent / CLI | `call_start_date`, `vendor`, `dialer_lead_id`, `user`, `is_rpc`, `is_sale`, optional `is_callback`, `length_in_sec`; CLI is discovered only from the approved caller-ID aliases in the physical source contract. |
+| `lead_ledger_all_vicidial_insights_time_to_dial` | Time-to-dial observability | `expected_first_dial` only under the currently approved contract. This is an expected/scheduled timestamp, not actual first dial, and no lead/vendor join is enabled until source owners approve an identity/ownership mapping. |
+
+The admin source catalogue and source-metric responses expose this parameter contract so schema drift is visible instead of silently changing analytical meaning.
+
 Source aggregate APIs require explicit `startDate`, `endDate`, and the permitted `clientId`. Where a source has no verified source/vendor/medium mapping, that filter produces HTTP 422 rather than being dropped. Diagnostics in Source Field Mappings intentionally use source-specific dates without applying the legacy cohort filter dimensions; this is displayed in the interface.
 
 ## Tenant ownership
