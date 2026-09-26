@@ -560,8 +560,8 @@ export async function fetchRawLeads(params: Record<string, any> = {}, forceRefre
   return fetchOffernetJson<RawLeadsData>(`/api/analytics/offernet/raw-leads${buildQueryString(params)}`, forceRefresh);
 }
 
-export async function fetchLeadTimeline(leadId: string, forceRefresh = false): Promise<LeadTimelineData> {
-  return fetchOffernetJson<LeadTimelineData>(`/api/analytics/offernet/lead-timeline/${encodeURIComponent(leadId)}`, forceRefresh);
+export async function fetchLeadTimeline(leadId: string, params: Record<string, any> = {}, forceRefresh = false): Promise<LeadTimelineData> {
+  return fetchOffernetJson<LeadTimelineData>(`/api/analytics/offernet/lead-timeline/${encodeURIComponent(leadId)}${buildQueryString(params)}`, forceRefresh);
 }
 
 export async function fetchClientOperationalConfig(forceRefresh = false): Promise<any> {
