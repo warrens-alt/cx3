@@ -8,7 +8,7 @@ The five existing configured physical sources now have explicit, read-only query
 | --- | --- | --- | --- |
 | clustered_lead_ledger | leads | /api/analytics/source-metrics/leads | Capture-dated source rows, distinct lead IDs and recorded validity flags. |
 | lead_ledger_all_vicidial_insights | calls | /api/analytics/source-metrics/calls | Call-start-dated dialler rows, RPC/sale flags and duration counters. Not certified unique call events. |
-| lead_ledger_all_vicidial_insights_time_to_dial | timeToDial | /api/analytics/source-metrics/timeToDial | Expected-first-dial-dated source rows and timestamp presence. Expected time is not actual first dial. |
+| lead_ledger_all_vicidial_insights_time_to_dial | timeToDial | /api/analytics/source-metrics/timeToDial | Recorded-first-dial-dated source rows with both actual FIRST_DIAL_DATE and scheduled EXPECTED_FIRST_DIAL. Tenant scope uses VENDOR; cross-source lead joins remain contract-gated. |
 | tbl_blc_activations | activations | /api/analytics/source-metrics/activations | Source-creation-dated rows, transaction IDs and recorded expected value. BLC data does not prove all-vendor activation coverage. |
 | lead_ledger_platform_insights | marketing | /api/analytics/acquisition and /api/analytics/source-metrics/marketing | Media-date impressions, clicks and platform lead actions. Budget is not treated as incurred spend. |
 
@@ -18,9 +18,9 @@ The table names and known source parameters are centralized in `contracts/physic
 
 | Table | Role | Contracted parameters |
 | --- | --- | --- |
-| `lead_ledger_platform_insights` | Marketing | `client_name`, `date`, `channel`, `Channel_Campaign_Name`, `channel_adset_name`, `impressions`, optional `reach`, `clicks`, optional `outbound_clicks`, `actions_lead`; actual spend is schema-discovered from the approved observed-spend candidates and is never guessed from budget. |
-| `lead_ledger_all_vicidial_insights` | Calls / Agent / CLI | `call_start_date`, `vendor`, `dialer_lead_id`, `user`, `is_rpc`, `is_sale`, optional `is_callback`, `length_in_sec`; CLI is discovered only from the approved caller-ID aliases in the physical source contract. |
-| `lead_ledger_all_vicidial_insights_time_to_dial` | Time-to-dial observability | `expected_first_dial` only under the currently approved contract. This is an expected/scheduled timestamp, not actual first dial, and no lead/vendor join is enabled until source owners approve an identity/ownership mapping. |
+| `lead_ledger_platform_insights` | Marketing | `client_name`, `date`, `channel`, `Channel_Campaign_Name`, `channel_adset_name`, `budget`, `impressions`, `reach`, `engagements`, `clicks`, `outbound_clicks`, `actions_lead`, `objective`, `created_at`, link/page/cart/checkout/payment action fields, messaging-started and `currency`. The supplied schema contains no observed-spend column; total spend must therefore remain unavailable. |
+| `lead_ledger_all_vicidial_insights` | Calls / Agent / CLI | `vendor`, `dialer_uniqueid`, `dialer_lead_id`, list/campaign fields, `entry_date`, `modify_date`, `call_start_date`, `call_end_date`, `length_in_sec`, `user`, `status_name`, `is_rpc`, `is_sale`, `is_callback`, `called_count` and supporting audit fields. The supplied schema does not expose an approved outbound CLI/caller-ID field, so CLI-by-number remains unavailable unless a recognised field is later present. |
+| `lead_ledger_all_vicidial_insights_time_to_dial` | Time-to-dial observability | `vendor`, `dialer_uniqueid`, `dialer_lead_id`, `campaign_id`, `list_id`, `entry_date`, `modify_date`, `first_dial_date`, `expected_first_dial`, `created_at`. Source metrics use recorded `first_dial_date` as their date basis and retain expected first dial as a separate scheduled field. No Lead Ledger join is enabled until identity equivalence is approved. |
 
 The admin source catalogue and source-metric responses expose this parameter contract so schema drift is visible instead of silently changing analytical meaning.
 
@@ -36,7 +36,7 @@ Authorisation to select a workspace and ownership of rows in a shared source are
 | `calls` | An approved tenant vendor mapping and a scalar STRING `vendor` column; the query binds the tenant's vendor values. |
 | `marketing` | A resolved, approved `client_name` mapping and a scalar STRING ownership column; wildcard mappings are rejected. |
 | `activations` | The explicitly configured BLC-only source is available to `ontact_blc`; other tenant ownership remains unestablished. |
-| `timeToDial` | Non-master aggregation is unavailable until an approved ownership/join mapping exists. |
+| `timeToDial` | An approved tenant vendor mapping and scalar STRING `vendor` column scope the shared timing source. The separate dialler-to-Lead-Ledger identity join remains unapproved. |
 
 The explicitly authorised `default_tenant` master workspace may query its configured source population. Other tenants receive HTTP 422 when the required mapping, field shape, or ownership contract is absent. Schema discovery alone does not establish ownership. The predicates and failure cases are implemented in `server/bigquery/sourceTenantScope.ts` and exercised by `tests/query-boundaries.test.ts`.
 
@@ -58,7 +58,7 @@ Optional legacy calls/activation sources no longer fall back to a hard-coded oth
 
 ## Remaining live integration requirements
 
-The time-to-dial table now has a live API query path and coverage measurements. It is deliberately NOT joined to capture-to-actual-first-dial metrics without a verified identity/date contract. Its expected timestamp must not replace observed call timestamps.
+The time-to-dial table has a live source-metric path and now uses its recorded `first_dial_date` as the source-date basis while exposing `expected_first_dial` separately. Tenant ownership is bounded by the table's vendor column. It is deliberately NOT joined to Lead Ledger outcomes without a verified dialler-to-ledger identity contract.
 
 The versioned Evidence Reports still require canonical source adapters, approved identity bridges and a published release. This change does not automatically convert cumulative HLC counters into call events, guessed activation IDs into sale relationships, or expected values into financial ledger deltas. All-vendor activation data, approved rate cards, invoice/collection events and media allocation keys must be supplied by the source owners.
 
