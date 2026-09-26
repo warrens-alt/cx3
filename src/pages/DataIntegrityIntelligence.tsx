@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, Database, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Clock3, Database, ShieldCheck } from 'lucide-react';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import { useClient } from '../lib/ClientContext';
 import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
@@ -16,13 +16,12 @@ export default function DataIntegrityIntelligence() {
     setLoading(true);
     setError(null);
     try {
-      const result = await fetchDataIntegrity({
+      setData(await fetchDataIntegrity({
         clientId: selectedClient,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         ...extractOffernetFilters(filters),
-      }, forceRefresh);
-      setData(result);
+      }, forceRefresh));
     } catch (err: any) {
       setError(err?.message || 'Failed to load data-integrity evidence');
     } finally {
@@ -35,88 +34,86 @@ export default function DataIntegrityIntelligence() {
   }, [selectedClient, startDate, endDate, filters]);
 
   const badge = (status: string) => {
-    const cls = status === 'HEALTHY'
+    const healthy = ['HEALTHY', 'OBSERVED'].includes(status);
+    const warning = ['WARNING', 'MAPPING_REQUIRED', 'TIMESTAMP_CONTRACT_REQUIRED'].includes(status);
+    const cls = healthy
       ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-      : status === 'WARNING'
+      : warning
         ? 'bg-amber-50 text-amber-800 border-amber-200'
         : 'bg-slate-100 text-slate-700 border-slate-200';
     return <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${cls}`}>{status}</span>;
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-16">
+    <div className="cx-command-page">
       <OffernetFilterBar onRefresh={() => loadData(true)} />
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <ShieldCheck size={18} className="text-blue-600" />
-            <h1 className="text-xl font-bold text-slate-900">Data Integrity & Health Monitor</h1>
+      <div className="cx-command-content">
+        <header className="cx-command-hero">
+          <div>
+            <span className="cx-command-eyebrow">Data trust</span>
+            <h1>Source observability & integrity</h1>
+            <p>Freshness, mapping readiness and observed warehouse discrepancies without a synthetic health score.</p>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Observed discrepancy counts from the selected warehouse scope. No synthetic health score is assigned.
-          </p>
-        </div>
+        </header>
 
-        {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-xs text-red-800 flex items-center gap-2">
-            <AlertTriangle size={16} />
-            <span>{error}</span>
-          </div>
-        )}
+        {error && <div className="cx-command-error"><AlertTriangle size={16}/>{error}</div>}
+        {loading && !data && <div className="cx-command-loading"><div className="cx-command-spinner"/>Auditing source state…</div>}
 
-        {loading && !data ? (
-          <div className="rounded-lg border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
-            Auditing selected records…
-          </div>
-        ) : data && (
+        {data && (
           <>
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-              <div className="font-semibold">Validation status: {data.validationStatus || data.healthGrade}</div>
-              <p className="text-xs mt-1">{data.reason}</p>
-            </div>
+            <section className="cx-command-panel">
+              <header>
+                <div><span className="cx-command-section-kicker">Sources</span><h2>Data source observability</h2><p>Freshness is observed from source timestamps. Missing contracts are surfaced explicitly.</p></div>
+                <Clock3 size={16} className="text-slate-400"/>
+              </header>
+              <div className="cx-source-grid">
+                {(data.sources || []).map(source => (
+                  <article key={source.key}>
+                    <div>
+                      <span>{source.label}</span>
+                      <strong>{source.latestRecordAt ? new Date(source.latestRecordAt).toLocaleString() : 'No freshness timestamp'}</strong>
+                    </div>
+                    {badge(source.status)}
+                    <dl>
+                      <div><dt>Age</dt><dd>{source.ageHours == null ? '—' : `${source.ageHours}h`}</dd></div>
+                      <div><dt>Rows</dt><dd>{source.rowCount == null ? '—' : source.rowCount.toLocaleString()}</dd></div>
+                    </dl>
+                    <p>{source.detail}</p>
+                    <small>{source.table || 'No table configured'}</small>
+                  </article>
+                ))}
+              </div>
+            </section>
 
-            <div className="rounded-lg border border-slate-200 bg-white p-4 flex items-center gap-3">
-              <div className="rounded-lg bg-blue-50 border border-blue-100 p-2 text-blue-700">
-                <Database size={18} />
-              </div>
-              <div>
-                <div className="text-[10px] uppercase font-semibold tracking-wider text-slate-500">Distinct leads audited</div>
-                <div className="text-xl font-bold font-mono text-slate-900">{data.totalRecordsAudited.toLocaleString()}</div>
-              </div>
-            </div>
+            <section className="cx-exception-summary">
+              <article><span>Distinct leads audited</span><strong>{data.totalRecordsAudited.toLocaleString()}</strong><small>Selected operational scope</small></article>
+              <article><span>Validation status</span><strong className="text-base">{data.validationStatus || data.healthGrade}</strong><small>No synthetic score is assigned</small></article>
+              <article><span>Observed checks</span><strong>{data.checks.length}</strong><small>Concrete discrepancy populations</small></article>
+            </section>
 
-            <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-200 bg-slate-50">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800">Observed integrity checks</h2>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead className="bg-white border-b border-slate-200 text-slate-500 uppercase tracking-wider text-[10px]">
-                    <tr>
-                      <th className="px-4 py-3 text-left">Check</th>
-                      <th className="px-4 py-3 text-left">Category</th>
-                      <th className="px-4 py-3 text-left">Status</th>
-                      <th className="px-4 py-3 text-right">Observed gaps</th>
-                      <th className="px-4 py-3 text-left">Evidence</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
+            <section className="cx-command-panel">
+              <header><div><span className="cx-command-section-kicker">Integrity</span><h2>Observed discrepancy checks</h2><p>{data.reason}</p></div><Database size={16} className="text-slate-400"/></header>
+              <div className="cx-performance-table-wrap">
+                <table className="cx-performance-table">
+                  <thead><tr><th>Check</th><th>Category</th><th>Status</th><th>Observed gaps</th><th>Evidence</th></tr></thead>
+                  <tbody>
                     {data.checks.map(check => (
-                      <tr key={check.checkName} className="hover:bg-slate-50">
-                        <td className="px-4 py-3 font-medium text-slate-900">{check.checkName}</td>
-                        <td className="px-4 py-3 text-slate-600">{check.category}</td>
-                        <td className="px-4 py-3">{badge(check.status)}</td>
-                        <td className="px-4 py-3 text-right font-mono font-semibold">{check.discrepancyCount.toLocaleString()}</td>
-                        <td className="px-4 py-3 text-slate-600 max-w-xl">
-                          <div className="font-mono text-[10px] text-slate-400">{check.evidence}</div>
-                          <div className="mt-1">{check.detail}</div>
-                        </td>
+                      <tr key={check.checkName}>
+                        <th>{check.checkName}</th>
+                        <td>{check.category}</td>
+                        <td>{badge(check.status)}</td>
+                        <td>{check.discrepancyCount.toLocaleString()}</td>
+                        <td><strong className="font-mono text-[10px]">{check.evidence}</strong><br/><span>{check.detail}</span></td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </div>
+            </section>
+
+            <section className="cx-command-panel">
+              <header><div><span className="cx-command-section-kicker">Trust boundary</span><h2>Current validation state</h2><p>Source freshness and discrepancy counts are operational observations, not financial or evidence-release certification.</p></div><ShieldCheck size={16} className="text-slate-400"/></header>
+            </section>
           </>
         )}
       </div>
