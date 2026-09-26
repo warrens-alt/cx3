@@ -237,11 +237,14 @@ test('approved tenant data contract is encoded in application configuration', ()
   assert.match(config, /bizvoip: 'vodacom_bizvoip'/);
 });
 
-test('marketing attribution fails closed on unreconciled scope and invalid spend grain', () => {
+test('marketing attribution supports reconciled source scope and fails closed on unsupported dimensions or invalid spend grain', () => {
   const analytics = read('server/bigquery/offernet_analytics.ts');
-  assert.match(analytics, /Attribution is withheld because the active reporting scope includes operational dimensions/);
+  assert.match(analytics, /do not have an approved equivalent marketing-side mapping/);
+  assert.match(analytics, /@attributionSource/);
+  assert.match(analytics, /source: undefined/);
   assert.match(analytics, /INVALID_GRAIN/);
   assert.match(analytics, /configuredSourceTable\(params\.clientId, 'leads'\)/);
+  assert.doesNotMatch(analytics, /incompatibleScope = \['vendor', 'source'/);
 });
 
 test('marketing contract exposes reach and outbound-click source fields', () => {
@@ -259,4 +262,25 @@ test('BLC activation source freshness uses the contracted date_created timestamp
   const config = read('server/bigquery/config.ts');
   assert.match(config, /tenantTables\(CONTRACT_LEAD_VIEWS\.ontact_blc, true\)/);
   assert.match(analytics, /SAFE_CAST\(date_created AS TIMESTAMP\)/);
+});
+
+
+test('dedicated tenant lead views are not re-filtered by partner keys', () => {
+  const analytics = read('server/bigquery/offernet_analytics.ts');
+  const config = read('server/bigquery/config.ts');
+  assert.match(config, /export function tenantVendorScopeValues/);
+  assert.match(analytics, /clientConfig\.dataSourceMode === 'shared'/);
+  assert.match(analytics, /tenantVendorScopeValues\(clientConfig\)/);
+  assert.doesNotMatch(analytics, /const tenantVendors = clientConfig\.semanticMappings\.partners \|\| \[\]/);
+});
+
+test('shared call analytics use canonical tenant vendor aliases', () => {
+  const cli = read('server/bigquery/cli_analytics.ts');
+  const analytics = read('server/bigquery/offernet_analytics.ts');
+  const config = read('server/bigquery/config.ts');
+  assert.match(config, /ROR_PARTNER_TO_VENDOR_MAP/);
+  assert.match(config, /values\.add\(mapped\.toLowerCase\(\)\)/);
+  assert.match(cli, /tenantVendorScopeValues\(clientConfig\)/);
+  assert.match(analytics, /callParams\.tenantVendors = tenantVendors/);
+  assert.match(analytics, /queryParams\.tenantVendors = tenantVendors/);
 });

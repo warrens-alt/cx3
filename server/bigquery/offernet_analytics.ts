@@ -1,5 +1,5 @@
 import { getBigQueryClient } from './client';
-import { getClientConfig, tableIdentifier, type MarketingSourceContract } from './config';
+import { getClientConfig, tableIdentifier, tenantVendorScopeValues, type MarketingSourceContract } from './config';
 import { RequestError } from './filters';
 
 function configuredSourceTable(clientId: string, role: 'leads' | 'calls' | 'timeToDial' | 'activations' | 'marketing') {
@@ -55,16 +55,18 @@ function buildFilterClause(params: OffernetQueryParams, alias = 'l', hlcAlias = 
     queryParams.endDate = params.endDate;
   }
 
-  // Tenant / Client mapping filter if tenant targets specific vendors
+  // Dedicated tenant views are already isolated. Add a tenant-vendor predicate only for shared lead sources.
   const clientConfig = getClientConfig(params.clientId);
-  if (clientConfig.id !== 'default_tenant' && clientConfig.id !== 'offernet_master') {
-    const tenantVendors = clientConfig.semanticMappings.partners || [];
+  if (
+    clientConfig.dataSourceMode === 'shared' &&
+    clientConfig.id !== 'default_tenant' &&
+    clientConfig.id !== 'offernet_master'
+  ) {
+    const tenantVendors = tenantVendorScopeValues(clientConfig);
     if (tenantVendors.length > 0) {
       conditions.push(`EXISTS (SELECT 1 FROM UNNEST(${alias}.hlc_details) h WHERE LOWER(h.vendor) IN UNNEST(@tenantVendors))`);
-      if (hlcAlias) {
-        conditions.push(`LOWER(${hlcAlias}.vendor) IN UNNEST(@tenantVendors)`);
-      }
-      queryParams.tenantVendors = tenantVendors.map(v => v.toLowerCase());
+      if (hlcAlias) conditions.push(`LOWER(${hlcAlias}.vendor) IN UNNEST(@tenantVendors)`);
+      queryParams.tenantVendors = tenantVendors;
     }
   }
 
@@ -2161,10 +2163,10 @@ export async function getSourceObservability(params: Pick<OffernetQueryParams, '
   const callConditions = ["call_start_date IS NOT NULL"];
   const callParams: Record<string, any> = {};
   if (clientConfig.id !== 'default_tenant') {
-    const partners = clientConfig.semanticMappings.partners || [];
-    if (partners.length) {
+    const tenantVendors = tenantVendorScopeValues(clientConfig);
+    if (tenantVendors.length) {
       callConditions.push('LOWER(vendor) IN UNNEST(@tenantVendors)');
-      callParams.tenantVendors = partners.map(value => value.toLowerCase());
+      callParams.tenantVendors = tenantVendors;
     }
   }
   await pushFreshness(
@@ -2364,10 +2366,10 @@ export async function getAgentPerformanceAnalytics(params: OffernetQueryParams) 
   }
 
   if (clientConfig.id !== 'default_tenant') {
-    const tenantVendors = clientConfig.semanticMappings.partners || [];
+    const tenantVendors = tenantVendorScopeValues(clientConfig);
     if (!tenantVendors.length) throw new RequestError('No approved call-vendor mapping exists for this tenant', 422);
     conditions.push('LOWER(vendor) IN UNNEST(@tenantVendors)');
-    queryParams.tenantVendors = tenantVendors.map(value => value.toLowerCase());
+    queryParams.tenantVendors = tenantVendors;
   }
 
   const cleanVendor = params.vendor && !['all', 'all vendors', 'undefined', 'null'].includes(params.vendor.trim().toLowerCase())
@@ -2935,17 +2937,6 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
   if (!contract || !clientConfig.capabilities.marketing) {
     return { status: 'UNAVAILABLE', reason: 'No marketing contract is configured.', rows: [], summary: null };
   }
-  const incompatibleScope = ['vendor', 'source', 'medium', 'grade', 'agent', 'campaign']
-    .filter(key => Boolean((params as unknown as Record<string, unknown>)[key]));
-  if (incompatibleScope.length) {
-    return {
-      status: 'UNAVAILABLE',
-      reason: `Attribution is withheld because the active reporting scope includes operational dimensions that are not reconciled to the marketing source: ${incompatibleScope.join(', ')}.`,
-      rows: [],
-      contract: contract.attribution,
-    };
-  }
-
   if (contract.attribution.status !== 'ACTIVE') {
     return {
       status: 'UNAVAILABLE',
@@ -3339,11 +3330,11 @@ export async function getLeadTimeline(leadId: string, params: Pick<OffernetQuery
   const callConditions = ['CAST(dialer_lead_id AS STRING) = @leadId'];
 
   if (clientConfig.id !== 'default_tenant') {
-    const tenantVendors = clientConfig.semanticMappings.partners || [];
+    const tenantVendors = tenantVendorScopeValues(clientConfig);
     if (!tenantVendors.length) throw new RequestError('No approved vendor mapping exists for this tenant', 422);
-    conditions.push('LOWER(hlc.vendor) IN UNNEST(@tenantVendors)');
+    if (clientConfig.dataSourceMode === 'shared') conditions.push('LOWER(hlc.vendor) IN UNNEST(@tenantVendors)');
     callConditions.push('LOWER(vendor) IN UNNEST(@tenantVendors)');
-    queryParams.tenantVendors = tenantVendors.map(value => value.toLowerCase());
+    queryParams.tenantVendors = tenantVendors;
   }
 
   const cleanVendor = params.vendor && !['all', 'all vendors', 'undefined', 'null'].includes(params.vendor.trim().toLowerCase())
