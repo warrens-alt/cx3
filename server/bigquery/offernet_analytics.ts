@@ -111,6 +111,8 @@ const ACTUAL_SPEND_COLUMN_PRIORITY = [
   'ad_spend',
   'total_spend',
   'cost',
+  'cost_micros',
+  'spend_micros',
 ] as const;
 
 const BUDGET_COLUMN_PRIORITY = [
@@ -1660,7 +1662,9 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
   const spendIdentifier = columns.spendColumn ? safeWarehouseColumn(columns.spendColumn) : null;
   const budgetIdentifier = columns.budgetColumn ? safeWarehouseColumn(columns.budgetColumn) : null;
   const spendValue = spendIdentifier
-    ? `SAFE_CAST(REGEXP_REPLACE(CAST(${spendIdentifier} AS STRING), r'[^0-9.-]', '') AS FLOAT64)`
+    ? (['cost_micros', 'spend_micros'].includes(String(columns.spendColumn).toLowerCase())
+        ? `SAFE_CAST(REGEXP_REPLACE(CAST(${spendIdentifier} AS STRING), r'[^0-9.-]', '') AS FLOAT64) / 1000000`
+        : `SAFE_CAST(REGEXP_REPLACE(CAST(${spendIdentifier} AS STRING), r'[^0-9.-]', '') AS FLOAT64)`)
     : null;
   const budgetValue = budgetIdentifier
     ? `SAFE_CAST(REGEXP_REPLACE(CAST(${budgetIdentifier} AS STRING), r'[^0-9.-]', '') AS FLOAT64)`
