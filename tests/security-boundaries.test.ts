@@ -42,3 +42,31 @@ test('production start executes only the generated dist bundle', () => {
   assert.equal(pkg.scripts.start, 'node dist/server/server.mjs');
   assert.equal(fs.existsSync('server.js'), false);
 });
+
+
+test('root-cause analysis is metric allow-listed and requires matched dates', () => {
+  const analytics = read('server/bigquery/offernet_analytics.ts');
+  assert.match(analytics, /allowedMetrics = new Set\(\['fetchedLeads', 'deliveryRate', 'dialRate', 'contactRate', 'leadToSaleRate', 'activationRate'\]\)/);
+  assert.match(analytics, /Root-cause analysis requires an explicit startDate and endDate/);
+  assert.match(analytics, /Unsupported root-cause metric/);
+});
+
+test('record drill-down remains admin-only and drill populations are allow-listed', () => {
+  const api = read('server/api.ts');
+  const analytics = read('server/bigquery/offernet_analytics.ts');
+  assert.match(api, /analyticsRouter\.get\('\/offernet\/raw-leads', requireAdmin/);
+  assert.match(analytics, /Unsupported drill-down population/);
+  for (const drill of ['awaiting-first-dial', 'missing-disposition', 'unactivated-sales', 'sla-breach', 'backlog-age', 'funnel-loss', 'funnel-stage', 'lead-age']) {
+    assert.ok(analytics.includes(`drill === '${drill}'`), `missing drill allow-list entry: ${drill}`);
+  }
+});
+
+test('root-cause dimensions are reduced to exclusive lead-level segments', () => {
+  const analytics = read('server/bigquery/offernet_analytics.ts');
+  assert.match(analytics, /lead_level AS/);
+  assert.match(analytics, /'vendor' AS dimension/);
+  assert.match(analytics, /'source'/);
+  assert.match(analytics, /'grade'/);
+  assert.match(analytics, /'leadAge'/);
+  assert.match(analytics, /contributions within each exclusive dimension reconcile/);
+});

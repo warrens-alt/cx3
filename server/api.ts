@@ -199,6 +199,9 @@ function buildOffernetQueryParams(req: Request, res: Response): offernetAnalytic
     agent: cleanFilterValue(req.query.agent),
     campaign: cleanFilterValue(req.query.campaign),
     search: req.query.search as string,
+    drill: cleanFilterValue(req.query.drill),
+    drillValue: cleanFilterValue(req.query.drillValue),
+    metric: cleanFilterValue(req.query.metric),
     limit: req.query.limit ? Number(req.query.limit) : undefined,
     offset: req.query.offset ? Number(req.query.offset) : undefined
   };
@@ -207,6 +210,12 @@ function buildOffernetQueryParams(req: Request, res: Response): offernetAnalytic
 analyticsRouter.get('/offernet/overview', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-overview', params, () => offernetAnalytics.getExecutiveOverview(params));
+  res.json({ success: true, data });
+}));
+
+analyticsRouter.get('/offernet/root-cause', cacheResponse(60), asyncRoute(async (req, res) => {
+  const params = buildOffernetQueryParams(req, res);
+  const data = await singleFlight(res, 'offernet-root-cause', params, () => offernetAnalytics.getRootCauseAnalysis(params));
   res.json({ success: true, data });
 }));
 

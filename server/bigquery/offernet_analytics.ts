@@ -14,6 +14,9 @@ export interface OffernetQueryParams {
   agent?: string;
   campaign?: string;
   search?: string;
+  drill?: string;
+  drillValue?: string;
+  metric?: string;
   limit?: number;
   offset?: number;
 }
@@ -403,6 +406,223 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
     validationStatus: 'NOT_VERIFIED',
     currency: clientConfig.currency || 'ZAR',
     clientName: clientConfig.name
+  };
+}
+
+// Deterministic root-cause decomposition for matched periods.
+// Dimensions are reduced to one value per lead so each dimension reconciles to the selected metric.
+export async function getRootCauseAnalysis(params: OffernetQueryParams) {
+  const allowedMetrics = new Set(['fetchedLeads', 'deliveryRate', 'dialRate', 'contactRate', 'leadToSaleRate', 'activationRate']);
+  const metric = params.metric || 'leadToSaleRate';
+  if (!allowedMetrics.has(metric)) throw new RequestError('Unsupported root-cause metric', 422);
+  if (!params.startDate || !params.endDate) throw new RequestError('Root-cause analysis requires an explicit startDate and endDate', 422);
+
+  const startMs = Date.parse(params.startDate + 'T00:00:00Z');
+  const endMs = Date.parse(params.endDate + 'T00:00:00Z');
+  const days = Math.floor((endMs - startMs) / 86400000) + 1;
+  if (!Number.isFinite(days) || days <= 0 || days > 366) throw new RequestError('Root-cause date range must be between 1 and 366 days', 422);
+
+  const previousEnd = new Date(startMs - 86400000);
+  const previousStart = new Date(previousEnd.getTime() - (days - 1) * 86400000);
+  const previousStartDate = previousStart.toISOString().slice(0, 10);
+  const previousEndDate = previousEnd.toISOString().slice(0, 10);
+
+  const client = getBigQueryClient('dashboards-422710');
+  const baseScope = buildFilterClause({ ...params, startDate: undefined, endDate: undefined, metric: undefined });
+  const queryParams = {
+    ...baseScope.queryParams,
+    currentStartDate: params.startDate,
+    currentEndDate: params.endDate,
+    previousStartDate,
+    previousEndDate,
+  };
+
+  const query = `
+    WITH scoped_rows AS (
+      SELECT
+        l.lead_id,
+        DATE(SAFE_CAST(l.fetched AS TIMESTAMP)) AS fetched_date,
+        COALESCE(l.offershop_source, 'Unknown') AS source,
+        COALESCE(l.offershop_grade, 'Unknown') AS grade,
+        hlc.vendor,
+        SAFE_CAST(hlc.delivered AS TIMESTAMP) AS delivered_ts,
+        SAFE_CAST(hlc.first_call_date AS TIMESTAMP) AS first_call_ts,
+        SAFE_CAST(hlc.rpc AS INT64) > 0 AS is_rpc,
+        hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' AS is_sale,
+        hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' AS is_activated
+      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      LEFT JOIN UNNEST(l.hlc_details) hlc
+      ${baseScope.whereSql}
+    ),
+    lead_level AS (
+      SELECT
+        lead_id,
+        fetched_date,
+        ANY_VALUE(source) AS source,
+        ANY_VALUE(grade) AS grade,
+        COALESCE(
+          ARRAY_AGG(vendor IGNORE NULLS ORDER BY IF(delivered_ts IS NULL, 1, 0), delivered_ts ASC LIMIT 1)[SAFE_OFFSET(0)],
+          'Unknown'
+        ) AS vendor,
+        COUNTIF(delivered_ts IS NOT NULL) > 0 AS is_delivered,
+        COUNTIF(first_call_ts IS NOT NULL) > 0 AS is_dialled,
+        COUNTIF(is_rpc) > 0 AS is_rpc,
+        COUNTIF(is_sale) > 0 AS is_sale,
+        COUNTIF(is_activated) > 0 AS is_activated,
+        MIN(delivered_ts) AS first_delivery_ts,
+        MIN(first_call_ts) AS first_call_ts
+      FROM scoped_rows
+      WHERE fetched_date BETWEEN @previousStartDate AND @currentEndDate
+      GROUP BY lead_id, fetched_date
+    ),
+    periodized AS (
+      SELECT
+        *,
+        CASE
+          WHEN fetched_date BETWEEN @currentStartDate AND @currentEndDate THEN 'current'
+          WHEN fetched_date BETWEEN @previousStartDate AND @previousEndDate THEN 'previous'
+          ELSE NULL
+        END AS period,
+        CASE
+          WHEN first_delivery_ts IS NULL THEN 'Not delivered'
+          WHEN first_call_ts IS NULL THEN 'Undialled'
+          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) < 0 THEN 'Invalid timing'
+          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) <= 300 THEN '0–5m'
+          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) <= 900 THEN '5–15m'
+          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) <= 1800 THEN '15–30m'
+          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) <= 3600 THEN '30–60m'
+          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) <= 21600 THEN '1–6h'
+          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) <= 86400 THEN '6–24h'
+          ELSE '24h+'
+        END AS lead_age
+      FROM lead_level
+    ),
+    dimensional AS (
+      SELECT period, 'vendor' AS dimension, vendor AS segment,
+        COUNT(*) AS fetched, COUNTIF(is_delivered) AS delivered, COUNTIF(is_dialled) AS dialled,
+        COUNTIF(is_rpc) AS rpc, COUNTIF(is_sale) AS sales, COUNTIF(is_activated) AS activated
+      FROM periodized WHERE period IS NOT NULL GROUP BY period, vendor
+      UNION ALL
+      SELECT period, 'source', source,
+        COUNT(*), COUNTIF(is_delivered), COUNTIF(is_dialled), COUNTIF(is_rpc), COUNTIF(is_sale), COUNTIF(is_activated)
+      FROM periodized WHERE period IS NOT NULL GROUP BY period, source
+      UNION ALL
+      SELECT period, 'grade', grade,
+        COUNT(*), COUNTIF(is_delivered), COUNTIF(is_dialled), COUNTIF(is_rpc), COUNTIF(is_sale), COUNTIF(is_activated)
+      FROM periodized WHERE period IS NOT NULL GROUP BY period, grade
+      UNION ALL
+      SELECT period, 'leadAge', lead_age,
+        COUNT(*), COUNTIF(is_delivered), COUNTIF(is_dialled), COUNTIF(is_rpc), COUNTIF(is_sale), COUNTIF(is_activated)
+      FROM periodized WHERE period IS NOT NULL GROUP BY period, lead_age
+      UNION ALL
+      SELECT period, 'overall', 'All',
+        COUNT(*), COUNTIF(is_delivered), COUNTIF(is_dialled), COUNTIF(is_rpc), COUNTIF(is_sale), COUNTIF(is_activated)
+      FROM periodized WHERE period IS NOT NULL GROUP BY period
+    )
+    SELECT * FROM dimensional
+  `;
+
+  const [rows] = await client.query({ query, params: queryParams });
+  const numeric = (row: any, key: string) => Number(row?.[key] || 0);
+  const parts = (row: any) => {
+    switch (metric) {
+      case 'fetchedLeads': return { numerator: numeric(row, 'fetched'), denominator: 1, kind: 'volume' as const };
+      case 'deliveryRate': return { numerator: numeric(row, 'delivered'), denominator: numeric(row, 'fetched'), kind: 'rate' as const };
+      case 'dialRate': return { numerator: numeric(row, 'dialled'), denominator: numeric(row, 'delivered'), kind: 'rate' as const };
+      case 'contactRate': return { numerator: numeric(row, 'rpc'), denominator: numeric(row, 'dialled'), kind: 'rate' as const };
+      case 'activationRate': return { numerator: numeric(row, 'activated'), denominator: numeric(row, 'sales'), kind: 'rate' as const };
+      default: return { numerator: numeric(row, 'sales'), denominator: numeric(row, 'fetched'), kind: 'rate' as const };
+    }
+  };
+  const value = (row: any) => {
+    const p = parts(row);
+    if (p.kind === 'volume') return p.numerator;
+    return p.denominator > 0 ? Number(((p.numerator / p.denominator) * 100).toFixed(2)) : 0;
+  };
+
+  const currentOverall = rows.find((row: any) => row.dimension === 'overall' && row.period === 'current') || {};
+  const previousOverall = rows.find((row: any) => row.dimension === 'overall' && row.period === 'previous') || {};
+  const currentValue = value(currentOverall);
+  const previousValue = value(previousOverall);
+  const delta = Number((currentValue - previousValue).toFixed(2));
+  const currentParts = parts(currentOverall);
+  const previousParts = parts(previousOverall);
+
+  const labels: Record<string, string> = {
+    fetchedLeads: 'Fetched leads',
+    deliveryRate: 'Delivery rate',
+    dialRate: 'Dial coverage',
+    contactRate: 'RPC rate',
+    leadToSaleRate: 'Sale / fetched',
+    activationRate: 'Activation / sale',
+  };
+  const dimensionLabels: Record<string, string> = {
+    vendor: 'Vendor',
+    source: 'Source',
+    grade: 'Grade',
+    leadAge: 'First-dial age',
+  };
+
+  const dimensions = ['vendor', 'source', 'grade', 'leadAge'].map(dimension => {
+    const current = new Map(rows.filter((row: any) => row.dimension === dimension && row.period === 'current').map((row: any) => [String(row.segment), row]));
+    const previous = new Map(rows.filter((row: any) => row.dimension === dimension && row.period === 'previous').map((row: any) => [String(row.segment), row]));
+    const names = Array.from(new Set([...current.keys(), ...previous.keys()]));
+
+    const segments = names.map(name => {
+      const currentRow: any = current.get(name) || {};
+      const previousRow: any = previous.get(name) || {};
+      const cp = parts(currentRow), pp = parts(previousRow);
+      const currentSegmentValue = value(currentRow);
+      const previousSegmentValue = value(previousRow);
+      const contribution = cp.kind === 'volume'
+        ? cp.numerator - pp.numerator
+        : Number(((
+            (currentParts.denominator > 0 ? cp.numerator / currentParts.denominator : 0)
+            - (previousParts.denominator > 0 ? pp.numerator / previousParts.denominator : 0)
+          ) * 100).toFixed(2));
+      return {
+        name,
+        currentValue: currentSegmentValue,
+        previousValue: previousSegmentValue,
+        currentNumerator: cp.numerator,
+        currentDenominator: cp.kind === 'volume' ? cp.numerator : cp.denominator,
+        previousNumerator: pp.numerator,
+        previousDenominator: pp.kind === 'volume' ? pp.numerator : pp.denominator,
+        contribution,
+        shareOfDelta: delta !== 0 ? Number(((contribution / delta) * 100).toFixed(1)) : null,
+      };
+    }).sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution));
+
+    return {
+      key: dimension,
+      label: dimensionLabels[dimension],
+      segments: segments.slice(0, 12),
+    };
+  });
+
+  const drivers = dimensions
+    .flatMap(dimension => dimension.segments.slice(0, 4).map(segment => ({ ...segment, dimension: dimension.key, dimensionLabel: dimension.label })))
+    .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
+    .slice(0, 8);
+
+  return {
+    metric: {
+      id: metric,
+      label: labels[metric],
+      kind: metric === 'fetchedLeads' ? 'volume' : 'rate',
+      currentValue,
+      previousValue,
+      delta,
+      deltaUnit: metric === 'fetchedLeads' ? 'leads' : 'pp',
+    },
+    currentWindow: { startDate: params.startDate, endDate: params.endDate },
+    previousWindow: { startDate: previousStartDate, endDate: previousEndDate },
+    dimensions,
+    drivers,
+    methodology: metric === 'fetchedLeads'
+      ? 'Segment contributions are current lead volume minus matched-period lead volume.'
+      : 'Segment contribution is the change in that segment numerator divided by the full-period denominator, so contributions within each exclusive dimension reconcile to the overall percentage-point change.',
+    validationStatus: 'NOT_VERIFIED',
   };
 }
 
@@ -1391,7 +1611,6 @@ export async function getRawLeads(params: OffernetQueryParams) {
   const client = getBigQueryClient('dashboards-422710');
   const limit = Math.min(Math.max(Number(params.limit) || 50, 10), 200);
   const offset = Math.max(Number(params.offset) || 0, 0);
-
   const { whereSql, queryParams } = buildFilterClause(params);
 
   let searchCondition = '';
@@ -1406,11 +1625,107 @@ export async function getRawLeads(params: OffernetQueryParams) {
     queryParams.search = `%${params.search}%`;
   }
 
+  const validDelivered = "(h.delivered IS NOT NULL AND h.delivered NOT LIKE '1900%' AND h.delivered NOT LIKE '1970%')";
+  const validDialled = "(h.first_call_date IS NOT NULL AND h.first_call_date NOT LIKE '1900%' AND h.first_call_date NOT LIKE '1970%')";
+  const validSale = "(h.sale IS NOT NULL AND h.sale != '' AND h.sale NOT LIKE '1900%' AND h.sale NOT LIKE '1970%')";
+  const validActivation = "(h.activated IS NOT NULL AND h.activated != '' AND h.activated NOT LIKE '1900%' AND h.activated NOT LIKE '1970%')";
+  let drillCondition = '';
+
+  if (params.drill) {
+    const drill = params.drill;
+    const value = params.drillValue || '';
+    if (drill === 'awaiting-first-dial') {
+      drillCondition = `AND EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered})
+        AND NOT EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDialled})`;
+    } else if (drill === 'missing-disposition') {
+      drillCondition = `AND EXISTS (
+        SELECT 1 FROM UNNEST(l.hlc_details) h
+        WHERE ${validDialled} AND (h.last_dialer_status IS NULL OR TRIM(h.last_dialer_status) = '')
+      )`;
+    } else if (drill === 'unactivated-sales') {
+      drillCondition = `AND EXISTS (
+        SELECT 1 FROM UNNEST(l.hlc_details) h
+        WHERE ${validSale}
+          AND NOT ${validActivation}
+          AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(h.sale AS TIMESTAMP), DAY) >= 14
+      )`;
+    } else if (drill === 'sla-breach') {
+      drillCondition = `AND EXISTS (
+        SELECT 1 FROM UNNEST(l.hlc_details) h
+        WHERE ${validDelivered}
+          AND (
+            (${validDialled} AND TIMESTAMP_DIFF(SAFE_CAST(h.first_call_date AS TIMESTAMP), SAFE_CAST(h.delivered AS TIMESTAMP), SECOND) > 900)
+            OR (NOT ${validDialled} AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(h.delivered AS TIMESTAMP), SECOND) > 900)
+          )
+      )`;
+    } else if (drill === 'backlog-age') {
+      const bucketSql: Record<string, string> = {
+        '0–15m': 'BETWEEN 0 AND 900',
+        '15–30m': '> 900 AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(h.delivered AS TIMESTAMP), SECOND) <= 1800',
+        '30–60m': '> 1800 AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(h.delivered AS TIMESTAMP), SECOND) <= 3600',
+        '1–6h': '> 3600 AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(h.delivered AS TIMESTAMP), SECOND) <= 21600',
+        '6–12h': '> 21600 AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(h.delivered AS TIMESTAMP), SECOND) <= 43200',
+        '12–24h': '> 43200 AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(h.delivered AS TIMESTAMP), SECOND) <= 86400',
+        '24h+': '> 86400',
+      };
+      const suffix = bucketSql[value];
+      if (!suffix) throw new RequestError('Unsupported backlog drill bucket', 422);
+      drillCondition = `AND EXISTS (
+        SELECT 1 FROM UNNEST(l.hlc_details) h
+        WHERE ${validDelivered}
+          AND NOT ${validDialled}
+          AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(h.delivered AS TIMESTAMP), SECOND) ${suffix}
+      )`;
+    } else if (drill === 'funnel-stage') {
+      const conditions: Record<string, string> = {
+        'fetched': 'TRUE',
+        'delivered': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered})`,
+        'dialled': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDialled})`,
+        'rpc': 'EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE SAFE_CAST(h.rpc AS INT64) > 0)',
+        'sales': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validSale})`,
+        'activated': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validActivation})`,
+      };
+      const condition = conditions[value];
+      if (!condition) throw new RequestError('Unsupported funnel-stage drill', 422);
+      drillCondition = `AND ${condition}`;
+    } else if (drill === 'lead-age') {
+      const timing = "TIMESTAMP_DIFF(SAFE_CAST(h.first_call_date AS TIMESTAMP), SAFE_CAST(h.delivered AS TIMESTAMP), SECOND)";
+      const conditions: Record<string, string> = {
+        'Not delivered': `NOT EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered})`,
+        'Undialled': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered}) AND NOT EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDialled})`,
+        'Invalid timing': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} < 0)`,
+        '0–5m': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} BETWEEN 0 AND 300)`,
+        '5–15m': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} > 300 AND ${timing} <= 900)`,
+        '15–30m': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} > 900 AND ${timing} <= 1800)`,
+        '30–60m': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} > 1800 AND ${timing} <= 3600)`,
+        '1–6h': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} > 3600 AND ${timing} <= 21600)`,
+        '6–24h': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} > 21600 AND ${timing} <= 86400)`,
+        '24h+': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} > 86400)`,
+      };
+      const condition = conditions[value];
+      if (!condition) throw new RequestError('Unsupported lead-age drill bucket', 422);
+      drillCondition = `AND ${condition}`;
+    } else if (drill === 'funnel-loss') {
+      const conditions: Record<string, string> = {
+        'fetched-to-delivered': `NOT EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered})`,
+        'delivered-to-dialled': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered}) AND NOT EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDialled})`,
+        'dialled-to-rpc': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDialled}) AND NOT EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE SAFE_CAST(h.rpc AS INT64) > 0)`,
+        'rpc-to-sales': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE SAFE_CAST(h.rpc AS INT64) > 0) AND NOT EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validSale})`,
+        'sales-to-activated': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validSale}) AND NOT EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validActivation})`,
+      };
+      const condition = conditions[value];
+      if (!condition) throw new RequestError('Unsupported funnel-loss drill', 422);
+      drillCondition = `AND ${condition}`;
+    } else {
+      throw new RequestError('Unsupported drill-down population', 422);
+    }
+  }
+
   const query = `
-    SELECT 
+    SELECT
       l.lead_id,
       l.consumer_id,
-      FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', SAFE_CAST(l.fetched AS TIMESTAMP)) as fetched_time,
+      FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', SAFE_CAST(l.fetched AS TIMESTAMP)) as fetched,
       COALESCE(l.offershop_source, 'Unknown') as source,
       COALESCE(l.offernet_medium, 'Unknown') as medium,
       COALESCE(l.offershop_grade, 'Standard') as grade,
@@ -1425,14 +1740,20 @@ export async function getRawLeads(params: OffernetQueryParams) {
       FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', SAFE_CAST(hlc.delivered AS TIMESTAMP)) as delivered_time,
       FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', SAFE_CAST(hlc.first_call_date AS TIMESTAMP)) as first_call_time,
       COALESCE(hlc.total_calls, 0) as total_calls,
-      SAFE_CAST(hlc.rpc AS INT64) > 0 as is_rpc,
-      hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' as is_sale,
-      hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' as is_activated,
+      hlc.first_call_date IS NOT NULL AND hlc.first_call_date NOT LIKE '1900%' AND hlc.first_call_date NOT LIKE '1970%' as dialled,
+      SAFE_CAST(hlc.rpc AS INT64) > 0 as contacted,
+      hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' as sale,
+      hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' as activated,
       COALESCE(hlc.revenue_generated, 0) as revenue
     FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
     LEFT JOIN UNNEST(l.hlc_details) hlc
     ${whereSql}
     ${searchCondition}
+    ${drillCondition}
+    QUALIFY ROW_NUMBER() OVER (
+      PARTITION BY l.lead_id
+      ORDER BY SAFE_CAST(hlc.delivered AS TIMESTAMP) DESC NULLS LAST
+    ) = 1
     ORDER BY SAFE_CAST(l.fetched AS TIMESTAMP) DESC
     LIMIT ${limit}
     OFFSET ${offset}
@@ -1442,7 +1763,9 @@ export async function getRawLeads(params: OffernetQueryParams) {
   return {
     rows,
     limit,
-    offset
+    offset,
+    drill: params.drill || null,
+    drillValue: params.drillValue || null,
   };
 }
 

@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, Database, ShieldCheck } from 'lucide-react';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import { useClient } from '../lib/ClientContext';
+import { useAuth } from '../lib/AuthContext';
 import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
 import { fetchOverview, type OverviewData } from '../lib/offernetClient';
 
@@ -10,7 +11,9 @@ const fmt = (value: number) => value.toLocaleString();
 
 export default function Exceptions() {
   const { selectedClient } = useClient();
+  const { isAdmin } = useAuth();
   const { startDate, endDate, filters } = useFilters();
+  const [searchParams] = useSearchParams();
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +39,17 @@ export default function Exceptions() {
   useEffect(() => {
     if (selectedClient) loadData();
   }, [selectedClient, startDate, endDate, filters]);
+
+  const recordLink = (drill: string, drillValue?: string, extra?: Record<string, string>) => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('drill');
+    next.delete('drillValue');
+    next.delete('search');
+    next.set('drill', drill);
+    if (drillValue) next.set('drillValue', drillValue);
+    if (extra) Object.entries(extra).forEach(([key, value]) => next.set(key, value));
+    return `/lead-explorer?${next.toString()}`;
+  };
 
   const severityRank = { high: 3, medium: 2, low: 1 } as const;
   const ordered = useMemo(
@@ -98,7 +112,7 @@ export default function Exceptions() {
               {ordered.length ? (
                 <div className="cx-live-exception-list">
                   {ordered.map(item => (
-                    <Link key={item.id} to={item.path} className="cx-live-exception" data-severity={item.severity}>
+                    <Link key={item.id} to={isAdmin ? recordLink(item.id) : item.path} className="cx-live-exception" data-severity={item.severity}>
                       <div className="cx-live-exception-icon">
                         {item.id === 'awaiting-first-dial' ? <Clock3 size={17} /> : item.id === 'missing-disposition' ? <Database size={17} /> : <AlertTriangle size={17} />}
                       </div>
@@ -131,12 +145,12 @@ export default function Exceptions() {
                   <Link to="/speed-to-lead">Open contact analysis <ArrowRight size={13} /></Link>
                 </header>
                 <div className="cx-exception-buckets">
-                  {data.backlog.buckets.map(bucket => (
-                    <div key={bucket.bucket} data-severity={bucket.severity}>
-                      <span>{bucket.bucket}</span>
-                      <strong>{fmt(bucket.count)}</strong>
-                    </div>
-                  ))}
+                  {data.backlog.buckets.map(bucket => {
+                    const content = <><span>{bucket.bucket}</span><strong>{fmt(bucket.count)}</strong></>;
+                    return isAdmin
+                      ? <Link key={bucket.bucket} to={recordLink('backlog-age', bucket.bucket)} data-severity={bucket.severity}>{content}</Link>
+                      : <div key={bucket.bucket} data-severity={bucket.severity}>{content}</div>;
+                  })}
                 </div>
               </section>
 
@@ -150,13 +164,12 @@ export default function Exceptions() {
                   <Link to="/vendor-quality">Performance view <ArrowRight size={13} /></Link>
                 </header>
                 <div className="cx-backlog-vendors">
-                  {data.backlog.byVendor.length ? data.backlog.byVendor.map((vendor, index) => (
-                    <div key={`${vendor.vendor}-${index}`}>
-                      <span>{vendor.vendor}</span>
-                      <strong>{fmt(Number(vendor.awaiting_first_dial || 0))}</strong>
-                      <small>{fmt(Number(vendor.over_60m || 0))} &gt;60m</small>
-                    </div>
-                  )) : <div className="cx-command-empty">No vendor backlog is currently observed.</div>}
+                  {data.backlog.byVendor.length ? data.backlog.byVendor.map((vendor, index) => {
+                    const content = <><span>{vendor.vendor}</span><strong>{fmt(Number(vendor.awaiting_first_dial || 0))}</strong><small>{fmt(Number(vendor.over_60m || 0))} &gt;60m</small></>;
+                    return isAdmin
+                      ? <Link key={`${vendor.vendor}-${index}`} to={recordLink('awaiting-first-dial', undefined, { vendor: vendor.vendor })}>{content}</Link>
+                      : <div key={`${vendor.vendor}-${index}`}>{content}</div>;
+                  }) : <div className="cx-command-empty">No vendor backlog is currently observed.</div>}
                 </div>
               </section>
             </div>
