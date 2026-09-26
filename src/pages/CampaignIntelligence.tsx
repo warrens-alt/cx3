@@ -182,11 +182,13 @@ export default function CampaignIntelligence() {
               </section>
             )}
 
-            {data.comparison && (
+            {data.comparison ? (
               <p className="cx-media-comparison-note">
                 Compared with {data.comparison.previousStartDate} → {data.comparison.previousEndDate}. CTR changed {data.comparison.ctrDeltaPp > 0 ? '+' : ''}{data.comparison.ctrDeltaPp}pp.
               </p>
-            )}
+            ) : data.comparisonReason ? (
+              <div className="cx-command-error"><AlertTriangle size={15}/>{data.comparisonReason}</div>
+            ) : null}
 
             <section className="cx-command-panel">
               <header>
