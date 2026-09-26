@@ -206,7 +206,11 @@ export default function ExecutiveOverview() {
               <div className="cx-funnel-strip">
                 {data.funnelStages.map((stage, index) => (
                   <React.Fragment key={stage.key}>
-                    <div className="cx-funnel-stage"><span>{stage.name}</span><strong>{fmt(stage.volume)}</strong>{index > 0 && <small>{stage.transitionRate}% from prior stage</small>}</div>
+                    {isAdmin ? (
+                      <Link className="cx-funnel-stage cx-funnel-stage-link" to={recordLink('funnel-stage', stage.key)} title={`Inspect ${stage.name} leads`}>
+                        <span>{stage.name}</span><strong>{fmt(stage.volume)}</strong>{index > 0 && <small>{stage.transitionRate}% from prior stage</small>}
+                      </Link>
+                    ) : <div className="cx-funnel-stage"><span>{stage.name}</span><strong>{fmt(stage.volume)}</strong>{index > 0 && <small>{stage.transitionRate}% from prior stage</small>}</div>}
                     {index < data.funnelStages.length - 1 && (
                       isAdmin ? (
                         <Link className="cx-funnel-arrow cx-funnel-arrow-link" to={recordLink('funnel-loss', lossKeys[index])} title="Inspect records lost at this transition">
