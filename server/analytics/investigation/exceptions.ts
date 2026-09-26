@@ -6,8 +6,26 @@ import type { OffernetQueryParams } from '../common/types';
 import type { ExceptionAnalyticsData } from '../../../contracts/exceptionAnalytics';
 import { matchedPeriodWindow, compareMetric } from '../../../contracts/periodComparison';
 import { EXCEPTION_DEFINITIONS, exceptionPredicate } from './exceptionPredicates';
+import { currentAnalyticsScope } from '../../analyticsContext';
 
+const pendingExceptions = new Map<string, Promise<ExceptionAnalyticsData>>();
+
+/** Share overlapping Exceptions/AI reads only; every completed read leaves the next request fresh. */
 export async function getExceptionAnalytics(params: OffernetQueryParams): Promise<ExceptionAnalyticsData> {
+  // Configuration and ambient bindings can change the population even when request fields match.
+  const key = JSON.stringify([
+    Object.entries(params).sort(([a], [b]) => a.localeCompare(b)),
+    getClientConfig(params.clientId),
+    currentAnalyticsScope(),
+  ]);
+  const existing = pendingExceptions.get(key);
+  if (existing) return existing;
+  const pending = loadExceptionAnalytics(params).finally(() => pendingExceptions.delete(key));
+  pendingExceptions.set(key, pending);
+  return pending;
+}
+
+async function loadExceptionAnalytics(params: OffernetQueryParams): Promise<ExceptionAnalyticsData> {
   const config = getClientConfig(params.clientId);
   const comparison = matchedPeriodWindow(params.startDate, params.endDate);
   const scope = comparison ? { ...params, startDate: comparison.previous.startDate } : params;

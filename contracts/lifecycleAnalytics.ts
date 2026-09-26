@@ -13,7 +13,6 @@ export interface LifecycleDiagnostics {
   largestDeterioration: LifecycleTransition | null;
   segments: Record<string, LifecycleSegment[]>;
   priorSegments: Record<string, LifecycleSegment[]>;
-  contributions: Record<string, ReturnType<typeof decomposeRateChange>>;
   rateContributions: Record<string, Record<string, ReturnType<typeof decomposeRateChange>>>;
   velocity: { captureToDeliverySec:number|null; deliveryToDialSec:number|null; dialToSaleSec:number|null; saleToActivationSec:number|null };
   validationStatus: 'NOT_VERIFIED';

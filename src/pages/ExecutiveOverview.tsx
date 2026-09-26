@@ -22,7 +22,7 @@ import {
 import { useFilters, extractOffernetFilters } from '../lib/FilterContext';
 import { useClient } from '../lib/ClientContext';
 import { useAuth } from '../lib/AuthContext';
-import { fetchOverview, type OverviewData, type RootCauseData } from '../lib/offernetClient';
+import { fetchCommercial, fetchOverview, type OverviewData, type RootCauseData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import RootCauseDrawer from '../components/RootCauseDrawer';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
@@ -90,12 +90,15 @@ export default function ExecutiveOverview() {
   const [searchParams] = useSearchParams();
   const [rootMetric, setRootMetric] = useState<RootMetric | null>(null);
 
-  const { data, loading, error, loadData } = useOperationalData<OverviewData & LifecycleExtension & { revenueEvidence?: { missingLeadValues:number; basis:string }; contactEvidence?: { zeroCallLeads:number;oneCallLeads:number;oneCallShare:number|null;multiCallShare:number|null;fivePlusNoRpc:number;medianCaptureToDial:string;p90CaptureToDial:string;within30m:number|null;within60m:number|null;backlogOver15m:number;backlogOver30m:number;backlogOver6h:number;backlogOver12h:number;awaitingActivation:number;activationOver3d:number;activationOver7d:number;activationOver30d:number } }>('ExecutiveOverview', {
+  const scope = {
     clientId: selectedClient,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
     ...extractOffernetFilters(filters),
-  }, fetchOverview);
+  };
+  const { data, loading, error, loadData } = useOperationalData<OverviewData & LifecycleExtension & { revenueEvidence?: { missingLeadValues:number; basis:string }; contactEvidence?: { zeroCallLeads:number;oneCallLeads:number;oneCallShare:number|null;multiCallShare:number|null;fivePlusNoRpc:number;medianCaptureToDial:string;p90CaptureToDial:string;within30m:number|null;within60m:number|null;backlogOver15m:number;backlogOver30m:number;backlogOver6h:number;backlogOver12h:number;awaitingActivation:number;activationOver3d:number;activationOver7d:number;activationOver30d:number } }>('ExecutiveOverview', scope, fetchOverview);
+  // Start independent evidence together and share the same cache key as the Commercial page.
+  const commercial = useOperationalData('commercial', scope, fetchCommercial);
 
   const hasComparison = Boolean(startDate && endDate && data?.comparisonWindow);
   const investigate = (metric: RootMetric) => hasComparison && setRootMetric(metric);
@@ -129,7 +132,7 @@ export default function ExecutiveOverview() {
 
   return (
     <div className="cx-command-page cx-overview-page">
-      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />
+      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch(), commercial.loadData(true)]); }} />
 
       <div className="cx-command-content">
         <header className="cx-command-hero">
@@ -310,7 +313,7 @@ export default function ExecutiveOverview() {
           <tr><th>Awaiting activation &gt;3d / &gt;7d / &gt;30d</th><td>{fmt(data.contactEvidence.activationOver3d)} / {fmt(data.contactEvidence.activationOver7d)} / {fmt(data.contactEvidence.activationOver30d)}</td></tr>
         </tbody></table></div></section>}
         {data?.revenueEvidence && <p className="cx-control-note">{data.revenueEvidence.basis} {fmt(data.revenueEvidence.missingLeadValues)} lead values are missing.</p>}
-        {data && <OverviewCommercialPanel />}
+        <OverviewCommercialPanel data={commercial.data} loading={commercial.loading} error={commercial.error} onRetry={() => { void commercial.loadData(true); }} />
 
             <section className="cx-command-shortcuts" aria-label="Analysis shortcuts">
               <Link to={scoped('/speed-to-lead')}><Clock3 size={16} /><span><strong>Contact</strong><small>Latency, cohorts and call strategy</small></span><ArrowRight size={14} /></Link>

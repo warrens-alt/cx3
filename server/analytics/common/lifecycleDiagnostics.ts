@@ -1,9 +1,10 @@
 import { getBigQueryClient } from '../../bigquery/client';
 import { getClientConfig } from '../../bigquery/config';
+import { currentAnalyticsScope } from '../../analyticsContext';
 import { compareMetric, decomposeRateChange, matchedPeriodWindow } from '../../../contracts/periodComparison';
 import type { LifecycleDiagnostics, LifecycleSegment, LifecycleTransition } from '../../../contracts/lifecycleAnalytics';
 import type { OffernetQueryParams } from './types';
-import { operationalLeadCtes, metricPercent } from './leadMetrics';
+import { operationalLeadCtes, operationalLeadSelectSql, metricPercent } from './leadMetrics';
 import { buildFilterClause } from './scope';
 
 type Row = Record<string, any>;
@@ -38,36 +39,38 @@ export function assembleLifecycleDiagnostics(rows: Row[], period: ReturnType<typ
     return [d, period && complete(segments[d],current) && complete(priorSegments[d],previous)
       ? decomposeRateChange(segments[d].map(s => ({ key:s.key,numerator:Number(s[numerator]),denominator:Number(s[denominator]) })), priorSegments[d].map(s => ({ key:s.key,numerator:Number(s[numerator]),denominator:Number(s[denominator]) }))) : null];
   }))]));
-  const contributions = rateContributions.saleRate;
 
   return { period, comparisons, transitions,
     largestLeakage: transitions.filter(t => (t.lost ?? 0) > 0).sort((a,b) => (b.lost ?? 0) - (a.lost ?? 0))[0] || null,
     largestDeterioration: transitions.filter(t => t.deteriorationPp !== null && t.deteriorationPp < 0).sort((a,b) => a.deteriorationPp! - b.deteriorationPp!)[0] || null,
     velocity: { captureToDeliverySec: c.avgFetchDeliverySec == null ? null : Number(c.avgFetchDeliverySec), deliveryToDialSec: c.avgDeliveryDialSec == null ? null : Number(c.avgDeliveryDialSec), dialToSaleSec: c.avgDialSaleSec == null ? null : Number(c.avgDialSaleSec), saleToActivationSec: c.avgSaleActivationSec == null ? null : Number(c.avgSaleActivationSec) },
-    segments, priorSegments, contributions, rateContributions, validationStatus: 'NOT_VERIFIED', unsupportedDimensions: ['campaign', 'channel'],
+    segments, priorSegments, rateContributions, validationStatus: 'NOT_VERIFIED', unsupportedDimensions: ['campaign', 'channel'],
     methodology: 'Capture cohort, one row per lead. Vendor decomposition assigns each lead to its earliest recorded delivery vendor (alphabetical tie-break); independent vendor activity can overlap. Each dimension reconciles separately and dimensions must not be added together. Transition conversion uses leads with both stage events; non-nested records are flagged. Current and previous cohorts have different follow-up maturity.' };
 }
 
 /** One bounded aggregate scan for both periods, all segments and transition intersections. */
 const pendingDiagnostics = new Map<string, Promise<LifecycleDiagnostics>>();
 export function getLifecycleDiagnostics(params: OffernetQueryParams): Promise<LifecycleDiagnostics> {
-  const key = JSON.stringify(Object.entries(params).sort(([a],[b]) => a.localeCompare(b)));
+  const key = JSON.stringify([Object.entries(params).sort(([a],[b]) => a.localeCompare(b)), getClientConfig(params.clientId), currentAnalyticsScope()]);
   const existing = pendingDiagnostics.get(key);
   if (existing) return existing;
   const pending = loadLifecycleDiagnostics(params).finally(() => pendingDiagnostics.delete(key));
   pendingDiagnostics.set(key, pending);
   return pending;
 }
-async function loadLifecycleDiagnostics(params: OffernetQueryParams): Promise<LifecycleDiagnostics> {
+/** Shared query fragments let dashboard aggregates and matched-period diagnostics use one warehouse job.
+ * Current dashboard rows are filtered before deduplication, preserving their original capture-cohort semantics.
+ */
+export function compileLifecycleDiagnostics(params: OffernetQueryParams) {
   const period = matchedPeriodWindow(params.startDate, params.endDate);
   const queryScope = period ? { ...params, startDate: period.previous.startDate } : params;
   const { queryParams } = buildFilterClause(queryScope);
   queryParams.lifecycleTimezone = getClientConfig(params.clientId).timezone || 'Africa/Johannesburg';
   if (period) queryParams.lifecycleCurrentStart = period.current.startDate;
-  const query = `WITH ${operationalLeadCtes(queryScope)}, classified AS (
+  const ctesSql = `${operationalLeadCtes(queryScope)}, classified AS (
     SELECT *, ${period ? "IF(DATE(fetched_ts, @lifecycleTimezone) >= DATE(@lifecycleCurrentStart), 'current', 'previous')" : "'current'"} AS period
     FROM operational_leads
-  )
+  ), lifecycle_aggregates AS (
   SELECT period, dimension, segment, COUNT(*) AS fetched,
     COUNTIF(is_delivered) AS delivered, COUNTIF(is_dialled) AS dialled, COUNTIF(is_rpc) AS rpc,
     COUNTIF(is_sale) AS sales, COUNTIF(is_activated) AS activations,
@@ -86,7 +89,20 @@ async function loadLifecycleDiagnostics(params: OffernetQueryParams): Promise<Li
     STRUCT('source', COALESCE(NULLIF(TRIM(source), ''), 'Unrecorded')), STRUCT('grade', COALESCE(NULLIF(TRIM(grade), ''), 'Unrecorded')),
     STRUCT('captureHour', COALESCE(FORMAT_TIMESTAMP('%H', fetched_ts, @lifecycleTimezone), 'Unrecorded')),
     STRUCT('captureDay', COALESCE(FORMAT_TIMESTAMP('%A', fetched_ts, @lifecycleTimezone), 'Unrecorded'))
-  ]) GROUP BY period, dimension, segment ORDER BY period, dimension, fetched DESC`;
+  ]) GROUP BY period, dimension, segment)`;
+  const rowsSql = 'SELECT * FROM lifecycle_aggregates ORDER BY period, dimension, fetched DESC';
+  return {
+    period, queryParams, ctesSql, rowsSql,
+    currentLeadCtesSql: (byVendor = false) => !period && !byVendor
+      ? 'current_operational_leads AS (SELECT * FROM operational_leads)'
+      : `current_operational_raw AS (
+      SELECT * FROM operational_raw${period ? '\n      WHERE DATE(fetched_ts, @lifecycleTimezone) >= DATE(@lifecycleCurrentStart)' : ''}
+    ), current_operational_leads AS (${operationalLeadSelectSql('current_operational_raw', byVendor)})`,
+  };
+}
+async function loadLifecycleDiagnostics(params: OffernetQueryParams): Promise<LifecycleDiagnostics> {
+  const { period, queryParams, ctesSql, rowsSql } = compileLifecycleDiagnostics(params);
+  const query = `WITH ${ctesSql} ${rowsSql}`;
   const [rows] = await getBigQueryClient(getClientConfig(params.clientId).bigQueryProject).query({ query, params: queryParams });
   return assembleLifecycleDiagnostics(rows, period);
 }

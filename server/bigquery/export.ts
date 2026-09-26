@@ -22,7 +22,7 @@ export async function exportData(input: QueryScope & { grain: string; format?: s
   return withAnalyticsScope(scope, async () => {
     if (input.grain === 'cli') {
       const { getCliPerformance } = await import('./cli_analytics');
-      const report = await getCliPerformance({ ...scope, search: input.search }, access, { limit });
+      const report = await getCliPerformance({ ...scope, search: input.search }, access, { limit, detailOnly: true });
       if (report.status !== 'AVAILABLE') throw new RequestError(report.sourceStatus.reason || 'CLI data is unavailable for export.', 422);
       const records = report.cliPerformance;
       const columns = [

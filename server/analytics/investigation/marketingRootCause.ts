@@ -30,7 +30,7 @@ export async function getMarketingRootCauseAnalysis(params: OffernetQueryParams)
     return { status: 'UNAVAILABLE', reason: 'Marketing client mapping is unresolved for this tenant.', metric: null, dimensions: [], drivers: [] };
   }
 
-  const currentCampaign = await getClientCampaignAnalytics(params);
+  const currentCampaign = await getClientCampaignAnalytics(params, { includeDetails: false });
   if (!currentCampaign.summary) {
     return { status: currentCampaign.status, reason: currentCampaign.reason, metric: null, dimensions: [], drivers: [] };
   }

@@ -2,7 +2,7 @@ import { compareMetric, matchedPeriodWindow } from '../../../contracts/periodCom
 import { commercialRatio } from '../../../contracts/commercial';
 import { RequestError } from '../../bigquery/filters';
 import type { OffernetQueryParams } from '../common/types';
-import { getExecutiveOverview } from '../overview/service';
+import { getOperationalCommercialSummary } from '../overview/service';
 import { getClientCampaignAnalytics } from '../campaigns/performance';
 import { getMarketingAttributionAnalytics, unavailableEconomics } from './attribution';
 
@@ -13,8 +13,8 @@ export async function getCommercialAnalytics(params: OffernetQueryParams) {
   const operationalCompatible = !params.campaign && !params.channel && !params.adset;
   const campaignCompatible = !params.vendor && !params.source && !params.medium && !params.grade && !params.agent && !params.cli;
   const [overviewResult, campaignResult, attributionResult] = await Promise.allSettled([
-    operationalCompatible ? getExecutiveOverview(params, { includeDiagnostics: false }) : Promise.resolve(null),
-    campaignCompatible ? getClientCampaignAnalytics(params) : Promise.resolve(null),
+    operationalCompatible ? getOperationalCommercialSummary(params) : Promise.resolve(null),
+    campaignCompatible ? getClientCampaignAnalytics(params, { includeDetails: false }) : Promise.resolve(null),
     getMarketingAttributionAnalytics(params),
   ]);
   // An operational query failure must not be turned into a factual zero revenue/lead count.

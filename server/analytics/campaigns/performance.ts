@@ -12,7 +12,7 @@ import {
 } from '../common/marketing';
 import type { OffernetQueryParams } from '../common/types';
 
-export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
+export async function getClientCampaignAnalytics(params: OffernetQueryParams, options: { includeDetails?: boolean } = {}) {
   const clientConfig = getClientConfig(params.clientId);
   const contract = clientConfig.marketing;
 
@@ -117,12 +117,16 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
     WITH scoped_marketing AS (
       SELECT * FROM \`${contract.table}\` WHERE ${conditions.join(' AND ')}
     ), campaign_spend AS (
-      SELECT CAST(${clientField} AS STRING) AS client_name, CAST(${channelField} AS STRING) AS channel,
+      ${includeDetails ? `SELECT CAST(${clientField} AS STRING) AS client_name, CAST(${channelField} AS STRING) AS channel,
         CAST(${campaignField} AS STRING) AS campaign_name, CAST(${adsetField} AS STRING) AS adset_name,
         ${metricAggregates},
         ${spendValue ? `SUM(${spendValue})` : 'CAST(NULL AS NUMERIC)'} AS recorded_spend,
         ${budgetValue ? `ARRAY_AGG(${budgetValue} IGNORE NULLS ORDER BY ${dateField} DESC LIMIT 1)[SAFE_OFFSET(0)]` : 'CAST(NULL AS FLOAT64)'} AS latest_budget
-      FROM scoped_marketing GROUP BY 1, 2, 3, 4
+      FROM scoped_marketing GROUP BY 1, 2, 3, 4`
+      : `SELECT ${campaignGroupExpression} AS campaign_key,
+        ${spendValue ? `SUM(${spendValue})` : 'CAST(NULL AS NUMERIC)'} AS recorded_spend
+      FROM scoped_marketing GROUP BY 1`}
+
     )
     SELECT
       COUNT(*) AS row_count,
@@ -137,7 +141,8 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
       ${includeDetails ? `, ARRAY(SELECT AS STRUCT * FROM campaign_spend ORDER BY recorded_leads DESC, client_name, channel, campaign_name, adset_name LIMIT ${detailLimit}) AS campaign_details` : ''}
     FROM scoped_marketing
   `;
-  const grainQuery = buildGrainQuery(true);
+  const includeDetails = options.includeDetails !== false;
+  const grainQuery = buildGrainQuery(includeDetails);
   const [grainRows] = await client.query({ query: grainQuery, params: queryParams });
   const grain = grainRows[0] || {};
   const duplicateGrainRows = Number(grain.duplicate_grain_rows || 0);
@@ -151,7 +156,7 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
     hasApprovedSpend: Boolean(spendValue),
   });
 
-  const rows = grain.campaign_details || [];
+  const rows = includeDetails ? grain.campaign_details || [] : [];
   const hasSpend = Boolean(resolved.spendColumn && grainStatus === 'VALID');
 
   const campaigns = rows.map((row: any) => {

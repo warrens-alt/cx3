@@ -27,7 +27,13 @@ export function operationalLeadCtes(params: OffernetQueryParams, byVendor = fals
     LEFT JOIN UNNEST(l.hlc_details) hlc
     ${whereSql}
   ), operational_leads AS (
-    SELECT lead_id,
+    ${operationalLeadSelectSql('operational_raw', byVendor)}
+  )`;
+}
+
+/** Reuse normalization after raw cohort selection; grouping before selection can mix repeated lead IDs across periods. */
+export function operationalLeadSelectSql(rawCteName: 'operational_raw' | 'current_operational_raw', byVendor = false): string {
+  return `    SELECT lead_id,
       MIN(fetched_ts) AS fetched_ts,
       ${byVendor ? 'vendor' : "ARRAY_AGG(vendor ORDER BY IF(delivered_ts IS NULL, 1, 0), delivered_ts, vendor LIMIT 1)[SAFE_OFFSET(0)] AS vendor"},
       ANY_VALUE(source) AS source, ANY_VALUE(grade) AS grade, ANY_VALUE(vetting) AS vetting,
@@ -46,10 +52,9 @@ export function operationalLeadCtes(params: OffernetQueryParams, byVendor = fals
       COUNTIF(first_call_ts IS NOT NULL AND last_dialer_status IS NOT NULL) > 0 AS has_disposition,
       SUM(revenue) AS revenue,
       MAX(revenue) AS max_recorded_revenue
-    FROM operational_raw
+    FROM ${rawCteName}
     WHERE lead_id IS NOT NULL
-    GROUP BY lead_id${byVendor ? ', vendor' : ''}
-  )`;
+    GROUP BY lead_id${byVendor ? ', vendor' : ''}`;
 }
 
 /** An empty denominator is unavailable, while a measured zero numerator remains zero. */

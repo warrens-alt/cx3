@@ -4,22 +4,23 @@ import type { OffernetQueryParams } from '../common/types';
 import { formatDuration } from '../common/types';
 import { buildFilterClause } from '../common/scope';
 import { operationalLeadCtes, metricPercent } from '../common/leadMetrics';
-import { assembleLifecycleDiagnostics, getLifecycleDiagnostics } from '../common/lifecycleDiagnostics';
+import { assembleLifecycleDiagnostics, compileLifecycleDiagnostics } from '../common/lifecycleDiagnostics';
 
 // 1. EXECUTIVE OVERVIEW
 export async function getExecutiveOverview(params: OffernetQueryParams, options: { includeDiagnostics?: boolean } = {}) {
   const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const clientConfig = getClientConfig(params.clientId);
-  const { queryParams } = buildFilterClause(params);
+  const diagnostics = options.includeDiagnostics === false ? null : compileLifecycleDiagnostics(params);
+  const { queryParams } = diagnostics || buildFilterClause(params);
   queryParams.overviewTimezone = clientConfig.timezone || 'Africa/Johannesburg';
 
   const mainQuery = `
-    WITH ${operationalLeadCtes(params)},
+    WITH ${diagnostics ? `${diagnostics.ctesSql}, ${diagnostics.currentLeadCtesSql()}` : operationalLeadCtes(params)},
     lead_records AS (
       SELECT *, DATE(fetched_ts, @overviewTimezone) AS fetched_date,
         TIMESTAMP_DIFF(first_call_ts, delivered_ts, SECOND) AS delivery_to_dial_sec,
         TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), delivered_ts, SECOND) AS delivery_age_sec
-      FROM operational_leads
+      FROM ${diagnostics ? 'current_operational_leads' : 'operational_leads'}
     ),
     summary AS (
       SELECT
@@ -100,12 +101,14 @@ export async function getExecutiveOverview(params: OffernetQueryParams, options:
       operational.*,
       ARRAY(SELECT AS STRUCT * FROM daily_trends ORDER BY date) AS daily_trends,
       ARRAY(SELECT AS STRUCT * FROM backlog_vendor) AS backlog_by_vendor
+      ${diagnostics ? `, ARRAY(SELECT AS STRUCT * FROM lifecycle_aggregates ORDER BY period, dimension, fetched DESC) AS lifecycle_rows` : ''}
     FROM summary
     CROSS JOIN operational
   `;
 
-  const [[rows], lifecycle] = await Promise.all([client.query({ query: mainQuery, params: queryParams }), options.includeDiagnostics === false ? Promise.resolve(assembleLifecycleDiagnostics([], null)) : getLifecycleDiagnostics(params)]);
+  const [rows] = await client.query({ query: mainQuery, params: queryParams });
   const data = rows[0] || {};
+  const lifecycle = assembleLifecycleDiagnostics(data.lifecycle_rows || [], diagnostics?.period || null);
 
   const fetched = Number(data.fetched_leads || 0);
   const delivered = Number(data.delivered_leads || 0);
@@ -268,5 +271,26 @@ export async function getExecutiveOverview(params: OffernetQueryParams, options:
     validationStatus: 'NOT_VERIFIED',
     currency: clientConfig.currency || 'ZAR',
     clientName: clientConfig.name
+  };
+}
+
+/** Commercial ratios need these current-cohort totals only, with the same lead normalization as Overview. */
+export async function getOperationalCommercialSummary(params: OffernetQueryParams) {
+  const config = getClientConfig(params.clientId);
+  const { queryParams } = buildFilterClause(params);
+  const [rows] = await getBigQueryClient(config.bigQueryProject).query({
+    query: `WITH ${operationalLeadCtes(params)}
+      SELECT COUNT(*) AS fetched_leads, COUNTIF(is_sale) AS sale_leads,
+        COUNTIF(is_activated) AS activated_leads, SUM(revenue) AS total_revenue
+      FROM operational_leads`,
+    params: queryParams,
+  });
+  const row = rows[0] || {};
+  const fetchedLeads = Number(row.fetched_leads || 0), saleLeads = Number(row.sale_leads || 0);
+  return {
+    kpis: { fetchedLeads, saleLeads, activatedLeads: Number(row.activated_leads || 0),
+      leadToSaleRate: metricPercent(saleLeads, fetchedLeads, 2),
+      revenue: row.total_revenue == null ? null : Number(row.total_revenue) },
+    currency: config.currency || 'ZAR',
   };
 }

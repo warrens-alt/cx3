@@ -48,7 +48,7 @@ function fixture(context: TestContext, media: Media[], options: { columns?: stri
       for (const [input, output] of [['impressions', 'impressions'], ['clicks', 'clicks'], ['leads', 'recorded_leads']] as const) group[`missing_${output}_rows`] = (group[`missing_${output}_rows`] || 0) + (row[input] === null ? 1 : 0);
       groups.set(key, group);
     }
-    if (request.query.includes('AS campaign_group_count') || request.query.includes('AS raw_observed_spend')) return [[{ ...grain, campaign_details: [...groups.values()].slice(0, 250) }]] as any;
+    if (request.query.includes('AS campaign_group_count') || (request.query.includes('AS raw_observed_spend') && !request.query.includes('AS detail_rows'))) return [[{ ...grain, ...(request.query.includes('AS campaign_details') ? { campaign_details: [...groups.values()].slice(0, 250) } : {}) }]] as any;
     if (request.query.includes('FROM dimensional JOIN snapshot_guard')) return [options.rootCauseRows || []] as any;
     if (request.query.includes('AS detail_rows')) {
       const detail = typeof options.attributionRows === 'function' ? options.attributionRows(selected) : options.attributionRows || [];
@@ -57,7 +57,7 @@ function fixture(context: TestContext, media: Media[], options: { columns?: stri
         total_spend: detail.reduce((a, row) => a + (row.spend || 0), 0), matched_spend: matching.reduce((a, row) => a + row.spend, 0),
         unmatched_marketing_spend: detail.filter(row => row.has_marketing && !row.has_operations).reduce((a, row) => a + row.spend, 0),
         matched_keys: matching.length, marketing_only_keys: detail.filter(row => row.has_marketing && !row.has_operations).length,
-        operations_only_keys: detail.filter(row => !row.has_marketing && row.has_operations).length, total_keys: detail.length, ambiguous_leads: 0, snapshot_duplicate_grain_rows: 0, snapshot_missing_grain_rows: 0, snapshot_missing_spend_rows: 0, campaign_aggregation_spend: spend,
+        operations_only_keys: detail.filter(row => !row.has_marketing && row.has_operations).length, total_keys: detail.length, ambiguous_leads: 0, marketing_grain: grain, campaign_aggregation_spend: spend,
         ...Object.fromEntries(['fetched', 'delivered', 'dialled', 'rpc', 'sales', 'activations', 'recorded_revenue'].map(field => [`matched_${field}`, matching.reduce((a, row) => a + (row[field] || 0), 0)])),
         detail_rows: detail.slice(0, 250), ...options.overrideSummary,
       }]] as any;
@@ -241,9 +241,9 @@ test('current and immediately preceding periods compare equal lengths and reject
   assert.equal(invalid.comparison, null); assert.match(invalid.comparisonReason!, /prior period violates/);
 });
 
-test('attribution rechecks the joined snapshot instead of trusting an earlier grain result', async context => {
+test('attribution validates duplicate spend in the same snapshot as joined outcomes', async context => {
   enableAttribution(context);
-  fixture(context, [acceptance[0]], { attributionRows: [joined('campaign a', 100, 3)], overrideSummary: { snapshot_duplicate_grain_rows: 1 } });
+  fixture(context, [acceptance[0], acceptance[0]], { attributionRows: [joined('campaign a', 200, 3)] });
   const result = await getMarketingAttributionAnalytics(scope);
   assert.equal(result.status, 'INVALID_GRAIN'); assert.equal(result.economics!.spendPerFetchedLead, null);
 });
@@ -318,4 +318,75 @@ test('commercial CPS comparison requires independently valid attribution in both
   const invalid = await getCommercialAnalytics(params);
   assert.equal(invalid.baseline.mediaSpend, 100); assert.equal(invalid.attributionComparison.costPerSale.absoluteChange, null);
   assert.match(invalid.attributionComparison.reason, /Prior matched attribution is unavailable/);
+});
+
+
+test('attribution performs one warehouse data query while retaining an independent raw audit and outcome gate', async context => {
+  enableAttribution(context);
+  const { requests } = fixture(context, [acceptance[0]], { attributionRows: [joined('campaign a', 100, 3)] });
+  const result = await getMarketingAttributionAnalytics({ ...scope, source: 'Campaign A', startDate: '2026-09-01', endDate: '2026-09-01' });
+  assert.equal(result.summary!.totalSpend, 100); assert.equal(result.economics!.spendPerFetchedLead, 33.33);
+  const dataQueries = requests.filter(row => !row.query.includes('INFORMATION_SCHEMA.COLUMNS'));
+  assert.equal(dataQueries.length, 1, 'One snapshot replaces the previous preflight plus joined query');
+  const query = dataQueries[0].query;
+  assert.match(query, /marketing_audit AS \([\s\S]*SUM\([\s\S]*AS raw_observed_spend[\s\S]*FROM scoped_marketing/);
+  assert.match(query, /SELECT AS STRUCT \* FROM marketing_audit/);
+  assert.match(query, /AND \(SELECT row_count > 0 AND duplicate_grain_rows = 0 AND missing_grain_rows = 0/);
+  assert.match(query, /missing_spend_rows = 0 AND raw_observed_spend IS NOT NULL FROM marketing_audit/);
+  assert.deepEqual(dataQueries[0].params.marketingClientNames, ['mtn', 'mtn sa']);
+});
+
+test('summary-only campaigns preserve full totals and comparisons while omitting unused detail and budget work', async context => {
+  const { requests } = fixture(context, [...acceptance, mediaRow('2026-08-30', 'Adset 1', 100), mediaRow('2026-08-31', 'Adset 1', 200)]);
+  const params = { ...scope, startDate: '2026-09-01', endDate: '2026-09-02', campaign: 'Campaign A', channel: 'Social' };
+  const detailed = await getClientCampaignAnalytics(params);
+  const before = requests.length;
+  const compact = await getClientCampaignAnalytics(params, { includeDetails: false });
+  assert.deepEqual(compact.summary, detailed.summary); assert.deepEqual(compact.comparison, detailed.comparison);
+  assert.deepEqual(compact.reconciliation, detailed.reconciliation); assert.deepEqual(compact.grainDiagnostics, detailed.grainDiagnostics);
+  assert.ok(detailed.campaigns.length > 0); assert.deepEqual(compact.campaigns, []);
+  const compactQueries = requests.slice(before);
+  assert.equal(compactQueries.length, 2, 'Current and prior each retain their own complete audit');
+  for (const { query, params: bindings } of compactQueries) {
+    assert.doesNotMatch(query, /campaign_details|latest_budget|ARRAY_AGG|`budget`/);
+    assert.match(query, /SELECT SUM\(recorded_spend\) FROM campaign_spend/);
+    assert.match(query, /duplicate_grain_rows/); assert.match(query, /missing_clicks_rows/);
+    assert.equal(bindings.campaign, 'Campaign A'); assert.equal(bindings.channel, 'Social');
+  }
+});
+
+test('commercial matched-period path uses five analytical queries and no campaign detail arrays', async context => {
+  enableAttribution(context);
+  const media = [mediaRow('2026-09-01', 'Adset 1', 100), mediaRow('2026-08-31', 'Adset 1', 50)];
+  const { requests } = fixture(context, media, { attributionRows: selected => selected.length ? [joined('campaign a', selected.reduce((sum, row) => sum + (row.spend || 0), 0), 3)] : [] });
+  const result = await getCommercialAnalytics({ ...scope, startDate: '2026-09-01', endDate: '2026-09-01' });
+  assert.equal(result.baseline.mediaSpend, 100); assert.equal(result.attributionComparison.costPerSale.absoluteChange, 50);
+  const analytical = requests.filter(row => !row.query.includes('INFORMATION_SCHEMA.COLUMNS'));
+  assert.equal(analytical.length, 5, 'Former path used overview + 2 media + 2 current attribution + 2 prior attribution = 7');
+  assert.equal(analytical.filter(row => row.query.includes('AS detail_rows')).length, 2);
+  const operational = analytical.find(row => row.query.includes('AS fetched_leads'))!;
+  assert.doesNotMatch(operational.query, /daily_trends|backlog_vendor|APPROX_QUANTILES|lifecycle_summary|delivery_age_sec/);
+  assert.equal(result.baseline.volume, 3); assert.equal(result.baseline.revenue, 300);
+  assert.equal(result.baseline.revenuePerSale, 300);
+  assert.ok(analytical.every(row => !row.query.includes('AS campaign_details')));
+  assert.equal(requests.filter(row => row.query.includes('INFORMATION_SCHEMA.COLUMNS')).length, 1, 'Concurrent contract resolution remains single-flight');
+});
+
+test('single-snapshot attribution still rejects partial, missing, inconsistent and unreconciled spend evidence', async context => {
+  enableAttribution(context);
+  const media = [acceptance[0]];
+  const overrides: Record<string, unknown> = {};
+  fixture(context, media, { attributionRows: [joined('campaign a', 100, 3)], overrideSummary: overrides });
+  media.push(mediaRow('2026-09-01', 'Adset 2', null));
+  let result = await getMarketingAttributionAnalytics(scope);
+  assert.equal(result.status, 'UNAVAILABLE'); assert.equal(result.economics!.spendPerSale, null);
+  media.pop(); overrides.marketing_grain = null;
+  result = await getMarketingAttributionAnalytics(scope);
+  assert.equal(result.status, 'NOT_VERIFIED'); assert.equal(result.summary, null);
+  overrides.marketing_grain = { row_count: 1, distinct_grain_count: 2, duplicate_grain_rows: 0, missing_grain_rows: 0, missing_spend_rows: 0, raw_observed_spend: 100 };
+  result = await getMarketingAttributionAnalytics(scope);
+  assert.equal(result.status, 'NOT_VERIFIED');
+  delete overrides.marketing_grain; overrides.total_spend = 150;
+  result = await getMarketingAttributionAnalytics(scope);
+  assert.equal(result.status, 'NOT_VERIFIED'); assert.equal(result.economics!.spendPerFetchedLead, null);
 });

@@ -80,7 +80,7 @@ CX_MARKETING_ATTRIBUTION_JSON='{
 
 Both campaign fields must be supplied together and are validated identifiers. When configured, the key is the source/campaign tuple. Otherwise it is the source key. Keys are trimmed and lowercased under this explicit contract. Missing/blank keys never match each other. An operational lead with multiple keys fails closed.
 
-Marketing spend is grouped by approved key independently. Operational leads are reduced to their lead ID before key aggregation. Only then are the two aggregates joined. Three leads matching an `R100` marketing row therefore leave marketing spend at `R100`, never `R300`. Both the validation query and the joined query snapshot check marketing grain/completeness; changes between them cannot authorize costs from an invalid joined snapshot.
+Marketing spend is grouped by approved key independently. Operational leads are reduced to their lead ID before key aggregation. Only then are the two aggregates joined. Three leads matching an `R100` marketing row therefore leave marketing spend at `R100`, never `R300`. One attribution query snapshot contains an independent raw marketing audit, campaign aggregation and joined totals. Operational aggregation is gated on complete, valid marketing evidence; missing audit evidence or a reconciliation difference withholds attribution. There is no redundant preliminary grain query.
 
 The query computes full-scope total observed spend, matched spend, unmatched marketing spend, matched percentage and matched/marketing-only/operations-only key counts **before** bounding the detail array at 250 keys. It reconciles matched + unmatched spend to the independent marketing total. Detail truncation is explicitly disclosed.
 

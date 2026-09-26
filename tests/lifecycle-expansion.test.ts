@@ -58,11 +58,11 @@ test('funnel loss uses stage intersections and contribution is withheld if segme
   assert.equal(deliveryDial.conversionRate,62.5);
   assert.equal(deliveryDial.status,'NON_NESTED');
   assert.equal(result.comparisons.saleRate.percentagePointChange,-10);
-  assert.equal(result.contributions.vendor?.status,'RECONCILED');
-  assert.equal(result.contributions.source,null);
+  assert.equal(result.rateContributions.saleRate.vendor?.status,'RECONCILED');
+  assert.equal(result.rateContributions.saleRate.source,null);
   assert.equal(result.rateContributions.deliveryRate.vendor,null,'incomplete outcome counts cannot create a reconciled allocation');
   const incomplete=assembleLifecycleDiagnostics(evidence.filter(r=>!(r.period==='current' && r.dimension==='vendor' && r.segment==='B')),matchedPeriodWindow(scope.startDate,scope.endDate));
-  assert.equal(incomplete.contributions.vendor,null);
+  assert.equal(incomplete.rateContributions.saleRate.vendor,null);
 });
 
 test('comparison SQL keeps tenant filters and local date boundaries; concurrent identical scopes share pending work only', async context => {

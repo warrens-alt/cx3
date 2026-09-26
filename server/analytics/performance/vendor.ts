@@ -2,23 +2,23 @@ import { getBigQueryClient } from '../../bigquery/client';
 import { getClientConfig } from '../../bigquery/config';
 import type { OffernetQueryParams } from '../common/types';
 import { formatDuration } from '../common/types';
-import { buildFilterClause } from '../common/scope';
-import { operationalLeadCtes, metricPercent } from '../common/leadMetrics';
-import { getLifecycleDiagnostics } from '../common/lifecycleDiagnostics';
+import { metricPercent } from '../common/leadMetrics';
+import { assembleLifecycleDiagnostics, compileLifecycleDiagnostics } from '../common/lifecycleDiagnostics';
 
 // 5. VENDOR & LEAD QUALITY
 export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
   const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
-  const { queryParams } = buildFilterClause(params);
+  const diagnostics = compileLifecycleDiagnostics(params);
+  const { queryParams } = diagnostics;
 
   const query = `
-    WITH ${operationalLeadCtes(params, true)},
+    WITH ${diagnostics.ctesSql}, ${diagnostics.currentLeadCtesSql(true)},
     base AS (
       SELECT * EXCEPT(source, grade),
         COALESCE(NULLIF(source, ''), 'Unknown') AS source,
         COALESCE(NULLIF(grade, ''), 'Unrecorded') AS grade, recorded_call_count AS total_calls,
         TIMESTAMP_DIFF(first_call_ts, delivered_ts, SECOND) AS deliv_to_dial_sec
-      FROM operational_leads
+      FROM current_operational_leads
     ),
     vendor_matrix AS (
       SELECT
@@ -92,11 +92,13 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
       ARRAY(SELECT AS STRUCT * FROM vendor_grades ORDER BY vendor, leads DESC) AS vendor_grades,
       ARRAY(SELECT AS STRUCT * FROM source_matrix) AS sources,
       ARRAY(SELECT AS STRUCT * FROM grade_matrix) AS grades,
-      ARRAY(SELECT AS STRUCT * FROM vetting_matrix) AS vetting
+      ARRAY(SELECT AS STRUCT * FROM vetting_matrix) AS vetting,
+      ARRAY(SELECT AS STRUCT * FROM lifecycle_aggregates ORDER BY period, dimension, fetched DESC) AS lifecycle_rows
   `;
 
-  const [[rows], lifecycle] = await Promise.all([client.query({ query, params: queryParams }), getLifecycleDiagnostics(params)]);
+  const [rows] = await client.query({ query, params: queryParams });
   const data = rows[0] || { vendors: [], sources: [], grades: [], vetting: [] };
+  const lifecycle = assembleLifecycleDiagnostics(data.lifecycle_rows || [], diagnostics.period);
 
   const vendors = (data.vendors || []).map((v: any) => {
     const leads = Number(v.leads || 0), delivered = Number(v.delivered || 0), dialled = Number(v.dialled || 0);

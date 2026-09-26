@@ -892,7 +892,11 @@ export function getCliFieldCoverage(
 export async function getCliPerformance(
   input: QueryScope & { search?: string },
   access?: SourceAccess,
-  options: { limit?: number } = {},
+  options: {
+    limit?: number;
+    /** Internal export path: omit unused dashboard scans and summaries. */
+    detailOnly?: boolean;
+  } = {},
 ): Promise<CliPerformanceResponse> {
   const scope = validateScope(input);
   const search = scalarString(input.search, 'search', 200)?.trim().toLowerCase() || undefined;
@@ -925,7 +929,7 @@ export async function getCliPerformance(
 
   // If live CLI column is available in BigQuery, execute live SQL query
   if (schemaChecked && cliColumn) {
-    return executeLiveCliQuery(scope, configuredTable, cliColumn, fieldsMap, access, rowLimit, search);
+    return executeLiveCliQuery(scope, configuredTable, cliColumn, fieldsMap, access, rowLimit, search, options.detailOnly);
   }
 
   // If an imported report is available, serve it with IMPORTED_REPORT provenance
@@ -945,10 +949,12 @@ export async function getCliPerformance(
       if (filter) records = records.filter(record => matchesImportedFilter(record[key], filter, key === 'vendor'));
     }
 
-    const summary = computeCliSummary(records);
-    const durationBands = computeDurationBands(records);
+    const truncated = Boolean(options.detailOnly && records.length > rowLimit);
+    if (options.detailOnly) records = records.slice(0, rowLimit);
+    const summary = options.detailOnly ? null : computeCliSummary(records);
+    const durationBands = computeDurationBands(options.detailOnly ? [] : records);
     const periodComparison = null;
-    const campaigns = aggregateCampaigns(records);
+    const campaigns = options.detailOnly ? [] : aggregateCampaigns(records);
     const fieldCoverage = getCliFieldCoverage(configuredTable, cliColumn, fieldsMap);
 
     return {
@@ -964,9 +970,9 @@ export async function getCliPerformance(
       },
       summary,
       cliPerformance: records,
-      trend: aggregateCliTrend(records),
+      trend: options.detailOnly ? [] : aggregateCliTrend(records),
       durationBands,
-      leadAgeBands: computeLeadAgeBands(records),
+      leadAgeBands: options.detailOnly ? emptyLeadAgeBands() : computeLeadAgeBands(records),
       campaigns,
       periodComparison,
       fieldCoverage,
@@ -981,7 +987,7 @@ export async function getCliPerformance(
         modelVersion: 'cx.cli.1.0.0',
         generatedAt: new Date().toISOString(),
         rowCount: records.length,
-        truncated: false,
+        truncated,
         validationStatus: tenantImport.anomalies.length > 0 ? 'VALIDATED_WITH_ANOMALIES' : 'VALIDATED_REPORT',
       },
     };
@@ -1046,6 +1052,7 @@ async function executeLiveCliQuery(
   access?: SourceAccess,
   rowLimit = 2000,
   search?: string,
+  detailOnly = false,
 ): Promise<CliPerformanceResponse> {
   const clientConfig = getClientConfig(scope.clientId);
   const client = access || sourceAccess(scope.clientId);
@@ -1054,7 +1061,8 @@ async function executeLiveCliQuery(
   const vendorCol = fields.has('vendor') ? 'vendor' : null;
   const dateCol = fields.has('call_start_date') ? 'call_start_date' : fields.has('date') ? 'date' : null;
   const hasLeadId = fields.has('dialer_lead_id');
-  const comparisonWindow = matchedPeriodWindow(scope.startDate, scope.endDate);
+  // Exports need only current roster rows; prior-period scans and dashboard aggregations are unused.
+  const comparisonWindow = detailOnly ? null : matchedPeriodWindow(scope.startDate, scope.endDate);
 
   for (const required of ['is_rpc', 'is_sale']) {
     if (!fields.has(required)) {
@@ -1131,15 +1139,15 @@ async function executeLiveCliQuery(
       ${vendorCol ? `CAST(s.\`${vendorCol}\` AS STRING)` : "'Unknown Vendor'"} AS vendor,
       ${hasLeadId ? "NULLIF(TRIM(CAST(s.dialer_lead_id AS STRING)), '')" : 'CAST(NULL AS STRING)'} AS lead_id,
       CAST(${callDate} AS STRING) AS report_date,
-      ${dateCol ? `CAST(EXTRACT(HOUR FROM DATETIME(${validTimestampSql(`s.\`${dateCol}\``)}, @tenantTimezone)) AS STRING)` : 'CAST(NULL AS STRING)'} AS call_hour,
-      ${dispositionCol ? `CAST(s.\`${dispositionCol}\` AS STRING)` : 'CAST(NULL AS STRING)'} AS disposition,
+      ${detailOnly ? '' : `${dateCol ? `CAST(EXTRACT(HOUR FROM DATETIME(${validTimestampSql(`s.\`${dateCol}\``)}, @tenantTimezone)) AS STRING)` : 'CAST(NULL AS STRING)'} AS call_hour,
+      ${dispositionCol ? `CAST(s.\`${dispositionCol}\` AS STRING)` : 'CAST(NULL AS STRING)'} AS disposition,`}
       SAFE_CAST(is_rpc AS BOOL) AS rpc_flag, SAFE_CAST(is_sale AS BOOL) AS sale_flag,
       ${fields.has('length_in_sec') ? 'CASE WHEN SAFE_CAST(length_in_sec AS INT64) >= 0 THEN SAFE_CAST(length_in_sec AS INT64) END' : 'CAST(NULL AS INT64)'} AS duration_sec
     FROM ${tableIdentifier(table)} s ${whereSql}
   ) SELECT
     ARRAY(SELECT AS STRUCT cli, campaign, vendor, ${aggregate}
       FROM scoped_calls ${currentScope} GROUP BY cli, campaign, vendor
-      ORDER BY total_calls DESC, cli, campaign, vendor LIMIT @cliRowLimit) AS records,
+      ORDER BY total_calls DESC, cli, campaign, vendor LIMIT @cliRowLimit) AS records${detailOnly ? '' : `,
     ARRAY(SELECT AS STRUCT cli, campaign, vendor, report_date, ${aggregate}
       FROM scoped_calls WHERE report_date IS NOT NULL GROUP BY cli, campaign, vendor, report_date
       ORDER BY report_date, cli, campaign, vendor LIMIT @cliRowLimit) AS daily,
@@ -1152,7 +1160,7 @@ async function executeLiveCliQuery(
       ]) d ${currentScope} GROUP BY d.dimension, d.bucket, cli
       ORDER BY calls DESC, cli, d.dimension, d.bucket LIMIT @cliRowLimit) AS breakdowns,
     (SELECT COUNT(DISTINCT lead_id) FROM scoped_calls ${currentScope}) AS scope_distinct_leads,
-    (SELECT COUNT(*) FROM scoped_calls ${currentScope}) AS scope_calls
+    (SELECT COUNT(*) FROM scoped_calls ${currentScope}) AS scope_calls`}
   `;
 
   if (!fields.has('is_rpc') || !fields.has('is_sale')) {
@@ -1213,19 +1221,19 @@ async function executeLiveCliQuery(
     };
   };
   const records = rosterRows.slice(0, rowLimit).map(mapLiveRecord);
-  const dailyRows: any[] = resultRow.daily || [];
+  const dailyRows: any[] = detailOnly ? [] : resultRow.daily || [];
   const dailyRecords = dailyRows.slice(0, rowLimit).map(mapLiveRecord);
-  const summary = computeCliSummary(records);
-  if (rosterRows.length <= rowLimit && hasLeadId && resultRow.scope_distinct_leads != null) {
+  const summary = detailOnly ? null : computeCliSummary(records);
+  if (summary && rosterRows.length <= rowLimit && hasLeadId && resultRow.scope_distinct_leads != null) {
     summary.distinctLeads = String(resultRow.scope_distinct_leads);
     summary.callsPerLead = Number(resultRow.scope_distinct_leads) > 0 ? divideExactDecimal(summary.totalCalls, summary.distinctLeads, 2) : null;
-  } else if (records.length > 1) { summary.distinctLeads = null; summary.callsPerLead = null; }
-  const rpcSales = records.every(record => record.rpcSaleCount !== null && record.rpcSaleCount !== undefined)
+  } else if (summary && records.length > 1) { summary.distinctLeads = null; summary.callsPerLead = null; }
+  const rpcSales = summary && records.every(record => record.rpcSaleCount !== null && record.rpcSaleCount !== undefined)
     ? records.reduce((sum, record) => sum + BigInt(record.rpcSaleCount!), 0n).toString() : null;
-  summary.salePerContactRate = rpcSales !== null ? calculateExactRate(rpcSales, summary.contactCount) : null;
-  const durationBands = computeDurationBands(records);
+  if (summary) summary.salePerContactRate = rpcSales !== null ? calculateExactRate(rpcSales, summary.contactCount) : null;
+  const durationBands = computeDurationBands(detailOnly ? [] : records);
   const periodComparison = dailyRows.length <= rowLimit && comparisonWindow ? computePeriodComparison(dailyRecords, scope) : null;
-  const campaigns = aggregateCampaigns(records);
+  const campaigns = detailOnly ? [] : aggregateCampaigns(records);
   const fieldCoverage = getCliFieldCoverage(table, cliCol, fields);
 
   return {
@@ -1242,7 +1250,7 @@ async function executeLiveCliQuery(
     summary,
     cliPerformance: records,
     trend: dailyRows.length <= rowLimit ? aggregateCliTrend(dailyRecords.filter(record => (!scope.startDate || record.reportDate! >= scope.startDate) && (!scope.endDate || record.reportDate! <= scope.endDate))) : [],
-    diagnostics: {
+    diagnostics: detailOnly ? undefined : {
       timezone: clientConfig.timezone,
       trendStatus: !dateCol ? 'UNAVAILABLE' : dailyRows.length > rowLimit ? 'TRUNCATED' : 'OBSERVED',
       breakdowns: (resultRow.breakdowns || []).slice(0, rowLimit).map((row: any) => ({ dimension: row.dimension, bucket: row.bucket, cli: row.cli, calls: Number(row.calls), rpc: row.rpc == null ? null : Number(row.rpc), sales: row.sales == null ? null : Number(row.sales) })),
