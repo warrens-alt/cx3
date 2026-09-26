@@ -1,5 +1,6 @@
 export interface OperatingControlsData {
   summary: {
+    unrecordedCallLeads?: number;
     totalLeads: number;
     deliveredLeads: number;
     dialledLeads: number;
@@ -7,43 +8,43 @@ export interface OperatingControlsData {
     oneCallLeads: number;
     multiCallLeads: number;
     highAttemptNoRpcLeads: number;
-    singleAttemptSharePct: number;
-    multiAttemptSharePct: number;
-    dispositionCompletenessPct: number;
+    singleAttemptSharePct: number | null;
+    multiAttemptSharePct: number | null;
+    dispositionCompletenessPct: number | null;
     afterHoursLeads: number;
-    afterHoursSharePct: number;
+    afterHoursSharePct: number | null;
     weekendLeads: number;
-    weekendSharePct: number;
-    sla15Rate: number;
-    sla60Rate: number;
+    weekendSharePct: number | null;
+    sla15Rate: number | null;
+    sla60Rate: number | null;
     awaitingFirstDial: number;
     oldestDeliveryWait: string;
     captureToDialMedian: string;
     captureToDialP90: string;
-    captureWithin15mRate: number;
-    captureWithin60mRate: number;
+    captureWithin15mRate: number | null;
+    captureWithin60mRate: number | null;
     activationBacklog14d: number;
-    afterHoursRpcRate: number;
-    operatingHoursRpcRate: number;
-    afterHoursSaleRate: number;
-    operatingHoursSaleRate: number;
+    afterHoursRpcRate: number | null;
+    operatingHoursRpcRate: number | null;
+    afterHoursSaleRate: number | null;
+    operatingHoursSaleRate: number | null;
   };
   attemptBuckets: Array<{
     bucket: string;
     leads: number;
-    sharePct: number;
+    sharePct: number | null;
     contacted: number;
-    contactRate: number;
+    contactRate: number | null;
     sales: number;
-    saleRate: number;
+    saleRate: number | null;
     activations: number;
   }>;
   slaBands: Array<{
     band: string;
     leads: number;
-    sharePct: number;
-    contactRate: number;
-    saleRate: number;
+    sharePct: number | null;
+    contactRate: number | null;
+    saleRate: number | null;
   }>;
   activationAgeing: Array<{ bucket: string; leads: number }>;
   hourlyFlow: Array<{ hour: number; captured: number; firstDials: number }>;
@@ -54,19 +55,19 @@ export interface OperatingControlsData {
     undialled: number;
     median: string;
     p90: string;
-    within15mRate: number;
-    within60mRate: number;
+    within15mRate: number | null;
+    within60mRate: number | null;
   }>;
   vendorControls: Array<{
     vendor: string;
     leads: number;
-    oneCallSharePct: number;
+    oneCallSharePct: number | null;
     highAttemptNoRpc: number;
-    dispositionCompletenessPct: number;
-    sla15Rate: number;
+    dispositionCompletenessPct: number | null;
+    sla15Rate: number | null;
     medianFirstDial: string;
-    rpcRate: number;
-    leadToSaleRate: number;
+    rpcRate: number | null;
+    leadToSaleRate: number | null;
   }>;
   dataCompleteness: {
     missingSource: number;
@@ -94,20 +95,22 @@ export interface OverviewData {
   kpis: {
     fetchedLeads: number;
     deliveredLeads: number;
-    deliveryRate: number;
+    deliveryRate: number | null;
     dialledLeads: number;
-    dialRate: number;
+    dialRate: number | null;
     contactedLeads: number;
-    contactRate: number;
-    qualifiedLeads: number;
+    contactRate: number | null;
+    qualifiedLeads: number | null;
     saleLeads: number;
-    leadToSaleRate: number;
-    contactToSaleRate: number;
+    leadToSaleRate: number | null;
+    contactToSaleRate: number | null;
     activatedLeads: number;
-    activationRate: number;
-    totalCalls: number;
-    callsPerLead: number;
-    callsPerDialledLead: number;
+    activationRate: number | null;
+    totalCalls: number | null;
+    recordedCallsSubtotal?: number;
+    unrecordedCallLeads?: number;
+    callsPerLead: number | null;
+    callsPerDialledLead: number | null;
     revenue: number;
     directCost: number | null;
     deliveryAgentCost: number | null;
@@ -117,7 +120,7 @@ export interface OverviewData {
     marginPct: number | null;
     costPerSale: number | null;
     costPerActivation: number | null;
-    revenuePerLead: number;
+    revenuePerLead: number | null;
     breakEvenSales: number | null;
     actualVsBreakEven: number | null;
   };
@@ -125,11 +128,11 @@ export interface OverviewData {
     key: string;
     name: string;
     volume: number;
-    rate: number;
+    rate: number | null;
     loss: number;
-    transitionRate: number;
+    transitionRate: number | null;
   }>;
-  funnelLeak: { from: string; to: string; loss: number; rate: number };
+  funnelLeak: { from: string; to: string; loss: number; rate: number | null };
   dailyTrends: Array<{
     date: string;
     leads: number;
@@ -148,7 +151,7 @@ export interface OverviewData {
   };
   sla: {
     firstDialTargetMinutes: number;
-    complianceRate: number;
+    complianceRate: number | null;
     medianDeliveryToDial: string;
     p90DeliveryToDial: string;
   };
@@ -272,17 +275,17 @@ export interface SpeedToLeadData {
     cohort: string;
     leads: number;
     contacted: number;
-    contactRate: number;
+    contactRate: number | null;
     sales: number;
-    saleRate: number;
+    saleRate: number | null;
     activations: number;
-    activationRate: number;
+    activationRate: number | null;
   }>;
   afterHours: Array<{
     type: string;
     leads: number;
-    contactRate: number;
-    saleRate: number;
+    contactRate: number | null;
+    saleRate: number | null;
     avgTimeToFirstDial: string;
   }>;
   operatingContext?: {
@@ -297,13 +300,13 @@ export interface ContactStrategyData {
   attemptPerformance: Array<{
     bucket: string;
     leads: number;
-    sharePct: number;
+    sharePct: number | null;
     contacted: number;
-    contactRate: number;
+    contactRate: number | null;
     sales: number;
-    saleRate: number;
+    saleRate: number | null;
     activations: number;
-    activationRate: number;
+    activationRate: number | null;
     revenue: number;
     callCost: number | null;
     marginalSales: number | null;
@@ -317,11 +320,13 @@ export interface ContactStrategyData {
   }>;
   summary?: {
     totalLeads: number;
+    dialledLeads: number;
+    unrecordedCallLeads: number;
     zeroCallLeads: number;
     oneCallLeads: number;
-    singleAttemptSharePct: number;
+    singleAttemptSharePct: number | null;
     multiAttemptLeads: number;
-    multiAttemptSharePct: number;
+    multiAttemptSharePct: number | null;
     fivePlusCallLeads: number;
     fivePlusNoRpcLeads: number;
   };
@@ -342,15 +347,15 @@ export interface VendorQualityData {
   vendors: Array<{
     vendor: string;
     leads: number;
-    deliveryRate: number;
-    dialRate: number;
-    contactRate: number;
-    saleRate: number;
-    activationRate: number;
+    deliveryRate: number | null;
+    dialRate: number | null;
+    contactRate: number | null;
+    saleRate: number | null;
+    activationRate: number | null;
     medianFirstDial: string;
     medianFirstDialSec: number | null;
-    callsPerLead: number;
-    invalidRate: number;
+    callsPerLead: number | null;
+    invalidRate: number | null;
     revenue: number;
     directCost: number | null;
     deliveryCost: number | null;
@@ -365,12 +370,12 @@ export interface VendorQualityData {
     contacted: number;
     sales: number;
     activations: number;
-    deliveryRate: number;
-    dialRate: number;
-    contactRate: number;
-    leadToSaleRate: number;
-    activationRate: number;
-    invalidRate: number;
+    deliveryRate: number | null;
+    dialRate: number | null;
+    contactRate: number | null;
+    leadToSaleRate: number | null;
+    activationRate: number | null;
+    invalidRate: number | null;
   }>;
   grades: Array<{
     grade: string;
@@ -378,9 +383,9 @@ export interface VendorQualityData {
     contacted: number;
     sales: number;
     activations: number;
-    contactRate: number;
-    leadToSaleRate: number;
-    activationRate: number;
+    contactRate: number | null;
+    leadToSaleRate: number | null;
+    activationRate: number | null;
   }>;
   vetting: Array<{
     vetting_color: string;
@@ -388,9 +393,9 @@ export interface VendorQualityData {
     contacted: number;
     sales: number;
     activations: number;
-    contactRate: number;
-    leadToSaleRate: number;
-    activationRate: number;
+    contactRate: number | null;
+    leadToSaleRate: number | null;
+    activationRate: number | null;
   }>;
 }
 
@@ -400,9 +405,9 @@ export interface TemporalData {
     dayName: string;
     hour: number;
     volume: number;
-    contactRate: number;
-    saleRate: number;
-    activationRate: number;
+    contactRate: number | null;
+    saleRate: number | null;
+    activationRate: number | null;
   }>;
   peakWindows: Array<{
     window: string;
@@ -413,8 +418,8 @@ export interface TemporalData {
   operatingComparison?: Array<{
     type: string;
     leads: number;
-    contactRate: number;
-    saleRate: number;
+    contactRate: number | null;
+    saleRate: number | null;
   }>;
   operatingContext?: {
     timezone: string;
@@ -431,14 +436,15 @@ export interface SalesActivationData {
     billableSales: number;
     unbilledSales: number;
     totalActivations: number;
-    activationRate: number;
-    realizedRevenue: number;
+    activationRate: number | null;
+    realizedRevenue: number | null;
+    unrecordedRevenueSales?: number;
     avgTimeToSale: string;
     avgTimeToActivation: string;
   };
   maturationCurve: Array<{
     day: string;
-    activationSharePct: number;
+    activationSharePct: number | null;
     cumulativePct: number;
   }>;
   maturationStatus: string;
@@ -502,14 +508,15 @@ export interface DataIntegrityData {
   checks: Array<{
     checkName: string;
     category: string;
-    status: 'HEALTHY' | 'WARNING' | 'CRITICAL' | 'UNKNOWN';
+    status: 'HEALTHY' | 'WARNING' | 'CRITICAL' | 'UNKNOWN' | 'UNAVAILABLE';
     evidence: string;
-    discrepancyCount: number;
+    discrepancyCount: number | null;
     detail: string;
   }>;
 }
 
 export interface AgentPerformanceData {
+  metricAvailabilityReason?: string;
   rankingStatus?: string;
   rankingReason?: string;
   agents: Array<{
@@ -517,18 +524,30 @@ export interface AgentPerformanceData {
     vendor: string;
     totalCalls: number;
     uniqueLeads: number;
-    contactCount: number;
-    contactRate: number;
-    salesCount: number;
-    saleRate: number;
-    totalTalkTime: string;
-    avgHandleTime: string;
-    callbacksBooked: number;
+    contactCount: number | null;
+    contactRate: number | null;
+    salesCount: number | null;
+    rpcSalesCount: number | null;
+    saleRate: number | null;
+    totalTalkTime: string | null;
+    avgHandleTime: string | null;
+    callbacksBooked: number | null;
     performanceTier: string | null;
+    fieldCoverage?: Record<'rpc' | 'sale' | 'callback' | 'duration' | 'saleAmongRpc', { observedCalls: number | null; totalCalls: number | null }>;
   }>;
 }
 
 export interface CampaignData {
+  detailScope?: {
+    totalCampaignGroups: number;
+    displayedCampaignGroups: number;
+    rowLimit: number;
+    truncated: boolean;
+  };
+  metricDefinitions?: {
+    cpl: { label: string; numerator: string; denominator: string };
+    ledgerCpl: { status: string; reason: string };
+  };
   status?: string;
   reason?: string;
   mappingStatus?: string;

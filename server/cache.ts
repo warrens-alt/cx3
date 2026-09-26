@@ -24,6 +24,7 @@ class QueryCache {
   }
 
   set<T>(key: string, data: T, ttlSeconds: number = 120): void {
+    if (ttlSeconds <= 0) return;
     if (this.cache.size >= this.maxEntries) {
       // Evict oldest 20%
       const keys = Array.from(this.cache.keys());
@@ -39,7 +40,7 @@ class QueryCache {
 
   // Deduplicate concurrent in-flight requests for identical queries
   async getOrFetch<T>(key: string, fetcher: () => Promise<T>, ttlSeconds: number = 120): Promise<T> {
-    const cached = this.get<T>(key);
+    const cached = ttlSeconds > 0 ? this.get<T>(key) : null;
     if (cached !== null) {
       return cached;
     }

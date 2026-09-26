@@ -35,12 +35,13 @@ export default function ContactStrategyIntelligence() {
         {data && <>
           {data.summary && (
             <section className="cx-command-metrics cx-contact-metrics" aria-label="Contact governance summary">
-              <article className="cx-command-metric"><span>Zero-call leads</span><strong>{formatTableNumber(data.summary.zeroCallLeads)}</strong><div><small>No recorded call count</small></div></article>
-              <article className="cx-command-metric"><span>One-call share</span><strong>{formatPercent(data.summary.singleAttemptSharePct)}</strong><div><small>{formatTableNumber(data.summary.oneCallLeads)} leads</small></div></article>
-              <article className="cx-command-metric"><span>Multi-call share</span><strong>{formatPercent(data.summary.multiAttemptSharePct)}</strong><div><small>{formatTableNumber(data.summary.multiAttemptLeads)} leads</small></div></article>
+              <article className="cx-command-metric"><span>Zero-call leads</span><strong>{formatTableNumber(data.summary.zeroCallLeads)}</strong><div><small>Explicitly recorded zero calls</small></div></article>
+              <article className="cx-command-metric"><span>One-call share</span><strong>{formatPercent(data.summary.singleAttemptSharePct)}</strong><div><small>{formatTableNumber(data.summary.oneCallLeads)} leads · share of dialled leads</small></div></article>
+              <article className="cx-command-metric"><span>Multi-call share</span><strong>{formatPercent(data.summary.multiAttemptSharePct)}</strong><div><small>{formatTableNumber(data.summary.multiAttemptLeads)} leads · share of all leads</small></div></article>
               <article className="cx-command-metric"><span>5+ calls, no RPC</span><strong>{formatTableNumber(data.summary.fivePlusNoRpcLeads)}</strong><div><small>High effort without contact</small></div></article>
             </section>
           )}
+          {data.summary && data.summary.unrecordedCallLeads > 0 && <div className="cx-control-note">{formatTableNumber(data.summary.unrecordedCallLeads)} leads have unrecorded call counts and are shown separately from zero-call leads.</div>}
           <section className="cx-command-panel">
             <header><div><span className="cx-command-section-kicker">Distribution</span><h2>Outcomes by total recorded calls</h2><p>This is descriptive, not a recommended stop-threshold model.</p></div></header>
             <div className="cx-command-chart">

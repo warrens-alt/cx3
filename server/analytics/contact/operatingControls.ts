@@ -1,15 +1,14 @@
-import { validTimestampSql } from '../../bigquery/integrity';
 import { getBigQueryClient } from '../../bigquery/client';
 import { getClientConfig } from '../../bigquery/config';
 import type { OffernetQueryParams } from '../common/types';
 import { formatDuration } from '../common/types';
-import { configuredSourceTable } from '../common/warehouse';
 import { buildFilterClause } from '../common/scope';
+import { operationalLeadCtes, metricPercent } from '../common/leadMetrics';
 
 export async function getOperatingControlsAnalytics(params: OffernetQueryParams) {
   const clientConfig = getClientConfig(params.clientId);
   const client = getBigQueryClient(clientConfig.bigQueryProject);
-  const { whereSql, queryParams } = buildFilterClause(params);
+  const { queryParams } = buildFilterClause(params);
   const operating = clientConfig.operationalConfig?.operatingHours || { start: '08:00', end: '17:30', workdays: [1, 2, 3, 4, 5] };
   const timezone = clientConfig.timezone || 'Africa/Johannesburg';
   const paramsWithOperating = {
@@ -21,49 +20,9 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
   };
 
   const query = `
-    WITH raw AS (
-      SELECT
-        l.lead_id,
-        ${validTimestampSql('l.fetched')} AS fetched_ts,
-        COALESCE(l.offershop_source, '') AS source,
-        COALESCE(l.offershop_grade, '') AS grade,
-        hlc.vendor,
-        ${validTimestampSql('hlc.delivered')} AS delivered_ts,
-        ${validTimestampSql('hlc.first_call_date')} AS first_call_ts,
-        COALESCE(SAFE_CAST(hlc.total_calls AS INT64), 0) AS total_calls,
-        COALESCE(hlc.last_dialer_status, '') AS last_dialer_status,
-        SAFE_CAST(hlc.rpc AS INT64) > 0 AS is_rpc,
-        ${validTimestampSql('hlc.sale')} IS NOT NULL AS is_sale,
-        ${validTimestampSql('hlc.activated')} IS NOT NULL AS is_activated,
-        ${validTimestampSql('hlc.sale')} AS sale_ts,
-        ${validTimestampSql('hlc.activated')} AS activation_ts
-      FROM ${configuredSourceTable(params.clientId, 'leads')} l
-      LEFT JOIN UNNEST(l.hlc_details) hlc
-      ${whereSql}
-    ),
+    WITH ${operationalLeadCtes(params)},
     lead_level AS (
-      SELECT
-        lead_id,
-        ANY_VALUE(fetched_ts) AS fetched_ts,
-        ANY_VALUE(source) AS source,
-        ANY_VALUE(grade) AS grade,
-        COALESCE(
-          ARRAY_AGG(vendor IGNORE NULLS ORDER BY IF(delivered_ts IS NULL, 1, 0), delivered_ts ASC LIMIT 1)[SAFE_OFFSET(0)],
-          'Unknown'
-        ) AS vendor,
-        COUNTIF(delivered_ts IS NOT NULL) > 0 AS is_delivered,
-        COUNTIF(first_call_ts IS NOT NULL) > 0 AS is_dialled,
-        COUNTIF(is_rpc) > 0 AS is_rpc,
-        COUNTIF(is_sale) > 0 AS is_sale,
-        COUNTIF(is_activated) > 0 AS is_activated,
-        MAX(GREATEST(total_calls, 0)) AS recorded_call_count,
-        COUNTIF(first_call_ts IS NOT NULL AND TRIM(last_dialer_status) != '') > 0 AS has_disposition,
-        MIN(delivered_ts) AS first_delivery_ts,
-        MIN(first_call_ts) AS first_call_ts,
-        MIN(CASE WHEN is_sale THEN sale_ts END) AS sale_ts,
-        MIN(CASE WHEN is_activated THEN activation_ts END) AS activation_ts
-      FROM raw
-      GROUP BY lead_id
+      SELECT *, delivered_ts AS first_delivery_ts FROM operational_leads
     ),
     classified AS (
       SELECT
@@ -83,7 +42,8 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
           ELSE FALSE
         END AS is_weekend,
         CASE
-          WHEN recorded_call_count <= 0 THEN '0 calls'
+          WHEN recorded_call_count IS NULL THEN 'Unrecorded'
+          WHEN recorded_call_count = 0 THEN '0 calls'
           WHEN recorded_call_count = 1 THEN '1 call'
           WHEN recorded_call_count = 2 THEN '2 calls'
           WHEN recorded_call_count = 3 THEN '3 calls'
@@ -102,7 +62,7 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
           ELSE '24h+'
         END AS sla_band,
         CASE
-          WHEN NOT is_sale OR is_activated OR sale_ts IS NULL THEN NULL
+          WHEN NOT is_sale OR is_activated OR sale_ts IS NULL OR sale_ts > CURRENT_TIMESTAMP() THEN NULL
           WHEN TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), sale_ts, DAY) <= 3 THEN '0–3d'
           WHEN TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), sale_ts, DAY) <= 7 THEN '4–7d'
           WHEN TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), sale_ts, DAY) <= 14 THEN '8–14d'
@@ -117,9 +77,10 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
         COUNTIF(is_delivered) AS delivered_leads,
         COUNTIF(is_dialled) AS dialled_leads,
         COUNTIF(recorded_call_count = 0) AS zero_call_leads,
-        COUNTIF(recorded_call_count = 1) AS one_call_leads,
-        COUNTIF(recorded_call_count >= 2) AS multi_call_leads,
-        COUNTIF(recorded_call_count >= 5 AND NOT is_rpc) AS high_attempt_no_rpc_leads,
+        COUNTIF(recorded_call_count IS NULL) AS unrecorded_call_leads,
+        COUNTIF(is_dialled AND recorded_call_count = 1) AS one_call_leads,
+        COUNTIF(is_dialled AND recorded_call_count >= 2) AS multi_call_leads,
+        COUNTIF(recorded_call_count >= 5 AND is_rpc IS FALSE) AS high_attempt_no_rpc_leads,
         COUNTIF(is_dialled AND has_disposition) AS disposition_complete_leads,
         COUNTIF(is_after_hours) AS after_hours_leads,
         COUNTIF(is_weekend) AS weekend_leads,
@@ -134,6 +95,8 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
         COUNTIF(is_dialled AND capture_to_dial_sec BETWEEN 0 AND 3600) AS capture_sla_60m_leads,
         COUNTIF(is_sale AND NOT is_activated AND sale_ts IS NOT NULL AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), sale_ts, DAY) > 14) AS activation_backlog_14d,
         COUNTIF(is_after_hours AND is_rpc) AS after_hours_rpc,
+        COUNTIF(is_after_hours AND is_dialled) AS after_hours_dialled,
+        COUNTIF(NOT is_after_hours AND is_dialled) AS operating_hours_dialled,
         COUNTIF(NOT is_after_hours AND is_rpc) AS operating_hours_rpc,
         COUNTIF(is_after_hours AND is_sale) AS after_hours_sales,
         COUNTIF(NOT is_after_hours AND is_sale) AS operating_hours_sales,
@@ -149,8 +112,9 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
         attempt_bucket AS bucket,
         CASE attempt_bucket
           WHEN '0 calls' THEN 0 WHEN '1 call' THEN 1 WHEN '2 calls' THEN 2
-          WHEN '3 calls' THEN 3 WHEN '4 calls' THEN 4 ELSE 5 END AS bucket_order,
+          WHEN '3 calls' THEN 3 WHEN '4 calls' THEN 4 WHEN '5+ calls' THEN 5 ELSE 6 END AS bucket_order,
         COUNT(*) AS leads,
+        COUNTIF(is_dialled) AS dialled,
         COUNTIF(is_rpc) AS contacted,
         COUNTIF(is_sale) AS sales,
         COUNTIF(is_activated) AS activations
@@ -165,6 +129,7 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
           WHEN '1–6h' THEN 4 WHEN '6–24h' THEN 5 WHEN '24h+' THEN 6
           WHEN 'Undialled' THEN 7 WHEN 'Not delivered' THEN 8 ELSE 9 END AS sort_order,
         COUNT(*) AS leads,
+        COUNTIF(is_dialled) AS dialled,
         COUNTIF(is_rpc) AS contacted,
         COUNTIF(is_sale) AS sales
       FROM classified
@@ -219,8 +184,8 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
         vendor,
         COUNT(*) AS leads,
         COUNTIF(is_dialled) AS dialled,
-        COUNTIF(recorded_call_count = 1) AS one_call_leads,
-        COUNTIF(recorded_call_count >= 5 AND NOT is_rpc) AS high_attempt_no_rpc,
+        COUNTIF(is_dialled AND recorded_call_count = 1) AS one_call_leads,
+        COUNTIF(recorded_call_count >= 5 AND is_rpc IS FALSE) AS high_attempt_no_rpc,
         COUNTIF(is_dialled AND NOT has_disposition) AS missing_disposition,
         COUNTIF(is_delivered AND is_dialled AND delivery_to_dial_sec BETWEEN 0 AND 900) AS sla_15m_leads,
         COUNTIF(is_delivered) AS delivered,
@@ -262,11 +227,11 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
     return {
       bucket: item.bucket,
       leads,
-      sharePct: total > 0 ? Number(((leads / total) * 100).toFixed(1)) : 0,
+      sharePct: metricPercent(leads, total, 1),
       contacted,
-      contactRate: leads > 0 ? Number(((contacted / leads) * 100).toFixed(1)) : 0,
+      contactRate: metricPercent(contacted, Number(item.dialled || 0)),
       sales,
-      saleRate: leads > 0 ? Number(((sales / leads) * 100).toFixed(2)) : 0,
+      saleRate: metricPercent(sales, leads, 2),
       activations,
     };
   });
@@ -278,9 +243,9 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
     return {
       band: item.band,
       leads,
-      sharePct: total > 0 ? Number(((leads / total) * 100).toFixed(1)) : 0,
-      contactRate: leads > 0 ? Number(((contacted / leads) * 100).toFixed(1)) : 0,
-      saleRate: leads > 0 ? Number(((sales / leads) * 100).toFixed(2)) : 0,
+      sharePct: metricPercent(leads, total, 1),
+      contactRate: metricPercent(contacted, Number(item.dialled || 0)),
+      saleRate: metricPercent(sales, leads, 2),
     };
   });
 
@@ -296,13 +261,13 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
     return {
       vendor: item.vendor,
       leads,
-      oneCallSharePct: vendorDialled > 0 ? Number(((oneCall / vendorDialled) * 100).toFixed(1)) : 0,
+      oneCallSharePct: metricPercent(oneCall, vendorDialled, 1),
       highAttemptNoRpc: Number(item.high_attempt_no_rpc || 0),
-      dispositionCompletenessPct: vendorDialled > 0 ? Number((((vendorDialled - missingDisposition) / vendorDialled) * 100).toFixed(1)) : 0,
-      sla15Rate: vendorDelivered > 0 ? Number(((sla15 / vendorDelivered) * 100).toFixed(1)) : 0,
+      dispositionCompletenessPct: metricPercent((vendorDialled - missingDisposition), vendorDialled, 1),
+      sla15Rate: metricPercent(sla15, vendorDelivered, 1),
       medianFirstDial: formatDuration(item.median_first_dial_sec === null ? null : Number(item.median_first_dial_sec)),
-      rpcRate: vendorDialled > 0 ? Number(((contacted / vendorDialled) * 100).toFixed(1)) : 0,
-      leadToSaleRate: leads > 0 ? Number(((sales / leads) * 100).toFixed(2)) : 0,
+      rpcRate: metricPercent(contacted, vendorDialled, 1),
+      leadToSaleRate: metricPercent(sales, leads, 2),
     };
   });
 
@@ -312,29 +277,30 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
       deliveredLeads: delivered,
       dialledLeads: dialled,
       zeroCallLeads: Number(row.zero_call_leads || 0),
+      unrecordedCallLeads: Number(row.unrecorded_call_leads || 0),
       oneCallLeads: Number(row.one_call_leads || 0),
       multiCallLeads: Number(row.multi_call_leads || 0),
       highAttemptNoRpcLeads: Number(row.high_attempt_no_rpc_leads || 0),
-      singleAttemptSharePct: dialled > 0 ? Number(((Number(row.one_call_leads || 0) / dialled) * 100).toFixed(1)) : 0,
-      multiAttemptSharePct: dialled > 0 ? Number(((Number(row.multi_call_leads || 0) / dialled) * 100).toFixed(1)) : 0,
-      dispositionCompletenessPct: dialled > 0 ? Number(((Number(row.disposition_complete_leads || 0) / dialled) * 100).toFixed(1)) : 0,
+      singleAttemptSharePct: metricPercent(Number(row.one_call_leads || 0), dialled, 1),
+      multiAttemptSharePct: metricPercent(Number(row.multi_call_leads || 0), dialled, 1),
+      dispositionCompletenessPct: metricPercent(Number(row.disposition_complete_leads || 0), dialled, 1),
       afterHoursLeads: afterHours,
-      afterHoursSharePct: total > 0 ? Number(((afterHours / total) * 100).toFixed(1)) : 0,
+      afterHoursSharePct: metricPercent(afterHours, total, 1),
       weekendLeads: Number(row.weekend_leads || 0),
-      weekendSharePct: total > 0 ? Number(((Number(row.weekend_leads || 0) / total) * 100).toFixed(1)) : 0,
-      sla15Rate: delivered > 0 ? Number(((Number(row.sla_15m_leads || 0) / delivered) * 100).toFixed(1)) : 0,
-      sla60Rate: delivered > 0 ? Number(((Number(row.sla_60m_leads || 0) / delivered) * 100).toFixed(1)) : 0,
+      weekendSharePct: metricPercent(Number(row.weekend_leads || 0), total, 1),
+      sla15Rate: metricPercent(Number(row.sla_15m_leads || 0), delivered, 1),
+      sla60Rate: metricPercent(Number(row.sla_60m_leads || 0), delivered, 1),
       awaitingFirstDial,
       oldestDeliveryWait: formatDuration(row.oldest_delivery_wait_sec === null || row.oldest_delivery_wait_sec === undefined ? null : Number(row.oldest_delivery_wait_sec)),
       captureToDialMedian: formatDuration(captureMedianSec),
       captureToDialP90: formatDuration(captureP90Sec),
-      captureWithin15mRate: total > 0 ? Number(((Number(row.capture_sla_15m_leads || 0) / total) * 100).toFixed(1)) : 0,
-      captureWithin60mRate: total > 0 ? Number(((Number(row.capture_sla_60m_leads || 0) / total) * 100).toFixed(1)) : 0,
+      captureWithin15mRate: metricPercent(Number(row.capture_sla_15m_leads || 0), total, 1),
+      captureWithin60mRate: metricPercent(Number(row.capture_sla_60m_leads || 0), total, 1),
       activationBacklog14d: Number(row.activation_backlog_14d || 0),
-      afterHoursRpcRate: afterHours > 0 ? Number(((Number(row.after_hours_rpc || 0) / afterHours) * 100).toFixed(1)) : 0,
-      operatingHoursRpcRate: operatingHours > 0 ? Number(((Number(row.operating_hours_rpc || 0) / operatingHours) * 100).toFixed(1)) : 0,
-      afterHoursSaleRate: afterHours > 0 ? Number(((Number(row.after_hours_sales || 0) / afterHours) * 100).toFixed(2)) : 0,
-      operatingHoursSaleRate: operatingHours > 0 ? Number(((Number(row.operating_hours_sales || 0) / operatingHours) * 100).toFixed(2)) : 0,
+      afterHoursRpcRate: metricPercent(Number(row.after_hours_rpc || 0), Number(row.after_hours_dialled || 0)),
+      operatingHoursRpcRate: metricPercent(Number(row.operating_hours_rpc || 0), Number(row.operating_hours_dialled || 0)),
+      afterHoursSaleRate: metricPercent(Number(row.after_hours_sales || 0), afterHours, 2),
+      operatingHoursSaleRate: metricPercent(Number(row.operating_hours_sales || 0), operatingHours, 2),
     },
     attemptBuckets,
     slaBands,
@@ -353,8 +319,8 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
         undialled: Number(item.undialled || 0),
         median: formatDuration(item.median_sec === null ? null : Number(item.median_sec)),
         p90: formatDuration(item.p90_sec === null ? null : Number(item.p90_sec)),
-        within15mRate: leads > 0 ? Number(((Number(item.within_15m || 0) / leads) * 100).toFixed(1)) : 0,
-        within60mRate: leads > 0 ? Number(((Number(item.within_60m || 0) / leads) * 100).toFixed(1)) : 0,
+        within15mRate: metricPercent(Number(item.within_15m || 0), leads, 1),
+        within60mRate: metricPercent(Number(item.within_60m || 0), leads, 1),
       };
     }),
     vendorControls,

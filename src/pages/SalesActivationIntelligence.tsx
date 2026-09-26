@@ -35,7 +35,7 @@ export default function SalesActivationIntelligence() {
         row.vendor,
         row.sales,
         row.activations,
-        row.sales > 0 ? Number(((row.activations / row.sales) * 100).toFixed(1)) : 0,
+        row.sales > 0 ? Number(((row.activations / row.sales) * 100).toFixed(1)) : null,
         row.revenue,
       ]),
     ];

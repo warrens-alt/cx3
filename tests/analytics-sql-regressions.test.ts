@@ -29,7 +29,8 @@ test('operational and funnel SQL normalize sentinel timestamps before success fl
   }
   assert.ok(queries[0].includes(`${validTimestampSql('hlc.delivered')} AS delivered_ts`));
   assert.ok(queries[0].includes(`${validTimestampSql('hlc.first_call_date')} AS first_call_ts`));
-  assert.ok(queries[1].includes(`TIMESTAMP_DIFF(${validTimestampSql('hlc.first_call_date')}, ${validTimestampSql('hlc.delivered')}, SECOND)`));
+  assert.ok(queries[1].includes('TIMESTAMP_DIFF(first_call_ts, delivered_ts, SECOND)'));
+  assert.match(queries[1], /FROM operational_leads/);
 });
 
 test('maturation queries use each outcome event timestamp rather than dating all outcomes to the first call', async context => {
@@ -94,6 +95,7 @@ test('all record drills operate on the vendor-scoped HLC array, including negati
     assert.match(report, /FROM scoped_leads l/);
     assert.ok(!report.includes(getClientConfig(clientId).semanticMappings.tables.leads));
   }
-  // A's call cannot satisfy the NOT EXISTS test after the CTE has retained only B.
-  assert.match(queries[0].query, /AND NOT EXISTS \(SELECT 1 FROM UNNEST\(l\.hlc_details\) h WHERE/);
+  // A's call cannot affect the lead rollup after the scoped CTE has retained only B.
+  assert.match(queries[0].query, /JOIN operational_leads m ON l.lead_id = m.lead_id/);
+  assert.match(queries[0].query, /AND \(m.is_delivered AND NOT m.is_dialled\)/);
 });

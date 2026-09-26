@@ -2,38 +2,22 @@ import { getBigQueryClient } from '../../bigquery/client';
 import { getClientConfig } from '../../bigquery/config';
 import type { OffernetQueryParams } from '../common/types';
 import { formatDuration } from '../common/types';
-import { configuredSourceTable } from '../common/warehouse';
 import { buildFilterClause } from '../common/scope';
+import { operationalLeadCtes, metricPercent } from '../common/leadMetrics';
 
 // 1. EXECUTIVE OVERVIEW
 export async function getExecutiveOverview(params: OffernetQueryParams) {
   const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const clientConfig = getClientConfig(params.clientId);
-  const { whereSql, queryParams } = buildFilterClause(params);
+  const { queryParams } = buildFilterClause(params);
 
   const mainQuery = `
-    WITH lead_records AS (
-      SELECT
-        l.lead_id,
-        DATE(SAFE_CAST(l.fetched AS TIMESTAMP)) AS fetched_date,
-        hlc.vendor,
-        hlc.delivered,
-        hlc.first_call_date,
-        hlc.last_dialer_status,
-        hlc.total_calls,
-        SAFE_CAST(hlc.rpc AS INT64) > 0 AS is_rpc,
-        SAFE_CAST(hlc.sale AS TIMESTAMP) AS sale_ts,
-        SAFE_CAST(hlc.activated AS TIMESTAMP) AS activation_ts,
-        hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' AS is_sale,
-        hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' AS is_activated,
-        hlc.delivered IS NOT NULL AND hlc.delivered NOT LIKE '1900%' AND hlc.delivered NOT LIKE '1970%' AS is_delivered,
-        hlc.first_call_date IS NOT NULL AND hlc.first_call_date NOT LIKE '1900%' AND hlc.first_call_date NOT LIKE '1970%' AS is_dialled,
-        TIMESTAMP_DIFF(SAFE_CAST(hlc.first_call_date AS TIMESTAMP), SAFE_CAST(hlc.delivered AS TIMESTAMP), SECOND) AS delivery_to_dial_sec,
-        TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(hlc.delivered AS TIMESTAMP), SECOND) AS delivery_age_sec,
-        COALESCE(hlc.revenue_generated, 0) AS revenue
-      FROM ${configuredSourceTable(params.clientId, 'leads')} l
-      LEFT JOIN UNNEST(l.hlc_details) hlc
-      ${whereSql}
+    WITH ${operationalLeadCtes(params)},
+    lead_records AS (
+      SELECT *, DATE(fetched_ts) AS fetched_date,
+        TIMESTAMP_DIFF(first_call_ts, delivered_ts, SECOND) AS delivery_to_dial_sec,
+        TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), delivered_ts, SECOND) AS delivery_age_sec
+      FROM operational_leads
     ),
     summary AS (
       SELECT
@@ -44,7 +28,9 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
         COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) AS sale_leads,
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) AS activated_leads,
         SUM(revenue) AS total_revenue,
-        SUM(COALESCE(total_calls, 0)) AS total_calls_recorded
+        CASE WHEN COUNTIF(recorded_call_count IS NULL) > 0 THEN NULL ELSE COALESCE(SUM(recorded_call_count), 0) END AS total_calls_recorded,
+        COALESCE(SUM(recorded_call_count), 0) AS recorded_calls_subtotal,
+        COUNTIF(recorded_call_count IS NULL) AS unrecorded_call_leads
       FROM lead_records
     ),
     daily_trends AS (
@@ -75,8 +61,8 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
         COUNT(DISTINCT CASE WHEN is_delivered AND NOT is_dialled AND delivery_age_sec > 86400 THEN lead_id END) AS backlog_24h_plus,
         COUNT(DISTINCT CASE WHEN is_delivered AND NOT is_dialled AND delivery_age_sec > 3600 THEN lead_id END) AS backlog_over_60m,
         COUNT(DISTINCT CASE WHEN is_dialled AND delivery_to_dial_sec BETWEEN 0 AND 900 THEN lead_id END) AS dialled_within_15m,
-        COUNT(DISTINCT CASE WHEN is_dialled AND (last_dialer_status IS NULL OR TRIM(last_dialer_status) = '') THEN lead_id END) AS dialled_missing_disposition,
-        COUNT(DISTINCT CASE WHEN is_sale AND NOT is_activated AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), sale_ts, DAY) >= 14 THEN lead_id END) AS sales_unactivated_14d,
+        COUNT(DISTINCT CASE WHEN is_dialled AND NOT has_disposition THEN lead_id END) AS dialled_missing_disposition,
+        COUNT(DISTINCT CASE WHEN is_sale AND NOT is_activated AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), sale_ts, DAY) > 14 THEN lead_id END) AS sales_unactivated_14d,
         APPROX_QUANTILES(CASE WHEN is_dialled AND delivery_to_dial_sec >= 0 THEN delivery_to_dial_sec END, 100)[OFFSET(50)] AS median_delivery_to_dial_sec,
         APPROX_QUANTILES(CASE WHEN is_dialled AND delivery_to_dial_sec >= 0 THEN delivery_to_dial_sec END, 100)[OFFSET(90)] AS p90_delivery_to_dial_sec
       FROM lead_records
@@ -111,19 +97,19 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
   const sales = Number(data.sale_leads || 0);
   const activated = Number(data.activated_leads || 0);
   const revenue = Number(data.total_revenue || 0);
-  const totalCalls = Number(data.total_calls_recorded || 0);
+  const totalCalls = data.total_calls_recorded == null ? null : Number(data.total_calls_recorded);
 
   const rates = {
-    deliveryRate: fetched > 0 ? Number(((delivered / fetched) * 100).toFixed(1)) : 0,
-    dialRate: delivered > 0 ? Number(((dialled / delivered) * 100).toFixed(1)) : 0,
-    contactRate: dialled > 0 ? Number(((contacted / dialled) * 100).toFixed(1)) : 0,
-    leadToSaleRate: fetched > 0 ? Number(((sales / fetched) * 100).toFixed(2)) : 0,
-    contactToSaleRate: contacted > 0 ? Number(((sales / contacted) * 100).toFixed(1)) : 0,
-    activationRate: sales > 0 ? Number(((activated / sales) * 100).toFixed(1)) : 0,
+    deliveryRate: metricPercent(delivered, fetched, 1),
+    dialRate: metricPercent(dialled, delivered, 1),
+    contactRate: metricPercent(contacted, dialled, 1),
+    leadToSaleRate: metricPercent(sales, fetched, 2),
+    contactToSaleRate: metricPercent(sales, contacted, 1),
+    activationRate: metricPercent(activated, sales, 1),
   };
 
   const funnelStages = [
-    { key: 'fetched', name: 'Fetched', volume: fetched, rate: 100 },
+    { key: 'fetched', name: 'Fetched', volume: fetched, rate: fetched > 0 ? 100 : null },
     { key: 'delivered', name: 'Delivered', volume: delivered, rate: rates.deliveryRate },
     { key: 'dialled', name: 'Dialled', volume: dialled, rate: rates.dialRate },
     { key: 'rpc', name: 'RPC', volume: contacted, rate: rates.contactRate },
@@ -132,7 +118,7 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
   ].map((stage, index, stages) => {
     const previous = index === 0 ? null : stages[index - 1];
     const loss = previous ? Math.max(previous.volume - stage.volume, 0) : 0;
-    const transitionRate = previous && previous.volume > 0 ? Number(((stage.volume / previous.volume) * 100).toFixed(1)) : 100;
+    const transitionRate = previous ? metricPercent(stage.volume, previous.volume) : fetched > 0 ? 100 : null;
     return { ...stage, loss, transitionRate };
   });
 
@@ -154,9 +140,7 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
     { bucket: '24h+', count: Number(data.backlog_24h_plus || 0), severity: 'critical' },
   ];
 
-  const slaCompliance = delivered > 0
-    ? Number(((Number(data.dialled_within_15m || 0) / delivered) * 100).toFixed(1))
-    : 0;
+  const slaCompliance = metricPercent(Number(data.dialled_within_15m || 0), delivered);
 
   const attention = [
     {
@@ -180,7 +164,7 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
       title: 'Sales without activation after 14 days',
       value: Number(data.sales_unactivated_14d || 0),
       severity: Number(data.sales_unactivated_14d || 0) > 0 ? 'medium' : 'low',
-      detail: 'Recorded sales are at least 14 days old and have no activation timestamp.',
+      detail: 'Recorded sales are more than 14 days old and have no activation timestamp.',
       path: '/sales-activation',
     },
   ].filter(item => item.value > 0);
@@ -212,42 +196,30 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
       comparisonWindow = { startDate: previousParams.startDate, endDate: previousParams.endDate };
       const previousScope = buildFilterClause(previousParams);
       const previousQuery = `
-        WITH base AS (
-          SELECT
-            l.lead_id,
-            hlc.delivered,
-            hlc.first_call_date,
-            SAFE_CAST(hlc.rpc AS INT64) > 0 AS is_rpc,
-            hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' AS is_sale,
-            hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' AS is_activated,
-            COALESCE(hlc.revenue_generated, 0) AS revenue
-          FROM ${configuredSourceTable(params.clientId, 'leads')} l
-          LEFT JOIN UNNEST(l.hlc_details) hlc
-          ${previousScope.whereSql}
-        )
+        WITH ${operationalLeadCtes(previousParams)}
         SELECT
           COUNT(DISTINCT lead_id) AS fetched,
-          COUNT(DISTINCT CASE WHEN delivered IS NOT NULL AND delivered NOT LIKE '1900%' AND delivered NOT LIKE '1970%' THEN lead_id END) AS delivered,
-          COUNT(DISTINCT CASE WHEN first_call_date IS NOT NULL AND first_call_date NOT LIKE '1900%' AND first_call_date NOT LIKE '1970%' THEN lead_id END) AS dialled,
+          COUNT(DISTINCT CASE WHEN is_delivered THEN lead_id END) AS delivered,
+          COUNT(DISTINCT CASE WHEN is_dialled THEN lead_id END) AS dialled,
           COUNT(DISTINCT CASE WHEN is_rpc THEN lead_id END) AS contacted,
           COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) AS sales,
           COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) AS activated,
           SUM(revenue) AS revenue
-        FROM base
+        FROM operational_leads
       `;
       const [previousRows] = await client.query({ query: previousQuery, params: previousScope.queryParams });
       const previous = previousRows[0] || {};
       const pf = Number(previous.fetched || 0), pd = Number(previous.delivered || 0), pdi = Number(previous.dialled || 0);
       const pc = Number(previous.contacted || 0), ps = Number(previous.sales || 0), pa = Number(previous.activated || 0), pr = Number(previous.revenue || 0);
       const pctDelta = (current: number, prior: number) => prior > 0 ? Number((((current - prior) / prior) * 100).toFixed(1)) : null;
-      const ppDelta = (current: number, prior: number) => Number((current - prior).toFixed(1));
+      const ppDelta = (current: number | null, prior: number | null, decimals = 1) => current === null || prior === null ? null : Number((current - prior).toFixed(decimals));
       comparison = {
         fetchedDelta: pctDelta(fetched, pf),
-        deliveryRateDelta: ppDelta(rates.deliveryRate, pf > 0 ? (pd / pf) * 100 : 0),
-        dialRateDelta: ppDelta(rates.dialRate, pd > 0 ? (pdi / pd) * 100 : 0),
-        contactRateDelta: ppDelta(rates.contactRate, pdi > 0 ? (pc / pdi) * 100 : 0),
-        saleRateDelta: Number((rates.leadToSaleRate - (pf > 0 ? (ps / pf) * 100 : 0)).toFixed(2)),
-        activationRateDelta: ppDelta(rates.activationRate, ps > 0 ? (pa / ps) * 100 : 0),
+        deliveryRateDelta: ppDelta(rates.deliveryRate, metricPercent(pd, pf)),
+        dialRateDelta: ppDelta(rates.dialRate, metricPercent(pdi, pd)),
+        contactRateDelta: ppDelta(rates.contactRate, metricPercent(pc, pdi)),
+        saleRateDelta: ppDelta(rates.leadToSaleRate, metricPercent(ps, pf, 2), 2),
+        activationRateDelta: ppDelta(rates.activationRate, metricPercent(pa, ps)),
         revenueDelta: pctDelta(revenue, pr),
         contributionDelta: null,
       };
@@ -263,15 +235,17 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
       dialRate: rates.dialRate,
       contactedLeads: contacted,
       contactRate: rates.contactRate,
-      qualifiedLeads: 0,
+      qualifiedLeads: null,
       saleLeads: sales,
       leadToSaleRate: rates.leadToSaleRate,
       contactToSaleRate: rates.contactToSaleRate,
       activatedLeads: activated,
       activationRate: rates.activationRate,
       totalCalls,
-      callsPerLead: fetched > 0 ? Number((totalCalls / fetched).toFixed(1)) : 0,
-      callsPerDialledLead: dialled > 0 ? Number((totalCalls / dialled).toFixed(1)) : 0,
+      recordedCallsSubtotal: Number(data.recorded_calls_subtotal || 0),
+      unrecordedCallLeads: Number(data.unrecorded_call_leads || 0),
+      callsPerLead: totalCalls !== null && fetched > 0 ? Number((totalCalls / fetched).toFixed(1)) : null,
+      callsPerDialledLead: totalCalls !== null && dialled > 0 ? Number((totalCalls / dialled).toFixed(1)) : null,
       revenue,
       directCost: null,
       deliveryAgentCost: null,
@@ -297,8 +271,8 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
     sla: {
       firstDialTargetMinutes: 15,
       complianceRate: slaCompliance,
-      medianDeliveryToDial: formatDuration(Number(data.median_delivery_to_dial_sec || 0)),
-      p90DeliveryToDial: formatDuration(Number(data.p90_delivery_to_dial_sec || 0)),
+      medianDeliveryToDial: formatDuration(data.median_delivery_to_dial_sec),
+      p90DeliveryToDial: formatDuration(data.p90_delivery_to_dial_sec),
     },
     attention,
     comparison,

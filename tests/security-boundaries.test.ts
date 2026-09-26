@@ -89,7 +89,7 @@ test('record drill-down remains admin-only and drill populations are allow-liste
   assert.match(api, /analyticsRouter\.get\('\/offernet\/raw-leads', requireAdmin/);
   assert.match(analytics, /Unsupported drill-down population/);
   for (const drill of ['awaiting-first-dial', 'missing-disposition', 'unactivated-sales', 'sla-breach', 'backlog-age', 'funnel-loss', 'funnel-stage', 'lead-age', 'high-attempt-no-rpc', 'one-call-only']) {
-    assert.ok(analytics.includes(`drill === '${drill}'`), `missing drill allow-list entry: ${drill}`);
+    assert.ok(analytics.includes(`case '${drill}':`), `missing drill allow-list entry: ${drill}`);
   }
 });
 
@@ -117,9 +117,10 @@ test('marketing spend never falls back to budget', () => {
 test('observed media efficiency is derived only when an approved spend field and valid grain exist', () => {
   const analytics = readAnalytics();
   assert.match(analytics, /const hasSpend = Boolean\(resolved\.spendColumn && grainStatus === 'VALID'\)/);
-  assert.match(analytics, /cpc: hasSpend && totals\.clicks > 0/);
-  assert.match(analytics, /cpm: hasSpend && totals\.impressions > 0/);
-  assert.match(analytics, /cpl: hasSpend && totals\.leads > 0/);
+  assert.match(analytics, /const measuredSpend = hasSpend && totals\.spend !== null/);
+  assert.match(analytics, /cpc: measuredSpend && totals\.clicks > 0/);
+  assert.match(analytics, /cpm: measuredSpend && totals\.impressions > 0/);
+  assert.match(analytics, /cpl: measuredSpend && totals\.leads > 0/);
   assert.match(analytics, /cross-source ratios and are not attribution or full profitability/);
 });
 
@@ -167,17 +168,21 @@ test('OfferNet operating controls remain lead-level and descriptive', () => {
   const analytics = readAnalytics();
   assert.match(analytics, /export async function getOperatingControlsAnalytics/);
   assert.match(analytics, /lead_level AS/);
-  assert.match(analytics, /MAX\(GREATEST\(total_calls, 0\)\) AS recorded_call_count/);
+  assert.match(analytics, /CASE WHEN SAFE_CAST\(hlc\.total_calls AS INT64\) >= 0 THEN SAFE_CAST\(hlc\.total_calls AS INT64\) END AS total_calls/);
+  assert.match(analytics, /MAX\(total_calls\) AS recorded_call_count/);
   assert.match(analytics, /first recorded delivered vendor per lead/);
   assert.match(analytics, /descriptive and are not event-level attempt attribution/);
 });
 
 test('contact-strategy call-count buckets are exclusive per lead', () => {
   const strategy = read('server/analytics/contact/strategy.ts');
+  const leadMetrics = read('server/analytics/common/leadMetrics.ts');
   assert.match(strategy, /export async function getContactStrategyAnalytics/);
   assert.match(strategy, /lead_level AS/);
-  assert.match(strategy, /GROUP BY lead_id/);
-  assert.match(strategy, /MAX\(GREATEST\(total_calls, 0\)\) AS call_count/);
+  assert.match(strategy, /operationalLeadCtes\(params\)/);
+  assert.match(leadMetrics, /GROUP BY lead_id/);
+  assert.match(leadMetrics, /MAX\(total_calls\) AS recorded_call_count/);
+  assert.match(strategy, /recorded_call_count AS call_count/);
   assert.match(strategy, /do not identify which specific attempt produced the outcome/);
 });
 
@@ -284,7 +289,7 @@ test('BLC activation source freshness uses the contracted date_created timestamp
   const analytics = readAnalytics();
   const config = read('server/bigquery/config.ts');
   assert.match(config, /tenantTables\(CONTRACT_LEAD_VIEWS\.ontact_blc, true\)/);
-  assert.match(analytics, /SAFE_CAST\(date_created AS TIMESTAMP\)/);
+  assert.match(analytics, /validTimestampSql\('date_created'\)/);
 });
 
 
@@ -307,4 +312,3 @@ test('shared call analytics use canonical tenant vendor aliases', () => {
   assert.match(analytics, /callParams\.tenantVendors = tenantVendors/);
   assert.match(analytics, /queryParams\.tenantVendors = tenantVendors/);
 });
-

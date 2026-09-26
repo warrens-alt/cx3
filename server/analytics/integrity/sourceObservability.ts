@@ -4,6 +4,9 @@ import type { OffernetQueryParams } from '../common/types';
 import { safeWarehouseColumn } from '../common/warehouse';
 import { buildFilterClause } from '../common/scope';
 import { marketingTenantFilter } from '../common/marketing';
+import { safeSourceError } from '../../bigquery/sourceAccess';
+import { activationSourceIsOwned } from '../../bigquery/sourceTenantScope';
+import { validTimestampSql } from '../../bigquery/integrity';
 
 export async function getSourceObservability(params: Pick<OffernetQueryParams, 'clientId'>) {
   const clientConfig = getClientConfig(params.clientId);
@@ -58,15 +61,16 @@ export async function getSourceObservability(params: Pick<OffernetQueryParams, '
         detail: latest ? 'Freshness is observed directly from the configured source table.' : 'No usable source timestamp was observed.',
       });
     } catch (error) {
+      const failure = safeSourceError(error);
       sources.push({
         key,
         label,
-        status: 'ERROR',
+        status: failure.status,
         table,
         latestRecordAt: null,
         ageHours: null,
         rowCount: null,
-        detail: error instanceof Error ? error.message : 'Source freshness query failed.',
+        detail: failure.error,
       });
     }
   };
@@ -76,30 +80,41 @@ export async function getSourceObservability(params: Pick<OffernetQueryParams, '
     'leads',
     'Lead ledger',
     clientConfig.semanticMappings.tables.leads,
-    'SAFE_CAST(l.fetched AS TIMESTAMP)',
+    validTimestampSql('l.fetched'),
     leadScope.whereSql,
     leadScope.queryParams,
     'l',
   );
 
   const callTable = clientConfig.semanticMappings.tables.calls;
-  const callConditions = ["call_start_date IS NOT NULL"];
+  const callConditions = [`${validTimestampSql('call_start_date')} IS NOT NULL`];
   const callParams: Record<string, any> = {};
+  let callOwnershipEstablished = true;
   if (clientConfig.id !== 'default_tenant') {
     const tenantVendors = tenantVendorScopeValues(clientConfig);
     if (tenantVendors.length) {
-      callConditions.push('LOWER(vendor) IN UNNEST(@tenantVendors)');
+      callConditions.push('LOWER(TRIM(vendor)) IN UNNEST(@tenantVendors)');
       callParams.tenantVendors = tenantVendors;
+    } else {
+      callOwnershipEstablished = false;
     }
   }
-  await pushFreshness(
-    'calls',
-    'Dialler calls',
-    callTable,
-    'SAFE_CAST(call_start_date AS TIMESTAMP)',
-    `WHERE ${callConditions.join(' AND ')}`,
-    callParams,
-  );
+  if (callOwnershipEstablished) {
+    await pushFreshness(
+      'calls',
+      'Dialler calls',
+      callTable,
+      validTimestampSql('call_start_date'),
+      `WHERE ${callConditions.join(' AND ')}`,
+      callParams,
+    );
+  } else {
+    sources.push({
+      key: 'calls', label: 'Dialler calls', status: 'MAPPING_REQUIRED', table: callTable || null,
+      latestRecordAt: null, ageHours: null, rowCount: null,
+      detail: 'Approved vendor ownership mapping is required before this tenant can inspect the shared call source.',
+    });
+  }
 
   const contract = clientConfig.marketing;
   if (!contract || !clientConfig.capabilities.marketing) {
@@ -131,18 +146,25 @@ export async function getSourceObservability(params: Pick<OffernetQueryParams, '
       'marketing',
       'Marketing API',
       contract.table,
-      `SAFE_CAST(${safeWarehouseColumn(contract.dateField)} AS TIMESTAMP)`,
+      validTimestampSql(safeWarehouseColumn(contract.dateField)),
       marketingConditions,
       tenantFilter.params,
     );
   }
 
-  if (clientConfig.semanticMappings.tables.activations) {
+  if (clientConfig.semanticMappings.tables.activations && !activationSourceIsOwned(params.clientId)) {
+    sources.push({
+      key: 'activations', label: 'Activation source', status: 'MAPPING_REQUIRED',
+      table: clientConfig.semanticMappings.tables.activations,
+      latestRecordAt: null, ageHours: null, rowCount: null,
+      detail: 'Tenant ownership is not established for the separate activation lifecycle source.',
+    });
+  } else if (clientConfig.semanticMappings.tables.activations) {
     await pushFreshness(
       'activations',
       'Activation source',
       clientConfig.semanticMappings.tables.activations,
-      'SAFE_CAST(date_created AS TIMESTAMP)',
+      validTimestampSql('date_created'),
     );
   } else {
     sources.push({

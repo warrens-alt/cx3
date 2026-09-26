@@ -34,6 +34,8 @@ Versioned evidence metric definitions live in `contracts/reporting.ts`. A publis
 
 Current live operational outputs that still depend on source semantics remain marked `NOT_VERIFIED` until source-owner reconciliation is completed.
 
+The owner-supplied specification workbook has been checked against source contracts, all nine tenant operating configurations, API access controls and metric calculations. See [the workbook validation record](docs/WORKBOOK-VALIDATION.md) for corrections, intentional contract differences, regression coverage and remaining live-data checks. The workbook contains definitions, not transaction records, so this validation does not certify production totals.
+
 CLI analytics follow the same fail-closed rule: imported reports are administrator-managed, production sample data is disabled by default, missing duration/lead-age fields remain unavailable, and matched-period comparisons are withheld unless a real comparable source population exists.
 
 CLI CSV exports resolve the same live or imported source as the dashboard and apply dates, CLI/campaign/vendor filters, and literal CLI-or-campaign search before the export limit. JSON metadata and HTTP headers report row counts and truncation. Imported charts and lead-age summaries use the selected record population. Malformed CSV rows are rejected rather than shifting values between metric columns.

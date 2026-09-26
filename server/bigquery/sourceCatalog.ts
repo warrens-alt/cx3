@@ -1,7 +1,7 @@
 import { SOURCE_DEFINITIONS, SOURCE_ROLES, type SourceRole } from '../../contracts/sourceCoverage';
 import { METRICS } from '../../contracts/reporting';
 import { getClientConfig } from './config';
-import { flatSchema, sourceMetricFieldAvailable, type SourceAccess, type TableMetadata } from './sourceAccess';
+import { flatSchema, sourceMetricFieldAvailable, safeSourceError, type SourceAccess, type TableMetadata } from './sourceAccess';
 
 export function sourceTable(clientId: string, role: SourceRole | string): string | null {
   const client = getClientConfig(clientId);
@@ -38,10 +38,9 @@ export async function sourceCatalogue(clientId: string, access: SourceAccess) {
       const tables = await access.listTables(client.bigQueryProject, dataset);
       allTables.push(...tables);
       inventory.push({ dataset, status: 'AVAILABLE', tableCount: tables.length });
-    } catch (err: any) {
+    } catch (err: unknown) {
       inventoryComplete = false;
-      const status = err?.code === 403 || err?.status === 403 ? 'ACCESS_DENIED' : 'UNAVAILABLE';
-      inventory.push({ dataset, status, error: err?.message || 'Access error' });
+      inventory.push({ dataset, ...safeSourceError(err) });
     }
   }
 
@@ -104,19 +103,16 @@ export async function sourceCatalogue(clientId: string, access: SourceAccess) {
         populated: null,
         metrics,
       });
-    } catch (err: any) {
-      const status = err?.code === 403 || err?.status === 403 || (typeof err?.message === 'string' && err.message.includes('403'))
-        ? 'ACCESS_DENIED'
-        : 'UNAVAILABLE';
+    } catch (err: unknown) {
+      const failure = safeSourceError(err);
       sources.push({
         role,
         label: def.label,
         table,
-        status,
+        ...failure,
         rowCount: null,
         populated: null,
-        error: err?.message || 'Access error',
-        metrics: def.metrics.map(m => ({ id: m.id, label: m.label, status })),
+        metrics: def.metrics.map(m => ({ id: m.id, label: m.label, status: failure.status })),
       });
     }
   }

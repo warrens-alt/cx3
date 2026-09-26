@@ -41,7 +41,7 @@ export default function TemporalIntelligence() {
   const hours = Array.from({ length: 24 }, (_, index) => index);
   const maxMetric = useMemo(() => {
     if (!data?.heatmap.length) return 1;
-    return Math.max(1, ...data.heatmap.map(row => metricView === 'volume' ? row.volume : metricView === 'saleRate' ? row.saleRate : row.contactRate));
+    return Math.max(1, ...data.heatmap.map(row => metricView === 'volume' ? row.volume : metricView === 'saleRate' ? row.saleRate ?? 0 : row.contactRate ?? 0));
   }, [data?.heatmap, metricView]);
 
   const cellOpacity = (value: number) => value <= 0 ? 0 : Math.max(.12, Math.min(1, value / maxMetric));

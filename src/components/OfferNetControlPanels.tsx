@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { AlertTriangle, Clock3, ListChecks, PhoneCall, ShieldCheck } from 'lucide-react';
 import type { OperatingControlsData } from '../lib/offernetClient';
 import { formatPercent, formatTableNumber } from '../lib/formatters';
+import { formatOperatingWindow } from '../lib/metricPresentation';
 
 const fmt = (value: number | string | null | undefined) => formatTableNumber(value);
 const pct = (value: number | string | null | undefined, decimals = 1) => formatPercent(value, decimals);
@@ -44,7 +45,7 @@ export function OperatingControlStrip({ data }: { data: OperatingControlsData })
       <article className="cx-command-metric">
         <span>One-call share</span>
         <strong>{pct(s.singleAttemptSharePct)}</strong>
-        <div><small>{fmt(s.oneCallLeads)} leads with one recorded call-count</small></div>
+        <div><small>{fmt(s.oneCallLeads)} leads · share of dialled leads</small></div>
       </article>
       <article className="cx-command-metric">
         <span>5+ calls, no RPC</span>
@@ -218,7 +219,7 @@ export function OperatingWindowPanel({ data }: { data: OperatingControlsData }) 
         <div>
           <span className="cx-command-section-kicker">Coverage</span>
           <h2>Operating-hours comparison</h2>
-          <p>{context ? `${context.start}–${context.end} in ${context.timezone}; configured working days only.` : 'Operating-hours configuration is unavailable for this scope.'}</p>
+          <p>{context ? formatOperatingWindow(context) : 'Operating-hours configuration is unavailable for this scope.'}</p>
         </div>
         <Clock3 size={16} className="text-slate-400"/>
       </header>

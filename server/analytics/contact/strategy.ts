@@ -1,41 +1,23 @@
 import { getBigQueryClient } from '../../bigquery/client';
 import { getClientConfig } from '../../bigquery/config';
 import type { OffernetQueryParams } from '../common/types';
-import { configuredSourceTable } from '../common/warehouse';
 import { buildFilterClause } from '../common/scope';
+import { operationalLeadCtes, metricPercent } from '../common/leadMetrics';
 
 // 4. CONTACT STRATEGY
 export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
   const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
-  const { whereSql, queryParams } = buildFilterClause(params);
+  const { queryParams } = buildFilterClause(params);
 
   const query = `
-    WITH raw AS (
-      SELECT
-        l.lead_id,
-        COALESCE(SAFE_CAST(hlc.total_calls AS INT64), 0) AS total_calls,
-        SAFE_CAST(hlc.rpc AS INT64) > 0 AS is_rpc,
-        hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' AS is_sale,
-        hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' AS is_activated,
-        COALESCE(hlc.revenue_generated, 0) AS revenue
-      FROM ${configuredSourceTable(params.clientId, 'leads')} l
-      LEFT JOIN UNNEST(l.hlc_details) hlc
-      ${whereSql}
-    ),
+    WITH ${operationalLeadCtes(params)},
     lead_level AS (
-      SELECT
-        lead_id,
-        MAX(GREATEST(total_calls, 0)) AS call_count,
-        COUNTIF(is_rpc) > 0 AS is_rpc,
-        COUNTIF(is_sale) > 0 AS is_sale,
-        COUNTIF(is_activated) > 0 AS is_activated,
-        MAX(revenue) AS revenue
-      FROM raw
-      GROUP BY lead_id
+      SELECT * EXCEPT(revenue), max_recorded_revenue AS revenue, recorded_call_count AS call_count FROM operational_leads
     ),
     brackets AS (
       SELECT
         CASE
+          WHEN call_count IS NULL THEN 'Unrecorded'
           WHEN call_count = 0 THEN '0 calls'
           WHEN call_count = 1 THEN '1 call'
           WHEN call_count = 2 THEN '2 calls'
@@ -44,6 +26,7 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
           ELSE '5+ calls'
         END AS attempt_bucket,
         CASE
+          WHEN call_count IS NULL THEN 6
           WHEN call_count = 0 THEN 0
           WHEN call_count = 1 THEN 1
           WHEN call_count = 2 THEN 2
@@ -52,6 +35,9 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
           ELSE 5
         END AS bucket_order,
         COUNT(*) AS leads,
+        COUNTIF(is_dialled) AS dialled,
+        COUNTIF(is_rpc IS FALSE) AS no_rpc,
+        COUNTIF(is_rpc IS NULL) AS rpc_unrecorded,
         COUNTIF(is_rpc) AS contacted,
         COUNTIF(is_sale) AS sales,
         COUNTIF(is_activated) AS activations,
@@ -73,13 +59,16 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
     return {
       bucket: row.attempt_bucket,
       leads,
-      sharePct: totalLeads > 0 ? Number(((leads / totalLeads) * 100).toFixed(1)) : 0,
+      sharePct: metricPercent(leads, totalLeads, 1),
+      dialled: Number(row.dialled || 0),
+      noRpc: Number(row.no_rpc || 0),
+      rpcUnrecorded: Number(row.rpc_unrecorded || 0),
       contacted,
-      contactRate: leads > 0 ? Number(((contacted / leads) * 100).toFixed(1)) : 0,
+      contactRate: metricPercent(contacted, Number(row.dialled || 0)),
       sales,
-      saleRate: leads > 0 ? Number(((sales / leads) * 100).toFixed(2)) : 0,
+      saleRate: metricPercent(sales, leads, 2),
       activations,
-      activationRate: sales > 0 ? Number(((activations / sales) * 100).toFixed(1)) : 0,
+      activationRate: metricPercent(activations, sales, 1),
       revenue: Number(row.revenue || 0),
       callCost: null,
       marginalSales: null,
@@ -87,10 +76,11 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
     };
   });
 
+  const dialledLeads = attemptPerformance.reduce((sum, row) => sum + row.dialled, 0);
   const oneCall = attemptPerformance.find(row => row.bucket === '1 call');
   const multiCallLeads = attemptPerformance
-    .filter(row => !['0 calls', '1 call'].includes(row.bucket))
-    .reduce((sum, row) => sum + row.leads, 0);
+    .filter(row => !['0 calls', '1 call', 'Unrecorded'].includes(row.bucket))
+    .reduce((sum, row) => sum + row.dialled, 0);
   const highAttempt = attemptPerformance.find(row => row.bucket === '5+ calls');
 
   return {
@@ -98,13 +88,15 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
     attemptCadence: [],
     summary: {
       totalLeads,
+      dialledLeads,
+      unrecordedCallLeads: attemptPerformance.find(row => row.bucket === 'Unrecorded')?.leads || 0,
       zeroCallLeads: attemptPerformance.find(row => row.bucket === '0 calls')?.leads || 0,
-      oneCallLeads: oneCall?.leads || 0,
-      singleAttemptSharePct: totalLeads > 0 ? Number((((oneCall?.leads || 0) / totalLeads) * 100).toFixed(1)) : 0,
+      oneCallLeads: oneCall?.dialled || 0,
+      singleAttemptSharePct: metricPercent(oneCall?.dialled || 0, dialledLeads),
       multiAttemptLeads: multiCallLeads,
-      multiAttemptSharePct: totalLeads > 0 ? Number(((multiCallLeads / totalLeads) * 100).toFixed(1)) : 0,
+      multiAttemptSharePct: metricPercent(multiCallLeads, dialledLeads),
       fivePlusCallLeads: highAttempt?.leads || 0,
-      fivePlusNoRpcLeads: highAttempt ? Math.max(highAttempt.leads - highAttempt.contacted, 0) : 0,
+      fivePlusNoRpcLeads: highAttempt?.noRpc || 0,
     },
     noAnswerAnalysis: {
       status: 'UNAVAILABLE',
@@ -114,6 +106,6 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
       callbackFollowupRate: null,
       callbackSaleConversion: null
     },
-    methodology: 'Buckets are exclusive per lead using the maximum recorded HLC total_calls value. They describe observed call-count populations and do not identify which specific attempt produced the outcome.'
+    methodology: 'Buckets are exclusive per lead using the maximum non-negative recorded HLC total_calls value. Missing counters remain Unrecorded; no-RPC counts require an explicit recorded zero. One-call share uses dialled leads as its denominator. They describe observed call-count populations and do not identify which specific attempt produced the outcome.'
   };
 }

@@ -71,13 +71,13 @@ export default function CommercialIntelligence() {
               <div className="cx-commercial-source">
                 <div><span>Media spend source</span><strong>{data.media.spendSourceColumn || 'Unavailable'}</strong></div>
                 <div><span>Source table</span><strong>{data.media.spendSourceTable || 'Unavailable'}</strong></div>
-                <div><span>Platform population</span><strong>{data.media.platformLeads.toLocaleString()} leads · {data.media.platformClicks.toLocaleString()} clicks</strong></div>
+                <div><span>Platform population</span><strong>{data.media.platformLeads.toLocaleString()} platform lead events · {data.media.platformClicks.toLocaleString()} clicks</strong></div>
               </div>
             </section>
 
             <section className="cx-command-metrics cx-commercial-metrics">
               <article className="cx-command-metric"><span>Recorded media spend</span><strong>{money(baseline.mediaSpend)}</strong><div><small>Approved marketing source only</small></div></article>
-              <article className="cx-command-metric"><span>Platform CPL</span><strong>{money(baseline.cpl)}</strong><div><small>Spend / platform leads</small></div></article>
+              <article className="cx-command-metric"><span>Platform CPL</span><strong>{money(baseline.cpl)}</strong><div><small>Spend / platform lead events</small></div></article>
               <article className="cx-command-metric"><span>Recorded revenue</span><strong>{money(baseline.revenue)}</strong><div><small>Lead-ledger revenue field</small></div></article>
               <article className="cx-command-metric"><span>Blended cost / sale</span><strong>{money(baseline.blendedCostPerSale)}</strong><div><small>Period-level media spend / sales</small></div></article>
               <article className="cx-command-metric"><span>Revenue / media spend</span><strong>{baseline.revenueToMediaSpendRatio == null ? '—' : `${baseline.revenueToMediaSpendRatio.toFixed(2)}×`}</strong><div><small>Unreconciled period-level ratio</small></div></article>
@@ -156,7 +156,7 @@ export default function CommercialIntelligence() {
                 <div className="cx-commercial-ratios">
                   <div><span>CPC</span><strong>{money(baseline.cpc)}</strong><small>Spend / clicks</small></div>
                   <div><span>CPM</span><strong>{money(baseline.cpm)}</strong><small>Spend / 1,000 impressions</small></div>
-                  <div><span>Platform CPL</span><strong>{money(baseline.cpl)}</strong><small>Spend / platform leads</small></div>
+                  <div><span>Platform CPL</span><strong>{money(baseline.cpl)}</strong><small>Spend / platform lead events</small></div>
                   <div><span>Blended cost / fetched lead</span><strong>{money(baseline.blendedCostPerFetchedLead)}</strong><small>Cross-source, unreconciled</small></div>
                   <div><span>Blended cost / sale</span><strong>{money(baseline.blendedCostPerSale)}</strong><small>Cross-source, unreconciled</small></div>
                   <div><span>Blended cost / activation</span><strong>{money(baseline.blendedCostPerActivation)}</strong><small>Cross-source, unreconciled</small></div>

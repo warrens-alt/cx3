@@ -1,46 +1,38 @@
-import { validTimestampSql } from '../../bigquery/integrity';
 import { getBigQueryClient } from '../../bigquery/client';
 import { getClientConfig } from '../../bigquery/config';
 import type { OffernetQueryParams } from '../common/types';
 import { formatDuration } from '../common/types';
-import { configuredSourceTable } from '../common/warehouse';
 import { buildFilterClause } from '../common/scope';
+import { operationalLeadCtes } from '../common/leadMetrics';
 
 // 2. FUNNEL INTELLIGENCE
 export async function getFunnelIntelligence(params: OffernetQueryParams) {
   const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
-  const { whereSql, queryParams } = buildFilterClause(params);
+  const { queryParams } = buildFilterClause(params);
 
   const query = `
-    WITH base AS (
-      SELECT 
-        l.lead_id,
-        ${validTimestampSql('l.fetched')} as fetched_ts,
-        ${validTimestampSql('hlc.delivered')} as delivered_ts,
-        ${validTimestampSql('hlc.first_call_date')} as first_dial_ts,
-        COALESCE(hlc.vendor, 'Unknown') as vendor,
-        COALESCE(l.offershop_source, 'Unknown') as source,
-        COALESCE(l.offershop_grade, 'Standard') as grade,
-        ${validTimestampSql('hlc.sale')} as sale_ts,
-        ${validTimestampSql('hlc.activated')} as activation_ts,
-        SAFE_CAST(hlc.rpc AS INT64) > 0 as is_rpc,
-        ${validTimestampSql('hlc.sale')} IS NOT NULL as is_sale,
-        ${validTimestampSql('hlc.activated')} IS NOT NULL as is_activated,
-        TIMESTAMP_DIFF(${validTimestampSql('hlc.delivered')}, ${validTimestampSql('l.fetched')}, SECOND) as fetch_to_delivery_sec,
-        TIMESTAMP_DIFF(${validTimestampSql('hlc.first_call_date')}, ${validTimestampSql('hlc.delivered')}, SECOND) as delivery_to_first_dial_sec,
-        TIMESTAMP_DIFF(${validTimestampSql('hlc.sale')}, ${validTimestampSql('hlc.first_call_date')}, SECOND) as dial_to_sale_sec,
-        TIMESTAMP_DIFF(${validTimestampSql('hlc.activated')}, ${validTimestampSql('hlc.sale')}, SECOND) as sale_to_act_sec
-      FROM ${configuredSourceTable(params.clientId, 'leads')} l
-      LEFT JOIN UNNEST(l.hlc_details) hlc
-      ${whereSql}
+    WITH ${operationalLeadCtes(params)},
+    base AS (
+      SELECT *, first_call_ts AS first_dial_ts,
+        sale_ts IS NOT NULL AS is_sale,
+        activation_ts IS NOT NULL AS is_activated
+      FROM operational_raw
+    ),
+    lead_timings AS (
+      SELECT
+        TIMESTAMP_DIFF(delivered_ts, fetched_ts, SECOND) AS fetch_to_delivery_sec,
+        TIMESTAMP_DIFF(first_call_ts, delivered_ts, SECOND) AS delivery_to_first_dial_sec,
+        TIMESTAMP_DIFF(sale_ts, first_call_ts, SECOND) AS dial_to_sale_sec,
+        TIMESTAMP_DIFF(activation_ts, sale_ts, SECOND) AS sale_to_act_sec
+      FROM operational_leads
     ),
     velocity AS (
-      SELECT 
-        AVG(CASE WHEN fetch_to_delivery_sec BETWEEN 0 AND 86400 THEN fetch_to_delivery_sec END) as avg_fetch_delivery_sec,
-        AVG(CASE WHEN delivery_to_first_dial_sec BETWEEN 0 AND 604800 THEN delivery_to_first_dial_sec END) as avg_deliv_dial_sec,
-        AVG(CASE WHEN dial_to_sale_sec BETWEEN 0 AND 2592000 THEN dial_to_sale_sec END) as avg_dial_to_sale_sec,
-        AVG(CASE WHEN sale_to_act_sec BETWEEN 0 AND 2592000 THEN sale_to_act_sec END) as avg_sale_to_act_sec
-      FROM base
+      SELECT
+        AVG(CASE WHEN fetch_to_delivery_sec >= 0 THEN fetch_to_delivery_sec END) AS avg_fetch_delivery_sec,
+        AVG(CASE WHEN delivery_to_first_dial_sec >= 0 THEN delivery_to_first_dial_sec END) AS avg_deliv_dial_sec,
+        AVG(CASE WHEN dial_to_sale_sec >= 0 THEN dial_to_sale_sec END) AS avg_dial_to_sale_sec,
+        AVG(CASE WHEN sale_to_act_sec >= 0 THEN sale_to_act_sec END) AS avg_sale_to_act_sec
+      FROM lead_timings
     ),
     by_vendor AS (
       SELECT 

@@ -14,6 +14,8 @@ import {
   type MarketingRootCauseData,
 } from '../lib/offernetClient';
 
+import { formatPercent } from '../lib/formatters';
+
 const money = (value: number | null) => value == null ? '—' : `R ${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 const num = (value: number) => value.toLocaleString();
 type MediaMetric = NonNullable<MarketingRootCauseData['metric']>['id'];
@@ -158,10 +160,10 @@ export default function CampaignIntelligence() {
             {summary && (
               <section className="cx-command-metrics cx-media-metrics" aria-label="Media performance summary">
                 <MediaMetricCard label="Recorded media spend" value={money(summary.spend)} note="Approved API-table spend" delta={data.comparison?.spendDeltaPct} metric="spend" onInvestigate={metric => canCompare && setRootMetric(metric)} />
-                <MediaMetricCard label="Platform CPL" value={money(summary.cpl)} note="Spend / recorded leads" delta={data.comparison?.cplDeltaPct} metric="cpl" onInvestigate={metric => canCompare && setRootMetric(metric)} />
+                <MediaMetricCard label="Platform CPL" value={money(summary.cpl)} note="Spend / platform lead events" delta={data.comparison?.cplDeltaPct} metric="cpl" onInvestigate={metric => canCompare && setRootMetric(metric)} />
                 <MediaMetricCard label="CPC" value={money(summary.cpc)} note="Spend / clicks" delta={data.comparison?.cpcDeltaPct} metric="cpc" onInvestigate={metric => canCompare && setRootMetric(metric)} />
                 <MediaMetricCard label="CPM" value={money(summary.cpm)} note="Spend / 1,000 impressions" delta={data.comparison?.cpmDeltaPct} metric="cpm" onInvestigate={metric => canCompare && setRootMetric(metric)} />
-                <MediaMetricCard label="Recorded leads" value={num(summary.leads)} note={`${summary.ctr}% CTR · ${num(summary.clicks)} clicks`} delta={data.comparison?.leadsDeltaPct} metric="leads" onInvestigate={metric => canCompare && setRootMetric(metric)} />
+                <MediaMetricCard label="Platform lead events" value={num(summary.leads)} note={`${formatPercent(summary.ctr)} CTR · ${num(summary.clicks)} clicks`} delta={data.comparison?.leadsDeltaPct} metric="leads" onInvestigate={metric => canCompare && setRootMetric(metric)} />
               </section>
             )}
 
@@ -171,7 +173,7 @@ export default function CampaignIntelligence() {
                   <div>
                     <span className="cx-command-section-kicker">Acquisition engagement</span>
                     <h2>Reach, outbound traffic & lead capture</h2>
-                    <p>Platform signals sourced directly from the marketing API table. No spend or lead attribution is inferred from these engagement ratios.</p>
+                    <p>Platform lead events come from the marketing platform. Platform CPL divides incurred media spend by these events. Ledger CPL requires a matched population of distinct captured leads and is unavailable without validated attribution.</p>
                   </div>
                 </header>
                 <div className="cx-commercial-ratios">
@@ -179,7 +181,7 @@ export default function CampaignIntelligence() {
                   <div><span>Frequency</span><strong>{summary.frequency == null ? '—' : summary.frequency.toFixed(2)}</strong><small>Impressions / reach</small></div>
                   <div><span>Outbound clicks</span><strong>{summary.outboundClicks == null ? '—' : num(summary.outboundClicks)}</strong><small>Clicks leaving the platform</small></div>
                   <div><span>Outbound CTR</span><strong>{summary.outboundCtr == null ? '—' : `${summary.outboundCtr.toFixed(2)}%`}</strong><small>Outbound clicks / impressions</small></div>
-                  <div><span>Click → lead</span><strong>{summary.clickToLeadRate == null ? '—' : `${summary.clickToLeadRate.toFixed(2)}%`}</strong><small>Recorded leads / outbound clicks</small></div>
+                  <div><span>Click → lead</span><strong>{summary.clickToLeadRate == null ? '—' : `${summary.clickToLeadRate.toFixed(2)}%`}</strong><small>Platform lead events / {summary.outboundClicks != null && summary.outboundClicks > 0 ? 'outbound clicks' : 'clicks'}</small></div>
                 </div>
               </section>
             )}
@@ -187,7 +189,7 @@ export default function CampaignIntelligence() {
 
             {data.comparison ? (
               <p className="cx-media-comparison-note">
-                Compared with {data.comparison.previousStartDate} → {data.comparison.previousEndDate}. CTR changed {data.comparison.ctrDeltaPp > 0 ? '+' : ''}{data.comparison.ctrDeltaPp}pp.
+                Compared with {data.comparison.previousStartDate} → {data.comparison.previousEndDate}. {data.comparison.ctrDeltaPp == null ? 'CTR comparison unavailable.' : `CTR changed ${data.comparison.ctrDeltaPp > 0 ? '+' : ''}${data.comparison.ctrDeltaPp}pp.`}
               </p>
             ) : data.comparisonReason ? (
               <div className="cx-command-error"><AlertTriangle size={15}/>{data.comparisonReason}</div>
@@ -201,6 +203,11 @@ export default function CampaignIntelligence() {
                   <p>Budget remains a separate planning field and is never substituted for observed spend.</p>
                 </div>
               </header>
+              {data.detailScope?.truncated && (
+                <div className="cx-control-note" role="status">
+                  Showing {num(data.detailScope.displayedCampaignGroups)} of {num(data.detailScope.totalCampaignGroups)} campaign/adset groups, ranked by platform lead events. Summary metrics cover the full selected scope.
+                </div>
+              )}
               <div className="cx-performance-table-wrap">
                 <table className="cx-performance-table cx-campaign-table">
                   <thead>
@@ -218,10 +225,10 @@ export default function CampaignIntelligence() {
                       <th>CTR</th>
                       <th>Outbound CTR</th>
                       <th>Click → lead</th>
-                      <th>Leads</th>
+                      <th>Platform lead events</th>
                       <th>CPC</th>
                       <th>CPM</th>
-                      <th>CPL</th>
+                      <th>Platform CPL</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -237,9 +244,9 @@ export default function CampaignIntelligence() {
                         <td>{campaign.frequency == null ? '—' : campaign.frequency.toFixed(2)}</td>
                         <td>{num(campaign.clicks)}</td>
                         <td>{campaign.outboundClicks == null ? '—' : num(campaign.outboundClicks)}</td>
-                        <td>{campaign.ctr}%</td>
+                        <td>{formatPercent(campaign.ctr)}</td>
                         <td>{campaign.outboundCtr == null ? '—' : `${campaign.outboundCtr}%`}</td>
-                        <td>{campaign.clickToLeadRate == null ? '—' : `${campaign.clickToLeadRate}%`}</td>
+                        <td title={`Platform lead events / ${campaign.outboundClicks != null && campaign.outboundClicks > 0 ? 'outbound clicks' : 'clicks'}`}>{campaign.clickToLeadRate == null ? '—' : `${campaign.clickToLeadRate}%`}</td>
                         <td>{num(campaign.leads)}</td>
                         <td>{money(campaign.cpc)}</td>
                         <td>{money(campaign.cpm)}</td>

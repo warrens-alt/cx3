@@ -2,35 +2,22 @@ import { getBigQueryClient } from '../../bigquery/client';
 import { getClientConfig } from '../../bigquery/config';
 import type { OffernetQueryParams } from '../common/types';
 import { formatDuration } from '../common/types';
-import { configuredSourceTable } from '../common/warehouse';
 import { buildFilterClause } from '../common/scope';
+import { operationalLeadCtes, metricPercent } from '../common/leadMetrics';
 
 // 5. VENDOR & LEAD QUALITY
 export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
   const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
-  const { whereSql, queryParams } = buildFilterClause(params);
+  const { queryParams } = buildFilterClause(params);
 
   const query = `
-    WITH base AS (
-      SELECT
-        l.lead_id,
-        COALESCE(hlc.vendor, 'Unknown') AS vendor,
-        COALESCE(l.offershop_source, 'Unknown') AS source,
-        COALESCE(l.offershop_grade, 'Standard') AS grade,
-        COALESCE(l.offershop_color_vetting, 'Unvetted') AS vetting,
-        l.valid_idno,
-        l.phone_valid,
-        hlc.delivered IS NOT NULL AND hlc.delivered NOT LIKE '1900%' AND hlc.delivered NOT LIKE '1970%' AS is_delivered,
-        hlc.first_call_date IS NOT NULL AND hlc.first_call_date NOT LIKE '1900%' AND hlc.first_call_date NOT LIKE '1970%' AS is_dialled,
-        SAFE_CAST(hlc.rpc AS INT64) > 0 AS is_rpc,
-        hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' AS is_sale,
-        hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' AS is_activated,
-        COALESCE(hlc.total_calls, 0) AS total_calls,
-        COALESCE(hlc.revenue_generated, 0) AS revenue,
-        TIMESTAMP_DIFF(SAFE_CAST(hlc.first_call_date AS TIMESTAMP), SAFE_CAST(hlc.delivered AS TIMESTAMP), SECOND) AS deliv_to_dial_sec
-      FROM ${configuredSourceTable(params.clientId, 'leads')} l
-      LEFT JOIN UNNEST(l.hlc_details) hlc
-      ${whereSql}
+    WITH ${operationalLeadCtes(params, true)},
+    base AS (
+      SELECT * EXCEPT(source, grade),
+        COALESCE(NULLIF(source, ''), 'Unknown') AS source,
+        COALESCE(NULLIF(grade, ''), 'Unrecorded') AS grade, recorded_call_count AS total_calls,
+        TIMESTAMP_DIFF(first_call_ts, delivered_ts, SECOND) AS deliv_to_dial_sec
+      FROM operational_leads
     ),
     vendor_matrix AS (
       SELECT
@@ -41,8 +28,8 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
         COUNT(DISTINCT CASE WHEN is_rpc THEN lead_id END) AS contacted,
         COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) AS sales,
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) AS activations,
-        COUNT(DISTINCT CASE WHEN valid_idno = '0' OR valid_idno = 'false' OR phone_valid = '0' OR phone_valid = 'false' THEN lead_id END) AS invalid_leads,
-        SUM(total_calls) AS total_calls,
+        COUNT(DISTINCT CASE WHEN is_invalid THEN lead_id END) AS invalid_leads,
+        CASE WHEN COUNTIF(total_calls IS NULL) > 0 THEN NULL ELSE SUM(total_calls) END AS total_calls,
         ROUND(SUM(revenue), 2) AS revenue,
         APPROX_QUANTILES(CASE WHEN deliv_to_dial_sec >= 0 THEN deliv_to_dial_sec END, 100)[OFFSET(50)] AS med_first_dial_sec
       FROM base
@@ -59,7 +46,7 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
         COUNT(DISTINCT CASE WHEN is_rpc THEN lead_id END) AS contacted,
         COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) AS sales,
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) AS activations,
-        COUNT(DISTINCT CASE WHEN valid_idno = '0' OR valid_idno = 'false' OR phone_valid = '0' OR phone_valid = 'false' THEN lead_id END) AS invalid_leads
+        COUNT(DISTINCT CASE WHEN is_invalid THEN lead_id END) AS invalid_leads
       FROM base
       GROUP BY source
       ORDER BY leads DESC
@@ -69,6 +56,7 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
       SELECT
         grade,
         COUNT(DISTINCT lead_id) AS leads,
+        COUNT(DISTINCT CASE WHEN is_dialled THEN lead_id END) AS dialled,
         COUNT(DISTINCT CASE WHEN is_rpc THEN lead_id END) AS contacted,
         COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) AS sales,
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) AS activations
@@ -87,6 +75,7 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
           ELSE 'Other / Unvetted'
         END AS vetting_color,
         COUNT(DISTINCT lead_id) AS leads,
+        COUNT(DISTINCT CASE WHEN is_dialled THEN lead_id END) AS dialled,
         COUNT(DISTINCT CASE WHEN is_rpc THEN lead_id END) AS contacted,
         COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) AS sales,
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) AS activations
@@ -107,20 +96,20 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
   const vendors = (data.vendors || []).map((v: any) => {
     const leads = Number(v.leads || 0), delivered = Number(v.delivered || 0), dialled = Number(v.dialled || 0);
     const contacted = Number(v.contacted || 0), sales = Number(v.sales || 0), activations = Number(v.activations || 0);
-    const invalid = Number(v.invalid_leads || 0), totalCalls = Number(v.total_calls || 0), revenue = Number(v.revenue || 0);
+    const invalid = Number(v.invalid_leads || 0), totalCalls = v.total_calls == null ? null : Number(v.total_calls), revenue = Number(v.revenue || 0);
     const medianFirstDialSec = v.med_first_dial_sec === null || v.med_first_dial_sec === undefined ? null : Number(v.med_first_dial_sec);
     return {
       vendor: v.vendor,
       leads,
-      deliveryRate: leads > 0 ? Number(((delivered / leads) * 100).toFixed(1)) : 0,
-      dialRate: delivered > 0 ? Number(((dialled / delivered) * 100).toFixed(1)) : 0,
-      contactRate: dialled > 0 ? Number(((contacted / dialled) * 100).toFixed(1)) : 0,
-      saleRate: contacted > 0 ? Number(((sales / contacted) * 100).toFixed(2)) : 0,
-      activationRate: sales > 0 ? Number(((activations / sales) * 100).toFixed(1)) : 0,
+      deliveryRate: metricPercent(delivered, leads, 1),
+      dialRate: metricPercent(dialled, delivered, 1),
+      contactRate: metricPercent(contacted, dialled, 1),
+      saleRate: metricPercent(sales, contacted, 2),
+      activationRate: metricPercent(activations, sales, 1),
       medianFirstDial: formatDuration(medianFirstDialSec),
       medianFirstDialSec,
-      callsPerLead: leads > 0 ? Number((totalCalls / leads).toFixed(1)) : 0,
-      invalidRate: leads > 0 ? Number(((invalid / leads) * 100).toFixed(1)) : 0,
+      callsPerLead: totalCalls !== null && leads > 0 ? Number((totalCalls / leads).toFixed(1)) : null,
+      invalidRate: metricPercent(invalid, leads, 1),
       revenue,
       directCost: null,
       deliveryCost: null,
@@ -140,12 +129,12 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
       contacted,
       sales,
       activations,
-      deliveryRate: leads > 0 ? Number(((delivered / leads) * 100).toFixed(1)) : 0,
-      dialRate: delivered > 0 ? Number(((dialled / delivered) * 100).toFixed(1)) : 0,
-      contactRate: dialled > 0 ? Number(((contacted / dialled) * 100).toFixed(1)) : 0,
-      leadToSaleRate: leads > 0 ? Number(((sales / leads) * 100).toFixed(2)) : 0,
-      activationRate: sales > 0 ? Number(((activations / sales) * 100).toFixed(1)) : 0,
-      invalidRate: leads > 0 ? Number(((invalid / leads) * 100).toFixed(1)) : 0,
+      deliveryRate: metricPercent(delivered, leads, 1),
+      dialRate: metricPercent(dialled, delivered, 1),
+      contactRate: metricPercent(contacted, dialled, 1),
+      leadToSaleRate: metricPercent(sales, leads, 2),
+      activationRate: metricPercent(activations, sales, 1),
+      invalidRate: metricPercent(invalid, leads, 1),
     };
   });
 
@@ -157,9 +146,9 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
       contacted,
       sales,
       activations,
-      contactRate: leads > 0 ? Number(((contacted / leads) * 100).toFixed(1)) : 0,
-      leadToSaleRate: leads > 0 ? Number(((sales / leads) * 100).toFixed(2)) : 0,
-      activationRate: sales > 0 ? Number(((activations / sales) * 100).toFixed(1)) : 0,
+      contactRate: metricPercent(contacted, Number(row.dialled || 0), 1),
+      leadToSaleRate: metricPercent(sales, leads, 2),
+      activationRate: metricPercent(activations, sales, 1),
     };
   };
 

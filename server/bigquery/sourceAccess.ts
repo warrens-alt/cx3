@@ -1,6 +1,5 @@
 import { getBigQueryClient } from './client';
-import { getClientConfig, tableIdentifier } from './config';
-import { RequestError } from './filters';
+import { getClientConfig } from './config';
 import { trackAnalyticalWork } from '../analyticalWork';
 
 export interface SchemaField {
@@ -20,6 +19,29 @@ export interface SourceAccess {
   metadata: (table: string) => Promise<TableMetadata>;
   listTables: (project: string, dataset: string) => Promise<string[]>;
   execute: (options: { query: string; params?: Record<string, any> }) => Promise<{ rows: any[]; jobId: string; referencedTables?: string[]; bytesProcessed?: string }>;
+}
+
+/** SDK errors can embed SQL, request headers and credential details. Return only
+ * a fixed diagnostic selected from the machine-readable status, never the payload. */
+export function safeSourceError(error: unknown): { status: string; error: string } {
+  const failure = error && typeof error === 'object' ? error as { status?: unknown; code?: unknown } : {};
+  const code = String(failure.status ?? failure.code ?? '');
+  if (['401', '16', 'UNAUTHENTICATED'].includes(code)) {
+    return { status: 'AUTHENTICATION_REQUIRED', error: 'Warehouse authentication failed. Configure valid Application Default Credentials.' };
+  }
+  if (['403', '7', 'PERMISSION_DENIED'].includes(code)) {
+    return { status: 'ACCESS_DENIED', error: 'Warehouse access denied. Verify the runtime identity has the required read and query permissions.' };
+  }
+  if (['404', '5', 'NOT_FOUND'].includes(code)) {
+    return { status: 'NOT_FOUND', error: 'The configured warehouse source was not found.' };
+  }
+  if (['400', '422', '3', 'INVALID_ARGUMENT'].includes(code)) {
+    return { status: 'INVALID_REQUEST', error: 'The source schema or requested scope is unsupported. Check configured mappings and reporting dates.' };
+  }
+  if (['429', '8', 'RESOURCE_EXHAUSTED'].includes(code)) {
+    return { status: 'RATE_LIMITED', error: 'Warehouse quota or query budget was exceeded. Retry after checking the configured limits.' };
+  }
+  return { status: 'UNAVAILABLE', error: 'Warehouse source unavailable. Check network connectivity, credentials and source configuration.' };
 }
 
 export function flatSchema(fields: SchemaField[], prefix = '', parentRepeated = false): Map<string, { type: string; mode?: string; repeated: boolean }> {

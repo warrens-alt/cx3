@@ -19,6 +19,7 @@ import { MODEL_VERSION } from './bigquery/integrity';
 import { serverQueryCache } from './cache';
 import { analyticalRoute as asyncRoute } from './analyticalWork';
 import { operationalFilterValues } from './offernetScope';
+import { analyticsRequestTenant } from './requestTenant';
 import {
   getCliPerformance,
   parseAndValidateCliCsv,
@@ -49,7 +50,7 @@ function scopeFrom(req: Request): QueryScope {
     if (f?.operator === 'equals') filters[key] = { operator: 'in', values: [f.value!] };
     else if (f && f.operator !== 'in') throw new RequestError(`Use an inclusion filter for ${key}`);
   }
-  return validateScope({ clientId: input.clientId, startDate: input.startDate || input.dateRange?.start,
+  return validateScope({ clientId: analyticsRequestTenant(req), startDate: input.startDate || input.dateRange?.start,
     endDate: input.endDate || input.dateRange?.end, filters });
 }
 analyticsRouter.use((req, res, next) => {
@@ -74,7 +75,9 @@ function metadata(res: Response, view: string) {
 function singleFlight<T>(res: Response, operation: string, input: unknown, work: () => Promise<T>, ttlSeconds = 120): Promise<T> {
   const principal = res.locals.principal;
   const key = JSON.stringify(['analytics-query', principal.subject, principal.role, [...principal.tenants].sort(), operation, res.locals.scope, input]);
-  return serverQueryCache.getOrFetch(key, work, ttlSeconds);
+  // OfferNet response middleware owns retention. A second retained cache could
+  // give an ageing result a fresh response TTL under an equivalent URL.
+  return serverQueryCache.getOrFetch(key, work, operation.startsWith('offernet-') ? 0 : ttlSeconds);
 }
 analyticsRouter.get('/clients', (_req, res) => {
   const allowed = res.locals.principal.tenants as string[];

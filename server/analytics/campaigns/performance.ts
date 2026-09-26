@@ -99,11 +99,20 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
 
   const grainFields = contract.spendGrainFields.map(safeWarehouseColumn);
   const grainExpression = `TO_JSON_STRING(STRUCT(${grainFields.join(', ')}))`;
+  const campaignGroupExpression = `TO_JSON_STRING(STRUCT(${clientField}, ${channelField}, ${campaignField}, ${adsetField}))`;
+  const detailLimit = 250;
   const grainQuery = `
     SELECT
       COUNT(*) AS row_count,
       COUNT(DISTINCT ${grainExpression}) AS distinct_grain_count,
-      COUNT(*) - COUNT(DISTINCT ${grainExpression}) AS duplicate_grain_rows
+      COUNT(*) - COUNT(DISTINCT ${grainExpression}) AS duplicate_grain_rows,
+      COUNT(DISTINCT ${campaignGroupExpression}) AS campaign_group_count,
+      SUM(SAFE_CAST(${impressionsField} AS FLOAT64)) AS impressions,
+      ${reachField ? `SUM(SAFE_CAST(${reachField} AS FLOAT64))` : 'CAST(NULL AS FLOAT64)'} AS reach,
+      SUM(SAFE_CAST(${clicksField} AS FLOAT64)) AS clicks,
+      ${outboundClicksField ? `SUM(SAFE_CAST(${outboundClicksField} AS FLOAT64))` : 'CAST(NULL AS FLOAT64)'} AS outbound_clicks,
+      SUM(SAFE_CAST(${leadsField} AS FLOAT64)) AS recorded_leads,
+      ${spendValue ? `SUM(${spendValue})` : 'CAST(NULL AS FLOAT64)'} AS recorded_spend
     FROM \`${contract.table}\`
     WHERE ${conditions.join(' AND ')}
   `;
@@ -128,8 +137,8 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
     FROM \`${contract.table}\`
     WHERE ${conditions.join(' AND ')}
     GROUP BY 1, 2, 3, 4
-    ORDER BY recorded_leads DESC
-    LIMIT 250
+    ORDER BY recorded_leads DESC, client_name, channel, campaign_name, adset_name
+    LIMIT ${detailLimit}
   `;
 
   const [rows] = await client.query({ query, params: queryParams });
@@ -141,8 +150,8 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
     const clicks = Number(row.clicks || 0);
     const outboundClicks = row.outbound_clicks === null || row.outbound_clicks === undefined ? null : Number(row.outbound_clicks || 0);
     const leads = Number(row.recorded_leads || 0);
-    const spend = hasSpend && row.recorded_spend !== null ? Number(row.recorded_spend || 0) : null;
-    const latestBudget = resolved.budgetColumn && row.latest_budget !== null ? Number(row.latest_budget || 0) : null;
+    const spend = hasSpend && row.recorded_spend != null ? Number(row.recorded_spend || 0) : null;
+    const latestBudget = resolved.budgetColumn && row.latest_budget != null ? Number(row.latest_budget || 0) : null;
 
     return {
       client: row.client_name,
@@ -166,18 +175,19 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
     };
   });
 
-  const totals = campaigns.reduce((acc, row) => {
-    acc.impressions += row.impressions;
-    if (row.reach !== null) acc.reach += row.reach;
-    acc.clicks += row.clicks;
-    if (row.outboundClicks !== null) acc.outboundClicks += row.outboundClicks;
-    acc.leads += row.leads;
-    if (row.spend !== null) acc.spend += row.spend;
-    return acc;
-  }, { spend: 0, impressions: 0, reach: 0, clicks: 0, outboundClicks: 0, leads: 0 });
+  // Totals share the exact grain-check scope and are independent of the bounded detail table.
+  const totals = {
+    impressions: Number(grain.impressions || 0),
+    reach: Number(grain.reach || 0),
+    clicks: Number(grain.clicks || 0),
+    outboundClicks: Number(grain.outbound_clicks || 0),
+    leads: Number(grain.recorded_leads || 0),
+    spend: grain.recorded_spend == null ? null : Number(grain.recorded_spend),
+  };
+  const measuredSpend = hasSpend && totals.spend !== null;
 
   const summary = {
-    spend: hasSpend ? Number(totals.spend.toFixed(2)) : null,
+    spend: measuredSpend ? Number(totals.spend!.toFixed(2)) : null,
     impressions: totals.impressions,
     reach: resolved.reachColumn ? totals.reach : null,
     frequency: resolved.reachColumn && totals.reach > 0 ? Number((totals.impressions / totals.reach).toFixed(2)) : null,
@@ -189,9 +199,9 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
     clickToLeadRate: resolved.outboundClicksColumn && totals.outboundClicks > 0
       ? Number(((totals.leads / totals.outboundClicks) * 100).toFixed(2))
       : totals.clicks > 0 ? Number(((totals.leads / totals.clicks) * 100).toFixed(2)) : null,
-    cpc: hasSpend && totals.clicks > 0 ? Number((totals.spend / totals.clicks).toFixed(2)) : null,
-    cpm: hasSpend && totals.impressions > 0 ? Number(((totals.spend / totals.impressions) * 1000).toFixed(2)) : null,
-    cpl: hasSpend && totals.leads > 0 ? Number((totals.spend / totals.leads).toFixed(2)) : null,
+    cpc: measuredSpend && totals.clicks > 0 ? Number((totals.spend! / totals.clicks).toFixed(2)) : null,
+    cpm: measuredSpend && totals.impressions > 0 ? Number(((totals.spend! / totals.impressions) * 1000).toFixed(2)) : null,
+    cpl: measuredSpend && totals.leads > 0 ? Number((totals.spend! / totals.leads).toFixed(2)) : null,
   };
 
   let comparison: null | {
@@ -245,7 +255,7 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
 
         const [priorRows] = await client.query({ query: priorQuery, params: priorParams });
         const prior = priorRows[0] || {};
-        const priorSpend = hasSpend && prior.recorded_spend !== null ? Number(prior.recorded_spend || 0) : null;
+        const priorSpend = hasSpend && prior.recorded_spend != null ? Number(prior.recorded_spend || 0) : null;
         const priorImpressions = Number(prior.impressions || 0);
         const priorClicks = Number(prior.clicks || 0);
         const priorLeads = Number(prior.recorded_leads || 0);
@@ -280,6 +290,16 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
 
   return {
     campaigns,
+    detailScope: {
+      totalCampaignGroups: Number(grain.campaign_group_count || 0),
+      displayedCampaignGroups: campaigns.length,
+      rowLimit: detailLimit,
+      truncated: Number(grain.campaign_group_count || 0) > campaigns.length,
+    },
+    metricDefinitions: {
+      cpl: { label: 'Platform CPL', numerator: 'Incurred media spend', denominator: 'Recorded platform lead events (actions_lead)' },
+      ledgerCpl: { status: 'UNAVAILABLE', reason: 'A matched ledger-lead population and attribution mapping are required.' },
+    },
     summary,
     comparison,
     comparisonReason,

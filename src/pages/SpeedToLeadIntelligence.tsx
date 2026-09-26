@@ -44,7 +44,7 @@ export default function SpeedToLeadIntelligence() {
   };
 
   const cohortMax = useMemo(() => Math.max(1, ...(data?.cohorts || []).map(row => row.leads)), [data?.cohorts]);
-  const primaryStage = data?.timingStages.find(stage => stage.stage === 'Delivery → First Dial') || data?.timingStages[0];
+  const primaryStage = data?.timingStages.find(stage => stage.stage === 'Delivery → First Dial');
 
   return (
     <div className="cx-command-page">
@@ -97,7 +97,7 @@ export default function SpeedToLeadIntelligence() {
                 <div>
                   <span className="cx-command-section-kicker">Latency</span>
                   <h2>Measured lifecycle stages</h2>
-                  <p>Percentiles are shown in one stable table so comparison does not require switching visual modes.</p>
+                  <p>Durations run from each stated start event to its end event. Missing timestamps remain unavailable; SLA percentages are shown separately.</p>
                 </div>
                 <Clock3 size={16} className="text-slate-400"/>
               </header>

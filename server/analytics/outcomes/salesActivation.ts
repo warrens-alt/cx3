@@ -2,49 +2,36 @@ import { getBigQueryClient } from '../../bigquery/client';
 import { getClientConfig } from '../../bigquery/config';
 import type { OffernetQueryParams } from '../common/types';
 import { formatDuration } from '../common/types';
-import { configuredSourceTable } from '../common/warehouse';
 import { buildFilterClause } from '../common/scope';
+import { operationalLeadCtes, metricPercent } from '../common/leadMetrics';
 
 // 7. SALES & ACTIVATION INTELLIGENCE
 export async function getSalesActivationAnalytics(params: OffernetQueryParams) {
   const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
-  const { whereSql, queryParams } = buildFilterClause(params);
+  const { queryParams } = buildFilterClause(params);
 
   const query = `
-    WITH sales_data AS (
-      SELECT 
-        l.lead_id,
-        hlc.vendor,
-        hlc.transaction_id,
-        SAFE_CAST(l.fetched AS TIMESTAMP) as fetched_ts,
-        SAFE_CAST(hlc.first_call_date AS TIMESTAMP) as dial_ts,
-        SAFE_CAST(hlc.sale AS TIMESTAMP) as sale_ts,
-        SAFE_CAST(hlc.activated AS TIMESTAMP) as activation_ts,
-        hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' as is_sale,
-        hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' as is_activated,
-        COALESCE(hlc.revenue_generated, 0) as revenue
-      FROM ${configuredSourceTable(params.clientId, 'leads')} l
-      LEFT JOIN UNNEST(l.hlc_details) hlc
-      ${whereSql}
-    ),
+    WITH ${operationalLeadCtes(params)},
+    sales_data AS (SELECT * FROM operational_leads),
     summary AS (
       SELECT 
         COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) as total_sales,
         COUNT(DISTINCT CASE WHEN is_sale AND revenue > 0 THEN lead_id END) as billable_sales,
-        COUNT(DISTINCT CASE WHEN is_sale AND (revenue = 0 OR revenue IS NULL) THEN lead_id END) as unbilled_sales,
+        COUNT(DISTINCT CASE WHEN is_sale AND revenue = 0 THEN lead_id END) as unbilled_sales,
+        COUNTIF(is_sale AND revenue IS NULL) AS unrecorded_revenue_sales,
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) as total_activations,
-        SUM(revenue) as realized_revenue,
-        AVG(CASE WHEN is_sale THEN TIMESTAMP_DIFF(sale_ts, fetched_ts, SECOND) END) as avg_time_to_sale_sec,
-        AVG(CASE WHEN is_activated THEN TIMESTAMP_DIFF(activation_ts, sale_ts, SECOND) END) as avg_time_to_activation_sec
+        CASE WHEN COUNTIF(revenue IS NULL) > 0 THEN NULL ELSE SUM(revenue) END as realized_revenue,
+        AVG(CASE WHEN is_sale AND sale_ts >= fetched_ts THEN TIMESTAMP_DIFF(sale_ts, fetched_ts, SECOND) END) as avg_time_to_sale_sec,
+        AVG(CASE WHEN is_activated AND activation_ts >= sale_ts THEN TIMESTAMP_DIFF(activation_ts, sale_ts, SECOND) END) as avg_time_to_activation_sec
       FROM sales_data
     ),
     by_vendor AS (
       SELECT 
         vendor,
-        COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) as sales,
-        COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) as activations,
+        COUNT(DISTINCT CASE WHEN sale_ts IS NOT NULL THEN lead_id END) as sales,
+        COUNT(DISTINCT CASE WHEN activation_ts IS NOT NULL THEN lead_id END) as activations,
         ROUND(SUM(revenue), 2) as revenue
-      FROM sales_data
+      FROM operational_raw
       WHERE vendor IS NOT NULL
       GROUP BY vendor
       ORDER BY sales DESC
@@ -72,9 +59,10 @@ export async function getSalesActivationAnalytics(params: OffernetQueryParams) {
       totalSales,
       billableSales: billable,
       unbilledSales: Number(data.unbilled_sales || 0),
+      unrecordedRevenueSales: Number(data.unrecorded_revenue_sales || 0),
       totalActivations: activations,
-      activationRate: totalSales > 0 ? Number(((activations / totalSales) * 100).toFixed(1)) : 0,
-      realizedRevenue: Number(data.realized_revenue || 0),
+      activationRate: metricPercent(activations, totalSales),
+      realizedRevenue: data.realized_revenue == null ? null : Number(data.realized_revenue),
       avgTimeToSale: formatDuration(data.avg_time_to_sale_sec),
       avgTimeToActivation: formatDuration(data.avg_time_to_activation_sec)
     },

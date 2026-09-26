@@ -4,6 +4,7 @@ import { configuredSourceTable } from '../common/warehouse';
 import { RequestError } from '../../bigquery/filters';
 import { validTimestampSql } from '../../bigquery/integrity';
 import { buildFilterClause } from '../common/scope';
+import { operationalLeadCtes } from '../common/leadMetrics';
 import type { OffernetQueryParams } from '../common/types';
 
 export async function getRawLeads(params: OffernetQueryParams) {
@@ -28,118 +29,61 @@ export async function getRawLeads(params: OffernetQueryParams) {
     queryParams.search = `%${params.search}%`;
   }
 
-  const validDelivered = `(${validTimestampSql('h.delivered')} IS NOT NULL)`;
-  const validDialled = `(${validTimestampSql('h.first_call_date')} IS NOT NULL)`;
-  const validSale = `(${validTimestampSql('h.sale')} IS NOT NULL)`;
-  const validActivation = `(${validTimestampSql('h.activated')} IS NOT NULL)`;
+  // These predicates share the exact lead grain and normalized timestamps used by the widgets.
+  const timing = 'TIMESTAMP_DIFF(m.first_call_ts, m.delivered_ts, SECOND)';
+  const wait = 'TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), m.delivered_ts, SECOND)';
   let drillCondition = '';
-
   if (params.drill) {
-    const drill = params.drill;
     const value = params.drillValue || '';
-    if (drill === 'awaiting-first-dial') {
-      drillCondition = `AND EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered})
-        AND NOT EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDialled})`;
-    } else if (drill === 'missing-disposition') {
-      drillCondition = `AND EXISTS (
-        SELECT 1 FROM UNNEST(l.hlc_details) h
-        WHERE ${validDialled} AND (h.last_dialer_status IS NULL OR TRIM(h.last_dialer_status) = '')
-      )`;
-    } else if (drill === 'unactivated-sales') {
-      drillCondition = `AND EXISTS (
-        SELECT 1 FROM UNNEST(l.hlc_details) h
-        WHERE ${validSale}
-          AND NOT ${validActivation}
-          AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(h.sale AS TIMESTAMP), DAY) >= 14
-      )`;
-    } else if (drill === 'high-attempt-no-rpc') {
-      drillCondition = `AND EXISTS (
-        SELECT 1 FROM UNNEST(l.hlc_details) h
-        WHERE COALESCE(SAFE_CAST(h.total_calls AS INT64), 0) >= 5
-      )
-      AND NOT EXISTS (
-        SELECT 1 FROM UNNEST(l.hlc_details) h
-        WHERE SAFE_CAST(h.rpc AS INT64) > 0
-      )`;
-    } else if (drill === 'one-call-only') {
-      drillCondition = `AND EXISTS (
-        SELECT 1 FROM UNNEST(l.hlc_details) h
-        WHERE COALESCE(SAFE_CAST(h.total_calls AS INT64), 0) = 1
-      )
-      AND NOT EXISTS (
-        SELECT 1 FROM UNNEST(l.hlc_details) h
-        WHERE COALESCE(SAFE_CAST(h.total_calls AS INT64), 0) > 1
-      )`;
-    } else if (drill === 'sla-breach') {
-      drillCondition = `AND EXISTS (
-        SELECT 1 FROM UNNEST(l.hlc_details) h
-        WHERE ${validDelivered}
-          AND (
-            (${validDialled} AND TIMESTAMP_DIFF(SAFE_CAST(h.first_call_date AS TIMESTAMP), SAFE_CAST(h.delivered AS TIMESTAMP), SECOND) > 900)
-            OR (NOT ${validDialled} AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(h.delivered AS TIMESTAMP), SECOND) > 900)
-          )
-      )`;
-    } else if (drill === 'backlog-age') {
-      const bucketSql: Record<string, string> = {
-        '0–15m': 'BETWEEN 0 AND 900',
-        '15–30m': '> 900 AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(h.delivered AS TIMESTAMP), SECOND) <= 1800',
-        '30–60m': '> 1800 AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(h.delivered AS TIMESTAMP), SECOND) <= 3600',
-        '1–6h': '> 3600 AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(h.delivered AS TIMESTAMP), SECOND) <= 21600',
-        '6–12h': '> 21600 AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(h.delivered AS TIMESTAMP), SECOND) <= 43200',
-        '12–24h': '> 43200 AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(h.delivered AS TIMESTAMP), SECOND) <= 86400',
-        '24h+': '> 86400',
-      };
-      const suffix = bucketSql[value];
-      if (!suffix) throw new RequestError('Unsupported backlog drill bucket', 422);
-      drillCondition = `AND EXISTS (
-        SELECT 1 FROM UNNEST(l.hlc_details) h
-        WHERE ${validDelivered}
-          AND NOT ${validDialled}
-          AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(h.delivered AS TIMESTAMP), SECOND) ${suffix}
-      )`;
-    } else if (drill === 'funnel-stage') {
-      const conditions: Record<string, string> = {
-        'fetched': 'TRUE',
-        'delivered': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered})`,
-        'dialled': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDialled})`,
-        'rpc': 'EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE SAFE_CAST(h.rpc AS INT64) > 0)',
-        'sales': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validSale})`,
-        'activated': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validActivation})`,
-      };
-      const condition = conditions[value];
-      if (!condition) throw new RequestError('Unsupported funnel-stage drill', 422);
-      drillCondition = `AND ${condition}`;
-    } else if (drill === 'lead-age') {
-      const timing = "TIMESTAMP_DIFF(SAFE_CAST(h.first_call_date AS TIMESTAMP), SAFE_CAST(h.delivered AS TIMESTAMP), SECOND)";
-      const conditions: Record<string, string> = {
-        'Not delivered': `NOT EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered})`,
-        'Undialled': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered}) AND NOT EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDialled})`,
-        'Invalid timing': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} < 0)`,
-        '0–5m': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} BETWEEN 0 AND 300)`,
-        '5–15m': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} > 300 AND ${timing} <= 900)`,
-        '15–30m': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} > 900 AND ${timing} <= 1800)`,
-        '30–60m': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} > 1800 AND ${timing} <= 3600)`,
-        '1–6h': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} > 3600 AND ${timing} <= 21600)`,
-        '6–24h': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} > 21600 AND ${timing} <= 86400)`,
-        '24h+': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered} AND ${validDialled} AND ${timing} > 86400)`,
-      };
-      const condition = conditions[value];
-      if (!condition) throw new RequestError('Unsupported lead-age drill bucket', 422);
-      drillCondition = `AND ${condition}`;
-    } else if (drill === 'funnel-loss') {
-      const conditions: Record<string, string> = {
-        'fetched-to-delivered': `NOT EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered})`,
-        'delivered-to-dialled': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDelivered}) AND NOT EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDialled})`,
-        'dialled-to-rpc': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validDialled}) AND NOT EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE SAFE_CAST(h.rpc AS INT64) > 0)`,
-        'rpc-to-sales': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE SAFE_CAST(h.rpc AS INT64) > 0) AND NOT EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validSale})`,
-        'sales-to-activated': `EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validSale}) AND NOT EXISTS (SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validActivation})`,
-      };
-      const condition = conditions[value];
-      if (!condition) throw new RequestError('Unsupported funnel-loss drill', 422);
-      drillCondition = `AND ${condition}`;
-    } else {
-      throw new RequestError('Unsupported drill-down population', 422);
+    let condition: string | undefined;
+    switch (params.drill) {
+      case 'awaiting-first-dial': condition = 'm.is_delivered AND NOT m.is_dialled'; break;
+      case 'missing-disposition': condition = 'm.is_dialled AND NOT m.has_disposition'; break;
+      case 'unactivated-sales': condition = 'm.is_sale AND NOT m.is_activated AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), m.sale_ts, DAY) > 14'; break;
+      case 'high-attempt-no-rpc': condition = 'm.recorded_call_count >= 5 AND m.is_rpc IS FALSE'; break;
+      case 'one-call-only': condition = 'm.is_dialled AND m.recorded_call_count = 1'; break;
+      case 'sla-breach': condition = `m.is_delivered AND ((m.is_dialled AND ${timing} > 900) OR (NOT m.is_dialled AND ${wait} > 900))`; break;
+      case 'backlog-age': {
+        const buckets: Record<string, string> = {
+          '0–15m': `${wait} BETWEEN 0 AND 900`,
+          '15–30m': `${wait} > 900 AND ${wait} <= 1800`,
+          '30–60m': `${wait} > 1800 AND ${wait} <= 3600`,
+          '1–6h': `${wait} > 3600 AND ${wait} <= 21600`,
+          '6–12h': `${wait} > 21600 AND ${wait} <= 43200`,
+          '12–24h': `${wait} > 43200 AND ${wait} <= 86400`,
+          '24h+': `${wait} > 86400`,
+        };
+        if (!buckets[value]) throw new RequestError('Unsupported backlog drill bucket', 422);
+        condition = `m.is_delivered AND NOT m.is_dialled AND ${buckets[value]}`;
+        break;
+      }
+      case 'funnel-stage': condition = ({ fetched: 'TRUE', delivered: 'm.is_delivered', dialled: 'm.is_dialled', rpc: 'm.is_rpc', sales: 'm.is_sale', activated: 'm.is_activated' } as Record<string, string>)[value]; break;
+      case 'lead-age': {
+        const buckets: Record<string, string> = {
+          'Invalid timing': `${timing} < 0`,
+          '0–5m': `${timing} BETWEEN 0 AND 300`,
+          '0–15m': `${timing} BETWEEN 0 AND 900`,
+          '5–15m': `${timing} > 300 AND ${timing} <= 900`,
+          '15–30m': `${timing} > 900 AND ${timing} <= 1800`,
+          '30–60m': `${timing} > 1800 AND ${timing} <= 3600`,
+          '1–6h': `${timing} > 3600 AND ${timing} <= 21600`,
+          '6–24h': `${timing} > 21600 AND ${timing} <= 86400`,
+          '24h+': `${timing} > 86400`,
+        };
+        condition = value === 'Not delivered' ? 'NOT m.is_delivered' : value === 'Undialled' ? 'm.is_delivered AND NOT m.is_dialled' : buckets[value] ? `m.is_delivered AND m.is_dialled AND ${buckets[value]}` : undefined;
+        break;
+      }
+      case 'funnel-loss': condition = ({
+        'fetched-to-delivered': 'NOT m.is_delivered',
+        'delivered-to-dialled': 'm.is_delivered AND NOT m.is_dialled',
+        'dialled-to-rpc': 'm.is_dialled AND m.is_rpc IS FALSE',
+        'rpc-to-sales': 'm.is_rpc AND NOT m.is_sale',
+        'sales-to-activated': 'm.is_sale AND NOT m.is_activated',
+      } as Record<string, string>)[value]; break;
+      default: throw new RequestError('Unsupported drill-down population', 422);
     }
+    if (!condition) throw new RequestError(`Unsupported ${params.drill} drill`, 422);
+    drillCondition = `AND (${condition})`;
   }
 
   const query = `
@@ -149,11 +93,11 @@ export async function getRawLeads(params: OffernetQueryParams) {
           WHERE ${vendorPredicates.length ? vendorPredicates.join(' AND ') : 'TRUE'}) AS hlc_details
       )
       FROM ${configuredSourceTable(params.clientId, 'leads')} l
-    )
+    ), ${operationalLeadCtes(params, false, 'scoped_leads')}
     SELECT
       l.lead_id,
       l.consumer_id,
-      FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', SAFE_CAST(l.fetched AS TIMESTAMP)) as fetched,
+      FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', m.fetched_ts) as fetched,
       COALESCE(l.offershop_source, 'Unknown') as source,
       COALESCE(l.offernet_medium, 'Unknown') as medium,
       COALESCE(l.offershop_grade, 'Standard') as grade,
@@ -165,22 +109,23 @@ export async function getRawLeads(params: OffernetQueryParams) {
       hlc.transaction_id,
       hlc.status,
       hlc.last_dialer_status,
-      FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', SAFE_CAST(hlc.delivered AS TIMESTAMP)) as delivered_time,
-      FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', SAFE_CAST(hlc.first_call_date AS TIMESTAMP)) as first_call_time,
-      COALESCE(hlc.total_calls, 0) as total_calls,
-      hlc.first_call_date IS NOT NULL AND hlc.first_call_date NOT LIKE '1900%' AND hlc.first_call_date NOT LIKE '1970%' as dialled,
-      SAFE_CAST(hlc.rpc AS INT64) > 0 as contacted,
-      hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' as sale,
-      hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' as activated,
+      FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', m.delivered_ts) as delivered_time,
+      FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', m.first_call_ts) as first_call_time,
+      m.recorded_call_count as total_calls,
+      m.is_dialled as dialled,
+      m.is_rpc as contacted,
+      m.is_sale as sale,
+      m.is_activated as activated,
       COALESCE(hlc.revenue_generated, 0) as revenue
     FROM scoped_leads l
+    JOIN operational_leads m ON l.lead_id = m.lead_id
     LEFT JOIN UNNEST(l.hlc_details) hlc
     ${whereSql}
     ${searchCondition}
     ${drillCondition}
     QUALIFY ROW_NUMBER() OVER (
       PARTITION BY l.lead_id
-      ORDER BY SAFE_CAST(hlc.delivered AS TIMESTAMP) DESC NULLS LAST
+      ORDER BY ${validTimestampSql('hlc.delivered')} DESC NULLS LAST
     ) = 1
     ORDER BY SAFE_CAST(l.fetched AS TIMESTAMP) DESC
     LIMIT ${limit}

@@ -20,7 +20,9 @@ import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { VendorControlsPanel } from '../components/OfferNetControlPanels';
 
-const fmt = (value: number) => value.toLocaleString();
+import { formatPercent, formatTableNumber } from '../lib/formatters';
+
+const fmt = formatTableNumber;
 
 export default function VendorLeadQuality() {
   const scoped = useScopedNavigationTarget();
@@ -37,10 +39,10 @@ export default function VendorLeadQuality() {
 
   const scatter = useMemo(
     () => (data?.vendors || [])
-      .filter(vendor => vendor.medianFirstDialSec !== null)
+      .filter(vendor => vendor.medianFirstDialSec != null && vendor.contactRate != null)
       .map(vendor => ({
         vendor: vendor.vendor,
-        firstDialMinutes: Number(((vendor.medianFirstDialSec || 0) / 60).toFixed(1)),
+        firstDialMinutes: Number((vendor.medianFirstDialSec! / 60).toFixed(1)),
         rpcRate: vendor.contactRate,
         volume: vendor.leads,
         saleRate: vendor.saleRate,
@@ -115,8 +117,8 @@ export default function VendorLeadQuality() {
                               <strong>{point.vendor}</strong>
                               <span>{fmt(point.volume)} leads</span>
                               <span>{point.firstDialMinutes}m median first dial</span>
-                              <span>{point.rpcRate}% RPC / dialled</span>
-                              <span>{point.saleRate}% sale / RPC</span>
+                              <span>{formatPercent(point.rpcRate)} RPC / dialled</span>
+                              <span>{formatPercent(point.saleRate)} sale / RPC</span>
                             </div>
                           );
                         }}
@@ -125,7 +127,7 @@ export default function VendorLeadQuality() {
                     </ScatterChart>
                   </ResponsiveContainer>
                 </div>
-              ) : <div className="cx-command-empty">No validated first-dial values are available for this scope.</div>}
+              ) : <div className="cx-command-empty">Measured first-dial latency and RPC rate are both required for this chart.</div>}
             </section>
 
             <section className="cx-command-panel">
@@ -133,7 +135,7 @@ export default function VendorLeadQuality() {
                 <div>
                   <span className="cx-command-section-kicker">Vendor detail</span>
                   <h2>Operational performance</h2>
-                  <p>Stage rates remain separate so a slow vendor is not automatically interpreted as a low-quality vendor.</p>
+                  <p>Stage rates remain separate so a slow vendor is not automatically interpreted as a low-quality vendor. A dash means the metric is unavailable for this scope.</p>
                 </div>
               </header>
               <div className="cx-performance-table-wrap">
@@ -157,14 +159,14 @@ export default function VendorLeadQuality() {
                       <tr key={`${vendor.vendor}-${index}`}>
                         <th>{vendor.vendor}</th>
                         <td>{fmt(vendor.leads)}</td>
-                        <td>{vendor.deliveryRate}%</td>
-                        <td>{vendor.dialRate}%</td>
-                        <td>{vendor.contactRate}%</td>
-                        <td>{vendor.saleRate}%</td>
-                        <td>{vendor.activationRate}%</td>
+                        <td>{formatPercent(vendor.deliveryRate)}</td>
+                        <td>{formatPercent(vendor.dialRate)}</td>
+                        <td>{formatPercent(vendor.contactRate)}</td>
+                        <td>{formatPercent(vendor.saleRate)}</td>
+                        <td>{formatPercent(vendor.activationRate)}</td>
                         <td>{vendor.medianFirstDial}</td>
-                        <td>{vendor.callsPerLead}</td>
-                        <td>{vendor.invalidRate}%</td>
+                        <td>{fmt(vendor.callsPerLead)}</td>
+                        <td>{formatPercent(vendor.invalidRate)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -201,12 +203,12 @@ export default function VendorLeadQuality() {
                       <tr key={`${source.source}-${index}`}>
                         <th>{source.source}</th>
                         <td>{fmt(source.leads)}</td>
-                        <td>{source.deliveryRate}%</td>
-                        <td>{source.dialRate}%</td>
-                        <td>{source.contactRate}%</td>
-                        <td>{source.leadToSaleRate}%</td>
-                        <td>{source.activationRate}%</td>
-                        <td>{source.invalidRate}%</td>
+                        <td>{formatPercent(source.deliveryRate)}</td>
+                        <td>{formatPercent(source.dialRate)}</td>
+                        <td>{formatPercent(source.contactRate)}</td>
+                        <td>{formatPercent(source.leadToSaleRate)}</td>
+                        <td>{formatPercent(source.activationRate)}</td>
+                        <td>{formatPercent(source.invalidRate)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -240,7 +242,7 @@ function QualityOutcome({
 }: {
   title: string;
   description: string;
-  rows: Array<{ label: string; leads: number; contactRate: number; leadToSaleRate: number; activationRate: number }>;
+  rows: Array<{ label: string; leads: number; contactRate: number | null; leadToSaleRate: number | null; activationRate: number | null }>;
 }) {
   return (
     <section className="cx-command-panel">
@@ -260,9 +262,9 @@ function QualityOutcome({
           <div key={`${row.label}-${index}`}>
             <strong>{row.label}</strong>
             <span>{fmt(row.leads)}</span>
-            <span>{row.contactRate}%</span>
-            <span>{row.leadToSaleRate}%</span>
-            <span>{row.activationRate}%</span>
+            <span>{formatPercent(row.contactRate)}</span>
+            <span>{formatPercent(row.leadToSaleRate)}</span>
+            <span>{formatPercent(row.activationRate)}</span>
           </div>
         ))}
       </div>

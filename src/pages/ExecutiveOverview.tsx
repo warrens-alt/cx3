@@ -24,7 +24,7 @@ import RootCauseDrawer from '../components/RootCauseDrawer';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { OperatingControlStrip } from '../components/OfferNetControlPanels';
-import { formatTableNumber } from '../lib/formatters';
+import { formatPercent, formatTableNumber } from '../lib/formatters';
 
 const fmt = (value: number | string | null | undefined) => formatTableNumber(value);
 type RootMetric = RootCauseData['metric']['id'];
@@ -147,10 +147,10 @@ export default function ExecutiveOverview() {
           <>
             <section className="cx-command-metrics" aria-label="Primary operational metrics">
               <Metric label="Fetched leads" value={fmt(data.kpis.fetchedLeads)} note="Incoming lead population" change={data.comparison?.fetchedDelta} onWhyChanged={hasComparison ? () => investigate('fetchedLeads') : undefined} />
-              <Metric label="Delivery rate" value={`${data.kpis.deliveryRate}%`} note={`${fmt(data.kpis.deliveredLeads)} delivered`} change={data.comparison?.deliveryRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('deliveryRate') : undefined} />
-              <Metric label="Dial coverage" value={`${data.kpis.dialRate}%`} note={`${fmt(data.kpis.dialledLeads)} dialled`} change={data.comparison?.dialRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('dialRate') : undefined} />
-              <Metric label="RPC rate" value={`${data.kpis.contactRate}%`} note={`${fmt(data.kpis.contactedLeads)} contacted`} change={data.comparison?.contactRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('contactRate') : undefined} />
-              <Metric label="Sale / fetched" value={`${data.kpis.leadToSaleRate}%`} note={`${fmt(data.kpis.saleLeads)} recorded sales`} change={data.comparison?.saleRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('leadToSaleRate') : undefined} />
+              <Metric label="Delivery rate" value={formatPercent(data.kpis.deliveryRate)} note={`${fmt(data.kpis.deliveredLeads)} delivered`} change={data.comparison?.deliveryRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('deliveryRate') : undefined} />
+              <Metric label="Dial coverage" value={formatPercent(data.kpis.dialRate)} note={`${fmt(data.kpis.dialledLeads)} dialled`} change={data.comparison?.dialRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('dialRate') : undefined} />
+              <Metric label="RPC rate" value={formatPercent(data.kpis.contactRate)} note={`${fmt(data.kpis.contactedLeads)} contacted`} change={data.comparison?.contactRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('contactRate') : undefined} />
+              <Metric label="Sale / fetched" value={formatPercent(data.kpis.leadToSaleRate)} note={`${fmt(data.kpis.saleLeads)} recorded sales`} change={data.comparison?.saleRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('leadToSaleRate') : undefined} />
             </section>
 
             {controls.data && <OperatingControlStrip data={controls.data} />}
@@ -179,8 +179,8 @@ export default function ExecutiveOverview() {
                   <div><span className="cx-command-section-kicker">Speed</span><h2>First-dial SLA</h2><p>Delivered leads dialled within {data.sla.firstDialTargetMinutes} minutes.</p></div>
                   {isAdmin ? <Link to={recordLink('sla-breach')}>View breaches <ArrowRight size={13} /></Link> : <Link to={scoped('/speed-to-lead')}>Diagnose <ArrowRight size={13} /></Link>}
                 </header>
-                <div className="cx-sla-number">{data.sla.complianceRate}%</div>
-                <div className="cx-sla-track"><span style={{ width: `${Math.min(100, Math.max(0, data.sla.complianceRate))}%` }} /></div>
+                <div className="cx-sla-number">{formatPercent(data.sla.complianceRate)}</div>
+                {data.sla.complianceRate != null && <div className="cx-sla-track"><span style={{ width: `${Math.min(100, Math.max(0, data.sla.complianceRate))}%` }} /></div>}
                 <dl>
                   <div><dt>Median delivery → dial</dt><dd>{data.sla?.medianDeliveryToDial || '—'}</dd></div>
                   <div><dt>P90 delivery → dial</dt><dd>{data.sla?.p90DeliveryToDial || '—'}</dd></div>
@@ -200,9 +200,9 @@ export default function ExecutiveOverview() {
                   <React.Fragment key={stage.key}>
                     {isAdmin ? (
                       <Link className="cx-funnel-stage cx-funnel-stage-link" to={recordLink('funnel-stage', stage.key)} title={`Inspect ${stage.name} leads`}>
-                        <span>{stage.name}</span><strong>{fmt(stage.volume)}</strong>{index > 0 && <small>{stage.transitionRate}% from prior stage</small>}
+                        <span>{stage.name}</span><strong>{fmt(stage.volume)}</strong>{index > 0 && <small>{formatPercent(stage.transitionRate)} from prior stage</small>}
                       </Link>
-                    ) : <div className="cx-funnel-stage"><span>{stage.name}</span><strong>{fmt(stage.volume)}</strong>{index > 0 && <small>{stage.transitionRate}% from prior stage</small>}</div>}
+                    ) : <div className="cx-funnel-stage"><span>{stage.name}</span><strong>{fmt(stage.volume)}</strong>{index > 0 && <small>{formatPercent(stage.transitionRate)} from prior stage</small>}</div>}
                     {index < (data.funnelStages?.length || 0) - 1 && (
                       isAdmin ? (
                         <Link className="cx-funnel-arrow cx-funnel-arrow-link" to={recordLink('funnel-loss', lossKeys[index])} title="Inspect records lost at this transition">
@@ -217,7 +217,7 @@ export default function ExecutiveOverview() {
                 <div className="cx-funnel-leak">
                   <GitFork size={16} />
                   <div><span>Largest measured loss</span><strong>{data.funnelLeak.from} → {data.funnelLeak.to}</strong></div>
-                  <b>−{fmt(data.funnelLeak.loss)}</b><small>{data.funnelLeak.rate}% progressed</small>
+                  <b>−{fmt(data.funnelLeak.loss)}</b><small>{formatPercent(data.funnelLeak.rate)} progressed</small>
                 </div>
               )}
             </section>

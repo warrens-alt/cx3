@@ -3,6 +3,11 @@ import { getClientConfig, tenantVendorScopeValues } from './config';
 import { conditionSql, RequestError, type Scalar } from './filters';
 import { flatSchema, type TableMetadata } from './sourceAccess';
 
+/** The separate activation lifecycle table is contracted only to BLC and the master workspace. */
+export function activationSourceIsOwned(clientId: string): boolean {
+  return ['default_tenant', 'ontact_blc'].includes(getClientConfig(clientId).id);
+}
+
 /** Mandatory ownership restrictions are separate from optional caller filters. */
 export function sourceTenantPredicate(clientId: string, role: SourceRole, meta: TableMetadata, params: Record<string, Scalar>): string | null {
   const client = getClientConfig(clientId);
@@ -30,7 +35,7 @@ export function sourceTenantPredicate(clientId: string, role: SourceRole, meta: 
   if (role === 'leads' && client.dataSourceMode === 'separate' && client.semanticMappings.tables.leads !== getClientConfig('default_tenant').semanticMappings.tables.leads) {
     return null; // Configured tenant-specific source view, never the master ledger.
   }
-  if (role === 'activations' && client.id === 'ontact_blc') return null; // Explicitly configured BLC-only source.
+  if (role === 'activations' && activationSourceIsOwned(clientId)) return null;
   // Time-to-dial has no reviewed ownership/join mapping; inspecting a schema
   // cannot establish one. Do not substitute a master aggregate for this tenant.
   throw new RequestError(`Tenant ownership is not established for the ${role} source`, 422);

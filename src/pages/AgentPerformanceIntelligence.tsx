@@ -7,7 +7,8 @@ import { useClient } from '../lib/ClientContext';
 import { fetchAgentPerformance, type AgentPerformanceData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
-import { downloadCsv } from '../lib/formatters';
+import { downloadCsv, formatPercent, formatRatioPercent, formatTableNumber } from '../lib/formatters';
+import { sumRecordedValues } from '../lib/metricPresentation';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 
 export default function AgentPerformanceIntelligence() {
@@ -26,7 +27,7 @@ export default function AgentPerformanceIntelligence() {
   const handleExportCsv = () => {
     if (!data) return;
     const rows = [
-      ['Agent', 'Vendor', 'Calls', 'Unique leads', 'RPC', 'RPC rate', 'Sales', 'Sale / RPC', 'Talk time', 'Avg handle', 'Callbacks'],
+      ['Agent', 'Vendor', 'Calls', 'Unique leads', 'RPC', 'RPC rate', 'Sale calls', 'Sold RPC / RPC (%)', 'Talk time', 'Avg handle', 'Callbacks'],
       ...data.agents.map(row => [
         row.agentId, row.vendor, row.totalCalls, row.uniqueLeads, row.contactCount, row.contactRate,
         row.salesCount, row.saleRate, row.totalTalkTime, row.avgHandleTime, row.callbacksBooked,
@@ -47,9 +48,10 @@ export default function AgentPerformanceIntelligence() {
     const agents = data?.agents || [];
     return {
       agents: agents.length,
-      calls: agents.reduce((sum, row) => sum + row.totalCalls, 0),
-      contacts: agents.reduce((sum, row) => sum + row.contactCount, 0),
-      sales: agents.reduce((sum, row) => sum + row.salesCount, 0),
+      calls: sumRecordedValues(agents.map(row => row.totalCalls)),
+      contacts: sumRecordedValues(agents.map(row => row.contactCount)),
+      sales: sumRecordedValues(agents.map(row => row.salesCount)),
+      rpcSales: sumRecordedValues(agents.map(row => row.rpcSalesCount)),
     };
   }, [data?.agents]);
 
@@ -65,7 +67,7 @@ export default function AgentPerformanceIntelligence() {
         <OperationalPageHeader
           eyebrow="Contact"
           title="Agent activity"
-          description="Observed dialler activity and outcomes by agent. CX3 does not assign performance scores or tiers."
+          description="Observed dialler calls and call outcomes by agent. CX3 does not assign performance scores or tiers."
           status={data?.rankingStatus || 'NOT_VERIFIED'}
           statusLabel="Ranking status"
         />
@@ -77,9 +79,9 @@ export default function AgentPerformanceIntelligence() {
           <>
             <section className="cx-command-metrics cx-agent-metrics">
               <article className="cx-command-metric"><span>Agents observed</span><strong>{totals.agents.toLocaleString()}</strong><div><small>Distinct agent/vendor rows</small></div></article>
-              <article className="cx-command-metric"><span>Total calls</span><strong>{totals.calls.toLocaleString()}</strong><div><small>Recorded dialler attempts</small></div></article>
-              <article className="cx-command-metric"><span>RPC</span><strong>{totals.contacts.toLocaleString()}</strong><div><small>{totals.calls > 0 ? ((totals.contacts / totals.calls) * 100).toFixed(1) : '0.0'}% of calls</small></div></article>
-              <article className="cx-command-metric"><span>Sales</span><strong>{totals.sales.toLocaleString()}</strong><div><small>{totals.contacts > 0 ? ((totals.sales / totals.contacts) * 100).toFixed(1) : '0.0'}% of RPC</small></div></article>
+              <article className="cx-command-metric"><span>Total calls</span><strong>{formatTableNumber(totals.calls)}</strong><div><small>Recorded calls in the displayed roster</small></div></article>
+              <article className="cx-command-metric"><span>RPC</span><strong>{formatTableNumber(totals.contacts)}</strong><div><small>{formatRatioPercent(totals.contacts, totals.calls)} of calls</small></div></article>
+              <article className="cx-command-metric"><span>Sales</span><strong>{formatTableNumber(totals.sales)}</strong><div><small>{formatRatioPercent(totals.rpcSales, totals.contacts)} of RPC calls sold</small></div></article>
             </section>
 
             <section className="cx-command-panel">
@@ -87,7 +89,8 @@ export default function AgentPerformanceIntelligence() {
                 <div>
                   <span className="cx-command-section-kicker">Roster</span>
                   <h2>Agent activity & outcomes</h2>
-                  <p>{data.rankingReason}</p>
+                  <p>Summary totals cover the displayed roster: up to 100 agent/vendor groups with the most calls in the selected scope.</p>
+                  <p>{data.rankingReason} A dash marks unavailable call evidence; recorded zeros remain zero. {data.metricAvailabilityReason}</p>
                 </div>
                 <Users size={16} className="text-slate-400"/>
               </header>
@@ -108,10 +111,10 @@ export default function AgentPerformanceIntelligence() {
                       <th>Vendor</th>
                       <th>Calls</th>
                       <th>Unique leads</th>
-                      <th>RPC</th>
+                      <th>RPC calls</th>
                       <th>RPC / calls</th>
-                      <th>Sales</th>
-                      <th>Sale / RPC</th>
+                      <th>Sale calls</th>
+                      <th>Sold RPC / RPC</th>
                       <th>Talk time</th>
                       <th>Avg handle</th>
                       <th>Callbacks</th>
@@ -122,15 +125,15 @@ export default function AgentPerformanceIntelligence() {
                       <tr key={`${row.agentId}-${row.vendor}-${index}`}>
                         <th>{row.agentId}</th>
                         <td>{row.vendor}</td>
-                        <td>{row.totalCalls.toLocaleString()}</td>
-                        <td>{row.uniqueLeads.toLocaleString()}</td>
-                        <td>{row.contactCount.toLocaleString()}</td>
-                        <td>{row.contactRate}%</td>
-                        <td>{row.salesCount.toLocaleString()}</td>
-                        <td>{row.saleRate}%</td>
-                        <td>{row.totalTalkTime}</td>
-                        <td>{row.avgHandleTime}</td>
-                        <td>{row.callbacksBooked.toLocaleString()}</td>
+                        <td>{formatTableNumber(row.totalCalls)}</td>
+                        <td>{formatTableNumber(row.uniqueLeads)}</td>
+                        <td title={row.fieldCoverage ? `${formatTableNumber(row.fieldCoverage.rpc.observedCalls)} of ${formatTableNumber(row.fieldCoverage.rpc.totalCalls)} calls have recorded RPC flags` : undefined}>{formatTableNumber(row.contactCount)}</td>
+                        <td>{formatPercent(row.contactRate)}</td>
+                        <td>{formatTableNumber(row.salesCount)}</td>
+                        <td title="Call rows marked both RPC and sale / recorded RPC calls">{formatPercent(row.saleRate, 2)}</td>
+                        <td>{row.totalTalkTime || 'Unavailable'}</td>
+                        <td>{row.avgHandleTime || 'Unavailable'}</td>
+                        <td>{formatTableNumber(row.callbacksBooked)}</td>
                       </tr>
                     ))}
                   </tbody>
