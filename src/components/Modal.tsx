@@ -27,7 +27,7 @@ export default function Modal({ open, isOpen, onClose, label, className = '', ch
       aria-modal="true"
       aria-label={label}
     >
-      <button type="button" className="fixed inset-0 cursor-default" onClick={onClose} aria-label="Close dialog" tabIndex={-1} />
+      <div className="fixed inset-0" onMouseDown={onClose} aria-hidden="true" />
       <div
         ref={dialogRef}
         tabIndex={-1}
