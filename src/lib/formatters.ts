@@ -1,10 +1,11 @@
-export function formatKpiValue(val: string | number): string {
+export function formatKpiValue(val: string | number | null | undefined): string {
+  if (val === null || val === undefined || val === '') return '—';
   if (typeof val !== 'number') {
     const parsed = Number(val);
-    if (isNaN(parsed) || !isFinite(parsed)) return String(val || '0');
+    if (isNaN(parsed) || !isFinite(parsed)) return String(val);
     val = parsed;
   }
-  if (!isFinite(val)) return '0';
+  if (!isFinite(val)) return '—';
   const sign = val < 0 ? '-' : '';
   const abs = Math.abs(val);
   if (abs >= 1000000) {
@@ -17,7 +18,7 @@ export function formatKpiValue(val: string | number): string {
 }
 
 export function formatChartAxis(val: number): string {
-  if (!isFinite(val)) return '0';
+  if (!isFinite(val)) return '—';
   const sign = val < 0 ? '-' : '';
   const abs = Math.abs(val);
   if (abs >= 1000000) return sign + (abs / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
@@ -26,7 +27,7 @@ export function formatChartAxis(val: number): string {
 }
 
 export function formatChartTooltip(val: number, isCurrency: boolean = false, isRate: boolean = false): string {
-  if (!isFinite(val)) return '0';
+  if (!isFinite(val)) return '—';
   if (isRate) {
     // If the value is a fraction (e.g. 0.125), scale to 12.5%. If already a percent (e.g. 12.5), display as is.
     const pctVal = (Math.abs(val) <= 1 && val !== 0) ? val * 100 : val;
@@ -59,14 +60,14 @@ export function formatTableCurrency(val: number | string | null | undefined, pre
 export function formatPercent(val: number | string | null | undefined, decimals: number = 1): string {
   if (val === null || val === undefined || val === '') return '—';
   const num = Number(val);
-  if (isNaN(num) || !isFinite(num)) return '0.0%';
+  if (isNaN(num) || !isFinite(num)) return '—';
   return `${num.toFixed(decimals)}%`;
 }
 
 export function formatCurrency(val: number | string | null | undefined, decimals: number = 2): string {
   if (val === null || val === undefined || val === '') return '—';
   const num = Number(val);
-  if (isNaN(num) || !isFinite(num)) return 'R 0.00';
+  if (isNaN(num) || !isFinite(num)) return '—';
   const sign = num < 0 ? '-' : '';
   const abs = Math.abs(num);
   return `${sign}R ${abs.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;

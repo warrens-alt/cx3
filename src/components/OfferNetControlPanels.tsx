@@ -2,17 +2,39 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, Clock3, ListChecks, PhoneCall, ShieldCheck } from 'lucide-react';
 import type { OperatingControlsData } from '../lib/offernetClient';
+import { formatPercent, formatTableNumber } from '../lib/formatters';
 
-const fmt = (value: number | null | undefined) => (value == null || Number.isNaN(Number(value)) ? '0' : Number(value).toLocaleString());
+const fmt = (value: number | string | null | undefined) => formatTableNumber(value);
+const pct = (value: number | string | null | undefined, decimals = 1) => formatPercent(value, decimals);
+const metricNumber = (value: unknown) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+};
+
+function UnavailableControlPanel({ title }: { title: string }) {
+  return (
+    <section className="cx-command-panel">
+      <header>
+        <div>
+          <span className="cx-command-section-kicker">Unavailable</span>
+          <h2>{title}</h2>
+          <p>The analytical response did not include the required measured fields for this scope.</p>
+        </div>
+        <AlertTriangle size={16} className="text-slate-400"/>
+      </header>
+    </section>
+  );
+}
 
 export function OperatingControlStrip({ data }: { data: OperatingControlsData }) {
-  const s = data?.summary || ({} as any);
+  const s = data?.summary;
+  if (!s) return <UnavailableControlPanel title="OfferNet operating controls" />;
   return (
     <section className="cx-command-metrics cx-control-metrics" aria-label="OfferNet operating controls">
       <article className="cx-command-metric">
         <span>Capture → first dial</span>
         <strong>{s.captureToDialMedian || '—'}</strong>
-        <div><small>P90 {s.captureToDialP90 || '—'} · {s.captureWithin15mRate ?? 0}% within 15m</small></div>
+        <div><small>P90 {s.captureToDialP90 || '—'} · {pct(s.captureWithin15mRate)} within 15m</small></div>
       </article>
       <article className="cx-command-metric">
         <span>Awaiting first dial</span>
@@ -21,7 +43,7 @@ export function OperatingControlStrip({ data }: { data: OperatingControlsData })
       </article>
       <article className="cx-command-metric">
         <span>One-call share</span>
-        <strong>{s.singleAttemptSharePct ?? 0}%</strong>
+        <strong>{pct(s.singleAttemptSharePct)}</strong>
         <div><small>{fmt(s.oneCallLeads)} leads with one recorded call-count</small></div>
       </article>
       <article className="cx-command-metric">
@@ -31,12 +53,12 @@ export function OperatingControlStrip({ data }: { data: OperatingControlsData })
       </article>
       <article className="cx-command-metric">
         <span>Disposition complete</span>
-        <strong>{s.dispositionCompletenessPct ?? 0}%</strong>
+        <strong>{pct(s.dispositionCompletenessPct)}</strong>
         <div><small>Dialled leads with a recorded latest disposition</small></div>
       </article>
       <article className="cx-command-metric">
         <span>Outside operating hours</span>
-        <strong>{s.afterHoursSharePct ?? 0}%</strong>
+        <strong>{pct(s.afterHoursSharePct)}</strong>
         <div><small>{fmt(s.afterHoursLeads)} captured outside configured coverage</small></div>
       </article>
       <article className="cx-command-metric">
@@ -70,26 +92,27 @@ export function AttemptCoveragePanel({ data }: { data: OperatingControlsData }) 
               <tr key={row.bucket}>
                 <th>{row.bucket}</th>
                 <td>{fmt(row.leads)}</td>
-                <td>{row.sharePct}%</td>
+                <td>{pct(row.sharePct)}</td>
                 <td>{fmt(row.contacted)}</td>
-                <td>{row.contactRate}%</td>
+                <td>{pct(row.contactRate)}</td>
                 <td>{fmt(row.sales)}</td>
-                <td>{row.saleRate}%</td>
+                <td>{pct(row.saleRate, 2)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <div className="cx-control-note">{data?.methodology?.callCount || ''}</div>
+      <div className="cx-control-note">{data?.methodology?.callCount || 'Methodology unavailable for this scope.'}</div>
     </section>
   );
 }
 
 export function CaptureTurnaroundPanel({ data }: { data: OperatingControlsData }) {
-  const s = data?.summary || ({} as any);
+  const s = data?.summary;
+  if (!s) return <UnavailableControlPanel title="Capture → first dial" />;
   const hourlyFlow = data?.hourlyFlow || [];
   const dailyTurnaround = data?.dailyTurnaround || [];
-  const maxFlow = Math.max(1, ...hourlyFlow.flatMap(row => [row?.captured || 0, row?.firstDials || 0]));
+  const maxFlow = Math.max(1, ...hourlyFlow.flatMap(row => [metricNumber(row?.captured), metricNumber(row?.firstDials)]));
   const recent = dailyTurnaround.slice(-14).reverse();
 
   return (
@@ -106,8 +129,8 @@ export function CaptureTurnaroundPanel({ data }: { data: OperatingControlsData }
       <div className="cx-turnaround-kpis">
         <article><span>Median</span><strong>{s.captureToDialMedian || '—'}</strong><small>Observed dialled leads</small></article>
         <article><span>P90</span><strong>{s.captureToDialP90 || '—'}</strong><small>Tail turnaround</small></article>
-        <article><span>≤15 minutes</span><strong>{s.captureWithin15mRate ?? 0}%</strong><small>All captured leads in scope</small></article>
-        <article><span>≤1 hour</span><strong>{s.captureWithin60mRate ?? 0}%</strong><small>All captured leads in scope</small></article>
+        <article><span>≤15 minutes</span><strong>{pct(s.captureWithin15mRate)}</strong><small>All captured leads in scope</small></article>
+        <article><span>≤1 hour</span><strong>{pct(s.captureWithin60mRate)}</strong><small>All captured leads in scope</small></article>
         <article><span>Waiting first dial</span><strong>{fmt(s.awaitingFirstDial)}</strong><small>Oldest delivered wait {s.oldestDeliveryWait || '—'}</small></article>
       </div>
 
@@ -120,8 +143,8 @@ export function CaptureTurnaroundPanel({ data }: { data: OperatingControlsData }
               <div key={row.hour}>
                 <span>{String(row.hour).padStart(2, '0')}:00</span>
                 <div className="cx-hour-flow-bars">
-                  <i data-series="captured" style={{ width: `${((row.captured || 0) / maxFlow) * 100}%` }} />
-                  <i data-series="dialled" style={{ width: `${((row.firstDials || 0) / maxFlow) * 100}%` }} />
+                  <i data-series="captured" style={{ width: `${(metricNumber(row.captured) / maxFlow) * 100}%` }} />
+                  <i data-series="dialled" style={{ width: `${(metricNumber(row.firstDials) / maxFlow) * 100}%` }} />
                 </div>
                 <small>{fmt(row.captured)} in · {fmt(row.firstDials)} first dials</small>
               </div>
@@ -142,8 +165,8 @@ export function CaptureTurnaroundPanel({ data }: { data: OperatingControlsData }
                     <td>{fmt(row.leads)}</td>
                     <td>{row.median || '—'}</td>
                     <td>{row.p90 || '—'}</td>
-                    <td>{row.within15mRate}%</td>
-                    <td>{row.within60mRate}%</td>
+                    <td>{pct(row.within15mRate)}</td>
+                    <td>{pct(row.within60mRate)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -151,14 +174,14 @@ export function CaptureTurnaroundPanel({ data }: { data: OperatingControlsData }
           </div>
         </div>
       </div>
-      <div className="cx-control-note">{data?.methodology?.captureTurnaround || ''}</div>
+      <div className="cx-control-note">{data?.methodology?.captureTurnaround || 'Methodology unavailable for this scope.'}</div>
     </section>
   );
 }
 
 export function SlaBandsPanel({ data }: { data: OperatingControlsData }) {
   const slaBands = data?.slaBands || [];
-  const max = Math.max(1, ...slaBands.map(row => row?.leads || 0));
+  const max = Math.max(1, ...slaBands.map(row => metricNumber(row?.leads)));
   return (
     <section className="cx-command-panel">
       <header>
@@ -173,10 +196,10 @@ export function SlaBandsPanel({ data }: { data: OperatingControlsData }) {
         {slaBands.map(row => (
           <div key={row.band}>
             <div><strong>{row.band}</strong><small>{fmt(row.leads)} leads</small></div>
-            <div className="cx-control-track"><i style={{ width: `${((row.leads || 0) / max) * 100}%` }}/></div>
+            <div className="cx-control-track"><i style={{ width: `${(metricNumber(row.leads) / max) * 100}%` }}/></div>
             <dl>
-              <div><dt>RPC</dt><dd>{row.contactRate}%</dd></div>
-              <div><dt>Sale</dt><dd>{row.saleRate}%</dd></div>
+              <div><dt>RPC</dt><dd>{pct(row.contactRate)}</dd></div>
+              <div><dt>Sale</dt><dd>{pct(row.saleRate, 2)}</dd></div>
             </dl>
           </div>
         ))}
@@ -186,32 +209,33 @@ export function SlaBandsPanel({ data }: { data: OperatingControlsData }) {
 }
 
 export function OperatingWindowPanel({ data }: { data: OperatingControlsData }) {
-  const s = data?.summary || ({} as any);
-  const context = data?.operatingContext || { start: '08:00', end: '17:30', timezone: 'Africa/Johannesburg' };
+  const s = data?.summary;
+  if (!s) return <UnavailableControlPanel title="Operating-hours comparison" />;
+  const context = data?.operatingContext;
   return (
     <section className="cx-command-panel">
       <header>
         <div>
           <span className="cx-command-section-kicker">Coverage</span>
           <h2>Operating-hours comparison</h2>
-          <p>{context.start}–{context.end} in {context.timezone}; configured working days only.</p>
+          <p>{context ? `${context.start}–${context.end} in ${context.timezone}; configured working days only.` : 'Operating-hours configuration is unavailable for this scope.'}</p>
         </div>
         <Clock3 size={16} className="text-slate-400"/>
       </header>
       <div className="cx-control-window-grid">
         <article>
           <span>Inside operating hours</span>
-          <strong>{s.operatingHoursRpcRate ?? 0}% RPC</strong>
-          <small>{s.operatingHoursSaleRate ?? 0}% sale / lead</small>
+          <strong>{pct(s.operatingHoursRpcRate)} RPC</strong>
+          <small>{pct(s.operatingHoursSaleRate, 2)} sale / lead</small>
         </article>
         <article>
           <span>Outside operating hours</span>
-          <strong>{s.afterHoursRpcRate ?? 0}% RPC</strong>
-          <small>{s.afterHoursSaleRate ?? 0}% sale / lead · {fmt(s.afterHoursLeads)} leads</small>
+          <strong>{pct(s.afterHoursRpcRate)} RPC</strong>
+          <small>{pct(s.afterHoursSaleRate, 2)} sale / lead · {fmt(s.afterHoursLeads)} leads</small>
         </article>
         <article>
           <span>Weekend capture</span>
-          <strong>{s.weekendSharePct ?? 0}%</strong>
+          <strong>{pct(s.weekendSharePct)}</strong>
           <small>{fmt(s.weekendLeads)} captured leads</small>
         </article>
       </div>
@@ -221,7 +245,7 @@ export function OperatingWindowPanel({ data }: { data: OperatingControlsData }) 
 
 export function ActivationAgeingPanel({ data }: { data: OperatingControlsData }) {
   const order = ['0–3d','4–7d','8–14d','15–30d','30d+'];
-  const byBucket = new Map((data?.activationAgeing || []).map(row => [String(row?.bucket), Number(row?.leads || 0)]));
+  const byBucket = new Map((data?.activationAgeing || []).map(row => [String(row?.bucket), metricNumber(row?.leads)]));
   const rows = order.map(bucket => ({ bucket, leads: byBucket.get(bucket) || 0 }));
   const max = Math.max(1, ...rows.map(row => row.leads));
   return (
@@ -269,19 +293,19 @@ export function VendorControlsPanel({ data }: { data: OperatingControlsData }) {
               <tr key={row.vendor}>
                 <th>{row.vendor}</th>
                 <td>{fmt(row.leads)}</td>
-                <td>{row.sla15Rate}%</td>
+                <td>{pct(row.sla15Rate)}</td>
                 <td>{row.medianFirstDial}</td>
-                <td>{row.oneCallSharePct}%</td>
+                <td>{pct(row.oneCallSharePct)}</td>
                 <td>{fmt(row.highAttemptNoRpc)}</td>
-                <td>{row.dispositionCompletenessPct}%</td>
-                <td>{row.rpcRate}%</td>
-                <td>{row.leadToSaleRate}%</td>
+                <td>{pct(row.dispositionCompletenessPct)}</td>
+                <td>{pct(row.rpcRate)}</td>
+                <td>{pct(row.leadToSaleRate, 2)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <div className="cx-control-note">{data?.methodology?.vendor || ''}</div>
+      <div className="cx-control-note">{data?.methodology?.vendor || 'Methodology unavailable for this scope.'}</div>
     </section>
   );
 }
@@ -295,8 +319,9 @@ export function ContactGovernancePanel({
   highAttemptHref?: string;
   oneCallHref?: string;
 }) {
-  const s = data?.summary || ({} as any);
-  const c = data?.dataCompleteness || ({} as any);
+  const s = data?.summary;
+  if (!s) return <UnavailableControlPanel title="Attempt & disposition exceptions" />;
+  const c = data?.dataCompleteness;
   const rows = [
     {
       key: 'high-attempt-no-rpc',
@@ -310,15 +335,15 @@ export function ContactGovernancePanel({
       key: 'one-call-only',
       title: 'Exactly one recorded call',
       value: s.oneCallLeads,
-      detail: `${s.singleAttemptSharePct ?? 0}% of dialled leads have exactly one recorded call-count.`,
+      detail: `${pct(s.singleAttemptSharePct)} of dialled leads have exactly one recorded call-count.`,
       href: oneCallHref,
       severity: 'medium',
     },
     {
       key: 'missing-disposition',
       title: 'Missing latest dial disposition',
-      value: c.missingDisposition,
-      detail: `${s.dispositionCompletenessPct ?? 0}% disposition completeness across dialled leads.`,
+      value: c?.missingDisposition,
+      detail: `${pct(s.dispositionCompletenessPct)} disposition completeness across dialled leads.`,
       severity: 'medium',
     },
   ];
@@ -354,7 +379,8 @@ export function ContactGovernancePanel({
 }
 
 export function DataCompletenessPanel({ data }: { data: OperatingControlsData }) {
-  const c = data?.dataCompleteness || ({} as any);
+  const c = data?.dataCompleteness;
+  if (!c) return <UnavailableControlPanel title="Operational completeness" />;
   const items = [
     ['Missing source', c.missingSource],
     ['Missing grade', c.missingGrade],
@@ -373,7 +399,7 @@ export function DataCompletenessPanel({ data }: { data: OperatingControlsData })
       </header>
       <div className="cx-control-completeness">
         {items.map(([label, value]) => (
-          <article key={label} data-alert={Number(value || 0) > 0}>
+          <article key={label} data-alert={typeof value === 'number' && Number.isFinite(value) && value > 0}>
             <span>{label}</span>
             <strong>{fmt(value)}</strong>
           </article>
