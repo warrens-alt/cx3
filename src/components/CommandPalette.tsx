@@ -2,10 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Search, X, ArrowRight } from 'lucide-react';
 import { PAGE_TITLES } from '../../contracts/naming';
-import { NAV_GROUPS } from '../lib/navigation';
+import { NAV_GROUPS, SECONDARY_DESTINATIONS } from '../lib/navigation';
 import { navigationTarget } from '../lib/presentation';
 import Modal from './Modal';
-const PAGES=NAV_GROUPS.flatMap(group=>group.items.map(item=>({...item,group:group.title,title:item.name || PAGE_TITLES[item.path] || item.path})));
+const PAGES=[...NAV_GROUPS.flatMap(group=>group.items.map(item=>({...item,group:group.title,title:item.name || PAGE_TITLES[item.path] || item.path}))),...SECONDARY_DESTINATIONS.map(item=>({...item,icon:Search,group:'More analyses',title:item.name}))];
 export default function CommandPalette({isOpen,onClose}:{isOpen:boolean;onClose:()=>void;onOpenFilters?:()=>void}){
   const [query,setQuery]=useState(''),[index,setIndex]=useState(0);
   const navigate=useNavigate(),location=useLocation(),list=useRef<HTMLDivElement>(null);
