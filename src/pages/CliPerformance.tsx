@@ -50,7 +50,7 @@ export default function CliPerformance() {
   const { isAdmin } = useAuth();
   const { startDate, endDate, filters, setFilter } = useFilters();
   const currency = clientConfig?.currency || 'ZAR';
-  const sampleDataEnabled = isAdmin && import.meta.env.DEV;
+  const sampleDataEnabled = isAdmin && (import.meta as any).env?.DEV === true;
 
   const [data, setData] = useState<CliPerformanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -367,7 +367,7 @@ export default function CliPerformance() {
               </div>
               {isAdmin ? (
                 <div className="flex flex-wrap gap-3 pt-2">
-                  {import.meta.env.DEV && (
+                  {(import.meta as any).env?.DEV === true && (
                     <button
                       type="button"
                       onClick={handleLoadSample}
@@ -1336,7 +1336,7 @@ export default function CliPerformance() {
               </p>
             </div>
 
-            {import.meta.env.DEV && (
+            {(import.meta as any).env?.DEV === true && (
               <>
                 <div className="relative flex py-1 items-center">
                   <div className="flex-grow border-t border-slate-200"></div>
