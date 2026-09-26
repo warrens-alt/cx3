@@ -128,10 +128,15 @@ function safeAliasedColumn(alias: string, column: string) {
   return `${alias}.${safeWarehouseColumn(column)}`;
 }
 
+const marketingContractCache = new Map<string, { expiresAt: number; value: any }>();
+const MARKETING_CONTRACT_CACHE_TTL_MS = 5 * 60 * 1000;
+
 async function resolveMarketingContract(
   client: ReturnType<typeof getBigQueryClient>,
   contract: MarketingSourceContract,
 ) {
+  const cached = marketingContractCache.get(contract.table);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
   const parsed = parseConfiguredTable(contract.table);
   const [rows] = await client.query({
     query: `
@@ -162,7 +167,7 @@ async function resolveMarketingContract(
   const reachColumn = contract.reachField ? byLower.get(contract.reachField.toLowerCase()) || null : null;
   const outboundClicksColumn = contract.outboundClicksField ? byLower.get(contract.outboundClicksField.toLowerCase()) || null : null;
 
-  return {
+  const value = {
     table: contract.table,
     columns: Array.from(byLower.values()).sort(),
     missingRequired,
@@ -171,6 +176,8 @@ async function resolveMarketingContract(
     reachColumn,
     outboundClicksColumn,
   };
+  marketingContractCache.set(contract.table, { expiresAt: Date.now() + MARKETING_CONTRACT_CACHE_TTL_MS, value });
+  return value;
 }
 
 function marketingSpendExpression(contract: MarketingSourceContract, spendColumn: string | null) {
