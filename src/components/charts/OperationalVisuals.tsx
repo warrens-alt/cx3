@@ -26,6 +26,15 @@ export const ANALYTICS_COLORS = {
   neutral: '#94A3B8',
 } as const;
 
+const CHART_LEGEND_STYLE = { fontSize: 11, paddingTop: 10 };
+const CHART_TOOLTIP_STYLE = {
+  borderRadius: 9,
+  border: '1px solid #DCE4ED',
+  background: 'rgba(255,255,255,.98)',
+  boxShadow: '0 12px 28px rgba(15,23,42,.12)',
+  fontSize: 12,
+};
+
 type RateSeries = {
   key: string;
   label: string;
@@ -41,6 +50,7 @@ interface VolumeRateComboChartProps {
   volumeLabel?: string;
   rateSeries: RateSeries[];
   height?: number;
+  onSelect?: (category: string, row: Record<string, any>) => void;
 }
 
 export function VolumeRateComboChart({
@@ -52,6 +62,7 @@ export function VolumeRateComboChart({
   volumeLabel = 'Volume',
   rateSeries,
   height = 320,
+  onSelect,
 }: VolumeRateComboChartProps) {
   if (!data.length) return null;
 
@@ -81,8 +92,22 @@ export function VolumeRateComboChart({
             <YAxis yAxisId="volume" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={formatChartAxis} />
             <YAxis yAxisId="rate" orientation="right" domain={[0, 'auto']} tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={value => `${formatChartAxis(value)}%`} />
             <Tooltip content={tooltip} />
-            <Legend wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
-            <Bar yAxisId="volume" dataKey={volumeKey} name={volumeLabel} fill={ANALYTICS_COLORS.volume} radius={[4, 4, 0, 0]} maxBarSize={44} isAnimationActive={false} />
+            <Legend wrapperStyle={CHART_LEGEND_STYLE} />
+            <Bar
+              yAxisId="volume"
+              dataKey={volumeKey}
+              name={volumeLabel}
+              fill={ANALYTICS_COLORS.volume}
+              radius={[4, 4, 0, 0]}
+              maxBarSize={44}
+              isAnimationActive={false}
+              className={onSelect ? 'cx-chart-clickable' : undefined}
+              onClick={onSelect ? (entry: any) => {
+                const row = entry?.payload || entry;
+                const category = row?.[xKey];
+                if (category !== null && category !== undefined) onSelect(String(category), row);
+              } : undefined}
+            />
             {rateSeries.map((series, index) => (
               <Line
                 key={series.key}
@@ -155,7 +180,7 @@ export function RankedMetricChart({
             <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#EEF2F6" />
             <XAxis type="number" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={value => `${valuePrefix}${formatChartAxis(value)}${valueSuffix}`} />
             <YAxis type="category" dataKey={categoryKey} width={138} tick={{ fontSize: 11, fill: '#334155' }} axisLine={false} tickLine={false} />
-            <Tooltip formatter={(value: any) => [formatValue(value), valueLabel]} cursor={{ fill: '#F8FAFC' }} />
+            <Tooltip formatter={(value: any) => [formatValue(value), valueLabel]} cursor={{ fill: '#F8FAFC' }} contentStyle={CHART_TOOLTIP_STYLE} />
             <Bar
               dataKey={valueKey}
               name={valueLabel}
@@ -197,8 +222,8 @@ export function GroupedOutcomeChart({ title, subtitle, data, xKey, series, heigh
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EEF2F6" />
             <XAxis dataKey={xKey} tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} interval={0} angle={data.length > 8 ? -24 : 0} textAnchor={data.length > 8 ? 'end' : 'middle'} />
             <YAxis tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={formatChartAxis} />
-            <Tooltip formatter={(value: any) => formatTableNumber(value)} cursor={{ fill: '#F8FAFC' }} />
-            <Legend wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
+            <Tooltip formatter={(value: any) => formatTableNumber(value)} cursor={{ fill: '#F8FAFC' }} contentStyle={CHART_TOOLTIP_STYLE} />
+            <Legend wrapperStyle={CHART_LEGEND_STYLE} />
             {series.map((item, index) => (
               <Bar key={item.key} dataKey={item.key} name={item.label} fill={item.color || [ANALYTICS_COLORS.volume, ANALYTICS_COLORS.rpc, ANALYTICS_COLORS.sale, ANALYTICS_COLORS.activation][index % 4]} radius={[4, 4, 0, 0]} maxBarSize={32} isAnimationActive={false} />
             ))}
@@ -242,8 +267,8 @@ export function MultiSeriesTrendChart({
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EEF2F6" />
             <XAxis dataKey={xKey} tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={value => `${formatChartAxis(value)}${valueSuffix}`} />
-            <Tooltip formatter={(value: any, name: any) => [value == null ? '—' : `${Number(value).toFixed(1)}${valueSuffix}`, name]} />
-            <Legend wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
+            <Tooltip formatter={(value: any, name: any) => [value == null ? '—' : `${Number(value).toFixed(1)}${valueSuffix}`, name]} contentStyle={CHART_TOOLTIP_STYLE} />
+            <Legend wrapperStyle={CHART_LEGEND_STYLE} />
             {series.slice(0, 8).map((item, index) => (
               <Line
                 key={item.key}
@@ -292,8 +317,8 @@ export function StackedCompositionChart({
             <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#EEF2F6" />
             <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={value => `${value}%`} />
             <YAxis type="category" dataKey={categoryKey} width={138} tick={{ fontSize: 11, fill: '#334155' }} axisLine={false} tickLine={false} />
-            <Tooltip formatter={(value: any, name: any) => [`${Number(value).toFixed(1)}%`, name]} />
-            <Legend wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
+            <Tooltip formatter={(value: any, name: any) => [`${Number(value).toFixed(1)}%`, name]} contentStyle={CHART_TOOLTIP_STYLE} />
+            <Legend wrapperStyle={CHART_LEGEND_STYLE} />
             {series.slice(0, 8).map((item, index) => (
               <Bar
                 key={item.key}

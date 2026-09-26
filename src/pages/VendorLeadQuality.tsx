@@ -32,7 +32,7 @@ export default function VendorLeadQuality() {
   const scoped = useScopedNavigationTarget();
   const controls = useOperatingControls();
   const { selectedClient } = useClient();
-  const { startDate, endDate, filters } = useFilters();
+  const { startDate, endDate, filters, setFilter } = useFilters();
 
   const { data, loading, error, loadData } = useOperationalData<VendorQualityData & LifecycleExtension & { vendorGrades?: Array<{vendor:string;grade:string;leads:number}>; qualityEvidence?:string }>('VendorLeadQuality', {
     clientId: selectedClient,
@@ -126,7 +126,7 @@ export default function VendorLeadQuality() {
             <div className="cx-analytics-visual-grid">
               <VolumeRateComboChart
                 title="Vendor volume and downstream rates"
-                subtitle="Lead volume is shown as bars; RPC, sale and activation rates remain separate observed measures."
+                subtitle="Lead volume is shown as bars; RPC, sale and activation rates remain separate observed measures. Select a bar to filter this page to that vendor."
                 data={vendorOutcomeVisual}
                 xKey="vendor"
                 volumeKey="leads"
@@ -136,6 +136,7 @@ export default function VendorLeadQuality() {
                   { key: 'saleRate', label: 'Sale rate' },
                   { key: 'activationRate', label: 'Activation rate' },
                 ]}
+                onSelect={(selectedVendor) => setFilter('vendor', { operator: 'in', values: [selectedVendor] })}
               />
               {vendorGradeVisual.data.length > 0 && <StackedCompositionChart
                 title="Vendor grade composition"

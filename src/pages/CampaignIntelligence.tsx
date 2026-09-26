@@ -59,7 +59,7 @@ function MediaMetricCard({
 export default function CampaignIntelligence() {
   const { selectedClient } = useClient();
   const { isAdmin } = useAuth();
-  const { startDate, endDate, filters } = useFilters();
+  const { startDate, endDate, filters, setFilter } = useFilters();
   const [discovery, setDiscovery] = useState<MarketingDiscoveryData | null>(null);
   const [rootMetric, setRootMetric] = useState<MediaMetric | null>(null);
 
@@ -196,9 +196,11 @@ export default function CampaignIntelligence() {
             {data.campaigns.length > 0 && <div className="cx-analytics-visual-grid">
               <VolumeRateComboChart
                 title="Campaign lead volume and response rate"
-                subtitle="Platform lead events by campaign/adset with CTR and click → lead overlaid."
+                subtitle="Platform lead events by campaign/adset with CTR and click → lead overlaid. Select a bar to filter to that campaign."
                 data={data.campaigns.slice(0, 12).map(row => ({
                   label: row.adset && row.adset !== row.campaign ? `${row.campaign} · ${row.adset}` : row.campaign,
+                  campaign: row.campaign,
+                  adset: row.adset,
                   leads: row.leads,
                   ctr: row.ctr,
                   clickToLeadRate: row.clickToLeadRate,
@@ -210,12 +212,16 @@ export default function CampaignIntelligence() {
                   { key: 'ctr', label: 'CTR' },
                   { key: 'clickToLeadRate', label: 'Click → lead' },
                 ]}
+                onSelect={(_, row) => {
+                  if (row.campaign) setFilter('campaign', { operator: 'in', values: [String(row.campaign)] });
+                }}
               />
               <RankedMetricChart
                 title="Planning budget by campaign"
                 subtitle="Planning budget only — not observed media spend."
                 data={data.campaigns.filter(row => row.latestBudget != null).map(row => ({
                   label: row.adset && row.adset !== row.campaign ? `${row.campaign} · ${row.adset}` : row.campaign,
+                  campaign: row.campaign,
                   budget: row.latestBudget,
                 }))}
                 categoryKey="label"
@@ -223,6 +229,9 @@ export default function CampaignIntelligence() {
                 valueLabel="Latest budget"
                 valuePrefix="R "
                 maxItems={12}
+                onSelect={(_, row) => {
+                  if (row.campaign) setFilter('campaign', { operator: 'in', values: [String(row.campaign)] });
+                }}
               />
             </div>}
 

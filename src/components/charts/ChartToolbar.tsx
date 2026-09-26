@@ -1,5 +1,5 @@
 import DataAuditDrawer from '../DataAuditDrawer';
-import { Table as TableIcon, Download, FileSpreadsheet } from 'lucide-react';
+import { Table as TableIcon, Download } from 'lucide-react';
 import { useState } from 'react';
 import React from 'react';
 
@@ -53,12 +53,12 @@ export function ChartToolbar({
   };
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
-      <div>
+    <div className="cx-chart-toolbar flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+      <div className="cx-chart-toolbar-copy">
         <h3 className="font-display text-sm sm:text-base font-semibold text-slate-900 tracking-tight">{title}</h3>
         {subtitle && <p className="text-xs text-slate-500 mt-0.5 leading-normal">{subtitle}</p>}
       </div>
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="cx-chart-toolbar-actions flex items-center gap-2 flex-wrap">
         {children}
         {auditTitle && (
           <button 

@@ -465,3 +465,36 @@ test('vendor, cohort and routing analytics use visual composition and maturation
   assert.match(exceptions, /useNavigate/);
   assert.match(exceptions, /onSelect=/);
 });
+
+
+test('chart interactions write into the existing URL-backed analytical filter scope', () => {
+  const vendor = read('src/pages/VendorLeadQuality.tsx');
+  const campaign = read('src/pages/CampaignIntelligence.tsx');
+  const visuals = read('src/components/charts/OperationalVisuals.tsx');
+
+  assert.match(visuals, /onSelect\?:/);
+  assert.match(visuals, /cx-chart-clickable/);
+  assert.match(vendor, /setFilter\('vendor'/);
+  assert.match(campaign, /setFilter\('campaign'/);
+  assert.match(campaign, /Select a bar to filter to that campaign/);
+});
+
+test('visual analytics styling is isolated and unreferenced legacy stylesheets stay removed', () => {
+  const main = read('src/main.tsx');
+  const analyticsCss = read('src/styles/analyticsVisuals.css');
+  const productCss = read('src/styles/product.css');
+
+  assert.match(main, /styles\/analyticsVisuals\.css/);
+  assert.match(analyticsCss, /cx-analytics-visual-grid/);
+  assert.match(analyticsCss, /cx-chart-toolbar/);
+  assert.doesNotMatch(productCss, /Visual analytics hierarchy/);
+
+  for (const path of [
+    'src/styles/acquisition.css',
+    'src/styles/explore.css',
+    'src/styles/demo.css',
+    'src/styles/visuals.css',
+  ]) {
+    assert.equal(fs.existsSync(path), false, `unused legacy stylesheet returned: ${path}`);
+  }
+});

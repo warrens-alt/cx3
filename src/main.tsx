@@ -7,6 +7,7 @@ import { isChunkLoadError, attemptChunkRecovery } from './lib/chunkRecovery';
 import { installAuthenticatedApiFetch } from './lib/apiFetch';
 import './index.css';
 import './styles/product.css';
+import './styles/analyticsVisuals.css';
 
 installAuthenticatedApiFetch();
 
