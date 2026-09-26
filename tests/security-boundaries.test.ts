@@ -180,3 +180,83 @@ test('source and grade funnel analytics include delivery and dial coverage', () 
   assert.match(client, /source: string;[\s\S]*delivered: number;[\s\S]*dialled: number;/);
   assert.match(client, /grade: string;[\s\S]*delivered: number;[\s\S]*dialled: number;/);
 });
+
+
+test('record exports and CLI mutations respect admin-only governance', () => {
+  const api = read('server/api.ts');
+  assert.match(api, /function requireAdminForRecordExport/);
+  assert.match(api, /analyticsRouter\.get\('\/export', requireAdminForRecordExport/);
+  assert.match(api, /analyticsRouter\.post\('\/cli-performance\/import', requireAdmin/);
+  assert.match(api, /analyticsRouter\.post\('\/cli-performance\/load-sample', requireAdmin/);
+  assert.match(api, /analyticsRouter\.delete\('\/cli-performance\/import', requireAdmin/);
+  assert.match(api, /ENABLE_CLI_SAMPLE_DATA/);
+});
+
+test('CLI analytics never synthesize missing production metrics', () => {
+  const cli = read('server/bigquery/cli_analytics.ts');
+  assert.doesNotMatch(cli, /contactCountNum \* 0\.9/);
+  assert.doesNotMatch(cli, /saleCountNum \* 1\.5/);
+  assert.doesNotMatch(cli, /saleCountNum \* 0\.4/);
+  assert.doesNotMatch(cli, /'142\.5'/);
+  assert.doesNotMatch(cli, /'45\.0'/);
+  assert.doesNotMatch(cli, /medianLeadAgeDays:\s*'0\.85'/);
+  assert.doesNotMatch(cli, /avgLeadAgeDays[^\n]*'1\.18'/);
+  assert.doesNotMatch(cli, /currentCalls \* 0\.94/);
+  assert.match(cli, /return null;\n}\n\n\/\*\* Generate realistic Benchmark/);
+});
+
+test('CLI imported reports require observed RPC and sale counts and preserve tenant scope', () => {
+  const cli = read('server/bigquery/cli_analytics.ts');
+  const api = read('server/api.ts');
+  const client = read('src/lib/offernetClient.ts');
+  assert.match(cli, /Missing required RPC\/contact count column/);
+  assert.match(cli, /Missing required sale count column/);
+  assert.match(cli, /selected date scope cannot be applied safely/);
+  assert.match(cli, /tenantVendors/);
+  assert.match(api, /req\.method === 'GET' \|\| req\.method === 'DELETE'/);
+  assert.match(client, /JSON\.stringify\(\{ clientId, csvText, filename \}\)/);
+  assert.match(client, /load-sample'[\s\S]*JSON\.stringify\(\{ clientId \}\)/);
+  assert.match(client, /cli-performance\/import\?clientId=/);
+});
+
+test('approved tenant data contract is encoded in application configuration', () => {
+  const config = read('server/bigquery/config.ts');
+  assert.match(config, /view_lead_ledger_mtn_lead_submit_open/);
+  assert.match(config, /view_lead_ledger_mondo_lead_submit_open/);
+  assert.match(config, /view_lead_ledger_blc_lead_submit_open/);
+  assert.match(config, /view_lead_ledger_bizvoip_lead_submit_open/);
+  assert.match(config, /view_lead_ledger_rewardsco_lead_submit_open/);
+  assert.match(config, /view_lead_ledger_real_promotions_lead_submit_open/);
+  assert.match(config, /view_lead_leadger_oneplan_lead_submit_open/);
+  assert.match(config, /view_lead_ledger_affiliate_lead_submit_open/);
+  assert.match(config, /marketingContract\('MAPPED', \['MTN', 'MTN SA'\]\)/);
+  assert.match(config, /marketingContract\('MAPPED', \['BLC', 'BLC 1Life'\]\)/);
+  assert.match(config, /start: '08:30', end: '17:00'/);
+  assert.match(config, /start: '08:00', end: '18:00', workdays: \[1, 2, 3, 4, 5, 6\]/);
+  assert.match(config, /blc: 'ontact_blc'/);
+  assert.match(config, /bizvoip: 'vodacom_bizvoip'/);
+});
+
+test('marketing attribution fails closed on unreconciled scope and invalid spend grain', () => {
+  const analytics = read('server/bigquery/offernet_analytics.ts');
+  assert.match(analytics, /Attribution is withheld because the active reporting scope includes operational dimensions/);
+  assert.match(analytics, /INVALID_GRAIN/);
+  assert.match(analytics, /configuredSourceTable\(params\.clientId, 'leads'\)/);
+});
+
+test('marketing contract exposes reach and outbound-click source fields', () => {
+  const config = read('server/bigquery/config.ts');
+  const analytics = read('server/bigquery/offernet_analytics.ts');
+  assert.match(config, /reachField: 'reach'/);
+  assert.match(config, /outboundClicksField: 'outbound_clicks'/);
+  assert.match(analytics, /outboundCtr/);
+  assert.match(analytics, /clickToLeadRate/);
+  assert.match(analytics, /frequency:/);
+});
+
+test('BLC activation source freshness uses the contracted date_created timestamp', () => {
+  const analytics = read('server/bigquery/offernet_analytics.ts');
+  const config = read('server/bigquery/config.ts');
+  assert.match(config, /tenantTables\(CONTRACT_LEAD_VIEWS\.ontact_blc, true\)/);
+  assert.match(analytics, /SAFE_CAST\(date_created AS TIMESTAMP\)/);
+});

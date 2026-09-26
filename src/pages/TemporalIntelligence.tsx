@@ -9,7 +9,7 @@ import OperationalPageHeader from '../components/OperationalPageHeader';
 import { downloadCsv } from '../lib/formatters';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
-import { OperatingWindowPanel } from '../components/OfferNetControlPanels';
+import { CaptureTurnaroundPanel, OperatingWindowPanel } from '../components/OfferNetControlPanels';
 
 type MetricView = 'contactRate' | 'saleRate' | 'volume';
 
@@ -127,6 +127,7 @@ export default function TemporalIntelligence() {
             </section>
 
             {controls.data && <OperatingWindowPanel data={controls.data} />}
+            {controls.data && <CaptureTurnaroundPanel data={controls.data} />}
 
             <section className="cx-command-panel">
               <header>

@@ -1,6 +1,13 @@
 import { getBigQueryClient } from './client';
-import { getClientConfig, type MarketingSourceContract } from './config';
+import { getClientConfig, tableIdentifier, type MarketingSourceContract } from './config';
 import { RequestError } from './filters';
+
+function configuredSourceTable(clientId: string, role: 'leads' | 'calls' | 'timeToDial' | 'activations' | 'marketing') {
+  const config = getClientConfig(clientId);
+  const table = config.semanticMappings.tables[role];
+  if (!table) throw new RequestError(`No configured ${role} source table exists for tenant ${config.id}`, 422);
+  return tableIdentifier(table);
+}
 
 export interface OffernetQueryParams {
   clientId: string;
@@ -121,10 +128,15 @@ function safeAliasedColumn(alias: string, column: string) {
   return `${alias}.${safeWarehouseColumn(column)}`;
 }
 
+const marketingContractCache = new Map<string, { expiresAt: number; value: any }>();
+const MARKETING_CONTRACT_CACHE_TTL_MS = 5 * 60 * 1000;
+
 async function resolveMarketingContract(
   client: ReturnType<typeof getBigQueryClient>,
   contract: MarketingSourceContract,
 ) {
+  const cached = marketingContractCache.get(contract.table);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
   const parsed = parseConfiguredTable(contract.table);
   const [rows] = await client.query({
     query: `
@@ -152,14 +164,20 @@ async function resolveMarketingContract(
   const missingRequired = requiredFields.filter(field => !byLower.has(field.toLowerCase()));
   const spendColumn = contract.approvedSpendFields.map(name => byLower.get(name.toLowerCase())).find(Boolean) || null;
   const budgetColumn = contract.approvedBudgetFields.map(name => byLower.get(name.toLowerCase())).find(Boolean) || null;
+  const reachColumn = contract.reachField ? byLower.get(contract.reachField.toLowerCase()) || null : null;
+  const outboundClicksColumn = contract.outboundClicksField ? byLower.get(contract.outboundClicksField.toLowerCase()) || null : null;
 
-  return {
+  const value = {
     table: contract.table,
     columns: Array.from(byLower.values()).sort(),
     missingRequired,
     spendColumn,
     budgetColumn,
+    reachColumn,
+    outboundClicksColumn,
   };
+  marketingContractCache.set(contract.table, { expiresAt: Date.now() + MARKETING_CONTRACT_CACHE_TTL_MS, value });
+  return value;
 }
 
 function marketingSpendExpression(contract: MarketingSourceContract, spendColumn: string | null) {
@@ -178,6 +196,35 @@ function marketingTenantFilter(contract: MarketingSourceContract) {
   return {
     sql: `LOWER(${safeWarehouseColumn(contract.clientNameField)}) IN UNNEST(@marketingClientNames)`,
     params: { marketingClientNames: contract.clientNames.map(value => value.toLowerCase()) },
+  };
+}
+
+async function validateMarketingSpendGrain(
+  client: ReturnType<typeof getBigQueryClient>,
+  contract: MarketingSourceContract,
+  conditions: string[],
+  params: Record<string, any>,
+) {
+  const grainFields = contract.spendGrainFields.map(safeWarehouseColumn);
+  const grainExpression = `TO_JSON_STRING(STRUCT(${grainFields.join(', ')}))`;
+  const [rows] = await client.query({
+    query: `
+      SELECT
+        COUNT(*) AS row_count,
+        COUNT(DISTINCT ${grainExpression}) AS distinct_grain_count,
+        COUNT(*) - COUNT(DISTINCT ${grainExpression}) AS duplicate_grain_rows
+      FROM \`${contract.table}\`
+      WHERE ${conditions.join(' AND ')}
+    `,
+    params,
+  });
+  const row = rows[0] || {};
+  const duplicateGrainRows = Number(row.duplicate_grain_rows || 0);
+  return {
+    status: duplicateGrainRows > 0 ? 'DUPLICATE_GRAIN' as const : 'VALID' as const,
+    rowCount: Number(row.row_count || 0),
+    distinctGrainCount: Number(row.distinct_grain_count || 0),
+    duplicateGrainRows,
   };
 }
 
@@ -233,7 +280,9 @@ export async function getMarketingSourceDiscovery(params: Pick<OffernetQueryPara
         campaign: contract.campaignField,
         adset: contract.adsetField,
         impressions: contract.impressionsField,
+        reach: contract.reachField || null,
         clicks: contract.clicksField,
+        outboundClicks: contract.outboundClicksField || null,
         leads: contract.leadsField,
       },
       approvedSpendFields: contract.approvedSpendFields,
@@ -286,7 +335,7 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
         hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' AS is_activated,
         SAFE_CAST(hlc.sale AS TIMESTAMP) AS sale_ts,
         SAFE_CAST(hlc.activated AS TIMESTAMP) AS activation_ts
-      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${whereSql}
     ),
@@ -318,6 +367,7 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
       SELECT
         *,
         TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) AS delivery_to_dial_sec,
+        TIMESTAMP_DIFF(first_call_ts, fetched_ts, SECOND) AS capture_to_dial_sec,
         CASE
           WHEN fetched_ts IS NULL THEN NULL
           WHEN CAST(FORMAT_TIMESTAMP('%u', fetched_ts, @tenantTimezone) AS INT64) NOT IN UNNEST(@operatingWorkdays) THEN TRUE
@@ -373,6 +423,13 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
         COUNTIF(is_weekend) AS weekend_leads,
         COUNTIF(is_delivered AND is_dialled AND delivery_to_dial_sec BETWEEN 0 AND 900) AS sla_15m_leads,
         COUNTIF(is_delivered AND is_dialled AND delivery_to_dial_sec BETWEEN 0 AND 3600) AS sla_60m_leads,
+        COUNTIF(is_delivered AND NOT is_dialled) AS awaiting_first_dial,
+        MAX(CASE WHEN is_delivered AND NOT is_dialled AND first_delivery_ts IS NOT NULL
+          THEN TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), first_delivery_ts, SECOND) END) AS oldest_delivery_wait_sec,
+        APPROX_QUANTILES(CASE WHEN is_dialled AND capture_to_dial_sec >= 0 THEN capture_to_dial_sec END, 100)[OFFSET(50)] AS capture_to_dial_median_sec,
+        APPROX_QUANTILES(CASE WHEN is_dialled AND capture_to_dial_sec >= 0 THEN capture_to_dial_sec END, 100)[OFFSET(90)] AS capture_to_dial_p90_sec,
+        COUNTIF(is_dialled AND capture_to_dial_sec BETWEEN 0 AND 900) AS capture_sla_15m_leads,
+        COUNTIF(is_dialled AND capture_to_dial_sec BETWEEN 0 AND 3600) AS capture_sla_60m_leads,
         COUNTIF(is_sale AND NOT is_activated AND sale_ts IS NOT NULL AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), sale_ts, DAY) > 14) AS activation_backlog_14d,
         COUNTIF(is_after_hours AND is_rpc) AS after_hours_rpc,
         COUNTIF(NOT is_after_hours AND is_rpc) AS operating_hours_rpc,
@@ -417,6 +474,44 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
       WHERE activation_age_bucket IS NOT NULL
       GROUP BY activation_age_bucket
     ),
+    hourly_flow AS (
+      SELECT
+        hour_of_day AS hour,
+        SUM(captured) AS captured,
+        SUM(first_dials) AS first_dials
+      FROM (
+        SELECT
+          CAST(FORMAT_TIMESTAMP('%H', fetched_ts, @tenantTimezone) AS INT64) AS hour_of_day,
+          COUNT(*) AS captured,
+          0 AS first_dials
+        FROM classified
+        WHERE fetched_ts IS NOT NULL
+        GROUP BY hour_of_day
+        UNION ALL
+        SELECT
+          CAST(FORMAT_TIMESTAMP('%H', first_call_ts, @tenantTimezone) AS INT64) AS hour_of_day,
+          0 AS captured,
+          COUNT(*) AS first_dials
+        FROM classified
+        WHERE first_call_ts IS NOT NULL
+        GROUP BY hour_of_day
+      )
+      GROUP BY hour_of_day
+    ),
+    daily_turnaround AS (
+      SELECT
+        FORMAT_DATE('%Y-%m-%d', DATE(fetched_ts, @tenantTimezone)) AS date,
+        COUNT(*) AS leads,
+        COUNTIF(is_dialled) AS dialled,
+        COUNTIF(NOT is_dialled) AS undialled,
+        APPROX_QUANTILES(CASE WHEN is_dialled AND capture_to_dial_sec >= 0 THEN capture_to_dial_sec END, 100)[OFFSET(50)] AS median_sec,
+        APPROX_QUANTILES(CASE WHEN is_dialled AND capture_to_dial_sec >= 0 THEN capture_to_dial_sec END, 100)[OFFSET(90)] AS p90_sec,
+        COUNTIF(is_dialled AND capture_to_dial_sec BETWEEN 0 AND 900) AS within_15m,
+        COUNTIF(is_dialled AND capture_to_dial_sec BETWEEN 0 AND 3600) AS within_60m
+      FROM classified
+      WHERE fetched_ts IS NOT NULL
+      GROUP BY date
+    ),
     vendor_controls AS (
       SELECT
         vendor,
@@ -440,6 +535,8 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
       ARRAY(SELECT AS STRUCT * FROM attempts ORDER BY bucket_order) AS attempts,
       ARRAY(SELECT AS STRUCT * FROM sla ORDER BY sort_order) AS sla_bands,
       ARRAY(SELECT AS STRUCT * FROM activation_age) AS activation_ageing,
+      ARRAY(SELECT AS STRUCT * FROM hourly_flow ORDER BY hour) AS hourly_flow,
+      ARRAY(SELECT AS STRUCT * FROM daily_turnaround ORDER BY date) AS daily_turnaround,
       ARRAY(SELECT AS STRUCT * FROM vendor_controls) AS vendor_controls
     FROM summary
   `;
@@ -451,6 +548,9 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
   const delivered = Number(row.delivered_leads || 0);
   const afterHours = Number(row.after_hours_leads || 0);
   const operatingHours = Number(row.operating_hours_leads || 0);
+  const awaitingFirstDial = Number(row.awaiting_first_dial || 0);
+  const captureMedianSec = row.capture_to_dial_median_sec === null || row.capture_to_dial_median_sec === undefined ? null : Number(row.capture_to_dial_median_sec);
+  const captureP90Sec = row.capture_to_dial_p90_sec === null || row.capture_to_dial_p90_sec === undefined ? null : Number(row.capture_to_dial_p90_sec);
 
   const attemptBuckets = (row.attempts || []).map((item: any) => {
     const leads = Number(item.leads || 0);
@@ -522,6 +622,12 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
       weekendSharePct: total > 0 ? Number(((Number(row.weekend_leads || 0) / total) * 100).toFixed(1)) : 0,
       sla15Rate: delivered > 0 ? Number(((Number(row.sla_15m_leads || 0) / delivered) * 100).toFixed(1)) : 0,
       sla60Rate: delivered > 0 ? Number(((Number(row.sla_60m_leads || 0) / delivered) * 100).toFixed(1)) : 0,
+      awaitingFirstDial,
+      oldestDeliveryWait: formatDuration(row.oldest_delivery_wait_sec === null || row.oldest_delivery_wait_sec === undefined ? null : Number(row.oldest_delivery_wait_sec)),
+      captureToDialMedian: formatDuration(captureMedianSec),
+      captureToDialP90: formatDuration(captureP90Sec),
+      captureWithin15mRate: total > 0 ? Number(((Number(row.capture_sla_15m_leads || 0) / total) * 100).toFixed(1)) : 0,
+      captureWithin60mRate: total > 0 ? Number(((Number(row.capture_sla_60m_leads || 0) / total) * 100).toFixed(1)) : 0,
       activationBacklog14d: Number(row.activation_backlog_14d || 0),
       afterHoursRpcRate: afterHours > 0 ? Number(((Number(row.after_hours_rpc || 0) / afterHours) * 100).toFixed(1)) : 0,
       operatingHoursRpcRate: operatingHours > 0 ? Number(((Number(row.operating_hours_rpc || 0) / operatingHours) * 100).toFixed(1)) : 0,
@@ -531,6 +637,24 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
     attemptBuckets,
     slaBands,
     activationAgeing: row.activation_ageing || [],
+    hourlyFlow: (row.hourly_flow || []).map((item: any) => ({
+      hour: Number(item.hour || 0),
+      captured: Number(item.captured || 0),
+      firstDials: Number(item.first_dials || 0),
+    })),
+    dailyTurnaround: (row.daily_turnaround || []).map((item: any) => {
+      const leads = Number(item.leads || 0);
+      return {
+        date: item.date,
+        leads,
+        dialled: Number(item.dialled || 0),
+        undialled: Number(item.undialled || 0),
+        median: formatDuration(item.median_sec === null ? null : Number(item.median_sec)),
+        p90: formatDuration(item.p90_sec === null ? null : Number(item.p90_sec)),
+        within15mRate: leads > 0 ? Number(((Number(item.within_15m || 0) / leads) * 100).toFixed(1)) : 0,
+        within60mRate: leads > 0 ? Number(((Number(item.within_60m || 0) / leads) * 100).toFixed(1)) : 0,
+      };
+    }),
     vendorControls,
     dataCompleteness: {
       missingSource: Number(row.missing_source || 0),
@@ -548,6 +672,8 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
       callCount: 'Call-count controls use the maximum recorded HLC/vendor total_calls value per lead. They are descriptive and are not event-level attempt attribution.',
       vendor: 'Vendor controls use the first recorded delivered vendor per lead to keep each lead exclusive in the comparison.',
       operatingHours: 'Operating-hours classification uses the tenant timezone and configured operating window.',
+      captureTurnaround: 'Capture-to-first-dial measures lead fetched/API-entry time to the first recorded dial. Delivery-to-first-dial remains a separate downstream handoff metric.',
+      realtimeDialler: 'Live agent state, hopper priority, dial level, drop rate and hopper-reset events require the VICIdial real-time/API source and are not inferred from historical BigQuery rows.',
     },
     validationStatus: 'NOT_VERIFIED',
   };
@@ -555,7 +681,7 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
 
 // 1. EXECUTIVE OVERVIEW
 export async function getExecutiveOverview(params: OffernetQueryParams) {
-  const client = getBigQueryClient('dashboards-422710');
+  const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const clientConfig = getClientConfig(params.clientId);
   const { whereSql, queryParams } = buildFilterClause(params);
 
@@ -579,7 +705,7 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
         TIMESTAMP_DIFF(SAFE_CAST(hlc.first_call_date AS TIMESTAMP), SAFE_CAST(hlc.delivered AS TIMESTAMP), SECOND) AS delivery_to_dial_sec,
         TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(hlc.delivered AS TIMESTAMP), SECOND) AS delivery_age_sec,
         COALESCE(hlc.revenue_generated, 0) AS revenue
-      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${whereSql}
     ),
@@ -769,7 +895,7 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
             hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' AS is_sale,
             hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' AS is_activated,
             COALESCE(hlc.revenue_generated, 0) AS revenue
-          FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+          FROM ${configuredSourceTable(params.clientId, 'leads')} l
           LEFT JOIN UNNEST(l.hlc_details) hlc
           ${previousScope.whereSql}
         )
@@ -877,7 +1003,7 @@ export async function getRootCauseAnalysis(params: OffernetQueryParams) {
   const previousStartDate = previousStart.toISOString().slice(0, 10);
   const previousEndDate = previousEnd.toISOString().slice(0, 10);
 
-  const client = getBigQueryClient('dashboards-422710');
+  const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const baseScope = buildFilterClause({ ...params, startDate: undefined, endDate: undefined, metric: undefined });
   const queryParams = {
     ...baseScope.queryParams,
@@ -900,7 +1026,7 @@ export async function getRootCauseAnalysis(params: OffernetQueryParams) {
         SAFE_CAST(hlc.rpc AS INT64) > 0 AS is_rpc,
         hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' AS is_sale,
         hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' AS is_activated
-      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${baseScope.whereSql}
     ),
@@ -1078,7 +1204,7 @@ export async function getRootCauseAnalysis(params: OffernetQueryParams) {
 
 // 2. FUNNEL INTELLIGENCE
 export async function getFunnelIntelligence(params: OffernetQueryParams) {
-  const client = getBigQueryClient('dashboards-422710');
+  const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const { whereSql, queryParams } = buildFilterClause(params);
 
   const query = `
@@ -1100,7 +1226,7 @@ export async function getFunnelIntelligence(params: OffernetQueryParams) {
         TIMESTAMP_DIFF(SAFE_CAST(hlc.first_call_date AS TIMESTAMP), SAFE_CAST(hlc.delivered AS TIMESTAMP), SECOND) as delivery_to_first_dial_sec,
         TIMESTAMP_DIFF(SAFE_CAST(hlc.sale AS TIMESTAMP), SAFE_CAST(hlc.first_call_date AS TIMESTAMP), SECOND) as dial_to_sale_sec,
         TIMESTAMP_DIFF(SAFE_CAST(hlc.activated AS TIMESTAMP), SAFE_CAST(hlc.sale AS TIMESTAMP), SECOND) as sale_to_act_sec
-      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${whereSql}
     ),
@@ -1210,7 +1336,7 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
         CAST(FORMAT_TIMESTAMP('%u', SAFE_CAST(l.fetched AS TIMESTAMP), @tenantTimezone) AS INT64) NOT IN UNNEST(@operatingWorkdays)
           OR FORMAT_TIMESTAMP('%H:%M:%S', SAFE_CAST(l.fetched AS TIMESTAMP), @tenantTimezone) < @operatingStart
           OR FORMAT_TIMESTAMP('%H:%M:%S', SAFE_CAST(l.fetched AS TIMESTAMP), @tenantTimezone) >= @operatingEnd AS is_after_hours
-      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${whereSql}
     ),
@@ -1391,7 +1517,7 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
 
 // 4. CONTACT STRATEGY
 export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
-  const client = getBigQueryClient('dashboards-422710');
+  const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const { whereSql, queryParams } = buildFilterClause(params);
 
   const query = `
@@ -1403,7 +1529,7 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
         hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' AS is_sale,
         hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' AS is_activated,
         COALESCE(hlc.revenue_generated, 0) AS revenue
-      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${whereSql}
     ),
@@ -1505,7 +1631,7 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
 
 // 5. VENDOR & LEAD QUALITY
 export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
-  const client = getBigQueryClient('dashboards-422710');
+  const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const { whereSql, queryParams } = buildFilterClause(params);
 
   const query = `
@@ -1526,7 +1652,7 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
         COALESCE(hlc.total_calls, 0) AS total_calls,
         COALESCE(hlc.revenue_generated, 0) AS revenue,
         TIMESTAMP_DIFF(SAFE_CAST(hlc.first_call_date AS TIMESTAMP), SAFE_CAST(hlc.delivered AS TIMESTAMP), SECOND) AS deliv_to_dial_sec
-      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${whereSql}
     ),
@@ -1690,7 +1816,7 @@ export async function getTemporalAnalytics(params: OffernetQueryParams) {
         COUNTIF(SAFE_CAST(hlc.rpc AS INT64) > 0) > 0 AS is_rpc,
         COUNTIF(hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '') > 0 AS is_sale,
         COUNTIF(hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '') > 0 AS is_activated
-      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${whereSql}
       GROUP BY l.lead_id
@@ -1794,7 +1920,7 @@ export async function getTemporalAnalytics(params: OffernetQueryParams) {
 
 // 7. SALES & ACTIVATION INTELLIGENCE
 export async function getSalesActivationAnalytics(params: OffernetQueryParams) {
-  const client = getBigQueryClient('dashboards-422710');
+  const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const { whereSql, queryParams } = buildFilterClause(params);
 
   const query = `
@@ -1810,7 +1936,7 @@ export async function getSalesActivationAnalytics(params: OffernetQueryParams) {
         hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' as is_sale,
         hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' as is_activated,
         COALESCE(hlc.revenue_generated, 0) as revenue
-      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${whereSql}
     ),
@@ -2086,17 +2212,46 @@ export async function getSourceObservability(params: Pick<OffernetQueryParams, '
     );
   }
 
+  if (clientConfig.semanticMappings.tables.activations) {
+    await pushFreshness(
+      'activations',
+      'Activation source',
+      clientConfig.semanticMappings.tables.activations,
+      'SAFE_CAST(date_created AS TIMESTAMP)',
+    );
+  } else {
+    sources.push({
+      key: 'activations',
+      label: 'Activation source',
+      status: 'UNAVAILABLE',
+      table: null,
+      latestRecordAt: null,
+      ageHours: null,
+      rowCount: null,
+      detail: 'No separate activation lifecycle table is contracted for this tenant; nested operational activation timestamps remain the available source.',
+    });
+  }
+
   sources.push({
-    key: 'activations',
-    label: 'Activation source',
-    status: clientConfig.semanticMappings.tables.activations ? 'TIMESTAMP_CONTRACT_REQUIRED' : 'UNAVAILABLE',
+    key: 'diallerRealtime',
+    label: 'VICIdial real-time / hopper API',
+    status: 'UNCONFIGURED',
+    table: null,
+    latestRecordAt: null,
+    ageHours: null,
+    rowCount: null,
+    detail: 'Required for live agent states, hopper priority/levels, dial level, drop rate and hopper-reset events. Historical BigQuery call rows do not provide this live control-plane state.',
+  });
+
+  sources.push({
+    key: 'activationLifecycle',
+    label: 'BLC Rubix / activation lifecycle contract',
+    status: 'CONTRACT_REQUIRED',
     table: clientConfig.semanticMappings.tables.activations || null,
     latestRecordAt: null,
     ageHours: null,
     rowCount: null,
-    detail: clientConfig.semanticMappings.tables.activations
-      ? 'Activation table is configured, but its canonical event timestamp is not yet contracted for freshness monitoring.'
-      : 'No activation table is configured.',
+    detail: 'Contract ID, Rubix status, activation status, activation timestamp and deal/color need a reconciled record-level source contract before CX3 treats lifecycle stages as canonical.',
   });
 
   return {
@@ -2108,7 +2263,7 @@ export async function getSourceObservability(params: Pick<OffernetQueryParams, '
 
 // 9. DATA INTEGRITY (DATA HEALTH)
 export async function getDataIntegrityAnalytics(params: OffernetQueryParams) {
-  const client = getBigQueryClient('dashboards-422710');
+  const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const { whereSql, queryParams } = buildFilterClause(params);
 
   const query = `
@@ -2120,7 +2275,7 @@ export async function getDataIntegrityAnalytics(params: OffernetQueryParams) {
       COUNTIF(hlc.vendor IS NULL OR hlc.vendor = '') AS unassigned_vendor_leads,
       COUNTIF(hlc.delivered IS NOT NULL AND (hlc.last_dialer_status IS NULL OR hlc.last_dialer_status = '')) AS missing_dispositions,
       COUNTIF(l.consumer_id IS NULL OR l.consumer_id = 0) AS unmatched_consumer_ids
-    FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+    FROM ${configuredSourceTable(params.clientId, 'leads')} l
     LEFT JOIN UNNEST(l.hlc_details) hlc
     ${whereSql}
   `;
@@ -2189,7 +2344,7 @@ export async function getDataIntegrityAnalytics(params: OffernetQueryParams) {
 
 // 10. AGENT PERFORMANCE
 export async function getAgentPerformanceAnalytics(params: OffernetQueryParams) {
-  const client = getBigQueryClient('dashboards-422710');
+  const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const clientConfig = getClientConfig(params.clientId);
 
   if (params.source || params.medium || params.grade || params.campaign) {
@@ -2234,7 +2389,7 @@ export async function getAgentPerformanceAnalytics(params: OffernetQueryParams) 
       SUM(length_in_sec) AS total_talk_time_sec,
       ROUND(AVG(length_in_sec), 1) AS avg_duration_sec,
       COUNTIF(is_callback = true) AS callbacks_booked
-    FROM \`dashboards-422710.lead_ledger.lead_ledger_all_vicidial_insights\`
+    FROM ${configuredSourceTable(params.clientId, 'calls')}
     WHERE ${conditions.join(' AND ')}
     GROUP BY user, vendor
     ORDER BY total_calls DESC
@@ -2335,7 +2490,9 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
   const campaignField = safeWarehouseColumn(contract.campaignField);
   const adsetField = safeWarehouseColumn(contract.adsetField);
   const impressionsField = safeWarehouseColumn(contract.impressionsField);
+  const reachField = resolved.reachColumn ? safeWarehouseColumn(resolved.reachColumn) : null;
   const clicksField = safeWarehouseColumn(contract.clicksField);
+  const outboundClicksField = resolved.outboundClicksColumn ? safeWarehouseColumn(resolved.outboundClicksColumn) : null;
   const leadsField = safeWarehouseColumn(contract.leadsField);
   const spendValue = marketingSpendExpression(contract, resolved.spendColumn);
   const budgetValue = resolved.budgetColumn
@@ -2380,7 +2537,9 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
       CAST(${campaignField} AS STRING) AS campaign_name,
       CAST(${adsetField} AS STRING) AS adset_name,
       SUM(SAFE_CAST(${impressionsField} AS FLOAT64)) AS impressions,
+      ${reachField ? `SUM(SAFE_CAST(${reachField} AS FLOAT64))` : 'CAST(NULL AS FLOAT64)'} AS reach,
       SUM(SAFE_CAST(${clicksField} AS FLOAT64)) AS clicks,
+      ${outboundClicksField ? `SUM(SAFE_CAST(${outboundClicksField} AS FLOAT64))` : 'CAST(NULL AS FLOAT64)'} AS outbound_clicks,
       SUM(SAFE_CAST(${leadsField} AS FLOAT64)) AS recorded_leads,
       ${spendValue && grainStatus === 'VALID' ? `SUM(${spendValue})` : 'CAST(NULL AS FLOAT64)'} AS recorded_spend,
       ${budgetValue ? `ARRAY_AGG(${budgetValue} IGNORE NULLS ORDER BY ${dateField} DESC LIMIT 1)[SAFE_OFFSET(0)]` : 'CAST(NULL AS FLOAT64)'} AS latest_budget
@@ -2396,7 +2555,9 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
 
   const campaigns = rows.map((row: any) => {
     const impressions = Number(row.impressions || 0);
+    const reach = row.reach === null || row.reach === undefined ? null : Number(row.reach || 0);
     const clicks = Number(row.clicks || 0);
+    const outboundClicks = row.outbound_clicks === null || row.outbound_clicks === undefined ? null : Number(row.outbound_clicks || 0);
     const leads = Number(row.recorded_leads || 0);
     const spend = hasSpend && row.recorded_spend !== null ? Number(row.recorded_spend || 0) : null;
     const latestBudget = resolved.budgetColumn && row.latest_budget !== null ? Number(row.latest_budget || 0) : null;
@@ -2409,8 +2570,13 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
       spend,
       latestBudget,
       impressions,
+      reach,
+      frequency: reach !== null && reach > 0 ? Number((impressions / reach).toFixed(2)) : null,
       clicks,
+      outboundClicks,
       ctr: impressions > 0 ? Number(((clicks / impressions) * 100).toFixed(2)) : 0,
+      outboundCtr: outboundClicks !== null && impressions > 0 ? Number(((outboundClicks / impressions) * 100).toFixed(2)) : null,
+      clickToLeadRate: outboundClicks !== null && outboundClicks > 0 ? Number(((leads / outboundClicks) * 100).toFixed(2)) : clicks > 0 ? Number(((leads / clicks) * 100).toFixed(2)) : null,
       leads,
       cpc: spend !== null && clicks > 0 ? Number((spend / clicks).toFixed(2)) : null,
       cpm: spend !== null && impressions > 0 ? Number(((spend / impressions) * 1000).toFixed(2)) : null,
@@ -2420,18 +2586,27 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
 
   const totals = campaigns.reduce((acc, row) => {
     acc.impressions += row.impressions;
+    if (row.reach !== null) acc.reach += row.reach;
     acc.clicks += row.clicks;
+    if (row.outboundClicks !== null) acc.outboundClicks += row.outboundClicks;
     acc.leads += row.leads;
     if (row.spend !== null) acc.spend += row.spend;
     return acc;
-  }, { spend: 0, impressions: 0, clicks: 0, leads: 0 });
+  }, { spend: 0, impressions: 0, reach: 0, clicks: 0, outboundClicks: 0, leads: 0 });
 
   const summary = {
     spend: hasSpend ? Number(totals.spend.toFixed(2)) : null,
     impressions: totals.impressions,
+    reach: resolved.reachColumn ? totals.reach : null,
+    frequency: resolved.reachColumn && totals.reach > 0 ? Number((totals.impressions / totals.reach).toFixed(2)) : null,
     clicks: totals.clicks,
+    outboundClicks: resolved.outboundClicksColumn ? totals.outboundClicks : null,
     leads: totals.leads,
     ctr: totals.impressions > 0 ? Number(((totals.clicks / totals.impressions) * 100).toFixed(2)) : 0,
+    outboundCtr: resolved.outboundClicksColumn && totals.impressions > 0 ? Number(((totals.outboundClicks / totals.impressions) * 100).toFixed(2)) : null,
+    clickToLeadRate: resolved.outboundClicksColumn && totals.outboundClicks > 0
+      ? Number(((totals.leads / totals.outboundClicks) * 100).toFixed(2))
+      : totals.clicks > 0 ? Number(((totals.leads / totals.clicks) * 100).toFixed(2)) : null,
     cpc: hasSpend && totals.clicks > 0 ? Number((totals.spend / totals.clicks).toFixed(2)) : null,
     cpm: hasSpend && totals.impressions > 0 ? Number(((totals.spend / totals.impressions) * 1000).toFixed(2)) : null,
     cpl: hasSpend && totals.leads > 0 ? Number((totals.spend / totals.leads).toFixed(2)) : null,
@@ -2447,6 +2622,7 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
     previousStartDate: string;
     previousEndDate: string;
   } = null;
+  let comparisonReason: string | null = null;
 
   if (params.startDate && params.endDate) {
     const startMs = Date.parse(params.startDate + 'T00:00:00Z');
@@ -2471,41 +2647,46 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
         priorParams.campaign = params.campaign;
       }
 
-      const priorQuery = `
-        SELECT
-          SUM(SAFE_CAST(${impressionsField} AS FLOAT64)) AS impressions,
-          SUM(SAFE_CAST(${clicksField} AS FLOAT64)) AS clicks,
-          SUM(SAFE_CAST(${leadsField} AS FLOAT64)) AS recorded_leads,
-          ${spendValue && grainStatus === 'VALID' ? `SUM(${spendValue})` : 'CAST(NULL AS FLOAT64)'} AS recorded_spend
-        FROM \`${contract.table}\`
-        WHERE ${priorConditions.join(' AND ')}
-      `;
+      const priorGrain = await validateMarketingSpendGrain(client, contract, priorConditions, priorParams);
+      if (priorGrain.status !== 'VALID') {
+        comparisonReason = `Matched-period comparison withheld because the prior period contains ${priorGrain.duplicateGrainRows.toLocaleString()} duplicate rows at the approved spend grain.`;
+      } else {
+        const priorQuery = `
+          SELECT
+            SUM(SAFE_CAST(${impressionsField} AS FLOAT64)) AS impressions,
+            SUM(SAFE_CAST(${clicksField} AS FLOAT64)) AS clicks,
+            SUM(SAFE_CAST(${leadsField} AS FLOAT64)) AS recorded_leads,
+            ${spendValue && grainStatus === 'VALID' ? `SUM(${spendValue})` : 'CAST(NULL AS FLOAT64)'} AS recorded_spend
+          FROM \`${contract.table}\`
+          WHERE ${priorConditions.join(' AND ')}
+        `;
 
-      const [priorRows] = await client.query({ query: priorQuery, params: priorParams });
-      const prior = priorRows[0] || {};
-      const priorSpend = hasSpend && prior.recorded_spend !== null ? Number(prior.recorded_spend || 0) : null;
-      const priorImpressions = Number(prior.impressions || 0);
-      const priorClicks = Number(prior.clicks || 0);
-      const priorLeads = Number(prior.recorded_leads || 0);
-      const priorCtr = priorImpressions > 0 ? (priorClicks / priorImpressions) * 100 : 0;
-      const priorCpc = priorSpend !== null && priorClicks > 0 ? priorSpend / priorClicks : null;
-      const priorCpm = priorSpend !== null && priorImpressions > 0 ? (priorSpend / priorImpressions) * 1000 : null;
-      const priorCpl = priorSpend !== null && priorLeads > 0 ? priorSpend / priorLeads : null;
-      const pct = (current: number | null, previous: number | null) =>
-        current !== null && previous !== null && previous !== 0
-          ? Number((((current - previous) / previous) * 100).toFixed(1))
-          : null;
+        const [priorRows] = await client.query({ query: priorQuery, params: priorParams });
+        const prior = priorRows[0] || {};
+        const priorSpend = hasSpend && prior.recorded_spend !== null ? Number(prior.recorded_spend || 0) : null;
+        const priorImpressions = Number(prior.impressions || 0);
+        const priorClicks = Number(prior.clicks || 0);
+        const priorLeads = Number(prior.recorded_leads || 0);
+        const priorCtr = priorImpressions > 0 ? (priorClicks / priorImpressions) * 100 : 0;
+        const priorCpc = priorSpend !== null && priorClicks > 0 ? priorSpend / priorClicks : null;
+        const priorCpm = priorSpend !== null && priorImpressions > 0 ? (priorSpend / priorImpressions) * 1000 : null;
+        const priorCpl = priorSpend !== null && priorLeads > 0 ? priorSpend / priorLeads : null;
+        const pct = (current: number | null, previous: number | null) =>
+          current !== null && previous !== null && previous !== 0
+            ? Number((((current - previous) / previous) * 100).toFixed(1))
+            : null;
 
-      comparison = {
-        spendDeltaPct: pct(summary.spend, priorSpend),
-        cpcDeltaPct: pct(summary.cpc, priorCpc),
-        cpmDeltaPct: pct(summary.cpm, priorCpm),
-        cplDeltaPct: pct(summary.cpl, priorCpl),
-        ctrDeltaPp: Number((summary.ctr - priorCtr).toFixed(2)),
-        leadsDeltaPct: pct(summary.leads, priorLeads),
-        previousStartDate,
-        previousEndDate,
-      };
+        comparison = {
+          spendDeltaPct: pct(summary.spend, priorSpend),
+          cpcDeltaPct: pct(summary.cpc, priorCpc),
+          cpmDeltaPct: pct(summary.cpm, priorCpm),
+          cplDeltaPct: pct(summary.cpl, priorCpl),
+          ctrDeltaPp: Number((summary.ctr - priorCtr).toFixed(2)),
+          leadsDeltaPct: pct(summary.leads, priorLeads),
+          previousStartDate,
+          previousEndDate,
+        };
+      }
     }
   }
 
@@ -2519,6 +2700,7 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
     campaigns,
     summary,
     comparison,
+    comparisonReason,
     status: grainStatus !== 'VALID' ? 'INVALID_GRAIN' : hasSpend ? 'OBSERVED' : 'PARTIAL',
     reason,
     mappingStatus: contract.mappingStatus,
@@ -2751,27 +2933,65 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
   const clientConfig = getClientConfig(params.clientId);
   const contract = clientConfig.marketing;
   if (!contract || !clientConfig.capabilities.marketing) {
-    return { status: 'UNAVAILABLE', reason: 'No marketing contract is configured.', rows: [] };
+    return { status: 'UNAVAILABLE', reason: 'No marketing contract is configured.', rows: [], summary: null };
   }
+  const incompatibleScope = ['vendor', 'source', 'medium', 'grade', 'agent', 'campaign']
+    .filter(key => Boolean((params as unknown as Record<string, unknown>)[key]));
+  if (incompatibleScope.length) {
+    return {
+      status: 'UNAVAILABLE',
+      reason: `Attribution is withheld because the active reporting scope includes operational dimensions that are not reconciled to the marketing source: ${incompatibleScope.join(', ')}.`,
+      rows: [],
+      contract: contract.attribution,
+    };
+  }
+
   if (contract.attribution.status !== 'ACTIVE') {
     return {
       status: 'UNAVAILABLE',
       reason: contract.attribution.notes || 'Marketing-to-lead attribution is not configured.',
       rows: [],
+      summary: null,
       contract: contract.attribution,
     };
   }
+
+  const unsupportedScope = [
+    ['vendor', params.vendor],
+    ['medium', params.medium],
+    ['grade', params.grade],
+    ['agent', params.agent],
+    ['campaign', params.campaign],
+  ].filter(([, value]) => Boolean(value)).map(([key]) => key);
+  if (unsupportedScope.length) {
+    return {
+      status: 'UNAVAILABLE',
+      reason: `Attribution is withheld because the selected ${unsupportedScope.join(', ')} filter(s) do not have an approved equivalent marketing-side mapping.`,
+      rows: [],
+      summary: null,
+      contract: contract.attribution,
+    };
+  }
+
   const marketingSourceField = contract.attribution.marketingSourceField;
   const leadSourceField = contract.attribution.leadSourceField;
   if (!marketingSourceField || !leadSourceField) {
-    return { status: 'INVALID_CONTRACT', reason: 'Active attribution requires both marketingSourceField and leadSourceField.', rows: [] };
+    return { status: 'INVALID_CONTRACT', reason: 'Active attribution requires both marketingSourceField and leadSourceField.', rows: [], summary: null };
   }
 
   const client = getBigQueryClient(clientConfig.bigQueryProject);
   const resolved = await resolveMarketingContract(client, contract);
+  if (resolved.missingRequired.length) {
+    return {
+      status: 'INVALID_CONTRACT',
+      reason: `Configured marketing fields are missing: ${resolved.missingRequired.join(', ')}`,
+      rows: [],
+      contract: contract.attribution,
+    };
+  }
   const spendValue = marketingSpendExpression(contract, resolved.spendColumn);
   if (!spendValue) {
-    return { status: 'UNAVAILABLE', reason: 'Attribution requires an approved observed spend field.', rows: [] };
+    return { status: 'UNAVAILABLE', reason: 'Attribution requires an approved observed spend field.', rows: [], summary: null };
   }
 
   const tenantFilter = marketingTenantFilter(contract);
@@ -2780,6 +3000,7 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
   const leadSource = safeAliasedColumn('l', leadSourceField);
   const conditions = [...(tenantFilter.sql ? [tenantFilter.sql] : [])];
   const queryParams: Record<string, any> = { ...tenantFilter.params };
+
   if (params.startDate) {
     conditions.push(`DATE(${marketingDate}) >= @startDate`);
     queryParams.startDate = params.startDate;
@@ -2788,9 +3009,37 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
     conditions.push(`DATE(${marketingDate}) <= @endDate`);
     queryParams.endDate = params.endDate;
   }
-  const marketingWhere = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  if (params.source) {
+    conditions.push(`LOWER(TRIM(CAST(${marketingSource} AS STRING))) = LOWER(@attributionSource)`);
+    queryParams.attributionSource = params.source;
+  }
 
-  const operationalScope = buildFilterClause(params);
+  const marketingConditions = conditions.length ? conditions : ['TRUE'];
+  const grain = await validateMarketingSpendGrain(client, contract, marketingConditions, queryParams);
+  if (grain.status !== 'VALID') {
+    return {
+      status: 'INVALID_GRAIN',
+      reason: `Attribution is withheld because the selected marketing population contains ${grain.duplicateGrainRows.toLocaleString()} duplicate rows at the approved spend grain.`,
+      rows: [],
+      summary: null,
+      contract: contract.attribution,
+      grain,
+    };
+  }
+
+  const operationalScope = buildFilterClause({
+    ...params,
+    source: undefined,
+    vendor: undefined,
+    medium: undefined,
+    grade: undefined,
+    agent: undefined,
+    campaign: undefined,
+  });
+  const operationalWhere = params.source
+    ? `${operationalScope.whereSql} AND LOWER(TRIM(CAST(${leadSource} AS STRING))) = LOWER(@attributionSource)`
+    : operationalScope.whereSql;
+
   const query = `
     WITH marketing AS (
       SELECT
@@ -2798,7 +3047,7 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
         SUM(${spendValue}) AS spend,
         SUM(SAFE_CAST(${safeWarehouseColumn(contract.leadsField)} AS FLOAT64)) AS platform_leads
       FROM \`${contract.table}\`
-      ${marketingWhere}
+      WHERE ${marketingConditions.join(' AND ')}
       GROUP BY join_key
     ),
     operations AS (
@@ -2811,13 +3060,15 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
         COUNT(DISTINCT CASE WHEN hlc.sale IS NOT NULL AND hlc.sale != '' AND hlc.sale NOT LIKE '1900%' AND hlc.sale NOT LIKE '1970%' THEN l.lead_id END) AS sales,
         COUNT(DISTINCT CASE WHEN hlc.activated IS NOT NULL AND hlc.activated != '' AND hlc.activated NOT LIKE '1900%' AND hlc.activated NOT LIKE '1970%' THEN l.lead_id END) AS activations,
         SUM(COALESCE(hlc.revenue_generated, 0)) AS recorded_revenue
-      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
-      ${operationalScope.whereSql}
+      ${operationalWhere}
       GROUP BY join_key
     )
     SELECT
       COALESCE(marketing.join_key, operations.join_key) AS join_key,
+      marketing.join_key IS NOT NULL AS has_marketing,
+      operations.join_key IS NOT NULL AS has_operations,
       marketing.spend,
       marketing.platform_leads,
       operations.fetched,
@@ -2838,31 +3089,53 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
     params: { ...queryParams, ...operationalScope.queryParams },
   });
 
+  const mappedRows = rows.map((row: any) => {
+    const spend = row.spend === null || row.spend === undefined ? null : Number(row.spend || 0);
+    const fetched = Number(row.fetched || 0);
+    const sales = Number(row.sales || 0);
+    const activations = Number(row.activations || 0);
+    return {
+      key: row.join_key || 'Unmatched',
+      hasMarketing: Boolean(row.has_marketing),
+      hasOperations: Boolean(row.has_operations),
+      spend,
+      platformLeads: Number(row.platform_leads || 0),
+      fetched,
+      delivered: Number(row.delivered || 0),
+      dialled: Number(row.dialled || 0),
+      rpc: Number(row.rpc || 0),
+      sales,
+      activations,
+      recordedRevenue: Number(row.recorded_revenue || 0),
+      spendPerFetchedLead: spend !== null && fetched > 0 ? Number((spend / fetched).toFixed(2)) : null,
+      spendPerSale: spend !== null && sales > 0 ? Number((spend / sales).toFixed(2)) : null,
+      spendPerActivation: spend !== null && activations > 0 ? Number((spend / activations).toFixed(2)) : null,
+    };
+  });
+
+  const totalSpend = mappedRows.reduce((sum, row) => sum + (row.spend || 0), 0);
+  const matchedSpend = mappedRows
+    .filter(row => row.hasMarketing && row.hasOperations)
+    .reduce((sum, row) => sum + (row.spend || 0), 0);
+  const unmatchedMarketingSpend = mappedRows
+    .filter(row => row.hasMarketing && !row.hasOperations)
+    .reduce((sum, row) => sum + (row.spend || 0), 0);
+
   return {
     status: 'OBSERVED_UNRECONCILED',
-    reason: 'Rows use the explicitly configured marketing-to-lead attribution key. Results remain NOT_VERIFIED until source-owner reconciliation confirms key coverage and one-to-one semantics.',
+    reason: 'Rows use the explicitly configured marketing-to-lead attribution key. Only source scope is propagated across both populations; unsupported cross-source filters are withheld. Results remain NOT_VERIFIED until key coverage and semantics are reconciled.',
     contract: contract.attribution,
-    rows: rows.map((row: any) => {
-      const spend = row.spend === null || row.spend === undefined ? null : Number(row.spend || 0);
-      const fetched = Number(row.fetched || 0);
-      const sales = Number(row.sales || 0);
-      const activations = Number(row.activations || 0);
-      return {
-        key: row.join_key || 'Unmatched',
-        spend,
-        platformLeads: Number(row.platform_leads || 0),
-        fetched,
-        delivered: Number(row.delivered || 0),
-        dialled: Number(row.dialled || 0),
-        rpc: Number(row.rpc || 0),
-        sales,
-        activations,
-        recordedRevenue: Number(row.recorded_revenue || 0),
-        spendPerFetchedLead: spend !== null && fetched > 0 ? Number((spend / fetched).toFixed(2)) : null,
-        spendPerSale: spend !== null && sales > 0 ? Number((spend / sales).toFixed(2)) : null,
-        spendPerActivation: spend !== null && activations > 0 ? Number((spend / activations).toFixed(2)) : null,
-      };
-    }),
+    grain,
+    summary: {
+      totalSpend: Number(totalSpend.toFixed(2)),
+      matchedSpend: Number(matchedSpend.toFixed(2)),
+      unmatchedMarketingSpend: Number(unmatchedMarketingSpend.toFixed(2)),
+      matchedSpendSharePct: totalSpend > 0 ? Number(((matchedSpend / totalSpend) * 100).toFixed(1)) : null,
+      matchedKeys: mappedRows.filter(row => row.hasMarketing && row.hasOperations).length,
+      marketingOnlyKeys: mappedRows.filter(row => row.hasMarketing && !row.hasOperations).length,
+      operationsOnlyKeys: mappedRows.filter(row => !row.hasMarketing && row.hasOperations).length,
+    },
+    rows: mappedRows,
   };
 }
 
@@ -2878,7 +3151,7 @@ export async function getAiInsightsAnalytics(_params: OffernetQueryParams) {
 
 // 13. RAW DATA EXPLORER & LEAD TIMELINE
 export async function getRawLeads(params: OffernetQueryParams) {
-  const client = getBigQueryClient('dashboards-422710');
+  const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const limit = Math.min(Math.max(Number(params.limit) || 50, 10), 200);
   const offset = Math.max(Number(params.offset) || 0, 0);
   const { whereSql, queryParams } = buildFilterClause(params);
@@ -3033,7 +3306,7 @@ export async function getRawLeads(params: OffernetQueryParams) {
       hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' as sale,
       hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' as activated,
       COALESCE(hlc.revenue_generated, 0) as revenue
-    FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+    FROM ${configuredSourceTable(params.clientId, 'leads')} l
     LEFT JOIN UNNEST(l.hlc_details) hlc
     ${whereSql}
     ${searchCondition}
@@ -3059,7 +3332,7 @@ export async function getRawLeads(params: OffernetQueryParams) {
 
 // LEAD TIMELINE MODAL DATA
 export async function getLeadTimeline(leadId: string, params: Pick<OffernetQueryParams, 'clientId' | 'vendor'>) {
-  const client = getBigQueryClient('dashboards-422710');
+  const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const clientConfig = getClientConfig(params.clientId);
   const conditions = ['l.lead_id = @leadId'];
   const queryParams: Record<string, any> = { leadId };
@@ -3094,7 +3367,7 @@ export async function getLeadTimeline(leadId: string, params: Pick<OffernetQuery
       l.valid_idno,
       l.phone_valid,
       hlc.*
-    FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+    FROM ${configuredSourceTable(params.clientId, 'leads')} l
     LEFT JOIN UNNEST(l.hlc_details) hlc
     WHERE ${conditions.join(' AND ')}
     ORDER BY SAFE_CAST(hlc.delivered AS TIMESTAMP) DESC
@@ -3119,7 +3392,7 @@ export async function getLeadTimeline(leadId: string, params: Pick<OffernetQuery
           is_sale,
           is_callback,
           called_count
-        FROM \`dashboards-422710.lead_ledger.lead_ledger_all_vicidial_insights\`
+        FROM ${configuredSourceTable(params.clientId, 'calls')}
         WHERE ${callConditions.join(' AND ')}
         ORDER BY SAFE_CAST(call_start_date AS TIMESTAMP) ASC
         LIMIT 500

@@ -10,6 +10,16 @@ export function OperatingControlStrip({ data }: { data: OperatingControlsData })
   return (
     <section className="cx-command-metrics cx-control-metrics" aria-label="OfferNet operating controls">
       <article className="cx-command-metric">
+        <span>Capture → first dial</span>
+        <strong>{s.captureToDialMedian}</strong>
+        <div><small>P90 {s.captureToDialP90} · {s.captureWithin15mRate}% within 15m</small></div>
+      </article>
+      <article className="cx-command-metric">
+        <span>Awaiting first dial</span>
+        <strong>{fmt(s.awaitingFirstDial)}</strong>
+        <div><small>Oldest delivered wait {s.oldestDeliveryWait}</small></div>
+      </article>
+      <article className="cx-command-metric">
         <span>One-call share</span>
         <strong>{s.singleAttemptSharePct}%</strong>
         <div><small>{fmt(s.oneCallLeads)} leads with one recorded call-count</small></div>
@@ -70,6 +80,75 @@ export function AttemptCoveragePanel({ data }: { data: OperatingControlsData }) 
         </table>
       </div>
       <div className="cx-control-note">{data.methodology.callCount}</div>
+    </section>
+  );
+}
+
+export function CaptureTurnaroundPanel({ data }: { data: OperatingControlsData }) {
+  const s = data.summary;
+  const maxFlow = Math.max(1, ...data.hourlyFlow.flatMap(row => [row.captured, row.firstDials]));
+  const recent = data.dailyTurnaround.slice(-14).reverse();
+
+  return (
+    <section className="cx-command-panel">
+      <header>
+        <div>
+          <span className="cx-command-section-kicker">Lead-entry turnaround</span>
+          <h2>Capture → first dial</h2>
+          <p>Lead fetched/API-entry time to first recorded dial, kept separate from delivery → first dial.</p>
+        </div>
+        <Clock3 size={16} className="text-slate-400"/>
+      </header>
+
+      <div className="cx-turnaround-kpis">
+        <article><span>Median</span><strong>{s.captureToDialMedian}</strong><small>Observed dialled leads</small></article>
+        <article><span>P90</span><strong>{s.captureToDialP90}</strong><small>Tail turnaround</small></article>
+        <article><span>≤15 minutes</span><strong>{s.captureWithin15mRate}%</strong><small>All captured leads in scope</small></article>
+        <article><span>≤1 hour</span><strong>{s.captureWithin60mRate}%</strong><small>All captured leads in scope</small></article>
+        <article><span>Waiting first dial</span><strong>{fmt(s.awaitingFirstDial)}</strong><small>Oldest delivered wait {s.oldestDeliveryWait}</small></article>
+      </div>
+
+      <div className="cx-command-grid cx-turnaround-grid">
+        <div className="cx-turnaround-flow">
+          <h3>Lead-in vs first-dial flow by hour</h3>
+          <p>Tenant-local clock. This compares throughput timing, not one-to-one hourly cohort attribution.</p>
+          <div className="cx-hour-flow-list">
+            {data.hourlyFlow.map(row => (
+              <div key={row.hour}>
+                <span>{String(row.hour).padStart(2, '0')}:00</span>
+                <div className="cx-hour-flow-bars">
+                  <i data-series="captured" style={{ width: `${(row.captured / maxFlow) * 100}%` }} />
+                  <i data-series="dialled" style={{ width: `${(row.firstDials / maxFlow) * 100}%` }} />
+                </div>
+                <small>{fmt(row.captured)} in · {fmt(row.firstDials)} first dials</small>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="cx-turnaround-days">
+          <h3>Recent turnaround</h3>
+          <p>Daily capture cohorts in the selected period.</p>
+          <div className="cx-performance-table-wrap">
+            <table className="cx-performance-table">
+              <thead><tr><th>Date</th><th>Leads</th><th>Median</th><th>P90</th><th>≤15m</th><th>≤1h</th></tr></thead>
+              <tbody>
+                {recent.map(row => (
+                  <tr key={row.date}>
+                    <th>{row.date}</th>
+                    <td>{fmt(row.leads)}</td>
+                    <td>{row.median}</td>
+                    <td>{row.p90}</td>
+                    <td>{row.within15mRate}%</td>
+                    <td>{row.within60mRate}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div className="cx-control-note">{data.methodology.captureTurnaround}</div>
     </section>
   );
 }

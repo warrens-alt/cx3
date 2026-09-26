@@ -29,7 +29,9 @@ export interface MarketingSourceContract {
   campaignField: string;
   adsetField: string;
   impressionsField: string;
+  reachField?: string;
   clicksField: string;
+  outboundClicksField?: string;
   leadsField: string;
   approvedSpendFields: string[];
   spendUnitByField: Record<string, 'currency' | 'micros'>;
@@ -123,7 +125,9 @@ const BASE_MARKETING_CONTRACT: Omit<MarketingSourceContract, 'mappingStatus' | '
   campaignField: 'Channel_Campaign_Name',
   adsetField: 'channel_adset_name',
   impressionsField: 'impressions',
+  reachField: 'reach',
   clicksField: 'clicks',
+  outboundClicksField: 'outbound_clicks',
   leadsField: 'actions_lead',
   approvedSpendFields: [
     'spend',
@@ -161,6 +165,25 @@ function marketingContract(
 ): MarketingSourceContract {
   return { ...BASE_MARKETING_CONTRACT, mappingStatus, clientNames };
 }
+
+function tenantTables(leads: string, includeBlcActivationSource = false) {
+  return {
+    ...BASE_TABLES,
+    leads,
+    activations: includeBlcActivationSource ? BASE_TABLES.activations : undefined,
+  };
+}
+
+const CONTRACT_LEAD_VIEWS = {
+  mtn: 'dashboards-422710.lead_ledger.view_lead_ledger_mtn_lead_submit_open',
+  mondo: 'dashboards-422710.lead_ledger.view_lead_ledger_mondo_lead_submit_open',
+  ontact_blc: 'dashboards-422710.lead_ledger.view_lead_ledger_blc_lead_submit_open',
+  vodacom_bizvoip: 'dashboards-422710.lead_ledger.view_lead_ledger_bizvoip_lead_submit_open',
+  rewardsco: 'dashboards-422710.lead_ledger.view_lead_ledger_rewardsco_lead_submit_open',
+  real_promotions: 'dashboards-422710.lead_ledger.view_lead_ledger_real_promotions_lead_submit_open',
+  oneplan: 'dashboards-422710.lead_ledger.view_lead_leadger_oneplan_lead_submit_open',
+  affiliate: 'dashboards-422710.lead_ledger.view_lead_ledger_affiliate_lead_submit_open',
+} as const;
 
 const TENANTS: Record<string, TenantConfiguration> = {
   default_tenant: {
@@ -207,8 +230,8 @@ const TENANTS: Record<string, TenantConfiguration> = {
     bigQueryDatasets: ['lead_ledger'],
     dataSourceMode: 'separate',
     capabilities: { marketing: true, leads: true, calls: true, sales: true, activation: true, revenue: true },
-    semanticMappings: { tables: BASE_TABLES, fields: {}, partners: ['mondo'] },
-    marketing: marketingContract('UNRESOLVED', []),
+    semanticMappings: { tables: tenantTables(CONTRACT_LEAD_VIEWS.mondo), fields: {}, partners: ['mondo'] },
+    marketing: marketingContract('MAPPED', ['Mondo', 'Mondo Deals']),
     operationalConfig: { ...DEFAULT_OPERATIONAL_CONFIG, salesDefinition: 'Cellular Postpaid / Sim-Only Handset Sale' },
   },
   mtn: {
@@ -221,8 +244,8 @@ const TENANTS: Record<string, TenantConfiguration> = {
     bigQueryDatasets: ['lead_ledger'],
     dataSourceMode: 'separate',
     capabilities: { marketing: true, leads: true, calls: true, sales: true, activation: true, revenue: true },
-    semanticMappings: { tables: BASE_TABLES, fields: {}, partners: ['mtn'] },
-    marketing: marketingContract('UNRESOLVED', []),
+    semanticMappings: { tables: tenantTables(CONTRACT_LEAD_VIEWS.mtn), fields: {}, partners: ['mtn'] },
+    marketing: marketingContract('MAPPED', ['MTN', 'MTN SA']),
     operationalConfig: { ...DEFAULT_OPERATIONAL_CONFIG, salesDefinition: 'MTN Subscriber Upgrade / New Line Contract' },
   },
   ontact_blc: {
@@ -235,9 +258,13 @@ const TENANTS: Record<string, TenantConfiguration> = {
     bigQueryDatasets: ['lead_ledger'],
     dataSourceMode: 'separate',
     capabilities: { marketing: true, leads: true, calls: true, sales: true, activation: true, revenue: true },
-    semanticMappings: { tables: BASE_TABLES, fields: {}, partners: ['blc'] },
-    marketing: marketingContract('UNRESOLVED', []),
-    operationalConfig: { ...DEFAULT_OPERATIONAL_CONFIG, salesDefinition: 'BLC Financial Service Policy Issued' },
+    semanticMappings: { tables: tenantTables(CONTRACT_LEAD_VIEWS.ontact_blc, true), fields: {}, partners: ['blc'] },
+    marketing: marketingContract('MAPPED', ['BLC', 'BLC 1Life']),
+    operationalConfig: {
+      ...DEFAULT_OPERATIONAL_CONFIG,
+      operatingHours: { start: '08:00', end: '17:00', workdays: [1, 2, 3, 4, 5] },
+      salesDefinition: 'BLC Financial Service Policy Issued',
+    },
   },
   vodacom_bizvoip: {
     id: 'vodacom_bizvoip',
@@ -249,9 +276,13 @@ const TENANTS: Record<string, TenantConfiguration> = {
     bigQueryDatasets: ['lead_ledger'],
     dataSourceMode: 'separate',
     capabilities: { marketing: true, leads: true, calls: true, sales: true, activation: true, revenue: true },
-    semanticMappings: { tables: BASE_TABLES, fields: {}, partners: ['bizvoip'] },
-    marketing: marketingContract('UNRESOLVED', []),
-    operationalConfig: { ...DEFAULT_OPERATIONAL_CONFIG, salesDefinition: 'Vodacom Fibre & Fixed LTE Agreement' },
+    semanticMappings: { tables: tenantTables(CONTRACT_LEAD_VIEWS.vodacom_bizvoip), fields: {}, partners: ['bizvoip'] },
+    marketing: marketingContract('MAPPED', ['BizVoIP']),
+    operationalConfig: {
+      ...DEFAULT_OPERATIONAL_CONFIG,
+      operatingHours: { start: '08:30', end: '17:00', workdays: [1, 2, 3, 4, 5] },
+      salesDefinition: 'Vodacom Fibre & Fixed LTE Agreement',
+    },
   },
   real_promotions: {
     id: 'real_promotions',
@@ -262,8 +293,9 @@ const TENANTS: Record<string, TenantConfiguration> = {
     bigQueryProject: 'dashboards-422710',
     bigQueryDatasets: ['lead_ledger'],
     dataSourceMode: 'separate',
-    capabilities: { marketing: false, leads: true, calls: true, sales: true, activation: true, revenue: true },
-    semanticMappings: { tables: BASE_TABLES, fields: {}, partners: ['realpromotions'] },
+    capabilities: { marketing: true, leads: true, calls: true, sales: true, activation: true, revenue: true },
+    semanticMappings: { tables: tenantTables(CONTRACT_LEAD_VIEWS.real_promotions), fields: {}, partners: ['realpromotions'] },
+    marketing: marketingContract('MAPPED', ['Real Promotions']),
     operationalConfig: DEFAULT_OPERATIONAL_CONFIG,
   },
   rewardsco: {
@@ -275,9 +307,13 @@ const TENANTS: Record<string, TenantConfiguration> = {
     bigQueryProject: 'dashboards-422710',
     bigQueryDatasets: ['lead_ledger'],
     dataSourceMode: 'separate',
-    capabilities: { marketing: false, leads: true, calls: true, sales: true, activation: true, revenue: true },
-    semanticMappings: { tables: BASE_TABLES, fields: {}, partners: ['rewardsco'] },
-    operationalConfig: DEFAULT_OPERATIONAL_CONFIG,
+    capabilities: { marketing: true, leads: true, calls: true, sales: true, activation: true, revenue: true },
+    semanticMappings: { tables: tenantTables(CONTRACT_LEAD_VIEWS.rewardsco), fields: {}, partners: ['rewardsco'] },
+    marketing: marketingContract('MAPPED', ['Rewardsco']),
+    operationalConfig: {
+      ...DEFAULT_OPERATIONAL_CONFIG,
+      operatingHours: { start: '08:00', end: '18:00', workdays: [1, 2, 3, 4, 5, 6] },
+    },
   },
   oneplan: {
     id: 'oneplan',
@@ -289,10 +325,27 @@ const TENANTS: Record<string, TenantConfiguration> = {
     bigQueryDatasets: ['lead_ledger'],
     dataSourceMode: 'separate',
     capabilities: { marketing: true, leads: true, calls: true, sales: true, activation: true, revenue: true },
-    semanticMappings: { tables: BASE_TABLES, fields: {}, partners: ['oneplan_pet', 'oneplan_medical'] },
-    marketing: marketingContract('UNRESOLVED', []),
+    semanticMappings: { tables: tenantTables(CONTRACT_LEAD_VIEWS.oneplan), fields: {}, partners: ['oneplan_pet', 'oneplan_medical'] },
+    marketing: marketingContract('MAPPED', ['OnePlan']),
+    operationalConfig: {
+      ...DEFAULT_OPERATIONAL_CONFIG,
+      operatingHours: { start: '08:00', end: '17:00', workdays: [1, 2, 3, 4, 5] },
+    },
+  },
+  affiliate: {
+    id: 'affiliate',
+    name: 'Affiliate Network',
+    active: true,
+    currency: 'ZAR',
+    timezone: 'Africa/Johannesburg',
+    bigQueryProject: 'dashboards-422710',
+    bigQueryDatasets: ['lead_ledger'],
+    dataSourceMode: 'separate',
+    capabilities: { marketing: false, leads: true, calls: true, sales: true, activation: true, revenue: true },
+    semanticMappings: { tables: tenantTables(CONTRACT_LEAD_VIEWS.affiliate), fields: {}, partners: ['affiliate'] },
     operationalConfig: DEFAULT_OPERATIONAL_CONFIG,
   },
+
 };
 
 export const ROR_PARTNER_TO_VENDOR_MAP: Record<string, string> = {
@@ -376,8 +429,15 @@ function configuredMarketingAttribution(tenantId: string): MarketingAttributionC
   };
 }
 
+const TENANT_ALIASES: Record<string, string> = {
+  default: 'default_tenant',
+  blc: 'ontact_blc',
+  bizvoip: 'vodacom_bizvoip',
+  realpromotions: 'real_promotions',
+};
+
 export function getClientConfig(clientId: string): TenantConfiguration {
-  const key = clientId === 'default' ? 'default_tenant' : clientId;
+  const key = TENANT_ALIASES[clientId] || clientId;
   const tenant = Object.hasOwn(TENANTS, key) ? TENANTS[key] : undefined;
   if (!tenant || !tenant.active) throw new RequestError('Unknown or inactive tenant', 404);
 

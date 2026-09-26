@@ -16,6 +16,12 @@ export interface OperatingControlsData {
     weekendSharePct: number;
     sla15Rate: number;
     sla60Rate: number;
+    awaitingFirstDial: number;
+    oldestDeliveryWait: string;
+    captureToDialMedian: string;
+    captureToDialP90: string;
+    captureWithin15mRate: number;
+    captureWithin60mRate: number;
     activationBacklog14d: number;
     afterHoursRpcRate: number;
     operatingHoursRpcRate: number;
@@ -40,6 +46,17 @@ export interface OperatingControlsData {
     saleRate: number;
   }>;
   activationAgeing: Array<{ bucket: string; leads: number }>;
+  hourlyFlow: Array<{ hour: number; captured: number; firstDials: number }>;
+  dailyTurnaround: Array<{
+    date: string;
+    leads: number;
+    dialled: number;
+    undialled: number;
+    median: string;
+    p90: string;
+    within15mRate: number;
+    within60mRate: number;
+  }>;
   vendorControls: Array<{
     vendor: string;
     leads: number;
@@ -67,6 +84,8 @@ export interface OperatingControlsData {
     callCount: string;
     vendor: string;
     operatingHours: string;
+    captureTurnaround: string;
+    realtimeDialler: string;
   };
   validationStatus: string;
 }
@@ -527,13 +546,19 @@ export interface CampaignData {
   summary: {
     spend: number | null;
     impressions: number;
+    reach: number | null;
+    frequency: number | null;
     clicks: number;
+    outboundClicks: number | null;
     leads: number;
     ctr: number;
+    outboundCtr: number | null;
+    clickToLeadRate: number | null;
     cpc: number | null;
     cpm: number | null;
     cpl: number | null;
   } | null;
+  comparisonReason?: string | null;
   comparison?: {
     spendDeltaPct: number | null;
     cpcDeltaPct: number | null;
@@ -563,8 +588,13 @@ export interface CampaignData {
     spend: number | null;
     latestBudget: number | null;
     impressions: number;
+    reach: number | null;
+    frequency: number | null;
     clicks: number;
+    outboundClicks: number | null;
     ctr: number;
+    outboundCtr: number | null;
+    clickToLeadRate: number | null;
     leads: number;
     cpc: number | null;
     cpm: number | null;
@@ -586,7 +616,9 @@ export interface MarketingDiscoveryData {
       campaign: string;
       adset: string;
       impressions: string;
+      reach: string | null;
       clicks: string;
+      outboundClicks: string | null;
       leads: string;
     };
     approvedSpendFields: string[];
@@ -651,6 +683,21 @@ export interface MarketingRootCauseData {
 export interface MarketingAttributionData {
   status: string;
   reason: string;
+  summary?: {
+    totalSpend: number;
+    matchedSpend: number;
+    unmatchedMarketingSpend: number;
+    matchedSpendSharePct: number | null;
+    matchedKeys: number;
+    marketingOnlyKeys: number;
+    operationsOnlyKeys: number;
+  } | null;
+  grain?: {
+    status: string;
+    rowCount: number;
+    distinctGrainCount: number;
+    duplicateGrainRows: number;
+  };
   contract?: {
     status: string;
     marketingSourceField?: string;
@@ -661,6 +708,8 @@ export interface MarketingAttributionData {
   };
   rows: Array<{
     key: string;
+    hasMarketing: boolean;
+    hasOperations: boolean;
     spend: number | null;
     platformLeads: number;
     fetched: number;
@@ -746,6 +795,18 @@ interface CacheEntry<T> {
 const memoryCache = new Map<string, CacheEntry<any>>();
 const inFlightRequests = new Map<string, Promise<any>>();
 const CACHE_TTL_MS = 60 * 1000; // 60 seconds
+const CACHE_MAX_ENTRIES = 200;
+
+function pruneOffernetCache(now = Date.now()) {
+  for (const [key, entry] of memoryCache) {
+    if (now - entry.timestamp >= CACHE_TTL_MS) memoryCache.delete(key);
+  }
+  if (memoryCache.size <= CACHE_MAX_ENTRIES) return;
+  const oldest = [...memoryCache.entries()]
+    .sort((a, b) => a[1].timestamp - b[1].timestamp)
+    .slice(0, memoryCache.size - CACHE_MAX_ENTRIES);
+  oldest.forEach(([key]) => memoryCache.delete(key));
+}
 
 export function invalidateOffernetCache() {
   memoryCache.clear();
@@ -754,6 +815,7 @@ export function invalidateOffernetCache() {
 
 export async function fetchOffernetJson<T>(url: string, forceRefresh = false): Promise<T> {
   const now = Date.now();
+  pruneOffernetCache(now);
   if (!forceRefresh && memoryCache.has(url)) {
     const entry = memoryCache.get(url)!;
     if (now - entry.timestamp < CACHE_TTL_MS) {
@@ -781,6 +843,7 @@ export async function fetchOffernetJson<T>(url: string, forceRefresh = false): P
       const json = await response.json();
       const result = json.data as T;
       memoryCache.set(url, { data: result, timestamp: Date.now() });
+      pruneOffernetCache();
       return result;
     } finally {
       inFlightRequests.delete(url);
@@ -879,11 +942,12 @@ export async function fetchCliPerformance(params: Record<string, any> = {}, forc
   return fetchOffernetJson<any>(`/api/analytics/cli-performance${buildQueryString(params)}`, forceRefresh);
 }
 
-export async function importCliReport(csvText: string, filename?: string): Promise<{ success: boolean; message: string; count: number; anomalies: any[] }> {
+export async function importCliReport(csvText: string, filename: string | undefined, clientId: string): Promise<{ success: boolean; message: string; count: number; anomalies: any[] }> {
   const res = await fetch('/api/analytics/cli-performance/import', {
     method: 'POST',
+    credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ csvText, filename }),
+    body: JSON.stringify({ clientId, csvText, filename }),
   });
   const data = await res.json();
   if (!res.ok || !data.success) {
@@ -893,11 +957,12 @@ export async function importCliReport(csvText: string, filename?: string): Promi
   return data;
 }
 
-export async function loadSampleCliDataset(): Promise<{ success: boolean; message: string; count: number }> {
+export async function loadSampleCliDataset(clientId: string): Promise<{ success: boolean; message: string; count: number }> {
   const res = await fetch('/api/analytics/cli-performance/load-sample', {
     method: 'POST',
+    credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ clientId }),
   });
   const data = await res.json();
   if (!res.ok || !data.success) {
@@ -906,9 +971,10 @@ export async function loadSampleCliDataset(): Promise<{ success: boolean; messag
   return data;
 }
 
-export async function clearCliImport(): Promise<{ success: boolean; message: string }> {
-  const res = await fetch('/api/analytics/cli-performance/import', {
+export async function clearCliImport(clientId: string): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`/api/analytics/cli-performance/import?clientId=${encodeURIComponent(clientId)}`, {
     method: 'DELETE',
+    credentials: 'same-origin',
   });
   const data = await res.json();
   if (!res.ok || !data.success) {

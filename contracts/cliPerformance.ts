@@ -8,7 +8,29 @@
 
 import { addExactDecimals, divideExactDecimal, exactDecimal } from './exactDecimal';
 
-export const CLI_CONTRACT_VERSION = 'cx.cli.1.0.0';
+export const CLI_CONTRACT_VERSION = 'cx.cli.1.1.0';
+
+export const CLI_DAILY_EXPORT_SCHEMA = [
+  { field: 'report_date', required: true, meaning: 'Local reporting date for the daily CLI extract.' },
+  { field: 'cli_number', required: true, meaning: 'Outbound caller ID / presentation number.' },
+  { field: 'campaign_code', required: true, meaning: 'VICIdial campaign code; export grain is CLI × campaign × report date.' },
+  { field: 'total_calls', required: true, meaning: 'Observed call attempts.' },
+  { field: 'asr_count', required: false, meaning: 'Carrier/switch seizure count.' },
+  { field: 'asr_pct', required: false, meaning: 'ASR count ÷ total calls.' },
+  { field: 'answered_count', required: false, meaning: 'Answered calls from the source report.' },
+  { field: 'answered_pct', required: false, meaning: 'Answered count ÷ total calls.' },
+  { field: 'contact_count', required: true, meaning: 'Right-party-contact count.' },
+  { field: 'contact_pct', required: false, meaning: 'Contact count ÷ total calls.' },
+  { field: 'sale_count', required: true, meaning: 'Recorded sales.' },
+  { field: 'sale_pct', required: false, meaning: 'Sale count ÷ contact count (Sale/RPC), matching the observed OfferNet export.' },
+  { field: 'duration_ge_1m_count', required: false, meaning: 'Calls lasting at least 60 seconds.' },
+  { field: 'duration_ge_1m_pct', required: false, meaning: 'Calls ≥1m ÷ total calls.' },
+  { field: 'duration_ge_5m_count', required: false, meaning: 'Calls lasting at least 300 seconds.' },
+  { field: 'duration_ge_5m_pct', required: false, meaning: 'Calls ≥5m ÷ total calls.' },
+  { field: 'duration_ge_15m_count', required: false, meaning: 'Calls lasting at least 900 seconds.' },
+  { field: 'duration_ge_15m_pct', required: false, meaning: 'Calls ≥15m ÷ total calls.' },
+  { field: 'avg_lead_age_days', required: false, meaning: 'Source-reported average lead age for the CLI/campaign row.' },
+] as const;
 
 export type CliProvenance = 'LIVE_BIGQUERY' | 'IMPORTED_REPORT';
 
@@ -24,16 +46,16 @@ export interface CliFieldCoverage {
 }
 
 export interface CliDurationBands {
-  under1mCount: string;
-  under1mPct: string;
-  oneTo5mCount: string;
-  oneTo5mPct: string;
-  fiveTo15mCount: string;
-  fiveTo15mPct: string;
-  over15mCount: string;
-  over15mPct: string;
-  totalDurationSeconds: string;
-  avgDurationSeconds: string;
+  under1mCount: string | null;
+  under1mPct: string | null;
+  oneTo5mCount: string | null;
+  oneTo5mPct: string | null;
+  fiveTo15mCount: string | null;
+  fiveTo15mPct: string | null;
+  over15mCount: string | null;
+  over15mPct: string | null;
+  totalDurationSeconds: string | null;
+  avgDurationSeconds: string | null;
   medianDurationSeconds: string | null;
 }
 
@@ -60,8 +82,9 @@ export interface CliPerformanceRecord {
   campaign: string;
   vendor: string;
   totalCalls: string;
-  distinctLeads: string;
-  callsPerLead: string;
+  distinctLeads: string | null;
+  callsPerLead: string | null;
+  reportDate?: string | null;
   asrCount: string | null;
   asrRate: string | null;
   answeredCount: string | null;
@@ -72,14 +95,14 @@ export interface CliPerformanceRecord {
   salePerCallRate: string;
   salePerAnswerRate: string | null;
   salePerContactRate: string | null;
-  durationGe1mCount: string;
-  durationGe1mPct: string;
-  durationGe5mCount: string;
-  durationGe5mPct: string;
-  durationGe15mCount: string;
-  durationGe15mPct: string;
-  avgDurationSeconds: string;
-  totalDurationSeconds: string;
+  durationGe1mCount: string | null;
+  durationGe1mPct: string | null;
+  durationGe5mCount: string | null;
+  durationGe5mPct: string | null;
+  durationGe15mCount: string | null;
+  durationGe15mPct: string | null;
+  avgDurationSeconds: string | null;
+  totalDurationSeconds: string | null;
   avgLeadAgeDays: string | null;
   activations: string | null;
   recordedValue: string | null;
@@ -92,8 +115,8 @@ export interface CliPerformanceRecord {
 export interface CliSummary {
   totalCalls: string;
   activeClis: number;
-  distinctLeads: string;
-  callsPerLead: string;
+  distinctLeads: string | null;
+  callsPerLead: string | null;
   asrCount: string | null;
   asrRate: string | null;
   answeredCount: string | null;
@@ -104,9 +127,9 @@ export interface CliSummary {
   salePerCallRate: string;
   salePerAnswerRate: string | null;
   salePerContactRate: string | null;
-  durationGe5mRate: string;
-  avgDurationSeconds: string;
-  totalDurationSeconds: string;
+  durationGe5mRate: string | null;
+  avgDurationSeconds: string | null;
+  totalDurationSeconds: string | null;
   avgLeadAgeDays: string | null;
   activations: string | null;
   recordedValue: string | null;
@@ -149,7 +172,7 @@ export interface CliTrendPoint {
   saleRate: number;
   answeredRate: number | null;
   asrRate: number | null;
-  durationGe5mRate: number;
+  durationGe5mRate: number | null;
   byCli?: Record<string, { calls: number; contactRate: number; saleRate: number }>;
 }
 
@@ -170,6 +193,7 @@ export interface CliValidationAnomaly {
     | 'SALES_EXCEED_CALLS'
     | 'SALES_EXCEED_CONTACTS'
     | 'PERCENTAGE_OUT_OF_BOUNDS'
+    | 'PERCENTAGE_MISMATCH'
     | 'MISSING_DATE'
     | 'MISSING_CAMPAIGN'
     | 'ANOMALOUS_SALE_RATE';
@@ -251,7 +275,7 @@ export const CLI_METRIC_DEFINITIONS: Record<string, CliMetricDefinition> = {
     formula: 'SUM(sale_calls) / SUM(contact_calls)',
     numerator: 'Calls resulting in a recorded sale (is_sale = true)',
     denominator: 'Calls with confirmed Right Party Contact (is_rpc = true)',
-    note: 'Pitch-to-close conversion rate. Only calculated when contact_calls > 0. If external report indicates sales > contacts, flagged as anomaly.',
+    note: 'Pitch-to-close conversion rate. In the OfferNet daily CLI export this is the semantic meaning of sale_pct. Only calculated when contact_calls > 0.',
   },
   durationGe5mPct: {
     id: 'durationGe5mPct',

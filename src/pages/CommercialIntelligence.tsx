@@ -112,6 +112,14 @@ export default function CommercialIntelligence() {
                 <span className="cx-source-status" data-status={attribution?.status || 'UNAVAILABLE'}>{attribution?.status || 'UNAVAILABLE'}</span>
               </header>
 
+              {attribution?.summary && (
+                <div className="cx-commercial-source">
+                  <div><span>Matched spend</span><strong>{money(attribution.summary.matchedSpend)}</strong><small>{attribution.summary.matchedSpendSharePct == null ? 'Coverage unavailable' : `${attribution.summary.matchedSpendSharePct}% of observed spend`}</small></div>
+                  <div><span>Unmatched media spend</span><strong>{money(attribution.summary.unmatchedMarketingSpend)}</strong><small>{attribution.summary.marketingOnlyKeys.toLocaleString()} marketing-only keys</small></div>
+                  <div><span>Join-key coverage</span><strong>{attribution.summary.matchedKeys.toLocaleString()} matched keys</strong><small>{attribution.summary.operationsOnlyKeys.toLocaleString()} operations-only keys</small></div>
+                </div>
+              )}
+
               {attribution?.rows?.length ? (
                 <div className="cx-performance-table-wrap">
                   <table className="cx-performance-table cx-attribution-table">
@@ -135,6 +143,7 @@ export default function CommercialIntelligence() {
                       {attribution.rows.map(row => (
                         <tr key={row.key}>
                           <th>{row.key}</th>
+                          <td>{row.hasMarketing && row.hasOperations ? 'Matched' : row.hasMarketing ? 'Marketing only' : 'Operations only'}</td>
                           <td>{money(row.spend)}</td>
                           <td>{row.platformLeads.toLocaleString()}</td>
                           <td>{row.fetched.toLocaleString()}</td>

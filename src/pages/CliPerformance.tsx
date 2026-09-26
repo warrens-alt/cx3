@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useFilters, extractOffernetFilters } from '../lib/FilterContext';
 import { useClient } from '../lib/ClientContext';
+import { useAuth } from '../lib/AuthContext';
 import {
   fetchCliPerformance,
   importCliReport,
@@ -46,8 +47,10 @@ import {
 
 export default function CliPerformance() {
   const { selectedClient, clientConfig } = useClient();
+  const { isAdmin } = useAuth();
   const { startDate, endDate, filters, setFilter } = useFilters();
   const currency = clientConfig?.currency || 'ZAR';
+  const sampleDataEnabled = isAdmin && (import.meta as any).env?.DEV === true;
 
   const [data, setData] = useState<CliPerformanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -122,7 +125,7 @@ export default function CliPerformance() {
 
     try {
       const text = await file.text();
-      const res = await importCliReport(text, file.name);
+      const res = await importCliReport(text, file.name, selectedClient);
       setUploadSuccess(`Successfully imported ${res.count} CLI records from ${file.name}.`);
       await loadData(true);
       setTimeout(() => setShowImportModal(false), 1200);
@@ -139,7 +142,7 @@ export default function CliPerformance() {
     setUploading(true);
     setUploadError(null);
     try {
-      await loadSampleCliDataset();
+      await loadSampleCliDataset(selectedClient);
       await loadData(true);
       setShowImportModal(false);
     } catch (err: any) {
@@ -154,7 +157,7 @@ export default function CliPerformance() {
     if (!window.confirm('Clear imported CLI report data and return to live warehouse check?')) return;
     setLoading(true);
     try {
-      await clearCliImport();
+      await clearCliImport(selectedClient);
       await loadData(true);
     } catch (err: any) {
       setError(err.message || 'Failed to clear imported report');
@@ -317,13 +320,15 @@ export default function CliPerformance() {
                 <AlertTriangle size={13}/>{data.anomalies.length} quality flag{data.anomalies.length === 1 ? '' : 's'}
               </button>
             ) : null}
-            <button type="button" onClick={() => setShowImportModal(true)} className="cx-button-secondary">
-              <Upload size={14}/>Import / sample
-            </button>
+            {isAdmin && (
+              <button type="button" onClick={() => setShowImportModal(true)} className="cx-button-secondary">
+                <Upload size={14}/>Import report
+              </button>
+            )}
             {data && !isSchemaUnavailable && (
               <button type="button" onClick={handleExportJson} className="cx-button-secondary">JSON</button>
             )}
-            {isImported && (
+            {isAdmin && isImported && (
               <button type="button" onClick={handleClearImport} className="cx-button-secondary">Clear import</button>
             )}
           </div>
@@ -357,28 +362,34 @@ export default function CliPerformance() {
                   <strong>System Integrity Protection:</strong> Rather than silently substituting unrelated columns or synthesizing misleading numbers, Conversion X isolates this schema gap visibly.
                 </p>
                 <p>
-                  You can immediately explore full dialler intelligence by loading the benchmark VICIdial dataset, or by uploading an exported VICIdial CLI CSV report.
+                  Administrators can upload an exported VICIdial CLI CSV report. Benchmark sample data is available only in development environments and is never loaded into production by default.
                 </p>
               </div>
-              <div className="flex flex-wrap gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={handleLoadSample}
-                  disabled={uploading}
-                  className="cx-button-primary text-xs py-2 px-4 flex items-center gap-1.5"
-                >
-                  <Sparkles size={14} />
-                  <span>Load Benchmark CLI Dataset</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowImportModal(true)}
-                  className="cx-button-secondary text-xs py-2 px-4 flex items-center gap-1.5"
-                >
-                  <Upload size={14} />
-                  <span>Upload VICIdial CLI Report (.csv)</span>
-                </button>
-              </div>
+              {isAdmin ? (
+                <div className="flex flex-wrap gap-3 pt-2">
+                  {(import.meta as any).env?.DEV === true && (
+                    <button
+                      type="button"
+                      onClick={handleLoadSample}
+                      disabled={uploading}
+                      className="cx-button-primary text-xs py-2 px-4 flex items-center gap-1.5"
+                    >
+                      <Sparkles size={14} />
+                      <span>Load development sample</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowImportModal(true)}
+                    className="cx-button-secondary text-xs py-2 px-4 flex items-center gap-1.5"
+                  >
+                    <Upload size={14} />
+                    <span>Upload VICIdial CLI Report (.csv)</span>
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-600 pt-2">Ask an administrator to configure a CLI source or upload a validated CLI report.</p>
+              )}
             </div>
           </div>
         </section>
@@ -396,14 +407,16 @@ export default function CliPerformance() {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-slate-500 font-mono text-[11px]">Model: {data.metadata.modelVersion}</span>
-            <button
-              type="button"
-              onClick={handleClearImport}
-              className="text-rose-600 font-medium hover:underline flex items-center gap-1"
-            >
-              <X size={13} />
-              <span>Unload Report</span>
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={handleClearImport}
+                className="text-rose-600 font-medium hover:underline flex items-center gap-1"
+              >
+                <X size={13} />
+                <span>Unload Report</span>
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -420,7 +433,8 @@ export default function CliPerformance() {
               <label className="flex items-center gap-1.5 cursor-pointer text-slate-600 select-none">
                 <input
                   type="checkbox"
-                  checked={showPeriodComparison}
+                  checked={Boolean(comparison) && showPeriodComparison}
+                  disabled={!comparison}
                   onChange={e => setShowPeriodComparison(e.target.checked)}
                   className="rounded text-[#3562B3] focus:ring-[#3562B3]"
                 />
@@ -473,7 +487,7 @@ export default function CliPerformance() {
                 {exactNumber(summary.distinctLeads)}
               </div>
               <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
-                <span>{summary.callsPerLead} calls/lead</span>
+                <span>{summary.callsPerLead ? `${summary.callsPerLead} calls/lead` : 'Distinct lead count unavailable'}</span>
                 <span className="text-slate-400">Dial density</span>
               </div>
             </div>
@@ -802,92 +816,66 @@ export default function CliPerformance() {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-slate-900">Conversation Quality & Duration Bands</h3>
-                <p className="text-xs text-slate-500">Call duration distribution (event-level length_in_sec)</p>
+                <p className="text-xs text-slate-500">Shown only when duration counts are supplied by the source.</p>
               </div>
               <span className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                Avg: {data.durationBands.avgDurationSeconds}s
+                Avg: {data.durationBands.avgDurationSeconds ? `${data.durationBands.avgDurationSeconds}s` : 'Unavailable'}
               </span>
             </div>
 
-            <div className="grid grid-cols-4 gap-2 pt-2">
-              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 text-center">
-                <span className="text-[11px] text-slate-500 block">&lt; 1 minute</span>
-                <span className="text-sm font-bold text-slate-800">{exactNumber(data.durationBands.under1mCount)}</span>
-                <span className="text-[10px] text-slate-400 block mt-0.5">{data.durationBands.under1mPct}%</span>
-              </div>
-              <div className="bg-slate-50 p-2.5 rounded border border-slate-200 text-center">
-                <span className="text-[11px] text-slate-500 block">1 – 5 minutes</span>
-                <span className="text-sm font-bold text-slate-800">{exactNumber(data.durationBands.oneTo5mCount)}</span>
-                <span className="text-[10px] text-slate-400 block mt-0.5">{data.durationBands.oneTo5mPct}%</span>
-              </div>
-              <div className="bg-blue-50/60 p-2.5 rounded border border-blue-200 text-center">
-                <span className="text-[11px] text-blue-700 block font-medium">5 – 15 minutes</span>
-                <span className="text-sm font-bold text-blue-900">{exactNumber(data.durationBands.fiveTo15mCount)}</span>
-                <span className="text-[10px] text-blue-600 block mt-0.5">{data.durationBands.fiveTo15mPct}%</span>
-              </div>
-              <div className="bg-emerald-50/60 p-2.5 rounded border border-emerald-200 text-center">
-                <span className="text-[11px] text-emerald-800 block font-medium">15+ minutes</span>
-                <span className="text-sm font-bold text-emerald-900">{exactNumber(data.durationBands.over15mCount)}</span>
-                <span className="text-[10px] text-emerald-700 block mt-0.5">{data.durationBands.over15mPct}%</span>
-              </div>
-            </div>
-
-            {/* Segmented Stack Bar */}
-            <div className="pt-2">
-              <div className="w-full h-4 rounded flex overflow-hidden">
-                <div style={{ width: `${data.durationBands.under1mPct}%` }} className="bg-slate-300" title={`< 1m: ${data.durationBands.under1mPct}%`} />
-                <div style={{ width: `${data.durationBands.oneTo5mPct}%` }} className="bg-blue-300" title={`1–5m: ${data.durationBands.oneTo5mPct}%`} />
-                <div style={{ width: `${data.durationBands.fiveTo15mPct}%` }} className="bg-blue-600" title={`5–15m: ${data.durationBands.fiveTo15mPct}%`} />
-                <div style={{ width: `${data.durationBands.over15mPct}%` }} className="bg-emerald-600" title={`15m+: ${data.durationBands.over15mPct}%`} />
-              </div>
-              <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1.5">
-                <span>Total Recorded Talk Time: {(parseInt(data.durationBands.totalDurationSeconds, 10) / 3600).toFixed(1)} hrs</span>
-                <span>Qualified Pitch Window (&gt;=5m): {summary?.durationGe5mRate}%</span>
-              </div>
-            </div>
+            {data.durationBands.under1mCount !== null ? (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
+                  {[
+                    ['< 1 minute', data.durationBands.under1mCount, data.durationBands.under1mPct],
+                    ['1 – 5 minutes', data.durationBands.oneTo5mCount, data.durationBands.oneTo5mPct],
+                    ['5 – 15 minutes', data.durationBands.fiveTo15mCount, data.durationBands.fiveTo15mPct],
+                    ['15+ minutes', data.durationBands.over15mCount, data.durationBands.over15mPct],
+                  ].map(([label, count, share]) => (
+                    <div key={label as string} className="bg-slate-50 p-2.5 rounded border border-slate-200 text-center">
+                      <span className="text-[11px] text-slate-500 block">{label}</span>
+                      <span className="text-sm font-bold text-slate-800">{exactNumber(count as string | null)}</span>
+                      <span className="text-[10px] text-slate-400 block mt-0.5">{share ?? '—'}{share !== null ? '%' : ''}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2">
+                  <span>Total recorded talk time: {data.durationBands.totalDurationSeconds ? (parseInt(data.durationBands.totalDurationSeconds, 10) / 3600).toFixed(1) + ' hrs' : 'Unavailable'}</span>
+                  <span>Calls ≥5m: {summary?.durationGe5mRate ? `${summary.durationGe5mRate}%` : 'Unavailable'}</span>
+                </div>
+              </>
+            ) : (
+              <div className="cx-command-empty">Duration bands are unavailable because the source report did not supply the required duration counts.</div>
+            )}
           </div>
 
-          {/* Chart 4: Lead Age vs Outcome (6 cols) */}
+          {/* Chart 4: Lead Age evidence (6 cols) */}
           <div className="lg:col-span-6 bg-white rounded-lg border border-slate-200 p-4 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-semibold text-slate-900">Lead Age at Dial vs Outcome</h3>
-                <p className="text-xs text-slate-500">Contact rate and conversion by speed-to-lead latency</p>
+                <h3 className="text-sm font-semibold text-slate-900">Lead Age at Dial</h3>
+                <p className="text-xs text-slate-500">CX3 shows only source-observed latency evidence and does not infer a distribution from aggregate averages.</p>
               </div>
               <span className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                Avg Age: {data.leadAgeBands.avgLeadAgeDays || '1.18'}d
+                Avg Age: {data.leadAgeBands.avgLeadAgeDays ? `${data.leadAgeBands.avgLeadAgeDays}d` : 'Unavailable'}
               </span>
             </div>
-
-            <div className="h-48 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.leadAgeBands.bands} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                  <XAxis dataKey="band" tick={{ fontSize: 10, fill: '#64748B' }} />
-                  <YAxis tick={{ fontSize: 10, fill: '#64748B' }} />
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (!active || !payload?.length) return null;
-                      const d = payload[0].payload;
-                      return (
-                        <div className="bg-slate-900 text-white p-2.5 rounded shadow-lg text-xs space-y-1">
-                          <p className="font-semibold text-blue-300">{d.band}</p>
-                          <p>Call Share: <span className="font-bold">{d.callSharePct}%</span> ({parseInt(d.callCount).toLocaleString()} calls)</p>
-                          <p>RPC Contact Rate: <span className="font-bold text-blue-400">{d.contactRatePct}%</span></p>
-                          <p>Sale / Call Rate: <span className="font-bold text-emerald-400">{d.salePerCallRatePct}%</span></p>
-                        </div>
-                      );
-                    }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '4px' }} />
-                  <Bar dataKey="contactRatePct" name="Contact Rate %" fill="#3562B3" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="salePerCallRatePct" name="Sale / Call Rate %" fill="#059669" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <p className="text-[10px] text-slate-400 italic">
-              Note: {data.leadAgeBands.disclaimer}
-            </p>
+            {data.leadAgeBands.bands.some(band => Number(band.callCount) > 0) ? (
+              <div className="h-48 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={data.leadAgeBands.bands} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                    <XAxis dataKey="band" tick={{ fontSize: 10, fill: '#64748B' }} />
+                    <YAxis tick={{ fontSize: 10, fill: '#64748B' }} />
+                    <Tooltip />
+                    <Bar dataKey="contactRatePct" name="RPC Rate %" fill="#3562B3" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="salePerCallRatePct" name="Sale / Call Rate %" fill="#059669" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="cx-command-empty">{data.leadAgeBands.disclaimer}</div>
+            )}
           </div>
 
           {/* Chart 5: Daily Performance Trend (12 cols) */}
@@ -1292,7 +1280,7 @@ export default function CliPerformance() {
       )}
 
       {/* 8. Modal: Import / Benchmark Data Modal */}
-      {showImportModal && (
+      {showImportModal && isAdmin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6 space-y-4 animate-scaleUp">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -1310,7 +1298,7 @@ export default function CliPerformance() {
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed">
-              Upload a standard VICIdial CLI performance export (.csv) or load our verified benchmark telemarketing dataset.
+              Upload a VICIdial CLI performance export (.csv). Imported data is tenant-scoped and remains explicitly tagged as an imported report.
             </p>
 
             {uploadError && (
@@ -1343,35 +1331,30 @@ export default function CliPerformance() {
                 </label>
               </div>
               <p className="text-[11px] text-slate-500">
-                Required columns: <code className="text-slate-700 font-semibold">cli_number, total_calls</code>.<br />
-                Optional: <code className="text-slate-700">campaign_code, asr_count, answered_count, contact_count, sale_count, duration_ge_1m_count, duration_ge_5m_count, avg_lead_age_days</code>.
+                Required columns: <code className="text-slate-700 font-semibold">cli_number, total_calls, contact_count, sale_count</code>.<br />
+                Optional: <code className="text-slate-700">report_date, campaign_code, vendor, distinct_leads, asr_count, answered_count, duration_ge_1m_count, duration_ge_5m_count, duration_ge_15m_count, avg_duration_sec, avg_lead_age_days</code>.
               </p>
             </div>
 
-            <div className="relative flex py-1 items-center">
-              <div className="flex-grow border-t border-slate-200"></div>
-              <span className="flex-shrink mx-4 text-xs font-semibold text-slate-400 uppercase">Or</span>
-              <div className="flex-grow border-t border-slate-200"></div>
-            </div>
-
-            {/* Option B: 1-Click Benchmark Dataset */}
-            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 flex items-center justify-between gap-3">
-              <div>
-                <strong className="text-xs font-semibold text-slate-900 block">Benchmark Telephony Dataset</strong>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  12 South African outbound CLIs (087 prefixes, MTN &amp; BLC campaigns, 86,000+ calls, duration bands, lead ages).
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleLoadSample}
-                disabled={uploading}
-                className="cx-button-secondary text-xs py-1.5 px-3 whitespace-nowrap shrink-0 flex items-center gap-1.5"
-              >
-                <Sparkles size={13} className="text-[#3562B3]" />
-                <span>Load Dataset</span>
-              </button>
-            </div>
+            {(import.meta as any).env?.DEV === true && (
+              <>
+                <div className="relative flex py-1 items-center">
+                  <div className="flex-grow border-t border-slate-200"></div>
+                  <span className="flex-shrink mx-4 text-xs font-semibold text-slate-400 uppercase">Development only</span>
+                  <div className="flex-grow border-t border-slate-200"></div>
+                </div>
+                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 flex items-center justify-between gap-3">
+                  <div>
+                    <strong className="text-xs font-semibold text-slate-900 block">Synthetic benchmark dataset</strong>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Available only in development. Never used as live production evidence.</p>
+                  </div>
+                  <button type="button" onClick={handleLoadSample} disabled={uploading} className="cx-button-secondary text-xs py-1.5 px-3 whitespace-nowrap shrink-0 flex items-center gap-1.5">
+                    <Sparkles size={13} className="text-[#3562B3]" />
+                    <span>Load sample</span>
+                  </button>
+                </div>
+              </>
+            )}
 
             <div className="flex justify-end pt-2">
               <button

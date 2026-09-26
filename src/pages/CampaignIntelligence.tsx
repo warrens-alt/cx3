@@ -182,11 +182,33 @@ export default function CampaignIntelligence() {
               </section>
             )}
 
-            {data.comparison && (
+            {summary && (
+              <section className="cx-command-panel">
+                <header>
+                  <div>
+                    <span className="cx-command-section-kicker">Acquisition engagement</span>
+                    <h2>Reach, outbound traffic & lead capture</h2>
+                    <p>Platform signals sourced directly from the marketing API table. No spend or lead attribution is inferred from these engagement ratios.</p>
+                  </div>
+                </header>
+                <div className="cx-commercial-ratios">
+                  <div><span>Reach</span><strong>{summary.reach == null ? '—' : num(summary.reach)}</strong><small>Unique audience reached</small></div>
+                  <div><span>Frequency</span><strong>{summary.frequency == null ? '—' : summary.frequency.toFixed(2)}</strong><small>Impressions / reach</small></div>
+                  <div><span>Outbound clicks</span><strong>{summary.outboundClicks == null ? '—' : num(summary.outboundClicks)}</strong><small>Clicks leaving the platform</small></div>
+                  <div><span>Outbound CTR</span><strong>{summary.outboundCtr == null ? '—' : `${summary.outboundCtr.toFixed(2)}%`}</strong><small>Outbound clicks / impressions</small></div>
+                  <div><span>Click → lead</span><strong>{summary.clickToLeadRate == null ? '—' : `${summary.clickToLeadRate.toFixed(2)}%`}</strong><small>Recorded leads / outbound clicks</small></div>
+                </div>
+              </section>
+            )}
+
+
+            {data.comparison ? (
               <p className="cx-media-comparison-note">
                 Compared with {data.comparison.previousStartDate} → {data.comparison.previousEndDate}. CTR changed {data.comparison.ctrDeltaPp > 0 ? '+' : ''}{data.comparison.ctrDeltaPp}pp.
               </p>
-            )}
+            ) : data.comparisonReason ? (
+              <div className="cx-command-error"><AlertTriangle size={15}/>{data.comparisonReason}</div>
+            ) : null}
 
             <section className="cx-command-panel">
               <header>
@@ -206,8 +228,13 @@ export default function CampaignIntelligence() {
                       <th>Spend</th>
                       <th>Latest budget</th>
                       <th>Impressions</th>
+                      <th>Reach</th>
+                      <th>Frequency</th>
                       <th>Clicks</th>
+                      <th>Outbound clicks</th>
                       <th>CTR</th>
+                      <th>Outbound CTR</th>
+                      <th>Click → lead</th>
                       <th>Leads</th>
                       <th>CPC</th>
                       <th>CPM</th>
@@ -223,8 +250,13 @@ export default function CampaignIntelligence() {
                         <td>{money(campaign.spend)}</td>
                         <td>{money(campaign.latestBudget)}</td>
                         <td>{num(campaign.impressions)}</td>
+                        <td>{campaign.reach == null ? '—' : num(campaign.reach)}</td>
+                        <td>{campaign.frequency == null ? '—' : campaign.frequency.toFixed(2)}</td>
                         <td>{num(campaign.clicks)}</td>
+                        <td>{campaign.outboundClicks == null ? '—' : num(campaign.outboundClicks)}</td>
                         <td>{campaign.ctr}%</td>
+                        <td>{campaign.outboundCtr == null ? '—' : `${campaign.outboundCtr}%`}</td>
+                        <td>{campaign.clickToLeadRate == null ? '—' : `${campaign.clickToLeadRate}%`}</td>
                         <td>{num(campaign.leads)}</td>
                         <td>{money(campaign.cpc)}</td>
                         <td>{money(campaign.cpm)}</td>
@@ -232,7 +264,7 @@ export default function CampaignIntelligence() {
                       </tr>
                     ))}
                     {!data.campaigns.length && (
-                      <tr><td colSpan={12}><div className="cx-command-empty">No campaign rows are available for this approved tenant scope.</div></td></tr>
+                      <tr><td colSpan={17}><div className="cx-command-empty">No campaign rows are available for this approved tenant scope.</div></td></tr>
                     )}
                   </tbody>
                 </table>

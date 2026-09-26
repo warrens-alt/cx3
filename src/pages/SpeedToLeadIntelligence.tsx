@@ -9,7 +9,7 @@ import OperationalPageHeader from '../components/OperationalPageHeader';
 import { downloadCsv } from '../lib/formatters';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
-import { SlaBandsPanel, OperatingWindowPanel } from '../components/OfferNetControlPanels';
+import { CaptureTurnaroundPanel, SlaBandsPanel, OperatingWindowPanel } from '../components/OfferNetControlPanels';
 
 export default function SpeedToLeadIntelligence() {
   const scoped = useScopedNavigationTarget();
@@ -105,6 +105,8 @@ export default function SpeedToLeadIntelligence() {
                 <div><small>Observed first-dial groups</small></div>
               </article>
             </section>
+
+            {controls.data && <CaptureTurnaroundPanel data={controls.data} />}
 
             <section className="cx-command-panel">
               <header>
