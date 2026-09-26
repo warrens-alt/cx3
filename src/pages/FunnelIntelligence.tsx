@@ -7,8 +7,8 @@ import { fetchFunnel, type FunnelData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import { downloadCsv } from '../lib/formatters';
-
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
+
 const pct = (numerator: number, denominator: number, digits = 1) =>
   denominator > 0 ? Number(((numerator / denominator) * 100).toFixed(digits)) : 0;
 
