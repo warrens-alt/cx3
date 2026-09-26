@@ -75,6 +75,27 @@ export default function DataIntegrityIntelligence() {
               </div>
             </section>
 
+            <div className="cx-analytics-visual-grid">
+              <RankedMetricChart
+                title="Observed discrepancy populations"
+                subtitle="Largest measured data-quality gaps in the selected operational scope."
+                data={data.checks.filter(check => check.discrepancyCount != null).map(check => ({ check: check.checkName, gaps: check.discrepancyCount }))}
+                categoryKey="check"
+                valueKey="gaps"
+                valueLabel="Observed gaps"
+              />
+              <RankedMetricChart
+                title="Source freshness age"
+                subtitle="Hours since the latest observed source record; no freshness SLA is inferred."
+                data={(data.sources || []).filter(source => source.ageHours != null).map(source => ({ source: source.label, hours: source.ageHours }))}
+                categoryKey="source"
+                valueKey="hours"
+                valueLabel="Age"
+                valueSuffix="h"
+                decimals={1}
+              />
+            </div>
+
             {controls.data && <DataCompletenessPanel data={controls.data} />}
 
             <section className="cx-exception-summary">

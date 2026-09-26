@@ -12,6 +12,7 @@ import { formatPercent, formatTableNumber } from '../lib/formatters';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { CaptureTurnaroundPanel, SlaBandsPanel, OperatingWindowPanel } from '../components/OfferNetControlPanels';
+import { VolumeRateComboChart } from '../components/charts/OperationalVisuals';
 
 export default function SpeedToLeadIntelligence() {
   const scoped = useScopedNavigationTarget();
@@ -94,6 +95,20 @@ export default function SpeedToLeadIntelligence() {
             {data.backlog && <section className="cx-command-metrics cx-contact-metrics"><article className="cx-command-metric"><span>Awaiting first dial</span><strong>{formatTableNumber(data.backlog.awaitingFirstDial)}</strong><div><small>Delivered cohort leads without a first dial</small></div></article><article className="cx-command-metric"><span>Current 15m breaches</span><strong>{formatTableNumber(data.backlog.currentSlaBreaches)}</strong><div><small>Delivered, undialled, waiting more than 15m</small></div></article><article className="cx-command-metric"><span>Oldest undialled lead</span><strong>{data.backlog.oldestUndialled}</strong><div><small>Time since delivery</small></div></article><article className="cx-command-metric"><span>Completed dial breaches</span><strong>{formatTableNumber(data.backlog.completedDialBreaches)}</strong><div><small>Measured delivery → dial above 15m</small></div></article></section>}
             {data.methodology && <p className="cx-control-note">{data.methodology}</p>}
             {controls.data && <CaptureTurnaroundPanel data={controls.data} />}
+
+            <VolumeRateComboChart
+              title="Lead age vs downstream outcomes"
+              subtitle="Lead volume is shown as bars; RPC, sale and activation rates remain descriptive associations."
+              data={data.cohorts}
+              xKey="cohort"
+              volumeKey="leads"
+              volumeLabel="Leads"
+              rateSeries={[
+                { key: 'contactRate', label: 'RPC rate' },
+                { key: 'saleRate', label: 'Sale rate' },
+                { key: 'activationRate', label: 'Activation rate' },
+              ]}
+            />
 
             <section className="cx-command-panel">
               <header>

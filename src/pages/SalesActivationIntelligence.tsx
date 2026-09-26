@@ -13,6 +13,7 @@ import { formatPercent, formatRatioPercent, formatTableCurrency, formatTableNumb
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { ActivationAgeingPanel } from '../components/OfferNetControlPanels';
+import { RankedMetricChart, VolumeRateComboChart } from '../components/charts/OperationalVisuals';
 
 const money = (value: number | null | undefined) => formatTableCurrency(value, 'R');
 
@@ -134,8 +135,32 @@ export default function SalesActivationIntelligence() {
               </section>
             </div>
 
+            <div className="cx-analytics-visual-grid">
+              <VolumeRateComboChart
+                title="Vendor sales and activation"
+                subtitle="Recorded sales by vendor with activation / sale overlaid."
+                data={data.byVendor.map(row => ({
+                  ...row,
+                  activationRate: row.sales > 0 ? (row.activations / row.sales) * 100 : null,
+                }))}
+                xKey="vendor"
+                volumeKey="sales"
+                volumeLabel="Sales"
+                rateSeries={[{ key: 'activationRate', label: 'Activation / sale' }]}
+              />
+              {data.activationAgeing && <RankedMetricChart
+                title="Sales awaiting activation"
+                subtitle="Non-overlapping completed-age cohorts from the recorded sale timestamp."
+                data={data.activationAgeing.map(row => ({ bucket: row.bucket, sales: row.sales }))}
+                categoryKey="bucket"
+                valueKey="sales"
+                valueLabel="Sales"
+                maxItems={10}
+              />}
+            </div>
+
             {controls.data && <ActivationAgeingPanel data={controls.data} />}
-            {data.revenueEvidence && <p className="cx-control-note">{data.revenueEvidence}</p>}
+            {data.revenueEvidence && <p className="cx-control-note">{data.revenueEvidence}</p>
             {data.activationAgeing && <section className="cx-command-panel"><header><div><h2>Sales awaiting activation by completed age</h2><p>Non-overlapping cohorts from the recorded sale timestamp.</p></div></header><div className="cx-performance-table-wrap"><table className="cx-performance-table"><thead><tr><th>Age</th><th>Sales</th></tr></thead><tbody>{data.activationAgeing.map(r => <tr key={r.bucket}><th>{r.bucket}</th><td>{formatTableNumber(r.sales)}</td></tr>)}</tbody></table></div></section>}
             {([['Source',data.bySource],['Grade',data.byGrade]] as const).map(([dimension, rows]) => rows && <section className="cx-command-panel" key={dimension}><header><div><h2>{dimension} outcomes</h2><p>{data.segmentMethodology}</p></div><ExportAnalysisButton filename={`sales_activation_${dimension}`} rows={[[dimension,'Sales','Activations','Recorded revenue'], ...rows.map(r => [r.segment,r.sales,r.activations,r.revenue])]} definitions={[data.segmentMethodology || 'Recorded outcomes']} /></header><div className="cx-performance-table-wrap"><table className="cx-performance-table"><thead><tr><th>{dimension}</th><th>Sales</th><th>Activations</th><th>Activation / sale</th><th>Recorded revenue</th><th>Revenue / sale</th></tr></thead><tbody>{rows.map(r => <tr key={r.segment}><th>{r.segment}</th><td>{formatTableNumber(r.sales)}</td><td>{formatTableNumber(r.activations)}</td><td>{formatRatioPercent(r.activations,r.sales)}</td><td>{money(r.revenue)}</td><td>{r.revenue != null && r.sales > 0 ? money(r.revenue/r.sales) : '—'}</td></tr>)}</tbody></table></div></section>)}
 

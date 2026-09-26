@@ -396,3 +396,33 @@ test('superseded page implementations stay removed behind compatibility redirect
     assert.equal(fs.existsSync(path), false, `superseded page returned: ${path}`);
   }
 });
+
+
+test('primary operational analytics are chart-first while retaining evidence tables', () => {
+  const lifecycle = read('src/components/LifecycleDiagnostics.tsx');
+  const speed = read('src/pages/SpeedToLeadIntelligence.tsx');
+  const sales = read('src/pages/SalesActivationIntelligence.tsx');
+  const agents = read('src/pages/AgentPerformanceIntelligence.tsx');
+  const integrity = read('src/pages/DataIntegrityIntelligence.tsx');
+  const campaigns = read('src/pages/CampaignIntelligence.tsx');
+
+  assert.match(lifecycle, /FunnelWaterfall/);
+  assert.match(lifecycle, /RankedMetricChart/);
+  assert.match(speed, /Lead age vs downstream outcomes/);
+  assert.match(speed, /VolumeRateComboChart/);
+  assert.match(sales, /Vendor sales and activation/);
+  assert.match(agents, /Agent call volume and RPC rate/);
+  assert.match(integrity, /Observed discrepancy populations/);
+  assert.match(integrity, /Source freshness age/);
+  assert.match(campaigns, /Campaign lead volume and response rate/);
+  assert.match(campaigns, /Planning budget only — not observed media spend/);
+});
+
+test('shared operational visual components centralize Recharts usage for new analytics', () => {
+  const visuals = read('src/components/charts/OperationalVisuals.tsx');
+  assert.match(visuals, /VolumeRateComboChart/);
+  assert.match(visuals, /RankedMetricChart/);
+  assert.match(visuals, /GroupedOutcomeChart/);
+  assert.match(visuals, /ANALYTICS_COLORS/);
+  assert.doesNotMatch(visuals, /budget.*spend/i);
+});

@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, Search, ShieldCheck } from 'lucide-react';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import MarketingRootCauseDrawer from '../components/MarketingRootCauseDrawer';
+import { RankedMetricChart, VolumeRateComboChart } from '../components/charts/OperationalVisuals';
 import { useClient } from '../lib/ClientContext';
 import { useAuth } from '../lib/AuthContext';
 import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
@@ -191,6 +192,39 @@ export default function CampaignIntelligence() {
               </section>
             )}
 
+
+            {data.campaigns.length > 0 && <div className="cx-analytics-visual-grid">
+              <VolumeRateComboChart
+                title="Campaign lead volume and response rate"
+                subtitle="Platform lead events by campaign/adset with CTR and click → lead overlaid."
+                data={data.campaigns.slice(0, 12).map(row => ({
+                  label: row.adset && row.adset !== row.campaign ? `${row.campaign} · ${row.adset}` : row.campaign,
+                  leads: row.leads,
+                  ctr: row.ctr,
+                  clickToLeadRate: row.clickToLeadRate,
+                }))}
+                xKey="label"
+                volumeKey="leads"
+                volumeLabel="Platform lead events"
+                rateSeries={[
+                  { key: 'ctr', label: 'CTR' },
+                  { key: 'clickToLeadRate', label: 'Click → lead' },
+                ]}
+              />
+              <RankedMetricChart
+                title="Planning budget by campaign"
+                subtitle="Planning budget only — not observed media spend."
+                data={data.campaigns.filter(row => row.latestBudget != null).map(row => ({
+                  label: row.adset && row.adset !== row.campaign ? `${row.campaign} · ${row.adset}` : row.campaign,
+                  budget: row.latestBudget,
+                }))}
+                categoryKey="label"
+                valueKey="budget"
+                valueLabel="Latest budget"
+                valuePrefix="R "
+                maxItems={12}
+              />
+            </div>}
 
             {data.comparison ? (
               <p className="cx-media-comparison-note">

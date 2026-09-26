@@ -4,6 +4,8 @@ import type { LifecycleDiagnostics, LifecycleSegment } from '../../contracts/lif
 import { formatPercent, formatTableCurrency, formatTableNumber } from '../lib/formatters';
 import ExportAnalysisButton from './ExportAnalysisButton';
 import PaginatedAnalysisTable from './PaginatedAnalysisTable';
+import { FunnelWaterfall } from './charts/FunnelWaterfall';
+import { RankedMetricChart } from './charts/OperationalVisuals';
 
 const signed = (value: number | null | undefined, suffix = '') => value == null ? '—' : `${value > 0 ? '+' : ''}${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}${suffix}`;
 const names: Record<string,string> = { fetched:'Fetched', delivered:'Delivered', dialled:'Dialled', rpc:'RPC', sales:'Sales', activations:'Activations', revenue:'Recorded revenue', deliveryRate:'Delivery rate', dialRate:'Dial coverage', rpcRate:'RPC / dialled', saleRate:'Lead → sale', activationRate:'Sale → activation' };
@@ -14,8 +16,27 @@ export function MatchedPeriodPanel({ data }: { data: LifecycleDiagnostics }) {
   </section>;
 }
 export function LifecycleFunnelPanel({ data }: { data: LifecycleDiagnostics }) {
-  return <section className="cx-command-panel"><header><div><span className="cx-command-section-kicker">Lifecycle loss</span><h2>Where leads stop</h2><p>{data.largestLeakage ? `Largest loss: ${data.largestLeakage.from} → ${data.largestLeakage.to}, ${formatTableNumber(data.largestLeakage.lost)} leads.` : 'No measured transition loss in this scope.'} {data.largestDeterioration ? `Largest deterioration: ${data.largestDeterioration.from} → ${data.largestDeterioration.to}, ${signed(data.largestDeterioration.deteriorationPp, 'pp')}.` : ''}</p></div></header>
-  <div className="cx-performance-table-wrap"><table className="cx-performance-table"><thead><tr><th>Transition</th><th>Population</th><th>With both events</th><th>Conversion</th><th>Lost</th><th>Loss</th><th>Prior change</th><th>Evidence</th></tr></thead><tbody>{data.transitions.map(r => <tr key={r.from}><th>{r.from} → {r.to}</th><td>{formatTableNumber(r.population)}</td><td>{formatTableNumber(r.converted)}</td><td>{formatPercent(r.conversionRate)}</td><td>{formatTableNumber(r.lost)}</td><td>{formatPercent(r.lossRate)}</td><td>{signed(r.deteriorationPp, 'pp')}</td><td>{r.status === 'NON_NESTED' ? 'Downstream events also exist without this prior stage' : 'Observed'}</td></tr>)}</tbody></table></div></section>;
+  const first = data.transitions[0];
+  const funnelSteps = first ? [
+    { label: first.from, value: first.population },
+    ...data.transitions.map(transition => ({
+      label: transition.to,
+      value: transition.converted,
+      rate: transition.conversionRate ?? undefined,
+      dropoff: transition.lost ?? undefined,
+    })),
+  ] : [];
+
+  return <>
+    {funnelSteps.length > 1 && <FunnelWaterfall
+      title="Lead-to-activation funnel"
+      subtitle={data.largestLeakage ? `Largest measured loss: ${data.largestLeakage.from} → ${data.largestLeakage.to} · ${formatTableNumber(data.largestLeakage.lost)} leads` : 'Observed progression through the lifecycle.'}
+      steps={funnelSteps}
+    />}
+    <section className="cx-command-panel"><header><div><span className="cx-command-section-kicker">Lifecycle loss</span><h2>Transition evidence</h2><p>{data.largestDeterioration ? `Largest matched-period deterioration: ${data.largestDeterioration.from} → ${data.largestDeterioration.to}, ${signed(data.largestDeterioration.deteriorationPp, 'pp')}.` : 'Exact transition populations remain available below the visual.'}</p></div></header>
+      <div className="cx-performance-table-wrap"><table className="cx-performance-table"><thead><tr><th>Transition</th><th>Population</th><th>With both events</th><th>Conversion</th><th>Lost</th><th>Loss</th><th>Prior change</th><th>Evidence</th></tr></thead><tbody>{data.transitions.map(r => <tr key={r.from}><th>{r.from} → {r.to}</th><td>{formatTableNumber(r.population)}</td><td>{formatTableNumber(r.converted)}</td><td>{formatPercent(r.conversionRate)}</td><td>{formatTableNumber(r.lost)}</td><td>{formatPercent(r.lossRate)}</td><td>{signed(r.deteriorationPp, 'pp')}</td><td>{r.status === 'NON_NESTED' ? 'Downstream events also exist without this prior stage' : 'Observed'}</td></tr>)}</tbody></table></div>
+    </section>
+  </>;
 }
 
 type SegmentMetric = 'fetched' | 'delivered' | 'dialled' | 'rpc' | 'sales' | 'activations' | 'deliveryRate' | 'dialRate' | 'rpcRate' | 'saleRate' | 'activationRate';
@@ -58,6 +79,18 @@ export function LifecycleSegmentsPanel({ data, initialDimension = 'vendor' }: { 
       <label>Dimension <select aria-label="Lifecycle dimension" value={dimension} onChange={event => setDimension(event.target.value)}>{Object.keys(data.segments).map(key => <option key={key} value={key}>{key}</option>)}</select></label>
       <label>Sort by <select aria-label="Sort lifecycle segments" value={sort} onChange={event => setSort(event.target.value as SegmentSort)}><option value="fetched">Fetched</option><option value="saleRate">Lead → sale</option><option value="rpcRate">RPC / dialled</option><option value="activationRate">Sale → activation</option></select></label>
       <label className="flex flex-col gap-1">Find a segment <input type="search" aria-label="Find a lifecycle segment" className="max-w-full rounded border px-3 py-2" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search this dimension" /></label>
+    </div>
+    <div className="cx-analytics-visual-grid">
+      <RankedMetricChart
+        title={`${names[sort]} by ${dimension}`}
+        subtitle="Top segments in the selected scope; exact evidence remains in the table below."
+        data={visibleSegments.map(row => ({ segment: row.key, value: row[sort] }))}
+        categoryKey="segment"
+        valueKey="value"
+        valueLabel={names[sort]}
+        valueSuffix={sort === 'fetched' ? '' : '%'}
+        decimals={sort === 'fetched' ? 0 : 2}
+      />
     </div>
     <p className="cx-control-note">Tables show 25 rows per page. Search filters the visible rows across all three tables; full-scope calculations and exports retain every segment.</p>
     <PaginatedAnalysisTable rows={visibleSegments} label="lifecycle segments">{pageRows =>

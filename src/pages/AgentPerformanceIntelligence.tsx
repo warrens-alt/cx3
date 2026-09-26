@@ -7,6 +7,7 @@ import { useClient } from '../lib/ClientContext';
 import { fetchAgentPerformance, type AgentPerformanceData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
+import { VolumeRateComboChart } from '../components/charts/OperationalVisuals';
 import { downloadCsv, formatPercent, formatRatioPercent, formatTableNumber } from '../lib/formatters';
 import { downloadAnalysisCsv } from '../lib/analysisExport';
 import { sumRecordedValues } from '../lib/metricPresentation';
@@ -89,6 +90,20 @@ export default function AgentPerformanceIntelligence() {
               <article className="cx-command-metric"><span>RPC</span><strong>{formatTableNumber(totals.contacts)}</strong><div><small>{formatRatioPercent(totals.contacts, totals.calls)} of calls</small></div></article>
               <article className="cx-command-metric"><span>Sales</span><strong>{formatTableNumber(totals.sales)}</strong><div><small>{formatRatioPercent(totals.rpcSales, totals.contacts)} of RPC calls sold</small></div></article>
             </section>
+
+            <VolumeRateComboChart
+              title="Agent call volume and RPC rate"
+              subtitle="Top observed agent/vendor groups by call volume. This is descriptive and does not assign performance scores."
+              data={[...filtered].sort((a, b) => b.totalCalls - a.totalCalls).slice(0, 12).map(row => ({
+                label: row.vendor ? `${row.agentId} · ${row.vendor}` : row.agentId,
+                calls: row.totalCalls,
+                contactRate: row.contactRate,
+              }))}
+              xKey="label"
+              volumeKey="calls"
+              volumeLabel="Calls"
+              rateSeries={[{ key: 'contactRate', label: 'RPC / calls' }]}
+            />
 
             <section className="cx-command-panel">
               <header>
