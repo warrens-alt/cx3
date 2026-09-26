@@ -1850,3 +1850,7 @@
   .cx-outcome-latency { grid-template-columns:1fr; padding:14px; }
   .cx-outcome-latency>svg { transform:rotate(90deg); }
 }
+
+.cx-command-shortcuts {
+  grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+}
