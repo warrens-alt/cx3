@@ -2,13 +2,15 @@ import type { TenantConfiguration } from './config';
 import { tableIdentifier } from './config';
 import { vendorScope } from '../analyticsContext';
 import { validTimestampSql as ts } from './integrity';
+import { leadSourceRelation } from './leadSource';
+import { isFlatLeadSource } from '../../contracts/warehouseSchemaSnapshot';
 
 /** Versioned, read-only semantic CTEs. Bind vendorScope().params through the shared client. */
 export function getBaseSemanticLayer(client: TenantConfiguration): string {
   const partners = client.semanticMappings.partners || [];
   if (partners.some(p => !/^[a-z0-9_]+$/i.test(p))) throw new Error('Invalid configured routing partner');
   const ror = partners.length ? partners.map(p => `STRUCT('${p.toUpperCase()}' AS partner, ${ts(`l.ror_${p.toLowerCase()}`)} AS timestamp)`).join(',') : `STRUCT(CAST(NULL AS STRING) AS partner, CAST(NULL AS TIMESTAMP) AS timestamp)`;
-  // The existing source timestamp interpretation is retained (UTC). Confirm source timezone before SLA sign-off.
+  // Retain the existing source timestamp interpretation (UTC); no timezone is inferred.
   const vendor = vendorScope('vendor');
   const hlcFields: Record<string, string> = {
     vendor: 'vendor', transaction_id: 'transaction_id', status: 'latest_dialer_status',
@@ -19,8 +21,11 @@ export function getBaseSemanticLayer(client: TenantConfiguration): string {
   };
   const projections = Array.from({ length: 10 }, (_, i) => Object.entries(hlcFields).map(([suffix, field]) => `MAX(IF(hlc_record_number = ${i + 1}, ${field}, NULL)) AS hlc_${i + 1}_${suffix}`).join(',')).join(',');
   if (client.dataSourceMode === 'shared') throw new Error('Shared-table tenants require an explicit, independently tested row-security implementation');
-  const calls = client.semanticMappings.tables.calls;
-  const activations = client.semanticMappings.tables.activations;
+  const flat = isFlatLeadSource(client.semanticMappings.tables.leads);
+  // The flat source already contains vendor transaction evidence. No equivalent
+  // dialler/activation ID join is established by the dictionary; do not invent one.
+  const calls = flat ? undefined : client.semanticMappings.tables.calls;
+  const activations = flat ? undefined : client.semanticMappings.tables.activations;
   return `WITH base_leads AS (
     SELECT l.lead_id, l.consumer_id, IFNULL(l.offershop_source, 'Unknown') AS source,
       IFNULL(l.offernet_medium, 'Unknown') AS medium, l.fetched, SAFE_CAST(l.valid_lead AS BOOL) AS valid_lead,
@@ -33,9 +38,9 @@ export function getBaseSemanticLayer(client: TenantConfiguration): string {
       ${ts('l.hospital_applied_date')} AS hospital_applied_date, l.hospital_applied,
       (SAFE_CAST(l.hospital_applied AS BOOL) IS TRUE AND ${ts('l.hospital_applied_date')} IS NULL)
         OR (SAFE_CAST(l.hospital_applied AS BOOL) IS FALSE AND ${ts('l.hospital_applied_date')} IS NOT NULL) AS hospital_applied_inconsistent,
-      ARRAY(SELECT AS STRUCT partner, timestamp FROM UNNEST([${ror}]) WHERE timestamp IS NOT NULL) AS valid_ror_events,
+      ${flat ? 'CAST(NULL AS ARRAY<STRUCT<partner STRING, timestamp TIMESTAMP>>)' : `ARRAY(SELECT AS STRUCT partner, timestamp FROM UNNEST([${ror}]) WHERE timestamp IS NOT NULL)`} AS valid_ror_events,
       l.hlc_details
-    FROM ${tableIdentifier(client.semanticMappings.tables.leads)} l
+    FROM ${leadSourceRelation(client)} l
   ), unpacked_transactions AS (
     SELECT l.* EXCEPT(hlc_details), idx + 1 AS hlc_record_number, hlc.vendor AS hlc_vendor,
       CAST(hlc.transaction_id AS STRING) AS hlc_transaction_id, hlc.status AS hlc_status,
@@ -92,19 +97,19 @@ export function getBaseSemanticLayer(client: TenantConfiguration): string {
       COALESCE(t.sale_timestamp, IF(t.vendor_row_count = 1, v.first_sale_timestamp, NULL)) AS sale_timestamp,
       (t.sale_timestamp IS NOT NULL OR (t.vendor_row_count = 1 AND IFNULL(v.sale, FALSE))) AS sale,
       IFNULL(v.sale, FALSE) AS vendor_sale_evidence, v.first_sale_timestamp AS vendor_sale_timestamp,
-      IFNULL(v.rpc, FALSE) OR IFNULL(t.hlc_rpc, FALSE) AS rpc, v.first_rpc_timestamp AS rpc_timestamp,
+      ${flat ? 't.hlc_rpc' : 'IFNULL(v.rpc, FALSE) OR IFNULL(t.hlc_rpc, FALSE)'} AS rpc, v.first_rpc_timestamp AS rpc_timestamp,
       COALESCE(IF(t.vendor_row_count = 1, v.first_call_timestamp, NULL), t.hlc_first_call) AS first_call_timestamp,
       COALESCE(IF(t.vendor_row_count = 1, v.last_call_timestamp, NULL), t.hlc_last_call) AS last_call_timestamp,
       v.first_call_timestamp AS vendor_first_call_timestamp, v.last_call_timestamp AS vendor_last_call_timestamp,
       t.last_dialer_status AS latest_dialer_status, t.normalised_status_family,
       -- Vendor call logs are counted ONCE, not once for every HLC transaction. HLC-only summaries use a conservative maximum.
-      IF(t.vendor_row_number = 1, COALESCE(v.total_calls, t.vendor_hlc_calls, 0), 0) AS total_calls,
-      IF(t.vendor_row_number = 1, COALESCE(v.total_duration, t.vendor_hlc_duration, 0), 0) AS total_call_duration_seconds,
+      IF(t.vendor_row_number = 1, ${flat ? 't.vendor_hlc_calls' : 'COALESCE(v.total_calls, t.vendor_hlc_calls, 0)'}, 0) AS total_calls,
+      IF(t.vendor_row_number = 1, ${flat ? 't.vendor_hlc_duration' : 'COALESCE(v.total_duration, t.vendor_hlc_duration, 0)'}, 0) AS total_call_duration_seconds,
       t.vendor_row_number = 1 AS call_count_anchor, 'lead_vendor' AS call_count_grain,
       t.vendor_row_count > 1 AND v.total_calls IS NOT NULL AS ambiguous_transaction_call_attribution,
       COALESCE(a.activation_date, t.activation_timestamp) AS activation_timestamp,
       (a.activation_date IS NOT NULL OR t.activation_timestamp IS NOT NULL) AS activation,
-      IF(t.transaction_rank = 1, COALESCE(a.revenue, t.hlc_revenue_generated, 0), 0) AS revenue,
+      ${flat ? 'IF(t.transaction_rank = 1, t.hlc_revenue_generated, NULL)' : 'IF(t.transaction_rank = 1, COALESCE(a.revenue, t.hlc_revenue_generated, 0), 0)'} AS revenue,
       t.transaction_rank > 1 AS duplicate_flag, IFNULL(ref.reference_count, 0) > 1 AS activation_id_conflict,
       '${client.currency}' AS currency, t.sentinel_capture
     FROM ranked_transactions t
@@ -124,9 +129,9 @@ export function getBaseSemanticLayer(client: TenantConfiguration): string {
       COUNT(DISTINCT vendor) AS vendor_count, COUNT(DISTINCT IF(NULLIF(transaction_id, '') IS NOT NULL, TO_JSON_STRING(STRUCT(vendor, transaction_id)), NULL)) AS total_transactions,
       LOGICAL_OR(delivery_timestamp IS NOT NULL) AS has_delivery,
       LOGICAL_OR(first_call_timestamp IS NOT NULL OR vendor_first_call_timestamp IS NOT NULL OR total_calls > 0) AS has_call,
-      LOGICAL_OR(rpc) AS has_rpc, LOGICAL_OR(sale OR vendor_sale_evidence) AS has_sale,
+      ${flat ? 'CASE WHEN COUNTIF(rpc) > 0 THEN TRUE WHEN COUNTIF(rpc IS NULL) > 0 THEN NULL ELSE FALSE END' : 'LOGICAL_OR(rpc)'} AS has_rpc, LOGICAL_OR(sale OR vendor_sale_evidence) AS has_sale,
       LOGICAL_OR(is_billable_sale) AS has_billable_sale, LOGICAL_OR(activation) AS has_activation,
-      SUM(total_calls) AS total_calls, SUM(total_call_duration_seconds) AS total_call_duration_seconds,
+      ${flat ? 'IF(COUNTIF(call_count_anchor AND total_calls IS NULL) > 0, NULL, SUM(total_calls))' : 'SUM(total_calls)'} AS total_calls, ${flat ? 'IF(COUNTIF(call_count_anchor AND total_call_duration_seconds IS NULL) > 0, NULL, SUM(total_call_duration_seconds))' : 'SUM(total_call_duration_seconds)'} AS total_call_duration_seconds,
       MIN(delivery_timestamp) AS delivery_timestamp,
       MIN(COALESCE(vendor_first_call_timestamp, first_call_timestamp)) AS first_call_timestamp,
       MAX(COALESCE(vendor_last_call_timestamp, last_call_timestamp)) AS last_call_timestamp,
@@ -155,7 +160,7 @@ export function getBaseSemanticLayer(client: TenantConfiguration): string {
       MAX(routing_depth) AS max_routing_depth, COUNT(DISTINCT IF(is_revetted, lead_id, NULL)) AS revetted_lead_count,
       LOGICAL_OR(delivery_timestamp IS NOT NULL) AS has_delivery,
       LOGICAL_OR(first_call_timestamp IS NOT NULL OR vendor_first_call_timestamp IS NOT NULL OR total_calls > 0) AS has_call,
-      LOGICAL_OR(rpc) AS has_rpc, LOGICAL_OR(sale OR vendor_sale_evidence) AS has_sale,
+      ${flat ? 'CASE WHEN COUNTIF(rpc) > 0 THEN TRUE WHEN COUNTIF(rpc IS NULL) > 0 THEN NULL ELSE FALSE END' : 'LOGICAL_OR(rpc)'} AS has_rpc, LOGICAL_OR(sale OR vendor_sale_evidence) AS has_sale,
       LOGICAL_OR(is_billable_sale) AS has_billable_sale, LOGICAL_OR(activation) AS has_activation, SUM(revenue) AS total_revenue
     FROM vw_lead_vendor_transactions WHERE consumer_id > 0 GROUP BY consumer_id
   ), vw_commercial_events AS (

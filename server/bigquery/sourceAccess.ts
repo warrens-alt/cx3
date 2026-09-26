@@ -10,7 +10,6 @@ export interface SourceAccess {
   listTables: (project: string, dataset: string) => Promise<string[]>;
   execute: (options: { query: string; params?: Record<string, any> }) => Promise<{ rows: any[]; jobId: string; referencedTables?: string[]; bytesProcessed?: string }>;
 }
-// Coalesce concurrent SDK introspection only. Never retain freshness/row-count metadata.
 const metadataWork = new QueryCache(64);
 
 /** SDK error payloads may embed credentials, headers or SQL. */
@@ -24,10 +23,21 @@ export function safeSourceError(error: unknown): { status: string; error: string
   if (['429', '8', 'RESOURCE_EXHAUSTED'].includes(code)) return { status: 'RATE_LIMITED', error: 'Warehouse quota or query budget was exceeded. Retry after checking the configured limits.' };
   return { status: 'UNAVAILABLE', error: 'Warehouse source unavailable. Check network connectivity, credentials and source configuration.' };
 }
-export function flatSchema(fields: SchemaField[], prefix = '', parentRepeated = false): Map<string, { type: string; mode?: string; repeated: boolean }> {
-  const map = new Map<string, { type: string; mode?: string; repeated: boolean }>();
+type FieldInfo = { type: string; mode?: string; repeated: boolean };
+/** BigQuery column/field identifiers are case-insensitive; retain the original names when iterating. */
+class SchemaIndex extends Map<string, FieldInfo> {
+  private readonly names = new Map<string, string>();
+  override set(key: string, value: FieldInfo): this {
+    this.names.set(key.toLowerCase(), key);
+    return super.set(key, value);
+  }
+  override get(key: string): FieldInfo | undefined { return super.get(this.names.get(key.toLowerCase()) ?? key); }
+  override has(key: string): boolean { return super.has(this.names.get(key.toLowerCase()) ?? key); }
+}
+export function flatSchema(fields: SchemaField[], prefix = '', parentRepeated = false): Map<string, FieldInfo> {
+  const map = new SchemaIndex();
   for (const field of fields) {
-    const isRepeated = parentRepeated || field.mode === 'REPEATED';
+    const isRepeated = parentRepeated || field.mode?.toUpperCase() === 'REPEATED';
     const fullName = prefix ? `${prefix}.${field.name}` : field.name;
     map.set(fullName, { type: field.type.toUpperCase(), mode: field.mode, repeated: isRepeated });
     if (field.fields?.length) for (const [key, value] of flatSchema(field.fields, fullName, isRepeated)) map.set(key, value);
