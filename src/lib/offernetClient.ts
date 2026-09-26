@@ -190,10 +190,12 @@ export interface VendorQualityData {
     vendor: string;
     leads: number;
     deliveryRate: number;
+    dialRate: number;
     contactRate: number;
     saleRate: number;
     activationRate: number;
     medianFirstDial: string;
+    medianFirstDialSec: number | null;
     callsPerLead: number;
     invalidRate: number;
     revenue: number;
@@ -205,10 +207,17 @@ export interface VendorQualityData {
   sources: Array<{
     source: string;
     leads: number;
+    delivered: number;
+    dialled: number;
     contacted: number;
     sales: number;
     activations: number;
-    revenue: number;
+    deliveryRate: number;
+    dialRate: number;
+    contactRate: number;
+    leadToSaleRate: number;
+    activationRate: number;
+    invalidRate: number;
   }>;
   grades: Array<{
     grade: string;
@@ -216,7 +225,9 @@ export interface VendorQualityData {
     contacted: number;
     sales: number;
     activations: number;
-    revenue: number;
+    contactRate: number;
+    leadToSaleRate: number;
+    activationRate: number;
   }>;
   vetting: Array<{
     vetting_color: string;
@@ -224,6 +235,9 @@ export interface VendorQualityData {
     contacted: number;
     sales: number;
     activations: number;
+    contactRate: number;
+    leadToSaleRate: number;
+    activationRate: number;
   }>;
 }
 
