@@ -294,9 +294,12 @@ test('marketing attribution supports reconciled source scope and fails closed on
 
 test('marketing contract exposes reach and outbound-click source fields', () => {
   const config = read('server/bigquery/config.ts');
+  const physical = read('contracts/physicalSources.ts');
   const analytics = readAnalytics();
-  assert.match(config, /reachField: 'reach'/);
-  assert.match(config, /outboundClicksField: 'outbound_clicks'/);
+  assert.match(config, /reachField: MARKETING_SOURCE_FIELDS\.reach/);
+  assert.match(config, /outboundClicksField: MARKETING_SOURCE_FIELDS\.outboundClicks/);
+  assert.match(physical, /reach: 'reach'/);
+  assert.match(physical, /outboundClicks: 'outbound_clicks'/);
   assert.match(analytics, /outboundCtr/);
   assert.match(analytics, /clickToLeadRate/);
   assert.match(analytics, /frequency:/);
