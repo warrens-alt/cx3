@@ -14,6 +14,7 @@ import { useClient } from '../lib/ClientContext';
 import { fetchRawLeads, fetchLeadTimeline, type RawLeadsData, type LeadTimelineData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import { downloadCsv } from '../lib/formatters';
+import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 
 const DRILL_LABELS: Record<string, string> = {
   'awaiting-first-dial': 'Delivered leads awaiting first dial',
@@ -50,6 +51,7 @@ export default function LeadExplorerIntelligence() {
   const [selectedLead, setSelectedLead] = useState<string | null>(null);
   const [timelineData, setTimelineData] = useState<LeadTimelineData | null>(null);
   const [timelineLoading, setTimelineLoading] = useState(false);
+  const timelineDialogRef = useDialogAccessibility<HTMLElement>(Boolean(selectedLead), () => setSelectedLead(null));
 
   const investigation = useMemo(() => {
     if (!drill) return null;
@@ -243,8 +245,8 @@ export default function LeadExplorerIntelligence() {
                       <td>{row.sale ? 'Yes' : 'No'}</td>
                       <td>{row.activated ? 'Yes' : 'No'}</td>
                       <td>
-                        <button type="button" className="cx-record-open" onClick={() => handleOpenTimeline(row.lead_id, row.vendor)} title="Open lead timeline">
-                          <Eye size={14} />
+                        <button type="button" className="cx-record-open" onClick={() => handleOpenTimeline(row.lead_id, row.vendor)} title="Open lead timeline" aria-label={`Open timeline for lead ${row.lead_id}`}>
+                          <Eye size={14} aria-hidden="true" />
                         </button>
                       </td>
                     </tr>
@@ -269,7 +271,7 @@ export default function LeadExplorerIntelligence() {
 
       {selectedLead && (
         <div className="cx-timeline-backdrop" onMouseDown={event => { if (event.currentTarget === event.target) setSelectedLead(null); }}>
-          <aside className="cx-timeline-modal" role="dialog" aria-modal="true" aria-label="Lead timeline">
+          <aside ref={timelineDialogRef} tabIndex={-1} className="cx-timeline-modal" role="dialog" aria-modal="true" aria-label="Lead timeline">
             <header>
               <div><span>Lead audit trail</span><h2>{selectedLead}</h2></div>
               <button type="button" onClick={() => setSelectedLead(null)} aria-label="Close lead timeline"><X size={18} /></button>
