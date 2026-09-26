@@ -56,7 +56,7 @@ test('record drill-down remains admin-only and drill populations are allow-liste
   const analytics = read('server/bigquery/offernet_analytics.ts');
   assert.match(api, /analyticsRouter\.get\('\/offernet\/raw-leads', requireAdmin/);
   assert.match(analytics, /Unsupported drill-down population/);
-  for (const drill of ['awaiting-first-dial', 'missing-disposition', 'unactivated-sales', 'sla-breach', 'backlog-age', 'funnel-loss', 'funnel-stage', 'lead-age']) {
+  for (const drill of ['awaiting-first-dial', 'missing-disposition', 'unactivated-sales', 'sla-breach', 'backlog-age', 'funnel-loss', 'funnel-stage', 'lead-age', 'high-attempt-no-rpc', 'one-call-only']) {
     assert.ok(analytics.includes(`drill === '${drill}'`), `missing drill allow-list entry: ${drill}`);
   }
 });
@@ -128,4 +128,55 @@ test('marketing attribution is explicit and fail closed', () => {
 test('marketing discovery remains admin-only', () => {
   const api = read('server/api.ts');
   assert.match(api, /analyticsRouter\.get\('\/offernet\/marketing-discovery', requireAdmin/);
+});
+
+
+test('OfferNet operating controls remain lead-level and descriptive', () => {
+  const analytics = read('server/bigquery/offernet_analytics.ts');
+  assert.match(analytics, /export async function getOperatingControlsAnalytics/);
+  assert.match(analytics, /lead_level AS/);
+  assert.match(analytics, /MAX\(GREATEST\(total_calls, 0\)\) AS recorded_call_count/);
+  assert.match(analytics, /first recorded delivered vendor per lead/);
+  assert.match(analytics, /descriptive and are not event-level attempt attribution/);
+});
+
+test('contact-strategy call-count buckets are exclusive per lead', () => {
+  const analytics = read('server/bigquery/offernet_analytics.ts');
+  const start = analytics.indexOf('export async function getContactStrategyAnalytics');
+  const end = analytics.indexOf('// 5. VENDOR & LEAD QUALITY', start);
+  const block = analytics.slice(start, end);
+  assert.match(block, /lead_level AS/);
+  assert.match(block, /GROUP BY lead_id/);
+  assert.match(block, /MAX\(GREATEST\(total_calls, 0\)\) AS call_count/);
+  assert.match(block, /do not identify which specific attempt produced the outcome/);
+});
+
+test('time-of-day and after-hours analytics use the tenant timezone and configured window', () => {
+  const analytics = read('server/bigquery/offernet_analytics.ts');
+  const speedStart = analytics.indexOf('export async function getSpeedToLeadAnalytics');
+  const speedEnd = analytics.indexOf('// 4. CONTACT STRATEGY', speedStart);
+  const temporalStart = analytics.indexOf('export async function getTemporalAnalytics');
+  const temporalEnd = analytics.indexOf('// 7. SALES & ACTIVATION INTELLIGENCE', temporalStart);
+  const speed = analytics.slice(speedStart, speedEnd);
+  const temporal = analytics.slice(temporalStart, temporalEnd);
+  for (const block of [speed, temporal]) {
+    assert.match(block, /@tenantTimezone/);
+    assert.match(block, /@operatingStart/);
+    assert.match(block, /@operatingEnd/);
+    assert.match(block, /@operatingWorkdays/);
+  }
+  assert.doesNotMatch(speed, /EXTRACT\(HOUR FROM SAFE_CAST\(l\.fetched AS TIMESTAMP\)\) < 8/);
+  assert.doesNotMatch(temporal, /EXTRACT\(HOUR FROM SAFE_CAST\(l\.fetched AS TIMESTAMP\)\)/);
+});
+
+test('source and grade funnel analytics include delivery and dial coverage', () => {
+  const analytics = read('server/bigquery/offernet_analytics.ts');
+  const client = read('src/lib/offernetClient.ts');
+  const start = analytics.indexOf('export async function getFunnelIntelligence');
+  const end = analytics.indexOf('export async function getRootCauseAnalysis', start);
+  const block = analytics.slice(start, end);
+  assert.match(block, /by_source AS[\s\S]*delivered_ts IS NOT NULL[\s\S]*first_dial_ts IS NOT NULL/);
+  assert.match(block, /by_grade AS[\s\S]*delivered_ts IS NOT NULL[\s\S]*first_dial_ts IS NOT NULL/);
+  assert.match(client, /source: string;[\s\S]*delivered: number;[\s\S]*dialled: number;/);
+  assert.match(client, /grade: string;[\s\S]*delivered: number;[\s\S]*dialled: number;/);
 });
