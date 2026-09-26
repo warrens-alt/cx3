@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import React from 'react';
+import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 
 export interface ModalProps {
   open?: boolean;
@@ -12,16 +13,8 @@ export interface ModalProps {
 export default function Modal({ open, isOpen, onClose, label, className = '', children }: ModalProps) {
   const isVisible = open !== undefined ? open : Boolean(isOpen);
 
-  useEffect(() => {
-    if (!isVisible) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && onClose) {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isVisible, onClose]);
+  const dialogRef = useDialogAccessibility<HTMLDivElement>(isVisible, onClose);
+
 
   if (!isVisible) return null;
 
@@ -34,8 +27,12 @@ export default function Modal({ open, isOpen, onClose, label, className = '', ch
       aria-modal="true"
       aria-label={label}
     >
-      <div className="fixed inset-0" onClick={onClose} aria-hidden="true" />
-      <div className={`relative bg-white ${isNavModal ? 'rounded-none shadow-2xl h-full max-h-[100dvh] w-[260px] max-w-[85vw]' : 'rounded-lg sm:rounded-xl shadow-xl max-w-2xl max-h-[90dvh]'} overflow-hidden z-10 w-full flex flex-col ${className}`}>
+      <button type="button" className="fixed inset-0 cursor-default" onClick={onClose} aria-label="Close dialog" tabIndex={-1} />
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        className={`relative bg-white ${isNavModal ? 'rounded-none shadow-2xl h-full max-h-[100dvh] w-[260px] max-w-[85vw]' : 'rounded-lg sm:rounded-xl shadow-xl max-w-2xl max-h-[90dvh]'} overflow-hidden z-10 w-full flex flex-col ${className}`}
+      >
         {children}
       </div>
     </div>
