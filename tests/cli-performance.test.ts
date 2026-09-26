@@ -34,8 +34,8 @@ test('CLI CSV parser validates required headers and rejects missing columns', ()
 });
 
 test('CLI CSV parser detects data anomalies such as sales exceeding contacts', () => {
-  const anomalyCsv = `cli_number,campaign_code,vendor_id,total_calls,distinct_leads,contact_count,sale_count,length_in_sec,duration_ge_5m_count
-0871112222,BLC_MIGRATION,BLC_DIRECT,100,80,5,10,3500,2`;
+  const anomalyCsv = `cli_number,campaign_code,report_date,vendor_id,total_calls,distinct_leads,contact_count,sale_count,length_in_sec,duration_ge_5m_count
+0871112222,BLC_MIGRATION,2026-09-20,BLC_DIRECT,100,80,5,10,3500,2`;
   const result = parseAndValidateCliCsv(anomalyCsv, 'anomaly.csv');
   assert.equal(result.errors.length, 0);
   assert.equal(result.records.length, 1);
@@ -44,9 +44,9 @@ test('CLI CSV parser detects data anomalies such as sales exceeding contacts', (
 });
 
 test('CLI CSV parser correctly parses valid dialler reports with duration bands and rates', () => {
-  const validCsv = `cli_number,campaign_code,vendor_id,total_calls,distinct_leads,asr_count,answered_count,contact_count,sale_count,length_in_sec,duration_ge_1m_count,duration_ge_5m_count,duration_ge_15m_count,avg_lead_age_days
-0875501001,MTN_DIRECT,MTN_SA,1500,1200,900,800,450,45,180000,600,200,30,0.85
-0875501002,MTN_UPSELL,MTN_SA,2500,2000,1600,1400,750,90,320000,1050,380,50,1.20`;
+  const validCsv = `cli_number,campaign_code,report_date,vendor_id,total_calls,distinct_leads,asr_count,answered_count,contact_count,sale_count,length_in_sec,duration_ge_1m_count,duration_ge_5m_count,duration_ge_15m_count,avg_lead_age_days
+0875501001,MTN_DIRECT,2026-09-20,MTN_SA,1500,1200,900,800,450,45,180000,600,200,30,0.85
+0875501002,MTN_UPSELL,2026-09-21,MTN_SA,2500,2000,1600,1400,750,90,320000,1050,380,50,1.20`;
 
   const result = parseAndValidateCliCsv(validCsv, 'valid.csv');
   assert.equal(result.errors.length, 0);
@@ -61,12 +61,12 @@ test('CLI CSV parser correctly parses valid dialler reports with duration bands 
   assert.equal(r1.durationGe5mPct, '13.33'); // 200 / 1500 = 13.33%
 });
 
-test('Benchmark CLI dataset generates full dialler metrics and deterministic trends', () => {
+test('Benchmark CLI dataset stays isolated to explicit sample data without inventing imported lead-age distributions', () => {
   const sample = generateBenchmarkCliDataset();
   assert.ok(sample.records.length >= 10);
   assert.ok(sample.trend.length >= 14);
-  assert.ok(sample.leadAgeBands.bands.length > 0);
-  assert.equal(sample.leadAgeBands.disclaimer.includes('Observed association only'), true);
+  assert.equal(sample.leadAgeBands.bands.every(band => Number(band.callCount) === 0), true);
+  assert.equal(sample.leadAgeBands.disclaimer.includes('does not infer a lead-age distribution'), true);
 });
 
 test('Tenant import lifecycle maintains isolation and can be cleared', () => {
