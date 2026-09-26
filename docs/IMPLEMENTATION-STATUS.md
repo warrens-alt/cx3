@@ -39,6 +39,7 @@ The hardening revision removes or withholds results that were not supported by v
 - no fixed contact-fatigue/redial recommendation values;
 - no AI fallback metrics or generative recommendations;
 - no assumption that campaign `budget` is incurred spend;
+- observed media spend is accepted only from the explicit marketing API-table contract and only when the contracted spend grain passes duplicate-grain validation;
 - no R45/R14.50/overhead profitability model;
 - no vendor contribution or margin derived from assumed unit costs;
 - no arbitrary split-half “current vs previous” comparison.
@@ -66,20 +67,23 @@ Do not describe this repository revision as having completed reproducible eviden
 - Vetting does **not** silently turn all-time into a 90-day period; it requires an explicit start and end date.
 - Unsupported cross-grain filters fail explicitly instead of being silently ignored.
 
-## Commercial and campaign limitations
+## Commercial and campaign status
 
-The following remain withheld until approved contracts are implemented:
+Observed media spend is supported from the configured marketing API table. The active contract validates required fields, approved spend fields and the declared date/client/channel/campaign/adset grain. CPC, CPM and platform CPL are derived only from that observed spend population. Budget remains a separate planning field.
 
-- incurred media spend;
-- CPL/CPC derived from incurred spend;
-- telephony and agent unit costs;
-- platform/fixed overhead allocation;
-- contribution margin and break-even;
+Tenant-level campaign reporting is enabled only after exact API-table `client_name` values are configured through `CX_MARKETING_CLIENT_MAP_JSON`. CX3 does not infer tenant identity from display names.
+
+Marketing-to-lead attribution is implemented but fail-closed. It activates only through `CX_MARKETING_ATTRIBUTION_JSON` with explicitly named source keys. Even when active, attributed outputs remain `NOT_VERIFIED` until key coverage and semantics are reconciled.
+
+The following remain withheld:
+
+- telephony and agent costs without approved source tables/contracts;
+- commission and fixed-overhead allocation;
+- contribution margin, net margin and break-even;
 - vendor profitability;
-- tenant-to-marketing-client campaign mappings;
 - activation-maturation evidence.
 
-Recorded source revenue can still be displayed as a source field, but it must not be described as audited financial revenue.
+Recorded source revenue remains a source field and must not be described as audited financial revenue.
 
 ## Verification
 
@@ -101,7 +105,8 @@ Passing repository CI is necessary but is **not** evidence of live BigQuery sour
 2. Provision and test immutable reporting snapshots with separately controlled cloud permissions.
 3. Reconcile call-event identities, repeated HLC records and activation transaction identities against live sources.
 4. Approve source timezone semantics and event-time interpretation.
-5. Implement approved commercial/spend/rate-card contracts.
-6. Add approved tenant-to-marketing-client mappings.
-7. Run production IAP acceptance and tenant-isolation tests.
-8. Perform live source-owner reconciliation before changing operational outputs from `NOT_VERIFIED`.
+5. Configure approved tenant marketing `client_name` mappings in production.
+6. Reconcile and activate explicit marketing-to-lead attribution keys where available.
+7. Source remaining operating costs from approved tables/contracts before adding contribution or margin.
+8. Run production IAP acceptance and tenant-isolation tests.
+9. Perform live source-owner reconciliation before changing operational outputs from `NOT_VERIFIED`.
