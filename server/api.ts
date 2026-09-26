@@ -297,7 +297,30 @@ analyticsRouter.get('/offernet/lead-timeline/:leadId', requireAdmin, cacheRespon
 
 analyticsRouter.get('/offernet/client-config', asyncRoute((_req, res) => {
   const config = getClientConfig(res.locals.scope.clientId);
-  res.json({ success: true, data: config });
+  const operational = config.operationalConfig
+    ? {
+        operatingHours: config.operationalConfig.operatingHours,
+        grading: config.operationalConfig.grading,
+        salesDefinition: config.operationalConfig.salesDefinition,
+        activationDefinition: config.operationalConfig.activationDefinition,
+        currency: config.operationalConfig.currency,
+        dispositionMapping: config.operationalConfig.dispositionMapping,
+        funnelStages: config.operationalConfig.funnelStages,
+        commercialApproval: 'UNAPPROVED',
+        revenueRules: null,
+      }
+    : undefined;
+  res.json({
+    success: true,
+    data: {
+      id: config.id,
+      name: config.name,
+      currency: config.currency,
+      timezone: config.timezone,
+      capabilities: config.capabilities,
+      operationalConfig: operational,
+    },
+  });
 }));
 
 analyticsRouter.post('/explain', asyncRoute(async (req, res) => {
