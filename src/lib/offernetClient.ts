@@ -17,17 +17,17 @@ export interface OverviewData {
     callsPerLead: number;
     callsPerDialledLead: number;
     revenue: number;
-    directCost: number;
-    deliveryAgentCost: number;
-    allocatedCost: number;
-    totalCost: number;
-    contribution: number;
-    marginPct: number;
-    costPerSale: number;
-    costPerActivation: number;
+    directCost: number | null;
+    deliveryAgentCost: number | null;
+    allocatedCost: number | null;
+    totalCost: number | null;
+    contribution: number | null;
+    marginPct: number | null;
+    costPerSale: number | null;
+    costPerActivation: number | null;
     revenuePerLead: number;
-    breakEvenSales: number;
-    actualVsBreakEven: number;
+    breakEvenSales: number | null;
+    actualVsBreakEven: number | null;
   };
   funnelStages: Array<{
     name: string;
@@ -56,7 +56,10 @@ export interface OverviewData {
     activationRateDelta: number;
     revenueDelta: number;
     contributionDelta: number;
-  };
+  } | null;
+  commercialStatus: string;
+  commercialReason: string;
+  validationStatus: string;
   currency: string;
   clientName: string;
 }
@@ -149,10 +152,12 @@ export interface ContactStrategyData {
     costBenefitRatio: string;
   }>;
   noAnswerAnalysis: {
-    stopThresholdRecommendation: string;
-    diminishingReturnsCutoff: string;
-    callbackFollowupRate: string;
-    callbackSaleConversion: string;
+    status: string;
+    reason: string;
+    stopThresholdRecommendation: string | null;
+    diminishingReturnsCutoff: string | null;
+    callbackFollowupRate: string | null;
+    callbackSaleConversion: string | null;
   };
 }
 
@@ -168,10 +173,10 @@ export interface VendorQualityData {
     callsPerLead: number;
     invalidRate: number;
     revenue: number;
-    directCost: number;
+    directCost: number | null;
     deliveryCost: number;
-    contribution: number;
-    marginPct: number;
+    contribution: number | null;
+    marginPct: number | null;
   }>;
   sources: Array<{
     source: string;
@@ -232,6 +237,8 @@ export interface SalesActivationData {
     activationSharePct: number;
     cumulativePct: number;
   }>;
+  maturationStatus: string;
+  maturationReason: string;
   byVendor: Array<{
     vendor: string;
     sales: number;
@@ -243,17 +250,17 @@ export interface SalesActivationData {
 export interface CommercialData {
   baseline: {
     volume: number;
-    cpl: number;
-    cpc: number;
+    cpl: number | null;
+    cpc: number | null;
     conversionRate: number;
     revenuePerSale: number;
     fixedOverhead: number;
     revenue: number;
-    totalCost: number;
-    contribution: number;
-    marginPct: number;
-    costPerSale: number;
-    costPerActivation: number;
+    totalCost: number | null;
+    contribution: number | null;
+    marginPct: number | null;
+    costPerSale: number | null;
+    costPerActivation: number | null;
     breakEvenVolume: number;
   };
   currency: string;
@@ -265,8 +272,10 @@ export interface CommercialData {
 }
 
 export interface DataIntegrityData {
-  overallHealthScore: number;
+  overallHealthScore: number | null;
   healthGrade: string;
+  validationStatus: string;
+  reason: string;
   totalRecordsAudited: number;
   checks: Array<{
     checkName: string;
@@ -279,6 +288,8 @@ export interface DataIntegrityData {
 }
 
 export interface AgentPerformanceData {
+  rankingStatus?: string;
+  rankingReason?: string;
   agents: Array<{
     agentId: string;
     vendor: string;
@@ -291,17 +302,19 @@ export interface AgentPerformanceData {
     totalTalkTime: string;
     avgHandleTime: string;
     callbacksBooked: number;
-    performanceTier: string;
+    performanceTier: string | null;
   }>;
 }
 
 export interface CampaignData {
+  status?: string;
+  reason?: string;
   campaigns: Array<{
     client: string;
     channel: string;
     campaign: string;
     adset: string;
-    spend: number;
+    spend: number | null;
     impressions: number;
     clicks: number;
     ctr: number;
@@ -313,6 +326,8 @@ export interface CampaignData {
 
 export interface AiInsightsData {
   source: string;
+  status?: string;
+  reason?: string;
   insights: Array<{
     category: string;
     severity: 'HIGH' | 'MEDIUM' | 'LOW';
