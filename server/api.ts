@@ -115,12 +115,12 @@ analyticsRouter.get('/cohorts', cacheResponse(120), asyncRoute(async (req, res) 
   const data = await singleFlight(res, 'cohorts', {cohortType:input.cohortType,metricType:input.metricType}, () => getCohortStats(input));
   res.json({ success: true, metadata: metadata(res, 'event_time_cohorts'), data });
 }));
-analyticsRouter.get('/leads', cacheResponse(60), asyncRoute(async (req, res) => {
+analyticsRouter.get('/leads', requireAdmin, cacheResponse(60), asyncRoute(async (req, res) => {
   const input = { ...res.locals.scope, limit: boundedInteger(req.query.limit, 100, 1000, 1), offset: boundedInteger(req.query.offset, 0, 100000) };
   const data = await singleFlight(res, 'leads', {limit:input.limit,offset:input.offset}, () => legacy.getLeads(input), 60);
   res.json({ success: true, metadata: metadata(res, 'vw_leads'), data: data.map(row => ({ ...row, quality: 'Not independently verified' })) });
 }));
-analyticsRouter.get('/lead-timeline/:leadId', cacheResponse(120), asyncRoute(async (req, res) => {
+analyticsRouter.get('/lead-timeline/:leadId', requireAdmin, cacheResponse(120), asyncRoute(async (req, res) => {
   const leadId = scalarString(req.params.leadId, 'leadId', 100);
   const data = await singleFlight(res, 'lead-timeline', {leadId}, () => getLeadTimeline({ ...res.locals.scope, leadId: leadId! }));
   res.json({ success: true, metadata: metadata(res, 'lead_timeline'), data });
@@ -276,13 +276,13 @@ analyticsRouter.get('/offernet/ai-insights', cacheResponse(60), asyncRoute(async
   res.json({ success: true, data });
 }));
 
-analyticsRouter.get('/offernet/raw-leads', cacheResponse(30), asyncRoute(async (req, res) => {
+analyticsRouter.get('/offernet/raw-leads', requireAdmin, cacheResponse(30), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-raw-leads', params, () => offernetAnalytics.getRawLeads(params), 30);
   res.json({ success: true, data });
 }));
 
-analyticsRouter.get('/offernet/lead-timeline/:leadId', cacheResponse(60), asyncRoute(async (req, res) => {
+analyticsRouter.get('/offernet/lead-timeline/:leadId', requireAdmin, cacheResponse(60), asyncRoute(async (req, res) => {
   const leadId = scalarString(req.params.leadId, 'leadId', 100);
   if (!leadId) throw new RequestError('leadId is required');
   const params = buildOffernetQueryParams(req, res);
