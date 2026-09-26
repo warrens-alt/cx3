@@ -372,6 +372,7 @@ export interface DataIntegrityData {
   validationStatus: string;
   reason: string;
   totalRecordsAudited: number;
+  sources?: SourceObservabilityData['sources'];
   checks: Array<{
     checkName: string;
     category: string;
@@ -404,6 +405,18 @@ export interface AgentPerformanceData {
 export interface CampaignData {
   status?: string;
   reason?: string;
+  mappingStatus?: string;
+  grainStatus?: string;
+  grainDiagnostics?: {
+    rowCount: number;
+    distinctGrainCount: number;
+    duplicateGrainRows: number;
+    fields: string[];
+  };
+  attribution?: {
+    status: string;
+    reason?: string | null;
+  };
   summary: {
     spend: number | null;
     impressions: number;
@@ -449,6 +462,125 @@ export interface CampaignData {
     cpc: number | null;
     cpm: number | null;
     cpl: number | null;
+  }>;
+}
+
+export interface MarketingDiscoveryData {
+  status: string;
+  reason: string;
+  contract: null | {
+    table: string;
+    mappingStatus: string;
+    configuredClientNames: string[];
+    fields: {
+      clientName: string;
+      date: string;
+      channel: string;
+      campaign: string;
+      adset: string;
+      impressions: string;
+      clicks: string;
+      leads: string;
+    };
+    approvedSpendFields: string[];
+    resolvedSpendField: string | null;
+    resolvedBudgetField: string | null;
+    attribution: {
+      status: string;
+      marketingSourceField?: string;
+      leadSourceField?: string;
+      marketingCampaignField?: string;
+      leadCampaignField?: string;
+      notes?: string;
+    };
+  };
+  schema: null | {
+    columns: string[];
+    missingRequired: string[];
+  };
+  availableClientNames: Array<{
+    value: string;
+    rows: number;
+    earliestDate: string | null;
+    latestDate: string | null;
+  }>;
+}
+
+export interface MarketingRootCauseData {
+  status: string;
+  reason?: string;
+  metric: null | {
+    id: 'spend' | 'cpc' | 'cpm' | 'cpl' | 'ctr' | 'leads';
+    label: string;
+    unit: 'currency' | 'pp' | 'leads';
+    currentValue: number | null;
+    previousValue: number | null;
+    delta: number | null;
+  };
+  currentWindow?: { startDate: string; endDate: string };
+  previousWindow?: { startDate: string; endDate: string };
+  dimensions: Array<{
+    key: 'channel' | 'campaign' | 'adset';
+    label: string;
+    segments: Array<{
+      name: string;
+      currentValue: number | null;
+      previousValue: number | null;
+      delta: number | null;
+    }>;
+  }>;
+  drivers: Array<{
+    name: string;
+    dimension: 'channel' | 'campaign' | 'adset';
+    dimensionLabel: string;
+    currentValue: number | null;
+    previousValue: number | null;
+    delta: number | null;
+  }>;
+  methodology?: string;
+  validationStatus?: string;
+}
+
+export interface MarketingAttributionData {
+  status: string;
+  reason: string;
+  contract?: {
+    status: string;
+    marketingSourceField?: string;
+    leadSourceField?: string;
+    marketingCampaignField?: string;
+    leadCampaignField?: string;
+    notes?: string;
+  };
+  rows: Array<{
+    key: string;
+    spend: number | null;
+    platformLeads: number;
+    fetched: number;
+    delivered: number;
+    dialled: number;
+    rpc: number;
+    sales: number;
+    activations: number;
+    recordedRevenue: number;
+    spendPerFetchedLead: number | null;
+    spendPerSale: number | null;
+    spendPerActivation: number | null;
+  }>;
+}
+
+export interface SourceObservabilityData {
+  status: string;
+  generatedAt: string;
+  sources: Array<{
+    key: string;
+    label: string;
+    status: string;
+    table: string | null;
+    latestRecordAt: string | null;
+    ageHours: number | null;
+    rowCount: number | null;
+    detail: string;
   }>;
 }
 
@@ -594,6 +726,22 @@ export async function fetchDataIntegrity(params: Record<string, any> = {}, force
 
 export async function fetchAgentPerformance(params: Record<string, any> = {}, forceRefresh = false): Promise<AgentPerformanceData> {
   return fetchOffernetJson<AgentPerformanceData>(`/api/analytics/offernet/agent-performance${buildQueryString(params)}`, forceRefresh);
+}
+
+export async function fetchMarketingDiscovery(forceRefresh = false): Promise<MarketingDiscoveryData> {
+  return fetchOffernetJson<MarketingDiscoveryData>(`/api/analytics/offernet/marketing-discovery`, forceRefresh);
+}
+
+export async function fetchMarketingRootCause(params: Record<string, any> = {}, forceRefresh = false): Promise<MarketingRootCauseData> {
+  return fetchOffernetJson<MarketingRootCauseData>(`/api/analytics/offernet/marketing-root-cause${buildQueryString(params)}`, forceRefresh);
+}
+
+export async function fetchMarketingAttribution(params: Record<string, any> = {}, forceRefresh = false): Promise<MarketingAttributionData> {
+  return fetchOffernetJson<MarketingAttributionData>(`/api/analytics/offernet/marketing-attribution${buildQueryString(params)}`, forceRefresh);
+}
+
+export async function fetchSourceObservability(params: Record<string, any> = {}, forceRefresh = false): Promise<SourceObservabilityData> {
+  return fetchOffernetJson<SourceObservabilityData>(`/api/analytics/offernet/source-observability${buildQueryString(params)}`, forceRefresh);
 }
 
 export async function fetchCampaigns(params: Record<string, any> = {}, forceRefresh = false): Promise<CampaignData> {
