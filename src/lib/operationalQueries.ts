@@ -18,14 +18,12 @@ export function operationalQueryOptions<T>(name: string, params: Record<string, 
     refetchOnWindowFocus: false,
   };
 }
-export function operationalQueryView<T>(query: { data?: T; error: unknown; isFetching: boolean; dataUpdatedAt?: number }, enabled = true) {
+export function operationalQueryView<T>(query: { data?: T; error: unknown; isFetching: boolean }, enabled = true) {
   return {
     data: enabled && !query.error ? query.data ?? null : null,
     loading: enabled && query.isFetching,
     initialLoading: enabled && query.isFetching && query.data === undefined,
     refreshing: enabled && query.isFetching && query.data !== undefined,
     error: enabled && query.error instanceof Error ? query.error.message : null,
-    // Browser receipt time is deliberately not called the warehouse data cutoff.
-    receivedAt: enabled && !query.error ? query.dataUpdatedAt || null : null,
   };
 }
