@@ -47,7 +47,7 @@ export default function SalesActivationIntelligence() {
         v.vendor, v.sales, v.activations, v.sales > 0 ? ((v.activations / v.sales) * 100).toFixed(1) : '0', v.revenue
       ])
     ];
-    downloadCsv(`sales_activation_${selectedClient}_${startDate}_${endDate}`, rows);
+    downloadCsv(`sales_activation_${selectedClient}_${startDate || 'total'}_${endDate || 'all'}`, rows);
   };
 
   return (
@@ -62,6 +62,11 @@ export default function SalesActivationIntelligence() {
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
               Contract Fulfillment & Cash Realization
             </span>
+            {!startDate && !endDate && Object.keys(extractOffernetFilters(filters)).length === 0 && (
+              <span className="text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full ml-1">
+                Total (Unfiltered)
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-1">
             Tracking sales reconciliation, billable versus non-billable contracts, activation maturation lag curves, and realized revenue.

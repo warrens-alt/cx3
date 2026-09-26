@@ -93,6 +93,11 @@ export default function LeadExplorerIntelligence() {
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500" />
               Clustered Warehouse Records
             </span>
+            {!startDate && !endDate && Object.keys(extractOffernetFilters(filters)).length === 0 && (
+              <span className="text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full ml-1">
+                Total (Unfiltered)
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-1">
             Search individual lead submissions, review delivery states, and inspect full chronological event audit trails.

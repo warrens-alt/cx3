@@ -28,8 +28,8 @@ export default function ExecutiveOverview() {
       const activeFilters = extractOffernetFilters(filters);
       const res = await fetchOverview({
         clientId: selectedClient,
-        startDate,
-        endDate,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
         ...activeFilters
       }, isManual);
       setData(res);
@@ -74,7 +74,7 @@ export default function ExecutiveOverview() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `executive_overview_${selectedClient}_${startDate}_${endDate}.csv`);
+    link.setAttribute('download', `executive_overview_${selectedClient}_${startDate || 'total'}_${endDate || 'all'}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -97,6 +97,11 @@ export default function ExecutiveOverview() {
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 Live Ledger Sync
               </span>
+              {!startDate && !endDate && Object.keys(extractOffernetFilters(filters)).length === 0 && (
+                <span className="text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full ml-1">
+                  Total (Unfiltered)
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-500 mt-1">
               End-to-end operational funnel and commercial profitability waterfall across {data?.clientName || 'Master Platform'}.
@@ -106,7 +111,7 @@ export default function ExecutiveOverview() {
           <div className="flex items-center gap-4 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg px-3 py-2 shadow-2xs">
             <div>
               <span className="text-slate-400 block text-[10px] uppercase font-bold">Reporting Window</span>
-              <span className="font-semibold text-slate-800">{startDate} → {endDate}</span>
+              <span className="font-semibold text-slate-800">{startDate && endDate ? `${startDate} → ${endDate}` : 'All Time (Total - Unfiltered)'}</span>
             </div>
             <div className="border-l border-slate-200 pl-3">
               <span className="text-slate-400 block text-[10px] uppercase font-bold">Base Currency</span>

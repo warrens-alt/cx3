@@ -17,8 +17,14 @@ export function useEvidenceWorkspace(options: UseEvidenceWorkspaceOptions) {
   const { startDate, endDate, filters } = useFilters();
 
   const previousPeriod = useMemo(() => {
+    if (!startDate || !endDate) {
+      return { startDate: '', endDate: '' };
+    }
     const start = new Date(startDate);
     const end = new Date(endDate);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return { startDate: '', endDate: '' };
+    }
     const diff = end.getTime() - start.getTime();
     const prevEnd = new Date(start.getTime() - 86400000);
     const prevStart = new Date(prevEnd.getTime() - diff);

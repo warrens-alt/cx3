@@ -107,8 +107,8 @@ export default function CliPerformance() {
       const res = await fetchCliPerformance(
         {
           clientId: selectedClient,
-          startDate,
-          endDate,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
           ...activeFilters,
         },
         forceRefresh
@@ -321,6 +321,11 @@ export default function CliPerformance() {
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
             <PhoneForwarded className="text-[#3562B3]" size={26} />
             CLI Performance
+            {!startDate && !endDate && Object.keys(extractOffernetFilters(filters)).length === 0 && (
+              <span className="text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full ml-1">
+                Total (Unfiltered)
+              </span>
+            )}
           </h1>
           <p className="text-sm text-slate-500 mt-1 max-w-2xl">
             Outbound caller-ID performance across call delivery, contact, conversation quality and downstream outcomes.

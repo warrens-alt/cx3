@@ -45,7 +45,7 @@ export default function TemporalIntelligence() {
       ['Day', 'Hour', 'Volume', 'Contact Rate %', 'Sale Rate %'],
       ...data.heatmap.map(h => [h.dayName, `${h.hour}:00`, h.volume, `${h.contactRate}%`, `${h.saleRate}%`])
     ];
-    downloadCsv(`temporal_intelligence_${selectedClient}_${startDate}_${endDate}`, rows);
+    downloadCsv(`temporal_intelligence_${selectedClient}_${startDate || 'total'}_${endDate || 'all'}`, rows);
   };
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -85,6 +85,11 @@ export default function TemporalIntelligence() {
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-purple-500" />
               Day × Hour Conversion Heatmaps
             </span>
+            {!startDate && !endDate && Object.keys(extractOffernetFilters(filters)).length === 0 && (
+              <span className="text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full ml-1">
+                Total (Unfiltered)
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-1">
             Receptivity patterns by day-of-week and hour-of-day, peak dialler efficiency windows, and optimal calling schedules.

@@ -24,7 +24,8 @@ export default function DataCoverage() {
 
     const clientId = selectedClient || 'default_tenant';
     const filterParam = Object.keys(filters).length ? `&filters=${encodeURIComponent(JSON.stringify(filters))}` : '';
-    const vendorCoverageUrl = `/api/analytics/vendor-coverage?clientId=${encodeURIComponent(clientId)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}${filterParam}`;
+    const dateParams = (startDate ? `&startDate=${encodeURIComponent(startDate)}` : '') + (endDate ? `&endDate=${encodeURIComponent(endDate)}` : '');
+    const vendorCoverageUrl = `/api/analytics/vendor-coverage?clientId=${encodeURIComponent(clientId)}${dateParams}${filterParam}`;
     const discoveryUrl = `/api/analytics/discovery?clientId=${encodeURIComponent(clientId)}`;
     const paramCoverageUrl = `/api/analytics/parameter-coverage?clientId=${encodeURIComponent(clientId)}`;
 

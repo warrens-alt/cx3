@@ -56,7 +56,7 @@ export default function CommercialIntelligence() {
       ['Simulated Scenario', 'Volume', 'Revenue (ZAR)', 'Contribution (ZAR)', 'Margin %', 'Cost / Sale (ZAR)'],
       ['Simulated Output', simVolume, Math.round(simRevenue), Math.round(simContribution), `${simMarginPct}%`, simCps]
     ];
-    downloadCsv(`commercial_intelligence_${selectedClient}_${startDate}_${endDate}`, rows);
+    downloadCsv(`commercial_intelligence_${selectedClient}_${startDate || 'total'}_${endDate || 'all'}`, rows);
   };
 
   // Dynamic Scenario Calculations
@@ -87,6 +87,11 @@ export default function CommercialIntelligence() {
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
               P&L Model & Scenario Simulator
             </span>
+            {!startDate && !endDate && Object.keys(extractOffernetFilters(filters)).length === 0 && (
+              <span className="text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full ml-1">
+                Total (Unfiltered)
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-1">
             Reconciliation of gross revenue, media acquisition cost, dialler telephony expenses, net contribution, and break-even simulation.

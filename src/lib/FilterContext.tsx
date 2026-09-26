@@ -103,8 +103,10 @@ interface FilterContextType {
 const Context = createContext<FilterContextType | undefined>(undefined);
 
 export function FilterProvider({ children }: { children: React.ReactNode }) {
-  const [params, setParams] = useSearchParams(), defaults = defaultDateRange();
-  const startDate = params.get('startDate') || defaults.start, endDate = params.get('endDate') || defaults.end;
+  const [params, setParams] = useSearchParams();
+  // By default, no date filters are imposed unless manually specified by the user
+  const startDate = params.get('startDate') || '';
+  const endDate = params.get('endDate') || '';
   const parsed = useMemo(() => { 
     try { 
       return { filters: readFilters(params), filterError: null }; 
@@ -121,13 +123,18 @@ export function FilterProvider({ children }: { children: React.ReactNode }) {
 
   const setDateRange = (start: string, end: string) => setParams(previous => { 
     const next = new URLSearchParams(previous); 
-    next.set('startDate', start); 
-    next.set('endDate', end); 
+    if (start) next.set('startDate', start); else next.delete('startDate'); 
+    if (end) next.set('endDate', end); else next.delete('endDate'); 
     return next; 
   }, { replace: true });
 
   const setFilter = (key: string, condition: FilterCondition | null) => setParams(previous => {
     const next = new URLSearchParams(previous), filters = { ...readFilters(previous) };
+    if (key === 'dateRange' && condition === null) {
+      next.delete('startDate');
+      next.delete('endDate');
+      return next;
+    }
     if (condition === null) delete filters[key]; else filters[key] = condition;
     const validated = validateFilters(filters);
     for (const legacy of SUPPORTED_STANDALONE_KEYS) next.delete(legacy);
@@ -137,6 +144,8 @@ export function FilterProvider({ children }: { children: React.ReactNode }) {
 
   const clearFilters = () => setParams(previous => { 
     const next = new URLSearchParams(previous); 
+    next.delete('startDate');
+    next.delete('endDate');
     for (const key of ['filters', ...SUPPORTED_STANDALONE_KEYS]) next.delete(key); 
     return next; 
   }, { replace: true });
@@ -152,6 +161,17 @@ export function FilterProvider({ children }: { children: React.ReactNode }) {
 
   const appliedFilters = useMemo<AppliedFilterItem[]>(() => {
     const items: AppliedFilterItem[] = [];
+    if (startDate && endDate) {
+      items.push({
+        key: 'dateRange',
+        label: 'Period',
+        value: `${startDate} → ${endDate}`
+      });
+    } else if (startDate) {
+      items.push({ key: 'dateRange', label: 'From Date', value: startDate });
+    } else if (endDate) {
+      items.push({ key: 'dateRange', label: 'To Date', value: endDate });
+    }
     for (const [key, cond] of Object.entries(parsed.filters)) {
       if (!cond) continue;
       let valStr = '';
@@ -168,7 +188,7 @@ export function FilterProvider({ children }: { children: React.ReactNode }) {
       }
     }
     return items;
-  }, [parsed.filters]);
+  }, [parsed.filters, startDate, endDate]);
 
   const activeFilterCount = appliedFilters.length;
 
@@ -176,8 +196,8 @@ export function FilterProvider({ children }: { children: React.ReactNode }) {
     <Context.Provider value={{ 
       startDate, 
       endDate, 
-      startMonth: startDate.slice(0, 7), 
-      endMonth: endDate.slice(0, 7),
+      startMonth: startDate ? startDate.slice(0, 7) : '', 
+      endMonth: endDate ? endDate.slice(0, 7) : '',
       setStartDate: value => update('startDate', value), 
       setEndDate: value => update('endDate', value), 
       setDateRange,

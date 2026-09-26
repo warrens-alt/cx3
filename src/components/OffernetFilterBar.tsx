@@ -15,6 +15,7 @@ interface OffernetFilterBarProps {
 }
 
 export const PERIOD_PRESETS = [
+  { id: 'all', label: 'All Time (Total - Unfiltered)', start: '', end: '' },
   { id: 'mtd', label: 'MTD (Month to Date)', start: '2026-08-01', end: '2026-08-26' },
   { id: 'matched_mom', label: 'Matched-Day MoM (Aug 1–26 vs Jul 1–26)', start: '2026-08-01', end: '2026-08-26' },
   { id: 'mom', label: 'Full MoM (Aug vs Jul)', start: '2026-07-01', end: '2026-08-26' },
@@ -22,7 +23,7 @@ export const PERIOD_PRESETS = [
   { id: 'wow', label: 'WoW (Past 14 Days)', start: '2026-08-12', end: '2026-08-26' },
   { id: 'last30', label: 'Last 30 Days', start: '2026-07-28', end: '2026-08-26' },
   { id: 'today', label: 'Today (Latest Ledger Date)', start: '2026-08-26', end: '2026-08-26' },
-  { id: 'all', label: 'Full Q3 2026 (Jun–Aug)', start: '2026-06-01', end: '2026-08-26' },
+  { id: 'q3', label: 'Full Q3 2026 (Jun–Aug)', start: '2026-06-01', end: '2026-08-26' },
 ];
 
 export const VENDOR_OPTIONS = [
@@ -92,10 +93,12 @@ export const OffernetFilterBar: React.FC<OffernetFilterBarProps> = ({
   // Fetch dynamic filter options from warehouse metadata if available
   const filterOptionsQuery = useQuery({
     queryKey: ['filter-options', selectedClient, startDate, endDate],
-    queryFn: ({ signal }) => fetchAnalyticsJson(
-      `/api/analytics/filter-options?${new URLSearchParams({ clientId: selectedClient || 'default_tenant', startDate, endDate })}`,
-      signal
-    ),
+    queryFn: ({ signal }) => {
+      const q = new URLSearchParams({ clientId: selectedClient || 'default_tenant' });
+      if (startDate) q.set('startDate', startDate);
+      if (endDate) q.set('endDate', endDate);
+      return fetchAnalyticsJson(`/api/analytics/filter-options?${q.toString()}`, signal);
+    },
     staleTime: 120000,
     retry: false,
   });
@@ -164,7 +167,9 @@ export const OffernetFilterBar: React.FC<OffernetFilterBarProps> = ({
     return Array.from(set);
   }, [apiData?.grades, selectedGrade]);
 
-  const currentPreset = PERIOD_PRESETS.find(p => p.start === startDate && p.end === endDate);
+  const currentPreset = (!startDate && !endDate)
+    ? PERIOD_PRESETS[0]
+    : PERIOD_PRESETS.find(p => p.start === startDate && p.end === endDate);
 
   // Close dropdowns on outside click or Esc
   useEffect(() => {
@@ -303,7 +308,9 @@ export const OffernetFilterBar: React.FC<OffernetFilterBarProps> = ({
               className="flex items-center gap-1.5 border border-slate-200/90 rounded-md px-3 sm:px-2.5 py-1.5 bg-white hover:bg-slate-50 text-slate-800 font-medium transition-colors cursor-pointer min-h-[34px] shadow-2xs"
             >
               <Calendar size={13} className="text-slate-400 shrink-0" />
-              <span className="max-w-[140px] sm:max-w-none truncate">{currentPreset ? currentPreset.label : `${startDate} → ${endDate}`}</span>
+              <span className="max-w-[140px] sm:max-w-none truncate">
+                {currentPreset ? currentPreset.label : (startDate && endDate ? `${startDate} → ${endDate}` : 'All Time (Total - Unfiltered)')}
+              </span>
               <ChevronDown size={12} className={`text-slate-400 ml-0.5 sm:ml-1 shrink-0 transition-transform ${presetDropdown ? 'rotate-180' : ''}`} />
             </button>
 

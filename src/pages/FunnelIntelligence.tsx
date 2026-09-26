@@ -48,7 +48,7 @@ export default function FunnelIntelligence() {
       ...data.bySource.map(s => ['Source', s.source, s.leads, s.contacted, s.sales, s.activations]),
       ...data.byGrade.map(g => ['Grade', g.grade, g.leads, g.contacted, g.sales, g.activations])
     ];
-    downloadCsv(`funnel_intelligence_${selectedClient}_${startDate}_${endDate}`, rows);
+    downloadCsv(`funnel_intelligence_${selectedClient}_${startDate || 'total'}_${endDate || 'all'}`, rows);
   };
 
   return (
@@ -63,6 +63,11 @@ export default function FunnelIntelligence() {
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500" />
               Stage Velocity & Leak Diagnosis
             </span>
+            {!startDate && !endDate && Object.keys(extractOffernetFilters(filters)).length === 0 && (
+              <span className="text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full ml-1">
+                Total (Unfiltered)
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-1">
             Stage progression duration, drop-off velocities, and multi-dimensional breakdown across vendors, sources, and lead grades.
