@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Database, Calculator, Calendar, BookOpen, Layers, Target, Compass } from 'lucide-react';
 import { getTaxonomyItem, MetricTaxonomyItem } from '../lib/taxonomy';
+import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 
 interface MetricLineageDrawerProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ interface MetricLineageDrawerProps {
 }
 
 export default function MetricLineageDrawer({ isOpen, onClose, title, lineage, metadata }: MetricLineageDrawerProps) {
+  const dialogRef = useDialogAccessibility<HTMLDivElement>(isOpen, onClose);
   if (!isOpen) return null;
 
   // Attempt to resolve official taxonomy item
@@ -55,8 +57,8 @@ export default function MetricLineageDrawer({ isOpen, onClose, title, lineage, m
 
   return (
     <>
-      <div className="fixed inset-0 bg-[#10283B]/20 backdrop-blur-sm z-40 transition-opacity" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 w-full md:w-[440px] bg-surface border-l border-border-strong shadow-2xl z-50 flex flex-col transform transition-transform duration-300">
+      <div className="fixed inset-0 bg-[#10283B]/20 backdrop-blur-sm z-40 transition-opacity" onMouseDown={onClose} aria-hidden="true" />
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`Metric lineage: ${title}`} className="fixed inset-y-0 right-0 w-full md:w-[440px] bg-surface border-l border-border-strong shadow-2xl z-50 flex flex-col transform transition-transform duration-300">
         <div className="p-6 border-b border-border-subtle flex justify-between items-center bg-surface-sec">
           <div>
             <div className="flex items-center gap-2">
@@ -73,7 +75,7 @@ export default function MetricLineageDrawer({ isOpen, onClose, title, lineage, m
             </div>
             <h2 className="text-section-title mt-1.5">{reportValue}</h2>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-border-subtle rounded-full text-text-sec hover:text-text-main transition-colors">
+          <button type="button" onClick={onClose} aria-label="Close metric lineage" className="p-2 hover:bg-border-subtle rounded-full text-text-sec hover:text-text-main transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
