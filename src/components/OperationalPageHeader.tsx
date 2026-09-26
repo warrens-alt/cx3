@@ -3,7 +3,6 @@ import { Info } from 'lucide-react';
 import { statusLabel as readableStatus } from '../lib/statusPresentation';
 
 export default function OperationalPageHeader({
-  eyebrow,
   title,
   description,
   status = 'NOT_VERIFIED',
@@ -20,7 +19,6 @@ export default function OperationalPageHeader({
   return (
     <header className="cx-command-hero cx-operational-page-header">
       <div>
-        <span className="cx-command-eyebrow">{eyebrow}</span>
         <h1>{title}</h1>
         <p>{description}</p>
       </div>

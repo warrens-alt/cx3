@@ -208,7 +208,7 @@ export default function CampaignIntelligence() {
                   Showing {num(data.detailScope.displayedCampaignGroups)} of {num(data.detailScope.totalCampaignGroups)} campaign/adset groups, ranked by platform lead events. Summary metrics cover the full selected scope.
                 </div>
               )}
-              <div className="cx-performance-table-wrap">
+              <div className="cx-performance-table-wrap" role="region" aria-label="Campaign spend and delivery efficiency" tabIndex={0}>
                 <table className="cx-performance-table cx-campaign-table">
                   <thead>
                     <tr>

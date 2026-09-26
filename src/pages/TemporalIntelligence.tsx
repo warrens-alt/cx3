@@ -11,6 +11,7 @@ import { downloadCsv, formatPercent, formatTableNumber } from '../lib/formatters
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { CaptureTurnaroundPanel, OperatingWindowPanel } from '../components/OfferNetControlPanels';
+import { heatmapColors } from '../lib/heatmapColors';
 
 type MetricView = 'contactRate' | 'saleRate' | 'volume';
 
@@ -44,8 +45,6 @@ export default function TemporalIntelligence() {
     return Math.max(1, ...data.heatmap.map(row => metricView === 'volume' ? row.volume : metricView === 'saleRate' ? row.saleRate ?? 0 : row.contactRate ?? 0));
   }, [data?.heatmap, metricView]);
 
-  const cellOpacity = (value: number) => value <= 0 ? 0 : Math.max(.12, Math.min(1, value / maxMetric));
-
   return (
     <div className="cx-command-page">
       <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} onExportCsv={handleExportCsv} />
@@ -78,7 +77,7 @@ export default function TemporalIntelligence() {
                 <Calendar size={16} className="text-slate-400"/>
               </header>
 
-              <div className="cx-temporal-scroll">
+              <div className="cx-temporal-scroll" role="region" aria-label="Day and hour performance matrix" tabIndex={0}>
                 <div className="cx-temporal-grid">
                   <div className="cx-temporal-corner">Day / hour</div>
                   {hours.map(hour => <div key={hour} className="cx-temporal-hour">{String(hour).padStart(2, '0')}</div>)}
@@ -103,7 +102,7 @@ export default function TemporalIntelligence() {
                               className="cx-temporal-cell"
                               data-empty={value === null}
                               title={`${day} ${String(hour).padStart(2, '0')}:00 · ${label}`}
-                              style={value !== null && value > 0 ? { '--cell-opacity': cellOpacity(value) } as React.CSSProperties : undefined}
+                              style={heatmapColors(value, maxMetric)}
                             >
                               {label}
                             </div>

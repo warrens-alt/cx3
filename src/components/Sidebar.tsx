@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Activity, Database, Layers, LogOut, Search, Settings, Shield, X } from 'lucide-react';
 import { BRAND } from '../../contracts/naming';
-import { NAV_GROUPS } from '../lib/navigation';
+import { NAV_GROUPS, navigationPage, relatedPages } from '../lib/navigation';
 import { isCurrentPage, navigationTarget } from '../lib/presentation';
 import { useClient } from '../lib/ClientContext';
 import { useAuth } from '../lib/AuthContext';
@@ -11,6 +11,7 @@ export default function Sidebar({ onClose, onSearch, searchShortcut = 'Ctrl K' }
   const location = useLocation();
   const { clientConfig } = useClient();
   const { user, profile, isAdmin, signOut } = useAuth();
+  const currentPage = navigationPage(location.pathname);
   const [warehouseConnected, setWarehouseConnected] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -32,11 +33,11 @@ export default function Sidebar({ onClose, onSearch, searchShortcut = 'Ctrl K' }
   return (
     <aside className="cx-sidebar">
       <div className="cx-brand">
-        <Link to="/" onClick={onClose} aria-label={`${BRAND.name} home`} className="cx-brand-link">
+        <Link to={navigationTarget('/overview', location.pathname, location.search)} onClick={onClose} aria-label={`${BRAND.name} home`} className="cx-brand-link">
           <span className="cx-brand-icon"><Activity size={18} aria-hidden="true" /></span>
           <span className="cx-brand-copy">
             <strong>{BRAND.name}</strong>
-            <small>Operational intelligence</small>
+            <small>Lead operations</small>
           </span>
         </Link>
         {onClose && (
@@ -48,7 +49,7 @@ export default function Sidebar({ onClose, onSearch, searchShortcut = 'Ctrl K' }
 
       <button type="button" onClick={onSearch} className="cx-sidebar-search" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K">
         <Search size={15} aria-hidden="true" />
-        <span>Find a section</span>
+        <span>Find a page</span>
         <kbd aria-hidden="true">{searchShortcut}</kbd>
       </button>
 
@@ -60,21 +61,28 @@ export default function Sidebar({ onClose, onSearch, searchShortcut = 'Ctrl K' }
               {group.items.map(item => {
                 const Icon = item.icon;
                 const active = isCurrentPage(location.pathname, item.path, location.search);
-                const currentSection = (item.path === '/speed-to-lead' && ['/contact-strategy', '/cli-performance', '/agent-performance', '/temporal'].includes(location.pathname))
-                  || (item.path === '/vendor-quality' && ['/sales-activation', '/campaigns', '/commercial'].includes(location.pathname))
-                  || (item.path === '/reports' && ['/vendors', '/reconciliation', '/data-integrity'].includes(location.pathname));
+                const currentSection = currentPage?.section === item.section;
+                const related = relatedPages(item.section, isAdmin);
+                const showRelated = currentSection && related.length > 1 && item.section !== 'settings';
                 return (
                   <li key={`${group.title}-${item.name}-${item.path}`}>
                     <Link
                       to={navigationTarget(item.path, location.pathname, location.search)}
-                      aria-current={active ? 'page' : currentSection ? 'location' : undefined}
+                      aria-current={showRelated ? 'location' : active ? 'page' : currentSection ? 'location' : undefined}
                       data-current-section={currentSection || undefined}
                       onClick={onClose}
                       className="cx-nav-link"
+                      title={item.description}
                     >
                       <Icon size={16} aria-hidden="true" />
                       <span>{item.name}</span>
                     </Link>
+                    {showRelated && <ul className="cx-related-navigation" aria-label={`${item.name} pages`}>
+                      {related.map(page => <li key={page.path}><Link
+                        to={navigationTarget(page.path, location.pathname, location.search)}
+                        aria-current={isCurrentPage(location.pathname, page.path, location.search) ? 'page' : undefined}
+                        title={page.description} onClick={onClose}>{page.name}</Link></li>)}
+                    </ul>}
                   </li>
                 );
               })}
@@ -97,9 +105,9 @@ export default function Sidebar({ onClose, onSearch, searchShortcut = 'Ctrl K' }
           <Layers size={15} aria-hidden="true" />
           <span>
             <strong>Workspace</strong>
-            <small>{clientConfig?.name || 'Production'}</small>
+            <small>{clientConfig?.name || 'Select a workspace'}</small>
           </span>
-          <Link to="/admin" aria-label="Open configuration" onClick={onClose}>
+          <Link to={navigationTarget('/admin', location.pathname, location.search)} aria-label="Open Settings" onClick={onClose}>
             <Settings size={14} />
           </Link>
         </div>

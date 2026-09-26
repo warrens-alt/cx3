@@ -1,118 +1,117 @@
 import { useClient } from '../lib/ClientContext';
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { PageShell } from '../components/PageShell';
 import PageHeader from '../components/PageHeader';
-import { Database, AlertCircle, CheckCircle2, Server, Key, Table, BookOpen } from 'lucide-react';
+import { Database, AlertCircle, Check, CheckCircle2, BookOpen, Palette, RefreshCw, ArrowUpRight, ChevronDown } from 'lucide-react';
 import { fetchAnalyticsJson } from '../lib/analyticsRequest';
 import { connectionHealth, type ConnectionHealth } from '../lib/connectionHealth';
+import { navigationTarget } from '../lib/presentation';
+import { useTableDensity } from '../lib/useTableDensity';
+import '../styles/settings.css';
 
 export default function Settings() {
   const { selectedClient, clientConfig, ready, reportAuthenticationFailure } = useClient();
+  const { density, setDensity } = useTableDensity();
+  const location = useLocation();
   const [result, setStatus] = useState<{ workspace: string; health?: ConnectionHealth; error?: string } | null>(null);
   const status = result?.workspace === selectedClient ? result : null;
   const [loading, setLoading] = useState(true);
-  const [attempt,setAttempt] = useState(0);
+  const [attempt, setAttempt] = useState(0);
+  const timezone = clientConfig?.timezone || 'UTC';
+  const latestDate = status?.health?.latestData ? new Date(status.health.latestData) : null;
+  const latestSource = latestDate && Number.isFinite(latestDate.getTime())
+    ? latestDate.toLocaleString(undefined, { timeZone: timezone })
+    : 'No valid timestamp reported';
 
   useEffect(() => {
     if (!selectedClient || !ready) return;
-    const controller=new AbortController();
-    setLoading(true);setStatus(null);
-    fetchAnalyticsJson<unknown>(`/api/analytics/health?${new URLSearchParams({clientId:selectedClient})}`,controller.signal)
+    const controller = new AbortController();
+    setLoading(true);
+    setStatus(null);
+    fetchAnalyticsJson<unknown>(`/api/analytics/health?${new URLSearchParams({ clientId: selectedClient })}`, controller.signal)
       .then(payload => {
-        if(controller.signal.aborted)return;
+        if (controller.signal.aborted) return;
         setStatus({ workspace: selectedClient, health: connectionHealth(payload.data) });
         setLoading(false);
       })
       .catch(error => {
-        if(controller.signal.aborted)return;
-        const message=error instanceof Error ? error.message : 'Could not reach server.';
-        if ((error as {status?:number})?.status===401) reportAuthenticationFailure(message);
+        if (controller.signal.aborted) return;
+        const message = error instanceof Error ? error.message : 'Could not reach server.';
+        if ((error as { status?: number })?.status === 401) reportAuthenticationFailure(message);
         setStatus({ workspace: selectedClient, error: message });
         setLoading(false);
       });
-    return ()=>controller.abort();
-  }, [selectedClient,ready,attempt,reportAuthenticationFailure]);
+    return () => controller.abort();
+  }, [selectedClient, ready, attempt, reportAuthenticationFailure]);
 
   return (
-    <PageShell>
-      <PageHeader 
-        title="System & Data Pipeline Status" 
-        category="Infrastructure Telemetry"
-        description="Inspect the selected workspace’s connection check and latest reported source timestamp. This is not a reconciliation or ingestion-completeness check."
+    <PageShell className="cx-settings-page">
+      <PageHeader
+        title="Settings"
+        description="Make the workspace comfortable to use and check its data connection."
       />
 
-      <div className="max-w-3xl space-y-8">
-        <div className="rounded-lg border border-slate-200 bg-surface-sec p-4 text-sm text-text-sec" role="note">
-          Read-only data access. Connection checks and reports do not create, update, or delete Google Cloud tables or source records.
-        </div>
-        <div className="enterprise-card p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-[#EDF5FC] text-[#315EAD]">
-              <BookOpen className="w-5 h-5" />
+      <div className="cx-settings-sections">
+        <section className="cx-settings-card" aria-labelledby="settings-appearance-title">
+          <header className="cx-settings-card-header">
+            <div className="cx-settings-heading"><Palette size={20} aria-hidden="true" /><div><h2 id="settings-appearance-title">Appearance</h2><p>A clear, consistent view of your workspace.</p></div></div>
+            <span className="cx-settings-local-note">Saved in this browser</span>
+          </header>
+          <div className="cx-settings-appearance">
+            <div className="cx-settings-theme">
+              <h3>Workspace theme</h3>
+              <div className="cx-settings-theme-card">
+                <div className="cx-settings-theme-preview" aria-hidden="true"><i /><div><b /><span /><span /><span /></div></div>
+                <div className="cx-settings-theme-caption"><div><strong>Offernet light</strong><p>Soft canvas, clear surfaces and blue accents.</p></div><span><Check size={14} aria-hidden="true" />Active</span></div>
+              </div>
             </div>
-            <div>
-              <h4 className="text-sm font-semibold text-text-main">Tenant-Scoped Lead Ledger</h4>
-              <p className="text-xs text-text-sec">Inspect bounded lead records through the authorised tenant-scoped analytics API.</p>
-            </div>
+            <fieldset className="cx-settings-density">
+              <legend>Table spacing</legend>
+              <p>Choose how much room each data row uses.</p>
+              <div className="cx-settings-density-options">
+                {(['comfortable', 'compact'] as const).map(value => (
+                  <label key={value} className={`cx-settings-density-option ${density === value ? 'is-selected' : ''}`}>
+                    <input type="radio" name="table-density" value={value} checked={density === value} onChange={() => setDensity(value)} />
+                    <span className="cx-settings-density-copy"><strong>{value === 'comfortable' ? 'Comfortable' : 'Compact'}</strong><span>{value === 'comfortable' ? 'More breathing room between rows.' : 'More rows visible at a glance.'}</span></span>
+                    <span className={`cx-settings-density-preview is-${value}`} aria-hidden="true"><i /><i /><i /></span>
+                  </label>
+                ))}
+              </div>
+              <p className="cx-settings-preference-status" role="status">{density === 'comfortable' ? 'Comfortable' : 'Compact'} table spacing is applied across the workspace.</p>
+            </fieldset>
           </div>
-          <Link to="/lead-ledger" className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#3562B3] hover:bg-[#2A4E8F] rounded-md transition-colors shrink-0">
-            Open Scoped Ledger
-          </Link>
-        </div>
+        </section>
 
-        <div className="enterprise-card overflow-hidden">
-          <div className="p-5 border-b border-slate-200 bg-surface-sec/50 flex items-center gap-3">
-            <Database className="w-5 h-5 text-[#3562B3]" />
-            <h3 className="text-[16px] font-semibold text-text-main">BigQuery Configuration (Server-Side)</h3>
-          </div>
-          
-          <div className="p-6">
+        <section className="cx-settings-card" aria-labelledby="settings-connection-title">
+          <header className="cx-settings-card-header">
+            <div className="cx-settings-heading"><Database size={20} aria-hidden="true" /><div><h2 id="settings-connection-title">Workspace connection</h2><p>Connection and source information for {clientConfig?.name || selectedClient}.</p></div></div>
+            <button type="button" className="cx-button-secondary cx-settings-check" disabled={loading || !ready} onClick={() => setAttempt(value => value + 1)}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden="true" />{loading ? 'Checking…' : 'Check connection'}</button>
+          </header>
+          <div className="cx-settings-connection-body">
             {loading || !status ? (
-              <div className="text-sm text-text-sec">Checking connection...</div>
+              <div className="cx-settings-status is-loading" role="status"><RefreshCw size={18} className="animate-spin" aria-hidden="true" /><span>Checking connection…</span></div>
             ) : status.health ? (
-              <div className="space-y-6">
-                <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-4 py-3 rounded-lg border border-emerald-100">
-                  <CheckCircle2 className="w-5 h-5" />
-                  <span className="font-medium text-sm">Connection check succeeded: {clientConfig?.name || selectedClient}</span>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                  <div className="p-4 bg-surface-sec rounded border border-slate-100">
-                    <div className="text-text-sec mb-1 flex items-center gap-2"><Server className="w-4 h-4"/> Authentication</div>
-                    <div className="font-medium">Server-managed Google credentials</div>
-                  </div>
-                  <div className="p-4 bg-surface-sec rounded border border-slate-100">
-                    <div className="text-text-sec mb-1 flex items-center gap-2"><Key className="w-4 h-4"/> Client ID</div>
-                    <div className="font-medium break-words">{selectedClient}</div>
-                  </div>
-                  <div className="p-4 bg-surface-sec rounded border border-slate-100">
-                    <div className="text-text-sec mb-1 flex items-center gap-2"><Table className="w-4 h-4"/> Latest Reported Source Timestamp</div>
-                    <div className="font-medium">{status.health.latestData ? new Date(status.health.latestData).toLocaleString(undefined,{timeZone:clientConfig?.timezone || 'UTC'}) : 'No valid timestamp reported'}</div>
-                    <div className="mt-1 text-xs text-text-sec">{clientConfig?.timezone || 'UTC'} · Freshness not independently verified</div>
-                  </div>
-                  <div className="p-4 bg-surface-sec rounded border border-slate-100">
-                    <div className="text-text-sec mb-1 flex items-center gap-2"><Database className="w-4 h-4"/> Connection</div>
-                    <div className="font-medium text-emerald-600">{status.health?.status || 'Unknown'}</div>
-                  </div>
-                </div>
-
-                <div className="text-xs text-text-sec mt-4 border-t border-slate-100 pt-4">
-                  Database credentials and source mappings are managed in the app’s server configuration. This screen cannot modify credentials, cloud permissions, tables, or source records.
-                </div>
-              </div>
+              <>
+                <div className="cx-settings-status is-connected" role="status"><CheckCircle2 size={18} aria-hidden="true" /><div><strong>Connection check succeeded</strong><span>{status.health.status} · {clientConfig?.name || selectedClient}</span></div></div>
+                <dl className="cx-settings-facts">
+                  <div><dt>Workspace</dt><dd>{clientConfig?.name || selectedClient}</dd></div>
+                  <div><dt>Latest reported source timestamp</dt><dd>{latestSource}</dd><small>{timezone} · Freshness not independently verified</small></div>
+                </dl>
+                <p className="cx-settings-connection-note">This checks connectivity. It does not confirm reconciliation or ingestion completeness.</p>
+              </>
             ) : (
-              <div role="alert" className="flex items-start gap-3 text-red-700 bg-red-50 p-4 rounded-lg border border-red-100">
-                <AlertCircle className="w-5 h-5 mt-0.5" />
-                <div>
-                  <h4 className="font-medium text-sm">Connection Failed</h4>
-                  <p className="text-sm mt-1 opacity-90">{status.error || 'Unknown error'}</p>
-                  <button type="button" className="cx-button-secondary mt-3" onClick={()=>setAttempt(value=>value+1)}>Retry connection check</button>
-                </div>
-              </div>
+              <div role="alert" className="cx-settings-status is-error"><AlertCircle size={18} aria-hidden="true" /><div><strong>Connection check failed</strong><span>{status.error || 'Could not reach the data source.'}</span><button type="button" className="cx-button-secondary" onClick={() => setAttempt(value => value + 1)}>Retry connection check</button></div></div>
             )}
+
+            <details className="cx-settings-technical">
+              <summary>Technical source details<ChevronDown size={16} aria-hidden="true" /></summary>
+              <dl className="cx-settings-facts"><div><dt>Authentication</dt><dd>Server-managed Google credentials</dd></div><div><dt>Client ID</dt><dd>{selectedClient}</dd></div></dl>
+              <p>Read-only data access. Database credentials and source mappings are managed in the server configuration. This screen cannot change cloud permissions, tables or source records.</p>
+            </details>
           </div>
-        </div>
+          <footer className="cx-settings-ledger"><div><BookOpen size={18} aria-hidden="true" /><div><strong>Inspect the lead ledger</strong><p>Open bounded lead records for the current reporting scope.</p></div></div><Link to={navigationTarget('/lead-ledger', location.pathname, location.search)} className="cx-button-secondary">Open scoped ledger<ArrowUpRight size={15} aria-hidden="true" /></Link></footer>
+        </section>
       </div>
     </PageShell>
   );

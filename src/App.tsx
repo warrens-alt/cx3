@@ -8,7 +8,8 @@ import { Menu, Search, PanelLeftClose, PanelLeftOpen, SlidersHorizontal, ArrowRi
 import { BRAND, PAGE_TITLES } from '../contracts/naming';
 import { ClientProvider, useClient } from './lib/ClientContext';
 import { FilterProvider, useFilters } from './lib/FilterContext';
-import { DENSITY_KEY, safeDensity, type TableDensity } from './lib/presentation';
+import { useTableDensity } from './lib/useTableDensity';
+import { navigationPage } from './lib/navigation';
 import { applicationMode, DEMO_ENTRY_URL } from './lib/applicationMode';
 import Sidebar from './components/Sidebar';
 import Modal from './components/Modal';
@@ -60,8 +61,8 @@ function Shell() {
   const device = useDevice();
   const [mobile,setMobile]=useState(false), [sidebar,setSidebar]=useState(true), [command,setCommand]=useState(false);
   const [filtersOpen,setFiltersOpen]=useState(false);
-  const [density,setDensity]=useState<TableDensity>(()=>{try{return safeDensity(localStorage.getItem(DENSITY_KEY));}catch{return 'comfortable';}});
-  const pageTitle = ({ '/visuals': 'Visual Workspace', '/vetting': 'Vetting', '/admin': 'Settings', '/validation': 'Validation' } as Record<string, string>)[location.pathname] || PAGE_TITLES[location.pathname] || 'Operational Platform';
+  const { density, toggleDensity } = useTableDensity();
+  const pageTitle = navigationPage(location.pathname)?.name || ({ '/visuals': 'Visual Workspace', '/vetting': 'Vetting', '/validation': 'Validation' } as Record<string, string>)[location.pathname] || PAGE_TITLES[location.pathname] || 'Operational Platform';
   const searchShortcut = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘ K' : 'Ctrl K';
   
   const operationalRoutes = [
@@ -72,7 +73,6 @@ function Shell() {
   ];
   const isOperationalPage = operationalRoutes.includes(location.pathname);
   const evidencePage = ['/reports','/vendors','/exceptions','/reconciliation','/lead-ledger','/admin','/access-control','/users'].includes(location.pathname) || isOperationalPage;
-  useEffect(()=>{try{localStorage.setItem(DENSITY_KEY,density);}catch{}},[density]);
   useEffect(() => { document.title = `${pageTitle} · ${BRAND.name}`; }, [pageTitle]);
   useEffect(()=>{
     setMobile(false);
@@ -117,8 +117,8 @@ function Shell() {
               <span className="hidden md:inline">Access Control</span>
             </Link>
           )}
-          <button type="button" className="cx-search-trigger" aria-label="Search pages" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title={`Find a section (${searchShortcut})`} onClick={openSearch}><Search size={16} aria-hidden="true"/><span>Find a section</span><kbd aria-hidden="true">{searchShortcut}</kbd></button>
-          <button type="button" className="cx-icon-button hidden sm:inline-flex" aria-label={density==='comfortable'?'Use compact table spacing':'Use comfortable table spacing'} aria-pressed={density==='compact'} onClick={()=>setDensity(old=>old==='compact'?'comfortable':'compact')}><Columns3 size={18}/></button>
+          <button type="button" className="cx-search-trigger" aria-label="Search pages" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title={`Find a page (${searchShortcut})`} onClick={openSearch}><Search size={16} aria-hidden="true"/><span>Find a page</span><kbd aria-hidden="true">{searchShortcut}</kbd></button>
+          <button type="button" className="cx-icon-button cx-density-toggle hidden sm:inline-flex" aria-label={density==='comfortable'?'Use compact table spacing':'Use comfortable table spacing'} title={`Table spacing: ${density}. Switch to ${density==='comfortable'?'compact':'comfortable'}.`} aria-pressed={density==='compact'} onClick={toggleDensity}><Columns3 size={18} aria-hidden="true"/><span>Spacing: {density==='comfortable'?'Comfortable':'Compact'}</span></button>
           {!isOperationalPage && (
             <label className="cx-workspace-select">
               <span className="hidden sm:inline">Client</span>

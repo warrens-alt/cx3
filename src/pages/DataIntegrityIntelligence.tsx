@@ -8,6 +8,7 @@ import { fetchDataIntegrity, type DataIntegrityData } from '../lib/offernetClien
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { DataCompletenessPanel } from '../components/OfferNetControlPanels';
 import { formatTableNumber } from '../lib/formatters';
+import '../styles/tableReadability.css';
 
 export default function DataIntegrityIntelligence() {
   const { selectedClient } = useClient();
@@ -83,8 +84,8 @@ export default function DataIntegrityIntelligence() {
 
             <section className="cx-command-panel">
               <header><div><span className="cx-command-section-kicker">Integrity</span><h2>Observed discrepancy checks</h2><p>{data.reason}</p></div><Database size={16} className="text-slate-400"/></header>
-              <div className="cx-performance-table-wrap">
-                <table className="cx-performance-table">
+              <div className="cx-performance-table-wrap" role="region" aria-label="Observed discrepancy checks" tabIndex={0}>
+                <table className="cx-performance-table cx-integrity-table">
                   <thead><tr><th>Check</th><th>Category</th><th>Status</th><th>Observed gaps</th><th>Evidence</th></tr></thead>
                   <tbody>
                     {data.checks.map(check => (

@@ -138,7 +138,7 @@ export default function VendorLeadQuality() {
                   <p>Stage rates remain separate so a slow vendor is not automatically interpreted as a low-quality vendor. A dash means the metric is unavailable for this scope.</p>
                 </div>
               </header>
-              <div className="cx-performance-table-wrap">
+              <div className="cx-performance-table-wrap" role="region" aria-label="Vendor operational performance" tabIndex={0}>
                 <table className="cx-performance-table">
                   <thead>
                     <tr>
@@ -184,7 +184,7 @@ export default function VendorLeadQuality() {
                   <p>Lead volume alone is not enough: compare delivery, dial coverage, RPC, sales and invalid-rate outcomes for every source.</p>
                 </div>
               </header>
-              <div className="cx-performance-table-wrap">
+              <div className="cx-performance-table-wrap" role="region" aria-label="Source performance through the funnel" tabIndex={0}>
                 <table className="cx-performance-table">
                   <thead>
                     <tr>

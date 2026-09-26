@@ -8,6 +8,7 @@ import {
   Database,
   DollarSign,
   GitFork,
+  Settings2,
   Info,
   ChevronDown,
   Search,
@@ -30,6 +31,7 @@ import { OperationalEmpty, OperationalError, OverviewSkeleton } from '../compone
 import DeferredOverviewTrend from '../components/DeferredOverviewTrend';
 
 const fmt = (value: number | string | null | undefined) => formatTableNumber(value);
+const stageLabel = (name: string) => name === 'RPC' ? 'Contacted' : name;
 type RootMetric = RootCauseData['metric']['id'];
 
 function Change({ value, unit = '%' }: { value: number | null | undefined; unit?: string }) {
@@ -113,8 +115,8 @@ export default function ExecutiveOverview() {
       { label: 'Lead volume', value: c.fetchedDelta, unit: '%', metric: 'fetchedLeads' as RootMetric },
       { label: 'Delivery rate', value: c.deliveryRateDelta, unit: 'pp', metric: 'deliveryRate' as RootMetric },
       { label: 'Dial coverage', value: c.dialRateDelta, unit: 'pp', metric: 'dialRate' as RootMetric },
-      { label: 'RPC rate', value: c.contactRateDelta, unit: 'pp', metric: 'contactRate' as RootMetric },
-      { label: 'Sale / fetched', value: c.saleRateDelta, unit: 'pp', metric: 'leadToSaleRate' as RootMetric },
+      { label: 'Right-party contact', value: c.contactRateDelta, unit: 'pp', metric: 'contactRate' as RootMetric },
+      { label: 'Lead-to-sale rate', value: c.saleRateDelta, unit: 'pp', metric: 'leadToSaleRate' as RootMetric },
       { label: 'Activation / sale', value: c.activationRateDelta, unit: 'pp', metric: 'activationRate' as RootMetric },
     ].filter(item => item.value !== null).sort((a, b) => Math.abs(Number(b.value)) - Math.abs(Number(a.value))).slice(0, 4);
   }, [data?.comparison]);
@@ -129,9 +131,8 @@ export default function ExecutiveOverview() {
       <div className="cx-command-content">
         <header className="cx-command-hero">
           <div>
-            <span className="cx-command-eyebrow">Operational command centre</span>
             <h1>{data?.clientName || 'Offernet Performance'}</h1>
-            <p>Your lead journey, current bottlenecks, and the next actions to take.</p>
+            <p>Track lead performance and see what needs your attention.</p>
           </div>
           <Link to={scoped('/reports')} className="cx-trust-pill">
             <Info size={15} aria-hidden="true" />
@@ -149,23 +150,25 @@ export default function ExecutiveOverview() {
 
         {data && (
           <>
-            <section className="cx-command-metrics" aria-label="Primary operational metrics">
-              <Metric label="Fetched leads" value={fmt(data.kpis.fetchedLeads)} note="Incoming lead population" change={data.comparison?.fetchedDelta} onWhyChanged={hasComparison ? () => investigate('fetchedLeads') : undefined} />
-              <Metric label="Delivery rate" value={formatPercent(data.kpis.deliveryRate)} note={`${fmt(data.kpis.deliveredLeads)} delivered`} change={data.comparison?.deliveryRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('deliveryRate') : undefined} />
-              <Metric label="Dial coverage" value={formatPercent(data.kpis.dialRate)} note={`${fmt(data.kpis.dialledLeads)} dialled`} change={data.comparison?.dialRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('dialRate') : undefined} />
-              <Metric label="RPC rate" value={formatPercent(data.kpis.contactRate)} note={`${fmt(data.kpis.contactedLeads)} contacted`} change={data.comparison?.contactRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('contactRate') : undefined} />
-              <Metric label="Sale / fetched" value={formatPercent(data.kpis.leadToSaleRate)} note={`${fmt(data.kpis.saleLeads)} recorded sales`} change={data.comparison?.saleRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('leadToSaleRate') : undefined} />
-            </section>
+            <div className="cx-overview-summary">
+              <section className="cx-command-metrics" aria-label="Primary operational metrics">
+                <Metric label="Fetched leads" value={fmt(data.kpis.fetchedLeads)} note="Incoming leads" change={data.comparison?.fetchedDelta} onWhyChanged={hasComparison ? () => investigate('fetchedLeads') : undefined} />
+                <Metric label="Delivery rate" value={formatPercent(data.kpis.deliveryRate)} note={`${fmt(data.kpis.deliveredLeads)} delivered`} change={data.comparison?.deliveryRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('deliveryRate') : undefined} />
+                <Metric label="Dial coverage" value={formatPercent(data.kpis.dialRate)} note={`${fmt(data.kpis.dialledLeads)} dialled`} change={data.comparison?.dialRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('dialRate') : undefined} />
+                <Metric label="Right-party contact" value={formatPercent(data.kpis.contactRate)} note={`${fmt(data.kpis.contactedLeads)} contacted`} change={data.comparison?.contactRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('contactRate') : undefined} />
+                <Metric label="Lead-to-sale rate" value={formatPercent(data.kpis.leadToSaleRate)} note={`${fmt(data.kpis.saleLeads)} recorded sales`} change={data.comparison?.saleRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('leadToSaleRate') : undefined} />
+              </section>
 
-            <p className="cx-comparison-context"><Clock3 size={13} aria-hidden="true" />{data.comparisonWindow ? `Compared with ${data.comparisonWindow.startDate} – ${data.comparisonWindow.endDate}. Rate changes are percentage points.` : 'Choose a date period to see changes against the previous period.'}</p>
+              <p className="cx-comparison-context"><Clock3 size={13} aria-hidden="true" />{data.comparisonWindow ? `Compared with ${data.comparisonWindow.startDate} – ${data.comparisonWindow.endDate}. Rate changes are percentage points.` : 'Choose a date period to compare performance.'}</p>
+            </div>
 
             {data.kpis.fetchedLeads === 0 && <OperationalEmpty title="No leads in this selection">Try a different period or remove a filter. Measured counts remain zero; rates without a population are unavailable.</OperationalEmpty>}
 
             <div className="cx-command-grid cx-command-grid-attention">
               <section className="cx-command-panel">
                 <header>
-                  <div><span className="cx-command-section-kicker">Act</span><h2>Needs attention</h2><p>Operational exceptions surfaced from the current population.</p></div>
-                  <Link to={scoped('/exceptions')}>Open exception queue <ArrowRight size={13} /></Link>
+                  <div><h2>Needs attention</h2><p>Start with these leads to keep work moving.</p></div>
+                  <Link to={scoped('/exceptions')}>View all exceptions <ArrowRight size={13} /></Link>
                 </header>
                 {data.attention.length ? (
                   <div className="cx-attention-list">
@@ -182,38 +185,38 @@ export default function ExecutiveOverview() {
 
               <section className="cx-command-panel cx-sla-panel">
                 <header>
-                  <div><span className="cx-command-section-kicker">Speed</span><h2>First-dial SLA</h2><p>Delivered leads dialled within {data.sla.firstDialTargetMinutes} minutes.</p></div>
-                  {isAdmin ? <Link to={recordLink('sla-breach')}>View breaches <ArrowRight size={13} /></Link> : <Link to={scoped('/speed-to-lead')}>Diagnose <ArrowRight size={13} /></Link>}
+                  <div><h2>First-call response</h2><p>Delivered leads called within {data.sla.firstDialTargetMinutes} minutes.</p></div>
+                  {isAdmin ? <Link to={recordLink('sla-breach')}>View breaches <ArrowRight size={13} /></Link> : <Link to={scoped('/speed-to-lead')}>View response times <ArrowRight size={13} /></Link>}
                 </header>
                 <div className="cx-sla-number">{formatPercent(data.sla.complianceRate)}</div>
                 {data.sla.complianceRate != null && <div className="cx-sla-track"><span style={{ width: `${Math.min(100, Math.max(0, data.sla.complianceRate))}%` }} /></div>}
                 <dl>
-                  <div><dt>Median delivery → dial</dt><dd>{data.sla?.medianDeliveryToDial || '—'}</dd></div>
-                  <div><dt>P90 delivery → dial</dt><dd>{data.sla?.p90DeliveryToDial || '—'}</dd></div>
-                  <div><dt>Awaiting first dial</dt><dd>{fmt(data.backlog?.awaitingFirstDial)}</dd></div>
-                  <div><dt>Waiting &gt;60m</dt><dd>{fmt(data.backlog?.over60Minutes)}</dd></div>
+                  <div><dt title="Median time from delivery to the first dial">Typical wait</dt><dd>{data.sla?.medianDeliveryToDial || '—'}</dd></div>
+                  <div><dt title="90% of recorded delivery-to-first-call times fall within this duration">90% of recorded waits</dt><dd>{data.sla?.p90DeliveryToDial || '—'}</dd></div>
+                  <div><dt>Awaiting first call</dt><dd>{fmt(data.backlog?.awaitingFirstDial)}</dd></div>
+                  <div><dt>Waiting over 60 min</dt><dd>{fmt(data.backlog?.over60Minutes)}</dd></div>
                 </dl>
               </section>
             </div>
 
             <details className="cx-overview-controls">
-              <summary><div><span className="cx-command-section-kicker">Go deeper</span><strong>Operating controls</strong><small>Call effort, coverage and activation backlog</small></div><ChevronDown size={18} aria-hidden="true" /></summary>
+              <summary><Settings2 size={20} aria-hidden="true" /><div><strong>Operating controls</strong><small>Call effort, coverage and activation backlog</small></div><ChevronDown size={18} aria-hidden="true" /></summary>
               {controls.error ? <OperationalError message={controls.error instanceof Error ? controls.error.message : 'Operating controls are unavailable.'} onRetry={() => { void controls.refetch(); }} retrying={controls.isFetching} /> : controls.data ? <OperatingControlStrip data={controls.data} /> : <p className="cx-view-updating" role="status">Loading operating controls…</p>}
             </details>
 
             <section className="cx-command-panel cx-funnel-panel">
               <header>
-                <div><span className="cx-command-section-kicker">Diagnose</span><h2>Where the funnel is leaking</h2><p>Each transition shows observed progression and the lead population that did not advance.</p></div>
-                <Link to={scoped('/funnel')}>Full funnel <ArrowRight size={13} /></Link>
+                <div><h2>Lead journey</h2><p>Follow leads from arrival to activation.</p></div>
+                <Link to={scoped('/funnel')}>View funnel <ArrowRight size={13} /></Link>
               </header>
-              <div className="cx-funnel-strip">
+              <div className="cx-funnel-strip" role="region" aria-label="Lead journey stages" tabIndex={0}>
                 {(data.funnelStages || []).map((stage, index) => (
                   <React.Fragment key={stage.key}>
                     {isAdmin ? (
-                      <Link className="cx-funnel-stage cx-funnel-stage-link" to={recordLink('funnel-stage', stage.key)} title={`Inspect ${stage.name} leads`}>
-                        <span>{stage.name}</span><strong>{fmt(stage.volume)}</strong>{index > 0 && <small>{formatPercent(stage.transitionRate)} from prior stage</small>}
+                      <Link className="cx-funnel-stage cx-funnel-stage-link" to={recordLink('funnel-stage', stage.key)} title={`Inspect ${stageLabel(stage.name)} leads`}>
+                        <span>{stageLabel(stage.name)}</span><strong>{fmt(stage.volume)}</strong>{index > 0 && <small>{formatPercent(stage.transitionRate)} from prior stage</small>}
                       </Link>
-                    ) : <div className="cx-funnel-stage"><span>{stage.name}</span><strong>{fmt(stage.volume)}</strong>{index > 0 && <small>{formatPercent(stage.transitionRate)} from prior stage</small>}</div>}
+                    ) : <div className="cx-funnel-stage"><span>{stageLabel(stage.name)}</span><strong>{fmt(stage.volume)}</strong>{index > 0 && <small>{formatPercent(stage.transitionRate)} from prior stage</small>}</div>}
                     {index < (data.funnelStages?.length || 0) - 1 && (
                       isAdmin ? (
                         <Link className="cx-funnel-arrow cx-funnel-arrow-link" to={recordLink('funnel-loss', lossKeys[index])} title="Inspect records lost at this transition">
@@ -227,7 +230,7 @@ export default function ExecutiveOverview() {
               {data.funnelLeak && (
                 <div className="cx-funnel-leak">
                   <GitFork size={16} />
-                  <div><span>Largest measured loss</span><strong>{data.funnelLeak.from} → {data.funnelLeak.to}</strong></div>
+                  <div><span>Largest measured loss</span><strong>{stageLabel(data.funnelLeak.from)} → {stageLabel(data.funnelLeak.to)}</strong></div>
                   <b>−{fmt(data.funnelLeak.loss)}</b><small>{formatPercent(data.funnelLeak.rate)} progressed</small>
                 </div>
               )}
@@ -235,7 +238,7 @@ export default function ExecutiveOverview() {
 
             <div className="cx-command-grid cx-command-grid-backlog">
               <section className="cx-command-panel">
-                <header><div><span className="cx-command-section-kicker">Backlog</span><h2>Delivered, not yet dialled</h2><p>Age of currently waiting lead deliveries. {isAdmin ? 'Select a bucket to inspect records.' : ''}</p></div></header>
+                <header><div><h2>Waiting for a first call</h2><p>How long delivered leads have been waiting. {isAdmin ? 'Select a bucket to inspect records.' : ''}</p></div></header>
                 <div className="cx-backlog-bars">
                   {!data.backlog.buckets.length && <OperationalEmpty title="No backlog breakdown available">There are no backlog age groups in the current response.</OperationalEmpty>}
                   {data.backlog.buckets.map(bucket => {
@@ -249,7 +252,7 @@ export default function ExecutiveOverview() {
 
               <section className="cx-command-panel">
                 <header>
-                  <div><span className="cx-command-section-kicker">Concentration</span><h2>Backlog by vendor</h2><p>Partners contributing most to undialled volume.</p></div>
+                  <div><h2>Backlog by vendor</h2><p>Vendors with the most leads awaiting a first call.</p></div>
                   <Link to={scoped('/vendor-quality')}>Vendor view <ArrowRight size={13} /></Link>
                 </header>
                 <div className="cx-backlog-vendors">
@@ -267,7 +270,7 @@ export default function ExecutiveOverview() {
               <section className="cx-command-panel">
                 <header>
                   <div>
-                    <span className="cx-command-section-kicker">Explain</span><h2>What changed?</h2>
+                    <h2>What changed?</h2>
                     <p>{data.comparisonWindow ? `Compared with the matched period ${data.comparisonWindow.startDate} → ${data.comparisonWindow.endDate}.` : 'Choose an explicit date period to compare against the immediately preceding matched period.'}</p>
                   </div>
                 </header>
@@ -283,7 +286,7 @@ export default function ExecutiveOverview() {
               </section>
 
               <section className="cx-command-panel">
-                <header><div><span className="cx-command-section-kicker">Trend</span><h2>Daily run-rate</h2><p>Fetched leads and recorded sales across the latest available days in scope.</p></div></header>
+                <header><div><h2>Daily lead trend</h2><p>Fetched leads and recorded sales across the latest available days in scope.</p></div></header>
                 <DeferredOverviewTrend data={data.dailyTrends} />
               </section>
             </div>

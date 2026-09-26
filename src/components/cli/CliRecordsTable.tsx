@@ -111,7 +111,7 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" role="region" aria-label="CLI performance records" tabIndex={0}>
         <table className="enterprise-table w-full text-xs">
           <thead>
             <tr className="bg-slate-50 text-slate-700 border-b border-slate-200">

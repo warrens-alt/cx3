@@ -92,6 +92,7 @@ export const OffernetFilterBar: React.FC<OffernetFilterBarProps> = ({
   const { clients, selectedClient, setSelectedClient, loading: clientLoading } = useClient();
   const { startDate, endDate, setDateRange, filters, setFilter, clearFilters, appliedFilters } = useFilters();
   const [expanded, setExpanded] = useState(false);
+  const [mobileExpanded, setMobileExpanded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState('');
@@ -102,6 +103,7 @@ export const OffernetFilterBar: React.FC<OffernetFilterBarProps> = ({
   const datesDirty = !!draft && (draft.start !== startDate || draft.end !== endDate || draft.startIncomplete || draft.endIncomplete);
   const dateError = draft ? dateDraftError(draft) : null;
   const panelId = useId();
+  const controlsId = useId();
   const dateHelpId = useId();
   const dateErrorId = useId();
   const optionsErrorId = useId();
@@ -145,6 +147,8 @@ export const OffernetFilterBar: React.FC<OffernetFilterBarProps> = ({
   const currentPreset = presets.find(item => item.start === startDate && item.end === endDate);
   const periodValue = draft ? 'custom' : currentPreset?.id || 'custom';
   const customPeriod = !currentPreset ? appliedFilters.find(item => item.key === 'dateRange') : undefined;
+  const appliedPeriodLabel = currentPreset?.label || customPeriod?.value || 'Custom dates';
+  const selectedClientName = clients.find(client => client.id === selectedClient)?.name || selectedClient;
   const canReset = Boolean(startDate || endDate || Object.keys(filters).length || draft);
 
   const setSingle = (key: 'vendor' | 'source' | 'grade', value: string) => {
@@ -204,21 +208,24 @@ export const OffernetFilterBar: React.FC<OffernetFilterBarProps> = ({
   };
 
   return (
-    <section className="cx-scopebar cx-scope-controls" aria-label="Reporting scope">
+    <section className={`cx-scopebar cx-scope-controls ${mobileExpanded ? 'is-mobile-expanded' : ''}`} aria-label="Reporting scope">
       <div className="cx-scopebar-main">
+        <div className="cx-scope-mobile-summary"><strong>{selectedClientName}</strong><span><Calendar size={13} aria-hidden="true" />{appliedPeriodLabel}</span>{datesDirty && <small>Date changes not applied</small>}</div>
+        <button type="button" className="cx-scope-mobile-toggle" onClick={() => setMobileExpanded(value => !value)} aria-expanded={mobileExpanded} aria-controls={controlsId}><SlidersHorizontal size={14} aria-hidden="true" />{mobileExpanded ? 'Hide filters' : 'Edit filters'}</button>
+        <div className="cx-scope-editable" id={controlsId}>
         <label className="cx-scope-control cx-scope-client">
           <span>Client</span>
           <select value={selectedClient} onChange={event => { setStoredDraft(null); setSelectedClient(event.target.value); }} aria-label="Client" disabled={clientLoading || !clients.length}>
             {clients.map(client => <option key={client.id} value={client.id}>{client.name}</option>)}
           </select>
         </label>
-        <label className="cx-scope-control">
+        <label className="cx-scope-control cx-scope-period">
           <span>Period</span>
           <div className="cx-scope-control-icon">
             <Calendar size={14} aria-hidden="true" />
             <select value={periodValue} onChange={event => changePeriod(event.target.value)} aria-label="Reporting period">
               {presets.map(period => <option key={period.id} value={period.id}>{period.label}</option>)}
-              <option value="custom">Custom dates{datesDirty ? ' · not applied' : ''}</option>
+              <option value="custom">Custom dates</option>
             </select>
           </div>
         </label>
@@ -228,25 +235,28 @@ export const OffernetFilterBar: React.FC<OffernetFilterBarProps> = ({
           if (expanded) setStoredDraft(null);
           setExpanded(value => !value);
         }} aria-expanded={expanded} aria-controls={panelId}>
-          <SlidersHorizontal size={14} aria-hidden="true" /><span>More</span>
+          <SlidersHorizontal size={14} aria-hidden="true" /><span>More filters</span>
           {moreFilterCount > 0 && <strong aria-label={`${moreFilterCount} additional filters`}>{moreFilterCount}</strong>}
         </button>
-        <div className="cx-scopebar-status" title="Operational analytics are live but not independently reconciled">
-          <Database size={14} aria-hidden="true" /><span>Operational data</span><em>Not reconciled</em>
         </div>
         <div className="cx-scopebar-actions">
           {canReset && <button type="button" onClick={reset} aria-label="Reset reporting scope" title="Reset reporting scope"><RotateCcw size={14} aria-hidden="true" /><span className="cx-scope-action-label">Reset</span></button>}
-          <button type="button" onClick={() => { void refresh(); }} disabled={refreshing} aria-label={refreshing ? 'Refreshing current view' : 'Refresh current view'} aria-busy={refreshing} title="Refresh current view">
+          <button type="button" className="cx-scope-refresh" onClick={() => { void refresh(); }} disabled={refreshing} aria-label={refreshing ? 'Refreshing current view' : 'Refresh current view'} aria-busy={refreshing} title="Refresh current view">
             <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} aria-hidden="true" /><span className="cx-scope-action-label">{refreshing ? 'Refreshing' : 'Refresh'}</span>
           </button>
           {onExportCsv && <button type="button" onClick={onExportCsv} aria-label="Export current view" title="Export current view"><Download size={14} aria-hidden="true" /><span className="cx-scope-action-label">Export</span></button>}
         </div>
       </div>
 
+      <div className="cx-scopebar-meta">
       {(customPeriod || visibleChips.length > 0) && <div className="cx-scope-chips" aria-label="Active reporting filters">
         {customPeriod && <button type="button" onClick={() => { setStoredDraft(null); setDateRange('', ''); }} aria-label={`Remove period filter: ${customPeriod.value}`} title={`Remove period: ${customPeriod.value}`}><Calendar size={12} aria-hidden="true" /><span>{customPeriod.label}</span><strong>{customPeriod.value}</strong><X size={11} aria-hidden="true" /></button>}
         {visibleChips.map(item => <button key={item.key} type="button" onClick={() => setFilter(item.key, null)} aria-label={`Remove ${item.label} filter: ${item.value}`} title={`Remove ${item.label}: ${item.value}`}><span>{item.label}</span><strong>{item.value}</strong><X size={11} aria-hidden="true" /></button>)}
       </div>}
+        <div className="cx-scopebar-status" title="Operational analytics are live but not independently reconciled">
+          <Database size={13} aria-hidden="true" /><span>Operational data</span><em>Not reconciled</em>
+        </div>
+      </div>
 
       {optionsQuery.isFetching && <p className="cx-scope-feedback" role="status"><RefreshCw size={13} className="animate-spin" aria-hidden="true" />Loading filter choices…</p>}
       {optionsQuery.error && <div className="cx-scope-feedback cx-scope-feedback-error" role="alert" id={optionsErrorId}><AlertCircle size={14} aria-hidden="true" /><span>Filter choices are unavailable. {optionsQuery.error instanceof Error ? optionsQuery.error.message : 'Please try again.'}</span><button type="button" onClick={() => { void optionsQuery.refetch(); }} disabled={optionsQuery.isFetching}>Retry filter choices</button></div>}
@@ -257,6 +267,7 @@ export const OffernetFilterBar: React.FC<OffernetFilterBarProps> = ({
         if (event.key === 'Escape') { event.preventDefault(); cancelDates(); setExpanded(false); moreButton.current?.focus(); }
       }}>
         <form className="cx-scope-date-editor" onSubmit={applyDates} noValidate aria-label="Custom reporting dates">
+          <div className="cx-scope-panel-heading"><strong>Custom dates</strong><span>Choose the period to include in your reports.</span></div>
           <div className="cx-scope-custom-dates">
             <label><span>From</span><input ref={startInput} type="date" value={dates.start} aria-label="Start date" aria-describedby={dateError ? `${dateHelpId} ${dateErrorId}` : dateHelpId} aria-invalid={Boolean(dateError)} onChange={event => setStoredDraft({ ...dates, scopeKey, start: event.target.value, startIncomplete: event.target.validity.badInput })} /></label>
             <label><span>To</span><input type="date" value={dates.end} aria-label="End date" aria-describedby={dateError ? `${dateHelpId} ${dateErrorId}` : dateHelpId} aria-invalid={Boolean(dateError)} onChange={event => setStoredDraft({ ...dates, scopeKey, end: event.target.value, endIncomplete: event.target.validity.badInput })} /></label>
@@ -266,8 +277,10 @@ export const OffernetFilterBar: React.FC<OffernetFilterBarProps> = ({
           {dateError && <p className="cx-scope-date-error" id={dateErrorId} role="alert">{dateError}</p>}
           {datesDirty && !dateError && <p className="cx-scope-date-pending" role="status">Date changes have not been applied.</p>}
         </form>
-        {showGradeFilter && <label className="cx-scope-control"><span>Grade</span><ScopeSelect label="Lead grade" value={grade} condition={filters.grade} options={grades} loading={optionsLoading} loaded={Boolean(data)} onChange={value => setSingle('grade', value)} /></label>}
-        <p>Applied scope follows you between views.</p>
+        <div className="cx-scope-additional">
+          {showGradeFilter && <label className="cx-scope-control"><span>Lead grade</span><ScopeSelect label="Lead grade" value={grade} condition={filters.grade} options={grades} loading={optionsLoading} loaded={Boolean(data)} onChange={value => setSingle('grade', value)} /></label>}
+          <p>Applied scope follows you between views.</p>
+        </div>
       </div>}
     </section>
   );

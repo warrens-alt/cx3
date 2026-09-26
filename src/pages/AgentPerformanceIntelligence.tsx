@@ -103,7 +103,7 @@ export default function AgentPerformanceIntelligence() {
                 <span>{filtered.length.toLocaleString()} rows</span>
               </div>
 
-              <div className="cx-performance-table-wrap">
+              <div className="cx-performance-table-wrap" role="region" aria-label="Agent activity and outcomes" tabIndex={0}>
                 <table className="cx-performance-table cx-agent-table">
                   <thead>
                     <tr>

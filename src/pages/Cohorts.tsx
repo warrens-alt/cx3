@@ -5,6 +5,7 @@ import { useClient } from '../lib/ClientContext';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import { formatTableNumber } from '../lib/formatters';
+import { heatmapColors } from '../lib/heatmapColors';
 
 type CohortMetric = 'call_coverage' | 'sale' | 'activation';
 type CohortGrain = 'daily' | 'weekly' | 'monthly';
@@ -91,7 +92,7 @@ export default function Cohorts() {
                 </div>
               )}
 
-              <div className="cx-cohort-matrix-wrap">
+              <div className="cx-cohort-matrix-wrap" role="region" aria-label="Cohort maturation matrix" tabIndex={0}>
                 <table className="cx-cohort-matrix">
                   <thead>
                     <tr><th>Cohort</th><th>Size</th>{intervals.map(interval=><th key={interval}>{interval.toUpperCase()}</th>)}</tr>
@@ -103,8 +104,7 @@ export default function Cohorts() {
                         <td>{formatTableNumber(row.size)}</td>
                         {intervals.map(interval=>{
                           const value=row.metrics?.[interval] == null ? null : Number(row.metrics[interval]);
-                          const intensity=value==null?0:Math.max(.08,Math.min(1,value/maxValue));
-                          return <td key={interval}><span data-empty={value==null} style={value==null?undefined:{'--cohort-opacity':intensity} as React.CSSProperties}>{formatMetric(value)}</span></td>;
+                          return <td key={interval}><span data-empty={value==null} style={heatmapColors(value,maxValue)}>{formatMetric(value)}</span></td>;
                         })}
                       </tr>
                     ))}
