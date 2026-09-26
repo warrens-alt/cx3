@@ -163,9 +163,9 @@ export interface ContactStrategyData {
     activations: number;
     activationRate: number;
     revenue: number;
-    callCost: number;
-    marginalSales: number;
-    marginalCostPerSale: number;
+    callCost: number | null;
+    marginalSales: number | null;
+    marginalCostPerSale: number | null;
   }>;
   attemptCadence: Array<{
     transition: string;
