@@ -7,11 +7,14 @@ import { useAuth } from '../lib/AuthContext';
 import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
 import { fetchOverview, type OverviewData } from '../lib/offernetClient';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
+import { useOperatingControls } from '../hooks/useOperatingControls';
+import { ContactGovernancePanel } from '../components/OfferNetControlPanels';
 
 const fmt = (value: number) => value.toLocaleString();
 
 export default function Exceptions() {
   const scoped = useScopedNavigationTarget();
+  const controls = useOperatingControls();
   const { selectedClient } = useClient();
   const { isAdmin } = useAuth();
   const { startDate, endDate, filters } = useFilters();
@@ -61,7 +64,7 @@ export default function Exceptions() {
 
   return (
     <div className="cx-command-page">
-      <OffernetFilterBar onRefresh={() => loadData(true)} />
+      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />
       <div className="cx-command-content">
         <header className="cx-command-hero">
           <div>
@@ -101,6 +104,12 @@ export default function Exceptions() {
                 <small>Delivered leads dialled within target</small>
               </article>
             </section>
+
+            {controls.data && <ContactGovernancePanel
+              data={controls.data}
+              highAttemptHref={isAdmin ? recordLink('high-attempt-no-rpc') : undefined}
+              oneCallHref={isAdmin ? recordLink('one-call-only') : undefined}
+            />}
 
             <section className="cx-command-panel">
               <header>

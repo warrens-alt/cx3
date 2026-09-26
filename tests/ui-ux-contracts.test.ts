@@ -260,3 +260,43 @@ test('all custom analysis drawers use focus-managed dialog semantics', () => {
   assert.match(hook, /topmostDialog/);
   assert.match(hook, /querySelector<HTMLElement>\('\.cx-main'\)/);
 });
+
+
+test('primary OfferNet tabs expose operating-control analytics appropriate to their purpose', () => {
+  const expectations = [
+    ['src/pages/ExecutiveOverview.tsx', 'OperatingControlStrip'],
+    ['src/pages/FunnelIntelligence.tsx', 'SlaBandsPanel'],
+    ['src/pages/SpeedToLeadIntelligence.tsx', 'OperatingWindowPanel'],
+    ['src/pages/VendorLeadQuality.tsx', 'VendorControlsPanel'],
+    ['src/pages/Exceptions.tsx', 'ContactGovernancePanel'],
+    ['src/pages/SalesActivationIntelligence.tsx', 'ActivationAgeingPanel'],
+    ['src/pages/TemporalIntelligence.tsx', 'OperatingWindowPanel'],
+    ['src/pages/DataIntegrityIntelligence.tsx', 'DataCompletenessPanel'],
+  ] as const;
+  for (const [path, component] of expectations) {
+    assert.match(read(path), new RegExp(component));
+  }
+});
+
+test('contact strategy exposes observed effort controls without prescriptive redial claims', () => {
+  const page = read('src/pages/ContactStrategyIntelligence.tsx');
+  assert.match(page, /Zero-call leads/);
+  assert.match(page, /One-call share/);
+  assert.match(page, /5\+ calls, no RPC/);
+  assert.match(page, /descriptive, not a recommended stop-threshold model/);
+});
+
+test('Explore labels OfferNet contact-governance drill populations', () => {
+  const explorer = read('src/pages/LeadExplorerIntelligence.tsx');
+  assert.match(explorer, /'high-attempt-no-rpc': '5\+ recorded calls without RPC'/);
+  assert.match(explorer, /'one-call-only': 'Exactly one recorded call'/);
+});
+
+test('funnel source and grade views show delivery-to-sale progression', () => {
+  const funnel = read('src/pages/FunnelIntelligence.tsx');
+  assert.match(funnel, /cx-segment-funnel-rates/);
+  assert.match(funnel, /<dt>Delivery<\/dt>/);
+  assert.match(funnel, /<dt>Dial<\/dt>/);
+  assert.match(funnel, /<dt>RPC<\/dt>/);
+  assert.match(funnel, /<dt>Sale<\/dt>/);
+});

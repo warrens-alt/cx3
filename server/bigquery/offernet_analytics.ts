@@ -254,6 +254,305 @@ export async function getMarketingSourceDiscovery(params: Pick<OffernetQueryPara
   };
 }
 
+
+export async function getOperatingControlsAnalytics(params: OffernetQueryParams) {
+  const clientConfig = getClientConfig(params.clientId);
+  const client = getBigQueryClient(clientConfig.bigQueryProject);
+  const { whereSql, queryParams } = buildFilterClause(params);
+  const operating = clientConfig.operationalConfig?.operatingHours || { start: '08:00', end: '17:30', workdays: [1, 2, 3, 4, 5] };
+  const timezone = clientConfig.timezone || 'Africa/Johannesburg';
+  const paramsWithOperating = {
+    ...queryParams,
+    tenantTimezone: timezone,
+    operatingStart: operating.start.length === 5 ? operating.start + ':00' : operating.start,
+    operatingEnd: operating.end.length === 5 ? operating.end + ':00' : operating.end,
+    operatingWorkdays: operating.workdays,
+  };
+
+  const query = `
+    WITH raw AS (
+      SELECT
+        l.lead_id,
+        SAFE_CAST(l.fetched AS TIMESTAMP) AS fetched_ts,
+        COALESCE(l.offershop_source, '') AS source,
+        COALESCE(l.offershop_grade, '') AS grade,
+        hlc.vendor,
+        SAFE_CAST(hlc.delivered AS TIMESTAMP) AS delivered_ts,
+        SAFE_CAST(hlc.first_call_date AS TIMESTAMP) AS first_call_ts,
+        COALESCE(SAFE_CAST(hlc.total_calls AS INT64), 0) AS total_calls,
+        COALESCE(hlc.last_dialer_status, '') AS last_dialer_status,
+        SAFE_CAST(hlc.rpc AS INT64) > 0 AS is_rpc,
+        hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' AS is_sale,
+        hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' AS is_activated,
+        SAFE_CAST(hlc.sale AS TIMESTAMP) AS sale_ts,
+        SAFE_CAST(hlc.activated AS TIMESTAMP) AS activation_ts
+      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      LEFT JOIN UNNEST(l.hlc_details) hlc
+      ${whereSql}
+    ),
+    lead_level AS (
+      SELECT
+        lead_id,
+        ANY_VALUE(fetched_ts) AS fetched_ts,
+        ANY_VALUE(source) AS source,
+        ANY_VALUE(grade) AS grade,
+        COALESCE(
+          ARRAY_AGG(vendor IGNORE NULLS ORDER BY IF(delivered_ts IS NULL, 1, 0), delivered_ts ASC LIMIT 1)[SAFE_OFFSET(0)],
+          'Unknown'
+        ) AS vendor,
+        COUNTIF(delivered_ts IS NOT NULL) > 0 AS is_delivered,
+        COUNTIF(first_call_ts IS NOT NULL) > 0 AS is_dialled,
+        COUNTIF(is_rpc) > 0 AS is_rpc,
+        COUNTIF(is_sale) > 0 AS is_sale,
+        COUNTIF(is_activated) > 0 AS is_activated,
+        MAX(GREATEST(total_calls, 0)) AS recorded_call_count,
+        COUNTIF(first_call_ts IS NOT NULL AND TRIM(last_dialer_status) != '') > 0 AS has_disposition,
+        MIN(delivered_ts) AS first_delivery_ts,
+        MIN(first_call_ts) AS first_call_ts,
+        MIN(CASE WHEN is_sale THEN sale_ts END) AS sale_ts,
+        MIN(CASE WHEN is_activated THEN activation_ts END) AS activation_ts
+      FROM raw
+      GROUP BY lead_id
+    ),
+    classified AS (
+      SELECT
+        *,
+        TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) AS delivery_to_dial_sec,
+        CASE
+          WHEN fetched_ts IS NULL THEN NULL
+          WHEN CAST(FORMAT_TIMESTAMP('%u', fetched_ts, @tenantTimezone) AS INT64) NOT IN UNNEST(@operatingWorkdays) THEN TRUE
+          WHEN FORMAT_TIMESTAMP('%H:%M:%S', fetched_ts, @tenantTimezone) < @operatingStart THEN TRUE
+          WHEN FORMAT_TIMESTAMP('%H:%M:%S', fetched_ts, @tenantTimezone) >= @operatingEnd THEN TRUE
+          ELSE FALSE
+        END AS is_after_hours,
+        CASE
+          WHEN fetched_ts IS NULL THEN FALSE
+          WHEN CAST(FORMAT_TIMESTAMP('%u', fetched_ts, @tenantTimezone) AS INT64) IN (6, 7) THEN TRUE
+          ELSE FALSE
+        END AS is_weekend,
+        CASE
+          WHEN recorded_call_count <= 0 THEN '0 calls'
+          WHEN recorded_call_count = 1 THEN '1 call'
+          WHEN recorded_call_count = 2 THEN '2 calls'
+          WHEN recorded_call_count = 3 THEN '3 calls'
+          WHEN recorded_call_count = 4 THEN '4 calls'
+          ELSE '5+ calls'
+        END AS attempt_bucket,
+        CASE
+          WHEN NOT is_delivered THEN 'Not delivered'
+          WHEN NOT is_dialled THEN 'Undialled'
+          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) < 0 THEN 'Invalid timing'
+          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) <= 900 THEN '0–15m'
+          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) <= 1800 THEN '15–30m'
+          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) <= 3600 THEN '30–60m'
+          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) <= 21600 THEN '1–6h'
+          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) <= 86400 THEN '6–24h'
+          ELSE '24h+'
+        END AS sla_band,
+        CASE
+          WHEN NOT is_sale OR is_activated OR sale_ts IS NULL THEN NULL
+          WHEN TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), sale_ts, DAY) <= 3 THEN '0–3d'
+          WHEN TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), sale_ts, DAY) <= 7 THEN '4–7d'
+          WHEN TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), sale_ts, DAY) <= 14 THEN '8–14d'
+          WHEN TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), sale_ts, DAY) <= 30 THEN '15–30d'
+          ELSE '30d+'
+        END AS activation_age_bucket
+      FROM lead_level
+    ),
+    summary AS (
+      SELECT
+        COUNT(*) AS total_leads,
+        COUNTIF(is_delivered) AS delivered_leads,
+        COUNTIF(is_dialled) AS dialled_leads,
+        COUNTIF(recorded_call_count = 0) AS zero_call_leads,
+        COUNTIF(recorded_call_count = 1) AS one_call_leads,
+        COUNTIF(recorded_call_count >= 2) AS multi_call_leads,
+        COUNTIF(recorded_call_count >= 5 AND NOT is_rpc) AS high_attempt_no_rpc_leads,
+        COUNTIF(is_dialled AND has_disposition) AS disposition_complete_leads,
+        COUNTIF(is_after_hours) AS after_hours_leads,
+        COUNTIF(is_weekend) AS weekend_leads,
+        COUNTIF(is_delivered AND is_dialled AND delivery_to_dial_sec BETWEEN 0 AND 900) AS sla_15m_leads,
+        COUNTIF(is_delivered AND is_dialled AND delivery_to_dial_sec BETWEEN 0 AND 3600) AS sla_60m_leads,
+        COUNTIF(is_sale AND NOT is_activated AND sale_ts IS NOT NULL AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), sale_ts, DAY) > 14) AS activation_backlog_14d,
+        COUNTIF(is_after_hours AND is_rpc) AS after_hours_rpc,
+        COUNTIF(NOT is_after_hours AND is_rpc) AS operating_hours_rpc,
+        COUNTIF(is_after_hours AND is_sale) AS after_hours_sales,
+        COUNTIF(NOT is_after_hours AND is_sale) AS operating_hours_sales,
+        COUNTIF(NOT is_after_hours) AS operating_hours_leads,
+        COUNTIF(source = '') AS missing_source,
+        COUNTIF(grade = '') AS missing_grade,
+        COUNTIF(vendor = 'Unknown') AS missing_vendor,
+        COUNTIF(is_dialled AND NOT has_disposition) AS missing_disposition
+      FROM classified
+    ),
+    attempts AS (
+      SELECT
+        attempt_bucket AS bucket,
+        CASE attempt_bucket
+          WHEN '0 calls' THEN 0 WHEN '1 call' THEN 1 WHEN '2 calls' THEN 2
+          WHEN '3 calls' THEN 3 WHEN '4 calls' THEN 4 ELSE 5 END AS bucket_order,
+        COUNT(*) AS leads,
+        COUNTIF(is_rpc) AS contacted,
+        COUNTIF(is_sale) AS sales,
+        COUNTIF(is_activated) AS activations
+      FROM classified
+      GROUP BY attempt_bucket
+    ),
+    sla AS (
+      SELECT
+        sla_band AS band,
+        CASE sla_band
+          WHEN '0–15m' THEN 1 WHEN '15–30m' THEN 2 WHEN '30–60m' THEN 3
+          WHEN '1–6h' THEN 4 WHEN '6–24h' THEN 5 WHEN '24h+' THEN 6
+          WHEN 'Undialled' THEN 7 WHEN 'Not delivered' THEN 8 ELSE 9 END AS sort_order,
+        COUNT(*) AS leads,
+        COUNTIF(is_rpc) AS contacted,
+        COUNTIF(is_sale) AS sales
+      FROM classified
+      GROUP BY sla_band
+    ),
+    activation_age AS (
+      SELECT activation_age_bucket AS bucket, COUNT(*) AS leads
+      FROM classified
+      WHERE activation_age_bucket IS NOT NULL
+      GROUP BY activation_age_bucket
+    ),
+    vendor_controls AS (
+      SELECT
+        vendor,
+        COUNT(*) AS leads,
+        COUNTIF(is_dialled) AS dialled,
+        COUNTIF(recorded_call_count = 1) AS one_call_leads,
+        COUNTIF(recorded_call_count >= 5 AND NOT is_rpc) AS high_attempt_no_rpc,
+        COUNTIF(is_dialled AND NOT has_disposition) AS missing_disposition,
+        COUNTIF(is_delivered AND is_dialled AND delivery_to_dial_sec BETWEEN 0 AND 900) AS sla_15m_leads,
+        COUNTIF(is_delivered) AS delivered,
+        COUNTIF(is_rpc) AS contacted,
+        COUNTIF(is_sale) AS sales,
+        APPROX_QUANTILES(CASE WHEN is_dialled AND delivery_to_dial_sec >= 0 THEN delivery_to_dial_sec END, 100)[OFFSET(50)] AS median_first_dial_sec
+      FROM classified
+      GROUP BY vendor
+      ORDER BY leads DESC
+      LIMIT 20
+    )
+    SELECT
+      summary.*,
+      ARRAY(SELECT AS STRUCT * FROM attempts ORDER BY bucket_order) AS attempts,
+      ARRAY(SELECT AS STRUCT * FROM sla ORDER BY sort_order) AS sla_bands,
+      ARRAY(SELECT AS STRUCT * FROM activation_age) AS activation_ageing,
+      ARRAY(SELECT AS STRUCT * FROM vendor_controls) AS vendor_controls
+    FROM summary
+  `;
+
+  const [rows] = await client.query({ query, params: paramsWithOperating });
+  const row = rows[0] || {};
+  const total = Number(row.total_leads || 0);
+  const dialled = Number(row.dialled_leads || 0);
+  const delivered = Number(row.delivered_leads || 0);
+  const afterHours = Number(row.after_hours_leads || 0);
+  const operatingHours = Number(row.operating_hours_leads || 0);
+
+  const attemptBuckets = (row.attempts || []).map((item: any) => {
+    const leads = Number(item.leads || 0);
+    const contacted = Number(item.contacted || 0);
+    const sales = Number(item.sales || 0);
+    const activations = Number(item.activations || 0);
+    return {
+      bucket: item.bucket,
+      leads,
+      sharePct: total > 0 ? Number(((leads / total) * 100).toFixed(1)) : 0,
+      contacted,
+      contactRate: leads > 0 ? Number(((contacted / leads) * 100).toFixed(1)) : 0,
+      sales,
+      saleRate: leads > 0 ? Number(((sales / leads) * 100).toFixed(2)) : 0,
+      activations,
+    };
+  });
+
+  const slaBands = (row.sla_bands || []).map((item: any) => {
+    const leads = Number(item.leads || 0);
+    const contacted = Number(item.contacted || 0);
+    const sales = Number(item.sales || 0);
+    return {
+      band: item.band,
+      leads,
+      sharePct: total > 0 ? Number(((leads / total) * 100).toFixed(1)) : 0,
+      contactRate: leads > 0 ? Number(((contacted / leads) * 100).toFixed(1)) : 0,
+      saleRate: leads > 0 ? Number(((sales / leads) * 100).toFixed(2)) : 0,
+    };
+  });
+
+  const vendorControls = (row.vendor_controls || []).map((item: any) => {
+    const leads = Number(item.leads || 0);
+    const vendorDialled = Number(item.dialled || 0);
+    const vendorDelivered = Number(item.delivered || 0);
+    const contacted = Number(item.contacted || 0);
+    const sales = Number(item.sales || 0);
+    const oneCall = Number(item.one_call_leads || 0);
+    const missingDisposition = Number(item.missing_disposition || 0);
+    const sla15 = Number(item.sla_15m_leads || 0);
+    return {
+      vendor: item.vendor,
+      leads,
+      oneCallSharePct: vendorDialled > 0 ? Number(((oneCall / vendorDialled) * 100).toFixed(1)) : 0,
+      highAttemptNoRpc: Number(item.high_attempt_no_rpc || 0),
+      dispositionCompletenessPct: vendorDialled > 0 ? Number((((vendorDialled - missingDisposition) / vendorDialled) * 100).toFixed(1)) : 0,
+      sla15Rate: vendorDelivered > 0 ? Number(((sla15 / vendorDelivered) * 100).toFixed(1)) : 0,
+      medianFirstDial: formatDuration(item.median_first_dial_sec === null ? null : Number(item.median_first_dial_sec)),
+      rpcRate: vendorDialled > 0 ? Number(((contacted / vendorDialled) * 100).toFixed(1)) : 0,
+      leadToSaleRate: leads > 0 ? Number(((sales / leads) * 100).toFixed(2)) : 0,
+    };
+  });
+
+  return {
+    summary: {
+      totalLeads: total,
+      deliveredLeads: delivered,
+      dialledLeads: dialled,
+      zeroCallLeads: Number(row.zero_call_leads || 0),
+      oneCallLeads: Number(row.one_call_leads || 0),
+      multiCallLeads: Number(row.multi_call_leads || 0),
+      highAttemptNoRpcLeads: Number(row.high_attempt_no_rpc_leads || 0),
+      singleAttemptSharePct: dialled > 0 ? Number(((Number(row.one_call_leads || 0) / dialled) * 100).toFixed(1)) : 0,
+      multiAttemptSharePct: dialled > 0 ? Number(((Number(row.multi_call_leads || 0) / dialled) * 100).toFixed(1)) : 0,
+      dispositionCompletenessPct: dialled > 0 ? Number(((Number(row.disposition_complete_leads || 0) / dialled) * 100).toFixed(1)) : 0,
+      afterHoursLeads: afterHours,
+      afterHoursSharePct: total > 0 ? Number(((afterHours / total) * 100).toFixed(1)) : 0,
+      weekendLeads: Number(row.weekend_leads || 0),
+      weekendSharePct: total > 0 ? Number(((Number(row.weekend_leads || 0) / total) * 100).toFixed(1)) : 0,
+      sla15Rate: delivered > 0 ? Number(((Number(row.sla_15m_leads || 0) / delivered) * 100).toFixed(1)) : 0,
+      sla60Rate: delivered > 0 ? Number(((Number(row.sla_60m_leads || 0) / delivered) * 100).toFixed(1)) : 0,
+      activationBacklog14d: Number(row.activation_backlog_14d || 0),
+      afterHoursRpcRate: afterHours > 0 ? Number(((Number(row.after_hours_rpc || 0) / afterHours) * 100).toFixed(1)) : 0,
+      operatingHoursRpcRate: operatingHours > 0 ? Number(((Number(row.operating_hours_rpc || 0) / operatingHours) * 100).toFixed(1)) : 0,
+      afterHoursSaleRate: afterHours > 0 ? Number(((Number(row.after_hours_sales || 0) / afterHours) * 100).toFixed(2)) : 0,
+      operatingHoursSaleRate: operatingHours > 0 ? Number(((Number(row.operating_hours_sales || 0) / operatingHours) * 100).toFixed(2)) : 0,
+    },
+    attemptBuckets,
+    slaBands,
+    activationAgeing: row.activation_ageing || [],
+    vendorControls,
+    dataCompleteness: {
+      missingSource: Number(row.missing_source || 0),
+      missingGrade: Number(row.missing_grade || 0),
+      missingVendor: Number(row.missing_vendor || 0),
+      missingDisposition: Number(row.missing_disposition || 0),
+    },
+    operatingContext: {
+      timezone,
+      start: operating.start,
+      end: operating.end,
+      workdays: operating.workdays,
+    },
+    methodology: {
+      callCount: 'Call-count controls use the maximum recorded HLC/vendor total_calls value per lead. They are descriptive and are not event-level attempt attribution.',
+      vendor: 'Vendor controls use the first recorded delivered vendor per lead to keep each lead exclusive in the comparison.',
+      operatingHours: 'Operating-hours classification uses the tenant timezone and configured operating window.',
+    },
+    validationStatus: 'NOT_VERIFIED',
+  };
+}
+
 // 1. EXECUTIVE OVERVIEW
 export async function getExecutiveOverview(params: OffernetQueryParams) {
   const client = getBigQueryClient('dashboards-422710');
@@ -831,6 +1130,8 @@ export async function getFunnelIntelligence(params: OffernetQueryParams) {
       SELECT 
         source,
         COUNT(DISTINCT lead_id) as leads,
+        COUNT(DISTINCT CASE WHEN delivered_ts IS NOT NULL THEN lead_id END) as delivered,
+        COUNT(DISTINCT CASE WHEN first_dial_ts IS NOT NULL THEN lead_id END) as dialled,
         COUNT(DISTINCT CASE WHEN is_rpc THEN lead_id END) as contacted,
         COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) as sales,
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) as activations
@@ -843,6 +1144,8 @@ export async function getFunnelIntelligence(params: OffernetQueryParams) {
       SELECT 
         grade,
         COUNT(DISTINCT lead_id) as leads,
+        COUNT(DISTINCT CASE WHEN delivered_ts IS NOT NULL THEN lead_id END) as delivered,
+        COUNT(DISTINCT CASE WHEN first_dial_ts IS NOT NULL THEN lead_id END) as dialled,
         COUNT(DISTINCT CASE WHEN is_rpc THEN lead_id END) as contacted,
         COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) as sales,
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) as activations
@@ -877,8 +1180,14 @@ export async function getFunnelIntelligence(params: OffernetQueryParams) {
 
 // 3. SPEED TO LEAD
 export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
-  const client = getBigQueryClient('dashboards-422710');
+  const clientConfig = getClientConfig(params.clientId);
+  const client = getBigQueryClient(clientConfig.bigQueryProject);
   const { whereSql, queryParams } = buildFilterClause(params);
+  const operating = clientConfig.operationalConfig?.operatingHours || { start: '08:00', end: '17:30', workdays: [1, 2, 3, 4, 5] };
+  queryParams.tenantTimezone = clientConfig.timezone || 'Africa/Johannesburg';
+  queryParams.operatingStart = operating.start.length === 5 ? operating.start + ':00' : operating.start;
+  queryParams.operatingEnd = operating.end.length === 5 ? operating.end + ':00' : operating.end;
+  queryParams.operatingWorkdays = operating.workdays;
 
   const query = `
     WITH stage_timings AS (
@@ -897,10 +1206,10 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
         TIMESTAMP_DIFF(SAFE_CAST(hlc.first_call_date AS TIMESTAMP), SAFE_CAST(hlc.delivered AS TIMESTAMP), SECOND) as delivery_to_first_dial_sec,
         TIMESTAMP_DIFF(SAFE_CAST(hlc.first_call_date AS TIMESTAMP), SAFE_CAST(l.fetched AS TIMESTAMP), SECOND) as capture_to_first_dial_sec,
         
-        -- After-hours flag (Operating hours 08:00 - 17:30 Monday-Friday)
-        EXTRACT(DAYOFWEEK FROM SAFE_CAST(l.fetched AS TIMESTAMP)) IN (1, 7) 
-          OR EXTRACT(HOUR FROM SAFE_CAST(l.fetched AS TIMESTAMP)) < 8 
-          OR EXTRACT(HOUR FROM SAFE_CAST(l.fetched AS TIMESTAMP)) >= 18 as is_after_hours
+        -- Tenant-local operating-hours flag.
+        CAST(FORMAT_TIMESTAMP('%u', SAFE_CAST(l.fetched AS TIMESTAMP), @tenantTimezone) AS INT64) NOT IN UNNEST(@operatingWorkdays)
+          OR FORMAT_TIMESTAMP('%H:%M:%S', SAFE_CAST(l.fetched AS TIMESTAMP), @tenantTimezone) < @operatingStart
+          OR FORMAT_TIMESTAMP('%H:%M:%S', SAFE_CAST(l.fetched AS TIMESTAMP), @tenantTimezone) >= @operatingEnd AS is_after_hours
       FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${whereSql}
@@ -1059,7 +1368,7 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
     const contacted = Number(a.contacted || 0);
     const sales = Number(a.sales || 0);
     return {
-      type: a.is_after_hours ? 'After Hours (Night / Weekend)' : 'Operating Hours (08:00 - 18:00)',
+      type: a.is_after_hours ? 'Outside configured operating hours' : `Operating hours (${operating.start}–${operating.end})`,
       leads,
       contactRate: leads > 0 ? Number(((contacted / leads) * 100).toFixed(1)) : 0,
       saleRate: leads > 0 ? Number(((sales / leads) * 100).toFixed(2)) : 0,
@@ -1070,7 +1379,13 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
   return {
     timingStages,
     cohorts,
-    afterHours
+    afterHours,
+    operatingContext: {
+      timezone: clientConfig.timezone,
+      start: operating.start,
+      end: operating.end,
+      workdays: operating.workdays,
+    }
   };
 }
 
@@ -1080,61 +1395,68 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
   const { whereSql, queryParams } = buildFilterClause(params);
 
   const query = `
-    WITH attempt_summary AS (
-      SELECT 
+    WITH raw AS (
+      SELECT
         l.lead_id,
-        COALESCE(hlc.total_calls, 0) as call_count,
-        SAFE_CAST(hlc.rpc AS INT64) > 0 as is_rpc,
-        hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' as is_sale,
-        hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' as is_activated,
-        COALESCE(hlc.revenue_generated, 0) as revenue
+        COALESCE(SAFE_CAST(hlc.total_calls AS INT64), 0) AS total_calls,
+        SAFE_CAST(hlc.rpc AS INT64) > 0 AS is_rpc,
+        hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' AS is_sale,
+        hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' AS is_activated,
+        COALESCE(hlc.revenue_generated, 0) AS revenue
       FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${whereSql}
     ),
+    lead_level AS (
+      SELECT
+        lead_id,
+        MAX(GREATEST(total_calls, 0)) AS call_count,
+        COUNTIF(is_rpc) > 0 AS is_rpc,
+        COUNTIF(is_sale) > 0 AS is_sale,
+        COUNTIF(is_activated) > 0 AS is_activated,
+        MAX(revenue) AS revenue
+      FROM raw
+      GROUP BY lead_id
+    ),
     brackets AS (
-      SELECT 
-        CASE 
+      SELECT
+        CASE
           WHEN call_count = 0 THEN '0 calls'
           WHEN call_count = 1 THEN '1 call'
           WHEN call_count = 2 THEN '2 calls'
           WHEN call_count = 3 THEN '3 calls'
           WHEN call_count = 4 THEN '4 calls'
           ELSE '5+ calls'
-        END as attempt_bucket,
-        CASE 
+        END AS attempt_bucket,
+        CASE
           WHEN call_count = 0 THEN 0
           WHEN call_count = 1 THEN 1
           WHEN call_count = 2 THEN 2
           WHEN call_count = 3 THEN 3
           WHEN call_count = 4 THEN 4
           ELSE 5
-        END as bucket_order,
-        COUNT(DISTINCT lead_id) as leads,
-        COUNT(DISTINCT CASE WHEN is_rpc THEN lead_id END) as contacted,
-        COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) as sales,
-        COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) as activations,
-        ROUND(SUM(revenue), 2) as revenue
-      FROM attempt_summary
+        END AS bucket_order,
+        COUNT(*) AS leads,
+        COUNTIF(is_rpc) AS contacted,
+        COUNTIF(is_sale) AS sales,
+        COUNTIF(is_activated) AS activations,
+        ROUND(SUM(revenue), 2) AS revenue
+      FROM lead_level
       GROUP BY 1, 2
-      ORDER BY bucket_order ASC
+      ORDER BY bucket_order
     )
     SELECT * FROM brackets
   `;
 
   const [rows] = await client.query({ query, params: queryParams });
-  
-  const totalLeads = rows.reduce((acc: number, r: any) => acc + Number(r.leads || 0), 0);
-
-  const attemptPerformance = rows.map((r: any) => {
-    const leads = Number(r.leads || 0);
-    const contacted = Number(r.contacted || 0);
-    const sales = Number(r.sales || 0);
-    const activations = Number(r.activations || 0);
-    const revenue = Number(r.revenue || 0);
-
+  const totalLeads = rows.reduce((acc: number, row: any) => acc + Number(row.leads || 0), 0);
+  const attemptPerformance = rows.map((row: any) => {
+    const leads = Number(row.leads || 0);
+    const contacted = Number(row.contacted || 0);
+    const sales = Number(row.sales || 0);
+    const activations = Number(row.activations || 0);
     return {
-      bucket: r.attempt_bucket,
+      bucket: row.attempt_bucket,
       leads,
       sharePct: totalLeads > 0 ? Number(((leads / totalLeads) * 100).toFixed(1)) : 0,
       contacted,
@@ -1143,29 +1465,41 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
       saleRate: leads > 0 ? Number(((sales / leads) * 100).toFixed(2)) : 0,
       activations,
       activationRate: sales > 0 ? Number(((activations / sales) * 100).toFixed(1)) : 0,
-      revenue,
+      revenue: Number(row.revenue || 0),
       callCost: null,
       marginalSales: null,
       marginalCostPerSale: null
     };
   });
 
-  // Call interval cadence & repeated no-answer analysis
-  const attemptCadence: Array<{ transition: string; avgSpacing: string; marginalRpcYield: string; costBenefitRatio: string }> = [];
-
-  const noAnswerAnalysis = {
-    status: 'UNAVAILABLE',
-    reason: 'No approved redial-cost or carrier-reputation contract is configured. Recommendations are withheld.',
-    stopThresholdRecommendation: null,
-    diminishingReturnsCutoff: null,
-    callbackFollowupRate: null,
-    callbackSaleConversion: null
-  };
+  const oneCall = attemptPerformance.find(row => row.bucket === '1 call');
+  const multiCallLeads = attemptPerformance
+    .filter(row => !['0 calls', '1 call'].includes(row.bucket))
+    .reduce((sum, row) => sum + row.leads, 0);
+  const highAttempt = attemptPerformance.find(row => row.bucket === '5+ calls');
 
   return {
     attemptPerformance,
-    attemptCadence,
-    noAnswerAnalysis
+    attemptCadence: [],
+    summary: {
+      totalLeads,
+      zeroCallLeads: attemptPerformance.find(row => row.bucket === '0 calls')?.leads || 0,
+      oneCallLeads: oneCall?.leads || 0,
+      singleAttemptSharePct: totalLeads > 0 ? Number((((oneCall?.leads || 0) / totalLeads) * 100).toFixed(1)) : 0,
+      multiAttemptLeads: multiCallLeads,
+      multiAttemptSharePct: totalLeads > 0 ? Number(((multiCallLeads / totalLeads) * 100).toFixed(1)) : 0,
+      fivePlusCallLeads: highAttempt?.leads || 0,
+      fivePlusNoRpcLeads: highAttempt ? Math.max(highAttempt.leads - highAttempt.contacted, 0) : 0,
+    },
+    noAnswerAnalysis: {
+      status: 'UNAVAILABLE',
+      reason: 'Event-level attempt spacing, callback completion and redial economics are not independently validated. Recommendations are withheld.',
+      stopThresholdRecommendation: null,
+      diminishingReturnsCutoff: null,
+      callbackFollowupRate: null,
+      callbackSaleConversion: null
+    },
+    methodology: 'Buckets are exclusive per lead using the maximum recorded HLC total_calls value. They describe observed call-count populations and do not identify which specific attempt produced the outcome.'
   };
 }
 
@@ -1339,41 +1673,79 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
 
 // 6. TEMPORAL INTELLIGENCE (Day x Hour Heatmaps)
 export async function getTemporalAnalytics(params: OffernetQueryParams) {
-  const client = getBigQueryClient('dashboards-422710');
+  const clientConfig = getClientConfig(params.clientId);
+  const client = getBigQueryClient(clientConfig.bigQueryProject);
   const { whereSql, queryParams } = buildFilterClause(params);
+  const operating = clientConfig.operationalConfig?.operatingHours || { start: '08:00', end: '17:30', workdays: [1, 2, 3, 4, 5] };
+  queryParams.tenantTimezone = clientConfig.timezone || 'Africa/Johannesburg';
+  queryParams.operatingStart = operating.start.length === 5 ? operating.start + ':00' : operating.start;
+  queryParams.operatingEnd = operating.end.length === 5 ? operating.end + ':00' : operating.end;
+  queryParams.operatingWorkdays = operating.workdays;
 
   const query = `
-    SELECT 
-      EXTRACT(DAYOFWEEK FROM SAFE_CAST(l.fetched AS TIMESTAMP)) as day_of_week,
-      EXTRACT(HOUR FROM SAFE_CAST(l.fetched AS TIMESTAMP)) as hour_of_day,
-      COUNT(DISTINCT l.lead_id) as volume,
-      COUNT(DISTINCT CASE WHEN SAFE_CAST(hlc.rpc AS INT64) > 0 THEN l.lead_id END) as contacted,
-      COUNT(DISTINCT CASE WHEN hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' THEN l.lead_id END) as sales,
-      COUNT(DISTINCT CASE WHEN hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' THEN l.lead_id END) as activations
-    FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
-    LEFT JOIN UNNEST(l.hlc_details) hlc
-    ${whereSql}
-    GROUP BY 1, 2
-    ORDER BY 1, 2
+    WITH lead_level AS (
+      SELECT
+        l.lead_id,
+        ANY_VALUE(SAFE_CAST(l.fetched AS TIMESTAMP)) AS fetched_ts,
+        COUNTIF(SAFE_CAST(hlc.rpc AS INT64) > 0) > 0 AS is_rpc,
+        COUNTIF(hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '') > 0 AS is_sale,
+        COUNTIF(hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '') > 0 AS is_activated
+      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      LEFT JOIN UNNEST(l.hlc_details) hlc
+      ${whereSql}
+      GROUP BY l.lead_id
+    ),
+    classified AS (
+      SELECT
+        *,
+        CAST(FORMAT_TIMESTAMP('%u', fetched_ts, @tenantTimezone) AS INT64) AS iso_day,
+        CAST(FORMAT_TIMESTAMP('%H', fetched_ts, @tenantTimezone) AS INT64) AS hour_of_day,
+        CAST(FORMAT_TIMESTAMP('%u', fetched_ts, @tenantTimezone) AS INT64) NOT IN UNNEST(@operatingWorkdays)
+          OR FORMAT_TIMESTAMP('%H:%M:%S', fetched_ts, @tenantTimezone) < @operatingStart
+          OR FORMAT_TIMESTAMP('%H:%M:%S', fetched_ts, @tenantTimezone) >= @operatingEnd AS is_after_hours
+      FROM lead_level
+    ),
+    matrix AS (
+      SELECT
+        iso_day,
+        hour_of_day,
+        COUNT(*) AS volume,
+        COUNTIF(is_rpc) AS contacted,
+        COUNTIF(is_sale) AS sales,
+        COUNTIF(is_activated) AS activations
+      FROM classified
+      GROUP BY iso_day, hour_of_day
+    ),
+    operating_summary AS (
+      SELECT
+        is_after_hours,
+        COUNT(*) AS leads,
+        COUNTIF(is_rpc) AS contacted,
+        COUNTIF(is_sale) AS sales
+      FROM classified
+      GROUP BY is_after_hours
+    )
+    SELECT
+      ARRAY(SELECT AS STRUCT * FROM matrix) AS matrix,
+      ARRAY(SELECT AS STRUCT * FROM operating_summary) AS operating_summary
   `;
 
   const [rows] = await client.query({ query, params: queryParams });
-
-  // Transform into full 7 x 24 grid
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const data = rows[0] || { matrix: [], operating_summary: [] };
+  const rowsByCell = data.matrix || [];
+  const isoDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const heatmap: any[] = [];
 
   for (let d = 1; d <= 7; d++) {
     for (let h = 0; h < 24; h++) {
-      const match = rows.find((r: any) => Number(r.day_of_week) === d && Number(r.hour_of_day) === h);
-      const volume = match ? Number(match.volume) : 0;
-      const contacted = match ? Number(match.contacted) : 0;
-      const sales = match ? Number(match.sales) : 0;
-      const activations = match ? Number(match.activations) : 0;
-
+      const match = rowsByCell.find((row: any) => Number(row.iso_day) === d && Number(row.hour_of_day) === h);
+      const volume = match ? Number(match.volume || 0) : 0;
+      const contacted = match ? Number(match.contacted || 0) : 0;
+      const sales = match ? Number(match.sales || 0) : 0;
+      const activations = match ? Number(match.activations || 0) : 0;
       heatmap.push({
         dayIndex: d,
-        dayName: days[d - 1],
+        dayName: isoDays[d - 1],
         hour: h,
         volume,
         contactRate: volume > 0 ? Number(((contacted / volume) * 100).toFixed(1)) : 0,
@@ -1383,21 +1755,40 @@ export async function getTemporalAnalytics(params: OffernetQueryParams) {
     }
   }
 
-  // Rank observed day/hour cells only. No static "best time" claims are injected.
   const peakWindows = heatmap
     .filter(cell => cell.volume > 0)
     .sort((a, b) => (b.contactRate - a.contactRate) || (b.volume - a.volume))
-    .slice(0, 4)
+    .slice(0, 6)
     .map(cell => ({
       window: `${cell.dayName} ${String(cell.hour).padStart(2, '0')}:00–${String((cell.hour + 1) % 24).padStart(2, '0')}:00`,
       contactRate: `${cell.contactRate.toFixed(1)}%`,
       saleIndex: cell.saleRate.toFixed(2),
-      verdict: 'Observed high-contact window'
+      verdict: 'Observed high-contact capture window'
     }));
+
+  const operatingComparison = (data.operating_summary || []).map((row: any) => {
+    const leads = Number(row.leads || 0);
+    const contacted = Number(row.contacted || 0);
+    const sales = Number(row.sales || 0);
+    return {
+      type: row.is_after_hours ? 'Outside configured operating hours' : 'Inside configured operating hours',
+      leads,
+      contactRate: leads > 0 ? Number(((contacted / leads) * 100).toFixed(1)) : 0,
+      saleRate: leads > 0 ? Number(((sales / leads) * 100).toFixed(2)) : 0,
+    };
+  });
 
   return {
     heatmap,
-    peakWindows
+    peakWindows,
+    operatingComparison,
+    operatingContext: {
+      timezone: clientConfig.timezone,
+      start: operating.start,
+      end: operating.end,
+      workdays: operating.workdays,
+    },
+    timeDimension: 'Lead capture time'
   };
 }
 
@@ -2527,6 +2918,24 @@ export async function getRawLeads(params: OffernetQueryParams) {
         WHERE ${validSale}
           AND NOT ${validActivation}
           AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(h.sale AS TIMESTAMP), DAY) >= 14
+      )`;
+    } else if (drill === 'high-attempt-no-rpc') {
+      drillCondition = `AND EXISTS (
+        SELECT 1 FROM UNNEST(l.hlc_details) h
+        WHERE COALESCE(SAFE_CAST(h.total_calls AS INT64), 0) >= 5
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM UNNEST(l.hlc_details) h
+        WHERE SAFE_CAST(h.rpc AS INT64) > 0
+      )`;
+    } else if (drill === 'one-call-only') {
+      drillCondition = `AND EXISTS (
+        SELECT 1 FROM UNNEST(l.hlc_details) h
+        WHERE COALESCE(SAFE_CAST(h.total_calls AS INT64), 0) = 1
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM UNNEST(l.hlc_details) h
+        WHERE COALESCE(SAFE_CAST(h.total_calls AS INT64), 0) > 1
       )`;
     } else if (drill === 'sla-breach') {
       drillCondition = `AND EXISTS (

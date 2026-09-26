@@ -8,11 +8,14 @@ import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import { downloadCsv } from '../lib/formatters';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
+import { useOperatingControls } from '../hooks/useOperatingControls';
+import { OperatingWindowPanel } from '../components/OfferNetControlPanels';
 
 type MetricView = 'contactRate' | 'saleRate' | 'volume';
 
 export default function TemporalIntelligence() {
   const scoped = useScopedNavigationTarget();
+  const controls = useOperatingControls();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
   const [data, setData] = useState<TemporalData | null>(null);
@@ -61,12 +64,12 @@ export default function TemporalIntelligence() {
 
   return (
     <div className="cx-command-page">
-      <OffernetFilterBar onRefresh={() => loadData(true)} onExportCsv={handleExportCsv} />
+      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} onExportCsv={handleExportCsv} />
       <div className="cx-command-content">
         <OperationalPageHeader
           eyebrow="Contact"
           title="Time & day performance"
-          description="See when lead volume, RPC and sale outcomes are concentrated without turning observed peaks into prescriptive calling rules."
+          description="See when captured lead volume, RPC and sale outcomes are concentrated in the tenant's local timezone without turning observed peaks into prescriptive calling rules."
           actions={
             <div className="cx-segmented-control" role="group" aria-label="Temporal metric">
               <button type="button" data-active={metricView === 'contactRate'} onClick={() => setMetricView('contactRate')}>RPC rate</button>
@@ -86,7 +89,7 @@ export default function TemporalIntelligence() {
                 <div>
                   <span className="cx-command-section-kicker">Observed pattern</span>
                   <h2>Day × hour matrix</h2>
-                  <p>Intensity is scaled to the strongest observed cell in the selected scope.</p>
+                  <p>{data.timeDimension || 'Lead capture time'} · {data.operatingContext?.timezone || 'tenant timezone'}. Intensity is scaled to the strongest observed cell in scope.</p>
                 </div>
                 <Calendar size={16} className="text-slate-400"/>
               </header>
@@ -122,6 +125,8 @@ export default function TemporalIntelligence() {
                 </div>
               </div>
             </section>
+
+            {controls.data && <OperatingWindowPanel data={controls.data} />}
 
             <section className="cx-command-panel">
               <header>

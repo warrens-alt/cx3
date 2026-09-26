@@ -21,6 +21,8 @@ import { fetchOverview, type OverviewData, type RootCauseData } from '../lib/off
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import RootCauseDrawer from '../components/RootCauseDrawer';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
+import { useOperatingControls } from '../hooks/useOperatingControls';
+import { OperatingControlStrip } from '../components/OfferNetControlPanels';
 
 const fmt = (value: number) => value.toLocaleString();
 type RootMetric = RootCauseData['metric']['id'];
@@ -72,6 +74,7 @@ function Metric({
 export default function ExecutiveOverview() {
   const scoped = useScopedNavigationTarget();
   const { selectedClient } = useClient();
+  const controls = useOperatingControls();
   const { isAdmin } = useAuth();
   const { startDate, endDate, filters } = useFilters();
   const [searchParams] = useSearchParams();
@@ -134,7 +137,7 @@ export default function ExecutiveOverview() {
 
   return (
     <div className="cx-command-page">
-      <OffernetFilterBar onRefresh={() => loadData(true)} />
+      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />
 
       <div className="cx-command-content">
         <header className="cx-command-hero">
@@ -165,6 +168,8 @@ export default function ExecutiveOverview() {
               <Metric label="RPC rate" value={`${data.kpis.contactRate}%`} note={`${fmt(data.kpis.contactedLeads)} contacted`} change={data.comparison?.contactRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('contactRate') : undefined} />
               <Metric label="Sale / fetched" value={`${data.kpis.leadToSaleRate}%`} note={`${fmt(data.kpis.saleLeads)} recorded sales`} change={data.comparison?.saleRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('leadToSaleRate') : undefined} />
             </section>
+
+            {controls.data && <OperatingControlStrip data={controls.data} />}
 
             <div className="cx-command-grid cx-command-grid-attention">
               <section className="cx-command-panel">

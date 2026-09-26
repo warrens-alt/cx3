@@ -8,9 +8,12 @@ import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import { downloadCsv } from '../lib/formatters';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
+import { useOperatingControls } from '../hooks/useOperatingControls';
+import { SlaBandsPanel, OperatingWindowPanel } from '../components/OfferNetControlPanels';
 
 export default function SpeedToLeadIntelligence() {
   const scoped = useScopedNavigationTarget();
+  const controls = useOperatingControls();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
   const [data, setData] = useState<SpeedToLeadData | null>(null);
@@ -61,7 +64,7 @@ export default function SpeedToLeadIntelligence() {
 
   return (
     <div className="cx-command-page">
-      <OffernetFilterBar onRefresh={() => loadData(true)} onExportCsv={handleExportCsv} />
+      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} onExportCsv={handleExportCsv} />
 
       <div className="cx-command-content">
         <OperationalPageHeader
@@ -166,33 +169,12 @@ export default function SpeedToLeadIntelligence() {
               </div>
             </section>
 
-            <section className="cx-command-panel">
-              <header>
-                <div>
-                  <span className="cx-command-section-kicker">Operating context</span>
-                  <h2>Business hours vs after-hours</h2>
-                  <p>Observed lead volume, contact rate, sale rate and average first-dial latency by capture context.</p>
-                </div>
-              </header>
-              <div className="cx-hours-grid">
-                {data.afterHours.map((row, index) => {
-                  const afterHours = row.type.toLowerCase().includes('after');
-                  return (
-                    <article key={`${row.type}-${index}`}>
-                      <div className="cx-hours-title">
-                        {afterHours ? <Moon size={16}/> : <Sun size={16}/>}
-                        <div><strong>{row.type}</strong><small>{row.leads.toLocaleString()} leads</small></div>
-                      </div>
-                      <dl>
-                        <div><dt>RPC rate</dt><dd>{row.contactRate}%</dd></div>
-                        <div><dt>Sale rate</dt><dd>{row.saleRate}%</dd></div>
-                        <div><dt>Avg first dial</dt><dd>{row.avgTimeToFirstDial}</dd></div>
-                      </dl>
-                    </article>
-                  );
-                })}
+            {controls.data && (
+              <div className="cx-command-grid cx-diagnostic-grid">
+                <SlaBandsPanel data={controls.data} />
+                <OperatingWindowPanel data={controls.data} />
               </div>
-            </section>
+            )}
 
             <section className="cx-command-shortcuts">
               <Link to={scoped('/contact-strategy')}><Zap size={16}/><span><strong>Call-count outcomes</strong><small>See RPC and sales by recorded call count</small></span><ArrowRight size={14}/></Link>

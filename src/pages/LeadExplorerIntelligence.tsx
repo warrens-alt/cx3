@@ -25,6 +25,8 @@ const DRILL_LABELS: Record<string, string> = {
   'funnel-loss': 'Funnel loss population',
   'funnel-stage': 'Funnel stage population',
   'lead-age': 'First-dial age cohort',
+  'high-attempt-no-rpc': '5+ recorded calls without RPC',
+  'one-call-only': 'Exactly one recorded call',
 };
 
 const FUNNEL_LABELS: Record<string, string> = {

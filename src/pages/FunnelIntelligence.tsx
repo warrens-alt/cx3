@@ -8,12 +8,15 @@ import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import { downloadCsv } from '../lib/formatters';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
+import { useOperatingControls } from '../hooks/useOperatingControls';
+import { SlaBandsPanel } from '../components/OfferNetControlPanels';
 
 const pct = (numerator: number, denominator: number, digits = 1) =>
   denominator > 0 ? Number(((numerator / denominator) * 100).toFixed(digits)) : 0;
 
 export default function FunnelIntelligence() {
   const scoped = useScopedNavigationTarget();
+  const controls = useOperatingControls();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
   const [data, setData] = useState<FunnelData | null>(null);
@@ -57,7 +60,7 @@ export default function FunnelIntelligence() {
 
   return (
     <div className="cx-command-page">
-      <OffernetFilterBar onRefresh={() => loadData(true)} onExportCsv={handleExportCsv} />
+      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} onExportCsv={handleExportCsv} />
 
       <div className="cx-command-content">
         <OperationalPageHeader
@@ -156,6 +159,8 @@ export default function FunnelIntelligence() {
               </div>
             </section>
 
+            {controls.data && <SlaBandsPanel data={controls.data} />}
+
             <div className="cx-command-grid cx-diagnostic-grid">
               <section className="cx-command-panel">
                 <header>
@@ -173,8 +178,10 @@ export default function FunnelIntelligence() {
                         <small>{row.leads.toLocaleString()} leads</small>
                       </div>
                       <div className="cx-segment-track"><i style={{ width: `${(row.leads / sourceMax) * 100}%` }}/></div>
-                      <dl>
-                        <div><dt>RPC</dt><dd>{pct(row.contacted, row.leads)}%</dd></div>
+                      <dl className="cx-segment-funnel-rates">
+                        <div><dt>Delivery</dt><dd>{pct(row.delivered, row.leads)}%</dd></div>
+                        <div><dt>Dial</dt><dd>{pct(row.dialled, row.delivered)}%</dd></div>
+                        <div><dt>RPC</dt><dd>{pct(row.contacted, row.dialled)}%</dd></div>
                         <div><dt>Sale</dt><dd>{pct(row.sales, row.leads, 2)}%</dd></div>
                       </dl>
                     </div>
@@ -198,8 +205,10 @@ export default function FunnelIntelligence() {
                         <small>{row.leads.toLocaleString()} leads</small>
                       </div>
                       <div className="cx-segment-track"><i style={{ width: `${(row.leads / gradeMax) * 100}%` }}/></div>
-                      <dl>
-                        <div><dt>RPC</dt><dd>{pct(row.contacted, row.leads)}%</dd></div>
+                      <dl className="cx-segment-funnel-rates">
+                        <div><dt>Delivery</dt><dd>{pct(row.delivered, row.leads)}%</dd></div>
+                        <div><dt>Dial</dt><dd>{pct(row.dialled, row.delivered)}%</dd></div>
+                        <div><dt>RPC</dt><dd>{pct(row.contacted, row.dialled)}%</dd></div>
                         <div><dt>Sale</dt><dd>{pct(row.sales, row.leads, 2)}%</dd></div>
                       </dl>
                     </div>
