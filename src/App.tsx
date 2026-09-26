@@ -14,11 +14,11 @@ import Modal from './components/Modal';
 import AppliedScope from './components/AppliedScope';
 import MobileBottomNav from './components/MobileBottomNav';
 import { PageSkeleton } from './components/Skeleton';
-import VersionedReports from './pages/VersionedReports';
 import { useDevice } from './hooks/useDevice';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import AuthGate from './components/AuthGate';
 
+const VersionedReports = React.lazy(() => import('./pages/VersionedReports'));
 const UserManagement = React.lazy(() => import('./pages/UserManagement'));
 const ExecutiveOverview = React.lazy(() => import('./pages/ExecutiveOverview'));
 const FunnelIntelligence = React.lazy(() => import('./pages/FunnelIntelligence'));
