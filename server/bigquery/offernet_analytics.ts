@@ -494,7 +494,7 @@ export async function getFunnelIntelligence(params: OffernetQueryParams) {
     velocity: {
       fetchToDelivery: formatDuration(data.velocity?.avg_fetch_delivery_sec),
       deliveryToFirstDial: formatDuration(data.velocity?.avg_deliv_dial_sec),
-      firstDialToContact: formatDuration(data.velocity?.avg_deliv_dial_sec ? Math.round(Number(data.velocity.avg_deliv_dial_sec) * 0.45) : 2400),
+      firstDialToContact: 'Unavailable',
       contactToSale: formatDuration(data.velocity?.avg_dial_to_sale_sec),
       saleToActivation: formatDuration(data.velocity?.avg_sale_to_act_sec)
     },
@@ -613,67 +613,56 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
   const data = rows[0] || { percentiles: {}, cohorts: [], after_hours: [] };
   const p = data.percentiles || {};
 
-  // Formatted Stages
+  // Formatted stages include only durations directly supported by source timestamps.
+  const numberOrNull = (value: unknown): number | null => value === null || value === undefined ? null : Number(value);
   const timingStages = [
     {
       stage: 'Capture → Fetch',
       description: 'Lead generation ingestion & schema validation',
-      avgSec: p.avg_cap_fetch || 12,
-      medianSec: p.med_cap_fetch || 8,
-      p75Sec: p.p75_cap_fetch || 24,
-      p90Sec: p.p90_cap_fetch || 75,
-      avg: formatDuration(p.avg_cap_fetch || 12),
-      median: formatDuration(p.med_cap_fetch || 8),
-      p75: formatDuration(p.p75_cap_fetch || 24),
-      p90: formatDuration(p.p90_cap_fetch || 75)
+      avgSec: numberOrNull(p.avg_cap_fetch),
+      medianSec: numberOrNull(p.med_cap_fetch),
+      p75Sec: numberOrNull(p.p75_cap_fetch),
+      p90Sec: numberOrNull(p.p90_cap_fetch),
+      avg: formatDuration(numberOrNull(p.avg_cap_fetch)),
+      median: formatDuration(numberOrNull(p.med_cap_fetch)),
+      p75: formatDuration(numberOrNull(p.p75_cap_fetch)),
+      p90: formatDuration(numberOrNull(p.p90_cap_fetch))
     },
     {
       stage: 'Fetch → Delivery',
-      description: 'Routing engine dispatch & vendor webhook transmission',
-      avgSec: p.avg_fetch_deliv || 45,
-      medianSec: p.med_fetch_deliv || 15,
-      p75Sec: p.p75_fetch_deliv || 92,
-      p90Sec: p.p90_fetch_deliv || 320,
-      avg: formatDuration(p.avg_fetch_deliv || 45),
-      median: formatDuration(p.med_fetch_deliv || 15),
-      p75: formatDuration(p.p75_fetch_deliv || 92),
-      p90: formatDuration(p.p90_fetch_deliv || 320)
+      description: 'Routing dispatch to recorded delivery',
+      avgSec: numberOrNull(p.avg_fetch_deliv),
+      medianSec: numberOrNull(p.med_fetch_deliv),
+      p75Sec: numberOrNull(p.p75_fetch_deliv),
+      p90Sec: numberOrNull(p.p90_fetch_deliv),
+      avg: formatDuration(numberOrNull(p.avg_fetch_deliv)),
+      median: formatDuration(numberOrNull(p.med_fetch_deliv)),
+      p75: formatDuration(numberOrNull(p.p75_fetch_deliv)),
+      p90: formatDuration(numberOrNull(p.p90_fetch_deliv))
     },
     {
       stage: 'Delivery → First Dial',
-      description: 'Vendor dialler hopper intake to physical dial',
-      avgSec: p.avg_deliv_dial || 3600,
-      medianSec: p.med_deliv_dial || 1800,
-      p75Sec: p.p75_deliv_dial || 7200,
-      p90Sec: p.p90_deliv_dial || 28800,
-      avg: formatDuration(p.avg_deliv_dial || 3600),
-      median: formatDuration(p.med_deliv_dial || 1800),
-      p75: formatDuration(p.p75_deliv_dial || 7200),
-      p90: formatDuration(p.p90_deliv_dial || 28800)
+      description: 'Recorded delivery to first recorded dial',
+      avgSec: numberOrNull(p.avg_deliv_dial),
+      medianSec: numberOrNull(p.med_deliv_dial),
+      p75Sec: numberOrNull(p.p75_deliv_dial),
+      p90Sec: numberOrNull(p.p90_deliv_dial),
+      avg: formatDuration(numberOrNull(p.avg_deliv_dial)),
+      median: formatDuration(numberOrNull(p.med_deliv_dial)),
+      p75: formatDuration(numberOrNull(p.p75_deliv_dial)),
+      p90: formatDuration(numberOrNull(p.p90_deliv_dial))
     },
     {
       stage: 'Capture → First Dial',
-      description: 'Full consumer origin to first phone ring',
-      avgSec: p.avg_cap_dial || 3645,
-      medianSec: p.med_cap_dial || 1823,
-      p75Sec: p.p75_cap_dial || 7294,
-      p90Sec: p.p90_cap_dial || 29120,
-      avg: formatDuration(p.avg_cap_dial || 3645),
-      median: formatDuration(p.med_cap_dial || 1823),
-      p75: formatDuration(p.p75_cap_dial || 7294),
-      p90: formatDuration(p.p90_cap_dial || 29120)
-    },
-    {
-      stage: 'First Dial → Contact',
-      description: 'Ringing, voicemail, and redial cycle until RPC',
-      avgSec: 5400,
-      medianSec: 2400,
-      p75Sec: 10800,
-      p90Sec: 43200,
-      avg: '1.5h',
-      median: '40m',
-      p75: '3.0h',
-      p90: '12.0h'
+      description: 'Lead capture to first recorded dial',
+      avgSec: numberOrNull(p.avg_cap_dial),
+      medianSec: numberOrNull(p.med_cap_dial),
+      p75Sec: numberOrNull(p.p75_cap_dial),
+      p90Sec: numberOrNull(p.p90_cap_dial),
+      avg: formatDuration(numberOrNull(p.avg_cap_dial)),
+      median: formatDuration(numberOrNull(p.med_cap_dial)),
+      p75: formatDuration(numberOrNull(p.p75_cap_dial)),
+      p90: formatDuration(numberOrNull(p.p90_cap_dial))
     }
   ];
 
