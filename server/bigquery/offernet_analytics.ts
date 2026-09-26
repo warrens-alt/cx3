@@ -990,15 +990,14 @@ export async function getDataIntegrityAnalytics(params: OffernetQueryParams) {
   const { whereSql, queryParams } = buildFilterClause(params);
 
   const query = `
-    SELECT 
-      COUNT(DISTINCT l.lead_id) as total_leads,
-      COUNTIF(l.fetched LIKE '1900%' OR l.fetched LIKE '1970%' OR l.fetched IS NULL) as sentinel_fetch_dates,
-      COUNTIF(l.standardised_idno IS NULL OR l.valid_idno = '0' OR l.valid_idno = 'false') as invalid_id_numbers,
-      COUNTIF(l.standardised_mobile IS NULL OR l.phone_valid = '0' OR l.phone_valid = 'false') as invalid_mobile_numbers,
-      COUNTIF(hlc.vendor IS NULL OR hlc.vendor = '') as unassigned_vendor_leads,
-      COUNTIF(hlc.delivered IS NOT NULL AND (hlc.last_dialer_status IS NULL OR hlc.last_dialer_status = '')) as missing_dispositions,
-      COUNTIF(hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND (hlc.revenue_generated = 0 OR hlc.revenue_generated IS NULL)) as unbilled_sales_count,
-      COUNTIF(l.consumer_id IS NULL OR l.consumer_id = 0) as unmatched_consumer_ids
+    SELECT
+      COUNT(DISTINCT l.lead_id) AS total_leads,
+      COUNTIF(l.fetched LIKE '1900%' OR l.fetched LIKE '1970%' OR l.fetched IS NULL) AS sentinel_fetch_dates,
+      COUNTIF(l.standardised_idno IS NULL OR l.valid_idno = '0' OR l.valid_idno = 'false') AS invalid_id_numbers,
+      COUNTIF(l.standardised_mobile IS NULL OR l.phone_valid = '0' OR l.phone_valid = 'false') AS invalid_mobile_numbers,
+      COUNTIF(hlc.vendor IS NULL OR hlc.vendor = '') AS unassigned_vendor_leads,
+      COUNTIF(hlc.delivered IS NOT NULL AND (hlc.last_dialer_status IS NULL OR hlc.last_dialer_status = '')) AS missing_dispositions,
+      COUNTIF(l.consumer_id IS NULL OR l.consumer_id = 0) AS unmatched_consumer_ids
     FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
     LEFT JOIN UNNEST(l.hlc_details) hlc
     ${whereSql}
@@ -1006,78 +1005,58 @@ export async function getDataIntegrityAnalytics(params: OffernetQueryParams) {
 
   const [rows] = await client.query({ query, params: queryParams });
   const d = rows[0] || {};
-  const total = Number(d.total_leads || 1);
+  const total = Number(d.total_leads || 0);
 
+  const observedCheck = (checkName: string, category: string, discrepancyCount: number, detail: string) => ({
+    checkName,
+    category,
+    status: discrepancyCount === 0 ? 'HEALTHY' as const : 'WARNING' as const,
+    evidence: 'OBSERVED',
+    discrepancyCount,
+    detail
+  });
+
+  const invalidValidation = Number(d.invalid_id_numbers || 0) + Number(d.invalid_mobile_numbers || 0);
   const checks = [
-    {
-      checkName: 'Delivery Reconciliation',
-      category: 'Pipeline Ingestion',
-      status: 'HEALTHY',
-      evidence: 'VERIFIED',
-      discrepancyCount: 0,
-      detail: 'Lead events successfully mapped across delivery endpoints without silent drop.'
-    },
-    {
-      checkName: 'Missing Dispositions',
-      category: 'Dialler Telephony',
-      status: Number(d.missing_dispositions || 0) > 500 ? 'WARNING' : 'HEALTHY',
-      evidence: 'VERIFIED',
-      discrepancyCount: Number(d.missing_dispositions || 0),
-      detail: `${d.missing_dispositions || 0} delivered records have blank dialler status codes.`
-    },
-    {
-      checkName: 'Outcome Feedback Loop',
-      category: 'CRM Synchronization',
-      status: 'HEALTHY',
-      evidence: 'VERIFIED',
-      discrepancyCount: 142,
-      detail: 'Real-time disposition sync verified across Vicidial cluster.'
-    },
-    {
-      checkName: 'Duplicate Leads & Re-entry',
-      category: 'Consumer Verification',
-      status: 'HEALTHY',
-      evidence: 'VERIFIED',
-      discrepancyCount: 88,
-      detail: 'Deduplication window active across 30-day mobile registry.'
-    },
-    {
-      checkName: 'Unmatched Transaction Records',
-      category: 'Data Lineage',
-      status: Number(d.unmatched_consumer_ids || 0) > 0 ? 'WARNING' : 'HEALTHY',
-      evidence: 'VERIFIED',
-      discrepancyCount: Number(d.unmatched_consumer_ids || 0),
-      detail: 'Consumer ID foreign key integrity maintained across lead ledger.'
-    },
-    {
-      checkName: 'Missing / Sentinel Timestamps',
-      category: 'Temporal Integrity',
-      status: Number(d.sentinel_fetch_dates || 0) > 0 ? 'WARNING' : 'HEALTHY',
-      evidence: 'VERIFIED',
-      discrepancyCount: Number(d.sentinel_fetch_dates || 0),
-      detail: '1900/1970 sentinel dates strictly filtered from analytical calculations.'
-    },
-    {
-      checkName: 'National ID & Mobile Validation',
-      category: 'Lead Vetting',
-      status: (Number(d.invalid_id_numbers || 0) / total) > 0.15 ? 'WARNING' : 'HEALTHY',
-      evidence: 'VERIFIED',
-      discrepancyCount: Number(d.invalid_id_numbers || 0) + Number(d.invalid_mobile_numbers || 0),
-      detail: `${(((Number(d.invalid_id_numbers || 0) + Number(d.invalid_mobile_numbers || 0)) / total) * 100).toFixed(1)}% validation rejection rate on inbound submissions.`
-    },
-    {
-      checkName: 'Sales & Activation Reconciliation',
-      category: 'Commercial Reconciliation',
-      status: Number(d.unbilled_sales_count || 0) > 100 ? 'WARNING' : 'HEALTHY',
-      evidence: 'VERIFIED',
-      discrepancyCount: Number(d.unbilled_sales_count || 0),
-      detail: `${d.unbilled_sales_count || 0} sales recorded with zero immediate revenue settlement.`
-    }
+    observedCheck(
+      'Missing Dispositions',
+      'Dialler Telephony',
+      Number(d.missing_dispositions || 0),
+      `${Number(d.missing_dispositions || 0).toLocaleString()} delivered records have no recorded dialler disposition.`
+    ),
+    observedCheck(
+      'Unmatched Consumer IDs',
+      'Data Lineage',
+      Number(d.unmatched_consumer_ids || 0),
+      `${Number(d.unmatched_consumer_ids || 0).toLocaleString()} lead records have no usable consumer identifier.`
+    ),
+    observedCheck(
+      'Missing / Sentinel Capture Timestamps',
+      'Temporal Integrity',
+      Number(d.sentinel_fetch_dates || 0),
+      `${Number(d.sentinel_fetch_dates || 0).toLocaleString()} records have missing, 1900, or 1970 capture timestamps.`
+    ),
+    observedCheck(
+      'Unassigned Vendor Records',
+      'Routing',
+      Number(d.unassigned_vendor_leads || 0),
+      `${Number(d.unassigned_vendor_leads || 0).toLocaleString()} expanded HLC records have no vendor value.`
+    ),
+    observedCheck(
+      'ID / Mobile Validation Gaps',
+      'Lead Vetting',
+      invalidValidation,
+      total > 0
+        ? `${invalidValidation.toLocaleString()} validation gaps observed across ${total.toLocaleString()} distinct leads.`
+        : 'No lead records were available in the selected scope.'
+    )
   ];
 
   return {
-    overallHealthScore: 94.6,
-    healthGrade: 'A (Enterprise Production)',
+    overallHealthScore: null,
+    healthGrade: 'NOT_VERIFIED',
+    validationStatus: 'NOT_VERIFIED',
+    reason: 'Observed discrepancy counts are shown without an invented enterprise health score. Thresholds require approved data-quality contracts.',
     checks,
     totalRecordsAudited: total
   };
