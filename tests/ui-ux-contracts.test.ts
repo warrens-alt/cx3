@@ -312,7 +312,8 @@ test('record-level audit UI reflects admin-only access', () => {
 test('CLI mutation controls are admin-only and production sample is hidden', () => {
   const cli = read('src/pages/CliPerformance.tsx');
   assert.match(cli, /isAdmin &&/);
-  assert.match(cli, /import\.meta\.env\.DEV/);
+  assert.match(cli, /sampleDataEnabled/);
+  assert.match(cli, /\(import\.meta as any\)\.env\?\.DEV === true/);
   assert.match(cli, /Import report/);
   assert.match(cli, /Ask an administrator to configure a CLI source/);
 });
