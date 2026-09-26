@@ -2199,18 +2199,25 @@ export async function getSourceObservability(params: Pick<OffernetQueryParams, '
     );
   }
 
-  sources.push({
-    key: 'activations',
-    label: 'Activation source',
-    status: clientConfig.semanticMappings.tables.activations ? 'TIMESTAMP_CONTRACT_REQUIRED' : 'UNAVAILABLE',
-    table: clientConfig.semanticMappings.tables.activations || null,
-    latestRecordAt: null,
-    ageHours: null,
-    rowCount: null,
-    detail: clientConfig.semanticMappings.tables.activations
-      ? 'Activation table is configured, but its canonical event timestamp is not yet contracted for freshness monitoring.'
-      : 'No activation table is configured.',
-  });
+  if (clientConfig.semanticMappings.tables.activations) {
+    await pushFreshness(
+      'activations',
+      'Activation source',
+      clientConfig.semanticMappings.tables.activations,
+      'SAFE_CAST(date_created AS TIMESTAMP)',
+    );
+  } else {
+    sources.push({
+      key: 'activations',
+      label: 'Activation source',
+      status: 'UNAVAILABLE',
+      table: null,
+      latestRecordAt: null,
+      ageHours: null,
+      rowCount: null,
+      detail: 'No separate activation lifecycle table is contracted for this tenant; nested operational activation timestamps remain the available source.',
+    });
+  }
 
   sources.push({
     key: 'diallerRealtime',
