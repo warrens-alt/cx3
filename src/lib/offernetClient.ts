@@ -414,6 +414,16 @@ export interface CampaignData {
     cpm: number | null;
     cpl: number | null;
   } | null;
+  comparison?: {
+    spendDeltaPct: number | null;
+    cpcDeltaPct: number | null;
+    cpmDeltaPct: number | null;
+    cplDeltaPct: number | null;
+    ctrDeltaPp: number | null;
+    leadsDeltaPct: number | null;
+    previousStartDate: string;
+    previousEndDate: string;
+  } | null;
   spendSource?: {
     status: string;
     column: string | null;
