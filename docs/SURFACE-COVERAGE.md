@@ -1,5 +1,7 @@
 # UI, API and query surface coverage
 
+> **Current inventory:** `docs/SURFACE-INVENTORY.md` is generated directly from `src/App.tsx` and the API router sources. CI runs `npm run docs:surfaces:check`, so route/API drift now fails verification. The narrative classifications below remain the 21 September audit context unless explicitly updated.
+
 Audit date: 21 September 2026. Every reachable React route in `src/App.tsx` and every Express endpoint mounted by `server.ts` is listed here. “Legacy” means intentionally available but not independently reconciled; it does not mean untested.
 
 ## Shared execution boundary

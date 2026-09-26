@@ -14,8 +14,10 @@
     "clean": "rm -rf dist build",
     "lint": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
-    "verify": "npm run lint && npm test && npm run build",
-    "sources:check": "tsx scripts/check-source-api.ts"
+    "verify": "npm run lint && npm test && npm run docs:surfaces:check && npm run build",
+    "sources:check": "tsx scripts/check-source-api.ts",
+    "docs:surfaces": "tsx scripts/generate-surface-inventory.ts",
+    "docs:surfaces:check": "tsx scripts/generate-surface-inventory.ts --check"
   },
   "dependencies": {
     "@google-cloud/bigquery": "^8.3.1",
