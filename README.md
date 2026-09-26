@@ -18,7 +18,7 @@ Production analytical access is fail-closed.
 - `CX_ACCESS_POLICY_JSON` is the server-side tenant/role authority.
 - A local development identity is available only when `CX_ALLOW_DEV_AUTH=true` and `NODE_ENV` is not `production`.
 - Arbitrary BigQuery project/dataset/table browsing is disabled.
-- Raw lead inspection flows through bounded, tenant-scoped analytical endpoints.
+- Raw lead inspection and record-grain exports are administrator-only and flow through bounded, tenant-scoped analytical endpoints.
 - New Firebase profiles remain pending until an existing administrator activates them.
 - The browser workspace list is sourced from the server-authorised tenant list; there is no compiled production fallback tenant.
 
@@ -31,6 +31,8 @@ Canonical touchpoint terminology lives in `contracts/taxonomy.ts`. Frontend and 
 Versioned evidence metric definitions live in `contracts/reporting.ts`. A published release is a structural reporting artifact; it is not by itself a statement that every upstream source is complete or financially reconciled.
 
 Current live operational outputs that still depend on source semantics remain marked `NOT_VERIFIED` until source-owner reconciliation is completed.
+
+CLI analytics follow the same fail-closed rule: imported reports are administrator-managed, production sample data is disabled by default, missing duration/lead-age fields remain unavailable, and matched-period comparisons are withheld unless a real comparable source population exists.
 
 ## Build and verification
 
@@ -96,4 +98,4 @@ Cross-source attribution is separately gated:
 CX_MARKETING_ATTRIBUTION_JSON='{"mtn":{"marketingSourceField":"<approved field>","leadSourceField":"offershop_source"}}'
 ```
 
-Do not activate attribution until the join values and coverage have been reconciled with the source owners. See `docs/MARKETING-CONTRACTS.md`.
+Do not activate attribution until the join values and coverage have been reconciled with the source owners. Attribution validates the approved spend grain, exposes matched/unmatched key coverage, and withholds operational filters that cannot be represented equivalently on the marketing side. See `docs/MARKETING-CONTRACTS.md`.
