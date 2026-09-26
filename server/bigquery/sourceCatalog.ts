@@ -1,147 +1,70 @@
-import { SOURCE_DEFINITIONS, SOURCE_ROLES, type SourceRole } from '../../contracts/sourceCoverage';
+import { SOURCE_ROLES, type SourceRole } from '../../contracts/sourceCoverage';
 import { METRICS } from '../../contracts/reporting';
 import { getClientConfig } from './config';
-import { flatSchema, sourceMetricFieldAvailable, safeSourceError, type SourceAccess, type TableMetadata } from './sourceAccess';
+import { flatSchema, safeSourceError, type SourceAccess } from './sourceAccess';
+import { definitionForSource } from './sourceDefinition';
 
 export function sourceTable(clientId: string, role: SourceRole | string): string | null {
   const client = getClientConfig(clientId);
   const tables = client.semanticMappings.tables as Record<string, string | undefined>;
   return tables[role] || null;
 }
-
 export function metricTableLineage(clientId: string) {
-  const versioned = METRICS.map(m => ({
-    metricId: m.id,
-    label: m.label,
-    requiredFacts: m.requires,
-    tables: m.requires.map(fact => ({ fact, table: null })),
-  }));
-
+  const versioned = METRICS.map(m => ({ metricId: m.id, label: m.label, requiredFacts: m.requires, tables: m.requires.map(fact => ({ fact, table: null })) }));
   const client = getClientConfig(clientId);
-  const legacy = Object.entries(client.semanticMappings.tables).map(([role, table]) => ({
-    role,
-    table,
-  }));
-
+  const legacy = Object.entries(client.semanticMappings.tables).map(([role, table]) => ({ role, table }));
   return { versioned, legacy };
 }
 
+/** Independent metadata reads run concurrently; no data scans or guessed row totals. */
 export async function sourceCatalogue(clientId: string, access: SourceAccess) {
   const client = getClientConfig(clientId);
-  const sources: any[] = [];
-  const inventory: any[] = [];
-  let inventoryComplete = true;
-  let allTables: string[] = [];
-
-  for (const dataset of client.bigQueryDatasets) {
+  const configuredTables = new Set(SOURCE_ROLES.map(role => sourceTable(clientId, role)).filter((table): table is string => Boolean(table)));
+  const inventoryWork = Promise.all(client.bigQueryDatasets.map(async dataset => {
     try {
       const tables = await access.listTables(client.bigQueryProject, dataset);
-      allTables.push(...tables);
-      inventory.push({ dataset, status: 'AVAILABLE', tableCount: tables.length });
-    } catch (err: unknown) {
-      inventoryComplete = false;
-      inventory.push({ dataset, ...safeSourceError(err) });
+      return { summary: { dataset, status: 'AVAILABLE', tableCount: tables.length }, tables, complete: true };
+    } catch (error) {
+      return { summary: { dataset, ...safeSourceError(error) }, tables: [] as string[], complete: false };
     }
-  }
-
-  const configuredTables = new Set<string>();
-
-  for (const role of SOURCE_ROLES) {
-    const def = SOURCE_DEFINITIONS[role];
+  }));
+  const sourceWork = Promise.all(SOURCE_ROLES.map(async role => {
     const table = sourceTable(clientId, role);
-    if (!table) {
-      sources.push({
-        role,
-        label: def.label,
-        table: null,
-        status: 'UNCONFIGURED',
-        parameterContract: {
-          dateField: def.dateField,
-          dateMeaning: def.dateMeaning,
-          filterFields: def.filters,
-          requiredIdentityFields: def.requiredIdentityFields,
-        },
-        rowCount: null,
-        populated: null,
-        metrics: [],
-      });
-      continue;
-    }
-
-    configuredTables.add(table);
-
+    const def = definitionForSource(role, table);
+    const base = {
+      role, label: def.label, table,
+      parameterContract: { dateField: def.dateField, dateMeaning: def.dateMeaning, filterFields: def.filters, requiredIdentityFields: def.requiredIdentityFields },
+      populated: null,
+    };
+    if (!table) return { ...base, status: 'UNCONFIGURED', rowCount: null, rowCountStatus: 'UNAVAILABLE', metrics: [] };
     try {
       const meta = await access.metadata(table);
-      const schemaFields = meta.schema?.fields || [];
-      const fields = flatSchema(schemaFields);
-
-      // Check date field compatibility
-      const dateType = fields.get(def.dateField);
-      let status = 'SCHEMA_PRESENT';
-      let reason: string | undefined;
-
-      if (!dateType || dateType.repeated || !['STRING', 'TIMESTAMP', 'DATETIME', 'DATE'].includes(dateType.type)) {
-        status = 'SCHEMA_GAP';
-        reason = `Incompatible date fields: ${def.dateField}`;
-      }
-
-      const metrics = def.metrics.map(m => {
-        if (!m.field) {
-          return { id: m.id, label: m.label, status: 'AVAILABLE' };
-        }
-        const fieldMeta = fields.get(m.field);
-        if (!fieldMeta) {
-          return { id: m.id, label: m.label, status: 'FIELD_MISSING' };
-        }
-        if (fieldMeta.repeated || ['RECORD', 'STRUCT', 'JSON', 'BYTES', 'GEOGRAPHY'].includes(fieldMeta.type)) {
-          return { id: m.id, label: m.label, status: 'FIELD_UNSUPPORTED' };
-        }
-        return { id: m.id, label: m.label, status: 'AVAILABLE' };
+      const fields = flatSchema(meta.schema?.fields || []);
+      const date = fields.get(def.dateField);
+      const compatibleDate = date && !date.repeated && ['STRING', 'TIMESTAMP', 'DATETIME', 'DATE'].includes(date.type);
+      const metrics = def.metrics.map(metric => {
+        const field = metric.field ? fields.get(metric.field) : undefined;
+        return { id: metric.id, label: metric.label, status: !metric.field ? 'AVAILABLE' : !field ? 'FIELD_MISSING' : field.repeated || ['RECORD', 'STRUCT', 'JSON', 'BYTES', 'GEOGRAPHY'].includes(field.type) ? 'FIELD_UNSUPPORTED' : 'AVAILABLE' };
       });
-
-      sources.push({
-        role,
-        label: def.label,
-        table,
-        status,
-        reason,
-        parameterContract: {
-          dateField: def.dateField,
-          dateMeaning: def.dateMeaning,
-          filterFields: def.filters,
-          requiredIdentityFields: def.requiredIdentityFields,
-        },
-        rowCount: meta.numRows !== undefined && meta.numRows !== null ? String(meta.numRows) : '0',
-        populated: null,
+      const rawRows = meta.numRows == null ? null : String(meta.numRows);
+      // Views typically have no numRows; unknown is not an empty source.
+      const rowCount = rawRows !== null && /^\d+$/.test(rawRows) ? rawRows : null;
+      return { ...base, status: compatibleDate ? 'SCHEMA_PRESENT' : 'SCHEMA_GAP',
+        reason: compatibleDate ? undefined : `Incompatible date fields: ${def.dateField}`,
+        rowCount, rowCountStatus: rowCount === null ? 'UNAVAILABLE' : 'METADATA_ESTIMATE',
         metrics,
-      });
-    } catch (err: unknown) {
-      const failure = safeSourceError(err);
-      sources.push({
-        role,
-        label: def.label,
-        table,
-        ...failure,
-        parameterContract: {
-          dateField: def.dateField,
-          dateMeaning: def.dateMeaning,
-          filterFields: def.filters,
-          requiredIdentityFields: def.requiredIdentityFields,
-        },
-        rowCount: null,
-        populated: null,
-        metrics: def.metrics.map(m => ({ id: m.id, label: m.label, status: failure.status })),
-      });
+      };
+    } catch (error) {
+      const failure = safeSourceError(error);
+      return { ...base, ...failure, rowCount: null, rowCountStatus: 'UNAVAILABLE', metrics: def.metrics.map(metric => ({ id: metric.id, label: metric.label, status: failure.status })) };
     }
-  }
-
-  const unmappedTables = allTables.filter(t => !configuredTables.has(t));
-
+  }));
+  const [inventoryResults, sources] = await Promise.all([inventoryWork, sourceWork]);
   return {
     sources,
-    inventory,
-    inventoryComplete,
-    unmappedTables,
+    inventory: inventoryResults.map(item => item.summary),
+    inventoryComplete: inventoryResults.every(item => item.complete),
+    unmappedTables: [...new Set(inventoryResults.flatMap(item => item.tables))].filter(table => !configuredTables.has(table)),
     validationStatus: 'NOT_VERIFIED',
   };
 }

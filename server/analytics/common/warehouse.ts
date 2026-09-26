@@ -1,5 +1,6 @@
 import { getClientConfig, tableIdentifier } from '../../bigquery/config';
 import { RequestError } from '../../bigquery/filters';
+import { leadSourceRelation } from '../../bigquery/leadSource';
 
 export function configuredSourceTable(
   clientId: string,
@@ -8,7 +9,7 @@ export function configuredSourceTable(
   const config = getClientConfig(clientId);
   const table = config.semanticMappings.tables[role];
   if (!table) throw new RequestError(`No configured ${role} source table exists for tenant ${config.id}`, 422);
-  return tableIdentifier(table);
+  return role === 'leads' ? leadSourceRelation(config) : tableIdentifier(table);
 }
 
 export function parseConfiguredTable(table: string): { project: string; dataset: string; table: string } {
@@ -16,14 +17,10 @@ export function parseConfiguredTable(table: string): { project: string; dataset:
   if (!match) throw new RequestError('Configured marketing table identifier is invalid', 500);
   return { project: match[1], dataset: match[2], table: match[3] };
 }
-
 export function safeWarehouseColumn(column: string): string {
-  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column)) {
-    throw new RequestError('Unsafe warehouse column identifier', 500);
-  }
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column)) throw new RequestError('Unsafe warehouse column identifier', 500);
   return `\`${column}\``;
 }
-
 export function safeAliasedColumn(alias: string, column: string): string {
   if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(alias)) throw new RequestError('Unsafe warehouse alias', 500);
   return `${alias}.${safeWarehouseColumn(column)}`;
