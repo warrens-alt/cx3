@@ -8,9 +8,11 @@ import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import { downloadCsv } from '../lib/formatters';
 
+import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 type MetricView = 'contactRate' | 'saleRate' | 'volume';
 
 export default function TemporalIntelligence() {
+  const scoped = useScopedNavigationTarget();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
   const [data, setData] = useState<TemporalData | null>(null);
@@ -149,7 +151,7 @@ export default function TemporalIntelligence() {
 
             <section className="cx-command-shortcuts">
               <button type="button" onClick={handleExportCsv}><Download size={16}/><span><strong>Export matrix</strong><small>Download the current day/hour population</small></span></button>
-              <Link to="/speed-to-lead"><Clock3 size={16}/><span><strong>Speed to lead</strong><small>Compare first-dial age with downstream outcomes</small></span></Link>
+              <Link to={scoped('/speed-to-lead')}><Clock3 size={16}/><span><strong>Speed to lead</strong><small>Compare first-dial age with downstream outcomes</small></span></Link>
             </section>
           </>
         )}
