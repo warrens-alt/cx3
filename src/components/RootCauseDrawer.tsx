@@ -29,6 +29,7 @@ export default function RootCauseDrawer({
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setData(null);
     fetchRootCause({
       clientId: selectedClient,
       startDate,
