@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
@@ -21,6 +20,7 @@ import { useAuth } from '../lib/AuthContext';
 import { fetchOverview, type OverviewData, type RootCauseData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import RootCauseDrawer from '../components/RootCauseDrawer';
+import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 
 const fmt = (value: number) => value.toLocaleString();
 type RootMetric = RootCauseData['metric']['id'];
