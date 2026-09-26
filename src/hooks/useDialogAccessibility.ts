@@ -35,6 +35,10 @@ export function useDialogAccessibility<T extends HTMLElement>(
     const frame = window.requestAnimationFrame(focusFirst);
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      const openDialogs = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"][aria-modal="true"]'));
+      const topmostDialog = openDialogs[openDialogs.length - 1];
+      if (topmostDialog && topmostDialog !== dialog) return;
+
       if (event.key === 'Escape' && onClose) {
         event.preventDefault();
         event.stopPropagation();
