@@ -728,8 +728,8 @@ export async function fetchAgentPerformance(params: Record<string, any> = {}, fo
   return fetchOffernetJson<AgentPerformanceData>(`/api/analytics/offernet/agent-performance${buildQueryString(params)}`, forceRefresh);
 }
 
-export async function fetchMarketingDiscovery(forceRefresh = false): Promise<MarketingDiscoveryData> {
-  return fetchOffernetJson<MarketingDiscoveryData>(`/api/analytics/offernet/marketing-discovery`, forceRefresh);
+export async function fetchMarketingDiscovery(params: Record<string, any> = {}, forceRefresh = false): Promise<MarketingDiscoveryData> {
+  return fetchOffernetJson<MarketingDiscoveryData>(`/api/analytics/offernet/marketing-discovery${buildQueryString(params)}`, forceRefresh);
 }
 
 export async function fetchMarketingRootCause(params: Record<string, any> = {}, forceRefresh = false): Promise<MarketingRootCauseData> {
