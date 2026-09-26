@@ -162,8 +162,12 @@ function marketingContract(
   return { ...BASE_MARKETING_CONTRACT, mappingStatus, clientNames };
 }
 
-function tenantTables(leads: string) {
-  return { ...BASE_TABLES, leads };
+function tenantTables(leads: string, includeBlcActivationSource = false) {
+  return {
+    ...BASE_TABLES,
+    leads,
+    activations: includeBlcActivationSource ? BASE_TABLES.activations : undefined,
+  };
 }
 
 const CONTRACT_LEAD_VIEWS = {
@@ -250,7 +254,7 @@ const TENANTS: Record<string, TenantConfiguration> = {
     bigQueryDatasets: ['lead_ledger'],
     dataSourceMode: 'separate',
     capabilities: { marketing: true, leads: true, calls: true, sales: true, activation: true, revenue: true },
-    semanticMappings: { tables: tenantTables(CONTRACT_LEAD_VIEWS.ontact_blc), fields: {}, partners: ['blc'] },
+    semanticMappings: { tables: tenantTables(CONTRACT_LEAD_VIEWS.ontact_blc, true), fields: {}, partners: ['blc'] },
     marketing: marketingContract('MAPPED', ['BLC', 'BLC 1Life']),
     operationalConfig: {
       ...DEFAULT_OPERATIONAL_CONFIG,
