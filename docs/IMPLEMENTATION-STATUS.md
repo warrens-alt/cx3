@@ -49,6 +49,13 @@ The hardening revision removes or withholds results that were not supported by v
 
 Where the source supports an observed value, it is returned. Where a required contract is missing, the API returns `null`, `UNAVAILABLE`, `PARTIAL`, `NOT_VERIFIED`, or a 4xx/5xx response rather than manufacturing a number.
 
+
+## Frontend consolidation
+
+The current command-centre routes are the maintained product surfaces. Superseded page implementations that were no longer mounted by `src/App.tsx` have been removed rather than retained beside their replacements. Historical URLs remain supported through explicit redirects to the maintained surfaces, so bookmarks and internal links continue to resolve without preserving duplicate implementations.
+
+`docs/SURFACE-INVENTORY.md` is generated from the current route and API sources, and `npm run verify` fails when that inventory is stale.
+
 ## Evidence reporting
 
 `contracts/reporting.ts` defines the intended versioned evidence metric contract and `server/reporting/repository.ts` contains immutable snapshot verification logic.

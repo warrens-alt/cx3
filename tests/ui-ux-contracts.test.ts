@@ -371,3 +371,26 @@ test('trust-safe funnel, outcome and temporal presentation', () => {
   assert.match(speed, /formatTableNumber\(row\.leads\)/);
   assert.match(speed, /formatPercent\(row\.contactRate\)/);
 });
+
+test('superseded page implementations stay removed behind compatibility redirects', () => {
+  for (const path of [
+    'src/pages/Acquisition.tsx',
+    'src/pages/CallPerformance.tsx',
+    'src/pages/DataAudit.tsx',
+    'src/pages/DataCoverage.tsx',
+    'src/pages/DataQuality.tsx',
+    'src/pages/DataTrust.tsx',
+    'src/pages/Explore.tsx',
+    'src/pages/Funnel.tsx',
+    'src/pages/Insights.tsx',
+    'src/pages/LeadExplorer.tsx',
+    'src/pages/Outcomes.tsx',
+    'src/pages/Overview.tsx',
+    'src/pages/QualityVetting.tsx',
+    'src/pages/Revetting.tsx',
+    'src/pages/SourceAnalysis.tsx',
+    'src/pages/SpeedToLead.tsx',
+  ]) {
+    assert.equal(fs.existsSync(path), false, `superseded page returned: ${path}`);
+  }
+});
