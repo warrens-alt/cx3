@@ -2515,20 +2515,9 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
     queryParams.campaign = params.campaign;
   }
 
-  const grainFields = contract.spendGrainFields.map(safeWarehouseColumn);
-  const grainExpression = `TO_JSON_STRING(STRUCT(${grainFields.join(', ')}))`;
-  const grainQuery = `
-    SELECT
-      COUNT(*) AS row_count,
-      COUNT(DISTINCT ${grainExpression}) AS distinct_grain_count,
-      COUNT(*) - COUNT(DISTINCT ${grainExpression}) AS duplicate_grain_rows
-    FROM \`${contract.table}\`
-    WHERE ${conditions.join(' AND ')}
-  `;
-  const [grainRows] = await client.query({ query: grainQuery, params: queryParams });
-  const grain = grainRows[0] || {};
-  const duplicateGrainRows = Number(grain.duplicate_grain_rows || 0);
-  const grainStatus = duplicateGrainRows > 0 ? 'DUPLICATE_GRAIN' : 'VALID';
+  const grain = await validateMarketingSpendGrain(client, contract, conditions, queryParams);
+  const duplicateGrainRows = grain.duplicateGrainRows;
+  const grainStatus = grain.status;
 
   const query = `
     SELECT
@@ -2706,8 +2695,8 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
     mappingStatus: contract.mappingStatus,
     grainStatus,
     grainDiagnostics: {
-      rowCount: Number(grain.row_count || 0),
-      distinctGrainCount: Number(grain.distinct_grain_count || 0),
+      rowCount: grain.rowCount,
+      distinctGrainCount: grain.distinctGrainCount,
       duplicateGrainRows,
       fields: contract.spendGrainFields,
     },
@@ -2935,17 +2924,6 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
   if (!contract || !clientConfig.capabilities.marketing) {
     return { status: 'UNAVAILABLE', reason: 'No marketing contract is configured.', rows: [], summary: null };
   }
-  const incompatibleScope = ['vendor', 'source', 'medium', 'grade', 'agent', 'campaign']
-    .filter(key => Boolean((params as unknown as Record<string, unknown>)[key]));
-  if (incompatibleScope.length) {
-    return {
-      status: 'UNAVAILABLE',
-      reason: `Attribution is withheld because the active reporting scope includes operational dimensions that are not reconciled to the marketing source: ${incompatibleScope.join(', ')}.`,
-      rows: [],
-      contract: contract.attribution,
-    };
-  }
-
   if (contract.attribution.status !== 'ACTIVE') {
     return {
       status: 'UNAVAILABLE',
