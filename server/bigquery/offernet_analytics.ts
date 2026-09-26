@@ -2476,6 +2476,7 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
     previousStartDate: string;
     previousEndDate: string;
   } = null;
+  let comparisonReason: string | null = null;
 
   if (params.startDate && params.endDate) {
     const startMs = Date.parse(params.startDate + 'T00:00:00Z');
@@ -2500,41 +2501,46 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
         priorParams.campaign = params.campaign;
       }
 
-      const priorQuery = `
-        SELECT
-          SUM(SAFE_CAST(${impressionsField} AS FLOAT64)) AS impressions,
-          SUM(SAFE_CAST(${clicksField} AS FLOAT64)) AS clicks,
-          SUM(SAFE_CAST(${leadsField} AS FLOAT64)) AS recorded_leads,
-          ${spendValue && grainStatus === 'VALID' ? `SUM(${spendValue})` : 'CAST(NULL AS FLOAT64)'} AS recorded_spend
-        FROM \`${contract.table}\`
-        WHERE ${priorConditions.join(' AND ')}
-      `;
+      const priorGrain = await validateMarketingSpendGrain(client, contract, priorConditions, priorParams);
+      if (priorGrain.status !== 'VALID') {
+        comparisonReason = `Matched-period comparison withheld because the prior period contains ${priorGrain.duplicateGrainRows.toLocaleString()} duplicate rows at the approved spend grain.`;
+      } else {
+        const priorQuery = `
+          SELECT
+            SUM(SAFE_CAST(${impressionsField} AS FLOAT64)) AS impressions,
+            SUM(SAFE_CAST(${clicksField} AS FLOAT64)) AS clicks,
+            SUM(SAFE_CAST(${leadsField} AS FLOAT64)) AS recorded_leads,
+            ${spendValue && grainStatus === 'VALID' ? `SUM(${spendValue})` : 'CAST(NULL AS FLOAT64)'} AS recorded_spend
+          FROM \`${contract.table}\`
+          WHERE ${priorConditions.join(' AND ')}
+        `;
 
-      const [priorRows] = await client.query({ query: priorQuery, params: priorParams });
-      const prior = priorRows[0] || {};
-      const priorSpend = hasSpend && prior.recorded_spend !== null ? Number(prior.recorded_spend || 0) : null;
-      const priorImpressions = Number(prior.impressions || 0);
-      const priorClicks = Number(prior.clicks || 0);
-      const priorLeads = Number(prior.recorded_leads || 0);
-      const priorCtr = priorImpressions > 0 ? (priorClicks / priorImpressions) * 100 : 0;
-      const priorCpc = priorSpend !== null && priorClicks > 0 ? priorSpend / priorClicks : null;
-      const priorCpm = priorSpend !== null && priorImpressions > 0 ? (priorSpend / priorImpressions) * 1000 : null;
-      const priorCpl = priorSpend !== null && priorLeads > 0 ? priorSpend / priorLeads : null;
-      const pct = (current: number | null, previous: number | null) =>
-        current !== null && previous !== null && previous !== 0
-          ? Number((((current - previous) / previous) * 100).toFixed(1))
-          : null;
+        const [priorRows] = await client.query({ query: priorQuery, params: priorParams });
+        const prior = priorRows[0] || {};
+        const priorSpend = hasSpend && prior.recorded_spend !== null ? Number(prior.recorded_spend || 0) : null;
+        const priorImpressions = Number(prior.impressions || 0);
+        const priorClicks = Number(prior.clicks || 0);
+        const priorLeads = Number(prior.recorded_leads || 0);
+        const priorCtr = priorImpressions > 0 ? (priorClicks / priorImpressions) * 100 : 0;
+        const priorCpc = priorSpend !== null && priorClicks > 0 ? priorSpend / priorClicks : null;
+        const priorCpm = priorSpend !== null && priorImpressions > 0 ? (priorSpend / priorImpressions) * 1000 : null;
+        const priorCpl = priorSpend !== null && priorLeads > 0 ? priorSpend / priorLeads : null;
+        const pct = (current: number | null, previous: number | null) =>
+          current !== null && previous !== null && previous !== 0
+            ? Number((((current - previous) / previous) * 100).toFixed(1))
+            : null;
 
-      comparison = {
-        spendDeltaPct: pct(summary.spend, priorSpend),
-        cpcDeltaPct: pct(summary.cpc, priorCpc),
-        cpmDeltaPct: pct(summary.cpm, priorCpm),
-        cplDeltaPct: pct(summary.cpl, priorCpl),
-        ctrDeltaPp: Number((summary.ctr - priorCtr).toFixed(2)),
-        leadsDeltaPct: pct(summary.leads, priorLeads),
-        previousStartDate,
-        previousEndDate,
-      };
+        comparison = {
+          spendDeltaPct: pct(summary.spend, priorSpend),
+          cpcDeltaPct: pct(summary.cpc, priorCpc),
+          cpmDeltaPct: pct(summary.cpm, priorCpm),
+          cplDeltaPct: pct(summary.cpl, priorCpl),
+          ctrDeltaPp: Number((summary.ctr - priorCtr).toFixed(2)),
+          leadsDeltaPct: pct(summary.leads, priorLeads),
+          previousStartDate,
+          previousEndDate,
+        };
+      }
     }
   }
 
@@ -2548,6 +2554,7 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
     campaigns,
     summary,
     comparison,
+    comparisonReason,
     status: grainStatus !== 'VALID' ? 'INVALID_GRAIN' : hasSpend ? 'OBSERVED' : 'PARTIAL',
     reason,
     mappingStatus: contract.mappingStatus,
