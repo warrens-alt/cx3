@@ -114,8 +114,14 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
   if (cliIdx === -1) {
     errors.push("Missing required CLI column. Expected 'cli_number', 'cli', or 'caller_id'.");
   }
+  if (campaignIdx === -1) {
+    errors.push("Missing required campaign column. Expected 'campaign_code', 'campaign', or 'campaign_id'.");
+  }
   if (callsIdx === -1) {
     errors.push("Missing required call volume column. Expected 'total_calls' or 'calls'.");
+  }
+  if (dateIdx === -1) {
+    errors.push("Missing required report date column. Expected 'report_date', 'date', or 'call_date'.");
   }
   if (campaignIdx === -1) {
     errors.push("Missing required campaign column. Expected 'campaign_code', 'campaign', or 'campaign_id'.");
