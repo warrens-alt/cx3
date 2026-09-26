@@ -367,6 +367,18 @@ export const ROR_PARTNER_TO_VENDOR_MAP: Record<string, string> = {
   AFFILIATE: 'Affiliate',
 };
 
+export function tenantVendorScopeValues(config: TenantConfiguration): string[] {
+  const values = new Set<string>();
+  for (const partner of config.semanticMappings.partners || []) {
+    const raw = partner.trim();
+    if (raw) values.add(raw.toLowerCase());
+    const mapped = ROR_PARTNER_TO_VENDOR_MAP[raw.toUpperCase()];
+    if (mapped) values.add(mapped.toLowerCase());
+  }
+  return Array.from(values);
+}
+
+
 function configuredMarketingClientNames(tenantId: string): string[] | null {
   const raw = process.env.CX_MARKETING_CLIENT_MAP_JSON;
   if (!raw) return null;
