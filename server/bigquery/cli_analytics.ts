@@ -555,8 +555,7 @@ export function computeDurationBands(records: CliPerformanceRecord[]): CliDurati
   if (!records.length || records.some(record =>
     record.durationGe1mCount === null ||
     record.durationGe5mCount === null ||
-    record.durationGe15mCount === null ||
-    record.totalDurationSeconds === null
+    record.durationGe15mCount === null
   )) return unavailable();
 
   let totalCalls = 0;
@@ -564,13 +563,18 @@ export function computeDurationBands(records: CliPerformanceRecord[]): CliDurati
   let ge5m = 0;
   let ge15m = 0;
   let totalSec = 0;
+  let hasCompleteDurationSeconds = true;
 
   for (const record of records) {
     totalCalls += parseInt(record.totalCalls, 10) || 0;
     ge1m += parseInt(record.durationGe1mCount!, 10) || 0;
     ge5m += parseInt(record.durationGe5mCount!, 10) || 0;
     ge15m += parseInt(record.durationGe15mCount!, 10) || 0;
-    totalSec += parseInt(record.totalDurationSeconds!, 10) || 0;
+    if (record.totalDurationSeconds === null) {
+      hasCompleteDurationSeconds = false;
+    } else {
+      totalSec += parseInt(record.totalDurationSeconds, 10) || 0;
+    }
   }
 
   if (totalCalls <= 0) return unavailable();
@@ -588,8 +592,8 @@ export function computeDurationBands(records: CliPerformanceRecord[]): CliDurati
     fiveTo15mPct: ((fiveTo15m / totalCalls) * 100).toFixed(2),
     over15mCount: String(ge15m),
     over15mPct: ((ge15m / totalCalls) * 100).toFixed(2),
-    totalDurationSeconds: String(totalSec),
-    avgDurationSeconds: (totalSec / totalCalls).toFixed(1),
+    totalDurationSeconds: hasCompleteDurationSeconds ? String(totalSec) : null,
+    avgDurationSeconds: hasCompleteDurationSeconds ? (totalSec / totalCalls).toFixed(1) : null,
     medianDurationSeconds: null,
   };
 }
