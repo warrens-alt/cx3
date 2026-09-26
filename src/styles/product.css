@@ -2122,7 +2122,7 @@
 
 
 /* OfferNet operating-control analytics */
-.cx-control-metrics { grid-template-columns:repeat(5,minmax(0,1fr)); }
+.cx-control-metrics { grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); }
 .cx-control-note {
   padding:9px 14px;
   border-top:1px solid #EDF1F5;
@@ -2217,4 +2217,73 @@
   .cx-control-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .cx-control-completeness { grid-template-columns:1fr 1fr; }
   .cx-segment-funnel-rates { grid-template-columns:repeat(2,1fr)!important; }
+}
+
+
+.cx-turnaround-kpis {
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:0;
+  border-bottom:1px solid #EDF1F5;
+}
+.cx-turnaround-kpis article {
+  min-width:0;
+  padding:13px 14px;
+  border-right:1px solid #EDF1F5;
+}
+.cx-turnaround-kpis article:last-child { border-right:0; }
+.cx-turnaround-kpis span,
+.cx-turnaround-kpis strong,
+.cx-turnaround-kpis small { display:block; }
+.cx-turnaround-kpis span { color:#718096; font-size:8.5px; font-weight:750; text-transform:uppercase; letter-spacing:.05em; }
+.cx-turnaround-kpis strong { margin-top:5px; color:#172033; font-size:18px; font-weight:740; font-variant-numeric:tabular-nums; }
+.cx-turnaround-kpis small { margin-top:4px; color:#8A97A9; font-size:9px; line-height:1.35; }
+
+.cx-turnaround-grid {
+  grid-template-columns:minmax(320px,.85fr) minmax(420px,1.15fr);
+  gap:0;
+}
+.cx-turnaround-flow,
+.cx-turnaround-days { min-width:0; padding:14px 16px 16px; }
+.cx-turnaround-flow { border-right:1px solid #EDF1F5; }
+.cx-turnaround-flow h3,
+.cx-turnaround-days h3 { margin:0; color:#223047; font-size:11px; font-weight:720; }
+.cx-turnaround-flow>p,
+.cx-turnaround-days>p { margin:3px 0 10px; color:#8794A6; font-size:9px; line-height:1.4; }
+
+.cx-hour-flow-list { display:grid; gap:4px; }
+.cx-hour-flow-list>div {
+  display:grid;
+  grid-template-columns:42px minmax(120px,1fr) 115px;
+  align-items:center;
+  gap:8px;
+  min-height:26px;
+}
+.cx-hour-flow-list>div>span { color:#60738B; font-size:8.5px; font-weight:700; font-variant-numeric:tabular-nums; }
+.cx-hour-flow-list>div>small { color:#7D8B9E; font-size:8.5px; text-align:right; font-variant-numeric:tabular-nums; }
+.cx-hour-flow-bars {
+  display:grid;
+  gap:2px;
+  min-width:0;
+}
+.cx-hour-flow-bars i {
+  display:block;
+  min-width:1px;
+  height:4px;
+  border-radius:999px;
+}
+.cx-hour-flow-bars i[data-series=captured] { background:#7898C8; }
+.cx-hour-flow-bars i[data-series=dialled] { background:#2F9E78; }
+.cx-turnaround-days .cx-performance-table-wrap { max-height:330px; overflow:auto; }
+.cx-turnaround-days .cx-performance-table { min-width:520px; }
+
+@media(max-width:1100px) {
+  .cx-turnaround-kpis { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .cx-turnaround-grid { grid-template-columns:1fr; }
+  .cx-turnaround-flow { border-right:0; border-bottom:1px solid #EDF1F5; }
+}
+@media(max-width:760px) {
+  .cx-turnaround-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .cx-hour-flow-list>div { grid-template-columns:40px minmax(90px,1fr); }
+  .cx-hour-flow-list>div>small { grid-column:1/-1; text-align:left; padding-bottom:3px; }
 }
