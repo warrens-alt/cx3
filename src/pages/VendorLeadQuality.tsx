@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowRight, BarChart3, ShieldCheck } from 'lucide-react';
 import {
-import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
   CartesianGrid,
   ResponsiveContainer,
   Scatter,
@@ -16,6 +15,7 @@ import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import { useClient } from '../lib/ClientContext';
 import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
 import { fetchVendorQuality, type VendorQualityData } from '../lib/offernetClient';
+import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 
 const fmt = (value: number) => value.toLocaleString();
 
