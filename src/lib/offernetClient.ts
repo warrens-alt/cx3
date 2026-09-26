@@ -219,6 +219,8 @@ export interface FunnelData {
   bySource: Array<{
     source: string;
     leads: number;
+    delivered: number;
+    dialled: number;
     contacted: number;
     sales: number;
     activations: number;
@@ -226,6 +228,8 @@ export interface FunnelData {
   byGrade: Array<{
     grade: string;
     leads: number;
+    delivered: number;
+    dialled: number;
     contacted: number;
     sales: number;
     activations: number;
