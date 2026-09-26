@@ -1,0 +1,319 @@
+import React from 'react';
+import {
+  Shield,
+  Clock,
+  UserX,
+  Trash2,
+  Check,
+  Search,
+  Mail,
+  X,
+} from 'lucide-react';
+import type { UserProfile, UserRole, UserStatus } from '../../types/auth';
+import { AVAILABLE_TENANTS } from './userConstants';
+
+interface UsersDirectoryTabProps {
+  users: UserProfile[];
+  loading: boolean;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  statusFilter: 'all' | 'active' | 'pending' | 'suspended';
+  setStatusFilter: (status: 'all' | 'active' | 'pending' | 'suspended') => void;
+  roleFilter: 'all' | 'admin' | 'analyst' | 'viewer';
+  setRoleFilter: (role: 'all' | 'admin' | 'analyst' | 'viewer') => void;
+  currentUser: any;
+  onApprove: (user: UserProfile) => void;
+  onStatusChange: (user: UserProfile, status: UserStatus) => void;
+  onRoleChange: (user: UserProfile, role: UserRole) => void;
+  onDelete: (user: UserProfile) => void;
+  onEditTenants: (user: UserProfile) => void;
+}
+
+export const UsersDirectoryTab: React.FC<UsersDirectoryTabProps> = ({
+  users,
+  loading,
+  searchQuery,
+  setSearchQuery,
+  statusFilter,
+  setStatusFilter,
+  roleFilter,
+  setRoleFilter,
+  currentUser,
+  onApprove,
+  onStatusChange,
+  onRoleChange,
+  onDelete,
+  onEditTenants,
+}) => {
+  return (
+    <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden space-y-4 p-4 sm:p-5">
+      {/* Controls bar */}
+      <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search users by name or email…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            aria-label="Filter by status"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="px-3 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 bg-white"
+          >
+            <option value="all">All Statuses</option>
+            <option value="active">Active Only</option>
+            <option value="pending">Pending Approval</option>
+            <option value="suspended">Suspended Only</option>
+          </select>
+
+          <select
+            aria-label="Filter by role"
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value as any)}
+            className="px-3 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 bg-white"
+          >
+            <option value="all">All Roles</option>
+            <option value="admin">Admins</option>
+            <option value="analyst">Analysts</option>
+            <option value="viewer">Viewers</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto border border-slate-200 rounded-lg">
+        <table className="w-full text-left text-xs text-slate-700">
+          <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
+            <tr>
+              <th className="px-4 py-3">User & Identity</th>
+              <th className="px-4 py-3">Role</th>
+              <th className="px-4 py-3">Access Status</th>
+              <th className="px-4 py-3">Client Workspaces</th>
+              <th className="px-4 py-3">Last Active</th>
+              <th className="px-4 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {loading && (
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                  Loading user directory…
+                </td>
+              </tr>
+            )}
+
+            {!loading && users.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                  No users match the search filter.
+                </td>
+              </tr>
+            )}
+
+            {!loading &&
+              users.map((user) => {
+                const isSelf = user.uid === currentUser?.uid;
+                const isSuper = user.email.toLowerCase() === 'warrens@bastionflowe.com';
+                const allowed = user.allowedTenants || ['*'];
+                const hasAllTenants = allowed.includes('*');
+
+                return (
+                  <tr
+                    key={user.uid}
+                    className={`hover:bg-slate-50/70 transition-colors ${
+                      user.status === 'pending' ? 'bg-amber-50/30' : ''
+                    }`}
+                  >
+                    {/* User Identity */}
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-3">
+                        {user.photoURL ? (
+                          <img
+                            src={user.photoURL}
+                            alt=""
+                            className="w-8 h-8 rounded-full border border-slate-200 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs shrink-0">
+                            {user.displayName?.charAt(0) || user.email.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <div className="font-semibold text-slate-900 truncate flex items-center gap-1.5">
+                            {user.displayName || 'Unnamed User'}
+                            {isSelf && (
+                              <span className="px-1.5 py-0.2 bg-blue-100 text-blue-700 rounded text-[10px] font-medium">
+                                You
+                              </span>
+                            )}
+                            {isSuper && (
+                              <span className="px-1.5 py-0.2 bg-purple-100 text-purple-700 rounded text-[10px] font-medium">
+                                Super Admin
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-slate-500 text-[11px] truncate flex items-center gap-1">
+                            <Mail className="w-3 h-3 text-slate-400" />
+                            <span>{user.email}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Role */}
+                    <td className="px-4 py-3.5">
+                      {isSuper ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800">
+                          <Shield className="w-3 h-3" />
+                          Admin
+                        </span>
+                      ) : (
+                        <select
+                          aria-label={`Role for ${user.email}`}
+                          value={user.role}
+                          onChange={(e) => onRoleChange(user, e.target.value as UserRole)}
+                          disabled={isSelf}
+                          className="px-2.5 py-1 border border-slate-200 rounded-md text-xs font-semibold bg-white cursor-pointer hover:border-slate-300"
+                        >
+                          <option value="admin">Admin</option>
+                          <option value="analyst">Analyst</option>
+                          <option value="viewer">Viewer</option>
+                        </select>
+                      )}
+                    </td>
+
+                    {/* Status */}
+                    <td className="px-4 py-3.5">
+                      {user.status === 'active' && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                          Active
+                        </span>
+                      )}
+                      {user.status === 'pending' && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 animate-pulse">
+                          <Clock className="w-3 h-3" />
+                          Pending Approval
+                        </span>
+                      )}
+                      {user.status === 'suspended' && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-800">
+                          <UserX className="w-3 h-3" />
+                          Suspended
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Client Workspaces */}
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-1.5 flex-wrap max-w-xs">
+                        {hasAllTenants ? (
+                          <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-[11px] font-medium border border-blue-200">
+                            All Workspaces (*)
+                          </span>
+                        ) : (
+                          allowed.slice(0, 2).map((tId) => (
+                            <span
+                              key={tId}
+                              className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-medium"
+                            >
+                              {AVAILABLE_TENANTS.find((t) => t.id === tId)?.name || tId}
+                            </span>
+                          ))
+                        )}
+                        {!hasAllTenants && allowed.length > 2 && (
+                          <span className="text-[10px] text-slate-500 font-medium">
+                            +{allowed.length - 2} more
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => onEditTenants(user)}
+                          className="text-[11px] text-blue-600 hover:text-blue-800 underline font-medium ml-1 cursor-pointer"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    </td>
+
+                    {/* Last Active */}
+                    <td className="px-4 py-3.5 text-slate-500 text-[11px]">
+                      {user.lastLoginAt
+                        ? new Date(user.lastLoginAt).toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : 'Never'}
+                    </td>
+
+                    {/* Actions */}
+                    <td className="px-4 py-3.5 text-right space-x-1.5 whitespace-nowrap">
+                      {user.status === 'pending' && (
+                        <button
+                          type="button"
+                          onClick={() => onApprove(user)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs shadow-sm transition-colors cursor-pointer"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Approve</span>
+                        </button>
+                      )}
+
+                      {user.status === 'active' && !isSelf && !isSuper && (
+                        <button
+                          type="button"
+                          onClick={() => onStatusChange(user, 'suspended')}
+                          className="px-2.5 py-1 rounded border border-slate-300 hover:bg-rose-50 hover:text-rose-700 text-slate-600 font-medium text-xs transition-colors cursor-pointer"
+                        >
+                          Suspend
+                        </button>
+                      )}
+
+                      {user.status === 'suspended' && (
+                        <button
+                          type="button"
+                          onClick={() => onStatusChange(user, 'active')}
+                          className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs transition-colors cursor-pointer"
+                        >
+                          Reactivate
+                        </button>
+                      )}
+
+                      {!isSelf && !isSuper && (
+                        <button
+                          type="button"
+                          onClick={() => onDelete(user)}
+                          title="Delete account"
+                          className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer inline-block"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};

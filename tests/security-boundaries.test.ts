@@ -1,8 +1,40 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import path from 'node:path';
 
-const read = (path: string) => fs.readFileSync(path, 'utf8');
+const read = (p: string) => fs.readFileSync(p, 'utf8');
+
+function readAnalytics(): string {
+  const facade = read('server/bigquery/offernet_analytics.ts');
+  const dir = path.resolve('server/analytics');
+  function readAll(d: string): string {
+    let out = '';
+    for (const ent of fs.readdirSync(d, { withFileTypes: true })) {
+      const target = path.join(d, ent.name);
+      if (ent.isDirectory()) out += '\n' + readAll(target);
+      else if (ent.isFile() && ent.name.endsWith('.ts')) out += '\n' + fs.readFileSync(target, 'utf8');
+    }
+    return out;
+  }
+  return facade + '\n' + readAll(dir);
+}
+
+function readClient(): string {
+  const facade = read('src/lib/offernetClient.ts');
+  const dir = path.resolve('src/lib/offernet');
+  if (!fs.existsSync(dir)) return facade;
+  function readAll(d: string): string {
+    let out = '';
+    for (const ent of fs.readdirSync(d, { withFileTypes: true })) {
+      const target = path.join(d, ent.name);
+      if (ent.isDirectory()) out += '\n' + readAll(target);
+      else if (ent.isFile() && ent.name.endsWith('.ts')) out += '\n' + fs.readFileSync(target, 'utf8');
+    }
+    return out;
+  }
+  return facade + '\n' + readAll(dir);
+}
 
 test('production authentication is fail closed and local bypass is explicit', () => {
   const server = read('server.ts');
@@ -23,7 +55,7 @@ test('operational analytics are never globally stamped VERIFIED', () => {
 });
 
 test('known manufactured analytics are absent', () => {
-  const analytics = read('server/bigquery/offernet_analytics.ts');
+  const analytics = readAnalytics();
   assert.doesNotMatch(analytics, /overallHealthScore:\s*94\.6/);
   assert.doesNotMatch(analytics, /SUM\(budget\)\s+AS\s+total_spend/i);
   assert.doesNotMatch(analytics, /const unitLeadCost\s*=\s*45/);
@@ -45,7 +77,7 @@ test('production start executes only the generated dist bundle', () => {
 
 
 test('root-cause analysis is metric allow-listed and requires matched dates', () => {
-  const analytics = read('server/bigquery/offernet_analytics.ts');
+  const analytics = readAnalytics();
   assert.match(analytics, /allowedMetrics = new Set\(\['fetchedLeads', 'deliveryRate', 'dialRate', 'contactRate', 'leadToSaleRate', 'activationRate'\]\)/);
   assert.match(analytics, /Root-cause analysis requires an explicit startDate and endDate/);
   assert.match(analytics, /Unsupported root-cause metric/);
@@ -53,7 +85,7 @@ test('root-cause analysis is metric allow-listed and requires matched dates', ()
 
 test('record drill-down remains admin-only and drill populations are allow-listed', () => {
   const api = read('server/api.ts');
-  const analytics = read('server/bigquery/offernet_analytics.ts');
+  const analytics = readAnalytics();
   assert.match(api, /analyticsRouter\.get\('\/offernet\/raw-leads', requireAdmin/);
   assert.match(analytics, /Unsupported drill-down population/);
   for (const drill of ['awaiting-first-dial', 'missing-disposition', 'unactivated-sales', 'sla-breach', 'backlog-age', 'funnel-loss', 'funnel-stage', 'lead-age', 'high-attempt-no-rpc', 'one-call-only']) {
@@ -62,7 +94,7 @@ test('record drill-down remains admin-only and drill populations are allow-liste
 });
 
 test('root-cause dimensions are reduced to exclusive lead-level segments', () => {
-  const analytics = read('server/bigquery/offernet_analytics.ts');
+  const analytics = readAnalytics();
   assert.match(analytics, /lead_level AS/);
   assert.match(analytics, /'vendor' AS dimension/);
   assert.match(analytics, /'source'/);
@@ -74,7 +106,7 @@ test('root-cause dimensions are reduced to exclusive lead-level segments', () =>
 
 test('marketing spend never falls back to budget', () => {
   const config = read('server/bigquery/config.ts');
-  const analytics = read('server/bigquery/offernet_analytics.ts');
+  const analytics = readAnalytics();
   assert.match(config, /approvedSpendFields/);
   assert.match(config, /approvedBudgetFields/);
   assert.match(analytics, /latest_budget/);
@@ -83,7 +115,7 @@ test('marketing spend never falls back to budget', () => {
 });
 
 test('observed media efficiency is derived only when an approved spend field and valid grain exist', () => {
-  const analytics = read('server/bigquery/offernet_analytics.ts');
+  const analytics = readAnalytics();
   assert.match(analytics, /const hasSpend = Boolean\(resolved\.spendColumn && grainStatus === 'VALID'\)/);
   assert.match(analytics, /cpc: hasSpend && totals\.clicks > 0/);
   assert.match(analytics, /cpm: hasSpend && totals\.impressions > 0/);
@@ -105,21 +137,21 @@ test('tenant marketing contracts replace dormant hard-coded cost assumptions', (
 });
 
 test('tenant campaign reporting fails closed until explicit client_name mapping exists', () => {
-  const analytics = read('server/bigquery/offernet_analytics.ts');
+  const analytics = readAnalytics();
   assert.match(analytics, /Marketing API-table mapping is unresolved for this tenant/);
   assert.match(analytics, /marketingTenantFilter\(contract\)/);
   assert.doesNotMatch(analytics, /clientConfig\.id !== 'default_tenant'\)[\s\S]{0,300}Tenant-to-marketing-client mappings are not yet approved/);
 });
 
 test('spend grain is validated before incurred spend is returned', () => {
-  const analytics = read('server/bigquery/offernet_analytics.ts');
+  const analytics = readAnalytics();
   assert.match(analytics, /duplicate_grain_rows/);
   assert.match(analytics, /grainStatus === 'VALID'/);
   assert.match(analytics, /Spend is withheld because the API table violates the configured spend grain/);
 });
 
 test('marketing attribution is explicit and fail closed', () => {
-  const analytics = read('server/bigquery/offernet_analytics.ts');
+  const analytics = readAnalytics();
   assert.match(analytics, /contract\.attribution\.status !== 'ACTIVE'/);
   assert.match(analytics, /Attribution requires an approved observed spend field/);
   assert.match(analytics, /OBSERVED_UNRECONCILED/);
@@ -132,7 +164,7 @@ test('marketing discovery remains admin-only', () => {
 
 
 test('OfferNet operating controls remain lead-level and descriptive', () => {
-  const analytics = read('server/bigquery/offernet_analytics.ts');
+  const analytics = readAnalytics();
   assert.match(analytics, /export async function getOperatingControlsAnalytics/);
   assert.match(analytics, /lead_level AS/);
   assert.match(analytics, /MAX\(GREATEST\(total_calls, 0\)\) AS recorded_call_count/);
@@ -141,24 +173,17 @@ test('OfferNet operating controls remain lead-level and descriptive', () => {
 });
 
 test('contact-strategy call-count buckets are exclusive per lead', () => {
-  const analytics = read('server/bigquery/offernet_analytics.ts');
-  const start = analytics.indexOf('export async function getContactStrategyAnalytics');
-  const end = analytics.indexOf('// 5. VENDOR & LEAD QUALITY', start);
-  const block = analytics.slice(start, end);
-  assert.match(block, /lead_level AS/);
-  assert.match(block, /GROUP BY lead_id/);
-  assert.match(block, /MAX\(GREATEST\(total_calls, 0\)\) AS call_count/);
-  assert.match(block, /do not identify which specific attempt produced the outcome/);
+  const strategy = read('server/analytics/contact/strategy.ts');
+  assert.match(strategy, /export async function getContactStrategyAnalytics/);
+  assert.match(strategy, /lead_level AS/);
+  assert.match(strategy, /GROUP BY lead_id/);
+  assert.match(strategy, /MAX\(GREATEST\(total_calls, 0\)\) AS call_count/);
+  assert.match(strategy, /do not identify which specific attempt produced the outcome/);
 });
 
 test('time-of-day and after-hours analytics use the tenant timezone and configured window', () => {
-  const analytics = read('server/bigquery/offernet_analytics.ts');
-  const speedStart = analytics.indexOf('export async function getSpeedToLeadAnalytics');
-  const speedEnd = analytics.indexOf('// 4. CONTACT STRATEGY', speedStart);
-  const temporalStart = analytics.indexOf('export async function getTemporalAnalytics');
-  const temporalEnd = analytics.indexOf('// 7. SALES & ACTIVATION INTELLIGENCE', temporalStart);
-  const speed = analytics.slice(speedStart, speedEnd);
-  const temporal = analytics.slice(temporalStart, temporalEnd);
+  const speed = read('server/analytics/contact/speedToLead.ts');
+  const temporal = read('server/analytics/temporal/service.ts');
   for (const block of [speed, temporal]) {
     assert.match(block, /@tenantTimezone/);
     assert.match(block, /@operatingStart/);
@@ -170,13 +195,11 @@ test('time-of-day and after-hours analytics use the tenant timezone and configur
 });
 
 test('source and grade funnel analytics include delivery and dial coverage', () => {
-  const analytics = read('server/bigquery/offernet_analytics.ts');
-  const client = read('src/lib/offernetClient.ts');
-  const start = analytics.indexOf('export async function getFunnelIntelligence');
-  const end = analytics.indexOf('export async function getRootCauseAnalysis', start);
-  const block = analytics.slice(start, end);
-  assert.match(block, /by_source AS[\s\S]*delivered_ts IS NOT NULL[\s\S]*first_dial_ts IS NOT NULL/);
-  assert.match(block, /by_grade AS[\s\S]*delivered_ts IS NOT NULL[\s\S]*first_dial_ts IS NOT NULL/);
+  const funnel = read('server/analytics/funnel/service.ts');
+  const client = readClient();
+  assert.match(funnel, /export async function getFunnelIntelligence/);
+  assert.match(funnel, /by_source AS[\s\S]*delivered_ts IS NOT NULL[\s\S]*first_dial_ts IS NOT NULL/);
+  assert.match(funnel, /by_grade AS[\s\S]*delivered_ts IS NOT NULL[\s\S]*first_dial_ts IS NOT NULL/);
   assert.match(client, /source: string;[\s\S]*delivered: number;[\s\S]*dialled: number;/);
   assert.match(client, /grade: string;[\s\S]*delivered: number;[\s\S]*dialled: number;/);
 });
@@ -208,7 +231,7 @@ test('CLI analytics never synthesize missing production metrics', () => {
 test('CLI imported reports require observed RPC and sale counts and preserve tenant scope', () => {
   const cli = read('server/bigquery/cli_analytics.ts');
   const api = read('server/api.ts');
-  const client = read('src/lib/offernetClient.ts');
+  const client = readClient();
   assert.match(cli, /Missing required RPC\/contact count column/);
   assert.match(cli, /Missing required sale count column/);
   assert.match(cli, /selected date scope cannot be applied safely/);
@@ -238,7 +261,7 @@ test('approved tenant data contract is encoded in application configuration', ()
 });
 
 test('marketing attribution supports reconciled source scope and fails closed on unsupported dimensions or invalid spend grain', () => {
-  const analytics = read('server/bigquery/offernet_analytics.ts');
+  const analytics = readAnalytics();
   assert.match(analytics, /do not have an approved equivalent marketing-side mapping/);
   assert.match(analytics, /@attributionSource/);
   assert.match(analytics, /source: undefined/);
@@ -249,7 +272,7 @@ test('marketing attribution supports reconciled source scope and fails closed on
 
 test('marketing contract exposes reach and outbound-click source fields', () => {
   const config = read('server/bigquery/config.ts');
-  const analytics = read('server/bigquery/offernet_analytics.ts');
+  const analytics = readAnalytics();
   assert.match(config, /reachField: 'reach'/);
   assert.match(config, /outboundClicksField: 'outbound_clicks'/);
   assert.match(analytics, /outboundCtr/);
@@ -258,7 +281,7 @@ test('marketing contract exposes reach and outbound-click source fields', () => 
 });
 
 test('BLC activation source freshness uses the contracted date_created timestamp', () => {
-  const analytics = read('server/bigquery/offernet_analytics.ts');
+  const analytics = readAnalytics();
   const config = read('server/bigquery/config.ts');
   assert.match(config, /tenantTables\(CONTRACT_LEAD_VIEWS\.ontact_blc, true\)/);
   assert.match(analytics, /SAFE_CAST\(date_created AS TIMESTAMP\)/);
@@ -266,7 +289,7 @@ test('BLC activation source freshness uses the contracted date_created timestamp
 
 
 test('dedicated tenant lead views are not re-filtered by partner keys', () => {
-  const analytics = read('server/bigquery/offernet_analytics.ts');
+  const analytics = readAnalytics();
   const config = read('server/bigquery/config.ts');
   assert.match(config, /export function tenantVendorScopeValues/);
   assert.match(analytics, /clientConfig\.dataSourceMode === 'shared'/);
@@ -276,7 +299,7 @@ test('dedicated tenant lead views are not re-filtered by partner keys', () => {
 
 test('shared call analytics use canonical tenant vendor aliases', () => {
   const cli = read('server/bigquery/cli_analytics.ts');
-  const analytics = read('server/bigquery/offernet_analytics.ts');
+  const analytics = readAnalytics();
   const config = read('server/bigquery/config.ts');
   assert.match(config, /ROR_PARTNER_TO_VENDOR_MAP/);
   assert.match(config, /values\.add\(mapped\.toLowerCase\(\)\)/);
@@ -284,3 +307,4 @@ test('shared call analytics use canonical tenant vendor aliases', () => {
   assert.match(analytics, /callParams\.tenantVendors = tenantVendors/);
   assert.match(analytics, /queryParams\.tenantVendors = tenantVendors/);
 });
+

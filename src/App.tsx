@@ -17,26 +17,7 @@ import { PageSkeleton } from './components/Skeleton';
 import { useDevice } from './hooks/useDevice';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import AuthGate from './components/AuthGate';
-
-function safeImport<T>(loader: () => Promise<T>): Promise<T> {
-  return loader().catch((error: any) => {
-    const isChunkError =
-      error?.message?.includes('dynamically imported module') ||
-      error?.message?.includes('Failed to fetch') ||
-      error?.message?.includes('Loading chunk') ||
-      error?.name === 'ChunkLoadError';
-    if (isChunkError && typeof window !== 'undefined') {
-      const reloadKey = 'cx_chunk_reload';
-      const lastReload = Number(sessionStorage.getItem(reloadKey) || 0);
-      if (Date.now() - lastReload > 8000) {
-        sessionStorage.setItem(reloadKey, String(Date.now()));
-        window.location.reload();
-        return new Promise<T>(() => {});
-      }
-    }
-    throw error;
-  });
-}
+import { safeImport, isChunkLoadError, attemptChunkRecovery } from './lib/chunkRecovery';
 
 const VersionedReports = React.lazy(() => safeImport(() => import('./pages/VersionedReports')));
 const UserManagement = React.lazy(() => safeImport(() => import('./pages/UserManagement')));
@@ -156,20 +137,15 @@ function Shell() {
         <ErrorBoundary
           resetKeys={[location.pathname]}
           fallbackRender={({ error, resetErrorBoundary }: any) => {
-            const isChunkError = error && (
-              error.message?.includes('dynamically imported module') ||
-              error.message?.includes('Failed to fetch') ||
-              error.message?.includes('Loading chunk') ||
-              error.name === 'ChunkLoadError'
-            );
+            const isChunk = isChunkLoadError(error);
             return (
               <section className="cx-route-error" role="alert">
                 <AlertCircle size={28}/>
-                <h1>{isChunkError ? 'App update available' : 'This page could not be displayed'}</h1>
-                <p>{isChunkError ? 'A newer version of ConversionX was deployed. Reloading will fetch the latest page.' : 'Navigation is still available. Retry the page or return to Overview.'}</p>
+                <h1>{isChunk ? 'App update available' : 'This page could not be displayed'}</h1>
+                <p>{isChunk ? 'A newer version of ConversionX was deployed. Reloading will fetch the latest page.' : 'Navigation is still available. Retry the page or return to Overview.'}</p>
                 <div>
-                  <button className="cx-button-primary" onClick={isChunkError ? () => window.location.reload() : resetErrorBoundary}>
-                    {isChunkError ? 'Reload page' : 'Retry page'}
+                  <button className="cx-button-primary" onClick={isChunk ? () => { if (!attemptChunkRecovery(0)) window.location.reload(); } : resetErrorBoundary}>
+                    {isChunk ? 'Reload page' : 'Retry page'}
                   </button>
                   <Link className="cx-button-secondary" to="/">Overview</Link>
                 </div>

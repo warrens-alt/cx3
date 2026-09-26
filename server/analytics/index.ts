@@ -1,0 +1,26 @@
+// Domain-oriented analytics architecture facade
+export * from './common/types';
+export * from './common/scope';
+export * from './common/warehouse';
+export * from './common/marketing';
+
+export { getMarketingSourceDiscovery } from './commercial/discovery';
+export { getOperatingControlsAnalytics } from './contact/operatingControls';
+export { getExecutiveOverview } from './overview/service';
+export { getRootCauseAnalysis } from './investigation/rootCause';
+export { getFunnelIntelligence } from './funnel/service';
+export { getSpeedToLeadAnalytics } from './contact/speedToLead';
+export { getContactStrategyAnalytics } from './contact/strategy';
+export { getVendorQualityAnalytics } from './performance/vendor';
+export { getTemporalAnalytics } from './temporal/service';
+export { getSalesActivationAnalytics } from './outcomes/salesActivation';
+export { getCommercialAnalytics } from './commercial/spend';
+export { getSourceObservability } from './integrity/sourceObservability';
+export { getDataIntegrityAnalytics } from './integrity/completeness';
+export { getAgentPerformanceAnalytics } from './agents/activity';
+export { getClientCampaignAnalytics } from './campaigns/performance';
+export { getMarketingRootCauseAnalysis } from './investigation/marketingRootCause';
+export { getMarketingAttributionAnalytics } from './commercial/attribution';
+export { getAiInsightsAnalytics } from './investigation/aiInsights';
+export { getRawLeads } from './investigation/records';
+export { getLeadTimeline } from './investigation/timeline';
