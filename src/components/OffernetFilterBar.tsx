@@ -98,6 +98,8 @@ export const OffernetFilterBar: React.FC<OffernetFilterBarProps> = ({
   });
 
   const data = optionsQuery.data?.data;
+  const hiddenFilterCount = Object.keys(filters).length;
+  const visibleChips = appliedFilters.filter(item => item.key !== 'dateRange');
   const vendor = firstFilterValue(filters.vendor);
   const source = firstFilterValue(filters.source);
   const grade = firstFilterValue(filters.grade);
@@ -181,7 +183,7 @@ export const OffernetFilterBar: React.FC<OffernetFilterBarProps> = ({
         <button type="button" className={`cx-scope-more ${expanded ? 'is-open' : ''}`} onClick={() => setExpanded(value => !value)} aria-expanded={expanded}>
           <SlidersHorizontal size={14} />
           <span>More</span>
-          {activeFilterCount > 0 && <strong>{activeFilterCount}</strong>}
+          {hiddenFilterCount > 0 && <strong>{hiddenFilterCount}</strong>}
         </button>
 
         <div className="cx-scopebar-status" title="Operational analytics are live but not independently reconciled">
@@ -210,9 +212,9 @@ export const OffernetFilterBar: React.FC<OffernetFilterBarProps> = ({
         </div>
       </div>
 
-      {appliedFilters.length > 0 && (
+      {visibleChips.length > 0 && (
         <div className="cx-scope-chips" aria-label="Active reporting filters">
-          {appliedFilters.map(item => (
+          {visibleChips.map(item => (
             <button key={item.key} type="button" onClick={() => removeApplied(item.key)} title={`Remove ${item.label}`}>
               <span>{item.label}</span>
               <strong>{item.value}</strong>
