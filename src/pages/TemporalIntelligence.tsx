@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Calendar, Clock3, Download, Sun } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useFilters, extractOffernetFilters } from '../lib/FilterContext';
 import { useClient } from '../lib/ClientContext';
 import { fetchTemporal, type TemporalData } from '../lib/offernetClient';
@@ -148,7 +149,7 @@ export default function TemporalIntelligence() {
 
             <section className="cx-command-shortcuts">
               <button type="button" onClick={handleExportCsv}><Download size={16}/><span><strong>Export matrix</strong><small>Download the current day/hour population</small></span></button>
-              <a href="/speed-to-lead"><Clock3 size={16}/><span><strong>Speed to lead</strong><small>Compare first-dial age with downstream outcomes</small></span></a>
+              <Link to="/speed-to-lead"><Clock3 size={16}/><span><strong>Speed to lead</strong><small>Compare first-dial age with downstream outcomes</small></span></Link>
             </section>
           </>
         )}
