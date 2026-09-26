@@ -23,7 +23,7 @@ export async function createEvidenceReport(payload: any, releaseId?: string, sig
   const res = await fetch('/api/reporting', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...payload, ...(releaseId ? { releaseId } : {}) }),
     signal,
   });
   if (!res.ok) {
@@ -34,8 +34,9 @@ export async function createEvidenceReport(payload: any, releaseId?: string, sig
   return json.data;
 }
 
-export async function fetchReportingCatalogue(signal?: AbortSignal) {
-  const res = await fetch('/api/reporting/catalogue', { signal });
+export async function fetchReportingCatalogue(clientId?: string, signal?: AbortSignal) {
+  const query = clientId ? `?tenantId=${encodeURIComponent(clientId)}` : '';
+  const res = await fetch(`/api/reporting/catalogue${query}`, { signal });
   if (!res.ok) {
     throw new Error(`HTTP ${res.status}`);
   }
