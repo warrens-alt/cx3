@@ -25,7 +25,7 @@ export const NAV_GROUPS = [
   {
     title: 'Administration',
     items: [
-      { name: 'Settings & Access', path: '/admin', icon: Settings },
+      { name: 'Settings', path: '/admin', icon: Settings },
     ]
   }
 ];
