@@ -41,8 +41,13 @@ test('unverified ownership mappings fail closed while an authorized master can q
   assert.throws(() => compileSourceMetrics('marketing', { ...scope, clientId: 'mtn' }, {
     ...marketing, schema: { fields: marketing.schema!.fields!.filter(field => field.name !== 'client_name') },
   }), /ownership mapping/);
-  const timing: TableMetadata = { type: 'TABLE', schema: { fields: [{ name: 'expected_first_dial', type: 'TIMESTAMP' }] } };
-  assert.throws(() => compileSourceMetrics('timeToDial', { ...scope, clientId: 'mtn' }, timing), /ownership is not established/);
+  const timing: TableMetadata = { type: 'TABLE', schema: { fields: [
+    { name: 'vendor', type: 'STRING' }, { name: 'dialer_uniqueid', type: 'STRING' }, { name: 'dialer_lead_id', type: 'INT64' },
+    { name: 'first_dial_date', type: 'TIMESTAMP' }, { name: 'expected_first_dial', type: 'TIMESTAMP' },
+  ] } };
+  const tenantTiming = compileSourceMetrics('timeToDial', { ...scope, clientId: 'mtn' }, timing);
+  assert.match(tenantTiming.query, /LOWER\(TRIM\(s\.\`vendor\`\)\) IN \(@tenant_vendor_0/);
+  assert.equal(tenantTiming.params.tenant_vendor_0, 'mtn');
   assert.doesNotThrow(() => compileSourceMetrics('timeToDial', { ...scope, clientId: 'default_tenant' }, timing));
 });
 

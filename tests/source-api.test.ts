@@ -14,7 +14,7 @@ function metadata(role:string):TableMetadata{
   const common:SchemaField[]=[{name:'fetched',type:'STRING'},{name:'lead_id',type:'STRING'},{name:'offershop_source',type:'STRING'},{name:'offernet_medium',type:'STRING'},
     ...['valid_lead','valid_idno','phone_valid'].map(name=>({name,type:'BOOL'})),
     {name:'hlc_details',type:'RECORD',mode:'REPEATED',fields:[{name:'vendor',type:'STRING'},{name:'transaction_id',type:'STRING'}]}];
-  const fields=role==='leads'?common:role==='calls'?[{name:'dialer_lead_id',type:'INT64'},{name:'vendor',type:'STRING'},{name:'call_start_date',type:'TIMESTAMP'},{name:'is_rpc',type:'BOOL'},{name:'is_sale',type:'BOOL'},{name:'length_in_sec',type:'INT64'}]:role==='timeToDial'?[{name:'expected_first_dial',type:'STRING'}]:role==='activations'?[{name:'transaction_id',type:'STRING'},{name:'date_created',type:'TIMESTAMP'},{name:'expected_ontact_revenue',type:'NUMERIC'}]:[{name:'date',type:'DATE'},{name:'channel',type:'STRING'},{name:'impressions',type:'INT64'},{name:'clicks',type:'INT64'},{name:'actions_lead',type:'INT64'}];
+  const fields=role==='leads'?common:role==='calls'?[{name:'dialer_lead_id',type:'INT64'},{name:'vendor',type:'STRING'},{name:'call_start_date',type:'TIMESTAMP'},{name:'is_rpc',type:'BOOL'},{name:'is_sale',type:'BOOL'},{name:'length_in_sec',type:'INT64'}]:role==='timeToDial'?[{name:'vendor',type:'STRING'},{name:'dialer_uniqueid',type:'STRING'},{name:'dialer_lead_id',type:'INT64'},{name:'first_dial_date',type:'TIMESTAMP'},{name:'expected_first_dial',type:'TIMESTAMP'}]:role==='activations'?[{name:'transaction_id',type:'STRING'},{name:'date_created',type:'TIMESTAMP'},{name:'expected_ontact_revenue',type:'NUMERIC'}]:[{name:'date',type:'DATE'},{name:'channel',type:'STRING'},{name:'impressions',type:'INT64'},{name:'clicks',type:'INT64'},{name:'actions_lead',type:'INT64'}];
   return {type:'TABLE',numRows:'0',schema:{fields}};
 }
 function fixture(){
@@ -48,8 +48,13 @@ for(const role of SOURCE_ROLES)test(`${role} API query references its configured
   assert.ok(q.query.includes('`'+sourceTable(scope.clientId,role)+'`'));assert.ok(q.query.includes(SOURCE_DEFINITIONS[role].dateField));
   assert.equal(q.params.startDate,scope.startDate);assert.equal(q.params.endDate,scope.endDate);assert.equal(result.metrics[0].value,'0');assert.equal(result.queryJobId,'synthetic-source-job');
 });
-test('time-to-dial results never claim expected timestamps are observed calls',async()=>{
-  const result=await getSourceMetrics('timeToDial',scope,fixture().access);assert.match(result.dateBasis,/Expected.*not an observed/);assert.match(result.warning,/not silently merged/);
+test('time-to-dial distinguishes recorded first dial from scheduled expected dial',async()=>{
+  const result=await getSourceMetrics('timeToDial',scope,fixture().access);
+  assert.match(result.dateBasis,/Recorded first-dial/);
+  assert.equal(result.parameterContract.dateField,'first_dial_date');
+  assert.ok(result.metrics.some(metric=>metric.id==='first_dial_rows'));
+  assert.ok(result.metrics.some(metric=>metric.id==='expected_first_dial_rows'));
+  assert.match(result.warning,/not joined to Lead Ledger outcomes/);
 });
 test('source metrics do not use budget as spend or infer premium collection',()=>{
   const q=compileSourceMetrics('marketing',scope,metadata('marketing'),'channel');assert.doesNotMatch(q.query,/budget|SUM\(spend\)|premium/i);assert.match(q.query,/actions_lead/);

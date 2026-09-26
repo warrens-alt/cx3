@@ -52,7 +52,7 @@ test('marketing parameters and spend grain are sourced from one canonical contra
 test('VICIdial source parameters drive call coverage and CLI discovery', () => {
   assert.equal(SOURCE_DEFINITIONS.calls.dateField, CALL_SOURCE_FIELDS.date);
   assert.equal(SOURCE_DEFINITIONS.calls.filters.vendor, CALL_SOURCE_FIELDS.vendor);
-  assert.deepEqual(SOURCE_DEFINITIONS.calls.requiredIdentityFields, [CALL_SOURCE_FIELDS.leadId, CALL_SOURCE_FIELDS.vendor]);
+  assert.deepEqual(SOURCE_DEFINITIONS.calls.requiredIdentityFields, [CALL_SOURCE_FIELDS.uniqueId, CALL_SOURCE_FIELDS.leadId, CALL_SOURCE_FIELDS.vendor]);
   assert.equal(SOURCE_DEFINITIONS.calls.metrics.find(metric => metric.id === 'rpc_rows')?.field, CALL_SOURCE_FIELDS.rpc);
   assert.equal(SOURCE_DEFINITIONS.calls.metrics.find(metric => metric.id === 'sale_rows')?.field, CALL_SOURCE_FIELDS.sale);
   assert.equal(SOURCE_DEFINITIONS.calls.metrics.find(metric => metric.id === 'duration_seconds')?.field, CALL_SOURCE_FIELDS.durationSeconds);
@@ -65,10 +65,17 @@ test('VICIdial source parameters drive call coverage and CLI discovery', () => {
   assert.equal(findCliColumn(fields), CALL_SOURCE_FIELDS.cliCandidates[0]);
 });
 
-test('time-to-dial remains source-only until an identity contract exists', () => {
-  assert.equal(SOURCE_DEFINITIONS.timeToDial.dateField, TIME_TO_DIAL_SOURCE_FIELDS.date);
-  assert.deepEqual(SOURCE_DEFINITIONS.timeToDial.requiredIdentityFields, []);
-  assert.deepEqual(SOURCE_DEFINITIONS.timeToDial.filters, {});
+test('time-to-dial uses the supplied source schema while cross-source identity remains gated', () => {
+  assert.equal(SOURCE_DEFINITIONS.timeToDial.dateField, TIME_TO_DIAL_SOURCE_FIELDS.firstDialDate);
+  assert.deepEqual(SOURCE_DEFINITIONS.timeToDial.requiredIdentityFields, [TIME_TO_DIAL_SOURCE_FIELDS.uniqueId, TIME_TO_DIAL_SOURCE_FIELDS.leadId, TIME_TO_DIAL_SOURCE_FIELDS.vendor]);
+  assert.equal(SOURCE_DEFINITIONS.timeToDial.filters.vendor, TIME_TO_DIAL_SOURCE_FIELDS.vendor);
+  assert.equal(SOURCE_TABLE_CONTRACT.timeToDial.ownership, 'vendor');
   assert.equal(SOURCE_TABLE_CONTRACT.timeToDial.crossSourceJoin, 'CONTRACT_REQUIRED');
-  assert.match(SOURCE_DEFINITIONS.timeToDial.warning, /not silently merged/);
+  assert.match(SOURCE_DEFINITIONS.timeToDial.warning, /not joined to Lead Ledger outcomes/);
+});
+
+test('supplied marketing schema distinguishes budget from observed spend', () => {
+  assert.equal(MARKETING_SOURCE_FIELDS.budget, 'budget');
+  assert.equal(MARKETING_SOURCE_FIELDS.observedSpendField, null);
+  assert.ok(!MARKETING_SOURCE_FIELDS.spendGrain.includes(MARKETING_SOURCE_FIELDS.budget as any));
 });
