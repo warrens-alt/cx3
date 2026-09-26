@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, Clock, Shield, LogOut, Mail } from 'lucide-react';
+import { Activity, Clock, LogOut, Mail } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
 import { BRAND } from '../../contracts/naming';
 
