@@ -201,6 +201,70 @@ export function VendorControlsPanel({ data }: { data: OperatingControlsData }) {
   );
 }
 
+export function ContactGovernancePanel({
+  data,
+  highAttemptHref,
+  oneCallHref,
+}: {
+  data: OperatingControlsData;
+  highAttemptHref?: string;
+  oneCallHref?: string;
+}) {
+  const rows = [
+    {
+      key: 'high-attempt-no-rpc',
+      title: '5+ recorded calls with no RPC',
+      value: data.summary.highAttemptNoRpcLeads,
+      detail: 'High-effort leads that still have no recorded right-party contact.',
+      href: highAttemptHref,
+      severity: 'high',
+    },
+    {
+      key: 'one-call-only',
+      title: 'Exactly one recorded call',
+      value: data.summary.oneCallLeads,
+      detail: `${data.summary.singleAttemptSharePct}% of dialled leads have exactly one recorded call-count.`,
+      href: oneCallHref,
+      severity: 'medium',
+    },
+    {
+      key: 'missing-disposition',
+      title: 'Missing latest dial disposition',
+      value: data.dataCompleteness.missingDisposition,
+      detail: `${data.summary.dispositionCompletenessPct}% disposition completeness across dialled leads.`,
+      severity: 'medium',
+    },
+  ];
+
+  return (
+    <section className="cx-command-panel">
+      <header>
+        <div>
+          <span className="cx-command-section-kicker">Contact governance</span>
+          <h2>Attempt & disposition exceptions</h2>
+          <p>Populations repeatedly raised in OfferNet reviews: insufficient follow-up, excessive repeat effort and incomplete disposition evidence.</p>
+        </div>
+        <AlertTriangle size={16} className="text-slate-400"/>
+      </header>
+      <div className="cx-attention-list">
+        {rows.map(row => {
+          const body = <>
+            <span className="cx-attention-dot" />
+            <div><strong>{row.title}</strong><small>{row.detail}</small></div>
+            <b>{fmt(row.value)}</b>
+          </>;
+          return row.href ? (
+            <a key={row.key} href={row.href} className="cx-attention-item" data-severity={row.severity}>{body}</a>
+          ) : (
+            <div key={row.key} className="cx-attention-item" data-severity={row.severity}>{body}</div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+
 export function DataCompletenessPanel({ data }: { data: OperatingControlsData }) {
   const items = [
     ['Missing source', data.dataCompleteness.missingSource],
