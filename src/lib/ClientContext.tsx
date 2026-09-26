@@ -1,6 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { useAuth } from './AuthContext';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
 export interface ClientConfig {
   id: string;
@@ -38,102 +36,79 @@ export interface ClientContextType {
   reportAuthenticationFailure: (reason?: string) => void;
 }
 
-export const DEFAULT_CLIENT_CONFIG: ClientConfig = {
-  id: 'default_tenant',
-  name: 'Primary Tenant',
-  currency: 'ZAR',
-  timezone: 'Africa/Johannesburg',
-  capabilities: {
-    marketing: true,
-    leads: true,
-    calls: true,
-    sales: true,
-    activation: true,
-    revenue: true,
-  }
-};
-
 const ClientContext = createContext<ClientContextType | undefined>(undefined);
 
 export const ClientProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { profile, isAdmin } = useAuth();
-  const [clientConfig, setClientConfig] = useState<ClientConfig>(DEFAULT_CLIENT_CONFIG);
-  const [clients, setClients] = useState<ClientListItem[]>([
-    { id: 'default_tenant', name: 'Primary Tenant' },
-    { id: 'mondo', name: 'Mondo' },
-    { id: 'mtn', name: 'MTN Direct' },
-    { id: 'ontact_blc', name: 'On Contact (BLC)' },
-    { id: 'vodacom_bizvoip', name: 'Vodacom (Bizvoip)' },
-    { id: 'real_promotions', name: 'Real Promotions' },
-    { id: 'rewardsco', name: 'Rewards Co' },
-    { id: 'oneplan', name: 'Oneplan' }
-  ]);
-  const [selectedClient, setSelectedClient] = useState<string>('default_tenant');
-  const [loading, setLoading] = useState(false);
+  const [clientConfig, setClientConfig] = useState<ClientConfig | null>(null);
+  const [clients, setClients] = useState<ClientListItem[]>([]);
+  const [selectedClient, setSelectedClientState] = useState('');
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [ready, setReady] = useState(true);
+  const [ready, setReady] = useState(false);
 
-  // Filter clients based on user's authorized scopes
-  const visibleClients = clients.filter(c => {
-    if (isAdmin) return true;
-    const allowed = profile?.allowedTenants;
-    if (!allowed || allowed.includes('*')) return true;
-    return allowed.includes(c.id);
-  });
-
-  // Keep selectedClient within authorized visible clients
-  useEffect(() => {
-    if (visibleClients.length > 0 && !visibleClients.some(c => c.id === selectedClient)) {
-      setSelectedClient(visibleClients[0].id);
-    }
-  }, [visibleClients, selectedClient]);
-
-  const loadConfig = async () => {
+  const loadConfig = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setReady(false);
     try {
-      const res = await fetch('/api/analytics/clients');
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+      const res = await fetch('/api/analytics/clients', { credentials: 'same-origin' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.success || !Array.isArray(json.data) || json.data.length === 0) {
+        throw new Error(json.error || `Workspace access failed with HTTP ${res.status}`);
       }
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-        setClients(json.data);
-        const match = json.data.find((c: any) => c.id === selectedClient) || json.data[0];
-        setClientConfig(match);
-      }
+
+      const authorised = json.data as ClientListItem[];
+      setClients(authorised);
+      setSelectedClientState(previous => {
+        const selected = authorised.some(client => client.id === previous) ? previous : authorised[0].id;
+        const match = authorised.find(client => client.id === selected)!;
+        setClientConfig(match as ClientConfig);
+        return selected;
+      });
       setReady(true);
     } catch (err: any) {
-      console.warn("Using default tenant config fallback:", err);
-      setError(err?.message || 'Failed to load client config');
-      setReady(true);
+      setClients([]);
+      setClientConfig(null);
+      setError(err?.message || 'Failed to load authorised workspaces');
+      setReady(false);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadConfig();
+  }, [loadConfig]);
+
+  const setSelectedClient = useCallback((id: string) => {
+    const match = clients.find(client => client.id === id);
+    if (!match) return;
+    setSelectedClientState(id);
+    setClientConfig(match as ClientConfig);
+  }, [clients]);
+
+  const reportAuthenticationFailure = useCallback((reason = 'Workspace authentication failed') => {
+    setError(reason);
+    setReady(false);
   }, []);
 
   return (
-    <ClientContext.Provider value={{ 
-      clientConfig, 
-      selectedClient, 
-      clientId: selectedClient, 
-      setSelectedClient, 
+    <ClientContext.Provider value={{
+      clientConfig,
+      selectedClient,
+      clientId: selectedClient,
+      setSelectedClient,
       loading,
       error,
       ready,
       retry: loadConfig,
-      clients: visibleClients,
-      reportAuthenticationFailure: () => {}
+      clients,
+      reportAuthenticationFailure,
     }}>
       {children}
     </ClientContext.Provider>
   );
 };
-
 
 export const useClient = () => {
   const context = useContext(ClientContext);
