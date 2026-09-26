@@ -1713,7 +1713,7 @@ export async function getRawLeads(params: OffernetQueryParams) {
     SELECT
       l.lead_id,
       l.consumer_id,
-      FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', SAFE_CAST(l.fetched AS TIMESTAMP)) as fetched_time,
+      FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', SAFE_CAST(l.fetched AS TIMESTAMP)) as fetched,
       COALESCE(l.offershop_source, 'Unknown') as source,
       COALESCE(l.offernet_medium, 'Unknown') as medium,
       COALESCE(l.offershop_grade, 'Standard') as grade,
@@ -1728,15 +1728,20 @@ export async function getRawLeads(params: OffernetQueryParams) {
       FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', SAFE_CAST(hlc.delivered AS TIMESTAMP)) as delivered_time,
       FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', SAFE_CAST(hlc.first_call_date AS TIMESTAMP)) as first_call_time,
       COALESCE(hlc.total_calls, 0) as total_calls,
-      SAFE_CAST(hlc.rpc AS INT64) > 0 as is_rpc,
-      hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' as is_sale,
-      hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' as is_activated,
+      hlc.first_call_date IS NOT NULL AND hlc.first_call_date NOT LIKE '1900%' AND hlc.first_call_date NOT LIKE '1970%' as dialled,
+      SAFE_CAST(hlc.rpc AS INT64) > 0 as contacted,
+      hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' as sale,
+      hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' as activated,
       COALESCE(hlc.revenue_generated, 0) as revenue
     FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
     LEFT JOIN UNNEST(l.hlc_details) hlc
     ${whereSql}
     ${searchCondition}
     ${drillCondition}
+    QUALIFY ROW_NUMBER() OVER (
+      PARTITION BY l.lead_id
+      ORDER BY SAFE_CAST(hlc.delivered AS TIMESTAMP) DESC NULLS LAST
+    ) = 1
     ORDER BY SAFE_CAST(l.fetched AS TIMESTAMP) DESC
     LIMIT ${limit}
     OFFSET ${offset}
