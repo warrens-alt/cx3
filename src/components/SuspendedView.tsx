@@ -86,11 +86,7 @@ export default function SuspendedView() {
             </div>
           </div>
 
-          <p className="text-[11.5px] text-slate-500 leading-relaxed">
-            If you believe this suspension is in error or require credential re-validation, please contact your security operations administrator at{' '}
-            <a href="mailto:admin@bastionflowe.com" className="text-blue-600 font-semibold underline hover:text-blue-700">
-              admin@bastionflowe.com
-            </a>.
+          <p className="text-[11.5px] text-slate-500 leading-relaxed">            If you believe this suspension is in error, contact your platform administrator or internal support owner.
           </p>
 
           <button
@@ -112,7 +108,7 @@ export default function SuspendedView() {
           <span>Security & Access Governance</span>
         </div>
         <div>
-          <span>Protected Enterprise BigQuery Warehouse</span>
+          <span>Protected analytical workspace</span>
         </div>
       </footer>
     </div>
