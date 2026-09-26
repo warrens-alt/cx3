@@ -1391,3 +1391,100 @@
   .cx-commercial-ratios>div:nth-child(even) { border-right:0; }
   .cx-commercial-ratios>div:nth-last-child(-n+2) { border-bottom:0; }
 }
+
+.cx-marketing-discovery { padding:14px 16px 16px; }
+.cx-marketing-contract-grid {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+  margin-bottom:14px;
+}
+.cx-marketing-contract-grid>div {
+  padding:10px 11px;
+  border:1px solid #E2E8F0;
+  border-radius:8px;
+  background:#FAFBFD;
+}
+.cx-marketing-contract-grid span,
+.cx-marketing-contract-grid strong { display:block; }
+.cx-marketing-contract-grid span { color:#7A889C; font-size:9px; text-transform:uppercase; font-weight:750; letter-spacing:.05em; }
+.cx-marketing-contract-grid strong { margin-top:4px; color:#223047; font-size:10.5px; overflow-wrap:anywhere; }
+.cx-marketing-discovery h3 { margin:2px 0 8px; color:#223047; font-size:11px; font-weight:700; }
+.cx-marketing-clientnames {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:7px;
+}
+.cx-marketing-clientnames>div {
+  padding:9px 10px;
+  border:1px solid #E2E8F0;
+  border-radius:7px;
+  background:#fff;
+}
+.cx-marketing-clientnames strong,
+.cx-marketing-clientnames span,
+.cx-marketing-clientnames small { display:block; }
+.cx-marketing-clientnames strong { color:#223047; font-size:10.5px; }
+.cx-marketing-clientnames span { margin-top:2px; color:#52657D; font-size:9.5px; }
+.cx-marketing-clientnames small { margin-top:2px; color:#8A97A9; font-size:8.5px; }
+.cx-contract-note {
+  margin-top:10px;
+  color:#687A92;
+  font-size:10px;
+}
+.cx-contract-note code,
+.cx-command-empty code {
+  padding:1px 4px;
+  border-radius:4px;
+  background:#EEF2F7;
+  color:#34445B;
+  font-size:9.5px;
+}
+.cx-source-status {
+  align-self:flex-start;
+  padding:3px 7px;
+  border:1px solid #DDE4ED;
+  border-radius:999px;
+  color:#65758B;
+  background:#F8FAFC;
+  font-size:9px;
+  font-weight:750;
+  letter-spacing:.04em;
+}
+.cx-source-status[data-status=OBSERVED_UNRECONCILED],
+.cx-source-status[data-status=OBSERVED] { border-color:#BDE0D5; color:#147D64; background:#F0FAF7; }
+.cx-attribution-table { min-width:1380px; }
+.cx-source-grid {
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+  padding:14px 16px 16px;
+}
+.cx-source-grid article {
+  min-width:0;
+  padding:12px;
+  border:1px solid #E2E8F0;
+  border-radius:9px;
+  background:#FBFCFE;
+}
+.cx-source-grid article>div:first-child { margin-bottom:8px; }
+.cx-source-grid span,
+.cx-source-grid strong,
+.cx-source-grid small { display:block; }
+.cx-source-grid article>div:first-child>span { color:#65758B; font-size:9.5px; font-weight:750; text-transform:uppercase; letter-spacing:.05em; }
+.cx-source-grid article>div:first-child>strong { margin-top:3px; color:#223047; font-size:10.5px; line-height:1.35; }
+.cx-source-grid dl { margin-top:9px; display:grid; grid-template-columns:repeat(2,1fr); gap:5px; }
+.cx-source-grid dl>div { padding:6px 7px; border-radius:6px; background:#fff; border:1px solid #EDF1F5; }
+.cx-source-grid dt { color:#8A97A9; font-size:8.5px; text-transform:uppercase; }
+.cx-source-grid dd { margin-top:2px; color:#223047; font-size:10px; font-weight:650; font-variant-numeric:tabular-nums; }
+.cx-source-grid p { margin-top:9px; color:#66768A; font-size:9.5px; line-height:1.45; min-height:42px; }
+.cx-source-grid small { margin-top:7px; color:#94A0B0; font-size:8px; overflow-wrap:anywhere; }
+@media(max-width:1100px) {
+  .cx-source-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .cx-marketing-clientnames { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:760px) {
+  .cx-source-grid,
+  .cx-marketing-contract-grid,
+  .cx-marketing-clientnames { grid-template-columns:1fr; }
+}

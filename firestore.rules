@@ -135,7 +135,12 @@ service cloud.firestore {
     }
 
     match /accessInvites/{inviteId} {
-      allow read: if isSignedIn();
+      allow get: if isAdmin() || isSuperAdmin() || (
+        isSignedIn()
+        && ('email' in request.auth.token)
+        && resource.data.email == request.auth.token.email
+      );
+      allow list: if isAdmin() || isSuperAdmin();
       allow write: if (isAdmin() || isSuperAdmin()) && isValidId(inviteId) && isValidAccessInvite();
     }
 

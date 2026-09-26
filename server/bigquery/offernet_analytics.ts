@@ -1,5 +1,5 @@
 import { getBigQueryClient } from './client';
-import { getClientConfig } from './config';
+import { getClientConfig, type MarketingSourceContract } from './config';
 import { RequestError } from './filters';
 
 export interface OffernetQueryParams {
@@ -103,24 +103,6 @@ function buildFilterClause(params: OffernetQueryParams, alias = 'l', hlcAlias = 
   };
 }
 
-const ACTUAL_SPEND_COLUMN_PRIORITY = [
-  'spend',
-  'amount_spent',
-  'actual_spend',
-  'media_spend',
-  'ad_spend',
-  'total_spend',
-  'cost',
-  'cost_micros',
-  'spend_micros',
-] as const;
-
-const BUDGET_COLUMN_PRIORITY = [
-  'budget',
-  'campaign_budget',
-  'daily_budget',
-] as const;
-
 function parseConfiguredTable(table: string) {
   const match = /^([a-zA-Z0-9_-]+)\.([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]+)$/.exec(table);
   if (!match) throw new RequestError('Configured marketing table identifier is invalid', 500);
@@ -128,29 +110,147 @@ function parseConfiguredTable(table: string) {
 }
 
 function safeWarehouseColumn(column: string) {
-  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column)) throw new RequestError('Unsafe warehouse column identifier', 500);
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column)) {
+    throw new RequestError('Unsafe warehouse column identifier', 500);
+  }
   return `\`${column}\``;
 }
 
-async function resolveMarketingCostColumns(client: ReturnType<typeof getBigQueryClient>, marketingTable: string) {
-  const parsed = parseConfiguredTable(marketingTable);
+function safeAliasedColumn(alias: string, column: string) {
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(alias)) throw new RequestError('Unsafe warehouse alias', 500);
+  return `${alias}.${safeWarehouseColumn(column)}`;
+}
+
+async function resolveMarketingContract(
+  client: ReturnType<typeof getBigQueryClient>,
+  contract: MarketingSourceContract,
+) {
+  const parsed = parseConfiguredTable(contract.table);
   const [rows] = await client.query({
     query: `
       SELECT column_name
       FROM \`${parsed.project}.${parsed.dataset}.INFORMATION_SCHEMA.COLUMNS\`
       WHERE table_name = @tableName
     `,
-    params: { tableName: parsed.table }
+    params: { tableName: parsed.table },
   });
+
   const byLower = new Map<string, string>(
-    rows.map((row: any) => [String(row.column_name || '').toLowerCase(), String(row.column_name || '')])
+    rows.map((row: any) => [String(row.column_name || '').toLowerCase(), String(row.column_name || '')]),
   );
-  const spendColumn = ACTUAL_SPEND_COLUMN_PRIORITY.map(name => byLower.get(name)).find(Boolean) || null;
-  const budgetColumn = BUDGET_COLUMN_PRIORITY.map(name => byLower.get(name)).find(Boolean) || null;
+
+  const requiredFields = [
+    contract.clientNameField,
+    contract.dateField,
+    contract.channelField,
+    contract.campaignField,
+    contract.adsetField,
+    contract.impressionsField,
+    contract.clicksField,
+    contract.leadsField,
+  ];
+  const missingRequired = requiredFields.filter(field => !byLower.has(field.toLowerCase()));
+  const spendColumn = contract.approvedSpendFields.map(name => byLower.get(name.toLowerCase())).find(Boolean) || null;
+  const budgetColumn = contract.approvedBudgetFields.map(name => byLower.get(name.toLowerCase())).find(Boolean) || null;
+
   return {
+    table: contract.table,
+    columns: Array.from(byLower.values()).sort(),
+    missingRequired,
     spendColumn,
     budgetColumn,
-    table: marketingTable,
+  };
+}
+
+function marketingSpendExpression(contract: MarketingSourceContract, spendColumn: string | null) {
+  if (!spendColumn) return null;
+  const identifier = safeWarehouseColumn(spendColumn);
+  const unit = contract.spendUnitByField[spendColumn.toLowerCase()] || contract.spendUnitByField[spendColumn] || 'currency';
+  const numeric = `SAFE_CAST(REGEXP_REPLACE(CAST(${identifier} AS STRING), r'[^0-9.-]', '') AS FLOAT64)`;
+  return unit === 'micros' ? `(${numeric} / 1000000)` : numeric;
+}
+
+function marketingTenantFilter(contract: MarketingSourceContract) {
+  if (contract.mappingStatus === 'MASTER') return { sql: '', params: {} as Record<string, any> };
+  if (contract.mappingStatus !== 'MAPPED' || !contract.clientNames.length) {
+    throw new RequestError('Marketing client mapping is unresolved for this tenant', 422);
+  }
+  return {
+    sql: `LOWER(${safeWarehouseColumn(contract.clientNameField)}) IN UNNEST(@marketingClientNames)`,
+    params: { marketingClientNames: contract.clientNames.map(value => value.toLowerCase()) },
+  };
+}
+
+export async function getMarketingSourceDiscovery(params: Pick<OffernetQueryParams, 'clientId'>) {
+  const clientConfig = getClientConfig(params.clientId);
+  const contract = clientConfig.marketing;
+  if (!contract || !clientConfig.capabilities.marketing) {
+    return {
+      status: 'UNAVAILABLE',
+      reason: 'No marketing contract is configured for this tenant.',
+      contract: null,
+      schema: null,
+      availableClientNames: [],
+    };
+  }
+
+  const client = getBigQueryClient(clientConfig.bigQueryProject);
+  const resolved = await resolveMarketingContract(client, contract);
+  const clientNameField = safeWarehouseColumn(contract.clientNameField);
+  const dateField = safeWarehouseColumn(contract.dateField);
+  const [nameRows] = resolved.missingRequired.includes(contract.clientNameField)
+    ? [[]]
+    : await client.query({
+        query: `
+          SELECT
+            CAST(${clientNameField} AS STRING) AS client_name,
+            COUNT(*) AS rows,
+            MIN(DATE(${dateField})) AS earliest_date,
+            MAX(DATE(${dateField})) AS latest_date
+          FROM \`${contract.table}\`
+          WHERE ${clientNameField} IS NOT NULL
+          GROUP BY 1
+          ORDER BY rows DESC
+          LIMIT 200
+        `,
+      });
+
+  return {
+    status: resolved.missingRequired.length ? 'INVALID_CONTRACT' : contract.mappingStatus,
+    reason: resolved.missingRequired.length
+      ? `Configured marketing fields are missing from the API table: ${resolved.missingRequired.join(', ')}`
+      : contract.mappingStatus === 'UNRESOLVED'
+        ? 'Choose and configure the approved client_name values for this tenant before tenant-level campaign reporting is enabled.'
+        : 'Marketing API-table contract is structurally valid.',
+    contract: {
+      table: contract.table,
+      mappingStatus: contract.mappingStatus,
+      configuredClientNames: contract.clientNames,
+      fields: {
+        clientName: contract.clientNameField,
+        date: contract.dateField,
+        channel: contract.channelField,
+        campaign: contract.campaignField,
+        adset: contract.adsetField,
+        impressions: contract.impressionsField,
+        clicks: contract.clicksField,
+        leads: contract.leadsField,
+      },
+      approvedSpendFields: contract.approvedSpendFields,
+      resolvedSpendField: resolved.spendColumn,
+      resolvedBudgetField: resolved.budgetColumn,
+      attribution: contract.attribution,
+    },
+    schema: {
+      columns: resolved.columns,
+      missingRequired: resolved.missingRequired,
+    },
+    availableClientNames: nameRows.map((row: any) => ({
+      value: row.client_name,
+      rows: Number(row.rows || 0),
+      earliestDate: row.earliest_date?.value || row.earliest_date || null,
+      latestDate: row.latest_date?.value || row.latest_date || null,
+    })),
   };
 }
 
@@ -1463,6 +1563,158 @@ export async function getCommercialAnalytics(params: OffernetQueryParams) {
   };
 }
 
+export async function getSourceObservability(params: Pick<OffernetQueryParams, 'clientId'>) {
+  const clientConfig = getClientConfig(params.clientId);
+  const client = getBigQueryClient(clientConfig.bigQueryProject);
+  const sources: Array<{
+    key: string;
+    label: string;
+    status: string;
+    table: string | null;
+    latestRecordAt: string | null;
+    ageHours: number | null;
+    rowCount: number | null;
+    detail: string;
+  }> = [];
+
+  const pushFreshness = async (
+    key: string,
+    label: string,
+    table: string | undefined,
+    timestampExpression: string,
+    whereSql = '',
+    queryParams: Record<string, any> = {},
+    tableAlias = '',
+  ) => {
+    if (!table) {
+      sources.push({ key, label, status: 'UNAVAILABLE', table: null, latestRecordAt: null, ageHours: null, rowCount: null, detail: 'No source table is configured.' });
+      return;
+    }
+    try {
+      const [rows] = await client.query({
+        query: `
+          SELECT
+            MAX(${timestampExpression}) AS latest_record_at,
+            COUNT(*) AS row_count,
+            TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), MAX(${timestampExpression}), HOUR) AS age_hours
+          FROM \`${table}\` ${tableAlias}
+          ${whereSql}
+        `,
+        params: queryParams,
+      });
+      const row = rows[0] || {};
+      const latest = row.latest_record_at?.value || row.latest_record_at || null;
+      const ageHours = row.age_hours === null || row.age_hours === undefined ? null : Number(row.age_hours);
+      sources.push({
+        key,
+        label,
+        status: latest ? 'OBSERVED' : 'EMPTY',
+        table,
+        latestRecordAt: latest ? String(latest) : null,
+        ageHours,
+        rowCount: Number(row.row_count || 0),
+        detail: latest ? 'Freshness is observed directly from the configured source table.' : 'No usable source timestamp was observed.',
+      });
+    } catch (error) {
+      sources.push({
+        key,
+        label,
+        status: 'ERROR',
+        table,
+        latestRecordAt: null,
+        ageHours: null,
+        rowCount: null,
+        detail: error instanceof Error ? error.message : 'Source freshness query failed.',
+      });
+    }
+  };
+
+  const leadScope = buildFilterClause({ clientId: params.clientId }, 'l', '');
+  await pushFreshness(
+    'leads',
+    'Lead ledger',
+    clientConfig.semanticMappings.tables.leads,
+    'SAFE_CAST(l.fetched AS TIMESTAMP)',
+    leadScope.whereSql,
+    leadScope.queryParams,
+    'l',
+  );
+
+  const callTable = clientConfig.semanticMappings.tables.calls;
+  const callConditions = ["call_start_date IS NOT NULL"];
+  const callParams: Record<string, any> = {};
+  if (clientConfig.id !== 'default_tenant') {
+    const partners = clientConfig.semanticMappings.partners || [];
+    if (partners.length) {
+      callConditions.push('LOWER(vendor) IN UNNEST(@tenantVendors)');
+      callParams.tenantVendors = partners.map(value => value.toLowerCase());
+    }
+  }
+  await pushFreshness(
+    'calls',
+    'Dialler calls',
+    callTable,
+    'SAFE_CAST(call_start_date AS TIMESTAMP)',
+    `WHERE ${callConditions.join(' AND ')}`,
+    callParams,
+  );
+
+  const contract = clientConfig.marketing;
+  if (!contract || !clientConfig.capabilities.marketing) {
+    sources.push({
+      key: 'marketing',
+      label: 'Marketing API',
+      status: 'UNAVAILABLE',
+      table: contract?.table || null,
+      latestRecordAt: null,
+      ageHours: null,
+      rowCount: null,
+      detail: 'No marketing API-table contract is configured for this tenant.',
+    });
+  } else if (contract.mappingStatus === 'UNRESOLVED' || (contract.mappingStatus === 'MAPPED' && !contract.clientNames.length)) {
+    sources.push({
+      key: 'marketing',
+      label: 'Marketing API',
+      status: 'MAPPING_REQUIRED',
+      table: contract.table,
+      latestRecordAt: null,
+      ageHours: null,
+      rowCount: null,
+      detail: 'Source exists, but tenant client_name mapping is not approved.',
+    });
+  } else {
+    const tenantFilter = marketingTenantFilter(contract);
+    const marketingConditions = tenantFilter.sql ? `WHERE ${tenantFilter.sql}` : '';
+    await pushFreshness(
+      'marketing',
+      'Marketing API',
+      contract.table,
+      `SAFE_CAST(${safeWarehouseColumn(contract.dateField)} AS TIMESTAMP)`,
+      marketingConditions,
+      tenantFilter.params,
+    );
+  }
+
+  sources.push({
+    key: 'activations',
+    label: 'Activation source',
+    status: clientConfig.semanticMappings.tables.activations ? 'TIMESTAMP_CONTRACT_REQUIRED' : 'UNAVAILABLE',
+    table: clientConfig.semanticMappings.tables.activations || null,
+    latestRecordAt: null,
+    ageHours: null,
+    rowCount: null,
+    detail: clientConfig.semanticMappings.tables.activations
+      ? 'Activation table is configured, but its canonical event timestamp is not yet contracted for freshness monitoring.'
+      : 'No activation table is configured.',
+  });
+
+  return {
+    status: 'OBSERVED',
+    generatedAt: new Date().toISOString(),
+    sources,
+  };
+}
+
 // 9. DATA INTEGRITY (DATA HEALTH)
 export async function getDataIntegrityAnalytics(params: OffernetQueryParams) {
   const client = getBigQueryClient('dashboards-422710');
@@ -1531,13 +1783,16 @@ export async function getDataIntegrityAnalytics(params: OffernetQueryParams) {
     )
   ];
 
+  const sourceObservability = await getSourceObservability({ clientId: params.clientId });
+
   return {
     overallHealthScore: null,
     healthGrade: 'NOT_VERIFIED',
     validationStatus: 'NOT_VERIFIED',
     reason: 'Observed discrepancy counts are shown without an invented enterprise health score. Thresholds require approved data-quality contracts.',
     checks,
-    totalRecordsAudited: total
+    totalRecordsAudited: total,
+    sources: sourceObservability.sources
   };
 }
 
@@ -1628,75 +1883,117 @@ export async function getAgentPerformanceAnalytics(params: OffernetQueryParams) 
 
 // 11. CLIENT & CAMPAIGN ANALYSIS
 export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
-  const client = getBigQueryClient('dashboards-422710');
   const clientConfig = getClientConfig(params.clientId);
-  const marketingTable = clientConfig.semanticMappings.tables.marketing;
+  const contract = clientConfig.marketing;
 
-  if (!marketingTable || !clientConfig.capabilities.marketing) {
+  if (!contract || !clientConfig.capabilities.marketing) {
     return {
       campaigns: [],
       summary: null,
+      comparison: null,
       status: 'UNAVAILABLE',
-      reason: 'No approved marketing source is configured for this tenant.',
-      spendSource: { status: 'UNAVAILABLE', column: null, table: marketingTable || null, reason: 'No approved marketing table is configured.' },
-      budgetSource: { status: 'UNAVAILABLE', column: null, table: marketingTable || null },
-    };
-  }
-
-  if (clientConfig.id !== 'default_tenant') {
-    return {
-      campaigns: [],
-      summary: null,
-      status: 'UNAVAILABLE',
-      reason: 'Tenant-to-marketing-client mappings are not yet approved for campaign reporting.',
-      spendSource: { status: 'UNAVAILABLE', column: null, table: marketingTable, reason: 'Marketing client identity is not mapped to this tenant.' },
-      budgetSource: { status: 'UNAVAILABLE', column: null, table: marketingTable },
+      reason: 'No approved marketing API-table contract is configured for this tenant.',
+      mappingStatus: 'UNAVAILABLE',
+      grainStatus: 'UNAVAILABLE',
+      spendSource: { status: 'UNAVAILABLE', column: null, table: contract?.table || null, reason: 'No approved marketing contract is configured.' },
+      budgetSource: { status: 'UNAVAILABLE', column: null, table: contract?.table || null },
+      attribution: { status: 'UNCONFIGURED', reason: 'No marketing attribution contract is configured.' },
     };
   }
 
   if (params.vendor || params.source || params.medium || params.grade || params.agent) {
-    throw new RequestError('Campaign reporting currently supports date and campaign scope only.', 422);
+    throw new RequestError('Campaign reporting supports date and campaign scope until cross-source attribution is explicitly configured.', 422);
   }
 
-  const columns = await resolveMarketingCostColumns(client, marketingTable);
-  const spendIdentifier = columns.spendColumn ? safeWarehouseColumn(columns.spendColumn) : null;
-  const budgetIdentifier = columns.budgetColumn ? safeWarehouseColumn(columns.budgetColumn) : null;
-  const spendValue = spendIdentifier
-    ? (['cost_micros', 'spend_micros'].includes(String(columns.spendColumn).toLowerCase())
-        ? `SAFE_CAST(REGEXP_REPLACE(CAST(${spendIdentifier} AS STRING), r'[^0-9.-]', '') AS FLOAT64) / 1000000`
-        : `SAFE_CAST(REGEXP_REPLACE(CAST(${spendIdentifier} AS STRING), r'[^0-9.-]', '') AS FLOAT64)`)
-    : null;
-  const budgetValue = budgetIdentifier
-    ? `SAFE_CAST(REGEXP_REPLACE(CAST(${budgetIdentifier} AS STRING), r'[^0-9.-]', '') AS FLOAT64)`
+  if (contract.mappingStatus === 'UNRESOLVED' || (contract.mappingStatus === 'MAPPED' && !contract.clientNames.length)) {
+    return {
+      campaigns: [],
+      summary: null,
+      comparison: null,
+      status: 'UNAVAILABLE',
+      reason: 'Marketing API-table mapping is unresolved for this tenant. An administrator must approve the tenant client_name values before spend is enabled.',
+      mappingStatus: contract.mappingStatus,
+      grainStatus: 'NOT_RUN',
+      spendSource: { status: 'UNAVAILABLE', column: null, table: contract.table, reason: 'Tenant client_name mapping is unresolved.' },
+      budgetSource: { status: 'UNAVAILABLE', column: null, table: contract.table },
+      attribution: { status: contract.attribution.status, reason: contract.attribution.notes || null },
+    };
+  }
+
+  const client = getBigQueryClient(clientConfig.bigQueryProject);
+  const resolved = await resolveMarketingContract(client, contract);
+  if (resolved.missingRequired.length) {
+    return {
+      campaigns: [],
+      summary: null,
+      comparison: null,
+      status: 'INVALID_CONTRACT',
+      reason: `Configured marketing API-table fields are missing: ${resolved.missingRequired.join(', ')}`,
+      mappingStatus: contract.mappingStatus,
+      grainStatus: 'NOT_RUN',
+      spendSource: { status: 'UNAVAILABLE', column: null, table: contract.table, reason: 'Marketing contract validation failed.' },
+      budgetSource: { status: 'UNAVAILABLE', column: null, table: contract.table },
+      attribution: { status: contract.attribution.status, reason: contract.attribution.notes || null },
+    };
+  }
+
+  const tenantFilter = marketingTenantFilter(contract);
+  const clientField = safeWarehouseColumn(contract.clientNameField);
+  const dateField = safeWarehouseColumn(contract.dateField);
+  const channelField = safeWarehouseColumn(contract.channelField);
+  const campaignField = safeWarehouseColumn(contract.campaignField);
+  const adsetField = safeWarehouseColumn(contract.adsetField);
+  const impressionsField = safeWarehouseColumn(contract.impressionsField);
+  const clicksField = safeWarehouseColumn(contract.clicksField);
+  const leadsField = safeWarehouseColumn(contract.leadsField);
+  const spendValue = marketingSpendExpression(contract, resolved.spendColumn);
+  const budgetValue = resolved.budgetColumn
+    ? `SAFE_CAST(REGEXP_REPLACE(CAST(${safeWarehouseColumn(resolved.budgetColumn)} AS STRING), r'[^0-9.-]', '') AS FLOAT64)`
     : null;
 
-  const conditions = ['client_name IS NOT NULL'];
-  const queryParams: Record<string, any> = {};
+  const conditions = [`${clientField} IS NOT NULL`];
+  const queryParams: Record<string, any> = { ...tenantFilter.params };
+  if (tenantFilter.sql) conditions.push(tenantFilter.sql);
   if (params.startDate) {
-    conditions.push('DATE(date) >= @startDate');
+    conditions.push(`DATE(${dateField}) >= @startDate`);
     queryParams.startDate = params.startDate;
   }
   if (params.endDate) {
-    conditions.push('DATE(date) <= @endDate');
+    conditions.push(`DATE(${dateField}) <= @endDate`);
     queryParams.endDate = params.endDate;
   }
   if (params.campaign) {
-    conditions.push('LOWER(Channel_Campaign_Name) = LOWER(@campaign)');
+    conditions.push(`LOWER(CAST(${campaignField} AS STRING)) = LOWER(@campaign)`);
     queryParams.campaign = params.campaign;
   }
 
+  const grainFields = contract.spendGrainFields.map(safeWarehouseColumn);
+  const grainExpression = `TO_JSON_STRING(STRUCT(${grainFields.join(', ')}))`;
+  const grainQuery = `
+    SELECT
+      COUNT(*) AS row_count,
+      COUNT(DISTINCT ${grainExpression}) AS distinct_grain_count,
+      COUNT(*) - COUNT(DISTINCT ${grainExpression}) AS duplicate_grain_rows
+    FROM \`${contract.table}\`
+    WHERE ${conditions.join(' AND ')}
+  `;
+  const [grainRows] = await client.query({ query: grainQuery, params: queryParams });
+  const grain = grainRows[0] || {};
+  const duplicateGrainRows = Number(grain.duplicate_grain_rows || 0);
+  const grainStatus = duplicateGrainRows > 0 ? 'DUPLICATE_GRAIN' : 'VALID';
+
   const query = `
     SELECT
-      client_name,
-      channel,
-      Channel_Campaign_Name AS campaign_name,
-      channel_adset_name AS adset_name,
-      SUM(impressions) AS impressions,
-      SUM(clicks) AS clicks,
-      SUM(actions_lead) AS recorded_leads,
-      ${spendValue ? `SUM(${spendValue})` : 'CAST(NULL AS FLOAT64)'} AS recorded_spend,
-      ${budgetValue ? `ARRAY_AGG(${budgetValue} IGNORE NULLS ORDER BY date DESC LIMIT 1)[SAFE_OFFSET(0)]` : 'CAST(NULL AS FLOAT64)'} AS latest_budget
-    FROM \`${marketingTable}\`
+      CAST(${clientField} AS STRING) AS client_name,
+      CAST(${channelField} AS STRING) AS channel,
+      CAST(${campaignField} AS STRING) AS campaign_name,
+      CAST(${adsetField} AS STRING) AS adset_name,
+      SUM(SAFE_CAST(${impressionsField} AS FLOAT64)) AS impressions,
+      SUM(SAFE_CAST(${clicksField} AS FLOAT64)) AS clicks,
+      SUM(SAFE_CAST(${leadsField} AS FLOAT64)) AS recorded_leads,
+      ${spendValue && grainStatus === 'VALID' ? `SUM(${spendValue})` : 'CAST(NULL AS FLOAT64)'} AS recorded_spend,
+      ${budgetValue ? `ARRAY_AGG(${budgetValue} IGNORE NULLS ORDER BY ${dateField} DESC LIMIT 1)[SAFE_OFFSET(0)]` : 'CAST(NULL AS FLOAT64)'} AS latest_budget
+    FROM \`${contract.table}\`
     WHERE ${conditions.join(' AND ')}
     GROUP BY 1, 2, 3, 4
     ORDER BY recorded_leads DESC
@@ -1704,17 +2001,20 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
   `;
 
   const [rows] = await client.query({ query, params: queryParams });
-  const campaigns = rows.map((r: any) => {
-    const impressions = Number(r.impressions || 0);
-    const clicks = Number(r.clicks || 0);
-    const leads = Number(r.recorded_leads || 0);
-    const spend = columns.spendColumn && r.recorded_spend !== null ? Number(r.recorded_spend || 0) : null;
-    const latestBudget = columns.budgetColumn && r.latest_budget !== null ? Number(r.latest_budget || 0) : null;
+  const hasSpend = Boolean(resolved.spendColumn && grainStatus === 'VALID');
+
+  const campaigns = rows.map((row: any) => {
+    const impressions = Number(row.impressions || 0);
+    const clicks = Number(row.clicks || 0);
+    const leads = Number(row.recorded_leads || 0);
+    const spend = hasSpend && row.recorded_spend !== null ? Number(row.recorded_spend || 0) : null;
+    const latestBudget = resolved.budgetColumn && row.latest_budget !== null ? Number(row.latest_budget || 0) : null;
+
     return {
-      client: r.client_name,
-      channel: r.channel || 'Unknown',
-      campaign: r.campaign_name || 'Unknown',
-      adset: r.adset_name || 'Unknown',
+      client: row.client_name,
+      channel: row.channel || 'Unknown',
+      campaign: row.campaign_name || 'Unknown',
+      adset: row.adset_name || 'Unknown',
       spend,
       latestBudget,
       impressions,
@@ -1735,7 +2035,6 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
     return acc;
   }, { spend: 0, impressions: 0, clicks: 0, leads: 0 });
 
-  const hasSpend = Boolean(columns.spendColumn);
   const summary = {
     spend: hasSpend ? Number(totals.spend.toFixed(2)) : null,
     impressions: totals.impressions,
@@ -1762,26 +2061,35 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
     const startMs = Date.parse(params.startDate + 'T00:00:00Z');
     const endMs = Date.parse(params.endDate + 'T00:00:00Z');
     const days = Math.floor((endMs - startMs) / 86400000) + 1;
+
     if (days > 0 && days <= 366) {
       const previousEnd = new Date(startMs - 86400000);
       const previousStart = new Date(previousEnd.getTime() - (days - 1) * 86400000);
       const previousStartDate = previousStart.toISOString().slice(0, 10);
       const previousEndDate = previousEnd.toISOString().slice(0, 10);
-      const priorConditions = ['client_name IS NOT NULL', 'DATE(date) >= @previousStartDate', 'DATE(date) <= @previousEndDate'];
-      const priorParams: Record<string, any> = { previousStartDate, previousEndDate };
+      const priorConditions = [`${clientField} IS NOT NULL`];
+      const priorParams: Record<string, any> = {
+        ...tenantFilter.params,
+        previousStartDate,
+        previousEndDate,
+      };
+      if (tenantFilter.sql) priorConditions.push(tenantFilter.sql);
+      priorConditions.push(`DATE(${dateField}) >= @previousStartDate`, `DATE(${dateField}) <= @previousEndDate`);
       if (params.campaign) {
-        priorConditions.push('LOWER(Channel_Campaign_Name) = LOWER(@campaign)');
+        priorConditions.push(`LOWER(CAST(${campaignField} AS STRING)) = LOWER(@campaign)`);
         priorParams.campaign = params.campaign;
       }
+
       const priorQuery = `
         SELECT
-          SUM(impressions) AS impressions,
-          SUM(clicks) AS clicks,
-          SUM(actions_lead) AS recorded_leads,
-          ${spendValue ? `SUM(${spendValue})` : 'CAST(NULL AS FLOAT64)'} AS recorded_spend
-        FROM \`${marketingTable}\`
+          SUM(SAFE_CAST(${impressionsField} AS FLOAT64)) AS impressions,
+          SUM(SAFE_CAST(${clicksField} AS FLOAT64)) AS clicks,
+          SUM(SAFE_CAST(${leadsField} AS FLOAT64)) AS recorded_leads,
+          ${spendValue && grainStatus === 'VALID' ? `SUM(${spendValue})` : 'CAST(NULL AS FLOAT64)'} AS recorded_spend
+        FROM \`${contract.table}\`
         WHERE ${priorConditions.join(' AND ')}
       `;
+
       const [priorRows] = await client.query({ query: priorQuery, params: priorParams });
       const prior = priorRows[0] || {};
       const priorSpend = hasSpend && prior.recorded_spend !== null ? Number(prior.recorded_spend || 0) : null;
@@ -1796,6 +2104,7 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
         current !== null && previous !== null && previous !== 0
           ? Number((((current - previous) / previous) * 100).toFixed(1))
           : null;
+
       comparison = {
         spendDeltaPct: pct(summary.spend, priorSpend),
         cpcDeltaPct: pct(summary.cpc, priorCpc),
@@ -1809,25 +2118,360 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
     }
   }
 
+  const reason = grainStatus !== 'VALID'
+    ? `Spend is withheld because the API table violates the configured spend grain with ${duplicateGrainRows.toLocaleString()} duplicate rows.`
+    : hasSpend
+      ? `Recorded media spend is sourced from the approved API-table field ${resolved.spendColumn}. CPC, CPM and CPL are derived from the same spend population.`
+      : 'No approved spend field from the tenant marketing contract exists in the current API-table schema. Budget remains a separate planning value.';
+
   return {
     campaigns,
     summary,
     comparison,
-    status: hasSpend ? 'OBSERVED' : 'PARTIAL',
-    reason: hasSpend
-      ? `Recorded media spend is sourced from ${columns.spendColumn}. CPC, CPM and CPL are derived from that same spend population and platform delivery metrics.`
-      : 'No actual incurred-spend column was found in the approved marketing table. Budget remains visible only as the latest recorded planning value and is not treated as spend.',
+    status: grainStatus !== 'VALID' ? 'INVALID_GRAIN' : hasSpend ? 'OBSERVED' : 'PARTIAL',
+    reason,
+    mappingStatus: contract.mappingStatus,
+    grainStatus,
+    grainDiagnostics: {
+      rowCount: Number(grain.row_count || 0),
+      distinctGrainCount: Number(grain.distinct_grain_count || 0),
+      duplicateGrainRows,
+      fields: contract.spendGrainFields,
+    },
     spendSource: {
       status: hasSpend ? 'OBSERVED' : 'UNAVAILABLE',
-      column: columns.spendColumn,
-      table: marketingTable,
-      reason: hasSpend ? null : 'No allow-listed actual spend/cost column exists in the current marketing schema.',
+      column: resolved.spendColumn,
+      table: contract.table,
+      reason: hasSpend ? null : reason,
     },
     budgetSource: {
-      status: columns.budgetColumn ? 'OBSERVED_PLANNING_FIELD' : 'UNAVAILABLE',
-      column: columns.budgetColumn,
-      table: marketingTable,
+      status: resolved.budgetColumn ? 'OBSERVED_PLANNING_FIELD' : 'UNAVAILABLE',
+      column: resolved.budgetColumn,
+      table: contract.table,
     },
+    attribution: {
+      status: contract.attribution.status,
+      reason: contract.attribution.notes || (
+        contract.attribution.status === 'ACTIVE'
+          ? 'Marketing-to-lead attribution contract is active.'
+          : 'Cross-source attribution has not been configured.'
+      ),
+    },
+  };
+}
+
+export async function getMarketingRootCauseAnalysis(params: OffernetQueryParams) {
+  const allowedMetrics = new Set(['spend', 'cpc', 'cpm', 'cpl', 'ctr', 'leads']);
+  const metric = params.metric || 'cpl';
+  if (!allowedMetrics.has(metric)) throw new RequestError('Unsupported marketing root-cause metric', 422);
+  if (!params.startDate || !params.endDate) {
+    throw new RequestError('Marketing root-cause analysis requires an explicit startDate and endDate', 422);
+  }
+
+  const clientConfig = getClientConfig(params.clientId);
+  const contract = clientConfig.marketing;
+  if (!contract || !clientConfig.capabilities.marketing) {
+    return { status: 'UNAVAILABLE', reason: 'No approved marketing contract exists for this tenant.', metric: null, dimensions: [], drivers: [] };
+  }
+  if (contract.mappingStatus === 'UNRESOLVED' || (contract.mappingStatus === 'MAPPED' && !contract.clientNames.length)) {
+    return { status: 'UNAVAILABLE', reason: 'Marketing client mapping is unresolved for this tenant.', metric: null, dimensions: [], drivers: [] };
+  }
+
+  const currentCampaign = await getClientCampaignAnalytics(params);
+  if (!currentCampaign.summary) {
+    return { status: currentCampaign.status, reason: currentCampaign.reason, metric: null, dimensions: [], drivers: [] };
+  }
+  if (['spend', 'cpc', 'cpm', 'cpl'].includes(metric) && currentCampaign.summary.spend === null) {
+    return { status: 'UNAVAILABLE', reason: currentCampaign.reason, metric: null, dimensions: [], drivers: [] };
+  }
+
+  const startMs = Date.parse(params.startDate + 'T00:00:00Z');
+  const endMs = Date.parse(params.endDate + 'T00:00:00Z');
+  const days = Math.floor((endMs - startMs) / 86400000) + 1;
+  if (!Number.isFinite(days) || days <= 0 || days > 366) throw new RequestError('Marketing root-cause date range must be between 1 and 366 days', 422);
+
+  const previousEnd = new Date(startMs - 86400000);
+  const previousStart = new Date(previousEnd.getTime() - (days - 1) * 86400000);
+  const previousStartDate = previousStart.toISOString().slice(0, 10);
+  const previousEndDate = previousEnd.toISOString().slice(0, 10);
+
+  const client = getBigQueryClient(clientConfig.bigQueryProject);
+  const resolved = await resolveMarketingContract(client, contract);
+  const tenantFilter = marketingTenantFilter(contract);
+  const dateField = safeWarehouseColumn(contract.dateField);
+  const channelField = safeWarehouseColumn(contract.channelField);
+  const campaignField = safeWarehouseColumn(contract.campaignField);
+  const adsetField = safeWarehouseColumn(contract.adsetField);
+  const impressionsField = safeWarehouseColumn(contract.impressionsField);
+  const clicksField = safeWarehouseColumn(contract.clicksField);
+  const leadsField = safeWarehouseColumn(contract.leadsField);
+  const spendValue = marketingSpendExpression(contract, resolved.spendColumn);
+  const queryParams: Record<string, any> = {
+    ...tenantFilter.params,
+    currentStartDate: params.startDate,
+    currentEndDate: params.endDate,
+    previousStartDate,
+    previousEndDate,
+  };
+  const conditions = [
+    `DATE(${dateField}) BETWEEN @previousStartDate AND @currentEndDate`,
+    ...(tenantFilter.sql ? [tenantFilter.sql] : []),
+  ];
+  if (params.campaign) {
+    conditions.push(`LOWER(CAST(${campaignField} AS STRING)) = LOWER(@campaign)`);
+    queryParams.campaign = params.campaign;
+  }
+
+  const query = `
+    WITH base AS (
+      SELECT
+        DATE(${dateField}) AS report_date,
+        COALESCE(CAST(${channelField} AS STRING), 'Unknown') AS channel,
+        COALESCE(CAST(${campaignField} AS STRING), 'Unknown') AS campaign,
+        COALESCE(CAST(${adsetField} AS STRING), 'Unknown') AS adset,
+        SAFE_CAST(${impressionsField} AS FLOAT64) AS impressions,
+        SAFE_CAST(${clicksField} AS FLOAT64) AS clicks,
+        SAFE_CAST(${leadsField} AS FLOAT64) AS leads,
+        ${spendValue ? spendValue : 'CAST(NULL AS FLOAT64)'} AS spend
+      FROM \`${contract.table}\`
+      WHERE ${conditions.join(' AND ')}
+    ),
+    periodized AS (
+      SELECT
+        *,
+        CASE
+          WHEN report_date BETWEEN @currentStartDate AND @currentEndDate THEN 'current'
+          WHEN report_date BETWEEN @previousStartDate AND @previousEndDate THEN 'previous'
+          ELSE NULL
+        END AS period
+      FROM base
+    ),
+    dimensional AS (
+      SELECT period, 'channel' AS dimension, channel AS segment,
+        SUM(spend) AS spend, SUM(impressions) AS impressions, SUM(clicks) AS clicks, SUM(leads) AS leads
+      FROM periodized WHERE period IS NOT NULL GROUP BY period, channel
+      UNION ALL
+      SELECT period, 'campaign', campaign,
+        SUM(spend), SUM(impressions), SUM(clicks), SUM(leads)
+      FROM periodized WHERE period IS NOT NULL GROUP BY period, campaign
+      UNION ALL
+      SELECT period, 'adset', adset,
+        SUM(spend), SUM(impressions), SUM(clicks), SUM(leads)
+      FROM periodized WHERE period IS NOT NULL GROUP BY period, adset
+      UNION ALL
+      SELECT period, 'overall', 'All',
+        SUM(spend), SUM(impressions), SUM(clicks), SUM(leads)
+      FROM periodized WHERE period IS NOT NULL GROUP BY period
+    )
+    SELECT * FROM dimensional
+  `;
+
+  const [rows] = await client.query({ query, params: queryParams });
+  const value = (row: any) => {
+    const spend = row?.spend === null || row?.spend === undefined ? null : Number(row.spend || 0);
+    const impressions = Number(row?.impressions || 0);
+    const clicks = Number(row?.clicks || 0);
+    const leads = Number(row?.leads || 0);
+    switch (metric) {
+      case 'spend': return spend;
+      case 'cpc': return spend !== null && clicks > 0 ? Number((spend / clicks).toFixed(2)) : null;
+      case 'cpm': return spend !== null && impressions > 0 ? Number(((spend / impressions) * 1000).toFixed(2)) : null;
+      case 'cpl': return spend !== null && leads > 0 ? Number((spend / leads).toFixed(2)) : null;
+      case 'ctr': return impressions > 0 ? Number(((clicks / impressions) * 100).toFixed(2)) : 0;
+      default: return leads;
+    }
+  };
+
+  const currentOverall = rows.find((row: any) => row.dimension === 'overall' && row.period === 'current') || {};
+  const previousOverall = rows.find((row: any) => row.dimension === 'overall' && row.period === 'previous') || {};
+  const currentValue = value(currentOverall);
+  const previousValue = value(previousOverall);
+  const delta = currentValue !== null && previousValue !== null
+    ? Number((currentValue - previousValue).toFixed(2))
+    : null;
+
+  const labels: Record<string, string> = {
+    spend: 'Media spend',
+    cpc: 'CPC',
+    cpm: 'CPM',
+    cpl: 'CPL',
+    ctr: 'CTR',
+    leads: 'Recorded leads',
+  };
+  const units: Record<string, string> = {
+    spend: 'currency',
+    cpc: 'currency',
+    cpm: 'currency',
+    cpl: 'currency',
+    ctr: 'pp',
+    leads: 'leads',
+  };
+
+  const dimensionLabels: Record<string, string> = {
+    channel: 'Channel',
+    campaign: 'Campaign',
+    adset: 'Adset',
+  };
+
+  const dimensions = ['channel', 'campaign', 'adset'].map(dimension => {
+    const current = new Map(rows.filter((row: any) => row.dimension === dimension && row.period === 'current').map((row: any) => [String(row.segment), row]));
+    const previous = new Map(rows.filter((row: any) => row.dimension === dimension && row.period === 'previous').map((row: any) => [String(row.segment), row]));
+    const names = Array.from(new Set([...current.keys(), ...previous.keys()]));
+    const segments = names.map(name => {
+      const currentMetric = value(current.get(name) || {});
+      const previousMetric = value(previous.get(name) || {});
+      return {
+        name,
+        currentValue: currentMetric,
+        previousValue: previousMetric,
+        delta: currentMetric !== null && previousMetric !== null ? Number((currentMetric - previousMetric).toFixed(2)) : null,
+      };
+    }).sort((a, b) => Math.abs(Number(b.delta || 0)) - Math.abs(Number(a.delta || 0)));
+
+    return { key: dimension, label: dimensionLabels[dimension], segments: segments.slice(0, 15) };
+  });
+
+  const drivers = dimensions
+    .flatMap(dimension => dimension.segments.slice(0, 5).map(segment => ({ ...segment, dimension: dimension.key, dimensionLabel: dimension.label })))
+    .filter(driver => driver.delta !== null)
+    .sort((a, b) => Math.abs(Number(b.delta || 0)) - Math.abs(Number(a.delta || 0)))
+    .slice(0, 10);
+
+  return {
+    status: 'OBSERVED',
+    metric: {
+      id: metric,
+      label: labels[metric],
+      unit: units[metric],
+      currentValue,
+      previousValue,
+      delta,
+    },
+    currentWindow: { startDate: params.startDate, endDate: params.endDate },
+    previousWindow: { startDate: previousStartDate, endDate: previousEndDate },
+    dimensions,
+    drivers,
+    methodology: 'Media drivers compare observed segment metrics between equal-length periods. Segment deltas are diagnostic changes, not additive causal contribution scores.',
+    validationStatus: 'NOT_VERIFIED',
+  };
+}
+
+export async function getMarketingAttributionAnalytics(params: OffernetQueryParams) {
+  const clientConfig = getClientConfig(params.clientId);
+  const contract = clientConfig.marketing;
+  if (!contract || !clientConfig.capabilities.marketing) {
+    return { status: 'UNAVAILABLE', reason: 'No marketing contract is configured.', rows: [] };
+  }
+  if (contract.attribution.status !== 'ACTIVE') {
+    return {
+      status: 'UNAVAILABLE',
+      reason: contract.attribution.notes || 'Marketing-to-lead attribution is not configured.',
+      rows: [],
+      contract: contract.attribution,
+    };
+  }
+  const marketingSourceField = contract.attribution.marketingSourceField;
+  const leadSourceField = contract.attribution.leadSourceField;
+  if (!marketingSourceField || !leadSourceField) {
+    return { status: 'INVALID_CONTRACT', reason: 'Active attribution requires both marketingSourceField and leadSourceField.', rows: [] };
+  }
+
+  const client = getBigQueryClient(clientConfig.bigQueryProject);
+  const resolved = await resolveMarketingContract(client, contract);
+  const spendValue = marketingSpendExpression(contract, resolved.spendColumn);
+  if (!spendValue) {
+    return { status: 'UNAVAILABLE', reason: 'Attribution requires an approved observed spend field.', rows: [] };
+  }
+
+  const tenantFilter = marketingTenantFilter(contract);
+  const marketingDate = safeWarehouseColumn(contract.dateField);
+  const marketingSource = safeWarehouseColumn(marketingSourceField);
+  const leadSource = safeAliasedColumn('l', leadSourceField);
+  const conditions = [...(tenantFilter.sql ? [tenantFilter.sql] : [])];
+  const queryParams: Record<string, any> = { ...tenantFilter.params };
+  if (params.startDate) {
+    conditions.push(`DATE(${marketingDate}) >= @startDate`);
+    queryParams.startDate = params.startDate;
+  }
+  if (params.endDate) {
+    conditions.push(`DATE(${marketingDate}) <= @endDate`);
+    queryParams.endDate = params.endDate;
+  }
+  const marketingWhere = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const operationalScope = buildFilterClause(params);
+  const query = `
+    WITH marketing AS (
+      SELECT
+        LOWER(TRIM(CAST(${marketingSource} AS STRING))) AS join_key,
+        SUM(${spendValue}) AS spend,
+        SUM(SAFE_CAST(${safeWarehouseColumn(contract.leadsField)} AS FLOAT64)) AS platform_leads
+      FROM \`${contract.table}\`
+      ${marketingWhere}
+      GROUP BY join_key
+    ),
+    operations AS (
+      SELECT
+        LOWER(TRIM(CAST(${leadSource} AS STRING))) AS join_key,
+        COUNT(DISTINCT l.lead_id) AS fetched,
+        COUNT(DISTINCT CASE WHEN hlc.delivered IS NOT NULL AND hlc.delivered NOT LIKE '1900%' AND hlc.delivered NOT LIKE '1970%' THEN l.lead_id END) AS delivered,
+        COUNT(DISTINCT CASE WHEN hlc.first_call_date IS NOT NULL AND hlc.first_call_date NOT LIKE '1900%' AND hlc.first_call_date NOT LIKE '1970%' THEN l.lead_id END) AS dialled,
+        COUNT(DISTINCT CASE WHEN SAFE_CAST(hlc.rpc AS INT64) > 0 THEN l.lead_id END) AS rpc,
+        COUNT(DISTINCT CASE WHEN hlc.sale IS NOT NULL AND hlc.sale != '' AND hlc.sale NOT LIKE '1900%' AND hlc.sale NOT LIKE '1970%' THEN l.lead_id END) AS sales,
+        COUNT(DISTINCT CASE WHEN hlc.activated IS NOT NULL AND hlc.activated != '' AND hlc.activated NOT LIKE '1900%' AND hlc.activated NOT LIKE '1970%' THEN l.lead_id END) AS activations,
+        SUM(COALESCE(hlc.revenue_generated, 0)) AS recorded_revenue
+      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      LEFT JOIN UNNEST(l.hlc_details) hlc
+      ${operationalScope.whereSql}
+      GROUP BY join_key
+    )
+    SELECT
+      COALESCE(marketing.join_key, operations.join_key) AS join_key,
+      marketing.spend,
+      marketing.platform_leads,
+      operations.fetched,
+      operations.delivered,
+      operations.dialled,
+      operations.rpc,
+      operations.sales,
+      operations.activations,
+      operations.recorded_revenue
+    FROM marketing
+    FULL OUTER JOIN operations USING (join_key)
+    ORDER BY COALESCE(marketing.spend, 0) DESC
+    LIMIT 250
+  `;
+
+  const [rows] = await client.query({
+    query,
+    params: { ...queryParams, ...operationalScope.queryParams },
+  });
+
+  return {
+    status: 'OBSERVED_UNRECONCILED',
+    reason: 'Rows use the explicitly configured marketing-to-lead attribution key. Results remain NOT_VERIFIED until source-owner reconciliation confirms key coverage and one-to-one semantics.',
+    contract: contract.attribution,
+    rows: rows.map((row: any) => {
+      const spend = row.spend === null || row.spend === undefined ? null : Number(row.spend || 0);
+      const fetched = Number(row.fetched || 0);
+      const sales = Number(row.sales || 0);
+      const activations = Number(row.activations || 0);
+      return {
+        key: row.join_key || 'Unmatched',
+        spend,
+        platformLeads: Number(row.platform_leads || 0),
+        fetched,
+        delivered: Number(row.delivered || 0),
+        dialled: Number(row.dialled || 0),
+        rpc: Number(row.rpc || 0),
+        sales,
+        activations,
+        recordedRevenue: Number(row.recorded_revenue || 0),
+        spendPerFetchedLead: spend !== null && fetched > 0 ? Number((spend / fetched).toFixed(2)) : null,
+        spendPerSale: spend !== null && sales > 0 ? Number((spend / sales).toFixed(2)) : null,
+        spendPerActivation: spend !== null && activations > 0 ? Number((spend / activations).toFixed(2)) : null,
+      };
+    }),
   };
 }
 

@@ -73,19 +73,59 @@ test('root-cause dimensions are reduced to exclusive lead-level segments', () =>
 
 
 test('marketing spend never falls back to budget', () => {
+  const config = read('server/bigquery/config.ts');
   const analytics = read('server/bigquery/offernet_analytics.ts');
-  assert.match(analytics, /ACTUAL_SPEND_COLUMN_PRIORITY/);
-  assert.match(analytics, /BUDGET_COLUMN_PRIORITY/);
+  assert.match(config, /approvedSpendFields/);
+  assert.match(config, /approvedBudgetFields/);
   assert.match(analytics, /latest_budget/);
-  assert.match(analytics, /Budget remains visible only as the latest recorded planning value and is not treated as spend/);
+  assert.match(analytics, /Budget remains a separate planning value/);
   assert.doesNotMatch(analytics, /SUM\(budget\)\s+AS\s+(?:recorded_spend|spend|total_spend)/i);
 });
 
-test('observed media efficiency is derived only when a spend field exists', () => {
+test('observed media efficiency is derived only when an approved spend field and valid grain exist', () => {
   const analytics = read('server/bigquery/offernet_analytics.ts');
-  assert.match(analytics, /const hasSpend = Boolean\(columns\.spendColumn\)/);
+  assert.match(analytics, /const hasSpend = Boolean\(resolved\.spendColumn && grainStatus === 'VALID'\)/);
   assert.match(analytics, /cpc: hasSpend && totals\.clicks > 0/);
   assert.match(analytics, /cpm: hasSpend && totals\.impressions > 0/);
   assert.match(analytics, /cpl: hasSpend && totals\.leads > 0/);
   assert.match(analytics, /cross-source ratios and are not attribution or full profitability/);
+});
+
+
+test('tenant marketing contracts replace dormant hard-coded cost assumptions', () => {
+  const config = read('server/bigquery/config.ts');
+  assert.match(config, /interface MarketingSourceContract/);
+  assert.match(config, /spendGrainFields/);
+  assert.match(config, /CX_MARKETING_CLIENT_MAP_JSON/);
+  assert.match(config, /CX_MARKETING_ATTRIBUTION_JSON/);
+  assert.doesNotMatch(config, /leadCost\s*:/);
+  assert.doesNotMatch(config, /callMinuteCost\s*:/);
+  assert.doesNotMatch(config, /baseCommissionPerSale\s*:/);
+  assert.doesNotMatch(config, /fixedOverhead\s*:/);
+});
+
+test('tenant campaign reporting fails closed until explicit client_name mapping exists', () => {
+  const analytics = read('server/bigquery/offernet_analytics.ts');
+  assert.match(analytics, /Marketing API-table mapping is unresolved for this tenant/);
+  assert.match(analytics, /marketingTenantFilter\(contract\)/);
+  assert.doesNotMatch(analytics, /clientConfig\.id !== 'default_tenant'\)[\s\S]{0,300}Tenant-to-marketing-client mappings are not yet approved/);
+});
+
+test('spend grain is validated before incurred spend is returned', () => {
+  const analytics = read('server/bigquery/offernet_analytics.ts');
+  assert.match(analytics, /duplicate_grain_rows/);
+  assert.match(analytics, /grainStatus === 'VALID'/);
+  assert.match(analytics, /Spend is withheld because the API table violates the configured spend grain/);
+});
+
+test('marketing attribution is explicit and fail closed', () => {
+  const analytics = read('server/bigquery/offernet_analytics.ts');
+  assert.match(analytics, /contract\.attribution\.status !== 'ACTIVE'/);
+  assert.match(analytics, /Attribution requires an approved observed spend field/);
+  assert.match(analytics, /OBSERVED_UNRECONCILED/);
+});
+
+test('marketing discovery remains admin-only', () => {
+  const api = read('server/api.ts');
+  assert.match(api, /analyticsRouter\.get\('\/offernet\/marketing-discovery', requireAdmin/);
 });

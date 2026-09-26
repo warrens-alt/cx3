@@ -6,7 +6,7 @@ React + Express analytics application backed by configured Google BigQuery sourc
 
 The application intentionally separates **operational analytics** from **versioned evidence reporting**.
 
-Operational analytics are useful for exploration and operational monitoring, but they are not independently reconciled or certified. The API stamps these responses `UNVERIFIED`. Commercial costs, profitability, campaign spend economics, generative AI recommendations, static redial recommendations and synthetic data-health scores are withheld unless an approved source/measurement contract exists.
+Operational analytics are useful for exploration and operational monitoring, but they are not independently reconciled or certified. The API stamps these responses `UNVERIFIED`. Media spend, CPC, CPM and CPL may be shown when they come from the configured marketing API-table contract and its declared spend grain passes validation. Budget is never substituted for spend. Cross-source attribution and profitability remain withheld unless their own explicit contracts are active.
 
 The `/reports` area currently provides a tenant-scoped registry of immutable reporting releases. The metric contracts and release-manifest model are present, but the v2 report executor and replay engine are **not implemented in this repository revision**. Their endpoints therefore fail explicitly with `NOT_IMPLEMENTED` instead of returning placeholder results.
 
@@ -70,8 +70,30 @@ The main remaining trust work is:
 - complete and independently test the versioned report compiler/executor and replay token flow;
 - provision and validate immutable reporting snapshots outside this repository;
 - reconcile call-event joins, activation identities and timestamp semantics against live sources;
-- introduce approved incurred-spend and commercial rate-card contracts before restoring profitability metrics;
-- complete tenant-to-marketing-client mappings for campaign reporting;
+- approve exact tenant-to-`client_name` mappings through `CX_MARKETING_CLIENT_MAP_JSON` for tenant-level campaign reporting;
+- activate and reconcile `CX_MARKETING_ATTRIBUTION_JSON` only after marketing/lead join-key semantics are source-owner approved;
+- source telephony, commission and overhead costs from approved tables/contracts before restoring full profitability metrics;
 - add production IAP acceptance tests and live source-owner reconciliation evidence.
 
 See `docs/IMPLEMENTATION-STATUS.md` for the current deployment boundary.
+
+
+## Marketing spend contract
+
+Marketing spend is sourced from the configured API table, currently `lead_ledger_platform_insights`.
+
+The contract defines the client, date, channel, campaign, adset, impression, click, lead, spend and budget fields plus the allowed spend aggregation grain. Runtime schema inspection validates that contract; it does not decide business meaning.
+
+Tenant mappings are deployment configuration:
+
+```bash
+CX_MARKETING_CLIENT_MAP_JSON='{"mtn":["<exact approved client_name>"]}'
+```
+
+Cross-source attribution is separately gated:
+
+```bash
+CX_MARKETING_ATTRIBUTION_JSON='{"mtn":{"marketingSourceField":"<approved field>","leadSourceField":"offershop_source"}}'
+```
+
+Do not activate attribution until the join values and coverage have been reconciled with the source owners. See `docs/MARKETING-CONTRACTS.md`.
