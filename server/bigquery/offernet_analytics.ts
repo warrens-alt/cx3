@@ -653,18 +653,15 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
   });
 
   // Call interval cadence & repeated no-answer analysis
-  const attemptCadence = [
-    { transition: 'Attempt 1 → Attempt 2', avgSpacing: '2h 15m', marginalRpcYield: '28.4%', costBenefitRatio: 'High' },
-    { transition: 'Attempt 2 → Attempt 3', avgSpacing: '5h 40m', marginalRpcYield: '14.2%', costBenefitRatio: 'Moderate' },
-    { transition: 'Attempt 3 → Attempt 4', avgSpacing: '24h 10m', marginalRpcYield: '6.8%', costBenefitRatio: 'Low' },
-    { transition: 'Attempt 4 → Attempt 5+', avgSpacing: '48h+', marginalRpcYield: '1.9%', costBenefitRatio: 'Negative (Ceiling)' }
-  ];
+  const attemptCadence: Array<{ transition: string; avgSpacing: string; marginalRpcYield: string; costBenefitRatio: string }> = [];
 
   const noAnswerAnalysis = {
-    stopThresholdRecommendation: '4 calls maximum',
-    diminishingReturnsCutoff: 'Calls beyond 4 generate under 2% marginal RPC while increasing carrier spam reputation risk by 34%.',
-    callbackFollowupRate: '78.4%',
-    callbackSaleConversion: '14.2%'
+    status: 'UNAVAILABLE',
+    reason: 'No approved redial-cost or carrier-reputation contract is configured. Recommendations are withheld.',
+    stopThresholdRecommendation: null,
+    diminishingReturnsCutoff: null,
+    callbackFollowupRate: null,
+    callbackSaleConversion: null
   };
 
   return {
