@@ -6,7 +6,7 @@ import { useClient } from '../lib/ClientContext';
 import { fetchSpeedToLead, type SpeedToLeadData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
-import { downloadCsv } from '../lib/formatters';
+import { downloadCsv, formatPercent, formatTableNumber } from '../lib/formatters';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { CaptureTurnaroundPanel, SlaBandsPanel, OperatingWindowPanel } from '../components/OfferNetControlPanels';
@@ -158,13 +158,13 @@ export default function SpeedToLeadIntelligence() {
                   <article key={`${row.cohort}-${index}`}>
                     <div className="cx-contact-cohort-label">
                       <strong>{row.cohort}</strong>
-                      <small>{Number(row.leads || 0).toLocaleString()} leads</small>
+                      <small>{formatTableNumber(row.leads)} leads</small>
                     </div>
                     <div className="cx-contact-cohort-volume"><i style={{ width: `${(row.leads / cohortMax) * 100}%` }}/></div>
                     <dl>
-                      <div><dt>RPC</dt><dd>{row.contactRate}%</dd></div>
-                      <div><dt>Sale</dt><dd>{row.saleRate}%</dd></div>
-                      <div><dt>Activation</dt><dd>{row.activationRate}%</dd></div>
+                      <div><dt>RPC</dt><dd>{formatPercent(row.contactRate)}</dd></div>
+                      <div><dt>Sale</dt><dd>{formatPercent(row.saleRate, 2)}</dd></div>
+                      <div><dt>Activation</dt><dd>{formatPercent(row.activationRate)}</dd></div>
                     </dl>
                   </article>
                 ))}

@@ -6,7 +6,7 @@ import { useClient } from '../lib/ClientContext';
 import { fetchTemporal, type TemporalData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
-import { downloadCsv } from '../lib/formatters';
+import { downloadCsv, formatPercent, formatTableNumber } from '../lib/formatters';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { CaptureTurnaroundPanel, OperatingWindowPanel } from '../components/OfferNetControlPanels';
@@ -105,18 +105,23 @@ export default function TemporalIntelligence() {
                         <div className="cx-temporal-day">{day}</div>
                         {hours.map(hour => {
                           const row = dayRows.find(item => item.hour === hour);
-                          const rawVal = row ? (metricView === 'volume' ? row.volume : metricView === 'saleRate' ? row.saleRate : row.contactRate) : 0;
-                          const value = rawVal ?? 0;
-                          const label = metricView === 'volume' ? Number(value).toLocaleString() : `${value}%`;
+                          const rawVal = row ? (metricView === 'volume' ? row.volume : metricView === 'saleRate' ? row.saleRate : row.contactRate) : null;
+                          const numericValue = rawVal == null ? null : Number(rawVal);
+                          const value = numericValue !== null && Number.isFinite(numericValue) ? numericValue : null;
+                          const label = value === null
+                            ? '—'
+                            : metricView === 'volume'
+                              ? formatTableNumber(value)
+                              : formatPercent(value);
                           return (
                             <div
                               key={`${day}-${hour}`}
                               className="cx-temporal-cell"
-                              data-empty={value === 0}
+                              data-empty={value === null}
                               title={`${day} ${String(hour).padStart(2, '0')}:00 · ${label}`}
-                              style={value > 0 ? { '--cell-opacity': cellOpacity(value) } as React.CSSProperties : undefined}
+                              style={value !== null && value > 0 ? { '--cell-opacity': cellOpacity(value) } as React.CSSProperties : undefined}
                             >
-                              {value > 0 ? label : '–'}
+                              {label}
                             </div>
                           );
                         })}

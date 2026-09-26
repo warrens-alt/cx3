@@ -345,3 +345,29 @@ test('CLI import UI matches the scoped source contract and renders unavailable m
   assert.match(cli, /Duration not supplied/);
   assert.match(cli, /d\.durationGe5mRate == null \? 'Unavailable'/);
 });
+
+
+test('trust-safe funnel, outcome and temporal presentation', () => {
+  const funnel = read('src/pages/FunnelIntelligence.tsx');
+  const sales = read('src/pages/SalesActivationIntelligence.tsx');
+  const commercial = read('src/pages/CommercialIntelligence.tsx');
+  const temporal = read('src/pages/TemporalIntelligence.tsx');
+  const speed = read('src/pages/SpeedToLeadIntelligence.tsx');
+
+  assert.match(funnel, /formatRatioPercent/);
+  assert.doesNotMatch(funnel, /den > 0 .* : 0/);
+  assert.doesNotMatch(funnel, /Number\(row\.[a-zA-Z]+ \|\| 0\)\.toLocaleString/);
+
+  assert.match(sales, /formatRatioPercent\(row\.activations, row\.sales\)/);
+  assert.doesNotMatch(sales, /activationRate \?\? 0/);
+
+  assert.match(commercial, /<th>Coverage<\/th>/);
+  assert.match(commercial, /formatTableNumber\(row\.platformLeads\)/);
+
+  assert.match(temporal, /: null;/);
+  assert.match(temporal, /data-empty=\{value === null\}/);
+  assert.doesNotMatch(temporal, /rawVal \?\? 0/);
+
+  assert.match(speed, /formatTableNumber\(row\.leads\)/);
+  assert.match(speed, /formatPercent\(row\.contactRate\)/);
+});

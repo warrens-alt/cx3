@@ -6,16 +6,12 @@ import { useClient } from '../lib/ClientContext';
 import { fetchFunnel, type FunnelData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
-import { downloadCsv } from '../lib/formatters';
+import { downloadCsv, formatRatioPercent, formatTableNumber } from '../lib/formatters';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { SlaBandsPanel } from '../components/OfferNetControlPanels';
 
-const pct = (numerator: number | null | undefined, denominator: number | null | undefined, digits = 1) => {
-  const num = Number(numerator || 0);
-  const den = Number(denominator || 0);
-  return den > 0 ? Number(((num / den) * 100).toFixed(digits)) : 0;
-};
+const pct = formatRatioPercent;
 
 export default function FunnelIntelligence() {
   const scoped = useScopedNavigationTarget();
@@ -144,17 +140,17 @@ export default function FunnelIntelligence() {
                     {(data.byVendor || []).map((row, index) => (
                       <tr key={`${row.vendor}-${index}`}>
                         <th>{row.vendor}</th>
-                        <td>{Number(row.leads || 0).toLocaleString()}</td>
-                        <td>{Number(row.delivered || 0).toLocaleString()}</td>
-                        <td>{pct(row.delivered, row.leads)}%</td>
-                        <td>{Number(row.dialled || 0).toLocaleString()}</td>
-                        <td>{pct(row.dialled, row.delivered)}%</td>
-                        <td>{Number(row.contacted || 0).toLocaleString()}</td>
-                        <td>{pct(row.contacted, row.dialled)}%</td>
-                        <td>{Number(row.sales || 0).toLocaleString()}</td>
-                        <td>{pct(row.sales, row.contacted)}%</td>
-                        <td>{Number(row.activations || 0).toLocaleString()}</td>
-                        <td>{pct(row.activations, row.sales)}%</td>
+                        <td>{formatTableNumber(row.leads)}</td>
+                        <td>{formatTableNumber(row.delivered)}</td>
+                        <td>{pct(row.delivered, row.leads)}</td>
+                        <td>{formatTableNumber(row.dialled)}</td>
+                        <td>{pct(row.dialled, row.delivered)}</td>
+                        <td>{formatTableNumber(row.contacted)}</td>
+                        <td>{pct(row.contacted, row.dialled)}</td>
+                        <td>{formatTableNumber(row.sales)}</td>
+                        <td>{pct(row.sales, row.contacted)}</td>
+                        <td>{formatTableNumber(row.activations)}</td>
+                        <td>{pct(row.activations, row.sales)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -178,14 +174,14 @@ export default function FunnelIntelligence() {
                     <div key={`${row.source}-${index}`} className="cx-segment-row">
                       <div>
                         <strong>{row.source}</strong>
-                        <small>{Number(row.leads || 0).toLocaleString()} leads</small>
+                        <small>{formatTableNumber(row.leads)} leads</small>
                       </div>
-                      <div className="cx-segment-track"><i style={{ width: `${(Number(row.leads || 0) / sourceMax) * 100}%` }}/></div>
+                      <div className="cx-segment-track"><i style={{ width: `${(row.leads / sourceMax) * 100}%` }}/></div>
                       <dl className="cx-segment-funnel-rates">
-                        <div><dt>Delivery</dt><dd>{pct(row.delivered, row.leads)}%</dd></div>
-                        <div><dt>Dial</dt><dd>{pct(row.dialled, row.delivered)}%</dd></div>
-                        <div><dt>RPC</dt><dd>{pct(row.contacted, row.dialled)}%</dd></div>
-                        <div><dt>Sale</dt><dd>{pct(row.sales, row.leads, 2)}%</dd></div>
+                        <div><dt>Delivery</dt><dd>{pct(row.delivered, row.leads)}</dd></div>
+                        <div><dt>Dial</dt><dd>{pct(row.dialled, row.delivered)}</dd></div>
+                        <div><dt>RPC</dt><dd>{pct(row.contacted, row.dialled)}</dd></div>
+                        <div><dt>Sale</dt><dd>{pct(row.sales, row.leads, 2)}</dd></div>
                       </dl>
                     </div>
                   ))}
@@ -205,14 +201,14 @@ export default function FunnelIntelligence() {
                     <div key={`${row.grade}-${index}`} className="cx-segment-row">
                       <div>
                         <strong>{row.grade}</strong>
-                        <small>{Number(row.leads || 0).toLocaleString()} leads</small>
+                        <small>{formatTableNumber(row.leads)} leads</small>
                       </div>
-                      <div className="cx-segment-track"><i style={{ width: `${(Number(row.leads || 0) / gradeMax) * 100}%` }}/></div>
+                      <div className="cx-segment-track"><i style={{ width: `${(row.leads / gradeMax) * 100}%` }}/></div>
                       <dl className="cx-segment-funnel-rates">
-                        <div><dt>Delivery</dt><dd>{pct(row.delivered, row.leads)}%</dd></div>
-                        <div><dt>Dial</dt><dd>{pct(row.dialled, row.delivered)}%</dd></div>
-                        <div><dt>RPC</dt><dd>{pct(row.contacted, row.dialled)}%</dd></div>
-                        <div><dt>Sale</dt><dd>{pct(row.sales, row.leads, 2)}%</dd></div>
+                        <div><dt>Delivery</dt><dd>{pct(row.delivered, row.leads)}</dd></div>
+                        <div><dt>Dial</dt><dd>{pct(row.dialled, row.delivered)}</dd></div>
+                        <div><dt>RPC</dt><dd>{pct(row.contacted, row.dialled)}</dd></div>
+                        <div><dt>Sale</dt><dd>{pct(row.sales, row.leads, 2)}</dd></div>
                       </dl>
                     </div>
                   ))}

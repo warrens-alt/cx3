@@ -11,8 +11,9 @@ import {
   type MarketingAttributionData,
 } from '../lib/offernetClient';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
+import { formatPercent, formatTableCurrency, formatTableNumber } from '../lib/formatters';
 
-const money = (value: number | null) => value == null ? '—' : `R ${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+const money = (value: number | null | undefined) => formatTableCurrency(value, 'R');
 
 export default function CommercialIntelligence() {
   const scoped = useScopedNavigationTarget();
@@ -114,9 +115,9 @@ export default function CommercialIntelligence() {
 
               {attribution?.summary && (
                 <div className="cx-commercial-source">
-                  <div><span>Matched spend</span><strong>{money(attribution.summary.matchedSpend)}</strong><small>{attribution.summary.matchedSpendSharePct == null ? 'Coverage unavailable' : `${attribution.summary.matchedSpendSharePct}% of observed spend`}</small></div>
-                  <div><span>Unmatched media spend</span><strong>{money(attribution.summary.unmatchedMarketingSpend)}</strong><small>{Number(attribution.summary.marketingOnlyKeys || 0).toLocaleString()} marketing-only keys</small></div>
-                  <div><span>Join-key coverage</span><strong>{Number(attribution.summary.matchedKeys || 0).toLocaleString()} matched keys</strong><small>{Number(attribution.summary.operationsOnlyKeys || 0).toLocaleString()} operations-only keys</small></div>
+                  <div><span>Matched spend</span><strong>{money(attribution.summary.matchedSpend)}</strong><small>{attribution.summary.matchedSpendSharePct == null ? 'Coverage unavailable' : `${formatPercent(attribution.summary.matchedSpendSharePct)} of observed spend`}</small></div>
+                  <div><span>Unmatched media spend</span><strong>{money(attribution.summary.unmatchedMarketingSpend)}</strong><small>{formatTableNumber(attribution.summary.marketingOnlyKeys)} marketing-only keys</small></div>
+                  <div><span>Join-key coverage</span><strong>{formatTableNumber(attribution.summary.matchedKeys)} matched keys</strong><small>{formatTableNumber(attribution.summary.operationsOnlyKeys)} operations-only keys</small></div>
                 </div>
               )}
 
@@ -126,6 +127,7 @@ export default function CommercialIntelligence() {
                     <thead>
                       <tr>
                         <th>Approved join key</th>
+                        <th>Coverage</th>
                         <th>Spend</th>
                         <th>Platform leads</th>
                         <th>Fetched</th>
@@ -145,13 +147,13 @@ export default function CommercialIntelligence() {
                           <th>{row.key}</th>
                           <td>{row.hasMarketing && row.hasOperations ? 'Matched' : row.hasMarketing ? 'Marketing only' : 'Operations only'}</td>
                           <td>{money(row.spend)}</td>
-                          <td>{Number(row.platformLeads || 0).toLocaleString()}</td>
-                          <td>{Number(row.fetched || 0).toLocaleString()}</td>
-                          <td>{Number(row.delivered || 0).toLocaleString()}</td>
-                          <td>{Number(row.dialled || 0).toLocaleString()}</td>
-                          <td>{Number(row.rpc || 0).toLocaleString()}</td>
-                          <td>{Number(row.sales || 0).toLocaleString()}</td>
-                          <td>{Number(row.activations || 0).toLocaleString()}</td>
+                          <td>{formatTableNumber(row.platformLeads)}</td>
+                          <td>{formatTableNumber(row.fetched)}</td>
+                          <td>{formatTableNumber(row.delivered)}</td>
+                          <td>{formatTableNumber(row.dialled)}</td>
+                          <td>{formatTableNumber(row.rpc)}</td>
+                          <td>{formatTableNumber(row.sales)}</td>
+                          <td>{formatTableNumber(row.activations)}</td>
                           <td>{money(row.spendPerFetchedLead)}</td>
                           <td>{money(row.spendPerSale)}</td>
                           <td>{money(row.spendPerActivation)}</td>

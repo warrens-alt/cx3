@@ -6,12 +6,12 @@ import { useClient } from '../lib/ClientContext';
 import { fetchSalesActivation, type SalesActivationData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
-import { downloadCsv } from '../lib/formatters';
+import { downloadCsv, formatPercent, formatRatioPercent, formatTableCurrency, formatTableNumber } from '../lib/formatters';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { ActivationAgeingPanel } from '../components/OfferNetControlPanels';
 
-const money = (value: number) => `R ${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+const money = (value: number | null | undefined) => formatTableCurrency(value, 'R');
 
 export default function SalesActivationIntelligence() {
   const scoped = useScopedNavigationTarget();
@@ -82,18 +82,18 @@ export default function SalesActivationIntelligence() {
             <section className="cx-command-metrics cx-outcome-metrics">
               <article className="cx-command-metric">
                 <span>Recorded sales</span>
-                <strong>{Number(data.reconciliation?.totalSales || 0).toLocaleString()}</strong>
+                <strong>{formatTableNumber(data.reconciliation?.totalSales)}</strong>
                 <div><small>Observed sale events</small></div>
               </article>
               <article className="cx-command-metric">
                 <span>Sales with revenue</span>
-                <strong>{Number(data.reconciliation?.billableSales || 0).toLocaleString()}</strong>
-                <div><small>{Number(data.reconciliation?.unbilledSales || 0).toLocaleString()} sales without recorded revenue</small></div>
+                <strong>{formatTableNumber(data.reconciliation?.billableSales)}</strong>
+                <div><small>{formatTableNumber(data.reconciliation?.unbilledSales)} sales without recorded revenue</small></div>
               </article>
               <article className="cx-command-metric">
                 <span>Recorded activations</span>
-                <strong>{Number(data.reconciliation?.totalActivations || 0).toLocaleString()}</strong>
-                <div><small>{data.reconciliation?.activationRate ?? 0}% of recorded sales</small></div>
+                <strong>{formatTableNumber(data.reconciliation?.totalActivations)}</strong>
+                <div><small>{formatPercent(data.reconciliation?.activationRate)} of recorded sales</small></div>
               </article>
               <article className="cx-command-metric">
                 <span>Recorded revenue</span>
@@ -135,7 +135,7 @@ export default function SalesActivationIntelligence() {
                       <div key={`${row.day}-${index}`}>
                         <span>{row.day}</span>
                         <div><i style={{ width: `${Math.min(100, Math.max(0, row.cumulativePct))}%` }}/></div>
-                        <strong>{row.cumulativePct}%</strong>
+                        <strong>{formatPercent(row.cumulativePct)}</strong>
                       </div>
                     ))}
                   </div>
@@ -174,11 +174,11 @@ export default function SalesActivationIntelligence() {
                     {(data.byVendor || []).map((row, index) => (
                       <tr key={`${row.vendor}-${index}`}>
                         <th>{row.vendor}</th>
-                        <td>{Number(row.sales || 0).toLocaleString()}</td>
-                        <td>{Number(row.activations || 0).toLocaleString()}</td>
-                        <td>{Number(row.sales || 0) > 0 ? ((Number(row.activations || 0) / Number(row.sales || 1)) * 100).toFixed(1) : '0.0'}%</td>
+                        <td>{formatTableNumber(row.sales)}</td>
+                        <td>{formatTableNumber(row.activations)}</td>
+                        <td>{formatRatioPercent(row.activations, row.sales)}</td>
                         <td>{money(row.revenue)}</td>
-                        <td>{Number(row.sales || 0) > 0 ? money(row.revenue / row.sales) : '—'}</td>
+                        <td>{row.sales > 0 ? money(row.revenue / row.sales) : '—'}</td>
                       </tr>
                     ))}
                   </tbody>
