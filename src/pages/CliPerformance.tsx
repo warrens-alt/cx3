@@ -484,7 +484,7 @@ export default function CliPerformance() {
                 </button>
               </div>
               <div className="text-xl font-bold text-slate-900 tracking-tight">
-                {exactNumber(summary.distinctLeads)}
+                {summary.distinctLeads !== null ? exactNumber(summary.distinctLeads) : <span className="text-xs text-slate-400 font-normal">Unavailable</span>}
               </div>
               <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
                 <span>{summary.callsPerLead ? `${summary.callsPerLead} calls/lead` : 'Distinct lead count unavailable'}</span>
@@ -624,10 +624,10 @@ export default function CliPerformance() {
                 </button>
               </div>
               <div className="text-xl font-bold text-slate-900 tracking-tight">
-                {summary.durationGe5mRate}%
+                {summary.durationGe5mRate !== null ? `${summary.durationGe5mRate}%` : <span className="text-xs text-slate-400 font-normal">Unavailable</span>}
               </div>
               <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
-                <span>Avg: {summary.avgDurationSeconds}s</span>
+                <span>{summary.avgDurationSeconds !== null ? `Avg: ${summary.avgDurationSeconds}s` : 'Duration not supplied'}</span>
                 <span className="text-slate-400">Engagement</span>
               </div>
             </div>
@@ -896,7 +896,7 @@ export default function CliPerformance() {
                     <option value="saleRate">Sale / Call Rate (%)</option>
                     <option value="contactRate">Right Party Contact (RPC %)</option>
                     <option value="totalCalls">Daily Call Volume</option>
-                    <option value="durationGe5mRate">Talk &gt;= 5m Share (%)</option>
+                    {data.trend.some(point => point.durationGe5mRate !== null) && <option value="durationGe5mRate">Talk &gt;= 5m Share (%)</option>}
                   </select>
                 </div>
               </div>
@@ -923,7 +923,7 @@ export default function CliPerformance() {
                             <p>Total Calls: <span className="font-bold">{d.totalCalls.toLocaleString()}</span></p>
                             <p>Contact Rate: <span className="font-bold text-blue-400">{d.contactRate}%</span></p>
                             <p>Sale Rate: <span className="font-bold text-emerald-400">{d.saleRate}%</span></p>
-                            <p>Talk &gt;= 5m: <span className="font-bold">{d.durationGe5mRate}%</span></p>
+                            <p>Talk &gt;= 5m: <span className="font-bold">{d.durationGe5mRate == null ? 'Unavailable' : `${d.durationGe5mRate}%`}</span></p>
                           </div>
                         );
                       }}
