@@ -1,398 +1,306 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Search,
+  X,
+} from 'lucide-react';
 import { useFilters, extractOffernetFilters } from '../lib/FilterContext';
 import { useClient } from '../lib/ClientContext';
 import { fetchRawLeads, fetchLeadTimeline, type RawLeadsData, type LeadTimelineData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import { downloadCsv } from '../lib/formatters';
-import { 
-  FileText, Search, AlertTriangle, Eye, CheckCircle, XCircle, 
-  Clock, DollarSign, ChevronLeft, ChevronRight, X, PhoneCall, Award, Table as TableIcon, BarChart3 
-} from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from 'recharts';
+
+const DRILL_LABELS: Record<string, string> = {
+  'awaiting-first-dial': 'Delivered leads awaiting first dial',
+  'missing-disposition': 'Dialled leads missing disposition',
+  'unactivated-sales': 'Sales without activation after 14 days',
+  'sla-breach': 'First-dial SLA breaches',
+  'backlog-age': 'First-dial backlog age cohort',
+  'funnel-loss': 'Funnel loss population',
+  'lead-age': 'First-dial age cohort',
+};
+
+const FUNNEL_LABELS: Record<string, string> = {
+  'fetched-to-delivered': 'Fetched → Delivered loss',
+  'delivered-to-dialled': 'Delivered → Dialled loss',
+  'dialled-to-rpc': 'Dialled → RPC loss',
+  'rpc-to-sales': 'RPC → Sales loss',
+  'sales-to-activated': 'Sales → Activated loss',
+};
 
 export default function LeadExplorerIntelligence() {
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
+  const [params, setParams] = useSearchParams();
+  const drill = params.get('drill') || '';
+  const drillValue = params.get('drillValue') || '';
   const [data, setData] = useState<RawLeadsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(params.get('search') || '');
   const [page, setPage] = useState(0);
-  const [viewMode, setViewMode] = useState<'table' | 'graph'>('table');
   const pageSize = 50;
 
-  // Selected lead for chronological timeline modal
   const [selectedLead, setSelectedLead] = useState<string | null>(null);
   const [timelineData, setTimelineData] = useState<LeadTimelineData | null>(null);
   const [timelineLoading, setTimelineLoading] = useState(false);
 
-  const loadData = async (isManual = false) => {
+  const investigation = useMemo(() => {
+    if (!drill) return null;
+    const base = DRILL_LABELS[drill] || 'Investigation population';
+    if (drill === 'funnel-loss' && drillValue) return FUNNEL_LABELS[drillValue] || base;
+    return drillValue ? `${base}: ${drillValue}` : base;
+  }, [drill, drillValue]);
+
+  const loadData = async (forceRefresh = false) => {
     if (!data) setLoading(true);
     setError(null);
     try {
-      const activeFilters = extractOffernetFilters(filters);
-      const res = await fetchRawLeads({
+      const result = await fetchRawLeads({
         clientId: selectedClient,
-        startDate,
-        endDate,
-        ...activeFilters,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        ...extractOffernetFilters(filters),
         search: search || undefined,
+        drill: drill || undefined,
+        drillValue: drillValue || undefined,
         limit: pageSize,
-        offset: page * pageSize
-      }, isManual);
-      setData(res);
+        offset: page * pageSize,
+      }, forceRefresh);
+      setData(result);
     } catch (err: any) {
-      setError(err.message || 'Failed to query raw leads');
+      setError(err?.message || 'Failed to query lead records');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
-  }, [selectedClient, startDate, endDate, filters, page]);
+    setPage(0);
+  }, [selectedClient, startDate, endDate, filters, drill, drillValue]);
 
-  const handleOpenTimeline = async (leadId: string) => {
+  useEffect(() => {
+    if (selectedClient) loadData();
+  }, [selectedClient, startDate, endDate, filters, drill, drillValue, page]);
+
+  const handleSearchSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    setPage(0);
+    setParams(previous => {
+      const next = new URLSearchParams(previous);
+      if (search.trim()) next.set('search', search.trim());
+      else next.delete('search');
+      return next;
+    }, { replace: true });
+    loadData(true);
+  };
+
+  const clearInvestigation = () => {
+    setParams(previous => {
+      const next = new URLSearchParams(previous);
+      next.delete('drill');
+      next.delete('drillValue');
+      return next;
+    }, { replace: true });
+  };
+
+  const clearSearch = () => {
+    setSearch('');
+    setParams(previous => {
+      const next = new URLSearchParams(previous);
+      next.delete('search');
+      return next;
+    }, { replace: true });
+    setPage(0);
+  };
+
+  const handleOpenTimeline = async (leadId: string, vendor?: string) => {
     setSelectedLead(leadId);
     setTimelineLoading(true);
+    setTimelineData(null);
     try {
-      const res = await fetchLeadTimeline(leadId);
-      setTimelineData(res);
-    } catch (err) {
-      console.error('Failed to load lead timeline:', err);
+      const result = await fetchLeadTimeline(leadId, {
+        clientId: selectedClient,
+        vendor: vendor || extractOffernetFilters(filters).vendor,
+      });
+      setTimelineData(result);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load lead timeline');
     } finally {
       setTimelineLoading(false);
     }
   };
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPage(0);
-    loadData();
-  };
-
   const handleExportCsv = () => {
-    if (!data || !data.rows.length) return;
-    const headers = ['Lead ID', 'Consumer ID', 'Captured', 'Fetched', 'Source', 'Vendor', 'Grade', 'Dialled', 'RPC', 'Sale', 'Activated', 'Revenue'];
-    const rows = data.rows.map(r => [
-      r.lead_id, r.consumer_id, r.captured, r.fetched, r.source, r.vendor, r.grade,
-      r.dialled ? 'Yes' : 'No', r.contacted ? 'Yes' : 'No', r.sale ? 'Yes' : 'No', r.activated ? 'Yes' : 'No', r.revenue
+    if (!data?.rows.length) return;
+    const headers = ['Lead ID', 'Consumer ID', 'Fetched', 'Source', 'Vendor', 'Grade', 'Dialled', 'RPC', 'Sale', 'Activated', 'Revenue'];
+    const rows = data.rows.map(row => [
+      row.lead_id,
+      row.consumer_id,
+      row.fetched,
+      row.source,
+      row.vendor,
+      row.grade,
+      row.dialled ? 'Yes' : 'No',
+      row.contacted ? 'Yes' : 'No',
+      row.sale ? 'Yes' : 'No',
+      row.activated ? 'Yes' : 'No',
+      row.revenue,
     ]);
     downloadCsv(`lead_records_${selectedClient}_p${page + 1}`, [headers, ...rows]);
   };
 
+  const shownStart = data?.rows.length ? page * pageSize + 1 : 0;
+  const shownEnd = data ? page * pageSize + data.rows.length : 0;
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-16">
+    <div className="cx-command-page">
       <OffernetFilterBar onRefresh={() => loadData(true)} onExportCsv={handleExportCsv} />
 
-      <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6 space-y-6 transition-all duration-200">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">Raw Lead Data Explorer</h1>
-            <span className="text-[12px] font-medium text-slate-500 flex items-center gap-1.5 ml-2">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500" />
-              Clustered Warehouse Records
-            </span>
-            {!startDate && !endDate && Object.keys(extractOffernetFilters(filters)).length === 0 && (
-              <span className="text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full ml-1">
-                Total (Unfiltered)
-              </span>
-            )}
+      <div className="cx-command-content">
+        <header className="cx-command-hero">
+          <div>
+            <span className="cx-command-eyebrow">Investigate</span>
+            <h1>Explore</h1>
+            <p>Inspect the lead population behind an operational metric, exception, cohort, vendor or funnel transition.</p>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Search individual lead submissions, review delivery states, and inspect full chronological event audit trails.
-          </p>
-        </div>
+        </header>
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-xs flex items-center gap-2">
-            <AlertTriangle size={16} />
-            <span>{error}</span>
-          </div>
+        {investigation && (
+          <section className="cx-investigation-banner">
+            <div>
+              <span>Active investigation</span>
+              <strong>{investigation}</strong>
+              <small>The records below are constrained by the selected client, dates and global filters.</small>
+            </div>
+            <button type="button" onClick={clearInvestigation}><ArrowLeft size={13} />Clear investigation</button>
+          </section>
         )}
 
-        {/* SEARCH & FILTERS BAR */}
-        <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-2xs">
-          <form onSubmit={handleSearchSubmit} className="flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 min-w-[240px]">
-              <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
+        {error && <div className="cx-command-error" role="alert"><AlertTriangle size={17} /><span>{error}</span></div>}
+
+        <section className="cx-command-panel">
+          <header>
+            <div>
+              <span className="cx-command-section-kicker">Records</span>
+              <h2>Affected lead population</h2>
+              <p>One representative warehouse row per lead. Open a lead to inspect its chronological source events.</p>
+            </div>
+            <span className="cx-explorer-count">{shownStart}–{shownEnd}</span>
+          </header>
+
+          <form onSubmit={handleSearchSubmit} className="cx-explorer-search">
+            <label>
+              <Search size={14} />
               <input
                 type="text"
-                placeholder="Search by Lead ID, Consumer ID, or Source…"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+                onChange={event => setSearch(event.target.value)}
+                placeholder="Lead ID, consumer ID, vendor, source or disposition"
               />
-            </div>
-            <button
-              type="submit"
-              className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold transition-colors cursor-pointer"
-            >
-              Filter Records
-            </button>
-            {search && (
-              <button
-                type="button"
-                onClick={() => { setSearch(''); setPage(0); }}
-                className="text-xs text-slate-500 hover:text-slate-800 underline"
-              >
-                Clear search
-              </button>
-            )}
+            </label>
+            <button type="submit" className="cx-button-primary">Search</button>
+            {search && <button type="button" className="cx-button-secondary" onClick={clearSearch}>Clear</button>}
           </form>
-        </div>
 
-        {/* DATA TABLE & VISUAL ANALYTICS */}
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-2xs">
-          <div className="px-5 py-3 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
-            <span>Showing records {page * pageSize + 1} – {(page + 1) * pageSize}</span>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center bg-slate-100 p-0.5 rounded border border-slate-200">
-                <button
-                  onClick={() => setViewMode('table')}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded transition-colors ${
-                    viewMode === 'table' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                  title="View individual lead rows"
-                >
-                  <TableIcon size={13} />
-                  <span>Table</span>
-                </button>
-                <button
-                  onClick={() => setViewMode('graph')}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded transition-colors ${
-                    viewMode === 'graph' ? 'bg-white text-slate-900 shadow-2xs font-semibold' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                  title="View cohort analytics charts"
-                >
-                  <BarChart3 size={13} />
-                  <span>Graph</span>
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  disabled={page === 0}
-                  onClick={() => setPage(p => Math.max(0, p - 1))}
-                  className="p-1 border border-slate-200 rounded disabled:opacity-40 hover:bg-slate-50 cursor-pointer"
-                >
-                  <ChevronLeft size={14} />
-                </button>
-                <span className="font-mono">Page {page + 1}</span>
-                <button
-                  disabled={!data || data.rows.length < pageSize}
-                  onClick={() => setPage(p => p + 1)}
-                  className="p-1 border border-slate-200 rounded disabled:opacity-40 hover:bg-slate-50 cursor-pointer"
-                >
-                  <ChevronRight size={14} />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {viewMode === 'table' ? (
-            <div className="overflow-x-auto">
-              <div role="table" className="w-full text-xs text-left min-w-[900px]">
-                <div role="rowgroup" className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
-                  <div role="row" className="grid grid-cols-12 items-center py-2.5">
-                    <div role="columnheader" className="col-span-2 px-4">Lead ID</div>
-                    <div role="columnheader" className="col-span-1 px-4">Consumer ID</div>
-                    <div role="columnheader" className="col-span-2 px-4">Captured (UTC)</div>
-                    <div role="columnheader" className="col-span-1 px-4">Vendor</div>
-                    <div role="columnheader" className="col-span-1 px-4">Source</div>
-                    <div role="columnheader" className="col-span-1 px-4">Grade</div>
-                    <div role="columnheader" className="col-span-1 px-4 text-center">Dialled</div>
-                    <div role="columnheader" className="col-span-1 px-4 text-center">RPC</div>
-                    <div role="columnheader" className="col-span-1 px-4 text-center">Sale</div>
-                    <div role="columnheader" className="col-span-1 px-4 text-right">Revenue</div>
-                  </div>
-                </div>
-                <div role="rowgroup" className="divide-y divide-slate-100 font-mono">
-                  {loading && (
-                    <div role="row" className="px-4 py-8 text-center text-slate-400 font-sans">
-                      Loading records from clustered warehouse…
-                    </div>
-                  )}
-                  {!loading && data && data.rows.length === 0 && (
-                    <div role="row" className="px-4 py-12 text-center text-slate-500 font-sans">
-                      <Search size={24} className="mx-auto text-slate-300 mb-2" />
-                      <p className="font-semibold text-slate-700">No lead records found</p>
-                      <p className="text-xs text-slate-400 mt-1">Try adjusting your search terms, date range, or active filters.</p>
-                    </div>
-                  )}
-                  {!loading && data && data.rows.map((row, idx) => (
-                    <div role="row" key={`${row.lead_id || 'lead'}-${idx}`} className="grid grid-cols-12 items-center py-2.5 hover:bg-slate-50/70 transition-colors">
-                      <div role="cell" className="col-span-2 px-4 font-bold text-slate-900 truncate font-sans flex items-center justify-between" title={row.lead_id}>
-                        <span className="truncate">{row.lead_id}</span>
-                        <button
-                          onClick={() => handleOpenTimeline(row.lead_id)}
-                          className="p-1 hover:bg-blue-50 text-blue-600 rounded transition-colors cursor-pointer shrink-0 ml-1"
-                          title="View chronological lifecycle timeline"
-                        >
-                          <Eye size={13} />
+          {loading && !data ? (
+            <div className="cx-command-loading"><div className="cx-command-spinner" />Loading lead population…</div>
+          ) : (
+            <div className="cx-performance-table-wrap">
+              <table className="cx-performance-table cx-explorer-table">
+                <thead>
+                  <tr>
+                    <th>Lead ID</th>
+                    <th>Consumer</th>
+                    <th>Fetched</th>
+                    <th>Vendor</th>
+                    <th>Source</th>
+                    <th>Grade</th>
+                    <th>First dial</th>
+                    <th>RPC</th>
+                    <th>Sale</th>
+                    <th>Activated</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {data?.rows.map((row, index) => (
+                    <tr key={`${row.lead_id}-${index}`}>
+                      <th title={row.lead_id}>{row.lead_id}</th>
+                      <td>{row.consumer_id || '—'}</td>
+                      <td>{row.fetched || '—'}</td>
+                      <td>{row.vendor || '—'}</td>
+                      <td>{row.source || '—'}</td>
+                      <td>{row.grade || '—'}</td>
+                      <td>{row.first_call_time || '—'}</td>
+                      <td>{row.contacted ? 'Yes' : 'No'}</td>
+                      <td>{row.sale ? 'Yes' : 'No'}</td>
+                      <td>{row.activated ? 'Yes' : 'No'}</td>
+                      <td>
+                        <button type="button" className="cx-record-open" onClick={() => handleOpenTimeline(row.lead_id, row.vendor)} title="Open lead timeline">
+                          <Eye size={14} />
                         </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {!loading && data && data.rows.length === 0 && (
+                    <tr><td colSpan={11}><div className="cx-command-empty"><Search size={17} />No records match this investigation and reporting scope.</div></td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <footer className="cx-explorer-pagination">
+            <span>Page {page + 1}</span>
+            <div>
+              <button type="button" className="cx-button-secondary" disabled={page === 0} onClick={() => setPage(value => Math.max(0, value - 1))}><ChevronLeft size={14} />Previous</button>
+              <button type="button" className="cx-button-secondary" disabled={!data || data.rows.length < pageSize} onClick={() => setPage(value => value + 1)}>Next<ChevronRight size={14} /></button>
+            </div>
+          </footer>
+        </section>
+      </div>
+
+      {selectedLead && (
+        <div className="cx-timeline-backdrop" onMouseDown={event => { if (event.currentTarget === event.target) setSelectedLead(null); }}>
+          <aside className="cx-timeline-modal" role="dialog" aria-modal="true" aria-label="Lead timeline">
+            <header>
+              <div><span>Lead audit trail</span><h2>{selectedLead}</h2></div>
+              <button type="button" onClick={() => setSelectedLead(null)} aria-label="Close lead timeline"><X size={18} /></button>
+            </header>
+
+            {timelineLoading ? (
+              <div className="cx-command-loading"><div className="cx-command-spinner" />Loading source events…</div>
+            ) : timelineData ? (
+              <div className="cx-timeline-body">
+                <div className="cx-timeline-context">
+                  <div><span>Vendor</span><strong>{timelineData.vendor || '—'}</strong></div>
+                  <div><span>Source</span><strong>{timelineData.source || '—'}</strong></div>
+                  <div><span>Grade</span><strong>{timelineData.grade || '—'}</strong></div>
+                </div>
+                <div className="cx-timeline-events">
+                  {timelineData.events.map((event, index) => (
+                    <article key={`${event.stage}-${event.timestamp}-${index}`}>
+                      <i />
+                      <div>
+                        <span>{event.stage}</span>
+                        <strong>{event.title}</strong>
+                        <time>{event.timestamp || 'Timestamp unavailable'}</time>
+                        <p>{event.details}</p>
                       </div>
-                      <div role="cell" className="col-span-1 px-4 text-slate-600 truncate">{row.consumer_id}</div>
-                      <div role="cell" className="col-span-2 px-4 text-slate-600 text-[11px] truncate">{row.captured || row.fetched}</div>
-                      <div role="cell" className="col-span-1 px-4 font-sans text-slate-800 truncate">{row.vendor || '—'}</div>
-                      <div role="cell" className="col-span-1 px-4 font-sans text-slate-600 truncate">{row.source || '—'}</div>
-                      <div role="cell" className="col-span-1 px-4 font-sans">{row.grade || '—'}</div>
-                      <div role="cell" className="col-span-1 px-4 text-center">
-                        {row.dialled ? <span className="text-blue-700 font-bold">Yes</span> : <span className="text-slate-300">No</span>}
-                      </div>
-                      <div role="cell" className="col-span-1 px-4 text-center">
-                        {row.contacted ? <span className="text-blue-700 font-bold">Yes</span> : <span className="text-slate-300">No</span>}
-                      </div>
-                      <div role="cell" className="col-span-1 px-4 text-center">
-                        {row.sale ? <span className="text-emerald-700 font-bold">Sale</span> : <span className="text-slate-300">No</span>}
-                      </div>
-                      <div role="cell" className="col-span-1 px-4 text-right font-bold text-slate-900">
-                        {row.revenue > 0 ? `R ${row.revenue}` : '—'}
-                      </div>
-                    </div>
+                    </article>
                   ))}
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Funnel Conversion BarChart */}
-              <div className="border border-slate-200 rounded-lg p-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3">
-                  Cohort Funnel Progression
-                </h4>
-                <div className="h-64 w-full">
-                  {data && (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={[
-                          { stage: 'Fetched Leads', count: data.rows.length, fill: '#3b82f6' },
-                          { stage: 'Dialed Leads', count: data.rows.filter(r => r.dialled).length, fill: '#6366f1' },
-                          { stage: 'Right Party Contact', count: data.rows.filter(r => r.contacted).length, fill: '#8b5cf6' },
-                          { stage: 'Sales', count: data.rows.filter(r => r.sale).length, fill: '#10b981' }
-                        ]}
-                        margin={{ top: 10, right: 20, left: 10, bottom: 20 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="stage" tick={{ fontSize: 10 }} stroke="#64748b" />
-                        <YAxis tick={{ fontSize: 10 }} stroke="#64748b" />
-                        <Tooltip
-                          contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '6px', fontSize: '11px' }}
-                          formatter={(val: any) => [Number(val).toLocaleString(), 'Records']}
-                        />
-                        <Bar dataKey="count" radius={[3, 3, 0, 0]}>
-                          <Cell fill="#3b82f6" />
-                          <Cell fill="#6366f1" />
-                          <Cell fill="#8b5cf6" />
-                          <Cell fill="#10b981" />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-              </div>
-
-              {/* Grade Distribution BarChart */}
-              <div className="border border-slate-200 rounded-lg p-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3">
-                  Lead Quality Grade Composition
-                </h4>
-                <div className="h-64 w-full">
-                  {data && (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={['A', 'B', 'C', 'D'].map(g => ({
-                          grade: `Grade ${g}`,
-                          count: data.rows.filter(r => r.grade === g).length
-                        }))}
-                        margin={{ top: 10, right: 20, left: 10, bottom: 20 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="grade" tick={{ fontSize: 10 }} stroke="#64748b" />
-                        <YAxis tick={{ fontSize: 10 }} stroke="#64748b" />
-                        <Tooltip
-                          contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '6px', fontSize: '11px' }}
-                          formatter={(val: any) => [Number(val).toLocaleString(), 'Leads']}
-                        />
-                        <Bar dataKey="count" radius={[3, 3, 0, 0]}>
-                          <Cell fill="#10b981" />
-                          <Cell fill="#3b82f6" />
-                          <Cell fill="#f59e0b" />
-                          <Cell fill="#64748b" />
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+            ) : <div className="cx-command-empty">No timeline evidence is available for this lead.</div>}
+          </aside>
         </div>
-
-        {/* CHRONOLOGICAL TIMELINE MODAL */}
-        {selectedLead && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 p-2 sm:p-4 backdrop-blur-2xs">
-            <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl max-w-2xl w-full p-4 sm:p-6 space-y-4 max-h-[85dvh] overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))]">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-                <div>
-                  <h3 className="font-bold text-slate-900 text-sm sm:text-base">Lead Lifecycle Event Audit</h3>
-                  <span className="text-xs text-slate-500 font-mono">Lead ID: {selectedLead}</span>
-                </div>
-                <button
-                  onClick={() => setSelectedLead(null)}
-                  className="min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-slate-700 rounded-md cursor-pointer active:scale-95"
-                  aria-label="Close modal"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              {timelineLoading && (
-                <div className="py-8 text-center text-slate-500 text-xs">
-                  Loading chronological event traces…
-                </div>
-              )}
-
-              {!timelineLoading && timelineData && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs bg-slate-50 p-3 rounded-lg border border-slate-200">
-                    <div>
-                      <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Vendor Partner</span>
-                      <span className="font-medium text-slate-900">{timelineData.vendor}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Traffic Source</span>
-                      <span className="font-medium text-slate-900">{timelineData.source}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Lead Grade</span>
-                      <span className="font-medium text-slate-900">{timelineData.grade}</span>
-                    </div>
-                  </div>
-
-                  <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
-                    {timelineData.events.map((evt, idx) => (
-                      <div key={`${evt.title || 'event'}-${idx}`} className="relative">
-                        <span className={`absolute -left-[21px] top-1 w-3 h-3 rounded-full border-2 border-white ${
-                          evt.status === 'SUCCESS' ? 'bg-emerald-500' :
-                          evt.status === 'WARNING' ? 'bg-amber-500' : 'bg-blue-500'
-                        }`} />
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-slate-900 text-xs">{evt.title}</span>
-                            <span className="text-[10px] font-mono text-slate-500">{evt.timestamp}</span>
-                          </div>
-                          <p className="text-xs text-slate-600 mt-0.5">{evt.details}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
