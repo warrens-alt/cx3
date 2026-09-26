@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, DollarSign, Database } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Database, DollarSign, ShieldCheck } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import { useClient } from '../lib/ClientContext';
 import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
 import { fetchCommercial, type CommercialData } from '../lib/offernetClient';
+
+const money = (value: number | null) => value == null ? '—' : `R ${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
 export default function CommercialIntelligence() {
   const { selectedClient } = useClient();
@@ -37,74 +40,133 @@ export default function CommercialIntelligence() {
   const baseline = data?.baseline;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-16">
+    <div className="cx-command-page">
       <OffernetFilterBar onRefresh={() => loadData(true)} />
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <DollarSign size={18} className="text-blue-600" />
-            <h1 className="text-xl font-bold text-slate-900">Commercial Intelligence</h1>
+      <div className="cx-command-content">
+        <header className="cx-command-hero">
+          <div>
+            <span className="cx-command-eyebrow">Commercial</span>
+            <h1>Spend, revenue & efficiency</h1>
+            <p>Observed media spend and recorded revenue are shown separately from unapproved operating-cost assumptions.</p>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Recorded revenue evidence only. Profitability remains unavailable until incurred-cost and rate-card contracts are approved.
-          </p>
-        </div>
+          <Link to="/campaigns" className="cx-trust-pill">
+            <DollarSign size={15}/>
+            <span><strong>MEDIA DETAIL</strong><small>Campaign spend & efficiency</small></span>
+            <ArrowRight size={14}/>
+          </Link>
+        </header>
 
-        {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-xs text-red-800 flex items-center gap-2">
-            <AlertTriangle size={16} />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {loading && !data && (
-          <div className="rounded-lg border border-slate-200 bg-white p-12 text-center text-sm text-slate-500">
-            Loading commercial evidence…
-          </div>
-        )}
+        {error && <div className="cx-command-error"><AlertTriangle size={17}/>{error}</div>}
+        {loading && !data && <div className="cx-command-loading"><div className="cx-command-spinner"/>Loading commercial evidence…</div>}
 
         {data && baseline && (
           <>
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-              <div className="font-semibold">{data.status === 'UNAVAILABLE' ? 'Profitability model withheld' : data.status}</div>
-              <p className="text-xs mt-1">{data.reason}</p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="rounded-lg border border-slate-200 bg-white p-4">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">Fetched Leads</div>
-                <div className="mt-1 text-2xl font-bold font-mono">{baseline.volume.toLocaleString()}</div>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white p-4">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">Lead-to-Sale Rate</div>
-                <div className="mt-1 text-2xl font-bold font-mono">{baseline.conversionRate}%</div>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white p-4">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">Recorded Revenue</div>
-                <div className="mt-1 text-2xl font-bold font-mono">R {baseline.revenue.toLocaleString()}</div>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white p-4">
-                <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">Recorded Revenue / Sale</div>
-                <div className="mt-1 text-2xl font-bold font-mono">
-                  {baseline.revenuePerSale == null ? '—' : `R ${baseline.revenuePerSale.toLocaleString()}`}
+            <section className="cx-command-panel">
+              <header>
+                <div>
+                  <span className="cx-command-section-kicker">Measurement status</span>
+                  <h2>{data.status}</h2>
+                  <p>{data.reason}</p>
                 </div>
+                <ShieldCheck size={17} className="text-slate-400"/>
+              </header>
+              <div className="cx-commercial-source">
+                <div><span>Media spend source</span><strong>{data.media.spendSourceColumn || 'Unavailable'}</strong></div>
+                <div><span>Source table</span><strong>{data.media.spendSourceTable || 'Unavailable'}</strong></div>
+                <div><span>Platform population</span><strong>{data.media.platformLeads.toLocaleString()} leads · {data.media.platformClicks.toLocaleString()} clicks</strong></div>
               </div>
+            </section>
+
+            <section className="cx-command-metrics cx-commercial-metrics">
+              <article className="cx-command-metric">
+                <span>Recorded media spend</span>
+                <strong>{money(baseline.mediaSpend)}</strong>
+                <div><small>Approved marketing source only</small></div>
+              </article>
+              <article className="cx-command-metric">
+                <span>Platform CPL</span>
+                <strong>{money(baseline.cpl)}</strong>
+                <div><small>Spend / platform leads</small></div>
+              </article>
+              <article className="cx-command-metric">
+                <span>Recorded revenue</span>
+                <strong>{money(baseline.revenue)}</strong>
+                <div><small>Lead-ledger revenue field</small></div>
+              </article>
+              <article className="cx-command-metric">
+                <span>Blended cost / sale</span>
+                <strong>{money(baseline.blendedCostPerSale)}</strong>
+                <div><small>Media spend / recorded sales</small></div>
+              </article>
+              <article className="cx-command-metric">
+                <span>Revenue / media spend</span>
+                <strong>{baseline.revenueToMediaSpendRatio == null ? '—' : `${baseline.revenueToMediaSpendRatio.toFixed(2)}×`}</strong>
+                <div><small>Unreconciled period-level ratio</small></div>
+              </article>
+            </section>
+
+            <div className="cx-command-grid cx-commercial-grid">
+              <section className="cx-command-panel">
+                <header>
+                  <div>
+                    <span className="cx-command-section-kicker">Media efficiency</span>
+                    <h2>Observed cost metrics</h2>
+                    <p>These metrics use the same recorded media-spend field and are safe to compare within the marketing source.</p>
+                  </div>
+                </header>
+                <div className="cx-commercial-ratios">
+                  <div><span>CPC</span><strong>{money(baseline.cpc)}</strong><small>Spend / clicks</small></div>
+                  <div><span>CPM</span><strong>{money(baseline.cpm)}</strong><small>Spend / 1,000 impressions</small></div>
+                  <div><span>Platform CPL</span><strong>{money(baseline.cpl)}</strong><small>Spend / platform leads</small></div>
+                  <div><span>Blended cost / fetched lead</span><strong>{money(baseline.blendedCostPerFetchedLead)}</strong><small>Cross-source, unreconciled</small></div>
+                  <div><span>Blended cost / sale</span><strong>{money(baseline.blendedCostPerSale)}</strong><small>Cross-source, unreconciled</small></div>
+                  <div><span>Blended cost / activation</span><strong>{money(baseline.blendedCostPerActivation)}</strong><small>Cross-source, unreconciled</small></div>
+                </div>
+              </section>
+
+              <section className="cx-command-panel">
+                <header>
+                  <div>
+                    <span className="cx-command-section-kicker">Commercial bridge</span>
+                    <h2>Recorded values</h2>
+                    <p>This is not a complete P&L because operating costs, commissions and overhead are not approved inputs.</p>
+                  </div>
+                </header>
+                <div className="cx-commercial-bridge">
+                  {data.pAndLBreakdown.map(item => (
+                    <div key={item.type}>
+                      <span>{item.item}</span>
+                      <strong className={item.amount < 0 ? 'negative' : ''}>{money(Math.abs(item.amount))}{item.amount < 0 ? ' outflow' : ''}</strong>
+                    </div>
+                  ))}
+                </div>
+              </section>
             </div>
 
-            <div className="rounded-lg border border-slate-200 bg-white p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Database size={16} className="text-blue-600" />
-                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800">Withheld measures</h2>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                {['CPL / media spend', 'Telephony cost', 'Contribution margin', 'Break-even volume'].map(label => (
-                  <div key={label} className="rounded-md bg-slate-50 border border-slate-200 p-3">
-                    <div className="text-slate-500">{label}</div>
-                    <div className="mt-1 font-mono font-semibold text-slate-700">UNAVAILABLE</div>
-                  </div>
+            <section className="cx-command-panel">
+              <header>
+                <div>
+                  <span className="cx-command-section-kicker">Still withheld</span>
+                  <h2>Profitability inputs not yet approved</h2>
+                  <p>These remain unavailable rather than being reconstructed from hard-coded assumptions.</p>
+                </div>
+                <Database size={16} className="text-slate-400"/>
+              </header>
+              <div className="cx-withheld-grid">
+                {[
+                  'Telephony cost',
+                  'Agent / delivery cost',
+                  'Commission',
+                  'Fixed overhead',
+                  'Total operating cost',
+                  'Contribution margin',
+                  'Net margin',
+                  'Break-even volume',
+                ].map(label => (
+                  <div key={label}><span>{label}</span><strong>UNAVAILABLE</strong></div>
                 ))}
               </div>
-            </div>
+            </section>
           </>
         )}
       </div>
