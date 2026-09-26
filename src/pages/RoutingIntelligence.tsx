@@ -5,8 +5,8 @@ import { useAnalyticsData } from '../lib/useAnalyticsData';
 import { useClient } from '../lib/ClientContext';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
-
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
+
 export default function RoutingIntelligence() {
   const scoped = useScopedNavigationTarget();
   const { clientConfig } = useClient();
