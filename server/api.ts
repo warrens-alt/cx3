@@ -28,7 +28,9 @@ import {
 export const analyticsRouter = Router();
 validateEnvironment();
 function scopeFrom(req: Request): QueryScope {
-  const input = req.method === 'GET' ? req.query : req.body || {};
+  const input = req.method === 'GET' || req.method === 'DELETE'
+    ? req.query
+    : { ...req.query, ...(req.body || {}) };
   const filters = validateFilters(input.filters);
   for (const key of ['source', 'medium', 'vendor', 'grade', 'cli', 'campaign']) {
     const value = scalarString(input[key], key, 500);
