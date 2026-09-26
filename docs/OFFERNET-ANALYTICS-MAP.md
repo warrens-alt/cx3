@@ -177,7 +177,7 @@ CX3 deliberately does not assign agent performance tiers until an approved scori
 
 ## CLI Performance — What does the caller-ID/dialler report show?
 
-The CLI surface is intended to answer delivery/contact questions from validated dialler fields only. Missing answered/activation fields must remain unavailable and may not be back-filled for presentation.
+The CLI surface is intended to answer delivery/contact questions from validated dialler fields only. Missing answered, activation, duration, distinct-lead and lead-age fields remain unavailable and may not be back-filled for presentation. Imported reports are administrator-managed. A date-filtered view requires a source-provided report date, and production benchmark sample data is disabled by default. Matched-period comparison is withheld unless a real historical population can be queried.
 
 ## Routing — Did the lead follow the expected handoff journey?
 
@@ -211,7 +211,7 @@ Primary questions:
 - What revenue is recorded?
 - Where an approved attribution key exists, what are spend/fetched, spend/sale and spend/activation?
 
-Cross-source ratios remain unreconciled until attribution keys are independently validated.
+Cross-source ratios remain unreconciled until attribution keys are independently validated. The attribution bridge validates spend grain, shows matched/unmatched key coverage, and refuses operational filters that cannot be applied equivalently to the marketing population.
 
 ## Data Integrity — Can the operational analysis be trusted?
 
