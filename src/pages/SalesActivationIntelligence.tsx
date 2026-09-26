@@ -98,21 +98,21 @@ export default function SalesActivationIntelligence() {
               </div>
 
               <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-2xs">
-                <div className="text-[10px] uppercase font-bold text-slate-400">Billable Sales (Revenue Matched)</div>
+                <div className="text-[10px] uppercase font-bold text-slate-400">Sales with Recorded Revenue</div>
                 <div className="text-xl font-bold text-emerald-700 mt-1">{data.reconciliation.billableSales.toLocaleString()}</div>
-                <div className="text-xs text-slate-500 mt-1">Passed QA & contract validation</div>
+                <div className="text-xs text-slate-500 mt-1">Revenue field is non-zero in the source</div>
               </div>
 
               <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-2xs">
-                <div className="text-[10px] uppercase font-bold text-slate-400">Activated Policies / SIMs</div>
+                <div className="text-[10px] uppercase font-bold text-slate-400">Recorded Activations</div>
                 <div className="text-xl font-bold text-purple-700 mt-1">{data.reconciliation.totalActivations.toLocaleString()}</div>
                 <div className="text-xs text-slate-500 mt-1">Activation Rate: {data.reconciliation.activationRate}%</div>
               </div>
 
               <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-2xs">
-                <div className="text-[10px] uppercase font-bold text-slate-400">Realized Gross Revenue</div>
+                <div className="text-[10px] uppercase font-bold text-slate-400">Recorded Revenue</div>
                 <div className="text-xl font-bold text-slate-900 mt-1">R {data.reconciliation.realizedRevenue.toLocaleString()}</div>
-                <div className="text-xs text-slate-500 mt-1">ZAR recognized in ledger</div>
+                <div className="text-xs text-slate-500 mt-1">Revenue value recorded in the selected source</div>
               </div>
             </div>
 
@@ -128,23 +128,24 @@ export default function SalesActivationIntelligence() {
                 <span className="text-xs text-slate-400 font-mono">Fulfillment Cycle: ~{data.reconciliation.avgTimeToActivation}</span>
               </div>
 
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={data.maturationCurve}>
-                    <defs>
-                      <linearGradient id="colorCumulative" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="day" tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                    <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" unit="%" />
-                    <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '6px', fontSize: '11px' }} />
-                    <Area type="monotone" dataKey="cumulativePct" name="Cumulative Activated %" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorCumulative)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+              {data.maturationCurve.length > 0 ? (
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={data.maturationCurve}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="day" tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                      <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" unit="%" />
+                      <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '6px', fontSize: '11px' }} />
+                      <Area type="monotone" dataKey="cumulativePct" name="Cumulative Activated %" stroke="#8b5cf6" strokeWidth={2} fillOpacity={0.15} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-xs text-amber-950">
+                  <div className="font-semibold">{data.maturationStatus || 'UNAVAILABLE'}</div>
+                  <p className="mt-1">{data.maturationReason || 'Activation maturation is withheld until event-level joins are independently validated.'}</p>
+                </div>
+              )}
             </div>
 
             {/* VENDOR SALES & ACTIVATION BREAKDOWN */}

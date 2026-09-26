@@ -1,35 +1,107 @@
-# Integrity and access-control patch — 20 September 2026
+# Implementation status — 26 September 2026
 
-## Deployment requirement
+## Deployment boundary
 
-The data API now fails closed. Configure a Google Identity-Aware Proxy gateway, the exact expected `IAP_AUDIENCE`, and an explicit `CX_ACCESS_POLICY_JSON` before deploying this revision for users. The policy maps verified email addresses to `{ "tenants": ["default_tenant"], "role": "admin" }` or `viewer`. No real identity, key, or secret has been added to source control. Unsigned identity headers are not trusted. The generic health endpoint remains public.
+CX3 is an operational analytics application with an emerging evidence-reporting architecture. It is **not** currently certified as a fully reconciled reporting system.
 
-The implementation verifies the signed IAP JWT through google-auth-library. Protect the deployment with HTTPS and IAP, and do not configure a credential in the browser. Start the production server using `NODE_ENV=production npm start`. `PORT` is respected. Only `dist/client` is served publicly. Backend bundles are written to `dist/server`.
+Production analytical routes are fail-closed and require:
 
-## Changes included
+- a configured Google IAP audience;
+- a valid signed IAP assertion;
+- an explicit `CX_ACCESS_POLICY_JSON` tenant/role grant;
+- server-side BigQuery credentials with only the access required by the application.
 
-- Connect authenticated identities and explicit tenant permissions to all data routes; reject unknown tenants.
-- Validate filter keys, operators, values, dates and pagination. Restrict unverified cross-grain filters instead of silently ignoring them.
-- Scope vendor transactions before lead aggregation; bind the selected vendor through request-local async context.
-- Correct activation fallback and stop fabricating observed call timestamps or calls from sale evidence.
-- Repair lead/transaction exports, apply reporting scope, bound row counts, flag truncation, include audit columns and neutralise CSV formulas.
-- Apply filters to both driver-analysis periods; keep undefined percentage changes null.
-- Base supported sale/activation cohort maturity on event timestamps. Unknown event dates and unobserved maturity remain unknown.
-- Remove manufactured reconciliation results and the unconditional overview readiness claim.
-- Align overview rate names, preserve filter context in links, and surface API errors explicitly.
-- Add a query byte cap (default 1,000,000,000 bytes per query) and regression tests/CI.
-- Generate request correlation IDs, apply production browser-security headers and reject cross-site analytical POSTs.
-- Bound concurrent analytical work per authenticated subject and server process; require an upstream shared quota for multi-instance deployments.
-- Fail visibly when workspace authentication/configuration fails instead of retaining a compiled tenant fallback.
+The only unauthenticated API route is `/api/health`.
 
-## Intentionally withheld pending evidence
+A local development identity is available only when `NODE_ENV` is not `production` and `CX_ALLOW_DEV_AUTH=true`. Production never falls back to the development identity.
 
-Raw-source exports and arbitrary warehouse browsing are disabled. Acquisition economics are withheld until incurred spend and campaign mappings are verified. AI summaries are disabled until their inputs are validated. RPC/revenue maturation and advanced filters on mixed-grain reports return an explicit unsupported response when their definitions cannot be substantiated. This patch does not invent contractual rates or update production secrets.
+## Security changes in the current hardening revision
 
-## Remaining validation and implementation
+- Removed unrestricted BigQuery project, dataset, table and `SELECT *` preview endpoints.
+- Converted Lead Ledger into an admin-only, tenant-scoped analytical record view.
+- Restricted raw lead/timeline endpoints to administrators.
+- Made the server-authorised tenant list authoritative for the live workspace selector.
+- Enforced tenant permission checks on evidence-reporting catalogue and exception requests.
+- Scoped Offernet lead timelines to the authorised tenant/vendor population.
+- Scoped agent analytics to tenant/date/vendor and reject unsupported cross-grain filters.
+- New Firebase profiles can no longer self-activate; non-bootstrap accounts remain pending until administrator approval.
+- Operational analytics responses are labelled `UNVERIFIED`, not `VERIFIED`.
+- Production runs the freshly built `dist/server/server.mjs`; generated `server.js` is no longer tracked.
 
-The complete application build and synthetic desktop/mobile UI flows pass; see `AUDIT-2026-09-21.md`. Live warehouse and deployment verification are still required. The read-only warehouse attempt from the audit host failed before any query job because usable credentials were unavailable. The full independent reconciliation engine is not implemented; its screen explicitly reports NOT_VERIFIED. Call-join cardinality, repeated HLC records, activation transaction-ID uniqueness, local/UTC source interpretation, actual vendor tariffs and invoice/cash stages still need live evidence and further work. The retained base model is versioned separately; guarded transformations fail if their expected source expressions change. This is a bounded correction, not certification of every dashboard.
+## Analytical trust changes
 
-## Checks
+The hardening revision removes or withholds results that were not supported by validated evidence:
 
-`npm test` runs the request, permission, contract, HTTP and integrity tests. `npm run lint` checks application TypeScript and `npm run build` performs the production build. CI also compiles Dataform and runs the synthetic browser suite from a committed tooling lock. A successful test is not a successful warehouse dry run. No hosted application, public-access setting or warehouse object was changed by the audit.
+- no fixed enterprise data-health score or grade;
+- no static discrepancy counts labelled as verified;
+- no hard-coded temporal “best windows”;
+- no static activation maturation curve;
+- no fixed contact-fatigue/redial recommendation values;
+- no AI fallback metrics or generative recommendations;
+- no assumption that campaign `budget` is incurred spend;
+- no R45/R14.50/overhead profitability model;
+- no vendor contribution or margin derived from assumed unit costs;
+- no arbitrary split-half “current vs previous” comparison.
+
+Where the source supports an observed value, it is returned. Where a required contract is missing, the API returns `null`, `UNAVAILABLE`, `PARTIAL`, `NOT_VERIFIED`, or a 4xx/5xx response rather than manufacturing a number.
+
+## Evidence reporting
+
+`contracts/reporting.ts` defines the intended versioned evidence metric contract and `server/reporting/repository.ts` contains immutable snapshot verification logic.
+
+However, the current repository does **not** contain a complete v2 report compiler/executor or replay engine. Therefore:
+
+- `GET /api/reporting/catalogue` can inspect an authorised tenant's release registry when configured;
+- report execution returns `501 NOT_IMPLEMENTED`;
+- replay returns `501 NOT_IMPLEMENTED`;
+- exceptions do not fabricate rules or PASS evidence when no approved release exists;
+- release manifests are validated strictly before use.
+
+Do not describe this repository revision as having completed reproducible evidence-report execution.
+
+## Date and filter behaviour
+
+- Operational reports default to all-time when no date scope is supplied.
+- Date presets are generated dynamically from the current date.
+- Vetting does **not** silently turn all-time into a 90-day period; it requires an explicit start and end date.
+- Unsupported cross-grain filters fail explicitly instead of being silently ignored.
+
+## Commercial and campaign limitations
+
+The following remain withheld until approved contracts are implemented:
+
+- incurred media spend;
+- CPL/CPC derived from incurred spend;
+- telephony and agent unit costs;
+- platform/fixed overhead allocation;
+- contribution margin and break-even;
+- vendor profitability;
+- tenant-to-marketing-client campaign mappings;
+- activation-maturation evidence.
+
+Recorded source revenue can still be displayed as a source field, but it must not be described as audited financial revenue.
+
+## Verification
+
+`npm run verify` performs:
+
+1. TypeScript type checking;
+2. repository contract/regression tests;
+3. production client/server build.
+
+GitHub Actions runs the same checks plus a dependency audit.
+
+The repository currently does not include the previously referenced Dataform warehouse tree or Playwright tooling package, so CI does not claim to execute those checks.
+
+Passing repository CI is necessary but is **not** evidence of live BigQuery source completeness, source-owner reconciliation, production IAP acceptance or financial certification.
+
+## Remaining work
+
+1. Complete the versioned report compiler/executor and signed replay flow.
+2. Provision and test immutable reporting snapshots with separately controlled cloud permissions.
+3. Reconcile call-event identities, repeated HLC records and activation transaction identities against live sources.
+4. Approve source timezone semantics and event-time interpretation.
+5. Implement approved commercial/spend/rate-card contracts.
+6. Add approved tenant-to-marketing-client mappings.
+7. Run production IAP acceptance and tenant-isolation tests.
+8. Perform live source-owner reconciliation before changing operational outputs from `NOT_VERIFIED`.

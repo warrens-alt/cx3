@@ -1,6 +1,6 @@
 import { getBigQueryClient } from './client';
-import { getClientConfig, type TenantConfiguration } from './config';
-import { GoogleGenAI } from '@google/genai';
+import { getClientConfig } from './config';
+import { RequestError } from './filters';
 
 export interface OffernetQueryParams {
   clientId: string;
@@ -158,12 +158,12 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
       FROM lead_records
       WHERE fetched_date IS NOT NULL
       GROUP BY fetched_date
-      ORDER BY fetched_date ASC
+      ORDER BY fetched_date DESC
       LIMIT 60
     )
     SELECT 
       summary.*,
-      ARRAY(SELECT AS STRUCT * FROM daily_trends) as daily_trends
+      ARRAY(SELECT AS STRUCT * FROM daily_trends ORDER BY date) as daily_trends
     FROM summary
   `;
 
@@ -180,21 +180,18 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
   const revenue = Number(data.total_revenue || 0);
   const totalCalls = Number(data.total_calls_recorded || 0);
 
-  // Commercial costs model
-  const unitLeadCost = 45; // ZAR direct lead acquisition cost
-  const unitDialCost = 14.50; // ZAR telephony/delivery/agent cost per dialled lead
-  const allocatedOverheadPct = 0.10; // 10% allocated fixed/platform overhead
-  
-  const directCost = Math.round(fetched * unitLeadCost);
-  const deliveryAgentCost = Math.round(dialled * unitDialCost);
-  const allocatedCost = Math.round(revenue * allocatedOverheadPct + (fetched > 0 ? 5000 : 0));
-  const totalCost = directCost + deliveryAgentCost + allocatedCost;
-  const contribution = revenue - totalCost;
-  const marginPct = revenue > 0 ? Number(((contribution / revenue) * 100).toFixed(1)) : 0;
-  const costPerSale = sales > 0 ? Number((totalCost / sales).toFixed(2)) : 0;
-  const costPerActivation = activated > 0 ? Number((totalCost / activated).toFixed(2)) : 0;
+  // Commercial cost inputs are intentionally withheld until an approved,
+  // versioned rate-card contract exists for this tenant.
+  const directCost: number | null = null;
+  const deliveryAgentCost: number | null = null;
+  const allocatedCost: number | null = null;
+  const totalCost: number | null = null;
+  const contribution: number | null = null;
+  const marginPct: number | null = null;
+  const costPerSale: number | null = null;
+  const costPerActivation: number | null = null;
   const revenuePerLead = fetched > 0 ? Number((revenue / fetched).toFixed(2)) : 0;
-  const breakEvenSales = revenue > 0 && sales > 0 ? Math.ceil(totalCost / (revenue / sales)) : 0;
+  const breakEvenSales: number | null = null;
 
   // Funnel Stage Array (7 canonical stages from warehouse ingestion to activation)
   const funnelStages = [
@@ -207,67 +204,10 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
     { name: 'Activated Sales', itemNo: 46, costMetric: 'CPS.Activated', volume: activated, rate: sales > 0 ? Number(((activated / sales) * 100).toFixed(1)) : 0, dropoffPct: 0 }
   ];
 
-  // Matched period comparison deltas computed from daily trend series
-  const dailyTrends = data.daily_trends || [];
-  let comparison = {
-    fetchedDelta: 0,
-    deliveryRateDelta: 0,
-    dialRateDelta: 0,
-    contactRateDelta: 0,
-    saleRateDelta: 0,
-    activationRateDelta: 0,
-    revenueDelta: 0,
-    contributionDelta: 0
-  };
-
-  if (dailyTrends.length >= 2) {
-    const mid = Math.floor(dailyTrends.length / 2);
-    const priorSlice = dailyTrends.slice(0, mid);
-    const currSlice = dailyTrends.slice(mid);
-
-    const sumField = (arr: any[], f: string) => arr.reduce((acc: number, r: any) => acc + Number(r[f] || 0), 0);
-    const priorFetched = sumField(priorSlice, 'leads');
-    const currFetched = sumField(currSlice, 'leads');
-    const priorDelivered = sumField(priorSlice, 'delivered');
-    const currDelivered = sumField(currSlice, 'delivered');
-    const priorDialled = sumField(priorSlice, 'dialled');
-    const currDialled = sumField(currSlice, 'dialled');
-    const priorContacted = sumField(priorSlice, 'contacted');
-    const currContacted = sumField(currSlice, 'contacted');
-    const priorSales = sumField(priorSlice, 'sales');
-    const currSales = sumField(currSlice, 'sales');
-    const priorActivations = sumField(priorSlice, 'activations');
-    const currActivations = sumField(currSlice, 'activations');
-    const priorRev = sumField(priorSlice, 'revenue');
-    const currRev = sumField(currSlice, 'revenue');
-
-    const priorDeliveryRate = priorFetched > 0 ? (priorDelivered / priorFetched) * 100 : 0;
-    const currDeliveryRate = currFetched > 0 ? (currDelivered / currFetched) * 100 : 0;
-    const priorDialRate = priorDelivered > 0 ? (priorDialled / priorDelivered) * 100 : 0;
-    const currDialRate = currDelivered > 0 ? (currDialled / currDelivered) * 100 : 0;
-    const priorContactRate = priorDialled > 0 ? (priorContacted / priorDialled) * 100 : 0;
-    const currContactRate = currDialled > 0 ? (currContacted / currDialled) * 100 : 0;
-    const priorSaleRate = priorFetched > 0 ? (priorSales / priorFetched) * 100 : 0;
-    const currSaleRate = currFetched > 0 ? (currSales / currFetched) * 100 : 0;
-    const priorActivationRate = priorSales > 0 ? (priorActivations / priorSales) * 100 : 0;
-    const currActivationRate = currSales > 0 ? (currActivations / currSales) * 100 : 0;
-
-    const priorCost = Math.round(priorFetched * unitLeadCost + priorDialled * unitDialCost + priorRev * allocatedOverheadPct);
-    const currCost = Math.round(currFetched * unitLeadCost + currDialled * unitDialCost + currRev * allocatedOverheadPct);
-    const priorCont = priorRev - priorCost;
-    const currCont = currRev - currCost;
-
-    comparison = {
-      fetchedDelta: priorFetched > 0 ? Number((((currFetched - priorFetched) / priorFetched) * 100).toFixed(1)) : 0,
-      deliveryRateDelta: Number((currDeliveryRate - priorDeliveryRate).toFixed(1)),
-      dialRateDelta: Number((currDialRate - priorDialRate).toFixed(1)),
-      contactRateDelta: Number((currContactRate - priorContactRate).toFixed(1)),
-      saleRateDelta: Number((currSaleRate - priorSaleRate).toFixed(2)),
-      activationRateDelta: Number((currActivationRate - priorActivationRate).toFixed(1)),
-      revenueDelta: priorRev > 0 ? Number((((currRev - priorRev) / priorRev) * 100).toFixed(1)) : 0,
-      contributionDelta: priorCont !== 0 ? Number((((currCont - priorCont) / Math.abs(priorCont)) * 100).toFixed(1)) : 0
-    };
-  }
+  // Period-over-period comparisons are withheld until the comparison window is
+  // explicitly requested and independently calculated. Splitting an arbitrary
+  // trend series in half is not a valid comparison methodology.
+  const comparison = null;
 
   return {
     kpis: {
@@ -298,11 +238,14 @@ export async function getExecutiveOverview(params: OffernetQueryParams) {
       costPerActivation,
       revenuePerLead,
       breakEvenSales,
-      actualVsBreakEven: sales - breakEvenSales
+      actualVsBreakEven: null
     },
     funnelStages,
     dailyTrends: data.daily_trends || [],
     comparison,
+    commercialStatus: 'UNAVAILABLE',
+    commercialReason: 'Commercial costs and profitability are withheld until an approved rate-card contract is configured.',
+    validationStatus: 'NOT_VERIFIED',
     currency: clientConfig.currency || 'ZAR',
     clientName: clientConfig.name
   };
@@ -701,18 +644,15 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
   });
 
   // Call interval cadence & repeated no-answer analysis
-  const attemptCadence = [
-    { transition: 'Attempt 1 → Attempt 2', avgSpacing: '2h 15m', marginalRpcYield: '28.4%', costBenefitRatio: 'High' },
-    { transition: 'Attempt 2 → Attempt 3', avgSpacing: '5h 40m', marginalRpcYield: '14.2%', costBenefitRatio: 'Moderate' },
-    { transition: 'Attempt 3 → Attempt 4', avgSpacing: '24h 10m', marginalRpcYield: '6.8%', costBenefitRatio: 'Low' },
-    { transition: 'Attempt 4 → Attempt 5+', avgSpacing: '48h+', marginalRpcYield: '1.9%', costBenefitRatio: 'Negative (Ceiling)' }
-  ];
+  const attemptCadence: Array<{ transition: string; avgSpacing: string; marginalRpcYield: string; costBenefitRatio: string }> = [];
 
   const noAnswerAnalysis = {
-    stopThresholdRecommendation: '4 calls maximum',
-    diminishingReturnsCutoff: 'Calls beyond 4 generate under 2% marginal RPC while increasing carrier spam reputation risk by 34%.',
-    callbackFollowupRate: '78.4%',
-    callbackSaleConversion: '14.2%'
+    status: 'UNAVAILABLE',
+    reason: 'No approved redial-cost or carrier-reputation contract is configured. Recommendations are withheld.',
+    stopThresholdRecommendation: null,
+    diminishingReturnsCutoff: null,
+    callbackFollowupRate: null,
+    callbackSaleConversion: null
   };
 
   return {
@@ -829,11 +769,10 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
     const totalCalls = Number(v.total_calls || 0);
     const revenue = Number(v.revenue || 0);
 
-    const directCost = Math.round(leads * 45);
-    const deliveryCost = Math.round(delivered * 14);
-    const totalCost = directCost + deliveryCost;
-    const contribution = revenue - totalCost;
-    const marginPct = revenue > 0 ? Number(((contribution / revenue) * 100).toFixed(1)) : 0;
+    const directCost: number | null = null;
+    const deliveryCost: number | null = null;
+    const contribution: number | null = null;
+    const marginPct: number | null = null;
 
     return {
       vendor: v.vendor,
@@ -857,7 +796,9 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
     vendors,
     sources: data.sources || [],
     grades: data.grades || [],
-    vetting: data.vetting || []
+    vetting: data.vetting || [],
+    commercialStatus: 'UNAVAILABLE',
+    commercialReason: 'Vendor contribution and margin are withheld until approved cost contracts are configured.'
   };
 }
 
@@ -907,13 +848,17 @@ export async function getTemporalAnalytics(params: OffernetQueryParams) {
     }
   }
 
-  // Peak window recommendation
-  const peakWindows = [
-    { window: 'Tuesday 09:00 – 11:30', contactRate: '34.2%', saleIndex: '142', verdict: 'Prime Outreach Window' },
-    { window: 'Wednesday 14:00 – 16:30', contactRate: '31.8%', saleIndex: '128', verdict: 'High Intent Re-dial' },
-    { window: 'Thursday 10:00 – 12:00', contactRate: '29.5%', saleIndex: '119', verdict: 'Strong Closing Window' },
-    { window: 'Sunday 18:00 – 21:00', contactRate: '12.4%', saleIndex: '42', verdict: 'Low Yield / High Voicemail' }
-  ];
+  // Rank observed day/hour cells only. No static "best time" claims are injected.
+  const peakWindows = heatmap
+    .filter(cell => cell.volume > 0)
+    .sort((a, b) => (b.contactRate - a.contactRate) || (b.volume - a.volume))
+    .slice(0, 4)
+    .map(cell => ({
+      window: `${cell.dayName} ${String(cell.hour).padStart(2, '0')}:00–${String((cell.hour + 1) % 24).padStart(2, '0')}:00`,
+      contactRate: `${cell.contactRate.toFixed(1)}%`,
+      saleIndex: cell.saleRate.toFixed(2),
+      verdict: 'Observed high-contact window'
+    }));
 
   return {
     heatmap,
@@ -979,14 +924,9 @@ export async function getSalesActivationAnalytics(params: OffernetQueryParams) {
   const billable = Number(data.billable_sales || 0);
   const activations = Number(data.total_activations || 0);
 
-  // Maturation Cohort Curve (Days since sale to activation)
-  const maturationCurve = [
-    { day: 'Day 0 (Same day)', activationSharePct: 18.5, cumulativePct: 18.5 },
-    { day: 'Day 7', activationSharePct: 42.1, cumulativePct: 60.6 },
-    { day: 'Day 14', activationSharePct: 24.3, cumulativePct: 84.9 },
-    { day: 'Day 30', activationSharePct: 11.2, cumulativePct: 96.1 },
-    { day: 'Day 60+', activationSharePct: 3.9, cumulativePct: 100.0 }
-  ];
+  // A maturation curve requires a separately validated activation-event model.
+  // Do not substitute a static benchmark for observed cohort evidence.
+  const maturationCurve: Array<{ day: string; activationSharePct: number; cumulativePct: number }> = [];
 
   return {
     reconciliation: {
@@ -1000,6 +940,8 @@ export async function getSalesActivationAnalytics(params: OffernetQueryParams) {
       avgTimeToActivation: formatDuration(data.avg_time_to_activation_sec)
     },
     maturationCurve,
+    maturationStatus: 'UNAVAILABLE',
+    maturationReason: 'Activation maturation is withheld until event-level activation joins are independently validated.',
     byVendor: data.vendors || []
   };
 }
@@ -1009,31 +951,27 @@ export async function getCommercialAnalytics(params: OffernetQueryParams) {
   const overview = await getExecutiveOverview(params);
   const kpis = overview.kpis;
 
-  const baseline = {
-    volume: kpis.fetchedLeads,
-    cpl: 45,
-    cpc: 14.50,
-    conversionRate: kpis.leadToSaleRate,
-    revenuePerSale: kpis.saleLeads > 0 ? Number((kpis.revenue / kpis.saleLeads).toFixed(2)) : 350,
-    fixedOverhead: kpis.allocatedCost,
-    revenue: kpis.revenue,
-    totalCost: kpis.totalCost,
-    contribution: kpis.contribution,
-    marginPct: kpis.marginPct,
-    costPerSale: kpis.costPerSale,
-    costPerActivation: kpis.costPerActivation,
-    breakEvenVolume: kpis.breakEvenSales
-  };
-
   return {
-    baseline,
+    status: 'UNAVAILABLE',
+    reason: 'Profitability, CPL, CPC, contribution and break-even metrics are withheld until approved incurred-cost and rate-card contracts are configured.',
+    baseline: {
+      volume: kpis.fetchedLeads,
+      cpl: null,
+      cpc: null,
+      conversionRate: kpis.leadToSaleRate,
+      revenuePerSale: kpis.saleLeads > 0 ? Number((kpis.revenue / kpis.saleLeads).toFixed(2)) : null,
+      fixedOverhead: null,
+      revenue: kpis.revenue,
+      totalCost: null,
+      contribution: null,
+      marginPct: null,
+      costPerSale: null,
+      costPerActivation: null,
+      breakEvenVolume: null
+    },
     currency: overview.currency,
     pAndLBreakdown: [
-      { item: 'Gross Commercial Revenue', amount: kpis.revenue, type: 'revenue' },
-      { item: 'Direct Media & Lead Acquisition', amount: -kpis.directCost, type: 'direct_cost' },
-      { item: 'Dialler, Telephony & Agent Execution', amount: -kpis.deliveryAgentCost, type: 'delivery_cost' },
-      { item: 'Allocated Fixed Platform & Network Fee', amount: -kpis.allocatedCost, type: 'overhead' },
-      { item: 'Net Operational Contribution', amount: kpis.contribution, type: 'contribution' }
+      { item: 'Recorded Revenue', amount: kpis.revenue, type: 'recorded_revenue' }
     ]
   };
 }
@@ -1044,15 +982,14 @@ export async function getDataIntegrityAnalytics(params: OffernetQueryParams) {
   const { whereSql, queryParams } = buildFilterClause(params);
 
   const query = `
-    SELECT 
-      COUNT(DISTINCT l.lead_id) as total_leads,
-      COUNTIF(l.fetched LIKE '1900%' OR l.fetched LIKE '1970%' OR l.fetched IS NULL) as sentinel_fetch_dates,
-      COUNTIF(l.standardised_idno IS NULL OR l.valid_idno = '0' OR l.valid_idno = 'false') as invalid_id_numbers,
-      COUNTIF(l.standardised_mobile IS NULL OR l.phone_valid = '0' OR l.phone_valid = 'false') as invalid_mobile_numbers,
-      COUNTIF(hlc.vendor IS NULL OR hlc.vendor = '') as unassigned_vendor_leads,
-      COUNTIF(hlc.delivered IS NOT NULL AND (hlc.last_dialer_status IS NULL OR hlc.last_dialer_status = '')) as missing_dispositions,
-      COUNTIF(hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND (hlc.revenue_generated = 0 OR hlc.revenue_generated IS NULL)) as unbilled_sales_count,
-      COUNTIF(l.consumer_id IS NULL OR l.consumer_id = 0) as unmatched_consumer_ids
+    SELECT
+      COUNT(DISTINCT l.lead_id) AS total_leads,
+      COUNTIF(l.fetched LIKE '1900%' OR l.fetched LIKE '1970%' OR l.fetched IS NULL) AS sentinel_fetch_dates,
+      COUNTIF(l.standardised_idno IS NULL OR l.valid_idno = '0' OR l.valid_idno = 'false') AS invalid_id_numbers,
+      COUNTIF(l.standardised_mobile IS NULL OR l.phone_valid = '0' OR l.phone_valid = 'false') AS invalid_mobile_numbers,
+      COUNTIF(hlc.vendor IS NULL OR hlc.vendor = '') AS unassigned_vendor_leads,
+      COUNTIF(hlc.delivered IS NOT NULL AND (hlc.last_dialer_status IS NULL OR hlc.last_dialer_status = '')) AS missing_dispositions,
+      COUNTIF(l.consumer_id IS NULL OR l.consumer_id = 0) AS unmatched_consumer_ids
     FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
     LEFT JOIN UNNEST(l.hlc_details) hlc
     ${whereSql}
@@ -1060,78 +997,58 @@ export async function getDataIntegrityAnalytics(params: OffernetQueryParams) {
 
   const [rows] = await client.query({ query, params: queryParams });
   const d = rows[0] || {};
-  const total = Number(d.total_leads || 1);
+  const total = Number(d.total_leads || 0);
 
+  const observedCheck = (checkName: string, category: string, discrepancyCount: number, detail: string) => ({
+    checkName,
+    category,
+    status: discrepancyCount === 0 ? 'HEALTHY' as const : 'WARNING' as const,
+    evidence: 'OBSERVED',
+    discrepancyCount,
+    detail
+  });
+
+  const invalidValidation = Number(d.invalid_id_numbers || 0) + Number(d.invalid_mobile_numbers || 0);
   const checks = [
-    {
-      checkName: 'Delivery Reconciliation',
-      category: 'Pipeline Ingestion',
-      status: 'HEALTHY',
-      evidence: 'VERIFIED',
-      discrepancyCount: 0,
-      detail: 'Lead events successfully mapped across delivery endpoints without silent drop.'
-    },
-    {
-      checkName: 'Missing Dispositions',
-      category: 'Dialler Telephony',
-      status: Number(d.missing_dispositions || 0) > 500 ? 'WARNING' : 'HEALTHY',
-      evidence: 'VERIFIED',
-      discrepancyCount: Number(d.missing_dispositions || 0),
-      detail: `${d.missing_dispositions || 0} delivered records have blank dialler status codes.`
-    },
-    {
-      checkName: 'Outcome Feedback Loop',
-      category: 'CRM Synchronization',
-      status: 'HEALTHY',
-      evidence: 'VERIFIED',
-      discrepancyCount: 142,
-      detail: 'Real-time disposition sync verified across Vicidial cluster.'
-    },
-    {
-      checkName: 'Duplicate Leads & Re-entry',
-      category: 'Consumer Verification',
-      status: 'HEALTHY',
-      evidence: 'VERIFIED',
-      discrepancyCount: 88,
-      detail: 'Deduplication window active across 30-day mobile registry.'
-    },
-    {
-      checkName: 'Unmatched Transaction Records',
-      category: 'Data Lineage',
-      status: Number(d.unmatched_consumer_ids || 0) > 0 ? 'WARNING' : 'HEALTHY',
-      evidence: 'VERIFIED',
-      discrepancyCount: Number(d.unmatched_consumer_ids || 0),
-      detail: 'Consumer ID foreign key integrity maintained across lead ledger.'
-    },
-    {
-      checkName: 'Missing / Sentinel Timestamps',
-      category: 'Temporal Integrity',
-      status: Number(d.sentinel_fetch_dates || 0) > 0 ? 'WARNING' : 'HEALTHY',
-      evidence: 'VERIFIED',
-      discrepancyCount: Number(d.sentinel_fetch_dates || 0),
-      detail: '1900/1970 sentinel dates strictly filtered from analytical calculations.'
-    },
-    {
-      checkName: 'National ID & Mobile Validation',
-      category: 'Lead Vetting',
-      status: (Number(d.invalid_id_numbers || 0) / total) > 0.15 ? 'WARNING' : 'HEALTHY',
-      evidence: 'VERIFIED',
-      discrepancyCount: Number(d.invalid_id_numbers || 0) + Number(d.invalid_mobile_numbers || 0),
-      detail: `${(((Number(d.invalid_id_numbers || 0) + Number(d.invalid_mobile_numbers || 0)) / total) * 100).toFixed(1)}% validation rejection rate on inbound submissions.`
-    },
-    {
-      checkName: 'Sales & Activation Reconciliation',
-      category: 'Commercial Reconciliation',
-      status: Number(d.unbilled_sales_count || 0) > 100 ? 'WARNING' : 'HEALTHY',
-      evidence: 'VERIFIED',
-      discrepancyCount: Number(d.unbilled_sales_count || 0),
-      detail: `${d.unbilled_sales_count || 0} sales recorded with zero immediate revenue settlement.`
-    }
+    observedCheck(
+      'Missing Dispositions',
+      'Dialler Telephony',
+      Number(d.missing_dispositions || 0),
+      `${Number(d.missing_dispositions || 0).toLocaleString()} delivered records have no recorded dialler disposition.`
+    ),
+    observedCheck(
+      'Unmatched Consumer IDs',
+      'Data Lineage',
+      Number(d.unmatched_consumer_ids || 0),
+      `${Number(d.unmatched_consumer_ids || 0).toLocaleString()} lead records have no usable consumer identifier.`
+    ),
+    observedCheck(
+      'Missing / Sentinel Capture Timestamps',
+      'Temporal Integrity',
+      Number(d.sentinel_fetch_dates || 0),
+      `${Number(d.sentinel_fetch_dates || 0).toLocaleString()} records have missing, 1900, or 1970 capture timestamps.`
+    ),
+    observedCheck(
+      'Unassigned Vendor Records',
+      'Routing',
+      Number(d.unassigned_vendor_leads || 0),
+      `${Number(d.unassigned_vendor_leads || 0).toLocaleString()} expanded HLC records have no vendor value.`
+    ),
+    observedCheck(
+      'ID / Mobile Validation Gaps',
+      'Lead Vetting',
+      invalidValidation,
+      total > 0
+        ? `${invalidValidation.toLocaleString()} validation gaps observed across ${total.toLocaleString()} distinct leads.`
+        : 'No lead records were available in the selected scope.'
+    )
   ];
 
   return {
-    overallHealthScore: 94.6,
-    healthGrade: 'A (Enterprise Production)',
+    overallHealthScore: null,
+    healthGrade: 'NOT_VERIFIED',
+    validationStatus: 'NOT_VERIFIED',
+    reason: 'Observed discrepancy counts are shown without an invented enterprise health score. Thresholds require approved data-quality contracts.',
     checks,
     totalRecordsAudited: total
   };
@@ -1140,38 +1057,58 @@ export async function getDataIntegrityAnalytics(params: OffernetQueryParams) {
 // 10. AGENT PERFORMANCE
 export async function getAgentPerformanceAnalytics(params: OffernetQueryParams) {
   const client = getBigQueryClient('dashboards-422710');
-  const cleanVendor = params.vendor && !['all', 'all vendors', 'undefined', 'null'].includes(params.vendor.trim().toLowerCase())
-    ? params.vendor.trim()
-    : undefined;
+  const clientConfig = getClientConfig(params.clientId);
+
+  if (params.source || params.medium || params.grade || params.campaign) {
+    throw new RequestError('Agent performance supports date, tenant and vendor scope only until cross-source call joins are validated.', 422);
+  }
 
   const conditions = ["user IS NOT NULL AND user != ''"];
   const queryParams: Record<string, any> = {};
 
+  if (params.startDate) {
+    conditions.push('DATE(SAFE_CAST(call_start_date AS TIMESTAMP)) >= @startDate');
+    queryParams.startDate = params.startDate;
+  }
+  if (params.endDate) {
+    conditions.push('DATE(SAFE_CAST(call_start_date AS TIMESTAMP)) <= @endDate');
+    queryParams.endDate = params.endDate;
+  }
+
+  if (clientConfig.id !== 'default_tenant') {
+    const tenantVendors = clientConfig.semanticMappings.partners || [];
+    if (!tenantVendors.length) throw new RequestError('No approved call-vendor mapping exists for this tenant', 422);
+    conditions.push('LOWER(vendor) IN UNNEST(@tenantVendors)');
+    queryParams.tenantVendors = tenantVendors.map(value => value.toLowerCase());
+  }
+
+  const cleanVendor = params.vendor && !['all', 'all vendors', 'undefined', 'null'].includes(params.vendor.trim().toLowerCase())
+    ? params.vendor.trim()
+    : undefined;
   if (cleanVendor) {
-    conditions.push("LOWER(vendor) = LOWER(@vendor)");
+    conditions.push('LOWER(vendor) = LOWER(@vendor)');
     queryParams.vendor = cleanVendor;
   }
 
   const query = `
-    SELECT 
-      user as agent_id,
+    SELECT
+      user AS agent_id,
       vendor,
-      COUNT(*) as total_calls,
-      COUNT(DISTINCT dialer_lead_id) as unique_leads,
-      COUNTIF(is_rpc = true) as rpc_count,
-      COUNTIF(is_sale = true) as sale_count,
-      SUM(length_in_sec) as total_talk_time_sec,
-      ROUND(AVG(length_in_sec), 1) as avg_duration_sec,
-      COUNTIF(is_callback = true) as callbacks_booked
+      COUNT(*) AS total_calls,
+      COUNT(DISTINCT dialer_lead_id) AS unique_leads,
+      COUNTIF(is_rpc = true) AS rpc_count,
+      COUNTIF(is_sale = true) AS sale_count,
+      SUM(length_in_sec) AS total_talk_time_sec,
+      ROUND(AVG(length_in_sec), 1) AS avg_duration_sec,
+      COUNTIF(is_callback = true) AS callbacks_booked
     FROM \`dashboards-422710.lead_ledger.lead_ledger_all_vicidial_insights\`
     WHERE ${conditions.join(' AND ')}
     GROUP BY user, vendor
     ORDER BY total_calls DESC
-    LIMIT 30
+    LIMIT 100
   `;
 
   const [rows] = await client.query({ query, params: queryParams });
-
   const agents = rows.map((r: any) => {
     const calls = Number(r.total_calls || 0);
     const uniqueLeads = Number(r.unique_leads || 0);
@@ -1191,160 +1128,98 @@ export async function getAgentPerformanceAnalytics(params: OffernetQueryParams) 
       totalTalkTime: formatDuration(talkSec),
       avgHandleTime: `${Math.round(Number(r.avg_duration_sec || 0))}s`,
       callbacksBooked: Number(r.callbacks_booked || 0),
-      performanceTier: sales >= 150 ? 'Tier 1 (Elite)' : sales >= 50 ? 'Tier 2 (Core)' : 'Tier 3 (Developing)'
+      performanceTier: null
     };
   });
 
-  return { agents };
+  return {
+    agents,
+    rankingStatus: 'UNAVAILABLE',
+    rankingReason: 'Performance tiers are withheld until an approved agent-performance scoring contract exists.'
+  };
 }
 
 // 11. CLIENT & CAMPAIGN ANALYSIS
 export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
   const client = getBigQueryClient('dashboards-422710');
+  const clientConfig = getClientConfig(params.clientId);
+
+  if (clientConfig.id !== 'default_tenant') {
+    return {
+      campaigns: [],
+      status: 'UNAVAILABLE',
+      reason: 'Tenant-to-marketing-client mappings are not yet approved for campaign reporting.'
+    };
+  }
+  if (params.vendor || params.source || params.medium || params.grade || params.agent) {
+    throw new RequestError('Campaign reporting currently supports date and campaign scope only.', 422);
+  }
+
+  const conditions = ['client_name IS NOT NULL'];
+  const queryParams: Record<string, any> = {};
+  if (params.startDate) {
+    conditions.push('DATE(date) >= @startDate');
+    queryParams.startDate = params.startDate;
+  }
+  if (params.endDate) {
+    conditions.push('DATE(date) <= @endDate');
+    queryParams.endDate = params.endDate;
+  }
+  if (params.campaign) {
+    conditions.push('LOWER(Channel_Campaign_Name) = LOWER(@campaign)');
+    queryParams.campaign = params.campaign;
+  }
 
   const query = `
-    SELECT 
+    SELECT
       client_name,
       channel,
-      Channel_Campaign_Name as campaign_name,
-      channel_adset_name as adset_name,
-      SUM(budget) as total_spend,
-      SUM(impressions) as impressions,
-      SUM(clicks) as clicks,
-      SUM(actions_lead) as recorded_leads
+      Channel_Campaign_Name AS campaign_name,
+      channel_adset_name AS adset_name,
+      SUM(impressions) AS impressions,
+      SUM(clicks) AS clicks,
+      SUM(actions_lead) AS recorded_leads
     FROM \`dashboards-422710.lead_ledger.lead_ledger_platform_insights\`
-    WHERE client_name IS NOT NULL
+    WHERE ${conditions.join(' AND ')}
     GROUP BY 1, 2, 3, 4
-    ORDER BY total_spend DESC
-    LIMIT 20
+    ORDER BY recorded_leads DESC
+    LIMIT 100
   `;
 
-  const [rows] = await client.query({ query });
-
+  const [rows] = await client.query({ query, params: queryParams });
   const campaigns = rows.map((r: any) => {
-    const spend = Number(r.total_spend || 0);
     const imp = Number(r.impressions || 0);
     const clicks = Number(r.clicks || 0);
-    const leads = Number(r.recorded_leads || 0);
-
     return {
       client: r.client_name,
-      channel: r.channel || 'Paid Social',
-      campaign: r.campaign_name || 'Main Lead Gen',
-      adset: r.adset_name || 'All Adsets',
-      spend: Math.round(spend),
+      channel: r.channel || 'Unknown',
+      campaign: r.campaign_name || 'Unknown',
+      adset: r.adset_name || 'Unknown',
+      spend: null,
       impressions: imp,
       clicks,
       ctr: imp > 0 ? Number(((clicks / imp) * 100).toFixed(2)) : 0,
-      leads,
-      cpc: clicks > 0 ? Number((spend / clicks).toFixed(2)) : 0,
-      cpl: leads > 0 ? Number((spend / leads).toFixed(2)) : 0
+      leads: Number(r.recorded_leads || 0),
+      cpc: null,
+      cpl: null
     };
   });
 
-  return { campaigns };
+  return {
+    campaigns,
+    status: 'PARTIAL',
+    reason: 'Budget is not treated as incurred spend. Spend, CPC and CPL are withheld until an approved cost source exists.'
+  };
 }
 
 // 12. AI OPERATIONAL INSIGHTS (Gemini API with @google/genai)
-export async function getAiInsightsAnalytics(params: OffernetQueryParams) {
-  const [overview, speed, strategy, vendors] = await Promise.all([
-    getExecutiveOverview(params),
-    getSpeedToLeadAnalytics(params),
-    getContactStrategyAnalytics(params),
-    getVendorQualityAnalytics(params)
-  ]);
-
-  const kpis = overview.kpis;
-  const timing = speed.timingStages;
-  const cohorts = speed.cohorts;
-  const attempts = strategy.attemptPerformance;
-  const topVendors = vendors.vendors.slice(0, 5);
-
-  const contextData = {
-    overview: kpis,
-    speedStages: timing,
-    cohorts,
-    attempts,
-    topVendors
+export async function getAiInsightsAnalytics(_params: OffernetQueryParams) {
+  return {
+    insights: [],
+    source: 'disabled',
+    status: 'UNAVAILABLE',
+    reason: 'AI operational summaries are disabled until every upstream metric supplied to the model is independently validated.'
   };
-
-  // Default deterministic analytical findings grounded in computed values
-  const fastCohort = cohorts.find(c => c.cohort === '0–5 min' || c.cohort === '5–15 min');
-  const slowCohort = cohorts.find(c => c.cohort === '6–12 hrs' || c.cohort === '12–24 hrs' || c.cohort === '24+ hrs');
-  const fastConv = fastCohort ? fastCohort.saleRate : 6.7;
-  const slowConv = slowCohort ? slowCohort.saleRate : 2.1;
-
-  const baselineInsights = [
-    {
-      category: 'Speed-to-Lead Deterioration',
-      severity: 'HIGH',
-      finding: `Leads first dialled within 15 minutes converted at ${fastConv}% compared with ${slowConv}% after 6 hours.`,
-      metricReference: `Fast cohort: ${fastConv}% vs Slow cohort: ${slowConv}% (${(fastConv / (slowConv || 1)).toFixed(1)}x conversion advantage)`,
-      directive: 'Enforce real-time priority hopper injection for warm leads during business hours to prevent 6h+ queue backlog.'
-    },
-    {
-      category: 'Contact Fatigue & Diminishing Returns',
-      severity: 'MEDIUM',
-      finding: `Dial attempts 1 and 2 deliver 84.6% of all sales. Calls on attempts 4 and 5+ drop to 0.9% marginal conversion while inflating dialler costs.`,
-      metricReference: `Attempt 1: ${attempts[1]?.sales || 379} sales | Attempt 4+: ${attempts[4]?.sales || 30} sales (${attempts[4]?.saleRate || 0.9}%)`,
-      directive: 'Cap automated dialler redial rules at 4 attempts. Re-route non-contacts to WhatsApp/SMS fallback after attempt 3.'
-    },
-    {
-      category: 'Vendor Delivery & Conversion Discrepancy',
-      severity: 'HIGH',
-      finding: `Vendor '${topVendors[0]?.vendor || 'Ontact - BLC'}' delivered ${topVendors[0]?.deliveryRate || 92}% with a contact rate of ${topVendors[0]?.contactRate || 28}%, generating R${(topVendors[0]?.contribution || 0).toLocaleString()} net contribution.`,
-      metricReference: `Delivery: ${topVendors[0]?.deliveryRate || 92}% | Margin: ${topVendors[0]?.marginPct || 18}%`,
-      directive: 'Increase volume allocation to highest-margin vendors while renegotiating SLAs on vendors with invalid rates above 10%.'
-    },
-    {
-      category: 'Commercial Contribution & Cost per Sale',
-      severity: 'MEDIUM',
-      finding: `Cost per Sale is currently R${kpis.costPerSale}, leaving a net contribution margin of ${kpis.marginPct}%. Break-even volume is ${kpis.breakEvenSales} sales.`,
-      metricReference: `Actual Sales: ${kpis.saleLeads} vs Break-even: ${kpis.breakEvenSales} (+${kpis.saleLeads - kpis.breakEvenSales} safety margin)`,
-      directive: 'Maintain current lead acquisition CPL under R45 to protect positive contribution margin above 15%.'
-    },
-    {
-      category: 'After-Hours Lead Decay',
-      severity: 'LOW',
-      finding: `Leads captured outside 08:00–18:00 face an average first-dial delay of 11.2 hours, causing a 41% drop in contact rate.`,
-      metricReference: `Business hours contact rate: 31.4% vs After-hours contact rate: 18.6%`,
-      directive: 'Trigger automated instant WhatsApp outreach for after-hours leads to confirm appointment times for the following morning.'
-    }
-  ];
-
-  // Try calling Gemini 3.8 Flash via @google/genai for dynamic, contextualized evaluation
-  try {
-    const ai = new GoogleGenAI();
-    const prompt = `
-You are an expert BI and operational intelligence system for Offernet.
-Analyze these EXACT real metrics from the warehouse and generate 5 punchy, mathematically precise operational insights:
-${JSON.stringify(contextData, null, 2)}
-
-Requirements:
-- Reference EXACT real numbers from the data.
-- NEVER invent hypothetical or placeholder metrics.
-- Format as JSON array of objects with keys: category, severity (HIGH, MEDIUM, LOW), finding, metricReference, directive.
-`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json'
-      }
-    });
-
-    if (response.text) {
-      const parsed = JSON.parse(response.text);
-      if (Array.isArray(parsed) && parsed.length >= 3) {
-        return { insights: parsed, source: 'gemini-3.8-flash' };
-      }
-    }
-  } catch (err: any) {
-    console.warn('Gemini AI insights fallback used:', err.message);
-  }
-
-  return { insights: baselineInsights, source: 'operational-engine' };
 }
 
 // 13. RAW DATA EXPLORER & LEAD TIMELINE
@@ -1408,11 +1283,32 @@ export async function getRawLeads(params: OffernetQueryParams) {
 }
 
 // LEAD TIMELINE MODAL DATA
-export async function getLeadTimeline(leadId: string) {
+export async function getLeadTimeline(leadId: string, params: Pick<OffernetQueryParams, 'clientId' | 'vendor'>) {
   const client = getBigQueryClient('dashboards-422710');
+  const clientConfig = getClientConfig(params.clientId);
+  const conditions = ['l.lead_id = @leadId'];
+  const queryParams: Record<string, any> = { leadId };
+  const callConditions = ['CAST(dialer_lead_id AS STRING) = @leadId'];
+
+  if (clientConfig.id !== 'default_tenant') {
+    const tenantVendors = clientConfig.semanticMappings.partners || [];
+    if (!tenantVendors.length) throw new RequestError('No approved vendor mapping exists for this tenant', 422);
+    conditions.push('LOWER(hlc.vendor) IN UNNEST(@tenantVendors)');
+    callConditions.push('LOWER(vendor) IN UNNEST(@tenantVendors)');
+    queryParams.tenantVendors = tenantVendors.map(value => value.toLowerCase());
+  }
+
+  const cleanVendor = params.vendor && !['all', 'all vendors', 'undefined', 'null'].includes(params.vendor.trim().toLowerCase())
+    ? params.vendor.trim()
+    : undefined;
+  if (cleanVendor) {
+    conditions.push('LOWER(hlc.vendor) = LOWER(@vendor)');
+    callConditions.push('LOWER(vendor) = LOWER(@vendor)');
+    queryParams.vendor = cleanVendor;
+  }
 
   const query = `
-    SELECT 
+    SELECT
       l.lead_id,
       l.consumer_id,
       l.fetched,
@@ -1425,20 +1321,20 @@ export async function getLeadTimeline(leadId: string) {
       hlc.*
     FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
     LEFT JOIN UNNEST(l.hlc_details) hlc
-    WHERE l.lead_id = @leadId
+    WHERE ${conditions.join(' AND ')}
+    ORDER BY SAFE_CAST(hlc.delivered AS TIMESTAMP) DESC
     LIMIT 1
   `;
 
-  const [rows] = await client.query({ query, params: { leadId } });
+  const [rows] = await client.query({ query, params: queryParams });
   const row = rows[0];
   if (!row) return null;
 
-  // Also query vicidial insight calls for this lead if available
   let vicidialCalls: any[] = [];
   try {
     const [callRows] = await client.query({
       query: `
-        SELECT 
+        SELECT
           call_start_date,
           call_end_date,
           length_in_sec,
@@ -1449,92 +1345,86 @@ export async function getLeadTimeline(leadId: string) {
           is_callback,
           called_count
         FROM \`dashboards-422710.lead_ledger.lead_ledger_all_vicidial_insights\`
-        WHERE CAST(dialer_lead_id AS STRING) = @leadId
+        WHERE ${callConditions.join(' AND ')}
         ORDER BY SAFE_CAST(call_start_date AS TIMESTAMP) ASC
+        LIMIT 500
       `,
-      params: { leadId }
+      params: queryParams
     });
     vicidialCalls = callRows;
-  } catch (e) {
-    // If table not indexed by string or empty
+  } catch {
+    vicidialCalls = [];
   }
 
-  // Construct Chronological Timeline Events
   const events: any[] = [];
 
-  // 1. Captured & Fetched
-  if (row.fetched && !row.fetched.startsWith('1900') && !row.fetched.startsWith('1970')) {
+  if (row.fetched && !String(row.fetched).startsWith('1900') && !String(row.fetched).startsWith('1970')) {
     events.push({
       stage: 'Captured',
       title: 'Lead Captured & Ingested',
       timestamp: row.fetched,
       status: 'SUCCESS',
-      details: `Source: ${row.offershop_source || 'Unknown'} | Medium: ${row.offernet_medium || 'Unknown'} | Grade: ${row.offershop_grade || 'Standard'}`
+      details: `Source: ${row.offershop_source || 'Unknown'} | Medium: ${row.offernet_medium || 'Unknown'} | Grade: ${row.offershop_grade || 'Unknown'}`
     });
   }
 
-  // 2. Delivered
-  if (row.delivered && !row.delivered.startsWith('1900') && !row.delivered.startsWith('1970')) {
+  if (row.delivered && !String(row.delivered).startsWith('1900') && !String(row.delivered).startsWith('1970')) {
     events.push({
       stage: 'Delivered',
-      title: `Delivered to Vendor (${row.vendor || 'Unknown'})`,
+      title: `Delivery recorded for ${row.vendor || 'Unknown'}`,
       timestamp: row.delivered,
       status: 'SUCCESS',
       details: `Transaction ID: ${row.transaction_id || 'N/A'}`
     });
   }
 
-  // 3. Dial Attempts (from Vicidial if present, else first/last call dates)
   if (vicidialCalls.length > 0) {
     vicidialCalls.forEach((call, index) => {
       events.push({
         stage: `Attempt ${call.called_count || index + 1}`,
-        title: `Dial Attempt ${call.called_count || index + 1} (${call.status_name || 'Dispositioned'})`,
+        title: `Dial attempt ${call.called_count || index + 1} (${call.status_name || 'Disposition recorded'})`,
         timestamp: call.call_start_date,
         status: call.is_rpc ? 'SUCCESS' : 'INFO',
-        details: `Agent: ${call.user || 'System'} | Duration: ${call.length_in_sec || 0}s | RPC: ${call.is_rpc ? 'Yes' : 'No'} | Sale: ${call.is_sale ? 'Yes' : 'No'}`
+        details: `Agent: ${call.user || 'Unknown'} | Duration: ${call.length_in_sec || 0}s | RPC: ${call.is_rpc ? 'Yes' : 'No'} | Sale flag: ${call.is_sale ? 'Yes' : 'No'}`
       });
     });
-  } else if (row.first_call_date && !row.first_call_date.startsWith('1900') && !row.first_call_date.startsWith('1970')) {
+  } else if (row.first_call_date && !String(row.first_call_date).startsWith('1900') && !String(row.first_call_date).startsWith('1970')) {
     events.push({
       stage: 'Dialled',
-      title: `First Dial Attempt (${row.last_dialer_status || 'Handled'})`,
+      title: `First dial timestamp recorded (${row.last_dialer_status || 'No disposition'})`,
       timestamp: row.first_call_date,
-      status: 'SUCCESS',
-      details: `Total calls recorded: ${row.total_calls || 1}`
+      status: 'INFO',
+      details: `Cumulative call counter: ${row.total_calls ?? 'Unknown'}`
     });
   }
 
-  // 4. Contact (RPC)
-  if (row.rpc > 0 || vicidialCalls.some(c => c.is_rpc)) {
+  if (Number(row.rpc || 0) > 0 || vicidialCalls.some(call => call.is_rpc)) {
     events.push({
       stage: 'Contacted',
-      title: 'Right Party Contact (RPC) Established',
+      title: 'Right Party Contact flag recorded',
       timestamp: row.first_call_date || row.delivered,
-      status: 'SUCCESS',
-      details: 'Customer verified identity and engaged in offer discussion.'
+      status: 'INFO',
+      details: 'RPC evidence is shown as recorded by the source system; no additional customer-verification claim is inferred.'
     });
   }
 
-  // 5. Sale
-  if (row.sale && !row.sale.startsWith('1900') && !row.sale.startsWith('1970')) {
+  if (row.sale && !String(row.sale).startsWith('1900') && !String(row.sale).startsWith('1970')) {
     events.push({
       stage: 'Sale',
-      title: 'Sale Executed & Contract Recorded',
+      title: 'Sale timestamp recorded',
       timestamp: row.sale,
-      status: 'SUCCESS',
-      details: `Revenue: ZAR ${Number(row.revenue_generated || 0).toLocaleString()}`
+      status: 'INFO',
+      details: `Recorded revenue field: ZAR ${Number(row.revenue_generated || 0).toLocaleString()}`
     });
   }
 
-  // 6. Activation
-  if (row.activated && !row.activated.startsWith('1900') && !row.activated.startsWith('1970')) {
+  if (row.activated && !String(row.activated).startsWith('1900') && !String(row.activated).startsWith('1970')) {
     events.push({
       stage: 'Activated',
-      title: 'Service Activated on Network',
+      title: 'Activation timestamp recorded',
       timestamp: row.activated,
-      status: 'SUCCESS',
-      details: 'First debit / SIM provisioning confirmed active.'
+      status: 'INFO',
+      details: 'Activation is reported exactly as represented in the source row; provisioning or collection is not inferred.'
     });
   }
 
@@ -1544,6 +1434,7 @@ export async function getLeadTimeline(leadId: string) {
     vendor: row.vendor,
     source: row.offershop_source,
     grade: row.offershop_grade,
-    events
+    events: events.sort((a, b) => Date.parse(a.timestamp || '') - Date.parse(b.timestamp || ''))
   };
 }
+

@@ -1,3 +1,5 @@
+> **Status notice — 26 September 2026:** This document describes the target v2 evidence architecture and historical implementation work. The current repository does not contain a complete report executor/replay implementation or the previously referenced warehouse/tooling trees. Treat setup/publisher sections below as design history, not executable deployment instructions. See `IMPLEMENTATION-STATUS.md` for the current runtime boundary.
+
 # Accuracy architecture v2 — implementation and rollout
 
 This is a new reporting path, not another string-replacement wrapper around the old SQL. Runtime metrics live in `contracts/reporting.ts`; the API, exact-format UI, snapshot execution service and exports consume that contract. The old application remains separately labelled **legacy, unverified exploration**. No old query is a fallback for a missing published release.

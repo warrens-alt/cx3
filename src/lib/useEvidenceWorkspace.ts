@@ -60,7 +60,7 @@ export function useEvidenceWorkspace(options: UseEvidenceWorkspaceOptions) {
 
   const catalogue = useQuery({
     queryKey: ['reporting-catalogue', clientId],
-    queryFn: () => fetchReportingCatalogue(),
+    queryFn: ({ signal }) => fetchReportingCatalogue(clientId, signal),
     staleTime: 60000,
     retry: false,
   });

@@ -1,44 +1,77 @@
-# Evidence-reporting rebuild
+# ConversionX / Offernet Operational Intelligence
 
-The new default `/reports` page uses independently versioned metrics and read-only BigQuery snapshots. It never falls back to legacy calculations when a release is missing. See `docs/ACCURACY_V2.md` for the implemented scope, separate source/financial approvals and setup commands. Existing screens remain labelled unverified exploration. This change does not certify source data or provision cloud infrastructure.
+React + Express analytics application backed by configured Google BigQuery sources.
 
-`npm run verify` runs type checking, implementation tests and the production build. CI also compiles the Dataform graph and runs desktop/mobile browser tests against explicitly synthetic responses.
+## Current trust boundary — 26 September 2026
 
-Audit and coverage records:
+The application intentionally separates **operational analytics** from **versioned evidence reporting**.
 
-- `docs/AUDIT-2026-09-21.md` — remediation tracker, verification evidence, security/performance assessment and release boundary.
-- `docs/SURFACE-COVERAGE.md` — every reachable UI route and API endpoint with its query/service lineage.
-- `docs/SOURCE-METRIC-COVERAGE.md` — physical sources, required fields/types, v2 facts and all twelve approved metrics.
+Operational analytics are useful for exploration and operational monitoring, but they are not independently reconciled or certified. The API stamps these responses `UNVERIFIED`. Commercial costs, profitability, campaign spend economics, generative AI recommendations, static redial recommendations and synthetic data-health scores are withheld unless an approved source/measurement contract exists.
 
----
+The `/reports` area currently provides a tenant-scoped registry of immutable reporting releases. The metric contracts and release-manifest model are present, but the v2 report executor and replay engine are **not implemented in this repository revision**. Their endpoints therefore fail explicitly with `NOT_IMPLEMENTED` instead of returning placeholder results.
 
-# ConversionX
+## Security
 
-React and Express reporting application backed by configured Google BigQuery sources.
+Production analytical access is fail-closed.
 
-## Current release status
+- Signed Google IAP identity is required in production.
+- `CX_ACCESS_POLICY_JSON` is the server-side tenant/role authority.
+- A local development identity is available only when `CX_ALLOW_DEV_AUTH=true` and `NODE_ENV` is not `production`.
+- Arbitrary BigQuery project/dataset/table browsing is disabled.
+- Raw lead inspection flows through bounded, tenant-scoped analytical endpoints.
+- New Firebase profiles remain pending until an existing administrator activates them.
+- The browser workspace list is sourced from the server-authorised tenant list; there is no compiled production fallback tenant.
 
-The integrity patch adds authenticated API access, tenant permissions, scoped exports, corrected activation fallback, event-time cohorts and explicit unverified reporting states. It does not certify live warehouse accuracy or production readiness.
+See `.env.example` for configuration.
 
-Read `docs/IMPLEMENTATION-STATUS.md` before deployment. Data APIs fail closed unless signed Google IAP authentication and an explicit access policy are configured. Raw warehouse browsing is disabled. Financial acquisition outputs and AI explanations are withheld pending verified input definitions.
+## Measurement
 
-## Setup
+Canonical touchpoint terminology lives in `contracts/taxonomy.ts`. Frontend and backend modules re-export that contract rather than maintaining separate naming dictionaries.
 
-Use Node.js 22. Install locked dependencies with `npm ci`. Configure server-side warehouse credentials and the identity gateway as described in `.env.example`. Never put credentials in frontend code or version control.
+Versioned evidence metric definitions live in `contracts/reporting.ts`. A published release is a structural reporting artifact; it is not by itself a statement that every upstream source is complete or financially reconciled.
+
+Current live operational outputs that still depend on source semantics remain marked `NOT_VERIFIED` until source-owner reconciliation is completed.
+
+## Build and verification
+
+Use Node.js 22.
+
+```bash
+npm ci
+npm run verify
+```
+
+`npm run verify` runs:
+
+1. TypeScript type checking.
+2. Contract/regression tests.
+3. Production client and server build.
+
+CI executes the same repository checks and a dependency audit. It does **not** claim to execute a live BigQuery reconciliation, Dataform warehouse build, or browser fixture suite because those assets are not present in this repository revision.
+
+Common commands:
 
 - Development: `npm run dev`
 - Tests: `npm test`
 - Type checking: `npm run lint`
 - Build: `npm run build`
-- Dependency advisories: `npm audit`
 - Production: `NODE_ENV=production npm start`
 
-Only `dist/client` is publicly served. Backend artifacts are written to `dist/server`. `PORT` defaults to 3000. `/api/health` is public; analytical routes require verified identity and tenant access.
+Production `npm start` runs the generated `dist/server/server.mjs` bundle. Generated server bundles are not committed to source control.
 
-## Synthetic demo while authentication is being configured
+## Demo mode
 
-Open `/overview?mode=demo`, or select **View demo data** on the workspace-access error screen. This is an explicitly separate, client-only experience using fictional July 2026 records. Its banner remains visible; it makes no analytics or BigQuery API requests and does not create an authenticated user or live tenant. Charts, filters, and record details describe only the synthetic scenario, not validated business results.
+`/overview?mode=demo` is a separate client-only synthetic workspace. It does not make live analytics or BigQuery requests and should never be interpreted as validated business performance.
 
-Use **Open live mode** to leave the demo. Mode changes reload the document so demo and live state are not mixed. Live routes still require the existing identity gateway and access policy. Demo is never selected automatically following an authentication error, and no server credentials or Cloud configuration are needed for it.
+## Known remaining work
 
-Warehouse joins, tariff contracts, timestamp interpretation, independent reconciliation and deployment checks remain outstanding. Consult the implementation-status document for the exact scope and limitations.
+The main remaining trust work is:
+
+- complete and independently test the versioned report compiler/executor and replay token flow;
+- provision and validate immutable reporting snapshots outside this repository;
+- reconcile call-event joins, activation identities and timestamp semantics against live sources;
+- introduce approved incurred-spend and commercial rate-card contracts before restoring profitability metrics;
+- complete tenant-to-marketing-client mappings for campaign reporting;
+- add production IAP acceptance tests and live source-owner reconciliation evidence.
+
+See `docs/IMPLEMENTATION-STATUS.md` for the current deployment boundary.

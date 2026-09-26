@@ -52,12 +52,12 @@ export default function Settings() {
               <BookOpen className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="text-sm font-semibold text-text-main">Lead Ledger & BigQuery Table Preview</h4>
-              <p className="text-xs text-text-sec">Inspect Google Cloud Project, datasets, and live sample rows for all configured tables.</p>
+              <h4 className="text-sm font-semibold text-text-main">Tenant-Scoped Lead Ledger</h4>
+              <p className="text-xs text-text-sec">Inspect bounded lead records through the authorised tenant-scoped analytics API.</p>
             </div>
           </div>
           <Link to="/lead-ledger" className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#3562B3] hover:bg-[#2A4E8F] rounded-md transition-colors shrink-0">
-            Open Lead Ledger
+            Open Scoped Ledger
           </Link>
         </div>
 

@@ -8,17 +8,13 @@
   },
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "rm -rf dist build server.js && vite build && mkdir -p dist/client build && cp dist/index.html dist/client/ && cp -r dist/assets dist/client/ && cp dist/index.html build/ && cp -r dist/assets build/ && esbuild server.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=dist/server/server.mjs && cp dist/server/server.mjs server.js",
+    "build": "rm -rf dist build && vite build && mkdir -p dist/client build && cp dist/index.html dist/client/ && cp -r dist/assets dist/client/ && cp dist/index.html build/ && cp -r dist/assets build/ && esbuild server.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=dist/server/server.mjs",
     "gcp-build": "npm run build",
-    "start": "node server.js",
-    "clean": "rm -rf dist build server.js",
+    "start": "node dist/server/server.mjs",
+    "clean": "rm -rf dist build",
     "lint": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
     "verify": "npm run lint && npm test && npm run build",
-    "warehouse:bootstrap": "tsx scripts/bootstrap-warehouse.ts",
-    "warehouse:ingest": "tsx scripts/ingest-canonical.ts",
-    "warehouse:publish": "tsx scripts/publish-release.ts",
-    "warehouse:test": "tsx scripts/warehouse-reference.ts",
     "sources:check": "tsx scripts/check-source-api.ts"
   },
   "dependencies": {

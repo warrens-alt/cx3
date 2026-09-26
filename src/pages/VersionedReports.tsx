@@ -13,7 +13,7 @@ export default function VersionedReports() {
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['versioned-reports', clientId],
-    queryFn: () => fetchReportingCatalogue(),
+    queryFn: ({ signal }) => fetchReportingCatalogue(clientId, signal),
     staleTime: 30000,
   });
 
@@ -24,7 +24,7 @@ export default function VersionedReports() {
     <div className="cx-page space-y-6 p-6">
       <PageHeader
         title="Versioned Reporting Releases"
-        subtitle="Cryptographically verified, immutable snapshot releases for executive and audit reporting."
+        subtitle="Immutable snapshot release registry for evidence reporting. A published release does not certify source completeness, and report execution remains disabled until the v2 executor is implemented."
         badges={[
           { label: isAvailable ? 'Release Active' : 'No Active Release', variant: isAvailable ? 'success' : 'neutral' },
           { label: `Tenant: ${clientId}`, variant: 'neutral' },

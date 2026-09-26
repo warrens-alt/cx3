@@ -14,17 +14,34 @@ interface OffernetFilterBarProps {
   showGradeFilter?: boolean;
 }
 
-export const PERIOD_PRESETS = [
-  { id: 'all', label: 'All Time (Total - Unfiltered)', start: '', end: '' },
-  { id: 'mtd', label: 'MTD (Month to Date)', start: '2026-08-01', end: '2026-08-26' },
-  { id: 'matched_mom', label: 'Matched-Day MoM (Aug 1–26 vs Jul 1–26)', start: '2026-08-01', end: '2026-08-26' },
-  { id: 'mom', label: 'Full MoM (Aug vs Jul)', start: '2026-07-01', end: '2026-08-26' },
-  { id: 'wtd', label: 'WTD (Week to Date)', start: '2026-08-24', end: '2026-08-26' },
-  { id: 'wow', label: 'WoW (Past 14 Days)', start: '2026-08-12', end: '2026-08-26' },
-  { id: 'last30', label: 'Last 30 Days', start: '2026-07-28', end: '2026-08-26' },
-  { id: 'today', label: 'Today (Latest Ledger Date)', start: '2026-08-26', end: '2026-08-26' },
-  { id: 'q3', label: 'Full Q3 2026 (Jun–Aug)', start: '2026-06-01', end: '2026-08-26' },
-];
+const dateOnly = (date: Date) => date.toISOString().slice(0, 10);
+const startOfMonth = (date: Date) => new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+const startOfQuarter = (date: Date) => new Date(Date.UTC(date.getUTCFullYear(), Math.floor(date.getUTCMonth() / 3) * 3, 1));
+const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 86400000);
+
+export function buildPeriodPresets(now = new Date()) {
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const monthStart = startOfMonth(today);
+  const previousMonthEnd = addDays(monthStart, -1);
+  const previousMonthStart = startOfMonth(previousMonthEnd);
+  const weekday = today.getUTCDay();
+  const mondayOffset = weekday === 0 ? -6 : 1 - weekday;
+  const weekStart = addDays(today, mondayOffset);
+  const quarterStart = startOfQuarter(today);
+
+  return [
+    { id: 'all', label: 'All Time (Total - Unfiltered)', start: '', end: '' },
+    { id: 'mtd', label: 'Month to Date', start: dateOnly(monthStart), end: dateOnly(today) },
+    { id: 'previous_month', label: 'Previous Full Month', start: dateOnly(previousMonthStart), end: dateOnly(previousMonthEnd) },
+    { id: 'wtd', label: 'Week to Date', start: dateOnly(weekStart), end: dateOnly(today) },
+    { id: 'last7', label: 'Last 7 Days', start: dateOnly(addDays(today, -6)), end: dateOnly(today) },
+    { id: 'last30', label: 'Last 30 Days', start: dateOnly(addDays(today, -29)), end: dateOnly(today) },
+    { id: 'today', label: 'Today', start: dateOnly(today), end: dateOnly(today) },
+    { id: 'qtd', label: 'Quarter to Date', start: dateOnly(quarterStart), end: dateOnly(today) },
+  ];
+}
+
+export const PERIOD_PRESETS = buildPeriodPresets();
 
 export const VENDOR_OPTIONS = [
   'All Vendors',
