@@ -219,6 +219,30 @@ analyticsRouter.get('/offernet/root-cause', cacheResponse(60), asyncRoute(async 
   res.json({ success: true, data });
 }));
 
+analyticsRouter.get('/offernet/marketing-root-cause', cacheResponse(60), asyncRoute(async (req, res) => {
+  const params = buildOffernetQueryParams(req, res);
+  const data = await singleFlight(res, 'offernet-marketing-root-cause', params, () => offernetAnalytics.getMarketingRootCauseAnalysis(params));
+  res.json({ success: true, data });
+}));
+
+analyticsRouter.get('/offernet/marketing-attribution', cacheResponse(60), asyncRoute(async (req, res) => {
+  const params = buildOffernetQueryParams(req, res);
+  const data = await singleFlight(res, 'offernet-marketing-attribution', params, () => offernetAnalytics.getMarketingAttributionAnalytics(params));
+  res.json({ success: true, data });
+}));
+
+analyticsRouter.get('/offernet/marketing-discovery', requireAdmin, cacheResponse(60), asyncRoute(async (_req, res) => {
+  const params = buildOffernetQueryParams(_req, res);
+  const data = await singleFlight(res, 'offernet-marketing-discovery', { clientId: params.clientId }, () => offernetAnalytics.getMarketingSourceDiscovery({ clientId: params.clientId }));
+  res.json({ success: true, data });
+}));
+
+analyticsRouter.get('/offernet/source-observability', cacheResponse(60), asyncRoute(async (_req, res) => {
+  const params = buildOffernetQueryParams(_req, res);
+  const data = await singleFlight(res, 'offernet-source-observability', { clientId: params.clientId }, () => offernetAnalytics.getSourceObservability({ clientId: params.clientId }));
+  res.json({ success: true, data });
+}));
+
 analyticsRouter.get('/offernet/funnel', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-funnel', params, () => offernetAnalytics.getFunnelIntelligence(params));
@@ -315,8 +339,7 @@ analyticsRouter.get('/offernet/client-config', asyncRoute((_req, res) => {
         currency: config.operationalConfig.currency,
         dispositionMapping: config.operationalConfig.dispositionMapping,
         funnelStages: config.operationalConfig.funnelStages,
-        commercialApproval: 'UNAPPROVED',
-        revenueRules: null,
+        commercialApproval: 'SOURCE_CONTRACTS_ONLY',
       }
     : undefined;
   res.json({
@@ -327,6 +350,15 @@ analyticsRouter.get('/offernet/client-config', asyncRoute((_req, res) => {
       currency: config.currency,
       timezone: config.timezone,
       capabilities: config.capabilities,
+      marketing: config.marketing ? {
+        table: config.marketing.table,
+        mappingStatus: config.marketing.mappingStatus,
+        clientNameField: config.marketing.clientNameField,
+        configuredClientNames: config.marketing.clientNames,
+        approvedSpendFields: config.marketing.approvedSpendFields,
+        spendGrainFields: config.marketing.spendGrainFields,
+        attribution: config.marketing.attribution,
+      } : null,
       operationalConfig: operational,
     },
   });
