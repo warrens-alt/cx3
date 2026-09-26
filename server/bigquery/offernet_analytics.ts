@@ -856,13 +856,17 @@ export async function getTemporalAnalytics(params: OffernetQueryParams) {
     }
   }
 
-  // Peak window recommendation
-  const peakWindows = [
-    { window: 'Tuesday 09:00 – 11:30', contactRate: '34.2%', saleIndex: '142', verdict: 'Prime Outreach Window' },
-    { window: 'Wednesday 14:00 – 16:30', contactRate: '31.8%', saleIndex: '128', verdict: 'High Intent Re-dial' },
-    { window: 'Thursday 10:00 – 12:00', contactRate: '29.5%', saleIndex: '119', verdict: 'Strong Closing Window' },
-    { window: 'Sunday 18:00 – 21:00', contactRate: '12.4%', saleIndex: '42', verdict: 'Low Yield / High Voicemail' }
-  ];
+  // Rank observed day/hour cells only. No static "best time" claims are injected.
+  const peakWindows = heatmap
+    .filter(cell => cell.volume > 0)
+    .sort((a, b) => (b.contactRate - a.contactRate) || (b.volume - a.volume))
+    .slice(0, 4)
+    .map(cell => ({
+      window: `${cell.dayName} ${String(cell.hour).padStart(2, '0')}:00–${String((cell.hour + 1) % 24).padStart(2, '0')}:00`,
+      contactRate: `${cell.contactRate.toFixed(1)}%`,
+      saleIndex: cell.saleRate.toFixed(2),
+      verdict: 'Observed high-contact window'
+    }));
 
   return {
     heatmap,
