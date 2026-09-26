@@ -103,6 +103,55 @@ function buildFilterClause(params: OffernetQueryParams, alias = 'l', hlcAlias = 
   };
 }
 
+const ACTUAL_SPEND_COLUMN_PRIORITY = [
+  'spend',
+  'amount_spent',
+  'actual_spend',
+  'media_spend',
+  'ad_spend',
+  'total_spend',
+  'cost',
+] as const;
+
+const BUDGET_COLUMN_PRIORITY = [
+  'budget',
+  'campaign_budget',
+  'daily_budget',
+] as const;
+
+function parseConfiguredTable(table: string) {
+  const match = /^([a-zA-Z0-9_-]+)\.([a-zA-Z0-9_]+)\.([a-zA-Z0-9_]+)$/.exec(table);
+  if (!match) throw new RequestError('Configured marketing table identifier is invalid', 500);
+  return { project: match[1], dataset: match[2], table: match[3] };
+}
+
+function safeWarehouseColumn(column: string) {
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(column)) throw new RequestError('Unsafe warehouse column identifier', 500);
+  return `\`${column}\``;
+}
+
+async function resolveMarketingCostColumns(client: ReturnType<typeof getBigQueryClient>, marketingTable: string) {
+  const parsed = parseConfiguredTable(marketingTable);
+  const [rows] = await client.query({
+    query: `
+      SELECT column_name
+      FROM \`${parsed.project}.${parsed.dataset}.INFORMATION_SCHEMA.COLUMNS\`
+      WHERE table_name = @tableName
+    `,
+    params: { tableName: parsed.table }
+  });
+  const byLower = new Map<string, string>(
+    rows.map((row: any) => [String(row.column_name || '').toLowerCase(), String(row.column_name || '')])
+  );
+  const spendColumn = ACTUAL_SPEND_COLUMN_PRIORITY.map(name => byLower.get(name)).find(Boolean) || null;
+  const budgetColumn = BUDGET_COLUMN_PRIORITY.map(name => byLower.get(name)).find(Boolean) || null;
+  return {
+    spendColumn,
+    budgetColumn,
+    table: marketingTable,
+  };
+}
+
 // 1. EXECUTIVE OVERVIEW
 export async function getExecutiveOverview(params: OffernetQueryParams) {
   const client = getBigQueryClient('dashboards-422710');
@@ -1527,17 +1576,43 @@ export async function getAgentPerformanceAnalytics(params: OffernetQueryParams) 
 export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
   const client = getBigQueryClient('dashboards-422710');
   const clientConfig = getClientConfig(params.clientId);
+  const marketingTable = clientConfig.semanticMappings.tables.marketing;
+
+  if (!marketingTable || !clientConfig.capabilities.marketing) {
+    return {
+      campaigns: [],
+      summary: null,
+      status: 'UNAVAILABLE',
+      reason: 'No approved marketing source is configured for this tenant.',
+      spendSource: { status: 'UNAVAILABLE', column: null, table: marketingTable || null, reason: 'No approved marketing table is configured.' },
+      budgetSource: { status: 'UNAVAILABLE', column: null, table: marketingTable || null },
+    };
+  }
 
   if (clientConfig.id !== 'default_tenant') {
     return {
       campaigns: [],
+      summary: null,
       status: 'UNAVAILABLE',
-      reason: 'Tenant-to-marketing-client mappings are not yet approved for campaign reporting.'
+      reason: 'Tenant-to-marketing-client mappings are not yet approved for campaign reporting.',
+      spendSource: { status: 'UNAVAILABLE', column: null, table: marketingTable, reason: 'Marketing client identity is not mapped to this tenant.' },
+      budgetSource: { status: 'UNAVAILABLE', column: null, table: marketingTable },
     };
   }
+
   if (params.vendor || params.source || params.medium || params.grade || params.agent) {
     throw new RequestError('Campaign reporting currently supports date and campaign scope only.', 422);
   }
+
+  const columns = await resolveMarketingCostColumns(client, marketingTable);
+  const spendIdentifier = columns.spendColumn ? safeWarehouseColumn(columns.spendColumn) : null;
+  const budgetIdentifier = columns.budgetColumn ? safeWarehouseColumn(columns.budgetColumn) : null;
+  const spendValue = spendIdentifier
+    ? `SAFE_CAST(REGEXP_REPLACE(CAST(${spendIdentifier} AS STRING), r'[^0-9.-]', '') AS FLOAT64)`
+    : null;
+  const budgetValue = budgetIdentifier
+    ? `SAFE_CAST(REGEXP_REPLACE(CAST(${budgetIdentifier} AS STRING), r'[^0-9.-]', '') AS FLOAT64)`
+    : null;
 
   const conditions = ['client_name IS NOT NULL'];
   const queryParams: Record<string, any> = {};
@@ -1562,37 +1637,78 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
       channel_adset_name AS adset_name,
       SUM(impressions) AS impressions,
       SUM(clicks) AS clicks,
-      SUM(actions_lead) AS recorded_leads
-    FROM \`dashboards-422710.lead_ledger.lead_ledger_platform_insights\`
+      SUM(actions_lead) AS recorded_leads,
+      ${spendValue ? `SUM(${spendValue})` : 'CAST(NULL AS FLOAT64)'} AS recorded_spend,
+      ${budgetValue ? `ARRAY_AGG(${budgetValue} IGNORE NULLS ORDER BY date DESC LIMIT 1)[SAFE_OFFSET(0)]` : 'CAST(NULL AS FLOAT64)'} AS latest_budget
+    FROM \`${marketingTable}\`
     WHERE ${conditions.join(' AND ')}
     GROUP BY 1, 2, 3, 4
     ORDER BY recorded_leads DESC
-    LIMIT 100
+    LIMIT 250
   `;
 
   const [rows] = await client.query({ query, params: queryParams });
   const campaigns = rows.map((r: any) => {
-    const imp = Number(r.impressions || 0);
+    const impressions = Number(r.impressions || 0);
     const clicks = Number(r.clicks || 0);
+    const leads = Number(r.recorded_leads || 0);
+    const spend = columns.spendColumn && r.recorded_spend !== null ? Number(r.recorded_spend || 0) : null;
+    const latestBudget = columns.budgetColumn && r.latest_budget !== null ? Number(r.latest_budget || 0) : null;
     return {
       client: r.client_name,
       channel: r.channel || 'Unknown',
       campaign: r.campaign_name || 'Unknown',
       adset: r.adset_name || 'Unknown',
-      spend: null,
-      impressions: imp,
+      spend,
+      latestBudget,
+      impressions,
       clicks,
-      ctr: imp > 0 ? Number(((clicks / imp) * 100).toFixed(2)) : 0,
-      leads: Number(r.recorded_leads || 0),
-      cpc: null,
-      cpl: null
+      ctr: impressions > 0 ? Number(((clicks / impressions) * 100).toFixed(2)) : 0,
+      leads,
+      cpc: spend !== null && clicks > 0 ? Number((spend / clicks).toFixed(2)) : null,
+      cpm: spend !== null && impressions > 0 ? Number(((spend / impressions) * 1000).toFixed(2)) : null,
+      cpl: spend !== null && leads > 0 ? Number((spend / leads).toFixed(2)) : null,
     };
   });
 
+  const totals = campaigns.reduce((acc, row) => {
+    acc.impressions += row.impressions;
+    acc.clicks += row.clicks;
+    acc.leads += row.leads;
+    if (row.spend !== null) acc.spend += row.spend;
+    return acc;
+  }, { spend: 0, impressions: 0, clicks: 0, leads: 0 });
+
+  const hasSpend = Boolean(columns.spendColumn);
+  const summary = {
+    spend: hasSpend ? Number(totals.spend.toFixed(2)) : null,
+    impressions: totals.impressions,
+    clicks: totals.clicks,
+    leads: totals.leads,
+    ctr: totals.impressions > 0 ? Number(((totals.clicks / totals.impressions) * 100).toFixed(2)) : 0,
+    cpc: hasSpend && totals.clicks > 0 ? Number((totals.spend / totals.clicks).toFixed(2)) : null,
+    cpm: hasSpend && totals.impressions > 0 ? Number(((totals.spend / totals.impressions) * 1000).toFixed(2)) : null,
+    cpl: hasSpend && totals.leads > 0 ? Number((totals.spend / totals.leads).toFixed(2)) : null,
+  };
+
   return {
     campaigns,
-    status: 'PARTIAL',
-    reason: 'Budget is not treated as incurred spend. Spend, CPC and CPL are withheld until an approved cost source exists.'
+    summary,
+    status: hasSpend ? 'OBSERVED' : 'PARTIAL',
+    reason: hasSpend
+      ? `Recorded media spend is sourced from ${columns.spendColumn}. CPC, CPM and CPL are derived from that same spend population and platform delivery metrics.`
+      : 'No actual incurred-spend column was found in the approved marketing table. Budget remains visible only as the latest recorded planning value and is not treated as spend.',
+    spendSource: {
+      status: hasSpend ? 'OBSERVED' : 'UNAVAILABLE',
+      column: columns.spendColumn,
+      table: marketingTable,
+      reason: hasSpend ? null : 'No allow-listed actual spend/cost column exists in the current marketing schema.',
+    },
+    budgetSource: {
+      status: columns.budgetColumn ? 'OBSERVED_PLANNING_FIELD' : 'UNAVAILABLE',
+      column: columns.budgetColumn,
+      table: marketingTable,
+    },
   };
 }
 
