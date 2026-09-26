@@ -144,7 +144,7 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
   const revenueIdx = getCol('revenue', 'recorded_value', 'value');
 
   const records: CliPerformanceRecord[] = [];
-  const trendMap = new Map<string, { calls: number; contacts: number; sales: number; answered: number; duration5m: number }>();
+  const trendMap = new Map<string, { calls: number; contacts: number; sales: number; answered: number; duration5m: number; duration5mKnown: boolean }>();
 
   for (let rowIdx = 1; rowIdx < lines.length; rowIdx++) {
     const rawLine = lines[rowIdx];
@@ -191,14 +191,14 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
     const saleCountNum = saleCountIdx !== -1 && cells[saleCountIdx] ? Math.max(0, parseInt(cells[saleCountIdx], 10) || 0) : 0;
     const saleCount = String(saleCountNum);
 
-    // Duration counts
-    const d1mNum = d1mCountIdx !== -1 && cells[d1mCountIdx] ? Math.max(0, parseInt(cells[d1mCountIdx], 10) || 0) : Math.round(contactCountNum * 0.9);
-    const d5mNum = d5mCountIdx !== -1 && cells[d5mCountIdx] ? Math.max(0, parseInt(cells[d5mCountIdx], 10) || 0) : Math.round(saleCountNum * 1.5);
-    const d15mNum = d15mCountIdx !== -1 && cells[d15mCountIdx] ? Math.max(0, parseInt(cells[d15mCountIdx], 10) || 0) : Math.round(saleCountNum * 0.4);
+    // Duration counts remain unavailable unless supplied by the source report.
+    const d1mNum = d1mCountIdx !== -1 && cells[d1mCountIdx] ? Math.max(0, parseInt(cells[d1mCountIdx], 10) || 0) : null;
+    const d5mNum = d5mCountIdx !== -1 && cells[d5mCountIdx] ? Math.max(0, parseInt(cells[d5mCountIdx], 10) || 0) : null;
+    const d15mNum = d15mCountIdx !== -1 && cells[d15mCountIdx] ? Math.max(0, parseInt(cells[d15mCountIdx], 10) || 0) : null;
 
-    const durationGe1mCount = String(Math.min(d1mNum, totalCallsNum));
-    const durationGe5mCount = String(Math.min(d5mNum, totalCallsNum));
-    const durationGe15mCount = String(Math.min(d15mNum, totalCallsNum));
+    const durationGe1mCount = d1mNum === null ? null : String(Math.min(d1mNum, totalCallsNum));
+    const durationGe5mCount = d5mNum === null ? null : String(Math.min(d5mNum, totalCallsNum));
+    const durationGe15mCount = d15mNum === null ? null : String(Math.min(d15mNum, totalCallsNum));
 
     // Calculate exact rates from counts
     const asrRate = asrCount ? calculateExactRate(asrCount, totalCalls) : (asrPctIdx !== -1 && cells[asrPctIdx] ? parsePct(cells[asrPctIdx]) : null);
@@ -208,12 +208,14 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
     const salePerAnswerRate = answeredCount && Number(answeredCount) > 0 ? calculateExactRate(saleCount, answeredCount) : null;
     const salePerContactRate = contactCountNum > 0 ? calculateExactRate(saleCount, contactCount) : null;
 
-    const durationGe1mPct = calculateExactRate(durationGe1mCount, totalCalls) || '0.00';
-    const durationGe5mPct = calculateExactRate(durationGe5mCount, totalCalls) || '0.00';
-    const durationGe15mPct = calculateExactRate(durationGe15mCount, totalCalls) || '0.00';
+    const durationGe1mPct = durationGe1mCount === null ? null : calculateExactRate(durationGe1mCount, totalCalls);
+    const durationGe5mPct = durationGe5mCount === null ? null : calculateExactRate(durationGe5mCount, totalCalls);
+    const durationGe15mPct = durationGe15mCount === null ? null : calculateExactRate(durationGe15mCount, totalCalls);
 
-    const avgDuration = avgDurationIdx !== -1 && cells[avgDurationIdx] ? parseFloat(cells[avgDurationIdx]).toFixed(1) : (d5mNum > 0 ? '142.5' : '45.0');
-    const totalDurationSeconds = String(Math.round(totalCallsNum * parseFloat(avgDuration)));
+    const avgDuration = avgDurationIdx !== -1 && cells[avgDurationIdx] && Number.isFinite(Number(cells[avgDurationIdx]))
+      ? Math.max(0, parseFloat(cells[avgDurationIdx])).toFixed(1)
+      : null;
+    const totalDurationSeconds = avgDuration === null ? null : String(Math.round(totalCallsNum * parseFloat(avgDuration)));
 
     const avgLeadAgeDays = avgLeadAgeIdx !== -1 && cells[avgLeadAgeIdx] ? parseFloat(cells[avgLeadAgeIdx]).toFixed(2) : null;
 
@@ -257,12 +259,15 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
 
     // Trend grouping
     const dateStr = dateIdx !== -1 && cells[dateIdx] ? cells[dateIdx].slice(0, 10) : '2026-09-01';
-    const existingTrend = trendMap.get(dateStr) || { calls: 0, contacts: 0, sales: 0, answered: 0, duration5m: 0 };
+    const existingTrend = trendMap.get(dateStr) || { calls: 0, contacts: 0, sales: 0, answered: 0, duration5m: 0, duration5mKnown: false };
     existingTrend.calls += totalCallsNum;
     existingTrend.contacts += contactCountNum;
     existingTrend.sales += saleCountNum;
     if (answeredCount) existingTrend.answered += parseInt(answeredCount, 10) || 0;
-    existingTrend.duration5m += d5mNum;
+    if (d5mNum !== null) {
+      existingTrend.duration5m += d5mNum;
+      existingTrend.duration5mKnown = true;
+    }
     trendMap.set(dateStr, existingTrend);
 
     records.push({
@@ -310,7 +315,7 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
       saleRate: t.calls > 0 ? Number(((t.sales / t.calls) * 100).toFixed(2)) : 0,
       answeredRate: t.calls > 0 && t.answered > 0 ? Number(((t.answered / t.calls) * 100).toFixed(2)) : null,
       asrRate: null,
-      durationGe5mRate: t.calls > 0 ? Number(((t.duration5m / t.calls) * 100).toFixed(2)) : 0,
+      durationGe5mRate: t.duration5mKnown && t.calls > 0 ? Number(((t.duration5m / t.calls) * 100).toFixed(2)) : null,
     }));
 
   // Construct Lead Age Bands
@@ -349,49 +354,19 @@ function emptyLeadAgeBands(): CliLeadAgeBands {
 }
 
 function computeLeadAgeBands(records: CliPerformanceRecord[]): CliLeadAgeBands {
-  const totalCalls = records.reduce((sum, r) => sum + parseInt(r.totalCalls, 10), 0);
-  if (totalCalls === 0) return emptyLeadAgeBands();
+  const observed = records
+    .map(record => ({ age: record.avgLeadAgeDays, calls: Number(record.totalCalls || 0) }))
+    .filter((item): item is { age: string; calls: number } => item.age !== null && Number.isFinite(Number(item.age)) && item.calls > 0);
 
-  const totalContacts = records.reduce((sum, r) => sum + parseInt(r.contactCount, 10), 0);
-  const totalSales = records.reduce((sum, r) => sum + parseInt(r.saleCount, 10), 0);
+  if (!observed.length) return emptyLeadAgeBands();
 
-  // Distribution weights based on realistic dialler latency
-  const weights = [
-    { band: '< 15 min' as const, callShare: 0.28, contactMul: 1.45, saleMul: 1.6 },
-    { band: '15–60 min' as const, callShare: 0.22, contactMul: 1.25, saleMul: 1.3 },
-    { band: '1–4 hours' as const, callShare: 0.18, contactMul: 1.05, saleMul: 1.0 },
-    { band: '4–24 hours' as const, callShare: 0.14, contactMul: 0.85, saleMul: 0.75 },
-    { band: '1–2 days' as const, callShare: 0.09, contactMul: 0.65, saleMul: 0.5 },
-    { band: '2–3 days' as const, callShare: 0.05, contactMul: 0.50, saleMul: 0.35 },
-    { band: '3+ days' as const, callShare: 0.04, contactMul: 0.35, saleMul: 0.2 },
-  ];
-
-  const bands = weights.map(w => {
-    const bandCalls = Math.round(totalCalls * w.callShare);
-    const bandContacts = Math.round(bandCalls * (totalContacts / totalCalls) * w.contactMul);
-    const bandSales = Math.round(bandCalls * (totalSales / totalCalls) * w.saleMul);
-
-    return {
-      band: w.band,
-      callCount: String(bandCalls),
-      callSharePct: (w.callShare * 100).toFixed(2),
-      contactCount: String(bandContacts),
-      contactRatePct: bandCalls > 0 ? ((bandContacts / bandCalls) * 100).toFixed(2) : '0.00',
-      saleCount: String(bandSales),
-      salePerCallRatePct: bandCalls > 0 ? ((bandSales / bandCalls) * 100).toFixed(2) : '0.00',
-    };
-  });
-
-  const validAges = records.map(r => r.avgLeadAgeDays).filter(Boolean).map(Number);
-  const avgLeadAgeDays = validAges.length > 0 ? (validAges.reduce((a, b) => a + b, 0) / validAges.length).toFixed(2) : '1.18';
-
-  return {
-    bands,
-    avgLeadAgeDays,
-    medianLeadAgeDays: '0.85',
-    joinReliability: 'SOURCE_REPORTED_ESTIMATE',
-    disclaimer: 'Observed association only; not proof of causation. Latency correlates with consumer responsiveness.',
-  };
+  const weightedCalls = observed.reduce((sum, item) => sum + item.calls, 0);
+  const weightedAge = observed.reduce((sum, item) => sum + Number(item.age) * item.calls, 0);
+  const result = emptyLeadAgeBands();
+  result.avgLeadAgeDays = weightedCalls > 0 ? (weightedAge / weightedCalls).toFixed(2) : null;
+  result.joinReliability = 'SOURCE_REPORTED_ESTIMATE';
+  result.disclaimer = 'The imported report supplies only average lead age. CX3 does not infer a lead-age distribution or median from aggregate averages.';
+  return result;
 }
 
 /** Compute aggregated summary across records using SUM/SUM exact math */
@@ -405,7 +380,9 @@ export function computeCliSummary(records: CliPerformanceRecord[]): CliSummary {
   let totalAsrBig = 0n;
   let hasAsr = false;
   let totalD5mBig = 0n;
+  let hasDuration5m = false;
   let totalDurationSec = 0n;
+  let hasDurationTotal = false;
   let activationsBig = 0n;
   let hasActivations = false;
   let recordedValueSum = 0;
@@ -417,8 +394,14 @@ export function computeCliSummary(records: CliPerformanceRecord[]): CliSummary {
     distinctLeadsBig += BigInt(r.distinctLeads);
     totalContactsBig += BigInt(r.contactCount);
     totalSalesBig += BigInt(r.saleCount);
-    totalD5mBig += BigInt(r.durationGe5mCount);
-    totalDurationSec += BigInt(r.totalDurationSeconds);
+    if (r.durationGe5mCount !== null) {
+      hasDuration5m = true;
+      totalD5mBig += BigInt(r.durationGe5mCount);
+    }
+    if (r.totalDurationSeconds !== null) {
+      hasDurationTotal = true;
+      totalDurationSec += BigInt(r.totalDurationSeconds);
+    }
 
     if (r.answeredCount !== null) {
       hasAnswered = true;
@@ -456,8 +439,8 @@ export function computeCliSummary(records: CliPerformanceRecord[]): CliSummary {
   const salePerAnswerRate = hasAnswered && totalAnsweredBig > 0n ? calculateExactRate(saleCount, totalAnsweredBig.toString()) : null;
   const salePerContactRate = totalContactsBig > 0n ? calculateExactRate(saleCount, contactCount) : null;
 
-  const durationGe5mRate = calculateExactRate(totalD5mBig.toString(), totalCalls) || '0.00';
-  const avgDurationSeconds = totalCallsBig > 0n ? (Number(totalDurationSec) / Number(totalCallsBig)).toFixed(1) : '0.0';
+  const durationGe5mRate = hasDuration5m && totalCallsBig > 0n ? calculateExactRate(totalD5mBig.toString(), totalCalls) : null;
+  const avgDurationSeconds = hasDurationTotal && totalCallsBig > 0n ? (Number(totalDurationSec) / Number(totalCallsBig)).toFixed(1) : null;
 
   const validAges = records.map(r => r.avgLeadAgeDays).filter(Boolean).map(Number);
   const avgLeadAgeDays = validAges.length > 0 ? (validAges.reduce((a, b) => a + b, 0) / validAges.length).toFixed(2) : null;
@@ -479,7 +462,7 @@ export function computeCliSummary(records: CliPerformanceRecord[]): CliSummary {
     salePerContactRate,
     durationGe5mRate,
     avgDurationSeconds,
-    totalDurationSeconds: totalDurationSec.toString(),
+    totalDurationSeconds: hasDurationTotal ? totalDurationSec.toString() : null,
     avgLeadAgeDays,
     activations: hasActivations ? activationsBig.toString() : null,
     recordedValue: hasRevenue ? recordedValueSum.toFixed(2) : null,
@@ -488,41 +471,46 @@ export function computeCliSummary(records: CliPerformanceRecord[]): CliSummary {
 
 /** Compute duration bands (<1m, 1-5m, 5-15m, 15m+) */
 export function computeDurationBands(records: CliPerformanceRecord[]): CliDurationBands {
+  const unavailable = (): CliDurationBands => ({
+    under1mCount: null,
+    under1mPct: null,
+    oneTo5mCount: null,
+    oneTo5mPct: null,
+    fiveTo15mCount: null,
+    fiveTo15mPct: null,
+    over15mCount: null,
+    over15mPct: null,
+    totalDurationSeconds: null,
+    avgDurationSeconds: null,
+    medianDurationSeconds: null,
+  });
+
+  if (!records.length || records.some(record =>
+    record.durationGe1mCount === null ||
+    record.durationGe5mCount === null ||
+    record.durationGe15mCount === null ||
+    record.totalDurationSeconds === null
+  )) return unavailable();
+
   let totalCalls = 0;
   let ge1m = 0;
   let ge5m = 0;
   let ge15m = 0;
   let totalSec = 0;
 
-  for (const r of records) {
-    const c = parseInt(r.totalCalls, 10);
-    totalCalls += c;
-    ge1m += parseInt(r.durationGe1mCount, 10);
-    ge5m += parseInt(r.durationGe5mCount, 10);
-    ge15m += parseInt(r.durationGe15mCount, 10);
-    totalSec += parseInt(r.totalDurationSeconds, 10);
+  for (const record of records) {
+    totalCalls += parseInt(record.totalCalls, 10) || 0;
+    ge1m += parseInt(record.durationGe1mCount!, 10) || 0;
+    ge5m += parseInt(record.durationGe5mCount!, 10) || 0;
+    ge15m += parseInt(record.durationGe15mCount!, 10) || 0;
+    totalSec += parseInt(record.totalDurationSeconds!, 10) || 0;
   }
 
-  if (totalCalls === 0) {
-    return {
-      under1mCount: '0',
-      under1mPct: '0.00',
-      oneTo5mCount: '0',
-      oneTo5mPct: '0.00',
-      fiveTo15mCount: '0',
-      fiveTo15mPct: '0.00',
-      over15mCount: '0',
-      over15mPct: '0.00',
-      totalDurationSeconds: '0',
-      avgDurationSeconds: '0.0',
-      medianDurationSeconds: null,
-    };
-  }
+  if (totalCalls <= 0) return unavailable();
 
   const under1m = Math.max(0, totalCalls - ge1m);
   const oneTo5m = Math.max(0, ge1m - ge5m);
   const fiveTo15m = Math.max(0, ge5m - ge15m);
-  const over15m = ge15m;
 
   return {
     under1mCount: String(under1m),
@@ -531,104 +519,23 @@ export function computeDurationBands(records: CliPerformanceRecord[]): CliDurati
     oneTo5mPct: ((oneTo5m / totalCalls) * 100).toFixed(2),
     fiveTo15mCount: String(fiveTo15m),
     fiveTo15mPct: ((fiveTo15m / totalCalls) * 100).toFixed(2),
-    over15mCount: String(over15m),
-    over15mPct: ((over15m / totalCalls) * 100).toFixed(2),
+    over15mCount: String(ge15m),
+    over15mPct: ((ge15m / totalCalls) * 100).toFixed(2),
     totalDurationSeconds: String(totalSec),
     avgDurationSeconds: (totalSec / totalCalls).toFixed(1),
-    medianDurationSeconds: '48.0',
+    medianDurationSeconds: null,
   };
 }
 
 /** Compute period comparison and deterministic observations */
 export function computePeriodComparison(
-  records: CliPerformanceRecord[],
-  scope: QueryScope
-): CliPeriodComparison {
-  const currentSummary = computeCliSummary(records);
-  const currentCalls = Number(currentSummary.totalCalls || 0);
-
-  // Generate synthetic baseline prior period (e.g. prior 7/30 days)
-  // Scaling factors reflect realistic operational variance
-  const prevCalls = Math.round(currentCalls * 0.94);
-  const prevContactRate = (parseFloat(currentSummary.contactRate) * 0.96).toFixed(2);
-  const prevSaleRate = (parseFloat(currentSummary.salePerCallRate) * 0.92).toFixed(2);
-  const prevSales = Math.round((prevCalls * parseFloat(prevSaleRate)) / 100);
-  const prevD5mRate = (parseFloat(currentSummary.durationGe5mRate) * 0.95).toFixed(2);
-  const prevLeadAge = currentSummary.avgLeadAgeDays ? (parseFloat(currentSummary.avgLeadAgeDays) * 1.15).toFixed(2) : null;
-
-  const deltaCalls = (currentCalls - prevCalls).toString();
-  const pctChangeCalls = prevCalls > 0 ? (((currentCalls - prevCalls) / prevCalls) * 100).toFixed(1) : null;
-
-  const deltaContact = (parseFloat(currentSummary.contactRate) - parseFloat(prevContactRate)).toFixed(2);
-  const deltaSale = (parseFloat(currentSummary.salePerCallRate) - parseFloat(prevSaleRate)).toFixed(2);
-  const deltaSales = (Number(currentSummary.saleCount) - prevSales).toString();
-  const pctChangeSales = prevSales > 0 ? (((Number(currentSummary.saleCount) - prevSales) / prevSales) * 100).toFixed(1) : null;
-
-  const observations: string[] = [];
-
-  // Deterministic observations based strictly on observed numbers
-  if (currentCalls > 0) {
-    observations.push(
-      `Observed total call volume changed by ${pctChangeCalls}% (${prevCalls.toLocaleString()} to ${currentCalls.toLocaleString()} calls) compared to prior equivalent period.`
-    );
-  }
-
-  if (parseFloat(deltaSale) !== 0) {
-    const direction = parseFloat(deltaSale) > 0 ? 'increased' : 'decreased';
-    observations.push(
-      `Observed sale/call rate ${direction} from ${prevSaleRate}% to ${currentSummary.salePerCallRate}% (${deltaSale > '0' ? '+' : ''}${deltaSale} pp).`
-    );
-  }
-
-  if (parseFloat(deltaContact) !== 0) {
-    const direction = parseFloat(deltaContact) > 0 ? 'improved' : 'softened';
-    observations.push(
-      `Right Party Contact (RPC) rate ${direction} from ${prevContactRate}% to ${currentSummary.contactRate}% across all dialled CLIs.`
-    );
-  }
-
-  if (currentSummary.avgLeadAgeDays && prevLeadAge) {
-    observations.push(
-      `Average lead age at call shifted from ${prevLeadAge} days to ${currentSummary.avgLeadAgeDays} days.`
-    );
-  }
-
-  // Find standout CLI movements
-  const cliDeltas = records.slice(0, 10).map(r => {
-    const calls = Number(r.totalCalls);
-    const cr = parseFloat(r.contactRate);
-    const sr = parseFloat(r.salePerCallRate);
-    return {
-      cli: r.cli,
-      callsDelta: (calls * 0.06).toFixed(0),
-      contactRateDelta: '+0.85',
-      saleRateDelta: '+0.12',
-      durationGe5mRateDelta: '+0.40',
-    };
-  });
-
-  return {
-    currentPeriod: {
-      start: scope.startDate || 'Current Period',
-      end: scope.endDate || 'Current Period',
-    },
-    previousPeriod: {
-      start: 'Previous Period',
-      end: 'Previous Period',
-    },
-    metrics: {
-      calls: { current: currentSummary.totalCalls, previous: String(prevCalls), delta: deltaCalls, pctChange: pctChangeCalls },
-      asrRate: { current: currentSummary.asrRate, previous: null, delta: null },
-      answeredRate: { current: currentSummary.answeredRate, previous: null, delta: null },
-      contactRate: { current: currentSummary.contactRate, previous: prevContactRate, delta: deltaContact },
-      saleRate: { current: currentSummary.salePerCallRate, previous: prevSaleRate, delta: deltaSale },
-      sales: { current: currentSummary.saleCount, previous: String(prevSales), delta: deltaSales, pctChange: pctChangeSales },
-      conversationGe5mRate: { current: currentSummary.durationGe5mRate, previous: prevD5mRate, delta: (parseFloat(currentSummary.durationGe5mRate) - parseFloat(prevD5mRate)).toFixed(2) },
-      avgLeadAgeDays: { current: currentSummary.avgLeadAgeDays, previous: prevLeadAge, delta: currentSummary.avgLeadAgeDays && prevLeadAge ? (parseFloat(currentSummary.avgLeadAgeDays) - parseFloat(prevLeadAge)).toFixed(2) : null },
-    },
-    cliDeltas,
-    observations,
-  };
+  _records: CliPerformanceRecord[],
+  _scope: QueryScope
+): CliPeriodComparison | null {
+  // A matched comparison requires event rows or a source-provided historical series
+  // that can be filtered to the same CLI/campaign/vendor scope. Aggregate snapshots
+  // are insufficient, so CX3 deliberately withholds this comparison.
+  return null;
 }
 
 /** Generate realistic Benchmark / Sample CLI Dataset for testing & demonstration */
