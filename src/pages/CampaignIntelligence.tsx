@@ -68,7 +68,7 @@ export default function CampaignIntelligence() {
         clientId: selectedClient,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
-        campaign: extractOffernetFilters(filters).campaign,
+        ...extractOffernetFilters(filters),
       }, forceRefresh);
       setData(result);
     } catch (err: any) {
