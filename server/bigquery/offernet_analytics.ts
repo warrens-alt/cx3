@@ -116,6 +116,11 @@ function safeWarehouseColumn(column: string) {
   return `\`${column}\``;
 }
 
+function safeAliasedColumn(alias: string, column: string) {
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(alias)) throw new RequestError('Unsafe warehouse alias', 500);
+  return `${alias}.${safeWarehouseColumn(column)}`;
+}
+
 async function resolveMarketingContract(
   client: ReturnType<typeof getBigQueryClient>,
   contract: MarketingSourceContract,
@@ -1558,6 +1563,156 @@ export async function getCommercialAnalytics(params: OffernetQueryParams) {
   };
 }
 
+export async function getSourceObservability(params: Pick<OffernetQueryParams, 'clientId'>) {
+  const clientConfig = getClientConfig(params.clientId);
+  const client = getBigQueryClient(clientConfig.bigQueryProject);
+  const sources: Array<{
+    key: string;
+    label: string;
+    status: string;
+    table: string | null;
+    latestRecordAt: string | null;
+    ageHours: number | null;
+    rowCount: number | null;
+    detail: string;
+  }> = [];
+
+  const pushFreshness = async (
+    key: string,
+    label: string,
+    table: string | undefined,
+    timestampExpression: string,
+    whereSql = '',
+    queryParams: Record<string, any> = {},
+  ) => {
+    if (!table) {
+      sources.push({ key, label, status: 'UNAVAILABLE', table: null, latestRecordAt: null, ageHours: null, rowCount: null, detail: 'No source table is configured.' });
+      return;
+    }
+    try {
+      const [rows] = await client.query({
+        query: `
+          SELECT
+            MAX(${timestampExpression}) AS latest_record_at,
+            COUNT(*) AS row_count,
+            TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), MAX(${timestampExpression}), HOUR) AS age_hours
+          FROM \`${table}\`
+          ${whereSql}
+        `,
+        params: queryParams,
+      });
+      const row = rows[0] || {};
+      const latest = row.latest_record_at?.value || row.latest_record_at || null;
+      const ageHours = row.age_hours === null || row.age_hours === undefined ? null : Number(row.age_hours);
+      sources.push({
+        key,
+        label,
+        status: latest ? 'OBSERVED' : 'EMPTY',
+        table,
+        latestRecordAt: latest ? String(latest) : null,
+        ageHours,
+        rowCount: Number(row.row_count || 0),
+        detail: latest ? 'Freshness is observed directly from the configured source table.' : 'No usable source timestamp was observed.',
+      });
+    } catch (error) {
+      sources.push({
+        key,
+        label,
+        status: 'ERROR',
+        table,
+        latestRecordAt: null,
+        ageHours: null,
+        rowCount: null,
+        detail: error instanceof Error ? error.message : 'Source freshness query failed.',
+      });
+    }
+  };
+
+  const leadScope = buildFilterClause({ clientId: params.clientId });
+  await pushFreshness(
+    'leads',
+    'Lead ledger',
+    clientConfig.semanticMappings.tables.leads,
+    'SAFE_CAST(l.fetched AS TIMESTAMP)',
+    leadScope.whereSql.replace(/^WHERE /, 'WHERE '),
+    leadScope.queryParams,
+  );
+
+  const callTable = clientConfig.semanticMappings.tables.calls;
+  const callConditions = ["call_start_date IS NOT NULL"];
+  const callParams: Record<string, any> = {};
+  if (clientConfig.id !== 'default_tenant') {
+    const partners = clientConfig.semanticMappings.partners || [];
+    if (partners.length) {
+      callConditions.push('LOWER(vendor) IN UNNEST(@tenantVendors)');
+      callParams.tenantVendors = partners.map(value => value.toLowerCase());
+    }
+  }
+  await pushFreshness(
+    'calls',
+    'Dialler calls',
+    callTable,
+    'SAFE_CAST(call_start_date AS TIMESTAMP)',
+    `WHERE ${callConditions.join(' AND ')}`,
+    callParams,
+  );
+
+  const contract = clientConfig.marketing;
+  if (!contract || !clientConfig.capabilities.marketing) {
+    sources.push({
+      key: 'marketing',
+      label: 'Marketing API',
+      status: 'UNAVAILABLE',
+      table: contract?.table || null,
+      latestRecordAt: null,
+      ageHours: null,
+      rowCount: null,
+      detail: 'No marketing API-table contract is configured for this tenant.',
+    });
+  } else if (contract.mappingStatus === 'UNRESOLVED' || (contract.mappingStatus === 'MAPPED' && !contract.clientNames.length)) {
+    sources.push({
+      key: 'marketing',
+      label: 'Marketing API',
+      status: 'MAPPING_REQUIRED',
+      table: contract.table,
+      latestRecordAt: null,
+      ageHours: null,
+      rowCount: null,
+      detail: 'Source exists, but tenant client_name mapping is not approved.',
+    });
+  } else {
+    const tenantFilter = marketingTenantFilter(contract);
+    const marketingConditions = tenantFilter.sql ? `WHERE ${tenantFilter.sql}` : '';
+    await pushFreshness(
+      'marketing',
+      'Marketing API',
+      contract.table,
+      `SAFE_CAST(${safeWarehouseColumn(contract.dateField)} AS TIMESTAMP)`,
+      marketingConditions,
+      tenantFilter.params,
+    );
+  }
+
+  sources.push({
+    key: 'activations',
+    label: 'Activation source',
+    status: clientConfig.semanticMappings.tables.activations ? 'TIMESTAMP_CONTRACT_REQUIRED' : 'UNAVAILABLE',
+    table: clientConfig.semanticMappings.tables.activations || null,
+    latestRecordAt: null,
+    ageHours: null,
+    rowCount: null,
+    detail: clientConfig.semanticMappings.tables.activations
+      ? 'Activation table is configured, but its canonical event timestamp is not yet contracted for freshness monitoring.'
+      : 'No activation table is configured.',
+  });
+
+  return {
+    status: 'OBSERVED',
+    generatedAt: new Date().toISOString(),
+    sources,
+  };
+}
+
 // 9. DATA INTEGRITY (DATA HEALTH)
 export async function getDataIntegrityAnalytics(params: OffernetQueryParams) {
   const client = getBigQueryClient('dashboards-422710');
@@ -1626,13 +1781,16 @@ export async function getDataIntegrityAnalytics(params: OffernetQueryParams) {
     )
   ];
 
+  const sourceObservability = await getSourceObservability({ clientId: params.clientId });
+
   return {
     overallHealthScore: null,
     healthGrade: 'NOT_VERIFIED',
     validationStatus: 'NOT_VERIFIED',
     reason: 'Observed discrepancy counts are shown without an invented enterprise health score. Thresholds require approved data-quality contracts.',
     checks,
-    totalRecordsAudited: total
+    totalRecordsAudited: total,
+    sources: sourceObservability.sources
   };
 }
 
@@ -2226,7 +2384,7 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
   const tenantFilter = marketingTenantFilter(contract);
   const marketingDate = safeWarehouseColumn(contract.dateField);
   const marketingSource = safeWarehouseColumn(marketingSourceField);
-  const leadSource = safeWarehouseColumn(leadSourceField);
+  const leadSource = safeAliasedColumn('l', leadSourceField);
   const conditions = [...(tenantFilter.sql ? [tenantFilter.sql] : [])];
   const queryParams: Record<string, any> = { ...tenantFilter.params };
   if (params.startDate) {
@@ -2252,7 +2410,7 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
     ),
     operations AS (
       SELECT
-        LOWER(TRIM(CAST(l.${leadSource} AS STRING))) AS join_key,
+        LOWER(TRIM(CAST(${leadSource} AS STRING))) AS join_key,
         COUNT(DISTINCT l.lead_id) AS fetched,
         COUNT(DISTINCT CASE WHEN hlc.delivered IS NOT NULL AND hlc.delivered NOT LIKE '1900%' AND hlc.delivered NOT LIKE '1970%' THEN l.lead_id END) AS delivered,
         COUNT(DISTINCT CASE WHEN hlc.first_call_date IS NOT NULL AND hlc.first_call_date NOT LIKE '1900%' AND hlc.first_call_date NOT LIKE '1970%' THEN l.lead_id END) AS dialled,
