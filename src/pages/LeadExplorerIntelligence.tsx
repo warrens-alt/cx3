@@ -22,6 +22,7 @@ const DRILL_LABELS: Record<string, string> = {
   'sla-breach': 'First-dial SLA breaches',
   'backlog-age': 'First-dial backlog age cohort',
   'funnel-loss': 'Funnel loss population',
+  'funnel-stage': 'Funnel stage population',
   'lead-age': 'First-dial age cohort',
 };
 
