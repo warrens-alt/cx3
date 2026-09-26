@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clock3,
   Database,
+  DollarSign,
   GitFork,
   Search,
   ShieldCheck,
@@ -297,6 +298,7 @@ export default function ExecutiveOverview() {
             <section className="cx-command-shortcuts" aria-label="Analysis shortcuts">
               <Link to="/speed-to-lead"><Clock3 size={16} /><span><strong>Contact</strong><small>Latency, cohorts and call strategy</small></span><ArrowRight size={14} /></Link>
               <Link to="/vendor-quality"><Database size={16} /><span><strong>Performance</strong><small>Vendors, quality and source outcomes</small></span><ArrowRight size={14} /></Link>
+              <Link to="/campaigns"><DollarSign size={16} /><span><strong>Spend</strong><small>Campaign spend, CPC, CPM and CPL</small></span><ArrowRight size={14} /></Link>
               <Link to="/reports"><ShieldCheck size={16} /><span><strong>Evidence</strong><small>Definitions, releases and trust status</small></span><ArrowRight size={14} /></Link>
             </section>
           </>
