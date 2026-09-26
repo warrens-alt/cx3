@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Calendar, CheckCircle2, Download, Filter, RefreshCw, RotateCcw, SlidersHorizontal } from 'lucide-react';
+import { Calendar, Database, Download, Filter, RefreshCw, RotateCcw, SlidersHorizontal, X } from 'lucide-react';
 import { useClient } from '../lib/ClientContext';
 import { useFilters } from '../lib/FilterContext';
 import { fetchAnalyticsJson } from '../lib/useAnalyticsData';
@@ -14,30 +14,35 @@ interface OffernetFilterBarProps {
   showGradeFilter?: boolean;
 }
 
-const dateOnly = (date: Date) => date.toISOString().slice(0, 10);
-const startOfMonth = (date: Date) => new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
-const startOfQuarter = (date: Date) => new Date(Date.UTC(date.getUTCFullYear(), Math.floor(date.getUTCMonth() / 3) * 3, 1));
-const addDays = (date: Date, days: number) => new Date(date.getTime() + days * 86400000);
+const localDateOnly = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
+const startOfQuarter = (date: Date) => new Date(date.getFullYear(), Math.floor(date.getMonth() / 3) * 3, 1);
+const addDays = (date: Date, days: number) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 
 export function buildPeriodPresets(now = new Date()) {
-  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const monthStart = startOfMonth(today);
   const previousMonthEnd = addDays(monthStart, -1);
   const previousMonthStart = startOfMonth(previousMonthEnd);
-  const weekday = today.getUTCDay();
+  const weekday = today.getDay();
   const mondayOffset = weekday === 0 ? -6 : 1 - weekday;
   const weekStart = addDays(today, mondayOffset);
   const quarterStart = startOfQuarter(today);
 
   return [
     { id: 'all', label: 'All time', start: '', end: '' },
-    { id: 'today', label: 'Today', start: dateOnly(today), end: dateOnly(today) },
-    { id: 'wtd', label: 'Week to date', start: dateOnly(weekStart), end: dateOnly(today) },
-    { id: 'last7', label: 'Last 7 days', start: dateOnly(addDays(today, -6)), end: dateOnly(today) },
-    { id: 'mtd', label: 'Month to date', start: dateOnly(monthStart), end: dateOnly(today) },
-    { id: 'last30', label: 'Last 30 days', start: dateOnly(addDays(today, -29)), end: dateOnly(today) },
-    { id: 'previous_month', label: 'Previous full month', start: dateOnly(previousMonthStart), end: dateOnly(previousMonthEnd) },
-    { id: 'qtd', label: 'Quarter to date', start: dateOnly(quarterStart), end: dateOnly(today) },
+    { id: 'today', label: 'Today', start: localDateOnly(today), end: localDateOnly(today) },
+    { id: 'wtd', label: 'Week to date', start: localDateOnly(weekStart), end: localDateOnly(today) },
+    { id: 'last7', label: 'Last 7 days', start: localDateOnly(addDays(today, -6)), end: localDateOnly(today) },
+    { id: 'mtd', label: 'Month to date', start: localDateOnly(monthStart), end: localDateOnly(today) },
+    { id: 'last30', label: 'Last 30 days', start: localDateOnly(addDays(today, -29)), end: localDateOnly(today) },
+    { id: 'previous_month', label: 'Previous month', start: localDateOnly(previousMonthStart), end: localDateOnly(previousMonthEnd) },
+    { id: 'qtd', label: 'Quarter to date', start: localDateOnly(quarterStart), end: localDateOnly(today) },
   ];
 }
 
@@ -74,6 +79,7 @@ export const OffernetFilterBar: React.FC<OffernetFilterBarProps> = ({
     setFilter,
     clearFilters,
     activeFilterCount,
+    appliedFilters,
   } = useFilters();
   const [expanded, setExpanded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -81,10 +87,10 @@ export const OffernetFilterBar: React.FC<OffernetFilterBarProps> = ({
   const optionsQuery = useQuery({
     queryKey: ['filter-options', selectedClient, startDate, endDate],
     queryFn: ({ signal }) => {
-      const q = new URLSearchParams({ clientId: selectedClient });
-      if (startDate) q.set('startDate', startDate);
-      if (endDate) q.set('endDate', endDate);
-      return fetchAnalyticsJson(`/api/analytics/filter-options?${q.toString()}`, signal);
+      const query = new URLSearchParams({ clientId: selectedClient });
+      if (startDate) query.set('startDate', startDate);
+      if (endDate) query.set('endDate', endDate);
+      return fetchAnalyticsJson(`/api/analytics/filter-options?${query.toString()}`, signal);
     },
     enabled: Boolean(selectedClient),
     staleTime: 120000,
@@ -92,10 +98,13 @@ export const OffernetFilterBar: React.FC<OffernetFilterBarProps> = ({
   });
 
   const data = optionsQuery.data?.data;
+  const moreFilterCount = Object.keys(filters).filter(key =>
+    !((showVendorFilter && key === 'vendor') || (showSourceFilter && key === 'source'))
+  ).length;
+  const visibleChips = appliedFilters.filter(item => item.key !== 'dateRange');
   const vendor = firstFilterValue(filters.vendor);
   const source = firstFilterValue(filters.source);
   const grade = firstFilterValue(filters.grade);
-
   const vendors = useMemo(() => Array.from(new Set([vendor, ...optionValues(data?.vendors)].filter(Boolean))), [vendor, data?.vendors]);
   const sources = useMemo(() => Array.from(new Set([source, ...optionValues(data?.sources)].filter(Boolean))), [source, data?.sources]);
   const grades = useMemo(() => Array.from(new Set([grade, ...optionValues(data?.grades)].filter(Boolean))), [grade, data?.grades]);
@@ -103,8 +112,12 @@ export const OffernetFilterBar: React.FC<OffernetFilterBarProps> = ({
   const currentPreset = PERIOD_PRESETS.find(item => item.start === startDate && item.end === endDate);
   const periodValue = currentPreset?.id || 'custom';
 
-  const setSingle = (key: 'vendor' | 'source' | 'grade', value: string) => {
+  const setSingle = (key: 'vendor' | 'source' | 'grade', value: string) =>
     setFilter(key, value ? { operator: 'in', values: [value] } : null);
+
+  const removeApplied = (key: string) => {
+    if (key === 'dateRange') setDateRange('', '');
+    else setFilter(key, null);
   };
 
   const changePeriod = (id: string) => {
@@ -169,26 +182,21 @@ export const OffernetFilterBar: React.FC<OffernetFilterBarProps> = ({
           </label>
         )}
 
-        <button
-          type="button"
-          className={`cx-scope-more ${expanded ? 'is-open' : ''}`}
-          onClick={() => setExpanded(value => !value)}
-          aria-expanded={expanded}
-        >
+        <button type="button" className={`cx-scope-more ${expanded ? 'is-open' : ''}`} onClick={() => setExpanded(value => !value)} aria-expanded={expanded}>
           <SlidersHorizontal size={14} />
-          <span>More filters</span>
-          {activeFilterCount > 0 && <strong>{activeFilterCount}</strong>}
+          <span>More</span>
+          {moreFilterCount > 0 && <strong>{moreFilterCount}</strong>}
         </button>
 
-        <div className="cx-scopebar-status" title="Operational analytics have not been independently reconciled">
-          <CheckCircle2 size={14} />
-          <span>Live warehouse</span>
-          <em>Unverified</em>
+        <div className="cx-scopebar-status" title="Operational analytics are live but not independently reconciled">
+          <Database size={14} />
+          <span>Operational data</span>
+          <em>Not reconciled</em>
         </div>
 
         <div className="cx-scopebar-actions">
-          {(activeFilterCount > 0 || startDate || endDate) && (
-            <button type="button" onClick={clearFilters} title="Reset scope">
+          {activeFilterCount > 0 && (
+            <button type="button" onClick={clearFilters} title="Reset reporting scope">
               <RotateCcw size={14} />
               <span className="hidden xl:inline">Reset</span>
             </button>
@@ -205,6 +213,18 @@ export const OffernetFilterBar: React.FC<OffernetFilterBarProps> = ({
           )}
         </div>
       </div>
+
+      {visibleChips.length > 0 && (
+        <div className="cx-scope-chips" aria-label="Active reporting filters">
+          {visibleChips.map(item => (
+            <button key={item.key} type="button" onClick={() => removeApplied(item.key)} title={`Remove ${item.label}`}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+              <X size={11}/>
+            </button>
+          ))}
+        </div>
+      )}
 
       {expanded && (
         <div className="cx-scopebar-more">
@@ -230,9 +250,7 @@ export const OffernetFilterBar: React.FC<OffernetFilterBarProps> = ({
             </label>
           )}
 
-          <p>
-            Filters apply to the current client workspace and persist while you move between operational views.
-          </p>
+          <p>Scope persists while you move between operational views.</p>
         </div>
       )}
     </section>

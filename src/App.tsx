@@ -142,7 +142,7 @@ function Shell() {
           <AppliedScope/>
         </div>}
         {clientReady && !evidencePage && <div id="legacy-filters" hidden={!filtersOpen}>{filtersOpen && !filterError && <Suspense fallback={<p className="cx-filter-loading" role="status">Loading report controls…</p>}><GlobalFilter/></Suspense>}</div>}
-        <ErrorBoundary resetKeys={[location.pathname]} fallbackRender={({resetErrorBoundary})=><section className="cx-route-error" role="alert"><AlertCircle size={28}/><h1>This page could not be displayed</h1><p>Navigation is still available. Retry the page or return to Executive Overview.</p><div><button className="cx-button-primary" onClick={resetErrorBoundary}>Retry page</button><Link className="cx-button-secondary" to="/">Executive Overview</Link></div></section>}>
+        <ErrorBoundary resetKeys={[location.pathname]} fallbackRender={({resetErrorBoundary})=><section className="cx-route-error" role="alert"><AlertCircle size={28}/><h1>This page could not be displayed</h1><p>Navigation is still available. Retry the page or return to Overview.</p><div><button className="cx-button-primary" onClick={resetErrorBoundary}>Retry page</button><Link className="cx-button-secondary" to="/">Overview</Link></div></section>}>
           {clientReady && !evidencePage && filterError ? <section className="cx-scope-error" role="alert"><AlertCircle size={22}/><div><h1>Reporting selection needs attention</h1><p>{filterError}</p><p>No analytical request was sent with an invalid selection.</p><button type="button" className="cx-button-primary" onClick={resetScope}>Reset reporting scope</button></div></section> : <Suspense fallback={<PageSkeleton/>}>
             {clientReady && <Routes>
               {/* PRIMARY OFFERNET OPERATIONAL INTELLIGENCE PLATFORM ROUTES */}
@@ -195,7 +195,7 @@ function Shell() {
               <Route path="/lead-ledger" element={<LeadLedger />} />
               <Route path="/platform-insights" element={<Acquisition />} />
               <Route path="/validation" element={<AdminValidation />} />
-              <Route path="*" element={<section className="cx-route-error"><h1>Page not found</h1><p>The requested workspace page does not exist.</p><Link className="cx-button-primary" to="/">Open Executive Overview</Link></section>}/>
+              <Route path="*" element={<section className="cx-route-error"><h1>Page not found</h1><p>The requested workspace page does not exist.</p><Link className="cx-button-primary" to="/">Open Overview</Link></section>}/>
             </Routes>}
           </Suspense>}
         </ErrorBoundary>
