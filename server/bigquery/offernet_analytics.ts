@@ -576,10 +576,10 @@ export async function getRootCauseAnalysis(params: OffernetQueryParams) {
       const previousSegmentValue = value(previousRow);
       const contribution = cp.kind === 'volume'
         ? cp.numerator - pp.numerator
-        : Number((
+        : Number(((
             (currentParts.denominator > 0 ? cp.numerator / currentParts.denominator : 0)
             - (previousParts.denominator > 0 ? pp.numerator / previousParts.denominator : 0)
-          ) * 100).toFixed(2);
+          ) * 100).toFixed(2));
       return {
         name,
         currentValue: currentSegmentValue,
