@@ -1,11 +1,31 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig} from 'vite';
+import {defineConfig, type Plugin} from 'vite';
+
+function previewApiBridge(): Plugin {
+  return {
+    name: 'conversionx-preview-api',
+    apply: 'serve',
+    async configureServer(viteServer) {
+      const express = (await import('express')).default;
+      const { mountApi } = await import('./server/apiApp');
+      const api = express();
+      await mountApi(api);
+
+      // AI Studio can launch Vite directly. Without this bridge /api requests
+      // fall through to index.html and misleadingly return HTTP 200.
+      viteServer.middlewares.use((req, res, next) => {
+        if (!req.url?.startsWith('/api')) return next();
+        api(req as any, res as any, next as any);
+      });
+    },
+  };
+}
 
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [previewApiBridge(), react(), tailwindcss()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

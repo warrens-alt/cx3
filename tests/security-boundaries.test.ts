@@ -37,19 +37,21 @@ function readClient(): string {
 }
 
 test('production authentication is fail closed and local bypass is explicit', () => {
-  const server = read('server.ts');
+  const server = read('server.ts') + read('server/apiApp.ts') + read('server/security.ts');
   assert.ok(server.includes("process.env.NODE_ENV !== 'production' && process.env.CX_ALLOW_DEV_AUTH === 'true'"));
   assert.ok(server.includes(': authenticate();'));
+  assert.match(server, /process\.env\.NODE_ENV !== 'production'.*CX_ALLOW_FIREBASE_PREVIEW_AUTH/s);
+  assert.match(server, /x-goog-iap-jwt-assertion/);
 });
 
 test('arbitrary BigQuery browsing is retired', () => {
-  const server = read('server.ts');
+  const server = read('server.ts') + read('server/apiApp.ts');
   assert.doesNotMatch(server, /app\.get\('\/api\/bq\/(?:projects|datasets|tables|preview|filter-options)'/);
   assert.match(server, /app\.use\('\/api\/bq'[\s\S]*?410/);
 });
 
 test('operational analytics are never globally stamped VERIFIED', () => {
-  const server = read('server.ts');
+  const server = read('server.ts') + read('server/apiApp.ts');
   assert.doesNotMatch(server, /X-Analytics-Status['"],\s*['"]VERIFIED/);
   assert.match(server, /X-Analytics-Status['"],\s*['"]UNVERIFIED/);
 });
