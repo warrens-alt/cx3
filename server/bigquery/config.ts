@@ -314,11 +314,44 @@ export const ROR_PARTNER_TO_VENDOR_MAP: Record<string, string> = {
   AFFILIATE: 'Affiliate',
 };
 
+function configuredMarketingClientNames(tenantId: string): string[] | null {
+  const raw = process.env.CX_MARKETING_CLIENT_MAP_JSON;
+  if (!raw) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('CX_MARKETING_CLIENT_MAP_JSON must be valid JSON');
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('CX_MARKETING_CLIENT_MAP_JSON must be an object keyed by tenant ID');
+  }
+  const value = (parsed as Record<string, unknown>)[tenantId];
+  if (value === undefined) return null;
+  if (!Array.isArray(value) || value.some(item => typeof item !== 'string' || !item.trim() || item.length > 256)) {
+    throw new Error(`CX_MARKETING_CLIENT_MAP_JSON.${tenantId} must be an array of non-empty client_name strings`);
+  }
+  return Array.from(new Set(value.map(item => item.trim())));
+}
+
 export function getClientConfig(clientId: string): TenantConfiguration {
   const key = clientId === 'default' ? 'default_tenant' : clientId;
   const tenant = Object.hasOwn(TENANTS, key) ? TENANTS[key] : undefined;
   if (!tenant || !tenant.active) throw new RequestError('Unknown or inactive tenant', 404);
-  return tenant;
+
+  const configuredNames = configuredMarketingClientNames(tenant.id);
+  if (!tenant.marketing || tenant.marketing.mappingStatus === 'MASTER' || configuredNames === null) {
+    return tenant;
+  }
+
+  return {
+    ...tenant,
+    marketing: {
+      ...tenant.marketing,
+      mappingStatus: configuredNames.length ? 'MAPPED' : 'UNRESOLVED',
+      clientNames: configuredNames,
+    },
+  };
 }
 
 export function getAllClients(): TenantConfiguration[] {
