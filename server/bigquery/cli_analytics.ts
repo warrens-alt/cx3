@@ -143,6 +143,12 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
   const activationsIdx = getCol('activations', 'activation_count');
   const revenueIdx = getCol('revenue', 'recorded_value', 'value');
 
+  if (contactCountIdx === -1) errors.push("Missing required RPC/contact count column. Expected 'contact_count', 'rpc_count', or 'rpcs'.");
+  if (saleCountIdx === -1) errors.push("Missing required sale count column. Expected 'sale_count', 'sales', or 'sale'.");
+  if (errors.length > 0) {
+    return { records: [], trend: [], leadAgeBands: emptyLeadAgeBands(), anomalies, errors };
+  }
+
   const records: CliPerformanceRecord[] = [];
   const trendMap = new Map<string, { calls: number; contacts: number; sales: number; answered: number; duration5m: number; duration5mKnown: boolean }>();
 
@@ -179,9 +185,11 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
 
     if (totalCallsNum === 0) continue;
 
-    const distinctLeadsNum = distinctLeadsIdx !== -1 && cells[distinctLeadsIdx] ? Math.max(1, parseInt(cells[distinctLeadsIdx], 10) || 1) : totalCallsNum;
-    const distinctLeads = String(Math.min(distinctLeadsNum, totalCallsNum));
-    const callsPerLead = (totalCallsNum / distinctLeadsNum).toFixed(2);
+    const distinctLeadsNum = distinctLeadsIdx !== -1 && cells[distinctLeadsIdx]
+      ? Math.max(1, parseInt(cells[distinctLeadsIdx], 10) || 1)
+      : null;
+    const distinctLeads = distinctLeadsNum === null ? null : String(Math.min(distinctLeadsNum, totalCallsNum));
+    const callsPerLead = distinctLeadsNum === null ? null : (totalCallsNum / distinctLeadsNum).toFixed(2);
 
     // Counts
     const asrCount = asrCountIdx !== -1 && cells[asrCountIdx] ? String(Math.max(0, parseInt(cells[asrCountIdx], 10) || 0)) : null;
@@ -222,7 +230,7 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
     const activations = activationsIdx !== -1 && cells[activationsIdx] ? String(Math.max(0, parseInt(cells[activationsIdx], 10) || 0)) : null;
     const recordedValue = revenueIdx !== -1 && cells[revenueIdx] ? String(Math.max(0, parseFloat(cells[revenueIdx]) || 0)) : null;
     const valuePerCall = recordedValue ? (parseFloat(recordedValue) / totalCallsNum).toFixed(2) : null;
-    const valuePerLead = recordedValue ? (parseFloat(recordedValue) / distinctLeadsNum).toFixed(2) : null;
+    const valuePerLead = recordedValue && distinctLeadsNum !== null ? (parseFloat(recordedValue) / distinctLeadsNum).toFixed(2) : null;
 
     // Mathematical Sanity & Anomaly Checks
     const rowAnomalies: string[] = [];
@@ -257,23 +265,35 @@ export function parseAndValidateCliCsv(csvText: string, filename = 'imported_rep
       rowAnomalies.push('Negative call duration');
     }
 
-    // Trend grouping
-    const dateStr = dateIdx !== -1 && cells[dateIdx] ? cells[dateIdx].slice(0, 10) : '2026-09-01';
-    const existingTrend = trendMap.get(dateStr) || { calls: 0, contacts: 0, sales: 0, answered: 0, duration5m: 0, duration5mKnown: false };
-    existingTrend.calls += totalCallsNum;
-    existingTrend.contacts += contactCountNum;
-    existingTrend.sales += saleCountNum;
-    if (answeredCount) existingTrend.answered += parseInt(answeredCount, 10) || 0;
-    if (d5mNum !== null) {
-      existingTrend.duration5m += d5mNum;
-      existingTrend.duration5mKnown = true;
+    // Trend grouping uses only source-provided dates.
+    const rawDate = dateIdx !== -1 && cells[dateIdx] ? cells[dateIdx].trim().slice(0, 10) : '';
+    const reportDate = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) && Number.isFinite(Date.parse(rawDate)) ? rawDate : null;
+    if (rawDate && !reportDate) {
+      anomalies.push({
+        type: 'MISSING_DATE',
+        severity: 'WARNING',
+        cli,
+        message: `Report date '${rawDate}' is invalid and was excluded from the trend.`,
+      });
     }
-    trendMap.set(dateStr, existingTrend);
+    if (reportDate) {
+      const existingTrend = trendMap.get(reportDate) || { calls: 0, contacts: 0, sales: 0, answered: 0, duration5m: 0, duration5mKnown: false };
+      existingTrend.calls += totalCallsNum;
+      existingTrend.contacts += contactCountNum;
+      existingTrend.sales += saleCountNum;
+      if (answeredCount) existingTrend.answered += parseInt(answeredCount, 10) || 0;
+      if (d5mNum !== null) {
+        existingTrend.duration5m += d5mNum;
+        existingTrend.duration5mKnown = true;
+      }
+      trendMap.set(reportDate, existingTrend);
+    }
 
     records.push({
       cli,
       campaign,
       vendor,
+      reportDate,
       totalCalls,
       distinctLeads,
       callsPerLead,
@@ -373,6 +393,7 @@ function computeLeadAgeBands(records: CliPerformanceRecord[]): CliLeadAgeBands {
 export function computeCliSummary(records: CliPerformanceRecord[]): CliSummary {
   let totalCallsBig = 0n;
   let distinctLeadsBig = 0n;
+  let hasCompleteDistinctLeads = records.length > 0;
   let totalContactsBig = 0n;
   let totalSalesBig = 0n;
   let totalAnsweredBig = 0n;
@@ -391,7 +412,11 @@ export function computeCliSummary(records: CliPerformanceRecord[]): CliSummary {
   for (const r of records) {
     const calls = BigInt(r.totalCalls);
     totalCallsBig += calls;
-    distinctLeadsBig += BigInt(r.distinctLeads);
+    if (r.distinctLeads === null) {
+      hasCompleteDistinctLeads = false;
+    } else {
+      distinctLeadsBig += BigInt(r.distinctLeads);
+    }
     totalContactsBig += BigInt(r.contactCount);
     totalSalesBig += BigInt(r.saleCount);
     if (r.durationGe5mCount !== null) {
@@ -422,8 +447,10 @@ export function computeCliSummary(records: CliPerformanceRecord[]): CliSummary {
   }
 
   const totalCalls = totalCallsBig.toString();
-  const distinctLeads = distinctLeadsBig.toString();
-  const callsPerLead = distinctLeadsBig > 0n ? (Number(totalCallsBig) / Number(distinctLeadsBig)).toFixed(2) : '0.00';
+  const distinctLeads = hasCompleteDistinctLeads ? distinctLeadsBig.toString() : null;
+  const callsPerLead = hasCompleteDistinctLeads && distinctLeadsBig > 0n
+    ? (Number(totalCallsBig) / Number(distinctLeadsBig)).toFixed(2)
+    : null;
 
   const asrCount = hasAsr ? totalAsrBig.toString() : null;
   const asrRate = hasAsr && totalCallsBig > 0n ? calculateExactRate(totalAsrBig.toString(), totalCalls) : null;
@@ -756,6 +783,12 @@ export async function getCliPerformance(
   // If an imported report is available, serve it with IMPORTED_REPORT provenance
   if (tenantImport) {
     let records = tenantImport.records;
+
+    if ((scope.startDate || scope.endDate) && !records.some(record => record.reportDate)) {
+      throw new RequestError('This imported CLI report has no report-date field, so the selected date scope cannot be applied safely.', 422);
+    }
+    if (scope.startDate) records = records.filter(record => record.reportDate && record.reportDate >= scope.startDate!);
+    if (scope.endDate) records = records.filter(record => record.reportDate && record.reportDate <= scope.endDate!);
 
     // Apply filters to imported records
     if (scope.filters) {
