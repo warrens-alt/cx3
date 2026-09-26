@@ -14,6 +14,7 @@ import { formatPercent, formatTableNumber } from '../lib/formatters';
 
 import type { ExceptionAnalyticsData } from '../../contracts/exceptionAnalytics';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
+import { RankedMetricChart } from '../components/charts/OperationalVisuals';
 
 const fmt = (value: number | string | null | undefined) => formatTableNumber(value);
 
@@ -96,6 +97,16 @@ export default function Exceptions() {
                 <small>Delivered leads dialled within target</small>
               </article>
             </section>
+
+            {ordered.length > 0 && <RankedMetricChart
+              title="Largest active exception populations"
+              subtitle="Ranked by affected records. Severity remains visible in the action queue below."
+              data={ordered.map(item => ({ exception: item.title, count: item.count }))}
+              categoryKey="exception"
+              valueKey="count"
+              valueLabel="Affected records"
+              maxItems={10}
+            />}
 
             {controls.data && <ContactGovernancePanel
               data={controls.data}

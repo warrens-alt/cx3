@@ -426,3 +426,21 @@ test('shared operational visual components centralize Recharts usage for new ana
   assert.match(visuals, /ANALYTICS_COLORS/);
   assert.doesNotMatch(visuals, /budget.*spend/i);
 });
+
+
+test('overview and secondary operational tabs use the shared visual analytics language', () => {
+  const overview = read('src/pages/ExecutiveOverview.tsx');
+  const commercial = read('src/pages/CommercialIntelligence.tsx');
+  const temporal = read('src/pages/TemporalIntelligence.tsx');
+  const contact = read('src/pages/ContactStrategyIntelligence.tsx');
+  const exceptions = read('src/pages/Exceptions.tsx');
+
+  assert.match(overview, /Lead-to-activation journey/);
+  assert.match(overview, /FunnelWaterfall/);
+  assert.match(commercial, /Matched funnel outcomes by attribution key/);
+  assert.match(temporal, /outcomes by hour/);
+  assert.match(temporal, /VolumeRateComboChart/);
+  assert.match(contact, /Observed yield by call-count bucket/);
+  assert.doesNotMatch(contact, /from 'recharts'/);
+  assert.match(exceptions, /Largest active exception populations/);
+});

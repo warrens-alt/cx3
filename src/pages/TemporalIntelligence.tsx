@@ -13,6 +13,7 @@ import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { CaptureTurnaroundPanel, OperatingWindowPanel } from '../components/OfferNetControlPanels';
 import { heatmapColors } from '../lib/heatmapColors';
+import { VolumeRateComboChart } from '../components/charts/OperationalVisuals';
 
 type MetricView = 'contactRate' | 'saleRate' | 'activationRate' | 'volume';
 type TimeBucket = { label:string; volume:number; rpc:number; sales:number; activations:number; contactRate:number|null; saleRate:number|null; activationRate:number|null };
@@ -122,6 +123,34 @@ export default function TemporalIntelligence() {
                 </div>
               </div>
             </section>
+
+            {selectedBasis && <div className="cx-analytics-visual-grid">
+              <VolumeRateComboChart
+                title={`${timeBasis} outcomes by hour`}
+                subtitle="Volume is shown as bars; RPC, sale and activation rates are overlaid."
+                data={selectedBasis.byHour}
+                xKey="label"
+                volumeKey="volume"
+                volumeLabel="Leads"
+                rateSeries={[
+                  { key: 'contactRate', label: 'RPC rate' },
+                  { key: 'saleRate', label: 'Sale rate' },
+                  { key: 'activationRate', label: 'Activation rate' },
+                ]}
+              />
+              <VolumeRateComboChart
+                title={`${timeBasis} outcomes by day`}
+                subtitle="Compare observed volume and downstream rates across weekdays."
+                data={selectedBasis.byDay}
+                xKey="label"
+                volumeKey="volume"
+                volumeLabel="Leads"
+                rateSeries={[
+                  { key: 'contactRate', label: 'RPC rate' },
+                  { key: 'saleRate', label: 'Sale rate' },
+                ]}
+              />
+            </div>}
 
             {selectedBasis && ([['Hour',selectedBasis.byHour],['Day',selectedBasis.byDay],['Week',selectedBasis.weekType]] as const).map(([title,rows]) => <section className="cx-command-panel" key={title}><header><div><h2>{timeBasis} by {title.toLowerCase()}</h2><p>RPC / dialled · sales / leads · activations / sales.</p></div></header><div className="cx-performance-table-wrap"><table className="cx-performance-table"><thead><tr><th>{title}</th><th>Leads</th><th>RPC</th><th>RPC rate</th><th>Sales</th><th>Sale rate</th><th>Activations</th><th>Activation rate</th></tr></thead><tbody>{rows.map(r => <tr key={r.label}><th>{r.label}</th><td>{formatTableNumber(r.volume)}</td><td>{formatTableNumber(r.rpc)}</td><td>{formatPercent(r.contactRate)}</td><td>{formatTableNumber(r.sales)}</td><td>{formatPercent(r.saleRate)}</td><td>{formatTableNumber(r.activations)}</td><td>{formatPercent(r.activationRate)}</td></tr>)}</tbody></table></div></section>)}
             {controls.data && <OperatingWindowPanel data={controls.data} />}

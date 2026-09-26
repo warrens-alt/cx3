@@ -32,6 +32,7 @@ import { formatPercent, formatTableNumber } from '../lib/formatters';
 import { statusLabel } from '../lib/statusPresentation';
 import { OperationalEmpty, OperationalError, OverviewSkeleton } from '../components/OperationalState';
 import DeferredOverviewTrend from '../components/DeferredOverviewTrend';
+import { FunnelWaterfall } from '../components/charts/FunnelWaterfall';
 
 const fmt = (value: number | string | null | undefined) => formatTableNumber(value);
 const stageLabel = (name: string) => name === 'RPC' ? 'Contacted' : name;
@@ -170,6 +171,17 @@ export default function ExecutiveOverview() {
             </div>
 
             {data.kpis.fetchedLeads === 0 && <OperationalEmpty title="No leads in this selection">Try a different period or remove a filter. Measured counts remain zero; rates without a population are unavailable.</OperationalEmpty>}
+
+            {data.funnelStages?.length > 1 && <FunnelWaterfall
+              title="Lead-to-activation journey"
+              subtitle={data.funnelLeak ? `Largest measured loss: ${stageLabel(data.funnelLeak.from)} → ${stageLabel(data.funnelLeak.to)} · ${fmt(data.funnelLeak.loss)} leads` : 'Observed lifecycle progression in the current scope.'}
+              steps={data.funnelStages.map(stage => ({
+                label: stageLabel(stage.name),
+                value: stage.volume,
+                rate: stage.transitionRate ?? undefined,
+                dropoff: stage.loss ?? undefined,
+              }))}
+            />}
 
             <div className="cx-command-grid cx-command-grid-attention">
               <section className="cx-command-panel">

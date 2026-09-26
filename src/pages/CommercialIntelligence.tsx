@@ -12,6 +12,7 @@ import {
 } from '../lib/offernetClient';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { formatPercent, formatTableCurrency, formatTableNumber } from '../lib/formatters';
+import { GroupedOutcomeChart, RankedMetricChart } from '../components/charts/OperationalVisuals';
 
 const money = (value: number | null | undefined) => formatTableCurrency(value, 'R');
 
@@ -112,6 +113,30 @@ export default function CommercialIntelligence() {
                 </div>
               )}
 
+              {attribution?.rows?.length ? <div className="cx-analytics-visual-grid">
+                <GroupedOutcomeChart
+                  title="Matched funnel outcomes by attribution key"
+                  subtitle="Operational counts for the approved matching keys. Spend is deliberately not plotted as an outcome count."
+                  data={[...attribution.rows].sort((a, b) => b.fetched - a.fetched).slice(0, 12)}
+                  xKey="key"
+                  series={[
+                    { key: 'fetched', label: 'Fetched' },
+                    { key: 'rpc', label: 'RPC' },
+                    { key: 'sales', label: 'Sales' },
+                    { key: 'activations', label: 'Activations' },
+                  ]}
+                />
+                <RankedMetricChart
+                  title="Recorded revenue by matched key"
+                  subtitle="Source-recorded revenue only; missing values remain unavailable."
+                  data={attribution.rows.filter(row => row.recordedRevenue != null).map(row => ({ key: row.key, revenue: row.recordedRevenue }))}
+                  categoryKey="key"
+                  valueKey="revenue"
+                  valueLabel="Recorded revenue"
+                  valuePrefix="R "
+                  maxItems={12}
+                />
+              </div> : null}
               {attribution?.detailScope?.truncated && <p className="cx-control-note">Showing {attribution.detailScope.displayedKeys} of {attribution.detailScope.totalKeys} keys. Coverage and economics include every key.</p>}
               {attribution?.rows?.length ? (
                 <div className="cx-performance-table-wrap">
