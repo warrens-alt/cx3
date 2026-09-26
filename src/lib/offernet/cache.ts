@@ -1,22 +1,28 @@
 export function buildQueryString(params: Record<string, any>): string {
   const q = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
+  // Stable ordering lets equivalent scopes share one pending request and one cache entry.
+  for (const [key, value] of Object.entries(params).sort(([a], [b]) => a.localeCompare(b))) {
     if (value !== undefined && value !== null && value !== '') {
-      q.set(key, String(value));
+      q.set(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
     }
   }
   const str = q.toString();
   return str ? `?${str}` : '';
 }
 
-interface CacheEntry<T> {
-  data: T;
-  timestamp: number;
+interface CacheEntry<T> { data: T; timestamp: number; }
+interface SharedRequest {
+  promise: Promise<any>;
+  controller: AbortController;
+  consumers: number;
+  settled: boolean;
 }
 
 export const memoryCache = new Map<string, CacheEntry<any>>();
 export const inFlightRequests = new Map<string, Promise<any>>();
-export const CACHE_TTL_MS = 60 * 1000; // 60 seconds
+const requests = new Map<string, SharedRequest>();
+let generation = 0;
+export const CACHE_TTL_MS = 60 * 1000;
 export const CACHE_MAX_ENTRIES = 200;
 
 export function pruneOffernetCache(now = Date.now()) {
@@ -31,47 +37,84 @@ export function pruneOffernetCache(now = Date.now()) {
 }
 
 export function invalidateOffernetCache() {
+  generation++;
   memoryCache.clear();
+  for (const request of requests.values()) request.controller.abort();
+  requests.clear();
   inFlightRequests.clear();
 }
 
-export async function fetchOffernetJson<T>(url: string, forceRefresh = false): Promise<T> {
-  const now = Date.now();
-  pruneOffernetCache(now);
-  if (!forceRefresh && memoryCache.has(url)) {
-    const entry = memoryCache.get(url)!;
-    if (now - entry.timestamp < CACHE_TTL_MS) {
-      return entry.data as T;
-    }
-  }
+function abortError() { return new DOMException('The request was cancelled.', 'AbortError'); }
 
-  if (!forceRefresh && inFlightRequests.has(url)) {
-    return inFlightRequests.get(url) as Promise<T>;
-  }
-
-  const fetchPromise = (async () => {
-    try {
-      const response = await fetch(url, { credentials: 'same-origin' });
-      if (!response.ok) {
-        let errorMsg = `Server request failed with status ${response.status}`;
-        try {
-          const errJson = await response.json();
-          if (errJson.error) errorMsg = errJson.error;
-        } catch {
-          // ignore json parse error
+/** Cancellation belongs to each consumer; shared fetches stop only after the last one leaves. */
+function subscribe<T>(url: string, request: SharedRequest, signal?: AbortSignal): Promise<T> {
+  request.consumers++;
+  return new Promise<T>((resolve, reject) => {
+    let finished = false;
+    const finish = () => {
+      if (finished) return false;
+      finished = true;
+      signal?.removeEventListener('abort', cancel);
+      request.consumers--;
+      return true;
+    };
+    const cancel = () => {
+      if (!finish()) return;
+      reject(abortError());
+      if (!request.settled && request.consumers === 0) {
+        request.controller.abort();
+        if (requests.get(url) === request) {
+          requests.delete(url);
+          inFlightRequests.delete(url);
         }
-        throw new Error(errorMsg);
+      }
+    };
+    signal?.addEventListener('abort', cancel, { once: true });
+    request.promise.then(
+      value => { if (finish()) resolve(value); },
+      error => { if (finish()) reject(error); },
+    );
+    if (signal?.aborted) cancel();
+  });
+}
+
+export async function fetchOffernetJson<T>(url: string, forceRefresh = false, signal?: AbortSignal): Promise<T> {
+  if (signal?.aborted) throw abortError();
+  pruneOffernetCache();
+  const pending = requests.get(url);
+  // Refresh bypasses resolved data, not an identical request that is already running.
+  if (pending) return subscribe<T>(url, pending, signal);
+  if (!forceRefresh && memoryCache.has(url)) return memoryCache.get(url)!.data as T;
+
+  if (forceRefresh) memoryCache.delete(url);
+  const requestGeneration = generation;
+  const request: SharedRequest = { controller: new AbortController(), consumers: 0, settled: false, promise: undefined! };
+  request.promise = Promise.resolve().then(async () => {
+    try {
+      const response = await fetch(url, { credentials: 'same-origin', signal: request.controller.signal });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw Object.assign(new Error(body.error || `Server request failed with status ${response.status}`), { status: response.status });
       }
       const json = await response.json();
+      if (request.controller.signal.aborted) throw abortError();
+      if (json.success === false) throw new Error(json.error || 'The analytics request failed.');
       const result = json.data as T;
-      memoryCache.set(url, { data: result, timestamp: Date.now() });
-      pruneOffernetCache();
+      // A cancelled or invalidated older fetch can never restore stale data or clear its replacement.
+      if (generation === requestGeneration && requests.get(url) === request) {
+        memoryCache.set(url, { data: result, timestamp: Date.now() });
+        pruneOffernetCache();
+      }
       return result;
     } finally {
-      inFlightRequests.delete(url);
+      request.settled = true;
+      if (requests.get(url) === request) {
+        requests.delete(url);
+        inFlightRequests.delete(url);
+      }
     }
-  })();
-
-  inFlightRequests.set(url, fetchPromise);
-  return fetchPromise;
+  });
+  requests.set(url, request);
+  inFlightRequests.set(url, request.promise);
+  return subscribe<T>(url, request, signal);
 }

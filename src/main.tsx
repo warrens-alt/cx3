@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from 'react-error-boundary';
 import App from './App.tsx';
-import { registerVitePreloadRecovery, isChunkLoadError, attemptChunkRecovery } from './lib/chunkRecovery';
+import { isChunkLoadError, attemptChunkRecovery } from './lib/chunkRecovery';
 import './index.css';
 import './styles/product.css';
 
@@ -17,7 +17,8 @@ const queryClient = new QueryClient({
   },
 });
 
-registerVitePreloadRecovery();
+// Route imports own recovery through safeImport. A global preload reload would
+// discard a healthy report when an optional widget chunk fails to load.
 
 function Fallback({ error, resetErrorBoundary }: any) {
   const chunkError = isChunkLoadError(error);

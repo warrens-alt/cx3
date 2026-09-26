@@ -1,0 +1,36 @@
+/* Navigation and keyboard affordances share the existing blue/slate palette. */
+.cx-brand-link { min-width: 0; }
+.cx-brand-icon { flex-shrink: 0; }
+.cx-brand-copy { min-width: 0; }
+.cx-brand-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cx-nav-modal .cx-sidebar { width: 100%; }
+.cx-nav-link[data-current-section=true] { background: #edf4ff; color: #315ead; box-shadow: inset 3px 0 #315ead; }
+.cx-navigation a:focus-visible,
+.cx-sidebar button:focus-visible,
+.cx-sidebar a:focus-visible,
+.cx-topbar button:focus-visible,
+.cx-topbar a:focus-visible,
+.cx-mobile-bottom-nav a:focus-visible,
+.cx-mobile-bottom-nav button:focus-visible,
+.cx-command-modal button:focus-visible { outline: 2px solid #315ead; outline-offset: -3px; border-radius: 5px; }
+.cx-command-input:focus-within { box-shadow: inset 0 -2px #315ead; }
+.cx-command-count { padding: 9px 16px; color: #64748b; background: #f8fafc; font-size: 11px; border-bottom: 1px solid #e8edf3; }
+.cx-command-option { min-height: 50px; }
+.cx-command-option[aria-selected=true] { box-shadow: inset 3px 0 #315ead; }
+.cx-command-option .cx-command-current { flex-shrink: 0; margin-left: 8px; padding: 3px 6px; border: 1px solid #d6e2f2; background: #fff; border-radius: 4px; font-size: 10px; color: #526987; }
+.cx-command-empty-search { padding: 26px 20px; text-align: center; background: #f8fafc; }
+.cx-command-empty-search strong { font-size: 14px; color: #334155; }
+.cx-command-empty-search p { margin: 7px 0 16px; color: #64748b; font-size: 12px; }
+.cx-command-footer kbd { font-family: inherit; font-weight: 600; color: #475569; }
+.cx-route-loading > p { margin: 20px 24px 0; color: #526987; font-size: 13px; }
+@media (max-width: 639px) {
+  .cx-command-input { min-height: 58px; padding-inline: 12px; }
+  .cx-command-input input { font-size: 16px; }
+  .cx-command-modal .cx-icon-button { min-width: 40px; min-height: 40px; }
+  .cx-command-results { max-height: min(420px, 52dvh); }
+  .cx-command-footer { padding: 10px 12px; }
+  .cx-brand { padding-inline: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cx-desktop-sidebar { transition: none; }
+}

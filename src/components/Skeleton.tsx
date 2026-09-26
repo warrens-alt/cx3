@@ -7,12 +7,13 @@ export function Skeleton({ className = '', style, ...props }: React.HTMLAttribut
 }
 
 export function ChartSkeleton() {
+  const heights = [32, 48, 41, 63, 54, 75, 62, 84, 70, 90, 77, 95];
   return (
     <div className="enterprise-card p-6 h-[400px] flex flex-col">
       <Skeleton className="h-4 w-1/4 mb-8" />
       <div className="flex-1 flex items-end gap-2">
         {Array.from({ length: 12 }).map((_, i) => (
-          <Skeleton key={i} className="flex-1 rounded-t-sm" style={{ height: `${Math.max(20, Math.random() * 100)}%` }} />
+          <Skeleton key={i} className="flex-1 rounded-t-sm" style={{ height: `${heights[i]}%` }} />
         ))}
       </div>
     </div>
@@ -44,7 +45,9 @@ export function TableSkeleton() {
 
 export function PageSkeleton() {
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6" role="status" aria-label="Loading page" aria-busy="true">
+      <span className="sr-only">Loading page content…</span>
+      <div aria-hidden="true" className="space-y-6">
       <Skeleton className="h-8 w-1/3" />
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Skeleton className="h-24 rounded-lg" />
@@ -54,7 +57,7 @@ export function PageSkeleton() {
       </div>
       <ChartSkeleton />
       <TableSkeleton />
+      </div>
     </div>
   );
 }
-

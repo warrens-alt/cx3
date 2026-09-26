@@ -65,7 +65,7 @@ export default function LeadExplorerIntelligence() {
     clientId: selectedClient,
     leadId: selectedLead,
     vendor: timelineSelection?.vendor,
-  }, ({ leadId, ...scope }, forceRefresh) => fetchLeadTimeline(leadId, scope, forceRefresh), Boolean(selectedLead));
+  }, ({ leadId, ...scope }, forceRefresh, signal) => fetchLeadTimeline(leadId, scope, forceRefresh, signal), Boolean(selectedLead));
 
   const investigation = useMemo(() => {
     if (!drill) return null;

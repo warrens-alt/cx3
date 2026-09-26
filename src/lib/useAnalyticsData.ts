@@ -6,7 +6,7 @@ import type { Filters } from '../../server/bigquery/filters';
 
 export { fetchAnalyticsJson } from './analyticsRequest';
 
-export interface FetchAnalyticsResult<T> { data: T | null; loading: boolean; error: string | null; metadata?: any; fetching?: boolean; refetch: () => void; }
+export interface FetchAnalyticsResult<T> { data: T | null; loading: boolean; error: string | null; metadata?: any; fetching?: boolean; refetch: () => Promise<void>; }
 interface AnalyticsOptions { enabled?: boolean; contextFilters?: Filters; }
 
 export function useAnalyticsData<T = any>(endpoint: string, extraParams: Record<string, any> = {}, options: AnalyticsOptions = {}): FetchAnalyticsResult<T> {
@@ -37,6 +37,6 @@ export function useAnalyticsData<T = any>(endpoint: string, extraParams: Record<
     loading: options.enabled !== false && !filterError && (workspaceLoading || result.isLoading),
     fetching: enabled && result.isFetching,
     error: filterError || workspaceError || (result.error instanceof Error ? result.error.message : null),
-    refetch: () => { if (enabled) void result.refetch(); },
+    refetch: async () => { if (enabled) await result.refetch(); },
   };
 }

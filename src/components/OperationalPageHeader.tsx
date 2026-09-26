@@ -1,5 +1,6 @@
 import React from 'react';
-import { ShieldCheck } from 'lucide-react';
+import { Info } from 'lucide-react';
+import { statusLabel as readableStatus } from '../lib/statusPresentation';
 
 export default function OperationalPageHeader({
   eyebrow,
@@ -25,10 +26,10 @@ export default function OperationalPageHeader({
       </div>
       <div className="cx-operational-page-actions">
         {actions}
-        <div className="cx-trust-pill" role="note" aria-label={`${statusLabel}: ${status}`}>
-          <ShieldCheck size={15} />
+        <div className="cx-trust-pill" role="note" aria-label={`${statusLabel}: ${readableStatus(status)}`}>
+          <Info size={15} aria-hidden="true" />
           <span>
-            <strong>{status}</strong>
+            <strong>{readableStatus(status)}</strong>
             <small>{statusLabel}</small>
           </span>
         </div>

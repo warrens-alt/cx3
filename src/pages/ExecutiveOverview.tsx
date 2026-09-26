@@ -2,19 +2,19 @@ import { useOperationalData } from '../lib/useOperationalData';
 import React, { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  AlertTriangle,
   ArrowRight,
   CheckCircle2,
   Clock3,
   Database,
   DollarSign,
   GitFork,
+  Info,
+  ChevronDown,
   Search,
   ShieldCheck,
   TrendingDown,
   TrendingUp,
 } from 'lucide-react';
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useFilters, extractOffernetFilters } from '../lib/FilterContext';
 import { useClient } from '../lib/ClientContext';
 import { useAuth } from '../lib/AuthContext';
@@ -25,12 +25,15 @@ import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { OperatingControlStrip } from '../components/OfferNetControlPanels';
 import { formatPercent, formatTableNumber } from '../lib/formatters';
+import { statusLabel } from '../lib/statusPresentation';
+import { OperationalEmpty, OperationalError, OverviewSkeleton } from '../components/OperationalState';
+import DeferredOverviewTrend from '../components/DeferredOverviewTrend';
 
 const fmt = (value: number | string | null | undefined) => formatTableNumber(value);
 type RootMetric = RootCauseData['metric']['id'];
 
 function Change({ value, unit = '%' }: { value: number | null | undefined; unit?: string }) {
-  if (value === null || value === undefined || !Number.isFinite(value)) return <span className="cx-command-change muted">No matched comparison</span>;
+  if (value === null || value === undefined || !Number.isFinite(value)) return null;
   const positive = value > 0;
   const Icon = positive ? TrendingUp : value < 0 ? TrendingDown : ArrowRight;
   return (
@@ -120,7 +123,7 @@ export default function ExecutiveOverview() {
   const lossKeys = ['fetched-to-delivered', 'delivered-to-dialled', 'dialled-to-rpc', 'rpc-to-sales', 'sales-to-activated'];
 
   return (
-    <div className="cx-command-page">
+    <div className="cx-command-page cx-overview-page">
       <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />
 
       <div className="cx-command-content">
@@ -128,20 +131,21 @@ export default function ExecutiveOverview() {
           <div>
             <span className="cx-command-eyebrow">Operational command centre</span>
             <h1>{data?.clientName || 'Offernet Performance'}</h1>
-            <p>What is happening, where the funnel is leaking, why performance changed, and which records need attention.</p>
+            <p>Your lead journey, current bottlenecks, and the next actions to take.</p>
           </div>
           <Link to={scoped('/reports')} className="cx-trust-pill">
-            <ShieldCheck size={15} />
+            <Info size={15} aria-hidden="true" />
             <span>
-              <strong>{data?.validationStatus || 'NOT_VERIFIED'}</strong>
+              <strong>{statusLabel(data?.validationStatus || 'NOT_VERIFIED')}</strong>
               <small>View evidence status</small>
             </span>
             <ArrowRight size={14} />
           </Link>
         </header>
 
-        {error && <div className="cx-command-error" role="alert"><AlertTriangle size={17} /><span>{error}</span></div>}
-        {loading && !data && <div className="cx-command-loading"><div className="cx-command-spinner" /><span>Building operational view…</span></div>}
+        {error && <OperationalError message={error} onRetry={() => { void loadData(true); }} retrying={loading} />}
+        {loading && !data && <OverviewSkeleton />}
+        {loading && data && <p className="cx-view-updating" role="status">Updating this overview…</p>}
 
         {data && (
           <>
@@ -153,7 +157,9 @@ export default function ExecutiveOverview() {
               <Metric label="Sale / fetched" value={formatPercent(data.kpis.leadToSaleRate)} note={`${fmt(data.kpis.saleLeads)} recorded sales`} change={data.comparison?.saleRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('leadToSaleRate') : undefined} />
             </section>
 
-            {controls.data && <OperatingControlStrip data={controls.data} />}
+            <p className="cx-comparison-context"><Clock3 size={13} aria-hidden="true" />{data.comparisonWindow ? `Compared with ${data.comparisonWindow.startDate} – ${data.comparisonWindow.endDate}. Rate changes are percentage points.` : 'Choose a date period to see changes against the previous period.'}</p>
+
+            {data.kpis.fetchedLeads === 0 && <OperationalEmpty title="No leads in this selection">Try a different period or remove a filter. Measured counts remain zero; rates without a population are unavailable.</OperationalEmpty>}
 
             <div className="cx-command-grid cx-command-grid-attention">
               <section className="cx-command-panel">
@@ -164,7 +170,7 @@ export default function ExecutiveOverview() {
                 {data.attention.length ? (
                   <div className="cx-attention-list">
                     {data.attention.map(item => (
-                      <Link key={item.id} to={isAdmin ? recordLink(item.id) : item.path} className="cx-attention-item" data-severity={item.severity}>
+                      <Link key={item.id} to={isAdmin ? recordLink(item.id) : scoped(item.path)} className="cx-attention-item" data-severity={item.severity}>
                         <span className="cx-attention-dot" />
                         <div><strong>{item.title}</strong><small>{item.detail}</small></div>
                         <b>{fmt(item.value)}</b><ArrowRight size={15} />
@@ -189,6 +195,11 @@ export default function ExecutiveOverview() {
                 </dl>
               </section>
             </div>
+
+            <details className="cx-overview-controls">
+              <summary><div><span className="cx-command-section-kicker">Go deeper</span><strong>Operating controls</strong><small>Call effort, coverage and activation backlog</small></div><ChevronDown size={18} aria-hidden="true" /></summary>
+              {controls.error ? <OperationalError message={controls.error instanceof Error ? controls.error.message : 'Operating controls are unavailable.'} onRetry={() => { void controls.refetch(); }} retrying={controls.isFetching} /> : controls.data ? <OperatingControlStrip data={controls.data} /> : <p className="cx-view-updating" role="status">Loading operating controls…</p>}
+            </details>
 
             <section className="cx-command-panel cx-funnel-panel">
               <header>
@@ -226,6 +237,7 @@ export default function ExecutiveOverview() {
               <section className="cx-command-panel">
                 <header><div><span className="cx-command-section-kicker">Backlog</span><h2>Delivered, not yet dialled</h2><p>Age of currently waiting lead deliveries. {isAdmin ? 'Select a bucket to inspect records.' : ''}</p></div></header>
                 <div className="cx-backlog-bars">
+                  {!data.backlog.buckets.length && <OperationalEmpty title="No backlog breakdown available">There are no backlog age groups in the current response.</OperationalEmpty>}
                   {data.backlog.buckets.map(bucket => {
                     const body = <><span>{bucket.bucket}</span><div><i style={{ width: `${(bucket.count / maxBacklog) * 100}%` }} /></div><strong>{fmt(bucket.count)}</strong></>;
                     return isAdmin ? (
@@ -272,19 +284,7 @@ export default function ExecutiveOverview() {
 
               <section className="cx-command-panel">
                 <header><div><span className="cx-command-section-kicker">Trend</span><h2>Daily run-rate</h2><p>Fetched leads and recorded sales across the latest available days in scope.</p></div></header>
-                <div className="cx-command-chart">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={data.dailyTrends}>
-                      <defs><linearGradient id="commandLeads" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3562B3" stopOpacity={0.22} /><stop offset="95%" stopColor="#3562B3" stopOpacity={0.02} /></linearGradient></defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8EDF3" />
-                      <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748B' }} tickLine={false} axisLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: '#64748B' }} tickLine={false} axisLine={false} width={42} />
-                      <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #DDE4ED', fontSize: 12 }} />
-                      <Area type="monotone" dataKey="leads" name="Fetched leads" stroke="#3562B3" strokeWidth={2} fill="url(#commandLeads)" />
-                      <Area type="monotone" dataKey="sales" name="Sales" stroke="#0F766E" strokeWidth={2} fillOpacity={0} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
+                <DeferredOverviewTrend data={data.dailyTrends} />
               </section>
             </div>
 

@@ -1,5 +1,6 @@
 import './styles/reportBrowsing.css';
 import './styles/operations.css';
+import './styles/navigation.css';
 import React, { Suspense, useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, Link } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
@@ -60,6 +61,8 @@ function Shell() {
   const [mobile,setMobile]=useState(false), [sidebar,setSidebar]=useState(true), [command,setCommand]=useState(false);
   const [filtersOpen,setFiltersOpen]=useState(false);
   const [density,setDensity]=useState<TableDensity>(()=>{try{return safeDensity(localStorage.getItem(DENSITY_KEY));}catch{return 'comfortable';}});
+  const pageTitle = ({ '/visuals': 'Visual Workspace', '/vetting': 'Vetting', '/admin': 'Settings', '/validation': 'Validation' } as Record<string, string>)[location.pathname] || PAGE_TITLES[location.pathname] || 'Operational Platform';
+  const searchShortcut = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘ K' : 'Ctrl K';
   
   const operationalRoutes = [
     '/', '/overview', '/funnel', '/speed-to-lead', '/contact-strategy', 
@@ -70,6 +73,7 @@ function Shell() {
   const isOperationalPage = operationalRoutes.includes(location.pathname);
   const evidencePage = ['/reports','/vendors','/exceptions','/reconciliation','/lead-ledger','/admin','/access-control','/users'].includes(location.pathname) || isOperationalPage;
   useEffect(()=>{try{localStorage.setItem(DENSITY_KEY,density);}catch{}},[density]);
+  useEffect(() => { document.title = `${pageTitle} · ${BRAND.name}`; }, [pageTitle]);
   useEffect(()=>{
     setMobile(false);
     setCommand(false);
@@ -88,17 +92,17 @@ function Shell() {
   const openSearch=()=>{setMobile(false);setCommand(true);};
   return <div className="cx-app" data-density={density} data-device={device.type} data-touch={device.isTouch} data-orientation={device.orientation}>
     <a className="cx-skip" href="#main-content">Skip to report content</a>
-    <div className={`cx-desktop-sidebar transition-all duration-300 ease-in-out ${sidebar ? 'w-[224px] opacity-100' : 'w-0 opacity-0 pointer-events-none'}`}>
+    <div id="desktop-navigation" inert={!sidebar} aria-hidden={!sidebar ? true : undefined} className={`cx-desktop-sidebar transition-all duration-300 ease-in-out ${sidebar ? 'w-[224px] opacity-100' : 'w-0 opacity-0 pointer-events-none'}`}>
       <div className="w-[224px] h-full">
-        <Sidebar onSearch={openSearch}/>
+        <Sidebar onSearch={openSearch} searchShortcut={searchShortcut}/>
       </div>
     </div>
-    <Modal open={mobile} onClose={()=>setMobile(false)} label="Navigation" className="cx-nav-modal"><Sidebar onClose={()=>setMobile(false)} onSearch={openSearch}/></Modal>
+    <Modal id="mobile-navigation-dialog" open={mobile} onClose={()=>setMobile(false)} label="Navigation" className="cx-nav-modal"><Sidebar onClose={()=>setMobile(false)} onSearch={openSearch} searchShortcut={searchShortcut}/></Modal>
     <div className="cx-workarea">
       <header className="cx-topbar">
-        <button type="button" className="cx-icon-button cx-mobile-menu" aria-label="Open navigation" onClick={()=>setMobile(true)}><Menu size={20}/></button>
-        <button type="button" className="cx-icon-button cx-desktop-toggle" aria-label={sidebar?'Collapse navigation':'Expand navigation'} aria-expanded={sidebar} onClick={()=>setSidebar(old=>!old)}>{sidebar?<PanelLeftClose size={18}/>:<PanelLeftOpen size={18}/>}</button>
-        <div className="cx-breadcrumb"><span>{BRAND.name}</span><span aria-hidden="true">/</span><strong>{(location.pathname==='/visuals'?'Visual Workspace':location.pathname==='/vetting'?'Vetting':PAGE_TITLES[location.pathname])||'Operational Platform'}</strong></div>
+        <button type="button" className="cx-icon-button cx-mobile-menu" aria-label="Open navigation" aria-haspopup="dialog" aria-expanded={mobile} aria-controls={mobile ? 'mobile-navigation-dialog' : undefined} onClick={()=>setMobile(true)}><Menu size={20} aria-hidden="true"/></button>
+        <button type="button" className="cx-icon-button cx-desktop-toggle" aria-label={sidebar?'Collapse navigation':'Expand navigation'} title={sidebar?'Collapse navigation':'Expand navigation'} aria-controls="desktop-navigation" aria-expanded={sidebar} onClick={()=>setSidebar(old=>!old)}>{sidebar?<PanelLeftClose size={18} aria-hidden="true"/>:<PanelLeftOpen size={18} aria-hidden="true"/>}</button>
+        <div className="cx-breadcrumb" aria-label="Current page"><span>{BRAND.name}</span><span aria-hidden="true">/</span><strong title={pageTitle}>{pageTitle}</strong></div>
         <div className="cx-topbar-actions">
           {isAdmin && (
             <Link
@@ -113,7 +117,7 @@ function Shell() {
               <span className="hidden md:inline">Access Control</span>
             </Link>
           )}
-          <button type="button" className="cx-search-trigger" aria-label="Search pages" onClick={openSearch}><Search size={16}/><span>Find a section</span><kbd>⌘ K</kbd></button>
+          <button type="button" className="cx-search-trigger" aria-label="Search pages" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title={`Find a section (${searchShortcut})`} onClick={openSearch}><Search size={16} aria-hidden="true"/><span>Find a section</span><kbd aria-hidden="true">{searchShortcut}</kbd></button>
           <button type="button" className="cx-icon-button hidden sm:inline-flex" aria-label={density==='comfortable'?'Use compact table spacing':'Use comfortable table spacing'} aria-pressed={density==='compact'} onClick={()=>setDensity(old=>old==='compact'?'comfortable':'compact')}><Columns3 size={18}/></button>
           {!isOperationalPage && (
             <label className="cx-workspace-select">
@@ -128,7 +132,7 @@ function Shell() {
       </header>
       <main id="main-content" tabIndex={-1} className="cx-main pb-16 lg:pb-0">
         {clientError && <section className="cx-scope-error" role="alert"><AlertCircle size={22}/><div><h1>Workspace access is unavailable</h1><p>{clientError}</p><p>No fallback tenant or substitute analytical data is being displayed.</p><div className="flex flex-wrap gap-3"><button type="button" className="cx-button-primary" onClick={retryClient}>Retry workspace access</button><a className="cx-button-secondary" href={DEMO_ENTRY_URL}>View demo data</a></div><p>The demo is a separate, synthetic workspace. It does not access your live data.</p></div></section>}
-        {clientLoading && <p className="cx-filter-loading" role="status">Connecting to BigQuery warehouse…</p>}
+        {clientLoading && <p className="cx-filter-loading" role="status">Loading your workspace access…</p>}
         {clientReady && !evidencePage && <div className="cx-legacy-bar"><div role="note" className="flex items-center gap-2 flex-wrap"><span className="cx-legacy-badge"><AlertCircle size={12} aria-hidden="true"/>Legacy Exploration</span><span className="text-slate-600 text-xs hidden sm:inline">Metrics are exploratory and not independently reconciled.</span><Link to="/reports">Evidence Reports <ArrowRight size={13}/></Link></div>
           <button type="button" className={`cx-button-secondary ${filtersOpen ? 'border-[#3562B3] bg-[#EDF5FC] text-[#315EAD]' : ''}`} aria-expanded={filtersOpen} aria-controls="legacy-filters" onClick={()=>setFiltersOpen(old=>!old)}><SlidersHorizontal size={14}/><span>Report filters</span></button>
           <AppliedScope/>
@@ -153,7 +157,7 @@ function Shell() {
             );
           }}
         >
-          {clientReady && filterError ? <section className="cx-scope-error" role="alert"><AlertCircle size={22}/><div><h1>Reporting selection needs attention</h1><p>{filterError}</p><p>No analytical request was sent with an invalid selection.</p><button type="button" className="cx-button-primary" onClick={resetScope}>Reset reporting scope</button></div></section> : <Suspense fallback={<PageSkeleton/>}>
+          {clientReady && filterError ? <section className="cx-scope-error" role="alert"><AlertCircle size={22}/><div><h1>Reporting selection needs attention</h1><p>{filterError}</p><p>No analytical request was sent with an invalid selection.</p><button type="button" className="cx-button-primary" onClick={resetScope}>Reset reporting scope</button></div></section> : <Suspense fallback={<div className="cx-route-loading"><p role="status">Opening {pageTitle}…</p><div aria-hidden="true"><PageSkeleton/></div></div>}>
             {clientReady && <Routes>
               {/* PRIMARY OFFERNET OPERATIONAL INTELLIGENCE PLATFORM ROUTES */}
               <Route path="/" element={<ExecutiveOverview key={selectedClient} />} />
@@ -210,7 +214,7 @@ function Shell() {
           </Suspense>}
         </ErrorBoundary>
       </main>
-      <MobileBottomNav onOpenMenu={()=>setMobile(true)} />
+      <MobileBottomNav onOpenMenu={()=>setMobile(true)} menuOpen={mobile} />
     </div>
     {command && <Suspense fallback={<Modal open label="Loading search" onClose={()=>setCommand(false)}><div className="p-6"><p role="status">Loading navigation…</p><button className="cx-button-secondary mt-4" onClick={()=>setCommand(false)}>Close</button></div></Modal>}><CommandPalette isOpen onClose={()=>setCommand(false)}/></Suspense>}
   </div>;

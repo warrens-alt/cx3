@@ -7,7 +7,7 @@ import { isCurrentPage, navigationTarget } from '../lib/presentation';
 import { useClient } from '../lib/ClientContext';
 import { useAuth } from '../lib/AuthContext';
 
-export default function Sidebar({ onClose, onSearch }: { onClose?: () => void; onSearch: () => void }) {
+export default function Sidebar({ onClose, onSearch, searchShortcut = 'Ctrl K' }: { onClose?: () => void; onSearch: () => void; searchShortcut?: string }) {
   const location = useLocation();
   const { clientConfig } = useClient();
   const { user, profile, isAdmin, signOut } = useAuth();
@@ -34,7 +34,7 @@ export default function Sidebar({ onClose, onSearch }: { onClose?: () => void; o
       <div className="cx-brand">
         <Link to="/" onClick={onClose} aria-label={`${BRAND.name} home`} className="cx-brand-link">
           <span className="cx-brand-icon"><Activity size={18} aria-hidden="true" /></span>
-          <span>
+          <span className="cx-brand-copy">
             <strong>{BRAND.name}</strong>
             <small>Operational intelligence</small>
           </span>
@@ -46,10 +46,10 @@ export default function Sidebar({ onClose, onSearch }: { onClose?: () => void; o
         )}
       </div>
 
-      <button type="button" onClick={onSearch} className="cx-sidebar-search">
-        <Search size={15} />
+      <button type="button" onClick={onSearch} className="cx-sidebar-search" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K">
+        <Search size={15} aria-hidden="true" />
         <span>Find a section</span>
-        <kbd>⌘ K</kbd>
+        <kbd aria-hidden="true">{searchShortcut}</kbd>
       </button>
 
       <nav aria-label="Main navigation" className="cx-navigation cx-navigation-simple">
@@ -60,11 +60,15 @@ export default function Sidebar({ onClose, onSearch }: { onClose?: () => void; o
               {group.items.map(item => {
                 const Icon = item.icon;
                 const active = isCurrentPage(location.pathname, item.path, location.search);
+                const currentSection = (item.path === '/speed-to-lead' && ['/contact-strategy', '/cli-performance', '/agent-performance', '/temporal'].includes(location.pathname))
+                  || (item.path === '/vendor-quality' && ['/sales-activation', '/campaigns', '/commercial'].includes(location.pathname))
+                  || (item.path === '/reports' && ['/vendors', '/reconciliation', '/data-integrity'].includes(location.pathname));
                 return (
                   <li key={`${group.title}-${item.name}-${item.path}`}>
                     <Link
                       to={navigationTarget(item.path, location.pathname, location.search)}
-                      aria-current={active ? 'page' : undefined}
+                      aria-current={active ? 'page' : currentSection ? 'location' : undefined}
+                      data-current-section={currentSection || undefined}
                       onClick={onClose}
                       className="cx-nav-link"
                     >
@@ -80,11 +84,11 @@ export default function Sidebar({ onClose, onSearch }: { onClose?: () => void; o
       </nav>
 
       <div className="cx-sidebar-footer">
-        <div className="cx-sidebar-health">
-          <Database size={13} />
+        <div className="cx-sidebar-health" role="status">
+          <Database size={13} aria-hidden="true" />
           <div>
             <strong>{warehouseConnected === null ? 'Checking warehouse' : warehouseConnected ? 'Warehouse connected' : 'Warehouse unavailable'}</strong>
-            <small>{warehouseConnected === false ? 'Operational data may be unavailable' : 'Live operational source'}</small>
+            <small>{warehouseConnected === null ? 'Confirming source availability' : warehouseConnected === false ? 'Operational data may be unavailable' : 'Live operational source'}</small>
           </div>
           <span data-state={warehouseConnected === null ? 'checking' : warehouseConnected ? 'connected' : 'unavailable'} />
         </div>

@@ -24,9 +24,9 @@ export default function CommercialIntelligence() {
     startDate: startDate || undefined,
     endDate: endDate || undefined,
     ...extractOffernetFilters(filters),
-  }, async (scope, forceRefresh) => Promise.all([
-    fetchCommercial(scope, forceRefresh),
-    fetchMarketingAttribution(scope, forceRefresh).catch(err => ({
+  }, async (scope, forceRefresh, signal) => Promise.all([
+    fetchCommercial(scope, forceRefresh, signal),
+    fetchMarketingAttribution(scope, forceRefresh, signal).catch(err => ({
       status: 'UNAVAILABLE',
       reason: err?.message || 'Attribution unavailable',
       rows: [],

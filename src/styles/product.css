@@ -363,7 +363,8 @@
 .cx-command-metrics {
   display: grid;
   grid-template-columns: repeat(5,minmax(0,1fr));
-  background: #fff;
+  background: #E6EBF1;
+  gap: 1px;
   border: 1px solid #DDE4ED;
   border-radius: 12px;
   overflow: hidden;
@@ -372,7 +373,7 @@
 .cx-command-metric {
   min-width: 0;
   padding: 16px 17px 14px;
-  border-right: 1px solid #E6EBF1;
+  background: #fff;
 }
 .cx-command-metric:last-child { border-right: 0; }
 .cx-command-metric>span {
@@ -396,14 +397,15 @@
   min-height: 30px;
   margin-top: 9px;
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 5px;
 }
 .cx-command-metric small {
-  color: #79879A;
-  font-size: 10.5px;
-  line-height: 1.35;
+  color: #64748B;
+  font-size: 11.5px;
+  line-height: 1.45;
 }
 .cx-command-change {
   display: inline-flex;
@@ -759,7 +761,6 @@
   .cx-scopebar-actions { margin-left: auto; }
   .cx-command-metrics { grid-template-columns: repeat(3,minmax(0,1fr)); }
   .cx-command-metric:nth-child(3) { border-right: 0; }
-  .cx-command-metric:nth-child(n+4) { border-top: 1px solid #E6EBF1; }
   .cx-command-grid-attention,
   .cx-command-grid-backlog,
   .cx-command-grid-change { grid-template-columns: 1fr; }
@@ -778,10 +779,10 @@
   .cx-command-hero { flex-direction: column; gap: 12px; }
   .cx-trust-pill { width: 100%; }
   .cx-command-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
-  .cx-command-metric { border-right: 1px solid #E6EBF1; border-top: 1px solid #E6EBF1; padding: 14px; }
+  .cx-command-metric { padding: 14px; }
   .cx-command-metric:nth-child(-n+2) { border-top: 0; }
   .cx-command-metric:nth-child(even) { border-right: 0; }
-  .cx-command-metric:last-child { grid-column: 1/-1; border-right: 0; }
+  .cx-command-metric:last-child:nth-child(odd) { grid-column: 1/-1; }
   .cx-command-metric>strong { font-size: 22px; }
   .cx-command-panel>header { padding: 14px; flex-wrap: wrap; }
   .cx-funnel-strip { padding: 14px; }
@@ -816,7 +817,7 @@
   width:100%;
   min-width:900px;
   border-collapse:collapse;
-  font-size:11px;
+  font-size:12px;
   font-variant-numeric:tabular-nums;
 }
 .cx-performance-table thead { background:#FAFBFD; color:#66768A; }
@@ -828,7 +829,7 @@
   white-space:nowrap;
 }
 .cx-performance-table thead th {
-  font-size:9.5px;
+  font-size:10.5px;
   text-transform:uppercase;
   letter-spacing:.05em;
   font-weight:750;
@@ -1959,7 +1960,7 @@
 .cx-window-grid dt { color:#8A97A9; font-size:8px; text-transform:uppercase; }
 .cx-window-grid dd { margin-top:2px; color:#34445B; font-size:10.5px; font-weight:700; font-variant-numeric:tabular-nums; }
 
-.cx-agent-metrics,
+.cx-agent-metrics { grid-template-columns:repeat(4,minmax(0,1fr)); }
 .cx-routing-metrics { grid-template-columns:repeat(5,minmax(0,1fr)); }
 .cx-table-toolbar {
   min-height:48px;
@@ -2286,4 +2287,68 @@
   .cx-turnaround-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .cx-hour-flow-list>div { grid-template-columns:40px minmax(90px,1fr); }
   .cx-hour-flow-list>div>small { grid-column:1/-1; text-align:left; padding-bottom:3px; }
+}
+
+/* Readable operational states and progressive detail. */
+.cx-comparison-context { display:flex; align-items:center; gap:7px; margin-top:-8px; color:#64748B; font-size:11.5px; line-height:1.5; }
+.cx-comparison-context svg { flex-shrink:0; }
+.cx-overview-controls { border:1px solid #DDE4ED; border-radius:12px; background:#fff; overflow:hidden; }
+.cx-overview-controls>summary { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:15px 18px; list-style:none; }
+.cx-overview-controls>summary::-webkit-details-marker { display:none; }
+.cx-overview-controls>summary strong { display:block; margin-top:3px; color:#172033; font-size:14px; }
+.cx-overview-controls>summary small { display:block; margin-top:3px; color:#64748B; font-size:12px; }
+.cx-overview-controls>summary>svg { transition:transform .15s; color:#64748B; }
+.cx-overview-controls[open]>summary { border-bottom:1px solid #E6EBF1; }
+.cx-overview-controls[open]>summary>svg { transform:rotate(180deg); }
+.cx-overview-controls .cx-control-metrics { border:0; border-radius:0; box-shadow:none; }
+.cx-overview-controls .cx-control-metrics .cx-command-metric>strong { font-size:22px; }
+.cx-feedback { display:flex; align-items:flex-start; gap:12px; padding:20px; border-radius:10px; }
+.cx-feedback>svg { flex-shrink:0; margin-top:2px; }
+.cx-feedback>div { min-width:0; flex:1; }
+.cx-feedback h2,.cx-feedback h3 { color:#334155; font-size:14px; font-weight:650; }
+.cx-feedback p { max-width:680px; margin-top:5px; color:#64748B; font-size:12px; line-height:1.6; overflow-wrap:anywhere; }
+.cx-feedback small { display:block; margin-top:7px; color:#64748B; font-size:11px; }
+.cx-feedback-error { border:1px solid #F4C7C7; background:#FFF9F9; color:#B45353; }
+.cx-feedback-empty { background:#F8FAFC; color:#94A3B8; }
+.cx-command-panel .cx-feedback-empty { margin:14px; }
+.cx-view-updating { padding:10px 14px; color:#315EAD; font-size:12px; background:#EFF6FF; border-radius:8px; }
+.cx-overview-skeleton.cx-command-loading { display:block; padding:0; background:transparent; border:0; }
+.cx-skeleton-metrics { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); border:1px solid #E2E8F0; border-radius:12px; overflow:hidden; background:#fff; }
+.cx-skeleton-metrics>div { min-height:132px; padding:20px; border-right:1px solid #F1F5F9; }
+.cx-skeleton-metrics i,.cx-skeleton-metrics b { display:block; width:75%; height:10px; background:#E8EDF4; border-radius:4px; }
+.cx-skeleton-metrics b { width:55%; height:28px; margin:14px 0; }
+.cx-skeleton-panels { display:grid; grid-template-columns:1.6fr 1fr; gap:18px; margin-top:20px; }
+.cx-skeleton-panels>div { min-height:260px; background:linear-gradient(#fff 64px,#EDF1F5 65px,#fff 66px); border:1px solid #E2E8F0; border-radius:12px; }
+.cx-skeleton-metrics i,.cx-skeleton-metrics b { animation:cx-skeleton-fade 1.8s ease-in-out infinite alternate; }
+@keyframes cx-skeleton-fade { to { opacity:.45; } }
+.cx-chart-legend { display:flex; flex-wrap:wrap; align-items:center; gap:18px; padding:15px 18px 0; font-size:11.5px; color:#52657D; }
+.cx-chart-legend span { display:flex; align-items:center; gap:6px; }
+.cx-chart-legend i { width:14px; height:3px; border-radius:2px; background:#2563EB; }
+.cx-chart-legend span:nth-child(2) i { background:#0F766E; }
+.cx-trend-placeholder { height:100%; display:grid; place-items:center; color:#64748B; font-size:12px; background:repeating-linear-gradient(to bottom,transparent,transparent 59px,#F1F5F9 60px); }
+.cx-trend-data { border-top:1px solid #EDF1F5; }
+.cx-trend-data>summary { padding:12px 18px; color:#315EAD; font-size:12px; font-weight:600; }
+.cx-trend-data .cx-performance-table { min-width:0; }
+.cx-trend-data .cx-performance-table-wrap { max-height:280px; }
+.cx-performance-table thead th { position:sticky; top:0; z-index:2; background:#F8FAFC; }
+.cx-performance-table :is(thead,tbody) th:first-child { position:sticky; left:0; background:#fff; box-shadow:1px 0 0 #E6EBF1; }
+.cx-performance-table thead th:first-child { z-index:3; background:#F8FAFC; }
+[data-density=compact] .cx-performance-table :is(th,td) { padding:7px 10px; }
+[data-density=compact] .cx-command-metric { padding:12px 14px; }
+.cx-trust-pill strong { letter-spacing:0; font-size:11.5px; }
+@media(max-width:760px) {
+  .cx-command-hero .cx-trust-pill { width:auto; min-width:0; align-self:flex-start; padding:7px 10px; }
+  .cx-operational-page-actions { align-self:flex-start; }
+  .cx-feedback { padding:15px; flex-wrap:wrap; gap:10px; }
+  .cx-feedback>button { margin-left:30px; min-height:40px; }
+  .cx-skeleton-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .cx-skeleton-metrics>div:last-child { grid-column:1/-1; }
+  .cx-skeleton-panels { grid-template-columns:1fr; }
+  .cx-overview-controls>summary { padding:13px 14px; }
+  .cx-command-metric>strong { line-height:1.1; overflow-wrap:anywhere; }
+  .cx-performance-table :is(th,td) { padding:12px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .cx-skeleton-metrics i,.cx-skeleton-metrics b { animation:none; }
+  .cx-overview-controls>summary>svg { transition:none; }
 }
