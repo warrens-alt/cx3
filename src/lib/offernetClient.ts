@@ -176,7 +176,7 @@ export interface VendorQualityData {
     invalidRate: number;
     revenue: number;
     directCost: number | null;
-    deliveryCost: number;
+    deliveryCost: number | null;
     contribution: number | null;
     marginPct: number | null;
   }>;
@@ -250,20 +250,22 @@ export interface SalesActivationData {
 }
 
 export interface CommercialData {
+  status: string;
+  reason: string;
   baseline: {
     volume: number;
     cpl: number | null;
     cpc: number | null;
     conversionRate: number;
-    revenuePerSale: number;
-    fixedOverhead: number;
+    revenuePerSale: number | null;
+    fixedOverhead: number | null;
     revenue: number;
     totalCost: number | null;
     contribution: number | null;
     marginPct: number | null;
     costPerSale: number | null;
     costPerActivation: number | null;
-    breakEvenVolume: number;
+    breakEvenVolume: number | null;
   };
   currency: string;
   pAndLBreakdown: Array<{
@@ -321,8 +323,8 @@ export interface CampaignData {
     clicks: number;
     ctr: number;
     leads: number;
-    cpc: number;
-    cpl: number;
+    cpc: number | null;
+    cpl: number | null;
   }>;
 }
 
