@@ -300,3 +300,36 @@ test('funnel source and grade views show delivery-to-sale progression', () => {
   assert.match(funnel, /<dt>RPC<\/dt>/);
   assert.match(funnel, /<dt>Sale<\/dt>/);
 });
+
+
+test('record-level audit UI reflects admin-only access', () => {
+  const drawer = read('src/components/DataAuditDrawer.tsx');
+  assert.match(drawer, /useAuth/);
+  assert.match(drawer, /enabled: isOpen && isAdmin/);
+  assert.match(drawer, /Record access is restricted/);
+});
+
+test('CLI mutation controls are admin-only and production sample is hidden', () => {
+  const cli = read('src/pages/CliPerformance.tsx');
+  assert.match(cli, /isAdmin &&/);
+  assert.match(cli, /import\.meta\.env\.DEV/);
+  assert.match(cli, /Import report/);
+  assert.match(cli, /Ask an administrator to configure a CLI source/);
+});
+
+test('Campaigns surfaces contracted reach and outbound-click analytics', () => {
+  const page = read('src/pages/CampaignIntelligence.tsx');
+  const client = read('src/lib/offernetClient.ts');
+  assert.match(page, /Reach, outbound traffic & lead capture/);
+  assert.match(page, /Outbound CTR/);
+  assert.match(page, /Click → lead/);
+  assert.match(client, /outboundClicks: number \| null/);
+  assert.match(client, /clickToLeadRate: number \| null/);
+});
+
+test('frontend analytics cache is bounded and prunes stale entries', () => {
+  const client = read('src/lib/offernetClient.ts');
+  assert.match(client, /CACHE_MAX_ENTRIES = 200/);
+  assert.match(client, /function pruneOffernetCache/);
+  assert.match(client, /memoryCache\.delete/);
+});
