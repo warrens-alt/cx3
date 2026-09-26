@@ -162,6 +162,8 @@ export interface ContactStrategyData {
 }
 
 export interface VendorQualityData {
+  commercialStatus?: string;
+  commercialReason?: string;
   vendors: Array<{
     vendor: string;
     leads: number;
