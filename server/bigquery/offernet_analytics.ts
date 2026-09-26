@@ -354,6 +354,7 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
       SELECT
         *,
         TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) AS delivery_to_dial_sec,
+        TIMESTAMP_DIFF(first_call_ts, fetched_ts, SECOND) AS capture_to_dial_sec,
         CASE
           WHEN fetched_ts IS NULL THEN NULL
           WHEN CAST(FORMAT_TIMESTAMP('%u', fetched_ts, @tenantTimezone) AS INT64) NOT IN UNNEST(@operatingWorkdays) THEN TRUE
@@ -409,6 +410,13 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
         COUNTIF(is_weekend) AS weekend_leads,
         COUNTIF(is_delivered AND is_dialled AND delivery_to_dial_sec BETWEEN 0 AND 900) AS sla_15m_leads,
         COUNTIF(is_delivered AND is_dialled AND delivery_to_dial_sec BETWEEN 0 AND 3600) AS sla_60m_leads,
+        COUNTIF(is_delivered AND NOT is_dialled) AS awaiting_first_dial,
+        MAX(CASE WHEN is_delivered AND NOT is_dialled AND first_delivery_ts IS NOT NULL
+          THEN TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), first_delivery_ts, SECOND) END) AS oldest_delivery_wait_sec,
+        APPROX_QUANTILES(CASE WHEN is_dialled AND capture_to_dial_sec >= 0 THEN capture_to_dial_sec END, 100)[OFFSET(50)] AS capture_to_dial_median_sec,
+        APPROX_QUANTILES(CASE WHEN is_dialled AND capture_to_dial_sec >= 0 THEN capture_to_dial_sec END, 100)[OFFSET(90)] AS capture_to_dial_p90_sec,
+        COUNTIF(is_dialled AND capture_to_dial_sec BETWEEN 0 AND 900) AS capture_sla_15m_leads,
+        COUNTIF(is_dialled AND capture_to_dial_sec BETWEEN 0 AND 3600) AS capture_sla_60m_leads,
         COUNTIF(is_sale AND NOT is_activated AND sale_ts IS NOT NULL AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), sale_ts, DAY) > 14) AS activation_backlog_14d,
         COUNTIF(is_after_hours AND is_rpc) AS after_hours_rpc,
         COUNTIF(NOT is_after_hours AND is_rpc) AS operating_hours_rpc,
@@ -453,6 +461,44 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
       WHERE activation_age_bucket IS NOT NULL
       GROUP BY activation_age_bucket
     ),
+    hourly_flow AS (
+      SELECT
+        hour_of_day AS hour,
+        SUM(captured) AS captured,
+        SUM(first_dials) AS first_dials
+      FROM (
+        SELECT
+          CAST(FORMAT_TIMESTAMP('%H', fetched_ts, @tenantTimezone) AS INT64) AS hour_of_day,
+          COUNT(*) AS captured,
+          0 AS first_dials
+        FROM classified
+        WHERE fetched_ts IS NOT NULL
+        GROUP BY hour_of_day
+        UNION ALL
+        SELECT
+          CAST(FORMAT_TIMESTAMP('%H', first_call_ts, @tenantTimezone) AS INT64) AS hour_of_day,
+          0 AS captured,
+          COUNT(*) AS first_dials
+        FROM classified
+        WHERE first_call_ts IS NOT NULL
+        GROUP BY hour_of_day
+      )
+      GROUP BY hour_of_day
+    ),
+    daily_turnaround AS (
+      SELECT
+        FORMAT_DATE('%Y-%m-%d', DATE(fetched_ts, @tenantTimezone)) AS date,
+        COUNT(*) AS leads,
+        COUNTIF(is_dialled) AS dialled,
+        COUNTIF(NOT is_dialled) AS undialled,
+        APPROX_QUANTILES(CASE WHEN is_dialled AND capture_to_dial_sec >= 0 THEN capture_to_dial_sec END, 100)[OFFSET(50)] AS median_sec,
+        APPROX_QUANTILES(CASE WHEN is_dialled AND capture_to_dial_sec >= 0 THEN capture_to_dial_sec END, 100)[OFFSET(90)] AS p90_sec,
+        COUNTIF(is_dialled AND capture_to_dial_sec BETWEEN 0 AND 900) AS within_15m,
+        COUNTIF(is_dialled AND capture_to_dial_sec BETWEEN 0 AND 3600) AS within_60m
+      FROM classified
+      WHERE fetched_ts IS NOT NULL
+      GROUP BY date
+    ),
     vendor_controls AS (
       SELECT
         vendor,
@@ -476,6 +522,8 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
       ARRAY(SELECT AS STRUCT * FROM attempts ORDER BY bucket_order) AS attempts,
       ARRAY(SELECT AS STRUCT * FROM sla ORDER BY sort_order) AS sla_bands,
       ARRAY(SELECT AS STRUCT * FROM activation_age) AS activation_ageing,
+      ARRAY(SELECT AS STRUCT * FROM hourly_flow ORDER BY hour) AS hourly_flow,
+      ARRAY(SELECT AS STRUCT * FROM daily_turnaround ORDER BY date) AS daily_turnaround,
       ARRAY(SELECT AS STRUCT * FROM vendor_controls) AS vendor_controls
     FROM summary
   `;
@@ -487,6 +535,9 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
   const delivered = Number(row.delivered_leads || 0);
   const afterHours = Number(row.after_hours_leads || 0);
   const operatingHours = Number(row.operating_hours_leads || 0);
+  const awaitingFirstDial = Number(row.awaiting_first_dial || 0);
+  const captureMedianSec = row.capture_to_dial_median_sec === null || row.capture_to_dial_median_sec === undefined ? null : Number(row.capture_to_dial_median_sec);
+  const captureP90Sec = row.capture_to_dial_p90_sec === null || row.capture_to_dial_p90_sec === undefined ? null : Number(row.capture_to_dial_p90_sec);
 
   const attemptBuckets = (row.attempts || []).map((item: any) => {
     const leads = Number(item.leads || 0);
@@ -558,6 +609,12 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
       weekendSharePct: total > 0 ? Number(((Number(row.weekend_leads || 0) / total) * 100).toFixed(1)) : 0,
       sla15Rate: delivered > 0 ? Number(((Number(row.sla_15m_leads || 0) / delivered) * 100).toFixed(1)) : 0,
       sla60Rate: delivered > 0 ? Number(((Number(row.sla_60m_leads || 0) / delivered) * 100).toFixed(1)) : 0,
+      awaitingFirstDial,
+      oldestDeliveryWait: formatDuration(row.oldest_delivery_wait_sec === null || row.oldest_delivery_wait_sec === undefined ? null : Number(row.oldest_delivery_wait_sec)),
+      captureToDialMedian: formatDuration(captureMedianSec),
+      captureToDialP90: formatDuration(captureP90Sec),
+      captureWithin15mRate: total > 0 ? Number(((Number(row.capture_sla_15m_leads || 0) / total) * 100).toFixed(1)) : 0,
+      captureWithin60mRate: total > 0 ? Number(((Number(row.capture_sla_60m_leads || 0) / total) * 100).toFixed(1)) : 0,
       activationBacklog14d: Number(row.activation_backlog_14d || 0),
       afterHoursRpcRate: afterHours > 0 ? Number(((Number(row.after_hours_rpc || 0) / afterHours) * 100).toFixed(1)) : 0,
       operatingHoursRpcRate: operatingHours > 0 ? Number(((Number(row.operating_hours_rpc || 0) / operatingHours) * 100).toFixed(1)) : 0,
@@ -567,6 +624,24 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
     attemptBuckets,
     slaBands,
     activationAgeing: row.activation_ageing || [],
+    hourlyFlow: (row.hourly_flow || []).map((item: any) => ({
+      hour: Number(item.hour || 0),
+      captured: Number(item.captured || 0),
+      firstDials: Number(item.first_dials || 0),
+    })),
+    dailyTurnaround: (row.daily_turnaround || []).map((item: any) => {
+      const leads = Number(item.leads || 0);
+      return {
+        date: item.date,
+        leads,
+        dialled: Number(item.dialled || 0),
+        undialled: Number(item.undialled || 0),
+        median: formatDuration(item.median_sec === null ? null : Number(item.median_sec)),
+        p90: formatDuration(item.p90_sec === null ? null : Number(item.p90_sec)),
+        within15mRate: leads > 0 ? Number(((Number(item.within_15m || 0) / leads) * 100).toFixed(1)) : 0,
+        within60mRate: leads > 0 ? Number(((Number(item.within_60m || 0) / leads) * 100).toFixed(1)) : 0,
+      };
+    }),
     vendorControls,
     dataCompleteness: {
       missingSource: Number(row.missing_source || 0),
@@ -584,6 +659,8 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
       callCount: 'Call-count controls use the maximum recorded HLC/vendor total_calls value per lead. They are descriptive and are not event-level attempt attribution.',
       vendor: 'Vendor controls use the first recorded delivered vendor per lead to keep each lead exclusive in the comparison.',
       operatingHours: 'Operating-hours classification uses the tenant timezone and configured operating window.',
+      captureTurnaround: 'Capture-to-first-dial measures lead fetched/API-entry time to the first recorded dial. Delivery-to-first-dial remains a separate downstream handoff metric.',
+      realtimeDialler: 'Live agent state, hopper priority, dial level, drop rate and hopper-reset events require the VICIdial real-time/API source and are not inferred from historical BigQuery rows.',
     },
     validationStatus: 'NOT_VERIFIED',
   };
