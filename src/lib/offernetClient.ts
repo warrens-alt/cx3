@@ -262,6 +262,12 @@ export interface SpeedToLeadData {
     saleRate: number;
     avgTimeToFirstDial: string;
   }>;
+  operatingContext?: {
+    timezone: string;
+    start: string;
+    end: string;
+    workdays: number[];
+  };
 }
 
 export interface ContactStrategyData {
@@ -286,6 +292,17 @@ export interface ContactStrategyData {
     marginalRpcYield: string;
     costBenefitRatio: string;
   }>;
+  summary?: {
+    totalLeads: number;
+    zeroCallLeads: number;
+    oneCallLeads: number;
+    singleAttemptSharePct: number;
+    multiAttemptLeads: number;
+    multiAttemptSharePct: number;
+    fivePlusCallLeads: number;
+    fivePlusNoRpcLeads: number;
+  };
+  methodology?: string;
   noAnswerAnalysis: {
     status: string;
     reason: string;
@@ -370,6 +387,19 @@ export interface TemporalData {
     saleIndex: string;
     verdict: string;
   }>;
+  operatingComparison?: Array<{
+    type: string;
+    leads: number;
+    contactRate: number;
+    saleRate: number;
+  }>;
+  operatingContext?: {
+    timezone: string;
+    start: string;
+    end: string;
+    workdays: number[];
+  };
+  timeDimension?: string;
 }
 
 export interface SalesActivationData {
