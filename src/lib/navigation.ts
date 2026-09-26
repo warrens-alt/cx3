@@ -41,4 +41,6 @@ export const SECONDARY_DESTINATIONS = [
   { name: 'Spend & Commercial', path: '/commercial' },
   { name: 'Vendor Evidence', path: '/vendors' },
   { name: 'Reconciliation', path: '/reconciliation' },
+  { name: 'Routing', path: '/routing' },
+  { name: 'Cohorts', path: '/cohorts' },
 ] as const;
