@@ -1,0 +1,12 @@
+const fs=require('node:fs');
+const graph=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+if(graph.graphErrors?.compilationErrors?.length)throw new Error(JSON.stringify(graph.graphErrors));
+const required=['revision_conflicts','batch_accounting','fact_uniqueness','relationships','chronology','amounts','raw_fact_counts','field_reconciliation'];
+const assertions=new Set((graph.assertions||[]).map(a=>a.target.name));
+for(const name of required)if(!assertions.has(name))throw new Error(`Missing assertion ${name}`);
+const gate=(graph.operations||[]).find(x=>x.target.name==='ready_to_snapshot');
+if(!gate)throw new Error('No publication gate');
+const dependencies=new Set((gate.dependencyTargets||[]).map(t=>t.name));
+for(const name of required)if(!dependencies.has(name))throw new Error(`Release gate does not depend on ${name}`);
+for(const kind of ['leads','deliveries','calls','sales','activations','commercial'])if(!(graph.tables||[]).some(t=>t.target.name==='fact_'+kind))throw new Error(`Missing fact ${kind}`);
+console.log(`Compiled ${graph.tables.length} models and ${graph.assertions.length} assertions; all required publication dependencies verified. SQL has not been executed in BigQuery.`);

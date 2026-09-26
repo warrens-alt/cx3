@@ -1,0 +1,208 @@
+import React, { createContext, useContext, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { validateFilters, type FilterCondition, type Filters } from '../../server/bigquery/filters';
+export type { FilterCondition };
+export type UniversalFilters = Filters;
+
+export function defaultDateRange(now = new Date()) { 
+  const end = now.toISOString().slice(0, 10); 
+  return { start: new Date(Date.parse(end) - 29 * 86400000).toISOString().slice(0, 10), end }; 
+}
+
+const SUPPORTED_STANDALONE_KEYS = ['source', 'vendor', 'medium', 'grade', 'cli', 'campaign'] as const;
+
+function cleanString(val: unknown): string | undefined {
+  if (!val) return undefined;
+  const s = String(val).trim();
+  if (['all', 'all vendors', 'all sources', 'all grades', 'undefined', 'null'].includes(s.toLowerCase())) {
+    return undefined;
+  }
+  return s;
+}
+
+function readFilters(params: URLSearchParams): Filters {
+  let result: Filters = {};
+  const encoded = params.get('filters');
+  if (encoded) {
+    try {
+      result = validateFilters(encoded);
+    } catch {
+      result = {};
+    }
+  }
+  for (const key of SUPPORTED_STANDALONE_KEYS) { 
+    const value = params.get(key); 
+    if (value) {
+      const cleaned = cleanString(value);
+      if (cleaned) {
+        result[key] = { operator: 'in', values: cleaned.split(',').map(s => s.trim()).filter(Boolean) };
+      }
+    } 
+  }
+  return validateFilters(result);
+}
+
+export interface AppliedFilterItem {
+  key: string;
+  label: string;
+  value: string;
+}
+
+export function extractOffernetFilters(filters: Filters): {
+  vendor?: string;
+  source?: string;
+  medium?: string;
+  grade?: string;
+  cli?: string;
+  campaign?: string;
+} {
+  const getVal = (key: string): string | undefined => {
+    const f = filters[key];
+    if (!f) return undefined;
+    let v: string | undefined = undefined;
+    if (f.operator === 'in' && Array.isArray(f.values) && f.values.length > 0) v = String(f.values[0]);
+    else if (f.operator === 'equals' && f.value !== undefined) v = String(f.value);
+    return cleanString(v);
+  };
+
+  return {
+    vendor: getVal('vendor'),
+    source: getVal('source'),
+    medium: getVal('medium'),
+    grade: getVal('grade'),
+    cli: getVal('cli'),
+    campaign: getVal('campaign'),
+  };
+}
+
+interface FilterContextType {
+  startDate: string; 
+  endDate: string; 
+  startMonth: string; 
+  endMonth: string;
+  setStartDate: (value: string) => void; 
+  setEndDate: (value: string) => void; 
+  setDateRange: (start: string, end: string) => void;
+  filters: Filters; 
+  filterError: string | null; 
+  setFilter: (key: string, condition: FilterCondition | null) => void; 
+  clearFilters: () => void;
+  resetScope: () => void;
+  source: string; 
+  vendor: string; 
+  medium: string; 
+  grade: string;
+  setSource: (value: string) => void; 
+  setVendor: (value: string) => void; 
+  setMedium: (value: string) => void;
+  setGrade: (value: string) => void;
+  activeFilterCount: number;
+  appliedFilters: AppliedFilterItem[];
+}
+
+const Context = createContext<FilterContextType | undefined>(undefined);
+
+export function FilterProvider({ children }: { children: React.ReactNode }) {
+  const [params, setParams] = useSearchParams(), defaults = defaultDateRange();
+  const startDate = params.get('startDate') || defaults.start, endDate = params.get('endDate') || defaults.end;
+  const parsed = useMemo(() => { 
+    try { 
+      return { filters: readFilters(params), filterError: null }; 
+    } catch (e) { 
+      return { filters: {} as Filters, filterError: e instanceof Error ? e.message : 'Invalid filters' }; 
+    } 
+  }, [params]);
+
+  const update = (key: string, value: string) => setParams(previous => { 
+    const next = new URLSearchParams(previous); 
+    value ? next.set(key, value) : next.delete(key); 
+    return next; 
+  }, { replace: true });
+
+  const setDateRange = (start: string, end: string) => setParams(previous => { 
+    const next = new URLSearchParams(previous); 
+    next.set('startDate', start); 
+    next.set('endDate', end); 
+    return next; 
+  }, { replace: true });
+
+  const setFilter = (key: string, condition: FilterCondition | null) => setParams(previous => {
+    const next = new URLSearchParams(previous), filters = { ...readFilters(previous) };
+    if (condition === null) delete filters[key]; else filters[key] = condition;
+    const validated = validateFilters(filters);
+    for (const legacy of SUPPORTED_STANDALONE_KEYS) next.delete(legacy);
+    Object.keys(validated).length ? next.set('filters', JSON.stringify(validated)) : next.delete('filters');
+    return next;
+  }, { replace: true });
+
+  const clearFilters = () => setParams(previous => { 
+    const next = new URLSearchParams(previous); 
+    for (const key of ['filters', ...SUPPORTED_STANDALONE_KEYS]) next.delete(key); 
+    return next; 
+  }, { replace: true });
+
+  const get = (key: string) => {
+    const cond = parsed.filters[key];
+    if (!cond) return '';
+    if (cond.operator === 'in') return cond.values?.join(',') || '';
+    if (cond.operator === 'equals' && cond.value !== undefined) return String(cond.value);
+    return '';
+  };
+  const set = (key: string, value: string) => setFilter(key, value ? { operator: 'in', values: value.split(',') } : null);
+
+  const appliedFilters = useMemo<AppliedFilterItem[]>(() => {
+    const items: AppliedFilterItem[] = [];
+    for (const [key, cond] of Object.entries(parsed.filters)) {
+      if (!cond) continue;
+      let valStr = '';
+      if (cond.operator === 'in' && cond.values && cond.values.length > 0) {
+        valStr = cond.values.join(', ');
+      } else if (cond.operator === 'equals' && cond.value !== undefined) {
+        valStr = String(cond.value);
+      } else if (cond.operator === 'between') {
+        valStr = `${cond.min} - ${cond.max}`;
+      }
+      if (valStr) {
+        const label = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
+        items.push({ key, label, value: valStr });
+      }
+    }
+    return items;
+  }, [parsed.filters]);
+
+  const activeFilterCount = appliedFilters.length;
+
+  return (
+    <Context.Provider value={{ 
+      startDate, 
+      endDate, 
+      startMonth: startDate.slice(0, 7), 
+      endMonth: endDate.slice(0, 7),
+      setStartDate: value => update('startDate', value), 
+      setEndDate: value => update('endDate', value), 
+      setDateRange,
+      ...parsed, 
+      setFilter, 
+      clearFilters, 
+      resetScope: clearFilters, 
+      source: get('source'), 
+      vendor: get('vendor'), 
+      medium: get('medium'), 
+      grade: get('grade'),
+      setSource: value => set('source', value), 
+      setVendor: value => set('vendor', value), 
+      setMedium: value => set('medium', value),
+      setGrade: value => set('grade', value),
+      activeFilterCount,
+      appliedFilters
+    }}>
+      {children}
+    </Context.Provider>
+  );
+}
+
+export function useFilters() { 
+  const context = useContext(Context); 
+  if (!context) throw new Error('FilterProvider is required'); 
+  return context; 
+}

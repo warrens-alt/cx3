@@ -1,0 +1,8 @@
+{
+  "name": "ConversionX | Lead & Revenue Analytics",
+  "description": "Versioned evidence reporting and explicitly unverified legacy exploration over configured BigQuery sources.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

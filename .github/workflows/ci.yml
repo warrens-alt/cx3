@@ -1,0 +1,65 @@
+name: ConversionX CI
+on:
+  push:
+    branches: [main, 'fix/audit-integrity-20260920', 'improvement/frontend-20260920', 'fix/source-api-20260920']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cx-ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Archive tracked application source
+        shell: bash
+        run: |
+          paths=()
+          for p in src server scripts tests contracts warehouse tooling docs server.ts package.json package-lock.json tsconfig.json vite.config.ts index.html README.md .env.example .github .gitignore; do
+            if git cat-file -e "HEAD:$p" 2>/dev/null; then paths+=("$p"); fi
+          done
+          git archive --format=tar.gz --output=application-source.tar.gz HEAD -- "${paths[@]}"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: application-source-${{ github.sha }}
+          path: application-source.tar.gz
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit
+      - name: Audit application dependencies
+        run: npm audit --audit-level=moderate
+      - run: node scripts/engine-stamp.cjs --check
+      - run: npm run verify
+      - name: Install pinned verification tools
+        run: npm ci --prefix tooling --ignore-scripts --no-audit
+      - name: Audit verification-tool dependencies
+        run: npm audit --prefix tooling --audit-level=moderate
+      - name: Compile warehouse and verify release gates
+        run: |
+          mkdir -p verification
+          tooling/node_modules/.bin/dataform compile warehouse --json > verification/dataform-graph.json
+          node scripts/check-dataform-graph.cjs verification/dataform-graph.json
+      - name: Browser checks with synthetic fixtures
+        run: |
+          tooling/node_modules/.bin/playwright install --with-deps chromium
+          node tooling/browser/smoke.mjs
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: verification-${{ github.sha }}
+          path: |
+            verification/
+            tooling/package-lock.json
+          retention-days: 7
+          if-no-files-found: warn

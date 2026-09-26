@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+.vite/
+.env*
+!.env.example
+.df-credentials.json
+**/.df-credentials.json
+warehouse/.dataform/
+verification/
+application-source.tar.gz
+*.published.json
+coverage/
+.DS_Store
+*.log

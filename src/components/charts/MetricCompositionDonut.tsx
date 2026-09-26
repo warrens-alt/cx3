@@ -1,0 +1,170 @@
+import React, { useState } from 'react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { formatChartAxis, formatTableNumber } from '../../lib/formatters';
+import { ChartToolbar } from './ChartToolbar';
+
+interface DonutSlice {
+  name: string;
+  value: number;
+  color?: string;
+  [key: string]: any;
+}
+
+interface MetricCompositionDonutProps {
+  title: string;
+  subtitle?: string;
+  data: DonutSlice[];
+  valuePrefix?: string;
+  valueSuffix?: string;
+  height?: number;
+  innerRadius?: number;
+  outerRadius?: number;
+  centerLabel?: string;
+  centerValue?: string | number;
+  auditTitle?: string;
+  auditContext?: any;
+  auditGrain?: string;
+}
+
+const DEFAULT_PALETTE = [
+  '#0D9488', // Primary Teal
+  '#0F1E2E', // Deep Navy
+  '#0284C7', // Sky Blue
+  '#6366F1', // Indigo
+  '#D97706', // Warm Amber
+  '#059669', // Emerald
+  '#7C3AED', // Violet
+  '#DB2777', // Berry Pink
+  '#475569', // Slate
+  '#0891B2'  // Cyan
+];
+
+export function MetricCompositionDonut({
+  title,
+  subtitle,
+  data,
+  valuePrefix = '',
+  valueSuffix = '',
+  height = 320,
+  innerRadius = 65,
+  outerRadius = 95,
+  centerLabel,
+  centerValue,
+  auditTitle,
+  auditContext,
+  auditGrain
+}: MetricCompositionDonutProps) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
+  const total = data.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
+  const activeItem = activeIndex !== null && data[activeIndex] ? data[activeIndex] : null;
+  const activePct = activeItem && total > 0 ? ((Number(activeItem.value) / total) * 100).toFixed(1) : null;
+
+  const displayCenterValue = activeItem 
+    ? `${valuePrefix}${formatTableNumber(Number(activeItem.value))}${valueSuffix}`
+    : centerValue !== undefined 
+      ? centerValue 
+      : `${valuePrefix}${formatChartAxis(total)}${valueSuffix}`;
+
+  const displayCenterLabel = activeItem ? activeItem.name : (centerLabel || 'Total');
+
+  return (
+    <div className="enterprise-card p-5 flex flex-col h-full w-full">
+      <ChartToolbar 
+        visualData={data}
+        title={title} 
+        subtitle={subtitle} 
+        auditTitle={auditTitle} 
+        auditContext={auditContext} 
+        auditGrain={auditGrain} 
+      />
+
+      <div className="relative flex-1 flex items-center justify-center" style={{ minHeight: height }}>
+        <ResponsiveContainer width="100%" height={height}>
+          <PieChart>
+            <Tooltip
+              content={({ active, payload }) => {
+                if (active && payload && payload.length) {
+                  const item = payload[0].payload as DonutSlice;
+                  const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : '0';
+                  return (
+                    <div className="bg-white/95 backdrop-blur-md border border-slate-200 rounded-lg shadow-lg p-3 text-xs ring-1 ring-black/5">
+                      <div className="font-semibold text-slate-900 flex items-center gap-2 mb-1">
+                        <span 
+                          className="w-2.5 h-2.5 rounded-full inline-block" 
+                          style={{ backgroundColor: payload[0].color }} 
+                        />
+                        {item.name}
+                      </div>
+                      <div className="text-slate-700 font-mono text-sm font-bold">
+                        {valuePrefix}{formatTableNumber(item.value)}{valueSuffix}
+                        <span className="text-blue-700 font-medium text-xs ml-1.5">({pct}%)</span>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="48%"
+              innerRadius={innerRadius}
+              outerRadius={outerRadius}
+              paddingAngle={2.5}
+              isAnimationActive={false}
+              onMouseEnter={(_, index) => setActiveIndex(index)}
+              onMouseLeave={() => setActiveIndex(null)}
+            >
+              {data.map((entry, index) => {
+                const color = entry.color || DEFAULT_PALETTE[index % DEFAULT_PALETTE.length];
+                const isHovered = activeIndex === index;
+                return (
+                  <Cell
+                    key={`slice-${index}`}
+                    fill={color}
+                    opacity={activeIndex === null || isHovered ? 1 : 0.65}
+                    stroke="#ffffff"
+                    strokeWidth={isHovered ? 2.5 : 1}
+                  />
+                );
+              })}
+            </Pie>
+            <Legend
+              layout="horizontal"
+              verticalAlign="bottom"
+              align="center"
+              wrapperStyle={{ fontSize: '11px', paddingTop: '14px' }}
+              formatter={(value) => {
+                const item = data.find(d => d.name === value);
+                const pct = item && total > 0 ? ` (${((item.value / total) * 100).toFixed(0)}%)` : '';
+                return <span className="text-slate-600 font-medium">{value}{pct}</span>;
+              }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+
+        {/* Center Readout */}
+        <div 
+          className="absolute top-[44%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none transition-all duration-150"
+          style={{ maxWidth: innerRadius * 1.75 }}
+        >
+          <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider truncate px-1">
+            {displayCenterLabel}
+          </div>
+          <div className="text-lg sm:text-xl font-bold font-mono text-slate-900 tracking-tight whitespace-nowrap">
+            {displayCenterValue}
+          </div>
+          {activePct && (
+            <div className="text-[10.5px] font-mono text-blue-700 font-semibold">
+              {activePct}% share
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

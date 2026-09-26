@@ -1,0 +1,97 @@
+{
+  "entities": {
+    "user": {
+      "title": "User",
+      "description": "Authenticated user profile with role-based access control state and allowed tenants.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 256 },
+        "displayName": { "type": "string", "maxLength": 256 },
+        "photoURL": { "type": "string", "maxLength": 1024 },
+        "role": { "type": "string", "enum": ["admin", "analyst", "viewer"] },
+        "status": { "type": "string", "enum": ["active", "pending", "suspended"] },
+        "allowedTenants": { "type": "array", "description": "Array of tenant IDs user can access" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "lastLoginAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role", "status", "createdAt"]
+    },
+    "admin": {
+      "title": "Admin",
+      "description": "Marker document allowing sub-millisecond exists() verification for administrative rights.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 256 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "accessInvite": {
+      "title": "Access Invite",
+      "description": "Pre-authorized invitations whitelist with pre-configured roles and client scopes.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "maxLength": 256 },
+        "role": { "type": "string", "enum": ["admin", "analyst", "viewer"] },
+        "allowedTenants": { "type": "array", "description": "Allowed tenants assigned upon sign-in" },
+        "invitedBy": { "type": "string", "maxLength": 256 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "role", "invitedBy", "createdAt"]
+    },
+    "auditLog": {
+      "title": "Audit Log",
+      "description": "Immutable security and access audit record.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "actorEmail": { "type": "string", "maxLength": 256 },
+        "actorUid": { "type": "string", "maxLength": 128 },
+        "action": { "type": "string", "maxLength": 128 },
+        "targetEmail": { "type": "string", "maxLength": 256 },
+        "details": { "type": "string", "maxLength": 512 },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "actorEmail", "actorUid", "action", "timestamp"]
+    },
+    "platformConfig": {
+      "title": "Platform Configuration",
+      "description": "Global access control policy and registration defaults.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "defaultRole": { "type": "string", "enum": ["analyst", "viewer"] },
+        "requireApproval": { "type": "boolean" },
+        "allowedDomains": { "type": "array" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "updatedBy": { "type": "string", "maxLength": 256 }
+      },
+      "required": ["id", "defaultRole", "requireApproval", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "user",
+      "description": "Directory of registered accounts, roles, access status, and permitted clients"
+    },
+    "/admins/{userId}": {
+      "schema": "admin",
+      "description": "Administrative authority marker records"
+    },
+    "/accessInvites/{inviteId}": {
+      "schema": "accessInvite",
+      "description": "Pre-authorized user email whitelists"
+    },
+    "/auditLogs/{logId}": {
+      "schema": "auditLog",
+      "description": "Audit logs of authentication, status modifications, and privilege adjustments"
+    },
+    "/platformConfig/{configId}": {
+      "schema": "platformConfig",
+      "description": "System-wide access policies and registration gating rules"
+    }
+  }
+}

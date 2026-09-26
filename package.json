@@ -1,0 +1,63 @@
+{
+  "name": "conversionx",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "tsx server.ts",
+    "build": "rm -rf dist build server.js && vite build && mkdir -p dist/client build && cp dist/index.html dist/client/ && cp -r dist/assets dist/client/ && cp dist/index.html build/ && cp -r dist/assets build/ && esbuild server.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=dist/server/server.mjs && cp dist/server/server.mjs server.js",
+    "gcp-build": "npm run build",
+    "start": "node server.js",
+    "clean": "rm -rf dist build server.js",
+    "lint": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "verify": "npm run lint && npm test && npm run build",
+    "warehouse:bootstrap": "tsx scripts/bootstrap-warehouse.ts",
+    "warehouse:ingest": "tsx scripts/ingest-canonical.ts",
+    "warehouse:publish": "tsx scripts/publish-release.ts",
+    "warehouse:test": "tsx scripts/warehouse-reference.ts",
+    "sources:check": "tsx scripts/check-source-api.ts"
+  },
+  "dependencies": {
+    "@google-cloud/bigquery": "^8.3.1",
+    "@google/genai": "^2.24.0",
+    "@tailwindcss/vite": "^4.1.14",
+    "@tanstack/react-query": "^5.103.1",
+    "@types/compression": "^1.8.1",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.4",
+    "autoprefixer": "^10.4.21",
+    "clsx": "^2.1.1",
+    "compression": "^1.8.1",
+    "dotenv": "^17.2.3",
+    "esbuild": "^0.25.0",
+    "express": "^5.2.1",
+    "firebase": "^12.19.0",
+    "google-auth-library": "^10.9.0",
+    "lucide-react": "^0.546.0",
+    "react": "^19.0.1",
+    "react-dom": "^19.0.1",
+    "react-error-boundary": "^6.1.5",
+    "react-router-dom": "^7.18.4",
+    "recharts": "^3.9.0",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4.1.14",
+    "tsx": "^4.21.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.3"
+  },
+  "devDependencies": {},
+  "overrides": {
+    "baseline-browser-mapping": "^2.11.25",
+    "browserslist": "^4.29.0",
+    "nanoid": "3.3.19",
+    "postcss": "^8.5.28",
+    "qs": "^6.16.0"
+  }
+}

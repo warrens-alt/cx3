@@ -1,0 +1,158 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && (
+        !('email_verified' in request.auth.token) ||
+        request.auth.token.email_verified == true
+      );
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && (
+        request.auth.uid == 'lb9z5IHnOsYRRcqcS7WD5WcURK13' ||
+        ('email' in request.auth.token && request.auth.token.email.matches('(?i)^warrens@bastionflowe\\.com$')) ||
+        ('email' in request.auth.token && request.auth.token.email == 'warrens@bastionflowe.com')
+      );
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        isSuperAdmin() ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidUserCreate(userId) {
+      let data = incoming();
+      return isValidId(userId)
+        && data.keys().hasAll(['uid', 'email', 'role', 'status'])
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'role', 'status', 'allowedTenants', 'createdAt', 'updatedAt', 'lastLoginAt'])
+        && data.uid == request.auth.uid
+        && data.uid == userId
+        && data.email is string && data.email.size() <= 256
+        && (!('displayName' in data) || data.displayName == null || (data.displayName is string && data.displayName.size() <= 512))
+        && (!('photoURL' in data) || data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 4096))
+        && data.role in ['admin', 'analyst', 'viewer']
+        && data.status in ['active', 'pending', 'suspended']
+        && (
+          isSuperAdmin()
+          || (data.role == 'admin' && exists(/databases/$(database)/documents/admins/$(request.auth.uid)))
+          || (data.role in ['analyst', 'viewer'] && data.status in ['pending', 'active'])
+        )
+        && (!('allowedTenants' in data) || data.allowedTenants == null || (data.allowedTenants is list && data.allowedTenants.size() <= 50));
+    }
+
+    function isValidUserUpdate() {
+      let data = incoming();
+      return data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'role', 'status', 'allowedTenants', 'createdAt', 'updatedAt', 'lastLoginAt'])
+        && data.uid == existing().uid
+        && data.email == existing().email
+        && data.role in ['admin', 'analyst', 'viewer']
+        && data.status in ['active', 'pending', 'suspended']
+        && (!('displayName' in data) || data.displayName == null || (data.displayName is string && data.displayName.size() <= 512))
+        && (!('photoURL' in data) || data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 4096))
+        && (!('allowedTenants' in data) || data.allowedTenants == null || (data.allowedTenants is list && data.allowedTenants.size() <= 50));
+    }
+
+    function isValidSelfUpdate() {
+      let data = incoming();
+      let diff = request.resource.data.diff(resource.data).affectedKeys();
+      return diff.hasOnly(['displayName', 'photoURL', 'lastLoginAt', 'updatedAt'])
+        && (!('displayName' in data) || data.displayName == null || (data.displayName is string && data.displayName.size() <= 512))
+        && (!('photoURL' in data) || data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 4096))
+        && data.role == existing().role
+        && data.status == existing().status
+        && data.allowedTenants == existing().allowedTenants;
+    }
+
+    function isValidAdmin() {
+      let data = incoming();
+      return data.keys().hasAll(['uid', 'email'])
+        && data.keys().hasOnly(['uid', 'email', 'createdAt', 'assignedAt'])
+        && data.uid is string && isValidId(data.uid)
+        && data.email is string && data.email.size() <= 256;
+    }
+
+    function isValidAccessInvite() {
+      let data = incoming();
+      return data.keys().hasAll(['email', 'role', 'invitedBy'])
+        && data.keys().hasOnly(['email', 'role', 'allowedTenants', 'invitedBy', 'createdAt', 'updatedAt'])
+        && data.email is string && data.email.size() <= 256
+        && data.role in ['admin', 'analyst', 'viewer']
+        && data.invitedBy is string && data.invitedBy.size() <= 256
+        && (!('allowedTenants' in data) || data.allowedTenants == null || (data.allowedTenants is list && data.allowedTenants.size() <= 50));
+    }
+
+    function isValidAuditLog() {
+      let data = incoming();
+      return data.keys().hasAll(['id', 'actorEmail', 'actorUid', 'action'])
+        && data.keys().hasOnly(['id', 'actorEmail', 'actorUid', 'action', 'targetEmail', 'details', 'timestamp'])
+        && data.id is string && isValidId(data.id)
+        && data.actorUid == request.auth.uid
+        && data.actorEmail is string && data.actorEmail.size() <= 256
+        && data.action is string && data.action.size() <= 128
+        && (!('targetEmail' in data) || data.targetEmail == null || (data.targetEmail is string && data.targetEmail.size() <= 256))
+        && (!('details' in data) || data.details == null || (data.details is string && data.details.size() <= 512));
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin() || isSuperAdmin());
+      allow list: if isAdmin() || isSuperAdmin();
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidUserCreate(userId);
+      allow update: if isSignedIn() && isValidId(userId) && (
+        ((isAdmin() || isSuperAdmin()) && isValidUserUpdate()) ||
+        (request.auth.uid == userId && isValidSelfUpdate())
+      );
+      allow delete: if (isAdmin() || isSuperAdmin()) && isValidId(userId);
+    }
+
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if (isAdmin() || isSuperAdmin()) && isValidId(adminId) && isValidAdmin();
+    }
+
+    match /accessInvites/{inviteId} {
+      allow read: if isSignedIn();
+      allow write: if (isAdmin() || isSuperAdmin()) && isValidId(inviteId) && isValidAccessInvite();
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if isAdmin() || isSuperAdmin();
+      allow create: if isSignedIn() && isValidId(logId) && isValidAuditLog();
+      allow update, delete: if false;
+    }
+
+    match /platformConfig/{configId} {
+      allow read: if isSignedIn();
+      allow write: if (isAdmin() || isSuperAdmin()) && isValidId(configId);
+    }
+
+    match /test/{docId} {
+      allow read: if isSignedIn();
+    }
+  }
+}

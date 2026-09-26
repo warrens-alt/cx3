@@ -1,0 +1,31 @@
+import React from 'react';
+import { ResponsiveContainer, BarChart, Bar, LineChart, Line, AreaChart, Area, ScatterChart, Scatter, PieChart, Pie, Cell, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ReferenceLine } from 'recharts';
+import { exactLabel, type VisualPoint, type VisualKind, type Measure } from '../../lib/visuals/model';
+import { categoryColour, CHART_PALETTE as colours } from '../../lib/visuals/palette';
+const axis=(v:unknown)=>typeof v==='number'?new Intl.NumberFormat('en-GB',{notation:'compact',maximumFractionDigits:2}).format(v):String(v??'');
+interface Props { points:VisualPoint[]; kind:VisualKind; metric:Measure; comparison?:Measure; height:number; onInspect:(p:VisualPoint)=>void; }
+export default function VisualPlot({points,kind,metric,comparison,height,onInspect}:Props){
+  const tooltip=({active,payload}:any)=>{if(!active||!payload?.length)return null;const p=payload[0].payload as VisualPoint;return <div className="cx-viz-tooltip"><strong>{p.label}</strong><p>{metric.label}: <b>{exactLabel(p.exact)}</b></p>{comparison&&<p>{comparison.label}: <b>{exactLabel(p.compareExact)}</b></p>}<small>Exact API values. Select a mark for details.</small></div>;};
+  const click=(p:any)=>{const point=p?.payload||p;if(point&&typeof point.key==='string')onInspect(point);};
+  const common={data:points,margin:{top:16,right:24,bottom:24,left:8},accessibilityLayer:true};
+  const label=(v:any)=>String(v).length>22?String(v).slice(0,20)+'…':String(v);
+  const hasValues=points.some(p=>p.value!==null&&(kind!=='scatter'||p.comparison!==null));
+  if(!hasValues)return <div className="cx-viz-empty" role="status">No plottable values in this selection. Missing values remain unavailable, not zero.</div>;
+  if(kind==='heatmap'){
+    const finite=points.flatMap(p=>p.value===null?[]:[Math.abs(p.value)]),max=Math.max(...finite,1);
+    return <div className="cx-viz-heatmap" style={{maxHeight:height}} role="list" aria-label="Heatmap points">{points.map(p=><div role="listitem" key={p.key}><button type="button" onClick={()=>onInspect(p)} aria-label={`${p.label}: ${metric.label}, ${exactLabel(p.exact)}. Inspect exact value`} style={{borderColor:p.value===null?'#cbd5e1':p.value<0?'#9a6528':'#3562B3',background:p.value===null?'#f1f4f6':p.value<0?`rgba(187,118,44,${.08+.28*Math.abs(p.value)/max})`:`rgba(53,98,179,${.08+.28*Math.abs(p.value)/max})`,color:'#17283d'}}><span>{p.label}</span><strong>{p.value===null?'Unavailable':axis(p.value)}</strong></button></div>)}</div>;
+  }
+  const y=<YAxis tickFormatter={axis} tick={{fontSize:12}} domain={[(min:number)=>Math.min(0,min),(max:number)=>Math.max(0,max)]} width={65}/>;
+  const x=<XAxis dataKey="label" tickFormatter={label} tick={{fontSize:12}} minTickGap={24} interval="preserveStartEnd"/>;
+  const tips=<Tooltip content={tooltip}/>;
+  const legend=<Legend wrapperStyle={{fontSize:12,paddingTop:12}}/>;
+  const grid=<CartesianGrid strokeDasharray="3 4" vertical={false} stroke="#dde5eb"/>;
+  let chart:React.ReactNode;
+  if(kind==='donut')chart=<PieChart><Pie data={points.filter(p=>p.value!==null&&p.value>0)} nameKey="label" dataKey="value" cx="50%" cy="50%" innerRadius="42%" outerRadius="75%" paddingAngle={2} isAnimationActive={false} onClick={click}>{points.filter(p=>p.value!==null&&p.value>0).map(p=><Cell key={p.key} fill={categoryColour(p.label,p.categoryKey)}/>)}</Pie>{tips}</PieChart>;
+  else if(kind==='scatter')chart=<ScatterChart {...common}>{grid}<XAxis type="number" dataKey="comparison" name={comparison?.label} tickFormatter={axis} tick={{fontSize:11}} domain={['auto','auto']}/><YAxis type="number" dataKey="value" name={metric.label} tickFormatter={axis} tick={{fontSize:11}} domain={['auto','auto']} width={65}/>{tips}<Scatter name={metric.label} data={points.filter(p=>p.value!==null&&p.comparison!==null)} fill={colours[0]} isAnimationActive={false} onClick={click}/></ScatterChart>;
+  else if(kind==='line')chart=<LineChart {...common}>{grid}{x}{y}{tips}{legend}<ReferenceLine y={0} stroke="#64748b"/><Line dataKey="value" name={metric.label} type="linear" stroke={colours[0]} strokeWidth={2} connectNulls={false} dot={points.length<51?{r:3}:false} activeDot={{r:5}} isAnimationActive={false}/>{comparison&&<Line dataKey="comparison" name={comparison.label} type="linear" stroke={colours[1]} strokeWidth={2} connectNulls={false} dot={false} isAnimationActive={false}/>}</LineChart>;
+  else if(kind==='area')chart=<AreaChart {...common}>{grid}{x}{y}{tips}{legend}<ReferenceLine y={0} stroke="#64748b"/><Area dataKey="value" name={metric.label} type="linear" stroke={colours[0]} fill={colours[0]} fillOpacity={.15} connectNulls={false} isAnimationActive={false}/>{comparison&&<Area dataKey="comparison" name={comparison.label} type="linear" stroke={colours[1]} fill={colours[1]} fillOpacity={.12} connectNulls={false} isAnimationActive={false}/>}</AreaChart>;
+  else if(kind==='bar')chart=<BarChart {...common} layout="vertical" margin={{top:8,right:24,bottom:12,left:8}}><CartesianGrid strokeDasharray="3 4" horizontal={false} stroke="#dde5eb"/><XAxis type="number" tickFormatter={axis} tick={{fontSize:11}} domain={[(min:number)=>Math.min(0,min),(max:number)=>Math.max(0,max)]}/><YAxis type="category" dataKey="label" tickFormatter={label} tick={{fontSize:11}} width={115} interval={0}/>{tips}{legend}<ReferenceLine x={0} stroke="#64748b"/><Bar dataKey="value" name={metric.label} fill={colours[0]} maxBarSize={26} isAnimationActive={false} onClick={click}/>{comparison&&<Bar dataKey="comparison" name={comparison.label} fill={colours[1]} maxBarSize={26} isAnimationActive={false} onClick={click}/>}</BarChart>;
+  else chart=<BarChart {...common}>{grid}{x}{y}{tips}{legend}<ReferenceLine y={0} stroke="#64748b"/><Bar dataKey="value" name={metric.label} fill={colours[0]} maxBarSize={40} isAnimationActive={false} onClick={click}/>{comparison&&<Bar dataKey="comparison" name={comparison.label} fill={colours[1]} maxBarSize={40} isAnimationActive={false} onClick={click}/>}</BarChart>;
+  return <div className="cx-viz-canvas" role="img" aria-label={`${kind} chart: ${metric.label}, ${points.length} returned points`} style={{height}}><ResponsiveContainer width="100%" height="100%" debounce={60}>{chart as any}</ResponsiveContainer></div>;
+}
