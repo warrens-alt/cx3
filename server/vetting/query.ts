@@ -12,12 +12,7 @@ const column = (field: string, alias: string) => {
 };
 export function vettingScope(input: VettingInput) {
   const scope = validateScope(input), interval = scalarString(input.interval, 'interval') || 'day';
-  if (!scope.startDate || !scope.endDate) {
-    const end = new Date().toISOString().slice(0, 10);
-    const start = new Date(Date.parse(end) - 89 * 86400000).toISOString().slice(0, 10);
-    scope.startDate = scope.startDate || start;
-    scope.endDate = scope.endDate || end;
-  }
+  if (!scope.startDate || !scope.endDate) throw new RequestError('Vetting requires an explicit start and end date; all-time scope is not supported for this report.', 422);
   if (!['day', 'week', 'month'].includes(interval)) throw new RequestError('Choose day, week or month');
   const days = (Date.parse(scope.endDate) - Date.parse(scope.startDate)) / 86400000 + 1;
   if (days > 366) throw new RequestError('Vetting reports support at most 366 inclusive days');
