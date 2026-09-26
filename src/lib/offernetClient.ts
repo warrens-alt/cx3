@@ -86,6 +86,46 @@ export interface OverviewData {
   clientName: string;
 }
 
+export interface RootCauseData {
+  metric: {
+    id: 'fetchedLeads' | 'deliveryRate' | 'dialRate' | 'contactRate' | 'leadToSaleRate' | 'activationRate';
+    label: string;
+    kind: 'volume' | 'rate';
+    currentValue: number;
+    previousValue: number;
+    delta: number;
+    deltaUnit: 'leads' | 'pp';
+  };
+  currentWindow: { startDate: string; endDate: string };
+  previousWindow: { startDate: string; endDate: string };
+  dimensions: Array<{
+    key: 'vendor' | 'source' | 'grade' | 'leadAge';
+    label: string;
+    segments: Array<{
+      name: string;
+      currentValue: number;
+      previousValue: number;
+      currentNumerator: number;
+      currentDenominator: number;
+      previousNumerator: number;
+      previousDenominator: number;
+      contribution: number;
+      shareOfDelta: number | null;
+    }>;
+  }>;
+  drivers: Array<{
+    name: string;
+    dimension: 'vendor' | 'source' | 'grade' | 'leadAge';
+    dimensionLabel: string;
+    currentValue: number;
+    previousValue: number;
+    contribution: number;
+    shareOfDelta: number | null;
+  }>;
+  methodology: string;
+  validationStatus: string;
+}
+
 export interface FunnelData {
   velocity: {
     fetchToDelivery: string;
@@ -381,6 +421,8 @@ export interface RawLeadsData {
   rows: Array<Record<string, any>>;
   limit: number;
   offset: number;
+  drill: string | null;
+  drillValue: string | null;
 }
 
 export interface LeadTimelineData {
@@ -464,6 +506,10 @@ export async function fetchOffernetJson<T>(url: string, forceRefresh = false): P
 
 export async function fetchOverview(params: Record<string, any> = {}, forceRefresh = false): Promise<OverviewData> {
   return fetchOffernetJson<OverviewData>(`/api/analytics/offernet/overview${buildQueryString(params)}`, forceRefresh);
+}
+
+export async function fetchRootCause(params: Record<string, any> = {}, forceRefresh = false): Promise<RootCauseData> {
+  return fetchOffernetJson<RootCauseData>(`/api/analytics/offernet/root-cause${buildQueryString(params)}`, forceRefresh);
 }
 
 export async function fetchFunnel(params: Record<string, any> = {}, forceRefresh = false): Promise<FunnelData> {
