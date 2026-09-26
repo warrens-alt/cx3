@@ -12,16 +12,29 @@ export const OFFERNET_SOURCE_TABLES = {
 } as const;
 
 export const MARKETING_SOURCE_FIELDS = {
+  id: 'id',
   clientName: 'client_name',
   date: 'date',
   channel: 'channel',
   campaign: 'Channel_Campaign_Name',
   adset: 'channel_adset_name',
+  budget: 'budget',
   impressions: 'impressions',
   reach: 'reach',
+  engagements: 'engagements',
   clicks: 'clicks',
   outboundClicks: 'outbound_clicks',
   platformLeads: 'actions_lead',
+  objective: 'objective',
+  createdAt: 'created_at',
+  actionsLinkClick: 'actions_link_click',
+  pageView: 'page_view',
+  actionsInitiateCheckout: 'actions_initiate_checkout',
+  actionsAddToCart: 'actions_add_to_cart',
+  actionsAddPaymentInfo: 'actions_add_payment_info',
+  messagingConversationStarted: 'conversion_messaging_conversation_started',
+  currency: 'currency',
+  observedSpendField: null as string | null,
   spendCandidates: [
     'spend',
     'amount_spent',
@@ -49,14 +62,31 @@ export const MARKETING_SOURCE_FIELDS = {
 } as const;
 
 export const CALL_SOURCE_FIELDS = {
-  date: 'call_start_date',
+  id: 'id',
   vendor: 'vendor',
+  uniqueId: 'dialer_uniqueid',
   leadId: 'dialer_lead_id',
+  listId: 'list_id',
+  listName: 'list_name',
+  campaignId: 'campaign_id',
+  campaignName: 'campaign_name',
+  entryDate: 'entry_date',
+  modifyDate: 'modify_date',
+  date: 'call_start_date',
+  callEndDate: 'call_end_date',
+  durationSeconds: 'length_in_sec',
   agent: 'user',
+  comments: 'comments',
+  processed: 'processed',
+  userGroup: 'user_group',
+  termReason: 'term_reason',
+  altDial: 'alt_dial',
+  calledCount: 'called_count',
+  statusName: 'status_name',
   rpc: 'is_rpc',
   sale: 'is_sale',
   callback: 'is_callback',
-  durationSeconds: 'length_in_sec',
+  createdAt: 'created_at',
   cliCandidates: [
     'cli',
     'caller_id',
@@ -70,7 +100,18 @@ export const CALL_SOURCE_FIELDS = {
 } as const;
 
 export const TIME_TO_DIAL_SOURCE_FIELDS = {
-  date: 'expected_first_dial',
+  id: 'id',
+  vendor: 'vendor',
+  uniqueId: 'dialer_uniqueid',
+  leadId: 'dialer_lead_id',
+  campaignId: 'campaign_id',
+  listId: 'list_id',
+  entryDate: 'entry_date',
+  modifyDate: 'modify_date',
+  firstDialDate: 'first_dial_date',
+  expectedFirstDial: 'expected_first_dial',
+  createdAt: 'created_at',
+  date: 'first_dial_date',
 } as const;
 
 export const SOURCE_TABLE_CONTRACT = {
@@ -91,8 +132,8 @@ export const SOURCE_TABLE_CONTRACT = {
   timeToDial: {
     table: OFFERNET_SOURCE_TABLES.timeToDial,
     fields: TIME_TO_DIAL_SOURCE_FIELDS,
-    dateMeaning: 'Expected first-dial date; not an observed call timestamp',
-    ownership: null,
+    dateMeaning: 'Recorded first-dial date from the dedicated time-to-dial source',
+    ownership: 'vendor',
     crossSourceJoin: 'CONTRACT_REQUIRED',
   },
 } as const;

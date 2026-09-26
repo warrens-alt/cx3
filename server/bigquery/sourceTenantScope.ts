@@ -1,5 +1,5 @@
 import type { SourceRole } from '../../contracts/sourceCoverage';
-import { CALL_SOURCE_FIELDS } from '../../contracts/physicalSources';
+import { CALL_SOURCE_FIELDS, TIME_TO_DIAL_SOURCE_FIELDS } from '../../contracts/physicalSources';
 import { getClientConfig, tenantVendorScopeValues } from './config';
 import { conditionSql, RequestError, type Scalar } from './filters';
 import { flatSchema, type TableMetadata } from './sourceAccess';
@@ -28,16 +28,15 @@ export function sourceTenantPredicate(clientId: string, role: SourceRole, meta: 
     }
     return conditionSql(textField(contract.clientNameField), { operator: 'in', values: contract.clientNames }, 'tenant_client', params);
   }
-  if (role === 'calls') {
+  if (role === 'calls' || role === 'timeToDial') {
     const vendors = tenantVendorScopeValues(client);
     if (!vendors.length) throw new RequestError('Approved vendor ownership mapping is required for this tenant', 422);
-    return conditionSql(`LOWER(TRIM(${textField(CALL_SOURCE_FIELDS.vendor)}))`, { operator: 'in', values: vendors }, 'tenant_vendor', params);
+    const vendorField = role === 'calls' ? CALL_SOURCE_FIELDS.vendor : TIME_TO_DIAL_SOURCE_FIELDS.vendor;
+    return conditionSql(`LOWER(TRIM(${textField(vendorField)}))`, { operator: 'in', values: vendors }, 'tenant_vendor', params);
   }
   if (role === 'leads' && client.dataSourceMode === 'separate' && client.semanticMappings.tables.leads !== getClientConfig('default_tenant').semanticMappings.tables.leads) {
     return null; // Configured tenant-specific source view, never the master ledger.
   }
   if (role === 'activations' && activationSourceIsOwned(clientId)) return null;
-  // Time-to-dial has no reviewed ownership/join mapping; inspecting a schema
-  // cannot establish one. Do not substitute a master aggregate for this tenant.
   throw new RequestError(`Tenant ownership is not established for the ${role} source`, 422);
 }

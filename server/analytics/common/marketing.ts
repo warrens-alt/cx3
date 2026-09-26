@@ -56,7 +56,13 @@ async function loadMarketingContract(client: ReturnType<typeof getBigQueryClient
     .map(name => byLower.get(name.toLowerCase())).filter(Boolean);
   const distinctSpendCandidates = [...new Set(spendCandidates)] as string[];
   const spendColumn = distinctSpendCandidates.length === 1 && contract.spendUnitByField[distinctSpendCandidates[0].toLowerCase()] ? distinctSpendCandidates[0] : null;
-  const spendResolutionReason = distinctSpendCandidates.length > 1 ? `Multiple approved spend candidates exist (${distinctSpendCandidates.join(', ')}); designate one observed field before enabling spend.` : distinctSpendCandidates.length === 1 && !spendColumn ? 'An explicit spend unit is required.' : null;
+  const spendResolutionReason = distinctSpendCandidates.length > 1
+    ? `Multiple approved spend candidates exist (${distinctSpendCandidates.join(', ')}); designate one observed field before enabling spend.`
+    : distinctSpendCandidates.length === 1 && !spendColumn
+      ? 'An explicit spend unit is required.'
+      : distinctSpendCandidates.length === 0
+        ? 'The current marketing schema exposes planning budget but no approved observed-spend column; total spend and spend-derived metrics are unavailable.'
+        : null;
   const budgetColumn = contract.approvedBudgetFields.map(name => byLower.get(name.toLowerCase())).find(Boolean) || null;
   const reachColumn = contract.reachField ? byLower.get(contract.reachField.toLowerCase()) || null : null;
   const outboundClicksColumn = contract.outboundClicksField ? byLower.get(contract.outboundClicksField.toLowerCase()) || null : null;

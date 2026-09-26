@@ -28,7 +28,7 @@ export const SOURCE_DEFINITIONS: Record<SourceRole, SourceDefinition> = {
   },
   calls: {
     label: 'Dialler Records', dateField:CALL_SOURCE_FIELDS.date,dateMeaning:'Recorded call-start date',filters:{vendor:CALL_SOURCE_FIELDS.vendor},
-    requiredIdentityFields:[CALL_SOURCE_FIELDS.leadId,CALL_SOURCE_FIELDS.vendor], legacyConsumers:['overview','funnel','calls','outcomes','sources','cohorts','speed-to-lead','explore','export'],
+    requiredIdentityFields:[CALL_SOURCE_FIELDS.uniqueId,CALL_SOURCE_FIELDS.leadId,CALL_SOURCE_FIELDS.vendor], legacyConsumers:['overview','funnel','calls','outcomes','sources','cohorts','speed-to-lead','explore','export'],
     warning:'A source row is not a deduplicated call event until the event-ID and ledger/dialler identity contracts are verified.',
     metrics:[{id:'source_rows',label:'Dialler Source Rows',operation:'count',unit:'records'},
       {id:'dialler_lead_ids',label:'Distinct Dialler Lead IDs',field:CALL_SOURCE_FIELDS.leadId,operation:'distinct',unit:'records'},
@@ -37,11 +37,13 @@ export const SOURCE_DEFINITIONS: Record<SourceRole, SourceDefinition> = {
       {id:'duration_seconds',label:'Recorded Duration (Seconds)',field:CALL_SOURCE_FIELDS.durationSeconds,operation:'sum',unit:'seconds'}],
   },
   timeToDial: {
-    label:'Time-to-Dial Source',dateField:TIME_TO_DIAL_SOURCE_FIELDS.date,dateMeaning:'Expected first-dial date (not an observed call date)',filters:{},
-    requiredIdentityFields:[],legacyConsumers:['source-metrics/timeToDial'],
-    warning:'Expected first dial is a schedule field, not actual first dial. Joining this source to lead/vendor outcomes requires a verified key mapping; it is not silently merged with call logs.',
+    label:'Time-to-Dial Source',dateField:TIME_TO_DIAL_SOURCE_FIELDS.date,dateMeaning:'Recorded first-dial date from the dedicated time-to-dial table',filters:{vendor:TIME_TO_DIAL_SOURCE_FIELDS.vendor},
+    requiredIdentityFields:[TIME_TO_DIAL_SOURCE_FIELDS.uniqueId,TIME_TO_DIAL_SOURCE_FIELDS.leadId,TIME_TO_DIAL_SOURCE_FIELDS.vendor],legacyConsumers:['source-metrics/timeToDial'],
+    warning:'This table contains both recorded FIRST_DIAL_DATE and scheduled EXPECTED_FIRST_DIAL. It can be tenant-scoped by vendor, but it is not joined to Lead Ledger outcomes until the dialler-to-ledger identity contract is approved.',
     metrics:[{id:'source_rows',label:'Time-to-Dial Source Rows',operation:'count',unit:'records'},
-      {id:'expected_first_dial_rows',label:'Rows with Valid Expected First Dial',field:TIME_TO_DIAL_SOURCE_FIELDS.date,operation:'timestamp',unit:'records'}],
+      {id:'dialler_lead_ids',label:'Distinct Dialler Lead IDs',field:TIME_TO_DIAL_SOURCE_FIELDS.leadId,operation:'distinct',unit:'records'},
+      {id:'first_dial_rows',label:'Rows with Valid Recorded First Dial',field:TIME_TO_DIAL_SOURCE_FIELDS.firstDialDate,operation:'timestamp',unit:'records'},
+      {id:'expected_first_dial_rows',label:'Rows with Valid Expected First Dial',field:TIME_TO_DIAL_SOURCE_FIELDS.expectedFirstDial,operation:'timestamp',unit:'records'}],
   },
   activations: {
     label:'BLC Activation Source',dateField:'date_created',dateMeaning:'Activation-source creation date (not proof of service activation date)',filters:{},
@@ -53,7 +55,7 @@ export const SOURCE_DEFINITIONS: Record<SourceRole, SourceDefinition> = {
   },
   marketing: {
     label:'Platform Media Insights',dateField:MARKETING_SOURCE_FIELDS.date,dateMeaning:'Media reporting date',filters:{},requiredIdentityFields:[...MARKETING_SOURCE_FIELDS.spendGrain],
-    legacyConsumers:['acquisition'],warning:'Platform lead actions are not ledger leads. Reach, budgets and spend must not be treated as interchangeable or duplicated across vendors.',
+    legacyConsumers:['acquisition'],warning:'Platform lead actions are not ledger leads. The supplied source schema exposes BUDGET but no observed spend field; budget must never be treated as incurred spend.',
     metrics:[{id:'source_rows',label:'Media Source Rows',operation:'count',unit:'records'},
       {id:'impressions',label:'Reported Impressions',field:MARKETING_SOURCE_FIELDS.impressions,operation:'sum',unit:'records'},
       {id:'clicks',label:'Reported Clicks',field:MARKETING_SOURCE_FIELDS.clicks,operation:'sum',unit:'records'},
