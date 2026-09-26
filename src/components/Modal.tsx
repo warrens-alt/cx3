@@ -23,14 +23,15 @@ export default function Modal({ open, isOpen, onClose, label, className = '', ch
   return (
     <div
       className={`fixed inset-0 z-50 flex ${isNavModal ? 'items-stretch justify-start p-0' : 'items-center justify-center p-3 sm:p-4'} bg-black/50 backdrop-blur-2xs transition-opacity duration-200`}
-      role="dialog"
-      aria-modal="true"
-      aria-label={label || 'Dialog'}
+      role="presentation"
     >
       <div className="fixed inset-0" onMouseDown={onClose} aria-hidden="true" />
       <div
         ref={dialogRef}
         tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label={label || 'Dialog'}
         className={`relative bg-white ${isNavModal ? 'rounded-none shadow-2xl h-full max-h-[100dvh] w-[260px] max-w-[85vw]' : 'rounded-lg sm:rounded-xl shadow-xl max-w-2xl max-h-[90dvh]'} overflow-hidden z-10 w-full flex flex-col ${className}`}
       >
         {children}
