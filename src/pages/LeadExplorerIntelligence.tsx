@@ -41,10 +41,11 @@ export default function LeadExplorerIntelligence() {
   const [params, setParams] = useSearchParams();
   const drill = params.get('drill') || '';
   const drillValue = params.get('drillValue') || '';
+  const appliedSearch = params.get('search') || '';
   const [data, setData] = useState<RawLeadsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState(params.get('search') || '');
+  const [search, setSearch] = useState(appliedSearch);
   const [page, setPage] = useState(0);
   const pageSize = 50;
 
@@ -69,7 +70,7 @@ export default function LeadExplorerIntelligence() {
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         ...extractOffernetFilters(filters),
-        search: search || undefined,
+        search: appliedSearch || undefined,
         drill: drill || undefined,
         drillValue: drillValue || undefined,
         limit: pageSize,
@@ -85,11 +86,15 @@ export default function LeadExplorerIntelligence() {
 
   useEffect(() => {
     setPage(0);
-  }, [selectedClient, startDate, endDate, filters, drill, drillValue]);
+  }, [selectedClient, startDate, endDate, filters, drill, drillValue, appliedSearch]);
+
+  useEffect(() => {
+    setSearch(appliedSearch);
+  }, [appliedSearch]);
 
   useEffect(() => {
     if (selectedClient) loadData();
-  }, [selectedClient, startDate, endDate, filters, drill, drillValue, page]);
+  }, [selectedClient, startDate, endDate, filters, drill, drillValue, appliedSearch, page]);
 
   const handleSearchSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -100,7 +105,6 @@ export default function LeadExplorerIntelligence() {
       else next.delete('search');
       return next;
     }, { replace: true });
-    loadData(true);
   };
 
   const clearInvestigation = () => {
