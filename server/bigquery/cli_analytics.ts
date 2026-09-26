@@ -1002,6 +1002,14 @@ async function executeLiveCliQuery(
     clauses.push(conditionSql(`CAST(s.\`${vendorCol}\` AS STRING)`, scope.filters.vendor, 'filter_vendor', params));
   }
   const whereSql = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  const distinctLeadExpr = fields.has('dialer_lead_id') ? 'COUNT(DISTINCT dialer_lead_id)' : 'CAST(NULL AS INT64)';
+  const contactExpr = fields.has('is_rpc') ? 'COUNTIF(is_rpc IS TRUE)' : 'CAST(NULL AS INT64)';
+  const saleExpr = fields.has('is_sale') ? 'COUNTIF(is_sale IS TRUE)' : 'CAST(NULL AS INT64)';
+  const durationTotalExpr = fields.has('length_in_sec') ? 'SUM(SAFE_CAST(length_in_sec AS INT64))' : 'CAST(NULL AS INT64)';
+  const avgDurationExpr = fields.has('length_in_sec') ? 'ROUND(AVG(SAFE_CAST(length_in_sec AS INT64)), 1)' : 'CAST(NULL AS FLOAT64)';
+  const duration1mExpr = fields.has('length_in_sec') ? 'COUNTIF(SAFE_CAST(length_in_sec AS INT64) >= 60)' : 'CAST(NULL AS INT64)';
+  const duration5mExpr = fields.has('length_in_sec') ? 'COUNTIF(SAFE_CAST(length_in_sec AS INT64) >= 300)' : 'CAST(NULL AS INT64)';
+  const duration15mExpr = fields.has('length_in_sec') ? 'COUNTIF(SAFE_CAST(length_in_sec AS INT64) >= 900)' : 'CAST(NULL AS INT64)';
 
   const query = `
     SELECT
@@ -1023,6 +1031,10 @@ async function executeLiveCliQuery(
     ORDER BY total_calls DESC
     LIMIT 2000
   `;
+
+  if (!fields.has('is_rpc') || !fields.has('is_sale')) {
+    throw new RequestError('The configured CLI source is missing required is_rpc or is_sale fields; CX3 will not infer contact or sale outcomes.', 422);
+  }
 
   const result = await client.execute({ query, params });
   const records: CliPerformanceRecord[] = result.rows.map(r => {
@@ -1052,13 +1064,13 @@ async function executeLiveCliQuery(
       salePerAnswerRate: null,
       salePerContactRate: Number(contactCount) > 0 ? calculateExactRate(saleCount, contactCount) : null,
       durationGe1mCount: d1m,
-      durationGe1mPct: calculateExactRate(d1m, totalCalls) || '0.00',
+      durationGe1mPct: d1m === null ? null : calculateExactRate(d1m, totalCalls),
       durationGe5mCount: d5m,
-      durationGe5mPct: calculateExactRate(d5m, totalCalls) || '0.00',
+      durationGe5mPct: d5m === null ? null : calculateExactRate(d5m, totalCalls),
       durationGe15mCount: d15m,
-      durationGe15mPct: calculateExactRate(d15m, totalCalls) || '0.00',
-      avgDurationSeconds: String(r.avg_duration || '0.0'),
-      totalDurationSeconds: String(r.total_duration || '0'),
+      durationGe15mPct: d15m === null ? null : calculateExactRate(d15m, totalCalls),
+      avgDurationSeconds: r.avg_duration === null || r.avg_duration === undefined ? null : String(r.avg_duration),
+      totalDurationSeconds: r.total_duration === null || r.total_duration === undefined ? null : String(r.total_duration),
       avgLeadAgeDays: null,
       activations: null,
       recordedValue: null,
