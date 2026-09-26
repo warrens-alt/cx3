@@ -134,24 +134,22 @@ export default function LoginView() {
             <div className="grid grid-cols-1 gap-2 text-[11.5px] text-slate-600">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                <span>Zero-Trust Google Account Verification</span>
+                <span>Google identity authentication</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                <span>Multi-Tenant Client Scoping (8 Tenants)</span>
+                <span>Server-authorised workspace scoping</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                <span>BigQuery Data Ledger Direct Pipeline</span>
+                <span>Authenticated analytical API access</span>
               </div>
             </div>
           </div>
 
           {/* Bottom Telemetry Strip */}
-          <div className="pt-2.5 flex items-center justify-between text-[10.5px] font-mono text-slate-400 border-t border-slate-100">
-            <span>TLS 1.3 / 256-BIT</span>
-            <span className="text-slate-300">·</span>
-            <span>AUTH DOMAIN: bastionflowe.com</span>
+          <div className="pt-2.5 text-center text-[10.5px] font-mono text-slate-400 border-t border-slate-100">
+            Access is granted only after account and workspace authorisation.
           </div>
         </div>
       </main>
@@ -166,7 +164,7 @@ export default function LoginView() {
           <span>{BRAND.engine}</span>
         </div>
         <div>
-          <span>Protected Enterprise BigQuery Warehouse</span>
+          <span>Protected analytical workspace</span>
         </div>
       </footer>
     </div>
