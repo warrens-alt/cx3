@@ -8,6 +8,7 @@ import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import { formatPercent, formatTableNumber, formatTableCurrency } from '../lib/formatters';
 import OperationalPageHeader from '../components/OperationalPageHeader';
+import { RankedMetricChart, VolumeRateComboChart } from '../components/charts/OperationalVisuals';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 
 export default function RoutingIntelligence() {
@@ -44,6 +45,37 @@ export default function RoutingIntelligence() {
                 <article className="cx-command-metric"><span>Matched handoff</span><strong>{formatPercent(overview.handoff_rate_pct)}</strong><div><small>{formatTableNumber(overview.missing_handoff_leads)} unmatched</small></div></article>
                 <article className="cx-command-metric"><span>Recorded route revenue</span><strong>{formatTableCurrency(overview.routed_revenue, currency)}</strong><div><small>Source-recorded value only</small></div></article>
               </section>
+
+              <div className="cx-analytics-visual-grid">
+                <VolumeRateComboChart
+                  title="Routing depth and observed outcomes"
+                  subtitle="Lead volume by routing depth with handoff, delivery and sale rates overlaid."
+                  data={depthBreakdown.map((row:any) => ({
+                    depth: row.depth_bucket,
+                    leads: row.leads,
+                    handoffRate: row.handoff_rate_pct,
+                    deliveryRate: row.delivery_rate_pct,
+                    saleRate: row.sale_rate_pct,
+                  }))}
+                  xKey="depth"
+                  volumeKey="leads"
+                  volumeLabel="Leads"
+                  rateSeries={[
+                    { key: 'handoffRate', label: 'Handoff rate' },
+                    { key: 'deliveryRate', label: 'Delivery rate' },
+                    { key: 'saleRate', label: 'Sale rate' },
+                  ]}
+                />
+                <RankedMetricChart
+                  title="Most common route sequences"
+                  subtitle="Chronological partner paths ranked by observed lead volume."
+                  data={topRoutePaths.map((row:any) => ({ route: row.route_path || 'Unknown', leads: row.leads }))}
+                  categoryKey="route"
+                  valueKey="leads"
+                  valueLabel="Leads"
+                  maxItems={10}
+                />
+              </div>
 
               <section className="cx-command-panel">
                 <header>

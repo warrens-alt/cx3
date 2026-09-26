@@ -444,3 +444,24 @@ test('overview and secondary operational tabs use the shared visual analytics la
   assert.doesNotMatch(contact, /from 'recharts'/);
   assert.match(exceptions, /Largest active exception populations/);
 });
+
+
+test('vendor, cohort and routing analytics use visual composition and maturation views', () => {
+  const vendor = read('src/pages/VendorLeadQuality.tsx');
+  const cohorts = read('src/pages/Cohorts.tsx');
+  const routing = read('src/pages/RoutingIntelligence.tsx');
+  const exceptions = read('src/pages/Exceptions.tsx');
+  const visuals = read('src/components/charts/OperationalVisuals.tsx');
+
+  assert.match(vendor, /Vendor grade composition/);
+  assert.match(vendor, /StackedCompositionChart/);
+  assert.match(vendor, /Vendor volume and downstream rates/);
+  assert.match(cohorts, /maturation curves/);
+  assert.match(cohorts, /MultiSeriesTrendChart/);
+  assert.match(cohorts, /Cohort volume and observed outcomes/);
+  assert.match(routing, /Routing depth and observed outcomes/);
+  assert.match(routing, /Most common route sequences/);
+  assert.match(visuals, /onSelect/);
+  assert.match(exceptions, /useNavigate/);
+  assert.match(exceptions, /onSelect=/);
+});

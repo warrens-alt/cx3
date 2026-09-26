@@ -2503,3 +2503,5 @@ a.cx-trust-pill:hover { background:transparent; }
   .cx-analytics-card { padding:14px; }
   .cx-analytics-visual-grid { gap:14px; }
 }
+
+.cx-chart-clickable { cursor:pointer; }

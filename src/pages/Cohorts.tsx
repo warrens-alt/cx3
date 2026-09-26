@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { AlertTriangle, CalendarDays, Layers3 } from 'lucide-react';
 import { useAnalyticsData } from '../lib/useAnalyticsData';
 import { useClient } from '../lib/ClientContext';
@@ -7,6 +7,7 @@ import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import { formatTableNumber, formatPercent, formatTableCurrency } from '../lib/formatters';
 import { heatmapColors } from '../lib/heatmapColors';
+import { MultiSeriesTrendChart, VolumeRateComboChart } from '../components/charts/OperationalVisuals';
 
 type CohortMetric = 'call_coverage' | 'sale' | 'activation';
 type CohortGrain = 'daily' | 'weekly' | 'monthly';
@@ -31,6 +32,28 @@ export default function Cohorts() {
 
   const formatMetric = (value: number | null | undefined) =>
     value == null ? '—' : `${Number(value).toFixed(1)}%`;
+  const recentCohorts = useMemo(() => (cohorts || []).slice(0, 6), [cohorts]);
+  const maturationChart = useMemo(() => intervals.map(interval => {
+    const row: Record<string, any> = { interval: interval.toUpperCase() };
+    recentCohorts.forEach((cohort: any, index: number) => {
+      row[`cohort_${index}`] = cohort.metrics?.[interval] == null ? null : Number(cohort.metrics[interval]);
+    });
+    return row;
+  }), [recentCohorts]);
+
+  const maturationSeries = useMemo(() => recentCohorts.map((cohort: any, index: number) => ({
+    key: `cohort_${index}`,
+    label: String(cohort.cohort),
+  })), [recentCohorts]);
+
+  const cohortOutcomeVisual = useMemo(() => (cohorts || []).slice(0, 12).map((row: any) => ({
+    cohort: row.cohort,
+    leads: row.size,
+    callCoverage: row.callCoverage ?? row.callRate ?? null,
+    saleRate: row.saleRate ?? null,
+    activationRate: row.activationRate ?? null,
+  })), [cohorts]);
+
   const maturationReasons = Array.from(new Set<string>((cohorts || [])
     .filter((row: any) => row.maturationStatus === 'UNAVAILABLE' && row.maturationReason)
     .map((row: any) => String(row.maturationReason))));
@@ -90,6 +113,29 @@ export default function Cohorts() {
                   ...cohorts.map((row:any) => [row.cohort, row.size, ...intervals.map(interval => row.metrics?.[interval])]),
                 ]} truncated={cohorts.some((row:any) => row.detailTruncated)} definitions={`${metricLabel[metricType]}; observed cumulative event dates. Missing event timing remains unavailable.`} />
               </header>
+
+              <div className="cx-analytics-visual-grid">
+                <MultiSeriesTrendChart
+                  title={`${metricLabel[metricType]} maturation curves`}
+                  subtitle={`Latest ${recentCohorts.length} displayed cohorts across D0 → D30. Missing event timing remains unavailable.`}
+                  data={maturationChart}
+                  xKey="interval"
+                  series={maturationSeries}
+                />
+                <VolumeRateComboChart
+                  title="Cohort volume and observed outcomes"
+                  subtitle="Fetched cohort size with dial coverage, sale and activation rates overlaid."
+                  data={cohortOutcomeVisual}
+                  xKey="cohort"
+                  volumeKey="leads"
+                  volumeLabel="Fetched leads"
+                  rateSeries={[
+                    { key: 'callCoverage', label: 'Dial coverage' },
+                    { key: 'saleRate', label: 'Sale rate' },
+                    { key: 'activationRate', label: 'Activation rate' },
+                  ]}
+                />
+              </div>
 
               {maturationReasons.length > 0 && (
                 <div className="cx-command-empty" role="status">

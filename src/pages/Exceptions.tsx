@@ -1,6 +1,6 @@
 import { useOperationalData } from '../lib/useOperationalData';
 import React, { useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, Database, ShieldCheck } from 'lucide-react';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import { useClient } from '../lib/ClientContext';
@@ -25,6 +25,7 @@ export default function Exceptions() {
   const { isAdmin } = useAuth();
   const { startDate, endDate, filters } = useFilters();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   const { data, loading, error, loadData } = useOperationalData<OverviewData>('Exceptions', {
     clientId: selectedClient,
@@ -101,11 +102,15 @@ export default function Exceptions() {
             {ordered.length > 0 && <RankedMetricChart
               title="Largest active exception populations"
               subtitle="Ranked by affected records. Severity remains visible in the action queue below."
-              data={ordered.map(item => ({ exception: item.title, count: item.count }))}
+              data={ordered.map(item => ({ exception: item.title, id: item.id, count: item.count }))}
               categoryKey="exception"
               valueKey="count"
               valueLabel="Affected records"
               maxItems={10}
+              onSelect={(_, row) => {
+                const item = ordered.find(candidate => candidate.id === row.id);
+                if (item) navigate(isAdmin ? recordLink(item.id) : scoped('/data-integrity'));
+              }}
             />}
 
             {controls.data && <ContactGovernancePanel

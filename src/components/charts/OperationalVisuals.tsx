@@ -6,6 +6,7 @@ import {
   ComposedChart,
   Legend,
   Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -115,6 +116,7 @@ interface RankedMetricChartProps {
   decimals?: number;
   maxItems?: number;
   height?: number;
+  onSelect?: (category: string, row: Record<string, any>) => void;
 }
 
 export function RankedMetricChart({
@@ -129,6 +131,7 @@ export function RankedMetricChart({
   decimals = 0,
   maxItems = 12,
   height = 320,
+  onSelect,
 }: RankedMetricChartProps) {
   const rows = [...data]
     .filter(row => row[valueKey] !== null && row[valueKey] !== undefined && Number.isFinite(Number(row[valueKey])))
@@ -153,7 +156,20 @@ export function RankedMetricChart({
             <XAxis type="number" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={value => `${valuePrefix}${formatChartAxis(value)}${valueSuffix}`} />
             <YAxis type="category" dataKey={categoryKey} width={138} tick={{ fontSize: 11, fill: '#334155' }} axisLine={false} tickLine={false} />
             <Tooltip formatter={(value: any) => [formatValue(value), valueLabel]} cursor={{ fill: '#F8FAFC' }} />
-            <Bar dataKey={valueKey} name={valueLabel} fill={ANALYTICS_COLORS.volume} radius={[0, 4, 4, 0]} maxBarSize={22} isAnimationActive={false} />
+            <Bar
+              dataKey={valueKey}
+              name={valueLabel}
+              fill={ANALYTICS_COLORS.volume}
+              radius={[0, 4, 4, 0]}
+              maxBarSize={22}
+              isAnimationActive={false}
+              className={onSelect ? 'cx-chart-clickable' : undefined}
+              onClick={onSelect ? (entry: any) => {
+                const row = entry?.payload || entry;
+                const category = row?.[categoryKey];
+                if (category !== null && category !== undefined) onSelect(String(category), row);
+              } : undefined}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -185,6 +201,108 @@ export function GroupedOutcomeChart({ title, subtitle, data, xKey, series, heigh
             <Legend wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
             {series.map((item, index) => (
               <Bar key={item.key} dataKey={item.key} name={item.label} fill={item.color || [ANALYTICS_COLORS.volume, ANALYTICS_COLORS.rpc, ANALYTICS_COLORS.sale, ANALYTICS_COLORS.activation][index % 4]} radius={[4, 4, 0, 0]} maxBarSize={32} isAnimationActive={false} />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+
+const SERIES_PALETTE = ['#3562B3','#0F766E','#7C3AED','#15803D','#B7791F','#64748B','#0E7490','#BE185D'];
+
+interface MultiSeriesTrendChartProps {
+  title: string;
+  subtitle?: string;
+  data: Array<Record<string, any>>;
+  xKey: string;
+  series: Array<{ key: string; label: string; color?: string }>;
+  valueSuffix?: string;
+  height?: number;
+}
+
+export function MultiSeriesTrendChart({
+  title,
+  subtitle,
+  data,
+  xKey,
+  series,
+  valueSuffix = '%',
+  height = 320,
+}: MultiSeriesTrendChartProps) {
+  if (!data.length || !series.length) return null;
+
+  return (
+    <div className="enterprise-card cx-analytics-card">
+      <ChartToolbar visualData={data} title={title} subtitle={subtitle} />
+      <div style={{ height, width: '100%' }}>
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+          <LineChart data={data} margin={{ top: 16, right: 16, left: -4, bottom: 8 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EEF2F6" />
+            <XAxis dataKey={xKey} tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={value => `${formatChartAxis(value)}${valueSuffix}`} />
+            <Tooltip formatter={(value: any, name: any) => [value == null ? '—' : `${Number(value).toFixed(1)}${valueSuffix}`, name]} />
+            <Legend wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
+            {series.slice(0, 8).map((item, index) => (
+              <Line
+                key={item.key}
+                type="monotone"
+                dataKey={item.key}
+                name={item.label}
+                stroke={item.color || SERIES_PALETTE[index % SERIES_PALETTE.length]}
+                strokeWidth={2.2}
+                dot={{ r: 2.5, fill: '#fff', strokeWidth: 2 }}
+                connectNulls={false}
+                isAnimationActive={false}
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+interface StackedCompositionChartProps {
+  title: string;
+  subtitle?: string;
+  data: Array<Record<string, any>>;
+  categoryKey: string;
+  series: Array<{ key: string; label: string; color?: string }>;
+  height?: number;
+}
+
+export function StackedCompositionChart({
+  title,
+  subtitle,
+  data,
+  categoryKey,
+  series,
+  height = 330,
+}: StackedCompositionChartProps) {
+  if (!data.length || !series.length) return null;
+
+  return (
+    <div className="enterprise-card cx-analytics-card">
+      <ChartToolbar visualData={data} title={title} subtitle={subtitle} />
+      <div style={{ height: Math.max(height, data.length * 34 + 80), width: '100%' }}>
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+          <BarChart data={data} layout="vertical" margin={{ top: 8, right: 22, left: 8, bottom: 10 }}>
+            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#EEF2F6" />
+            <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={value => `${value}%`} />
+            <YAxis type="category" dataKey={categoryKey} width={138} tick={{ fontSize: 11, fill: '#334155' }} axisLine={false} tickLine={false} />
+            <Tooltip formatter={(value: any, name: any) => [`${Number(value).toFixed(1)}%`, name]} />
+            <Legend wrapperStyle={{ fontSize: 11, paddingTop: 10 }} />
+            {series.slice(0, 8).map((item, index) => (
+              <Bar
+                key={item.key}
+                dataKey={item.key}
+                name={item.label}
+                stackId="composition"
+                fill={item.color || SERIES_PALETTE[index % SERIES_PALETTE.length]}
+                isAnimationActive={false}
+              />
             ))}
           </BarChart>
         </ResponsiveContainer>

@@ -22,6 +22,7 @@ import { fetchVendorQuality, type VendorQualityData } from '../lib/offernetClien
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { VendorControlsPanel } from '../components/OfferNetControlPanels';
+import { StackedCompositionChart, VolumeRateComboChart } from '../components/charts/OperationalVisuals';
 
 import { formatPercent, formatTableNumber } from '../lib/formatters';
 
@@ -39,6 +40,49 @@ export default function VendorLeadQuality() {
     endDate: endDate || undefined,
     ...extractOffernetFilters(filters),
   }, fetchVendorQuality);
+
+  const vendorGradeVisual = useMemo(() => {
+    const rows = data?.vendorGrades || [];
+    if (!rows.length) return { data: [] as Array<Record<string, any>>, series: [] as Array<{key:string;label:string}> };
+
+    const vendorTotals = new Map<string, number>();
+    const gradeTotals = new Map<string, number>();
+    const matrix = new Map<string, Map<string, number>>();
+    for (const row of rows) {
+      vendorTotals.set(row.vendor, (vendorTotals.get(row.vendor) || 0) + row.leads);
+      gradeTotals.set(row.grade, (gradeTotals.get(row.grade) || 0) + row.leads);
+      if (!matrix.has(row.vendor)) matrix.set(row.vendor, new Map());
+      const vendorGrades = matrix.get(row.vendor)!;
+      vendorGrades.set(row.grade, (vendorGrades.get(row.grade) || 0) + row.leads);
+    }
+
+    const vendors = [...vendorTotals.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name]) => name);
+    const grades = [...gradeTotals.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([name]) => name);
+    const chartRows = vendors.map(vendor => {
+      const total = vendorTotals.get(vendor) || 0;
+      const row: Record<string, any> = { vendor };
+      grades.forEach((grade, index) => {
+        const count = matrix.get(vendor)?.get(grade) || 0;
+        row[`grade_${index}`] = total > 0 ? (count / total) * 100 : 0;
+      });
+      return row;
+    });
+    return {
+      data: chartRows,
+      series: grades.map((grade, index) => ({ key: `grade_${index}`, label: grade })),
+    };
+  }, [data?.vendorGrades]);
+
+  const vendorOutcomeVisual = useMemo(() => [...(data?.vendors || [])]
+    .sort((a, b) => b.leads - a.leads)
+    .slice(0, 12)
+    .map(row => ({
+      vendor: row.vendor,
+      leads: row.leads,
+      contactRate: row.contactRate,
+      saleRate: row.saleRate,
+      activationRate: row.activationRate,
+    })), [data?.vendors]);
 
   const scatter = useMemo(
     () => (data?.vendors || [])
@@ -79,6 +123,29 @@ export default function VendorLeadQuality() {
 
         {data && (
           <>
+            <div className="cx-analytics-visual-grid">
+              <VolumeRateComboChart
+                title="Vendor volume and downstream rates"
+                subtitle="Lead volume is shown as bars; RPC, sale and activation rates remain separate observed measures."
+                data={vendorOutcomeVisual}
+                xKey="vendor"
+                volumeKey="leads"
+                volumeLabel="Fetched leads"
+                rateSeries={[
+                  { key: 'contactRate', label: 'RPC rate' },
+                  { key: 'saleRate', label: 'Sale rate' },
+                  { key: 'activationRate', label: 'Activation rate' },
+                ]}
+              />
+              {vendorGradeVisual.data.length > 0 && <StackedCompositionChart
+                title="Vendor grade composition"
+                subtitle="100% composition of recorded grades within each vendor's observed lead population."
+                data={vendorGradeVisual.data}
+                categoryKey="vendor"
+                series={vendorGradeVisual.series}
+              />}
+            </div>
+
             {data.lifecycle && <LifecycleSegmentsPanel data={data.lifecycle} />}
             {data.vendorGrades && <section className="cx-command-panel"><header><div><h2>Vendor grade distribution</h2><p>{data.qualityEvidence}</p></div><ExportAnalysisButton filename="vendor_grade_distribution" rows={[["Vendor","Grade","Leads"], ...data.vendorGrades.map(r=>[r.vendor,r.grade,r.leads])]} definitions={[data.qualityEvidence || 'Lead/vendor grain']} /></header><div className="cx-performance-table-wrap"><table className="cx-performance-table"><thead><tr><th>Vendor</th><th>Grade</th><th>Leads</th></tr></thead><tbody>{data.vendorGrades.map(r => <tr key={`${r.vendor}-${r.grade}`}><th>{r.vendor}</th><td>{r.grade}</td><td>{fmt(r.leads)}</td></tr>)}</tbody></table></div></section>}
 
