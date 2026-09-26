@@ -38,28 +38,12 @@ const GlobalFilter = React.lazy(() => import('./components/GlobalFilter'));
 const CommandPalette = React.lazy(() => import('./components/CommandPalette'));
 const Vetting = React.lazy(() => import('./pages/Vetting'));
 const VisualWorkspace = React.lazy(() => import('./pages/VisualWorkspace'));
-const Overview = React.lazy(() => import('./pages/Overview'));
-const Insights = React.lazy(() => import('./pages/Insights'));
-const Explore = React.lazy(() => import('./pages/Explore'));
-const Funnel = React.lazy(() => import('./pages/Funnel'));
-const SpeedToLead = React.lazy(() => import('./pages/SpeedToLead'));
-const CallPerformance = React.lazy(() => import('./pages/CallPerformance'));
 const CliPerformance = React.lazy(() => import('./pages/CliPerformance'));
 const Cohorts = React.lazy(() => import('./pages/Cohorts'));
-const SourceAnalysis = React.lazy(() => import('./pages/SourceAnalysis'));
-const QualityVetting = React.lazy(() => import('./pages/QualityVetting'));
-const DataQuality = React.lazy(() => import('./pages/DataQuality'));
-const LeadExplorer = React.lazy(() => import('./pages/LeadExplorer'));
 const SettingsPage = React.lazy(() => import('./pages/Settings'));
 const AdminValidation = React.lazy(() => import('./pages/AdminValidation'));
-const DataCoverage = React.lazy(() => import('./pages/DataCoverage'));
-const Acquisition = React.lazy(() => import('./pages/Acquisition'));
-const Outcomes = React.lazy(() => import('./pages/Outcomes'));
-const DataAudit = React.lazy(() => import('./pages/DataAudit'));
 const RoutingIntelligence = React.lazy(() => import('./pages/RoutingIntelligence'));
 const ConsumerReentry = React.lazy(() => import('./pages/ConsumerReentry'));
-const DataTrust = React.lazy(() => import('./pages/DataTrust'));
-const Revetting = React.lazy(() => import('./pages/Revetting'));
 const VendorPerformance = React.lazy(() => import('./pages/VendorPerformance'));
 const Exceptions = React.lazy(() => import('./pages/Exceptions'));
 const CommercialReconciliation = React.lazy(() => import('./pages/CommercialReconciliation'));
@@ -80,7 +64,7 @@ function Shell() {
     '/', '/overview', '/funnel', '/speed-to-lead', '/contact-strategy', 
     '/cli-performance',
     '/vendor-quality', '/temporal', '/sales-activation', '/commercial', 
-    '/data-integrity', '/agent-performance', '/campaigns', '/ai-insights', '/lead-explorer', '/exceptions'
+    '/data-integrity', '/agent-performance', '/campaigns', '/ai-insights', '/lead-explorer', '/exceptions', '/routing', '/cohorts'
   ];
   const isOperationalPage = operationalRoutes.includes(location.pathname);
   const evidencePage = ['/reports','/vendors','/exceptions','/reconciliation','/lead-ledger','/admin','/access-control','/users'].includes(location.pathname) || isOperationalPage;
@@ -169,22 +153,22 @@ function Shell() {
               <Route path="/reconciliation" element={<CommercialReconciliation key={selectedClient} />} />
               <Route path="/vetting" element={<Vetting key={selectedClient} />} />
               <Route path="/visuals" element={<VisualWorkspace />} />
-              <Route path="/insights" element={<Insights />} />
-              <Route path="/explore" element={<Explore />} />
+              <Route path="/insights" element={<Navigate to="/overview" replace />} />
+              <Route path="/explore" element={<Navigate to="/lead-explorer" replace />} />
               <Route path="/routing" element={<RoutingIntelligence />} />
               <Route path="/consumers" element={<ConsumerReentry />} />
-              <Route path="/acquisition" element={<Acquisition />} />
+              <Route path="/acquisition" element={<Navigate to="/campaigns" replace />} />
               <Route path="/lead-performance" element={<Navigate to="/funnel" replace />} />
-              <Route path="/call-performance" element={<CallPerformance />} />
+              <Route path="/call-performance" element={<Navigate to="/contact-strategy" replace />} />
               <Route path="/cohorts" element={<Cohorts />} />
-              <Route path="/outcomes" element={<Outcomes />} />
-              <Route path="/sources" element={<SourceAnalysis />} />
-              <Route path="/quality" element={<QualityVetting />} />
-              <Route path="/revetting" element={<Revetting />} />
-              <Route path="/data-trust" element={<DataTrust />} />
-              <Route path="/data-quality" element={<DataQuality />} />
-              <Route path="/data-coverage" element={<DataCoverage />} />
-              <Route path="/audit" element={<DataAudit />} />
+              <Route path="/outcomes" element={<Navigate to="/sales-activation" replace />} />
+              <Route path="/sources" element={<Navigate to="/vendor-quality" replace />} />
+              <Route path="/quality" element={<Navigate to="/vendor-quality" replace />} />
+              <Route path="/revetting" element={<Navigate to="/vetting" replace />} />
+              <Route path="/data-trust" element={<Navigate to="/data-integrity" replace />} />
+              <Route path="/data-quality" element={<Navigate to="/data-integrity" replace />} />
+              <Route path="/data-coverage" element={<Navigate to="/data-integrity" replace />} />
+              <Route path="/audit" element={<Navigate to="/data-integrity" replace />} />
               <Route path="/access-control" element={<UserManagement key={selectedClient} />} />
               <Route path="/users" element={<UserManagement key={selectedClient} />} />
               <Route path="/explorer" element={<Navigate to="/lead-explorer" replace />} />
@@ -193,7 +177,7 @@ function Shell() {
               <Route path="/calls" element={<Navigate to="/contact-strategy" replace />} />
               <Route path="/leads" element={<Navigate to="/lead-explorer" replace />} />
               <Route path="/lead-ledger" element={<LeadLedger />} />
-              <Route path="/platform-insights" element={<Acquisition />} />
+              <Route path="/platform-insights" element={<Navigate to="/campaigns" replace />} />
               <Route path="/validation" element={<AdminValidation />} />
               <Route path="*" element={<section className="cx-route-error"><h1>Page not found</h1><p>The requested workspace page does not exist.</p><Link className="cx-button-primary" to="/">Open Overview</Link></section>}/>
             </Routes>}

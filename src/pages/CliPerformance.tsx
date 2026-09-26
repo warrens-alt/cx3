@@ -8,16 +8,14 @@ import {
   clearCliImport,
 } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
+import OperationalPageHeader from '../components/OperationalPageHeader';
 import {
   type CliPerformanceResponse,
-  type CliPerformanceRecord,
-  type CliValidationAnomaly,
   CLI_METRIC_DEFINITIONS,
 } from '../../contracts/cliPerformance';
 import { exactNumber } from '../../contracts/format';
 import { compareExactDecimal } from '../../contracts/exactDecimal';
 import {
-  PhoneForwarded,
   Upload,
   Download,
   AlertTriangle,
@@ -28,18 +26,8 @@ import {
   ArrowUpDown,
   Search,
   X,
-  RefreshCw,
-  TrendingUp,
-  TrendingDown,
-  BarChart2,
-  ShieldAlert,
   Clock,
   Sparkles,
-  PhoneCall,
-  SlidersHorizontal,
-  ChevronRight,
-  Database,
-  Calendar,
   Filter,
 } from 'lucide-react';
 import {
@@ -51,8 +39,6 @@ import {
   Tooltip,
   CartesianGrid,
   Legend,
-  LineChart,
-  Line,
   Cell,
   AreaChart,
   Area,
@@ -284,23 +270,29 @@ export default function CliPerformance() {
     }));
   }, [data?.cliPerformance, rankMetric]);
 
-  // Conversion Funnel Data
+  // Conversion funnel contains only directly observed source fields.
   const funnelData = useMemo(() => {
     if (!data?.summary) return [];
     const s = data.summary;
     const calls = parseInt(s.totalCalls, 10) || 0;
-    const answered = s.answeredCount ? parseInt(s.answeredCount, 10) : Math.round(calls * 0.54);
     const contacts = parseInt(s.contactCount, 10) || 0;
     const sales = parseInt(s.saleCount, 10) || 0;
-    const activations = s.activations ? parseInt(s.activations, 10) : Math.round(sales * 0.68);
-
-    return [
+    const stages: Array<{ stage: string; count: number; pct: number; color: string }> = [
       { stage: 'Total Calls', count: calls, pct: 100, color: '#3562B3' },
-      { stage: 'Answered', count: answered, pct: calls > 0 ? Number(((answered / calls) * 100).toFixed(1)) : 0, color: '#4F84DC' },
+    ];
+    if (s.answeredCount !== null) {
+      const answered = parseInt(s.answeredCount, 10) || 0;
+      stages.push({ stage: 'Answered', count: answered, pct: calls > 0 ? Number(((answered / calls) * 100).toFixed(1)) : 0, color: '#4F84DC' });
+    }
+    stages.push(
       { stage: 'Right Party Contact', count: contacts, pct: calls > 0 ? Number(((contacts / calls) * 100).toFixed(1)) : 0, color: '#2563EB' },
       { stage: 'Sales Recorded', count: sales, pct: calls > 0 ? Number(((sales / calls) * 100).toFixed(1)) : 0, color: '#059669' },
-      { stage: 'Activations', count: activations, pct: calls > 0 ? Number(((activations / calls) * 100).toFixed(1)) : 0, color: '#10B981' },
-    ];
+    );
+    if (s.activations !== null) {
+      const activations = parseInt(s.activations, 10) || 0;
+      stages.push({ stage: 'Activations', count: activations, pct: calls > 0 ? Number(((activations / calls) * 100).toFixed(1)) : 0, color: '#10B981' });
+    }
+    return stages;
   }, [data?.summary]);
 
   const summary = data?.summary;
@@ -309,120 +301,34 @@ export default function CliPerformance() {
   const isImported = data?.provenance === 'IMPORTED_REPORT';
 
   return (
-    <div className="cx-page-container space-y-6">
-      {/* 1. Header with Breadcrumb & Global Actions */}
-      <header className="cx-page-header flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="cx-ops-eyebrow">Dialler Intelligence</span>
-            <span className="text-slate-400">/</span>
-            <span className="text-xs font-medium text-slate-600">Telephony Analytics</span>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <PhoneForwarded className="text-[#3562B3]" size={26} />
-            CLI Performance
-            {!startDate && !endDate && Object.keys(extractOffernetFilters(filters)).length === 0 && (
-              <span className="text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full ml-1">
-                Total (Unfiltered)
-              </span>
+    <div className="cx-command-page">
+      <OffernetFilterBar onRefresh={() => loadData(true)} onExportCsv={handleExportCsv} />
+      <div className="cx-command-content">
+      <OperationalPageHeader
+        eyebrow="Contact"
+        title="CLI performance"
+        description="Compare outbound caller-ID delivery, RPC, conversation depth and recorded downstream outcomes without inventing unavailable telephony fields."
+        status={isImported ? 'IMPORTED_REPORT' : isSchemaUnavailable ? 'SCHEMA_GAP' : data?.metadata.validationStatus || 'NOT_VERIFIED'}
+        statusLabel="CLI source"
+        actions={
+          <div className="cx-operational-page-actions">
+            {data?.anomalies?.length ? (
+              <button type="button" onClick={() => setShowAnomalyModal(true)} className="cx-button-secondary">
+                <AlertTriangle size={13}/>{data.anomalies.length} quality flag{data.anomalies.length === 1 ? '' : 's'}
+              </button>
+            ) : null}
+            <button type="button" onClick={() => setShowImportModal(true)} className="cx-button-secondary">
+              <Upload size={14}/>Import / sample
+            </button>
+            {data && !isSchemaUnavailable && (
+              <button type="button" onClick={handleExportJson} className="cx-button-secondary">JSON</button>
             )}
-          </h1>
-          <p className="text-sm text-slate-500 mt-1 max-w-2xl">
-            Outbound caller-ID performance across call delivery, contact, conversation quality and downstream outcomes.
-          </p>
-        </div>
-
-        <div className="flex items-center flex-wrap gap-2.5">
-          {/* Provenance Badge */}
-          {data && (
-            <div
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold border ${
-                isImported
-                  ? 'bg-blue-50 text-blue-700 border-blue-200'
-                  : isSchemaUnavailable
-                  ? 'bg-amber-50 text-amber-800 border-amber-300'
-                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-              }`}
-            >
-              <Database size={13} />
-              <span>
-                {isImported ? 'IMPORTED REPORT' : isSchemaUnavailable ? 'SCHEMA GAP DETECTED' : 'LIVE BIGQUERY'}
-              </span>
-            </div>
-          )}
-
-          {/* Anomaly Badge */}
-          {data?.anomalies && data.anomalies.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowAnomalyModal(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-colors"
-            >
-              <AlertTriangle size={13} />
-              <span>{data.anomalies.length} Data Quality Flag{data.anomalies.length > 1 ? 's' : ''}</span>
-            </button>
-          )}
-
-          {/* Import / Benchmark Action */}
-          <button
-            type="button"
-            onClick={() => setShowImportModal(true)}
-            className="cx-button-secondary text-xs flex items-center gap-1.5 py-1.5 px-3"
-          >
-            <Upload size={14} />
-            <span>Import / Sample</span>
-          </button>
-
-          {/* Export Dropdown */}
-          {data && !isSchemaUnavailable && (
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={handleExportCsv}
-                className="cx-button-secondary text-xs flex items-center gap-1 py-1.5 px-2.5"
-                title="Export CSV with full metadata & metric definitions"
-              >
-                <Download size={14} />
-                <span>CSV</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleExportJson}
-                className="cx-button-secondary text-xs flex items-center gap-1 py-1.5 px-2.5"
-                title="Export JSON"
-              >
-                <span>JSON</span>
-              </button>
-            </div>
-          )}
-
-          {/* Clear Import (if imported report is active) */}
-          {isImported && (
-            <button
-              type="button"
-              onClick={handleClearImport}
-              className="text-xs text-slate-500 hover:text-rose-600 underline px-1.5"
-              title="Reset to live warehouse query"
-            >
-              Clear Import
-            </button>
-          )}
-
-          <button
-            type="button"
-            onClick={() => loadData(true)}
-            disabled={loading}
-            className="cx-icon-button"
-            aria-label="Refresh CLI performance data"
-            title="Refresh"
-          >
-            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-          </button>
-        </div>
-      </header>
-
-      {/* 2. Global Offernet Filter Bar */}
-      <OffernetFilterBar />
+            {isImported && (
+              <button type="button" onClick={handleClearImport} className="cx-button-secondary">Clear import</button>
+            )}
+          </div>
+        }
+      />
 
       {/* 3. Schema Gap Diagnostic Banner (when live table has no CLI column and no imported report exists) */}
       {isSchemaUnavailable && data?.sourceStatus && (
@@ -451,7 +357,7 @@ export default function CliPerformance() {
                   <strong>System Integrity Protection:</strong> Rather than silently substituting unrelated columns or synthesizing misleading numbers, Conversion X isolates this schema gap visibly.
                 </p>
                 <p>
-                  You can immediately explore full dialler intelligence by loading the verified VICIdial benchmark dataset, or by uploading an exported VICIdial CLI CSV report.
+                  You can immediately explore full dialler intelligence by loading the benchmark VICIdial dataset, or by uploading an exported VICIdial CLI CSV report.
                 </p>
               </div>
               <div className="flex flex-wrap gap-3 pt-2">
@@ -462,7 +368,7 @@ export default function CliPerformance() {
                   className="cx-button-primary text-xs py-2 px-4 flex items-center gap-1.5"
                 >
                   <Sparkles size={14} />
-                  <span>Load Verified Benchmark CLI Dataset</span>
+                  <span>Load Benchmark CLI Dataset</span>
                 </button>
                 <button
                   type="button"
@@ -484,7 +390,7 @@ export default function CliPerformance() {
           <div className="flex items-center gap-2">
             <CheckCircle2 size={16} className="text-blue-600 shrink-0" />
             <span>
-              <strong>Provenance Notice:</strong> Analysing verified dialler CLI report data (
+              <strong>Provenance Notice:</strong> Analysing imported dialler CLI report data (
               {data.metadata.rowCount} active CLIs). Provenance is tagged as <code className="font-semibold">IMPORTED REPORT</code>.
             </span>
           </div>
@@ -1451,7 +1357,7 @@ export default function CliPerformance() {
             {/* Option B: 1-Click Benchmark Dataset */}
             <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 flex items-center justify-between gap-3">
               <div>
-                <strong className="text-xs font-semibold text-slate-900 block">Verified Telephony Benchmark Dataset</strong>
+                <strong className="text-xs font-semibold text-slate-900 block">Benchmark Telephony Dataset</strong>
                 <p className="text-[11px] text-slate-500 mt-0.5">
                   12 South African outbound CLIs (087 prefixes, MTN &amp; BLC campaigns, 86,000+ calls, duration bands, lead ages).
                 </p>
@@ -1536,6 +1442,7 @@ export default function CliPerformance() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
