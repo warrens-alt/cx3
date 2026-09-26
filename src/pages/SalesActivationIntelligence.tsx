@@ -8,11 +8,14 @@ import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import { downloadCsv } from '../lib/formatters';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
+import { useOperatingControls } from '../hooks/useOperatingControls';
+import { ActivationAgeingPanel } from '../components/OfferNetControlPanels';
 
 const money = (value: number) => `R ${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
 export default function SalesActivationIntelligence() {
   const scoped = useScopedNavigationTarget();
+  const controls = useOperatingControls();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
   const [data, setData] = useState<SalesActivationData | null>(null);
@@ -57,7 +60,7 @@ export default function SalesActivationIntelligence() {
 
   return (
     <div className="cx-command-page">
-      <OffernetFilterBar onRefresh={() => loadData(true)} onExportCsv={handleExportCsv} />
+      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} onExportCsv={handleExportCsv} />
 
       <div className="cx-command-content">
         <OperationalPageHeader
@@ -144,6 +147,8 @@ export default function SalesActivationIntelligence() {
                 )}
               </section>
             </div>
+
+            {controls.data && <ActivationAgeingPanel data={controls.data} />}
 
             <section className="cx-command-panel">
               <header>
