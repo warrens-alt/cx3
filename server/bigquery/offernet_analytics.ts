@@ -1,5 +1,5 @@
 import { getBigQueryClient } from './client';
-import { getClientConfig, tableIdentifier, type MarketingSourceContract } from './config';
+import { getClientConfig, tableIdentifier, tenantVendorScopeValues, type MarketingSourceContract } from './config';
 import { RequestError } from './filters';
 
 function configuredSourceTable(clientId: string, role: 'leads' | 'calls' | 'timeToDial' | 'activations' | 'marketing') {
@@ -57,14 +57,16 @@ function buildFilterClause(params: OffernetQueryParams, alias = 'l', hlcAlias = 
 
   // Tenant / Client mapping filter if tenant targets specific vendors
   const clientConfig = getClientConfig(params.clientId);
-  if (clientConfig.id !== 'default_tenant' && clientConfig.id !== 'offernet_master') {
-    const tenantVendors = clientConfig.semanticMappings.partners || [];
+  if (
+    clientConfig.dataSourceMode === 'shared' &&
+    clientConfig.id !== 'default_tenant' &&
+    clientConfig.id !== 'offernet_master'
+  ) {
+    const tenantVendors = tenantVendorScopeValues(clientConfig);
     if (tenantVendors.length > 0) {
       conditions.push(`EXISTS (SELECT 1 FROM UNNEST(${alias}.hlc_details) h WHERE LOWER(h.vendor) IN UNNEST(@tenantVendors))`);
-      if (hlcAlias) {
-        conditions.push(`LOWER(${hlcAlias}.vendor) IN UNNEST(@tenantVendors)`);
-      }
-      queryParams.tenantVendors = tenantVendors.map(v => v.toLowerCase());
+      if (hlcAlias) conditions.push(`LOWER(${hlcAlias}.vendor) IN UNNEST(@tenantVendors)`);
+      queryParams.tenantVendors = tenantVendors;
     }
   }
 
