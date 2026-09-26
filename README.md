@@ -113,3 +113,5 @@ CX_MARKETING_ATTRIBUTION_JSON='{"mtn":{"marketingSourceField":"<approved field>"
 ```
 
 Do not activate attribution until the join values and coverage have been reconciled with the source owners. Attribution validates the approved spend grain, exposes matched/unmatched key coverage, and withholds operational filters that cannot be represented equivalently on the marketing side. See `docs/MARKETING-CONTRACTS.md`.
+
+The September 2026 expansion adds matched-period lifecycle diagnostics, source/grain metadata, exception drill-downs, and spend reconciliation across the existing domains. See [Analytics expansion and validation boundaries](docs/ANALYTICS-EXPANSION-2026-09-26.md) for metric coverage, calculation methods, acceptance fixtures, and remaining source-owner approvals.

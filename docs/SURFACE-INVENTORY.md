@@ -94,6 +94,7 @@
 | GET | `/api/analytics/offernet/commercial` | `server/api.ts` |
 | GET | `/api/analytics/offernet/contact-strategy` | `server/api.ts` |
 | GET | `/api/analytics/offernet/data-integrity` | `server/api.ts` |
+| GET | `/api/analytics/offernet/exceptions` | `server/api.ts` |
 | GET | `/api/analytics/offernet/funnel` | `server/api.ts` |
 | GET | `/api/analytics/offernet/lead-timeline/:leadId` | `server/api.ts` |
 | GET | `/api/analytics/offernet/marketing-attribution` | `server/api.ts` |
