@@ -1584,6 +1584,7 @@ export async function getSourceObservability(params: Pick<OffernetQueryParams, '
     timestampExpression: string,
     whereSql = '',
     queryParams: Record<string, any> = {},
+    tableAlias = '',
   ) => {
     if (!table) {
       sources.push({ key, label, status: 'UNAVAILABLE', table: null, latestRecordAt: null, ageHours: null, rowCount: null, detail: 'No source table is configured.' });
@@ -1596,7 +1597,7 @@ export async function getSourceObservability(params: Pick<OffernetQueryParams, '
             MAX(${timestampExpression}) AS latest_record_at,
             COUNT(*) AS row_count,
             TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), MAX(${timestampExpression}), HOUR) AS age_hours
-          FROM \`${table}\`
+          FROM \`${table}\` ${tableAlias}
           ${whereSql}
         `,
         params: queryParams,
@@ -1628,14 +1629,15 @@ export async function getSourceObservability(params: Pick<OffernetQueryParams, '
     }
   };
 
-  const leadScope = buildFilterClause({ clientId: params.clientId });
+  const leadScope = buildFilterClause({ clientId: params.clientId }, 'l', '');
   await pushFreshness(
     'leads',
     'Lead ledger',
     clientConfig.semanticMappings.tables.leads,
     'SAFE_CAST(l.fetched AS TIMESTAMP)',
-    leadScope.whereSql.replace(/^WHERE /, 'WHERE '),
+    leadScope.whereSql,
     leadScope.queryParams,
+    'l',
   );
 
   const callTable = clientConfig.semanticMappings.tables.calls;
