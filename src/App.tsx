@@ -18,37 +18,57 @@ import { useDevice } from './hooks/useDevice';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import AuthGate from './components/AuthGate';
 
-const VersionedReports = React.lazy(() => import('./pages/VersionedReports'));
-const UserManagement = React.lazy(() => import('./pages/UserManagement'));
-const ExecutiveOverview = React.lazy(() => import('./pages/ExecutiveOverview'));
-const FunnelIntelligence = React.lazy(() => import('./pages/FunnelIntelligence'));
-const SpeedToLeadIntelligence = React.lazy(() => import('./pages/SpeedToLeadIntelligence'));
-const ContactStrategyIntelligence = React.lazy(() => import('./pages/ContactStrategyIntelligence'));
-const VendorLeadQuality = React.lazy(() => import('./pages/VendorLeadQuality'));
-const TemporalIntelligence = React.lazy(() => import('./pages/TemporalIntelligence'));
-const SalesActivationIntelligence = React.lazy(() => import('./pages/SalesActivationIntelligence'));
-const CommercialIntelligence = React.lazy(() => import('./pages/CommercialIntelligence'));
-const DataIntegrityIntelligence = React.lazy(() => import('./pages/DataIntegrityIntelligence'));
-const AgentPerformanceIntelligence = React.lazy(() => import('./pages/AgentPerformanceIntelligence'));
-const CampaignIntelligence = React.lazy(() => import('./pages/CampaignIntelligence'));
-const AiOperationalInsights = React.lazy(() => import('./pages/AiOperationalInsights'));
-const LeadExplorerIntelligence = React.lazy(() => import('./pages/LeadExplorerIntelligence'));
+function safeImport<T>(loader: () => Promise<T>): Promise<T> {
+  return loader().catch((error: any) => {
+    const isChunkError =
+      error?.message?.includes('dynamically imported module') ||
+      error?.message?.includes('Failed to fetch') ||
+      error?.message?.includes('Loading chunk') ||
+      error?.name === 'ChunkLoadError';
+    if (isChunkError && typeof window !== 'undefined') {
+      const reloadKey = 'cx_chunk_reload';
+      const lastReload = Number(sessionStorage.getItem(reloadKey) || 0);
+      if (Date.now() - lastReload > 8000) {
+        sessionStorage.setItem(reloadKey, String(Date.now()));
+        window.location.reload();
+        return new Promise<T>(() => {});
+      }
+    }
+    throw error;
+  });
+}
 
-const GlobalFilter = React.lazy(() => import('./components/GlobalFilter'));
-const CommandPalette = React.lazy(() => import('./components/CommandPalette'));
-const Vetting = React.lazy(() => import('./pages/Vetting'));
-const VisualWorkspace = React.lazy(() => import('./pages/VisualWorkspace'));
-const CliPerformance = React.lazy(() => import('./pages/CliPerformance'));
-const Cohorts = React.lazy(() => import('./pages/Cohorts'));
-const SettingsPage = React.lazy(() => import('./pages/Settings'));
-const AdminValidation = React.lazy(() => import('./pages/AdminValidation'));
-const RoutingIntelligence = React.lazy(() => import('./pages/RoutingIntelligence'));
-const ConsumerReentry = React.lazy(() => import('./pages/ConsumerReentry'));
-const VendorPerformance = React.lazy(() => import('./pages/VendorPerformance'));
-const Exceptions = React.lazy(() => import('./pages/Exceptions'));
-const CommercialReconciliation = React.lazy(() => import('./pages/CommercialReconciliation'));
-const DemoWorkspace = React.lazy(() => import('./pages/DemoWorkspace'));
-const LeadLedger = React.lazy(() => import('./pages/LeadLedger'));
+const VersionedReports = React.lazy(() => safeImport(() => import('./pages/VersionedReports')));
+const UserManagement = React.lazy(() => safeImport(() => import('./pages/UserManagement')));
+const ExecutiveOverview = React.lazy(() => safeImport(() => import('./pages/ExecutiveOverview')));
+const FunnelIntelligence = React.lazy(() => safeImport(() => import('./pages/FunnelIntelligence')));
+const SpeedToLeadIntelligence = React.lazy(() => safeImport(() => import('./pages/SpeedToLeadIntelligence')));
+const ContactStrategyIntelligence = React.lazy(() => safeImport(() => import('./pages/ContactStrategyIntelligence')));
+const VendorLeadQuality = React.lazy(() => safeImport(() => import('./pages/VendorLeadQuality')));
+const TemporalIntelligence = React.lazy(() => safeImport(() => import('./pages/TemporalIntelligence')));
+const SalesActivationIntelligence = React.lazy(() => safeImport(() => import('./pages/SalesActivationIntelligence')));
+const CommercialIntelligence = React.lazy(() => safeImport(() => import('./pages/CommercialIntelligence')));
+const DataIntegrityIntelligence = React.lazy(() => safeImport(() => import('./pages/DataIntegrityIntelligence')));
+const AgentPerformanceIntelligence = React.lazy(() => safeImport(() => import('./pages/AgentPerformanceIntelligence')));
+const CampaignIntelligence = React.lazy(() => safeImport(() => import('./pages/CampaignIntelligence')));
+const AiOperationalInsights = React.lazy(() => safeImport(() => import('./pages/AiOperationalInsights')));
+const LeadExplorerIntelligence = React.lazy(() => safeImport(() => import('./pages/LeadExplorerIntelligence')));
+
+const GlobalFilter = React.lazy(() => safeImport(() => import('./components/GlobalFilter')));
+const CommandPalette = React.lazy(() => safeImport(() => import('./components/CommandPalette')));
+const Vetting = React.lazy(() => safeImport(() => import('./pages/Vetting')));
+const VisualWorkspace = React.lazy(() => safeImport(() => import('./pages/VisualWorkspace')));
+const CliPerformance = React.lazy(() => safeImport(() => import('./pages/CliPerformance')));
+const Cohorts = React.lazy(() => safeImport(() => import('./pages/Cohorts')));
+const SettingsPage = React.lazy(() => safeImport(() => import('./pages/Settings')));
+const AdminValidation = React.lazy(() => safeImport(() => import('./pages/AdminValidation')));
+const RoutingIntelligence = React.lazy(() => safeImport(() => import('./pages/RoutingIntelligence')));
+const ConsumerReentry = React.lazy(() => safeImport(() => import('./pages/ConsumerReentry')));
+const VendorPerformance = React.lazy(() => safeImport(() => import('./pages/VendorPerformance')));
+const Exceptions = React.lazy(() => safeImport(() => import('./pages/Exceptions')));
+const CommercialReconciliation = React.lazy(() => safeImport(() => import('./pages/CommercialReconciliation')));
+const DemoWorkspace = React.lazy(() => safeImport(() => import('./pages/DemoWorkspace')));
+const LeadLedger = React.lazy(() => safeImport(() => import('./pages/LeadLedger')));
 
 
 function Shell() {
@@ -133,7 +153,30 @@ function Shell() {
           <AppliedScope/>
         </div>}
         {clientReady && !evidencePage && <div id="legacy-filters" hidden={!filtersOpen}>{filtersOpen && !filterError && <Suspense fallback={<p className="cx-filter-loading" role="status">Loading report controls…</p>}><GlobalFilter/></Suspense>}</div>}
-        <ErrorBoundary resetKeys={[location.pathname]} fallbackRender={({resetErrorBoundary})=><section className="cx-route-error" role="alert"><AlertCircle size={28}/><h1>This page could not be displayed</h1><p>Navigation is still available. Retry the page or return to Overview.</p><div><button className="cx-button-primary" onClick={resetErrorBoundary}>Retry page</button><Link className="cx-button-secondary" to="/">Overview</Link></div></section>}>
+        <ErrorBoundary
+          resetKeys={[location.pathname]}
+          fallbackRender={({ error, resetErrorBoundary }: any) => {
+            const isChunkError = error && (
+              error.message?.includes('dynamically imported module') ||
+              error.message?.includes('Failed to fetch') ||
+              error.message?.includes('Loading chunk') ||
+              error.name === 'ChunkLoadError'
+            );
+            return (
+              <section className="cx-route-error" role="alert">
+                <AlertCircle size={28}/>
+                <h1>{isChunkError ? 'App update available' : 'This page could not be displayed'}</h1>
+                <p>{isChunkError ? 'A newer version of ConversionX was deployed. Reloading will fetch the latest page.' : 'Navigation is still available. Retry the page or return to Overview.'}</p>
+                <div>
+                  <button className="cx-button-primary" onClick={isChunkError ? () => window.location.reload() : resetErrorBoundary}>
+                    {isChunkError ? 'Reload page' : 'Retry page'}
+                  </button>
+                  <Link className="cx-button-secondary" to="/">Overview</Link>
+                </div>
+              </section>
+            );
+          }}
+        >
           {clientReady && !evidencePage && filterError ? <section className="cx-scope-error" role="alert"><AlertCircle size={22}/><div><h1>Reporting selection needs attention</h1><p>{filterError}</p><p>No analytical request was sent with an invalid selection.</p><button type="button" className="cx-button-primary" onClick={resetScope}>Reset reporting scope</button></div></section> : <Suspense fallback={<PageSkeleton/>}>
             {clientReady && <Routes>
               {/* PRIMARY OFFERNET OPERATIONAL INTELLIGENCE PLATFORM ROUTES */}

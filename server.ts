@@ -48,17 +48,28 @@ export async function createApp() {
     error: 'Direct warehouse browsing is disabled. Use tenant-scoped analytics and evidence endpoints.'
   }));
   app.use('/api', (_req, res) => res.status(404).json({ success: false, error: 'Unknown API endpoint' }));
+  const isTsxDev = Boolean(process.env.TSX_ACTIVE);
   const hasDist = fs.existsSync(path.join(process.cwd(), 'dist', 'client', 'index.html'))
     || fs.existsSync(path.join(process.cwd(), 'dist', 'index.html'));
-  const isProduction = process.env.NODE_ENV === 'production' || hasDist;
+  const isProduction = process.env.NODE_ENV === 'production' || (!isTsxDev && hasDist);
 
   if (isProduction && hasDist) {
     const clientDirectory = fs.existsSync(path.join(process.cwd(), 'dist', 'client', 'index.html'))
       ? path.join(process.cwd(), 'dist', 'client')
       : path.join(process.cwd(), 'dist');
-    app.use(express.static(clientDirectory, { dotfiles: 'deny' }));
+    app.use(express.static(clientDirectory, {
+      dotfiles: 'deny',
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        } else if (filePath.includes('/assets/')) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      },
+    }));
     app.get(/.*/, (req, res) => {
       if (path.extname(req.path) || req.path.split('/').some(p => p.startsWith('.'))) return res.status(404).end();
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       return res.sendFile(path.join(clientDirectory, 'index.html'));
     });
   } else {
