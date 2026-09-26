@@ -19,6 +19,8 @@ export function useOperationalData<T>(name: string, params: Record<string, any>,
   const view = operationalQueryView(query, active);
   return {
     ...view,
+    // This is browser receipt time, not the warehouse event or source cutoff.
+    receivedAt: active && !query.error ? query.dataUpdatedAt || null : null,
     loading: enabled && !filterError && (workspaceLoading || view.loading),
     initialLoading: enabled && !filterError && (workspaceLoading || view.initialLoading),
     error: enabled ? filterError || workspaceError || view.error : null,
