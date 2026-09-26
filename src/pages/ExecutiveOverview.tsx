@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
+import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
@@ -69,6 +70,7 @@ function Metric({
 }
 
 export default function ExecutiveOverview() {
+  const scoped = useScopedNavigationTarget();
   const { selectedClient } = useClient();
   const { isAdmin } = useAuth();
   const { startDate, endDate, filters } = useFilters();
@@ -141,7 +143,7 @@ export default function ExecutiveOverview() {
             <h1>{data?.clientName || 'Offernet Performance'}</h1>
             <p>What is happening, where the funnel is leaking, why performance changed, and which records need attention.</p>
           </div>
-          <Link to="/reports" className="cx-trust-pill">
+          <Link to={scoped('/reports')} className="cx-trust-pill">
             <ShieldCheck size={15} />
             <span>
               <strong>{data?.validationStatus || 'NOT_VERIFIED'}</strong>
@@ -168,7 +170,7 @@ export default function ExecutiveOverview() {
               <section className="cx-command-panel">
                 <header>
                   <div><span className="cx-command-section-kicker">Act</span><h2>Needs attention</h2><p>Operational exceptions surfaced from the current population.</p></div>
-                  <Link to="/exceptions">Open exception queue <ArrowRight size={13} /></Link>
+                  <Link to={scoped('/exceptions')}>Open exception queue <ArrowRight size={13} /></Link>
                 </header>
                 {data.attention.length ? (
                   <div className="cx-attention-list">
@@ -186,7 +188,7 @@ export default function ExecutiveOverview() {
               <section className="cx-command-panel cx-sla-panel">
                 <header>
                   <div><span className="cx-command-section-kicker">Speed</span><h2>First-dial SLA</h2><p>Delivered leads dialled within {data.sla.firstDialTargetMinutes} minutes.</p></div>
-                  {isAdmin ? <Link to={recordLink('sla-breach')}>View breaches <ArrowRight size={13} /></Link> : <Link to="/speed-to-lead">Diagnose <ArrowRight size={13} /></Link>}
+                  {isAdmin ? <Link to={recordLink('sla-breach')}>View breaches <ArrowRight size={13} /></Link> : <Link to={scoped('/speed-to-lead')}>Diagnose <ArrowRight size={13} /></Link>}
                 </header>
                 <div className="cx-sla-number">{data.sla.complianceRate}%</div>
                 <div className="cx-sla-track"><span style={{ width: `${Math.min(100, Math.max(0, data.sla.complianceRate))}%` }} /></div>
@@ -202,7 +204,7 @@ export default function ExecutiveOverview() {
             <section className="cx-command-panel cx-funnel-panel">
               <header>
                 <div><span className="cx-command-section-kicker">Diagnose</span><h2>Where the funnel is leaking</h2><p>Each transition shows observed progression and the lead population that did not advance.</p></div>
-                <Link to="/funnel">Full funnel <ArrowRight size={13} /></Link>
+                <Link to={scoped('/funnel')}>Full funnel <ArrowRight size={13} /></Link>
               </header>
               <div className="cx-funnel-strip">
                 {data.funnelStages.map((stage, index) => (
@@ -245,7 +247,7 @@ export default function ExecutiveOverview() {
               <section className="cx-command-panel">
                 <header>
                   <div><span className="cx-command-section-kicker">Concentration</span><h2>Backlog by vendor</h2><p>Partners contributing most to undialled volume.</p></div>
-                  <Link to="/vendor-quality">Vendor view <ArrowRight size={13} /></Link>
+                  <Link to={scoped('/vendor-quality')}>Vendor view <ArrowRight size={13} /></Link>
                 </header>
                 <div className="cx-backlog-vendors">
                   {data.backlog.byVendor.length ? data.backlog.byVendor.map((vendor, index) => {
@@ -296,10 +298,10 @@ export default function ExecutiveOverview() {
             </div>
 
             <section className="cx-command-shortcuts" aria-label="Analysis shortcuts">
-              <Link to="/speed-to-lead"><Clock3 size={16} /><span><strong>Contact</strong><small>Latency, cohorts and call strategy</small></span><ArrowRight size={14} /></Link>
-              <Link to="/vendor-quality"><Database size={16} /><span><strong>Performance</strong><small>Vendors, quality and source outcomes</small></span><ArrowRight size={14} /></Link>
-              <Link to="/campaigns"><DollarSign size={16} /><span><strong>Spend</strong><small>Campaign spend, CPC, CPM and CPL</small></span><ArrowRight size={14} /></Link>
-              <Link to="/reports"><ShieldCheck size={16} /><span><strong>Evidence</strong><small>Definitions, releases and trust status</small></span><ArrowRight size={14} /></Link>
+              <Link to={scoped('/speed-to-lead')}><Clock3 size={16} /><span><strong>Contact</strong><small>Latency, cohorts and call strategy</small></span><ArrowRight size={14} /></Link>
+              <Link to={scoped('/vendor-quality')}><Database size={16} /><span><strong>Performance</strong><small>Vendors, quality and source outcomes</small></span><ArrowRight size={14} /></Link>
+              <Link to={scoped('/campaigns')}><DollarSign size={16} /><span><strong>Spend</strong><small>Campaign spend, CPC, CPM and CPL</small></span><ArrowRight size={14} /></Link>
+              <Link to={scoped('/reports')}><ShieldCheck size={16} /><span><strong>Evidence</strong><small>Definitions, releases and trust status</small></span><ArrowRight size={14} /></Link>
             </section>
           </>
         )}
