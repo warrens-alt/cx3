@@ -8,6 +8,7 @@ import { useAnalyticsData } from '../lib/useAnalyticsData';
 import { recordsCsv, saveBlob } from '../lib/analyticsRequest';
 import { DataState } from './DataState';
 import Modal from './Modal';
+import { useAuth } from '../lib/AuthContext';
 
 interface DataAuditDrawerProps {
   isOpen: boolean;
@@ -29,10 +30,11 @@ function columnGroup(key: string): string {
 
 export default function DataAuditDrawer({ isOpen, onClose, title, defaultGrain = 'lead', contextFilters = {} }: DataAuditDrawerProps) {
   const { selectedClient, clientConfig } = useClient();
+  const { isAdmin } = useAuth();
   const { startDate, endDate, filters } = useFilters();
   const [grain, setGrain] = useState(defaultGrain);
   const [activeGroups, setActiveGroups] = useState<string[]>(['Lead', 'Quality', 'Outcomes', 'Other', 'HLC 1']);
-  const query = useAnalyticsData<Record<string, unknown>[]>('export', { grain, format: 'json' }, { enabled: isOpen, contextFilters });
+  const query = useAnalyticsData<Record<string, unknown>[]>('export', { grain, format: 'json' }, { enabled: isOpen && isAdmin, contextFilters });
   const responseError = query.error || (query.data !== null && (!Array.isArray(query.data) || query.data.some(row => !row || typeof row !== 'object' || Array.isArray(row))) ? 'The record response is incomplete. Please retry.' : null);
   const data = !responseError && Array.isArray(query.data) ? query.data : [];
   const scopeKey = JSON.stringify([selectedClient, startDate, endDate, filters, contextFilters, grain]);
@@ -51,6 +53,15 @@ export default function DataAuditDrawer({ isOpen, onClose, title, defaultGrain =
   const toggleGroup = (group: string) => setActiveGroups(previous => previous.includes(group) ? previous.filter(item => item !== group) : [...previous, group]);
 
   if (!isOpen) return null;
+  if (!isAdmin) {
+    return <Modal open onClose={onClose} label={title} className="w-[min(36rem,calc(100vw-2rem))]">
+      <div className="p-6 space-y-3">
+        <h2 className="text-lg font-bold text-text-main">Record access is restricted</h2>
+        <p className="text-sm text-text-sec">Consumer-level lead and transaction records require administrator access under the ConversionX data-governance contract.</p>
+        <div className="flex justify-end"><button type="button" onClick={onClose} className="cx-button-secondary">Close</button></div>
+      </div>
+    </Modal>;
+  }
   return <Modal open onClose={onClose} label={title} className="w-[min(64rem,calc(100vw-2rem))]">
     <div className="flex flex-col max-h-[80dvh] min-w-0">
       <header className="flex items-start justify-between gap-3 p-4 sm:p-6 border-b border-border-subtle bg-surface-sec">
