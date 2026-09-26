@@ -197,3 +197,64 @@ test('evidence reports and Firebase are split from the main application bundle',
   assert.match(vite, /vendor-firebase/);
   assert.match(vite, /node_modules\/firebase/);
 });
+
+
+test('mobile and in-page operational navigation preserve reporting scope', () => {
+  const mobile = read('src/components/MobileBottomNav.tsx');
+  assert.match(mobile, /navigationTarget\('\/overview', location\.pathname, location\.search\)/);
+  assert.match(mobile, /navigationTarget\('\/funnel', location\.pathname, location\.search\)/);
+  assert.match(mobile, /navigationTarget\('\/speed-to-lead', location\.pathname, location\.search\)/);
+  assert.match(mobile, /navigationTarget\('\/vendor-quality', location\.pathname, location\.search\)/);
+
+  for (const path of [
+    'src/pages/ExecutiveOverview.tsx',
+    'src/pages/FunnelIntelligence.tsx',
+    'src/pages/SpeedToLeadIntelligence.tsx',
+    'src/pages/VendorLeadQuality.tsx',
+    'src/pages/Exceptions.tsx',
+    'src/pages/SalesActivationIntelligence.tsx',
+    'src/pages/CommercialIntelligence.tsx',
+    'src/pages/TemporalIntelligence.tsx',
+    'src/pages/AgentPerformanceIntelligence.tsx',
+    'src/pages/RoutingIntelligence.tsx',
+  ]) {
+    const source = read(path);
+    assert.match(source, /useScopedNavigationTarget/);
+    assert.doesNotMatch(source, /<Link\b[^>]*to=["']\/(?:overview|funnel|speed-to-lead|contact-strategy|vendor-quality|exceptions|campaigns|commercial|reports|lead-explorer|cli-performance)["']/);
+  }
+});
+
+test('selected client is URL-addressable and preserved through evidence navigation', () => {
+  const clients = read('src/lib/ClientContext.tsx');
+  const presentation = read('src/lib/presentation.ts');
+  assert.match(clients, /useSearchParams/);
+  assert.match(clients, /next\.set\('clientId', id\)/);
+  assert.match(clients, /searchParams\.get\('clientId'\)/);
+  assert.match(presentation, /currentParams\.get\('clientId'\)/);
+  assert.match(presentation, /workspace\.set\('clientId', clientId\)/);
+});
+
+test('Explorer record loading follows applied URL search state', () => {
+  const explorer = read('src/pages/LeadExplorerIntelligence.tsx');
+  assert.match(explorer, /const appliedSearch = params\.get\('search'\) \|\| ''/);
+  assert.match(explorer, /search: appliedSearch \|\| undefined/);
+  assert.match(explorer, /\[selectedClient, startDate, endDate, filters, drill, drillValue, appliedSearch, page\]/);
+  assert.match(explorer, /setSearch\(appliedSearch\)/);
+});
+
+test('all custom analysis drawers use focus-managed dialog semantics', () => {
+  for (const path of [
+    'src/components/AnalyseDrawer.tsx',
+    'src/components/MetricLineageDrawer.tsx',
+    'src/components/RootCauseDrawer.tsx',
+    'src/components/MarketingRootCauseDrawer.tsx',
+  ]) {
+    const source = read(path);
+    assert.match(source, /useDialogAccessibility/);
+    assert.match(source, /role="dialog"/);
+    assert.match(source, /aria-modal="true"/);
+  }
+  const hook = read('src/hooks/useDialogAccessibility.ts');
+  assert.match(hook, /topmostDialog/);
+  assert.match(hook, /querySelector<HTMLElement>\('\.cx-main'\)/);
+});
