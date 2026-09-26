@@ -159,6 +159,8 @@ async function resolveMarketingContract(
   const missingRequired = requiredFields.filter(field => !byLower.has(field.toLowerCase()));
   const spendColumn = contract.approvedSpendFields.map(name => byLower.get(name.toLowerCase())).find(Boolean) || null;
   const budgetColumn = contract.approvedBudgetFields.map(name => byLower.get(name.toLowerCase())).find(Boolean) || null;
+  const reachColumn = contract.reachField ? byLower.get(contract.reachField.toLowerCase()) || null : null;
+  const outboundClicksColumn = contract.outboundClicksField ? byLower.get(contract.outboundClicksField.toLowerCase()) || null : null;
 
   return {
     table: contract.table,
@@ -166,6 +168,8 @@ async function resolveMarketingContract(
     missingRequired,
     spendColumn,
     budgetColumn,
+    reachColumn,
+    outboundClicksColumn,
   };
 }
 
@@ -269,7 +273,9 @@ export async function getMarketingSourceDiscovery(params: Pick<OffernetQueryPara
         campaign: contract.campaignField,
         adset: contract.adsetField,
         impressions: contract.impressionsField,
+        reach: contract.reachField || null,
         clicks: contract.clicksField,
+        outboundClicks: contract.outboundClicksField || null,
         leads: contract.leadsField,
       },
       approvedSpendFields: contract.approvedSpendFields,
@@ -2477,7 +2483,9 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
   const campaignField = safeWarehouseColumn(contract.campaignField);
   const adsetField = safeWarehouseColumn(contract.adsetField);
   const impressionsField = safeWarehouseColumn(contract.impressionsField);
+  const reachField = resolved.reachColumn ? safeWarehouseColumn(resolved.reachColumn) : null;
   const clicksField = safeWarehouseColumn(contract.clicksField);
+  const outboundClicksField = resolved.outboundClicksColumn ? safeWarehouseColumn(resolved.outboundClicksColumn) : null;
   const leadsField = safeWarehouseColumn(contract.leadsField);
   const spendValue = marketingSpendExpression(contract, resolved.spendColumn);
   const budgetValue = resolved.budgetColumn
@@ -2522,7 +2530,9 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
       CAST(${campaignField} AS STRING) AS campaign_name,
       CAST(${adsetField} AS STRING) AS adset_name,
       SUM(SAFE_CAST(${impressionsField} AS FLOAT64)) AS impressions,
+      ${reachField ? `SUM(SAFE_CAST(${reachField} AS FLOAT64))` : 'CAST(NULL AS FLOAT64)'} AS reach,
       SUM(SAFE_CAST(${clicksField} AS FLOAT64)) AS clicks,
+      ${outboundClicksField ? `SUM(SAFE_CAST(${outboundClicksField} AS FLOAT64))` : 'CAST(NULL AS FLOAT64)'} AS outbound_clicks,
       SUM(SAFE_CAST(${leadsField} AS FLOAT64)) AS recorded_leads,
       ${spendValue && grainStatus === 'VALID' ? `SUM(${spendValue})` : 'CAST(NULL AS FLOAT64)'} AS recorded_spend,
       ${budgetValue ? `ARRAY_AGG(${budgetValue} IGNORE NULLS ORDER BY ${dateField} DESC LIMIT 1)[SAFE_OFFSET(0)]` : 'CAST(NULL AS FLOAT64)'} AS latest_budget
@@ -2538,7 +2548,9 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
 
   const campaigns = rows.map((row: any) => {
     const impressions = Number(row.impressions || 0);
+    const reach = row.reach === null || row.reach === undefined ? null : Number(row.reach || 0);
     const clicks = Number(row.clicks || 0);
+    const outboundClicks = row.outbound_clicks === null || row.outbound_clicks === undefined ? null : Number(row.outbound_clicks || 0);
     const leads = Number(row.recorded_leads || 0);
     const spend = hasSpend && row.recorded_spend !== null ? Number(row.recorded_spend || 0) : null;
     const latestBudget = resolved.budgetColumn && row.latest_budget !== null ? Number(row.latest_budget || 0) : null;
@@ -2551,8 +2563,13 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
       spend,
       latestBudget,
       impressions,
+      reach,
+      frequency: reach !== null && reach > 0 ? Number((impressions / reach).toFixed(2)) : null,
       clicks,
+      outboundClicks,
       ctr: impressions > 0 ? Number(((clicks / impressions) * 100).toFixed(2)) : 0,
+      outboundCtr: outboundClicks !== null && impressions > 0 ? Number(((outboundClicks / impressions) * 100).toFixed(2)) : null,
+      clickToLeadRate: outboundClicks !== null && outboundClicks > 0 ? Number(((leads / outboundClicks) * 100).toFixed(2)) : clicks > 0 ? Number(((leads / clicks) * 100).toFixed(2)) : null,
       leads,
       cpc: spend !== null && clicks > 0 ? Number((spend / clicks).toFixed(2)) : null,
       cpm: spend !== null && impressions > 0 ? Number(((spend / impressions) * 1000).toFixed(2)) : null,
@@ -2562,18 +2579,27 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
 
   const totals = campaigns.reduce((acc, row) => {
     acc.impressions += row.impressions;
+    if (row.reach !== null) acc.reach += row.reach;
     acc.clicks += row.clicks;
+    if (row.outboundClicks !== null) acc.outboundClicks += row.outboundClicks;
     acc.leads += row.leads;
     if (row.spend !== null) acc.spend += row.spend;
     return acc;
-  }, { spend: 0, impressions: 0, clicks: 0, leads: 0 });
+  }, { spend: 0, impressions: 0, reach: 0, clicks: 0, outboundClicks: 0, leads: 0 });
 
   const summary = {
     spend: hasSpend ? Number(totals.spend.toFixed(2)) : null,
     impressions: totals.impressions,
+    reach: resolved.reachColumn ? totals.reach : null,
+    frequency: resolved.reachColumn && totals.reach > 0 ? Number((totals.impressions / totals.reach).toFixed(2)) : null,
     clicks: totals.clicks,
+    outboundClicks: resolved.outboundClicksColumn ? totals.outboundClicks : null,
     leads: totals.leads,
     ctr: totals.impressions > 0 ? Number(((totals.clicks / totals.impressions) * 100).toFixed(2)) : 0,
+    outboundCtr: resolved.outboundClicksColumn && totals.impressions > 0 ? Number(((totals.outboundClicks / totals.impressions) * 100).toFixed(2)) : null,
+    clickToLeadRate: resolved.outboundClicksColumn && totals.outboundClicks > 0
+      ? Number(((totals.leads / totals.outboundClicks) * 100).toFixed(2))
+      : totals.clicks > 0 ? Number(((totals.leads / totals.clicks) * 100).toFixed(2)) : null,
     cpc: hasSpend && totals.clicks > 0 ? Number((totals.spend / totals.clicks).toFixed(2)) : null,
     cpm: hasSpend && totals.impressions > 0 ? Number(((totals.spend / totals.impressions) * 1000).toFixed(2)) : null,
     cpl: hasSpend && totals.leads > 0 ? Number((totals.spend / totals.leads).toFixed(2)) : null,
