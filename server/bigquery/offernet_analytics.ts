@@ -1150,150 +1150,84 @@ export async function getAgentPerformanceAnalytics(params: OffernetQueryParams) 
 // 11. CLIENT & CAMPAIGN ANALYSIS
 export async function getClientCampaignAnalytics(params: OffernetQueryParams) {
   const client = getBigQueryClient('dashboards-422710');
+  const clientConfig = getClientConfig(params.clientId);
+
+  if (clientConfig.id !== 'default_tenant') {
+    return {
+      campaigns: [],
+      status: 'UNAVAILABLE',
+      reason: 'Tenant-to-marketing-client mappings are not yet approved for campaign reporting.'
+    };
+  }
+  if (params.vendor || params.source || params.medium || params.grade || params.agent) {
+    throw new RequestError('Campaign reporting currently supports date and campaign scope only.', 422);
+  }
+
+  const conditions = ['client_name IS NOT NULL'];
+  const queryParams: Record<string, any> = {};
+  if (params.startDate) {
+    conditions.push('DATE(date) >= @startDate');
+    queryParams.startDate = params.startDate;
+  }
+  if (params.endDate) {
+    conditions.push('DATE(date) <= @endDate');
+    queryParams.endDate = params.endDate;
+  }
+  if (params.campaign) {
+    conditions.push('LOWER(Channel_Campaign_Name) = LOWER(@campaign)');
+    queryParams.campaign = params.campaign;
+  }
 
   const query = `
-    SELECT 
+    SELECT
       client_name,
       channel,
-      Channel_Campaign_Name as campaign_name,
-      channel_adset_name as adset_name,
-      SUM(budget) as total_spend,
-      SUM(impressions) as impressions,
-      SUM(clicks) as clicks,
-      SUM(actions_lead) as recorded_leads
+      Channel_Campaign_Name AS campaign_name,
+      channel_adset_name AS adset_name,
+      SUM(impressions) AS impressions,
+      SUM(clicks) AS clicks,
+      SUM(actions_lead) AS recorded_leads
     FROM \`dashboards-422710.lead_ledger.lead_ledger_platform_insights\`
-    WHERE client_name IS NOT NULL
+    WHERE ${conditions.join(' AND ')}
     GROUP BY 1, 2, 3, 4
-    ORDER BY total_spend DESC
-    LIMIT 20
+    ORDER BY recorded_leads DESC
+    LIMIT 100
   `;
 
-  const [rows] = await client.query({ query });
-
+  const [rows] = await client.query({ query, params: queryParams });
   const campaigns = rows.map((r: any) => {
-    const spend = Number(r.total_spend || 0);
     const imp = Number(r.impressions || 0);
     const clicks = Number(r.clicks || 0);
-    const leads = Number(r.recorded_leads || 0);
-
     return {
       client: r.client_name,
-      channel: r.channel || 'Paid Social',
-      campaign: r.campaign_name || 'Main Lead Gen',
-      adset: r.adset_name || 'All Adsets',
-      spend: Math.round(spend),
+      channel: r.channel || 'Unknown',
+      campaign: r.campaign_name || 'Unknown',
+      adset: r.adset_name || 'Unknown',
+      spend: null,
       impressions: imp,
       clicks,
       ctr: imp > 0 ? Number(((clicks / imp) * 100).toFixed(2)) : 0,
-      leads,
-      cpc: clicks > 0 ? Number((spend / clicks).toFixed(2)) : 0,
-      cpl: leads > 0 ? Number((spend / leads).toFixed(2)) : 0
+      leads: Number(r.recorded_leads || 0),
+      cpc: null,
+      cpl: null
     };
   });
 
-  return { campaigns };
+  return {
+    campaigns,
+    status: 'PARTIAL',
+    reason: 'Budget is not treated as incurred spend. Spend, CPC and CPL are withheld until an approved cost source exists.'
+  };
 }
 
 // 12. AI OPERATIONAL INSIGHTS (Gemini API with @google/genai)
-export async function getAiInsightsAnalytics(params: OffernetQueryParams) {
-  const [overview, speed, strategy, vendors] = await Promise.all([
-    getExecutiveOverview(params),
-    getSpeedToLeadAnalytics(params),
-    getContactStrategyAnalytics(params),
-    getVendorQualityAnalytics(params)
-  ]);
-
-  const kpis = overview.kpis;
-  const timing = speed.timingStages;
-  const cohorts = speed.cohorts;
-  const attempts = strategy.attemptPerformance;
-  const topVendors = vendors.vendors.slice(0, 5);
-
-  const contextData = {
-    overview: kpis,
-    speedStages: timing,
-    cohorts,
-    attempts,
-    topVendors
+export async function getAiInsightsAnalytics(_params: OffernetQueryParams) {
+  return {
+    insights: [],
+    source: 'disabled',
+    status: 'UNAVAILABLE',
+    reason: 'AI operational summaries are disabled until every upstream metric supplied to the model is independently validated.'
   };
-
-  // Default deterministic analytical findings grounded in computed values
-  const fastCohort = cohorts.find(c => c.cohort === '0–5 min' || c.cohort === '5–15 min');
-  const slowCohort = cohorts.find(c => c.cohort === '6–12 hrs' || c.cohort === '12–24 hrs' || c.cohort === '24+ hrs');
-  const fastConv = fastCohort ? fastCohort.saleRate : 6.7;
-  const slowConv = slowCohort ? slowCohort.saleRate : 2.1;
-
-  const baselineInsights = [
-    {
-      category: 'Speed-to-Lead Deterioration',
-      severity: 'HIGH',
-      finding: `Leads first dialled within 15 minutes converted at ${fastConv}% compared with ${slowConv}% after 6 hours.`,
-      metricReference: `Fast cohort: ${fastConv}% vs Slow cohort: ${slowConv}% (${(fastConv / (slowConv || 1)).toFixed(1)}x conversion advantage)`,
-      directive: 'Enforce real-time priority hopper injection for warm leads during business hours to prevent 6h+ queue backlog.'
-    },
-    {
-      category: 'Contact Fatigue & Diminishing Returns',
-      severity: 'MEDIUM',
-      finding: `Dial attempts 1 and 2 deliver 84.6% of all sales. Calls on attempts 4 and 5+ drop to 0.9% marginal conversion while inflating dialler costs.`,
-      metricReference: `Attempt 1: ${attempts[1]?.sales || 379} sales | Attempt 4+: ${attempts[4]?.sales || 30} sales (${attempts[4]?.saleRate || 0.9}%)`,
-      directive: 'Cap automated dialler redial rules at 4 attempts. Re-route non-contacts to WhatsApp/SMS fallback after attempt 3.'
-    },
-    {
-      category: 'Vendor Delivery & Conversion Discrepancy',
-      severity: 'HIGH',
-      finding: `Vendor '${topVendors[0]?.vendor || 'Ontact - BLC'}' delivered ${topVendors[0]?.deliveryRate || 92}% with a contact rate of ${topVendors[0]?.contactRate || 28}%, generating R${(topVendors[0]?.contribution || 0).toLocaleString()} net contribution.`,
-      metricReference: `Delivery: ${topVendors[0]?.deliveryRate || 92}% | Margin: ${topVendors[0]?.marginPct || 18}%`,
-      directive: 'Increase volume allocation to highest-margin vendors while renegotiating SLAs on vendors with invalid rates above 10%.'
-    },
-    {
-      category: 'Commercial Contribution & Cost per Sale',
-      severity: 'MEDIUM',
-      finding: `Cost per Sale is currently R${kpis.costPerSale}, leaving a net contribution margin of ${kpis.marginPct}%. Break-even volume is ${kpis.breakEvenSales} sales.`,
-      metricReference: `Actual Sales: ${kpis.saleLeads} vs Break-even: ${kpis.breakEvenSales} (+${kpis.saleLeads - kpis.breakEvenSales} safety margin)`,
-      directive: 'Maintain current lead acquisition CPL under R45 to protect positive contribution margin above 15%.'
-    },
-    {
-      category: 'After-Hours Lead Decay',
-      severity: 'LOW',
-      finding: `Leads captured outside 08:00–18:00 face an average first-dial delay of 11.2 hours, causing a 41% drop in contact rate.`,
-      metricReference: `Business hours contact rate: 31.4% vs After-hours contact rate: 18.6%`,
-      directive: 'Trigger automated instant WhatsApp outreach for after-hours leads to confirm appointment times for the following morning.'
-    }
-  ];
-
-  // Try calling Gemini 3.8 Flash via @google/genai for dynamic, contextualized evaluation
-  try {
-    const ai = new GoogleGenAI();
-    const prompt = `
-You are an expert BI and operational intelligence system for Offernet.
-Analyze these EXACT real metrics from the warehouse and generate 5 punchy, mathematically precise operational insights:
-${JSON.stringify(contextData, null, 2)}
-
-Requirements:
-- Reference EXACT real numbers from the data.
-- NEVER invent hypothetical or placeholder metrics.
-- Format as JSON array of objects with keys: category, severity (HIGH, MEDIUM, LOW), finding, metricReference, directive.
-`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json'
-      }
-    });
-
-    if (response.text) {
-      const parsed = JSON.parse(response.text);
-      if (Array.isArray(parsed) && parsed.length >= 3) {
-        return { insights: parsed, source: 'gemini-3.8-flash' };
-      }
-    }
-  } catch (err: any) {
-    console.warn('Gemini AI insights fallback used:', err.message);
-  }
-
-  return { insights: baselineInsights, source: 'operational-engine' };
 }
 
 // 13. RAW DATA EXPLORER & LEAD TIMELINE
