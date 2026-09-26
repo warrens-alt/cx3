@@ -1130,6 +1130,8 @@ export async function getFunnelIntelligence(params: OffernetQueryParams) {
       SELECT 
         source,
         COUNT(DISTINCT lead_id) as leads,
+        COUNT(DISTINCT CASE WHEN delivered_ts IS NOT NULL THEN lead_id END) as delivered,
+        COUNT(DISTINCT CASE WHEN first_dial_ts IS NOT NULL THEN lead_id END) as dialled,
         COUNT(DISTINCT CASE WHEN is_rpc THEN lead_id END) as contacted,
         COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) as sales,
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) as activations
@@ -1142,6 +1144,8 @@ export async function getFunnelIntelligence(params: OffernetQueryParams) {
       SELECT 
         grade,
         COUNT(DISTINCT lead_id) as leads,
+        COUNT(DISTINCT CASE WHEN delivered_ts IS NOT NULL THEN lead_id END) as delivered,
+        COUNT(DISTINCT CASE WHEN first_dial_ts IS NOT NULL THEN lead_id END) as dialled,
         COUNT(DISTINCT CASE WHEN is_rpc THEN lead_id END) as contacted,
         COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) as sales,
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) as activations
