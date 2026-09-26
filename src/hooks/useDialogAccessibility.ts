@@ -25,7 +25,10 @@ export function useDialogAccessibility<T extends HTMLElement>(
       ? document.activeElement
       : null;
     const previousOverflow = document.body.style.overflow;
+    const appMain = document.querySelector<HTMLElement>('.cx-main');
+    const previousMainOverflow = appMain?.style.overflow || '';
     document.body.style.overflow = 'hidden';
+    if (appMain) appMain.style.overflow = 'hidden';
 
     const focusFirst = () => {
       if (dialog.contains(document.activeElement)) return;
@@ -75,6 +78,7 @@ export function useDialogAccessibility<T extends HTMLElement>(
       window.cancelAnimationFrame(frame);
       document.removeEventListener('keydown', handleKeyDown, true);
       document.body.style.overflow = previousOverflow;
+      if (appMain) appMain.style.overflow = previousMainOverflow;
       if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
     };
   }, [open, onClose]);
