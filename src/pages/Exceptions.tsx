@@ -6,8 +6,8 @@ import { useClient } from '../lib/ClientContext';
 import { useAuth } from '../lib/AuthContext';
 import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
 import { fetchOverview, type OverviewData } from '../lib/offernetClient';
-
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
+
 const fmt = (value: number) => value.toLocaleString();
 
 export default function Exceptions() {
