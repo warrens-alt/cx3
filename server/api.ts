@@ -207,6 +207,12 @@ function buildOffernetQueryParams(req: Request, res: Response): offernetAnalytic
   };
 }
 
+analyticsRouter.get('/offernet/operating-controls', cacheResponse(60), asyncRoute(async (req, res) => {
+  const params = buildOffernetQueryParams(req, res);
+  const data = await singleFlight(res, 'offernet-operating-controls', params, () => offernetAnalytics.getOperatingControlsAnalytics(params));
+  res.json({ success: true, data });
+}));
+
 analyticsRouter.get('/offernet/overview', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-overview', params, () => offernetAnalytics.getExecutiveOverview(params));
