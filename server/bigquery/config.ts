@@ -29,7 +29,9 @@ export interface MarketingSourceContract {
   campaignField: string;
   adsetField: string;
   impressionsField: string;
+  reachField?: string;
   clicksField: string;
+  outboundClicksField?: string;
   leadsField: string;
   approvedSpendFields: string[];
   spendUnitByField: Record<string, 'currency' | 'micros'>;
@@ -123,7 +125,9 @@ const BASE_MARKETING_CONTRACT: Omit<MarketingSourceContract, 'mappingStatus' | '
   campaignField: 'Channel_Campaign_Name',
   adsetField: 'channel_adset_name',
   impressionsField: 'impressions',
+  reachField: 'reach',
   clicksField: 'clicks',
+  outboundClicksField: 'outbound_clicks',
   leadsField: 'actions_lead',
   approvedSpendFields: [
     'spend',
