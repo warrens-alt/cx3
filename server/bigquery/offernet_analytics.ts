@@ -1176,8 +1176,14 @@ export async function getFunnelIntelligence(params: OffernetQueryParams) {
 
 // 3. SPEED TO LEAD
 export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
-  const client = getBigQueryClient('dashboards-422710');
+  const clientConfig = getClientConfig(params.clientId);
+  const client = getBigQueryClient(clientConfig.bigQueryProject);
   const { whereSql, queryParams } = buildFilterClause(params);
+  const operating = clientConfig.operationalConfig?.operatingHours || { start: '08:00', end: '17:30', workdays: [1, 2, 3, 4, 5] };
+  queryParams.tenantTimezone = clientConfig.timezone || 'Africa/Johannesburg';
+  queryParams.operatingStart = operating.start.length === 5 ? operating.start + ':00' : operating.start;
+  queryParams.operatingEnd = operating.end.length === 5 ? operating.end + ':00' : operating.end;
+  queryParams.operatingWorkdays = operating.workdays;
 
   const query = `
     WITH stage_timings AS (
@@ -1196,10 +1202,10 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
         TIMESTAMP_DIFF(SAFE_CAST(hlc.first_call_date AS TIMESTAMP), SAFE_CAST(hlc.delivered AS TIMESTAMP), SECOND) as delivery_to_first_dial_sec,
         TIMESTAMP_DIFF(SAFE_CAST(hlc.first_call_date AS TIMESTAMP), SAFE_CAST(l.fetched AS TIMESTAMP), SECOND) as capture_to_first_dial_sec,
         
-        -- After-hours flag (Operating hours 08:00 - 17:30 Monday-Friday)
-        EXTRACT(DAYOFWEEK FROM SAFE_CAST(l.fetched AS TIMESTAMP)) IN (1, 7) 
-          OR EXTRACT(HOUR FROM SAFE_CAST(l.fetched AS TIMESTAMP)) < 8 
-          OR EXTRACT(HOUR FROM SAFE_CAST(l.fetched AS TIMESTAMP)) >= 18 as is_after_hours
+        -- Tenant-local operating-hours flag.
+        CAST(FORMAT_TIMESTAMP('%u', SAFE_CAST(l.fetched AS TIMESTAMP), @tenantTimezone) AS INT64) NOT IN UNNEST(@operatingWorkdays)
+          OR FORMAT_TIMESTAMP('%H:%M:%S', SAFE_CAST(l.fetched AS TIMESTAMP), @tenantTimezone) < @operatingStart
+          OR FORMAT_TIMESTAMP('%H:%M:%S', SAFE_CAST(l.fetched AS TIMESTAMP), @tenantTimezone) >= @operatingEnd AS is_after_hours
       FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${whereSql}
@@ -1358,7 +1364,7 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
     const contacted = Number(a.contacted || 0);
     const sales = Number(a.sales || 0);
     return {
-      type: a.is_after_hours ? 'After Hours (Night / Weekend)' : 'Operating Hours (08:00 - 18:00)',
+      type: a.is_after_hours ? 'Outside configured operating hours' : `Operating hours (${operating.start}–${operating.end})`,
       leads,
       contactRate: leads > 0 ? Number(((contacted / leads) * 100).toFixed(1)) : 0,
       saleRate: leads > 0 ? Number(((sales / leads) * 100).toFixed(2)) : 0,
@@ -1369,7 +1375,13 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
   return {
     timingStages,
     cohorts,
-    afterHours
+    afterHours,
+    operatingContext: {
+      timezone: clientConfig.timezone,
+      start: operating.start,
+      end: operating.end,
+      workdays: operating.workdays,
+    }
   };
 }
 
@@ -1379,61 +1391,68 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
   const { whereSql, queryParams } = buildFilterClause(params);
 
   const query = `
-    WITH attempt_summary AS (
-      SELECT 
+    WITH raw AS (
+      SELECT
         l.lead_id,
-        COALESCE(hlc.total_calls, 0) as call_count,
-        SAFE_CAST(hlc.rpc AS INT64) > 0 as is_rpc,
-        hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' as is_sale,
-        hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' as is_activated,
-        COALESCE(hlc.revenue_generated, 0) as revenue
+        COALESCE(SAFE_CAST(hlc.total_calls AS INT64), 0) AS total_calls,
+        SAFE_CAST(hlc.rpc AS INT64) > 0 AS is_rpc,
+        hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' AS is_sale,
+        hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' AS is_activated,
+        COALESCE(hlc.revenue_generated, 0) AS revenue
       FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
       LEFT JOIN UNNEST(l.hlc_details) hlc
       ${whereSql}
     ),
+    lead_level AS (
+      SELECT
+        lead_id,
+        MAX(GREATEST(total_calls, 0)) AS call_count,
+        COUNTIF(is_rpc) > 0 AS is_rpc,
+        COUNTIF(is_sale) > 0 AS is_sale,
+        COUNTIF(is_activated) > 0 AS is_activated,
+        MAX(revenue) AS revenue
+      FROM raw
+      GROUP BY lead_id
+    ),
     brackets AS (
-      SELECT 
-        CASE 
+      SELECT
+        CASE
           WHEN call_count = 0 THEN '0 calls'
           WHEN call_count = 1 THEN '1 call'
           WHEN call_count = 2 THEN '2 calls'
           WHEN call_count = 3 THEN '3 calls'
           WHEN call_count = 4 THEN '4 calls'
           ELSE '5+ calls'
-        END as attempt_bucket,
-        CASE 
+        END AS attempt_bucket,
+        CASE
           WHEN call_count = 0 THEN 0
           WHEN call_count = 1 THEN 1
           WHEN call_count = 2 THEN 2
           WHEN call_count = 3 THEN 3
           WHEN call_count = 4 THEN 4
           ELSE 5
-        END as bucket_order,
-        COUNT(DISTINCT lead_id) as leads,
-        COUNT(DISTINCT CASE WHEN is_rpc THEN lead_id END) as contacted,
-        COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) as sales,
-        COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) as activations,
-        ROUND(SUM(revenue), 2) as revenue
-      FROM attempt_summary
+        END AS bucket_order,
+        COUNT(*) AS leads,
+        COUNTIF(is_rpc) AS contacted,
+        COUNTIF(is_sale) AS sales,
+        COUNTIF(is_activated) AS activations,
+        ROUND(SUM(revenue), 2) AS revenue
+      FROM lead_level
       GROUP BY 1, 2
-      ORDER BY bucket_order ASC
+      ORDER BY bucket_order
     )
     SELECT * FROM brackets
   `;
 
   const [rows] = await client.query({ query, params: queryParams });
-  
-  const totalLeads = rows.reduce((acc: number, r: any) => acc + Number(r.leads || 0), 0);
-
-  const attemptPerformance = rows.map((r: any) => {
-    const leads = Number(r.leads || 0);
-    const contacted = Number(r.contacted || 0);
-    const sales = Number(r.sales || 0);
-    const activations = Number(r.activations || 0);
-    const revenue = Number(r.revenue || 0);
-
+  const totalLeads = rows.reduce((acc: number, row: any) => acc + Number(row.leads || 0), 0);
+  const attemptPerformance = rows.map((row: any) => {
+    const leads = Number(row.leads || 0);
+    const contacted = Number(row.contacted || 0);
+    const sales = Number(row.sales || 0);
+    const activations = Number(row.activations || 0);
     return {
-      bucket: r.attempt_bucket,
+      bucket: row.attempt_bucket,
       leads,
       sharePct: totalLeads > 0 ? Number(((leads / totalLeads) * 100).toFixed(1)) : 0,
       contacted,
@@ -1442,29 +1461,41 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
       saleRate: leads > 0 ? Number(((sales / leads) * 100).toFixed(2)) : 0,
       activations,
       activationRate: sales > 0 ? Number(((activations / sales) * 100).toFixed(1)) : 0,
-      revenue,
+      revenue: Number(row.revenue || 0),
       callCost: null,
       marginalSales: null,
       marginalCostPerSale: null
     };
   });
 
-  // Call interval cadence & repeated no-answer analysis
-  const attemptCadence: Array<{ transition: string; avgSpacing: string; marginalRpcYield: string; costBenefitRatio: string }> = [];
-
-  const noAnswerAnalysis = {
-    status: 'UNAVAILABLE',
-    reason: 'No approved redial-cost or carrier-reputation contract is configured. Recommendations are withheld.',
-    stopThresholdRecommendation: null,
-    diminishingReturnsCutoff: null,
-    callbackFollowupRate: null,
-    callbackSaleConversion: null
-  };
+  const oneCall = attemptPerformance.find(row => row.bucket === '1 call');
+  const multiCallLeads = attemptPerformance
+    .filter(row => !['0 calls', '1 call'].includes(row.bucket))
+    .reduce((sum, row) => sum + row.leads, 0);
+  const highAttempt = attemptPerformance.find(row => row.bucket === '5+ calls');
 
   return {
     attemptPerformance,
-    attemptCadence,
-    noAnswerAnalysis
+    attemptCadence: [],
+    summary: {
+      totalLeads,
+      zeroCallLeads: attemptPerformance.find(row => row.bucket === '0 calls')?.leads || 0,
+      oneCallLeads: oneCall?.leads || 0,
+      singleAttemptSharePct: totalLeads > 0 ? Number((((oneCall?.leads || 0) / totalLeads) * 100).toFixed(1)) : 0,
+      multiAttemptLeads: multiCallLeads,
+      multiAttemptSharePct: totalLeads > 0 ? Number(((multiCallLeads / totalLeads) * 100).toFixed(1)) : 0,
+      fivePlusCallLeads: highAttempt?.leads || 0,
+      fivePlusNoRpcLeads: highAttempt ? Math.max(highAttempt.leads - highAttempt.contacted, 0) : 0,
+    },
+    noAnswerAnalysis: {
+      status: 'UNAVAILABLE',
+      reason: 'Event-level attempt spacing, callback completion and redial economics are not independently validated. Recommendations are withheld.',
+      stopThresholdRecommendation: null,
+      diminishingReturnsCutoff: null,
+      callbackFollowupRate: null,
+      callbackSaleConversion: null
+    },
+    methodology: 'Buckets are exclusive per lead using the maximum recorded HLC total_calls value. They describe observed call-count populations and do not identify which specific attempt produced the outcome.'
   };
 }
 
@@ -1638,41 +1669,79 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
 
 // 6. TEMPORAL INTELLIGENCE (Day x Hour Heatmaps)
 export async function getTemporalAnalytics(params: OffernetQueryParams) {
-  const client = getBigQueryClient('dashboards-422710');
+  const clientConfig = getClientConfig(params.clientId);
+  const client = getBigQueryClient(clientConfig.bigQueryProject);
   const { whereSql, queryParams } = buildFilterClause(params);
+  const operating = clientConfig.operationalConfig?.operatingHours || { start: '08:00', end: '17:30', workdays: [1, 2, 3, 4, 5] };
+  queryParams.tenantTimezone = clientConfig.timezone || 'Africa/Johannesburg';
+  queryParams.operatingStart = operating.start.length === 5 ? operating.start + ':00' : operating.start;
+  queryParams.operatingEnd = operating.end.length === 5 ? operating.end + ':00' : operating.end;
+  queryParams.operatingWorkdays = operating.workdays;
 
   const query = `
-    SELECT 
-      EXTRACT(DAYOFWEEK FROM SAFE_CAST(l.fetched AS TIMESTAMP)) as day_of_week,
-      EXTRACT(HOUR FROM SAFE_CAST(l.fetched AS TIMESTAMP)) as hour_of_day,
-      COUNT(DISTINCT l.lead_id) as volume,
-      COUNT(DISTINCT CASE WHEN SAFE_CAST(hlc.rpc AS INT64) > 0 THEN l.lead_id END) as contacted,
-      COUNT(DISTINCT CASE WHEN hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '' THEN l.lead_id END) as sales,
-      COUNT(DISTINCT CASE WHEN hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '' THEN l.lead_id END) as activations
-    FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
-    LEFT JOIN UNNEST(l.hlc_details) hlc
-    ${whereSql}
-    GROUP BY 1, 2
-    ORDER BY 1, 2
+    WITH lead_level AS (
+      SELECT
+        l.lead_id,
+        ANY_VALUE(SAFE_CAST(l.fetched AS TIMESTAMP)) AS fetched_ts,
+        COUNTIF(SAFE_CAST(hlc.rpc AS INT64) > 0) > 0 AS is_rpc,
+        COUNTIF(hlc.sale NOT LIKE '1970%' AND hlc.sale NOT LIKE '1900%' AND hlc.sale IS NOT NULL AND hlc.sale != '') > 0 AS is_sale,
+        COUNTIF(hlc.activated NOT LIKE '1970%' AND hlc.activated NOT LIKE '1900%' AND hlc.activated IS NOT NULL AND hlc.activated != '') > 0 AS is_activated
+      FROM \`dashboards-422710.lead_ledger.clustered_lead_ledger\` l
+      LEFT JOIN UNNEST(l.hlc_details) hlc
+      ${whereSql}
+      GROUP BY l.lead_id
+    ),
+    classified AS (
+      SELECT
+        *,
+        CAST(FORMAT_TIMESTAMP('%u', fetched_ts, @tenantTimezone) AS INT64) AS iso_day,
+        CAST(FORMAT_TIMESTAMP('%H', fetched_ts, @tenantTimezone) AS INT64) AS hour_of_day,
+        CAST(FORMAT_TIMESTAMP('%u', fetched_ts, @tenantTimezone) AS INT64) NOT IN UNNEST(@operatingWorkdays)
+          OR FORMAT_TIMESTAMP('%H:%M:%S', fetched_ts, @tenantTimezone) < @operatingStart
+          OR FORMAT_TIMESTAMP('%H:%M:%S', fetched_ts, @tenantTimezone) >= @operatingEnd AS is_after_hours
+      FROM lead_level
+    ),
+    matrix AS (
+      SELECT
+        iso_day,
+        hour_of_day,
+        COUNT(*) AS volume,
+        COUNTIF(is_rpc) AS contacted,
+        COUNTIF(is_sale) AS sales,
+        COUNTIF(is_activated) AS activations
+      FROM classified
+      GROUP BY iso_day, hour_of_day
+    ),
+    operating_summary AS (
+      SELECT
+        is_after_hours,
+        COUNT(*) AS leads,
+        COUNTIF(is_rpc) AS contacted,
+        COUNTIF(is_sale) AS sales
+      FROM classified
+      GROUP BY is_after_hours
+    )
+    SELECT
+      ARRAY(SELECT AS STRUCT * FROM matrix) AS matrix,
+      ARRAY(SELECT AS STRUCT * FROM operating_summary) AS operating_summary
   `;
 
   const [rows] = await client.query({ query, params: queryParams });
-
-  // Transform into full 7 x 24 grid
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const data = rows[0] || { matrix: [], operating_summary: [] };
+  const rowsByCell = data.matrix || [];
+  const isoDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const heatmap: any[] = [];
 
   for (let d = 1; d <= 7; d++) {
     for (let h = 0; h < 24; h++) {
-      const match = rows.find((r: any) => Number(r.day_of_week) === d && Number(r.hour_of_day) === h);
-      const volume = match ? Number(match.volume) : 0;
-      const contacted = match ? Number(match.contacted) : 0;
-      const sales = match ? Number(match.sales) : 0;
-      const activations = match ? Number(match.activations) : 0;
-
+      const match = rowsByCell.find((row: any) => Number(row.iso_day) === d && Number(row.hour_of_day) === h);
+      const volume = match ? Number(match.volume || 0) : 0;
+      const contacted = match ? Number(match.contacted || 0) : 0;
+      const sales = match ? Number(match.sales || 0) : 0;
+      const activations = match ? Number(match.activations || 0) : 0;
       heatmap.push({
         dayIndex: d,
-        dayName: days[d - 1],
+        dayName: isoDays[d - 1],
         hour: h,
         volume,
         contactRate: volume > 0 ? Number(((contacted / volume) * 100).toFixed(1)) : 0,
@@ -1682,21 +1751,40 @@ export async function getTemporalAnalytics(params: OffernetQueryParams) {
     }
   }
 
-  // Rank observed day/hour cells only. No static "best time" claims are injected.
   const peakWindows = heatmap
     .filter(cell => cell.volume > 0)
     .sort((a, b) => (b.contactRate - a.contactRate) || (b.volume - a.volume))
-    .slice(0, 4)
+    .slice(0, 6)
     .map(cell => ({
       window: `${cell.dayName} ${String(cell.hour).padStart(2, '0')}:00–${String((cell.hour + 1) % 24).padStart(2, '0')}:00`,
       contactRate: `${cell.contactRate.toFixed(1)}%`,
       saleIndex: cell.saleRate.toFixed(2),
-      verdict: 'Observed high-contact window'
+      verdict: 'Observed high-contact capture window'
     }));
+
+  const operatingComparison = (data.operating_summary || []).map((row: any) => {
+    const leads = Number(row.leads || 0);
+    const contacted = Number(row.contacted || 0);
+    const sales = Number(row.sales || 0);
+    return {
+      type: row.is_after_hours ? 'Outside configured operating hours' : 'Inside configured operating hours',
+      leads,
+      contactRate: leads > 0 ? Number(((contacted / leads) * 100).toFixed(1)) : 0,
+      saleRate: leads > 0 ? Number(((sales / leads) * 100).toFixed(2)) : 0,
+    };
+  });
 
   return {
     heatmap,
-    peakWindows
+    peakWindows,
+    operatingComparison,
+    operatingContext: {
+      timezone: clientConfig.timezone,
+      start: operating.start,
+      end: operating.end,
+      workdays: operating.workdays,
+    },
+    timeDimension: 'Lead capture time'
   };
 }
 
@@ -2826,6 +2914,24 @@ export async function getRawLeads(params: OffernetQueryParams) {
         WHERE ${validSale}
           AND NOT ${validActivation}
           AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), SAFE_CAST(h.sale AS TIMESTAMP), DAY) >= 14
+      )`;
+    } else if (drill === 'high-attempt-no-rpc') {
+      drillCondition = `AND EXISTS (
+        SELECT 1 FROM UNNEST(l.hlc_details) h
+        WHERE COALESCE(SAFE_CAST(h.total_calls AS INT64), 0) >= 5
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM UNNEST(l.hlc_details) h
+        WHERE SAFE_CAST(h.rpc AS INT64) > 0
+      )`;
+    } else if (drill === 'one-call-only') {
+      drillCondition = `AND EXISTS (
+        SELECT 1 FROM UNNEST(l.hlc_details) h
+        WHERE COALESCE(SAFE_CAST(h.total_calls AS INT64), 0) = 1
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM UNNEST(l.hlc_details) h
+        WHERE COALESCE(SAFE_CAST(h.total_calls AS INT64), 0) > 1
       )`;
     } else if (drill === 'sla-breach') {
       drillCondition = `AND EXISTS (
