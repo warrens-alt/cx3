@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { AlertTriangle, Clock3, ListChecks, PhoneCall, ShieldCheck } from 'lucide-react';
 import type { OperatingControlsData } from '../lib/offernetClient';
 
@@ -254,7 +255,7 @@ export function ContactGovernancePanel({
             <b>{fmt(row.value)}</b>
           </>;
           return row.href ? (
-            <a key={row.key} href={row.href} className="cx-attention-item" data-severity={row.severity}>{body}</a>
+            <Link key={row.key} to={row.href} className="cx-attention-item" data-severity={row.severity}>{body}</Link>
           ) : (
             <div key={row.key} className="cx-attention-item" data-severity={row.severity}>{body}</div>
           );
