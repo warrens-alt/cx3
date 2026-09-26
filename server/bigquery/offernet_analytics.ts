@@ -2163,10 +2163,10 @@ export async function getSourceObservability(params: Pick<OffernetQueryParams, '
   const callConditions = ["call_start_date IS NOT NULL"];
   const callParams: Record<string, any> = {};
   if (clientConfig.id !== 'default_tenant') {
-    const partners = clientConfig.semanticMappings.partners || [];
-    if (partners.length) {
+    const tenantVendors = tenantVendorScopeValues(clientConfig);
+    if (tenantVendors.length) {
       callConditions.push('LOWER(vendor) IN UNNEST(@tenantVendors)');
-      callParams.tenantVendors = partners.map(value => value.toLowerCase());
+      callParams.tenantVendors = tenantVendors;
     }
   }
   await pushFreshness(
@@ -2366,10 +2366,10 @@ export async function getAgentPerformanceAnalytics(params: OffernetQueryParams) 
   }
 
   if (clientConfig.id !== 'default_tenant') {
-    const tenantVendors = clientConfig.semanticMappings.partners || [];
+    const tenantVendors = tenantVendorScopeValues(clientConfig);
     if (!tenantVendors.length) throw new RequestError('No approved call-vendor mapping exists for this tenant', 422);
     conditions.push('LOWER(vendor) IN UNNEST(@tenantVendors)');
-    queryParams.tenantVendors = tenantVendors.map(value => value.toLowerCase());
+    queryParams.tenantVendors = tenantVendors;
   }
 
   const cleanVendor = params.vendor && !['all', 'all vendors', 'undefined', 'null'].includes(params.vendor.trim().toLowerCase())
@@ -3319,11 +3319,12 @@ export async function getLeadTimeline(leadId: string, params: Pick<OffernetQuery
   const callConditions = ['CAST(dialer_lead_id AS STRING) = @leadId'];
 
   if (clientConfig.id !== 'default_tenant') {
-    const tenantVendors = clientConfig.semanticMappings.partners || [];
+    const tenantVendors = tenantVendorScopeValues(clientConfig);
     if (!tenantVendors.length) throw new RequestError('No approved vendor mapping exists for this tenant', 422);
-    conditions.push('LOWER(hlc.vendor) IN UNNEST(@tenantVendors)');
+    // Dedicated tenant lead views are already isolated; the shared call table still needs explicit vendor scoping.
+    if (clientConfig.dataSourceMode === 'shared') conditions.push('LOWER(hlc.vendor) IN UNNEST(@tenantVendors)');
     callConditions.push('LOWER(vendor) IN UNNEST(@tenantVendors)');
-    queryParams.tenantVendors = tenantVendors.map(value => value.toLowerCase());
+    queryParams.tenantVendors = tenantVendors;
   }
 
   const cleanVendor = params.vendor && !['all', 'all vendors', 'undefined', 'null'].includes(params.vendor.trim().toLowerCase())
