@@ -8,10 +8,12 @@ import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import { downloadCsv } from '../lib/formatters';
 
+import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 const pct = (numerator: number, denominator: number, digits = 1) =>
   denominator > 0 ? Number(((numerator / denominator) * 100).toFixed(digits)) : 0;
 
 export default function FunnelIntelligence() {
+  const scoped = useScopedNavigationTarget();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
   const [data, setData] = useState<FunnelData | null>(null);
@@ -63,7 +65,7 @@ export default function FunnelIntelligence() {
           title="Stage progression"
           description="See where lead populations progress, where they stop, and how vendor, source and grade cohorts differ."
           actions={
-            <Link to="/lead-explorer" className="cx-button-secondary">
+            <Link to={scoped('/lead-explorer')} className="cx-button-secondary">
               Inspect records <ArrowRight size={13} />
             </Link>
           }
@@ -207,8 +209,8 @@ export default function FunnelIntelligence() {
             </div>
 
             <section className="cx-command-shortcuts">
-              <Link to="/speed-to-lead"><Clock3 size={16}/><span><strong>Contact timing</strong><small>Diagnose first-dial latency and age cohorts</small></span><ArrowRight size={14}/></Link>
-              <Link to="/vendor-quality"><GitFork size={16}/><span><strong>Performance</strong><small>Compare vendor, source and quality outcomes</small></span><ArrowRight size={14}/></Link>
+              <Link to={scoped('/speed-to-lead')}><Clock3 size={16}/><span><strong>Contact timing</strong><small>Diagnose first-dial latency and age cohorts</small></span><ArrowRight size={14}/></Link>
+              <Link to={scoped('/vendor-quality')}><GitFork size={16}/><span><strong>Performance</strong><small>Compare vendor, source and quality outcomes</small></span><ArrowRight size={14}/></Link>
               <button type="button" onClick={handleExportCsv}><Download size={16}/><span><strong>Export funnel</strong><small>Download current scoped breakdown</small></span><ArrowRight size={14}/></button>
             </section>
           </>
