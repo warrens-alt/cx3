@@ -1,10 +1,10 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { BarChart3, GitFork, LayoutDashboard, Menu, PhoneCall } from 'lucide-react';
+import { navigationTarget } from '../lib/presentation';
 
 interface MobileBottomNavProps {
   onOpenMenu: () => void;
-  onOpenSearch: () => void;
 }
 
 export default function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
@@ -21,16 +21,16 @@ export default function MobileBottomNav({ onOpenMenu }: MobileBottomNavProps) {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 lg:hidden shadow-[0_-2px_10px_rgba(0,0,0,0.04)] pb-[env(safe-area-inset-bottom,0px)]" aria-label="Mobile navigation">
       <div className="grid grid-cols-5 h-[58px] max-w-lg mx-auto">
-        <NavLink to="/overview" className={itemClass(overview)}>
+        <NavLink to={navigationTarget('/overview', location.pathname, location.search)} className={itemClass(overview)}>
           <LayoutDashboard size={18} /><span>Overview</span>{overview && dot}
         </NavLink>
-        <NavLink to="/funnel" className={itemClass(funnel)}>
+        <NavLink to={navigationTarget('/funnel', location.pathname, location.search)} className={itemClass(funnel)}>
           <GitFork size={18} /><span>Funnel</span>{funnel && dot}
         </NavLink>
-        <NavLink to="/speed-to-lead" className={itemClass(contact)}>
+        <NavLink to={navigationTarget('/speed-to-lead', location.pathname, location.search)} className={itemClass(contact)}>
           <PhoneCall size={18} /><span>Contact</span>{contact && dot}
         </NavLink>
-        <NavLink to="/vendor-quality" className={itemClass(performance)}>
+        <NavLink to={navigationTarget('/vendor-quality', location.pathname, location.search)} className={itemClass(performance)}>
           <BarChart3 size={18} /><span>Performance</span>{performance && dot}
         </NavLink>
         <button type="button" onClick={onOpenMenu} aria-label="Open full navigation" className={itemClass(more)}>

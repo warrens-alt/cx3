@@ -7,8 +7,10 @@ import { fetchAgentPerformance, type AgentPerformanceData } from '../lib/offerne
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import { downloadCsv } from '../lib/formatters';
+import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 
 export default function AgentPerformanceIntelligence() {
+  const scoped = useScopedNavigationTarget();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
   const [data, setData] = useState<AgentPerformanceData | null>(null);
@@ -154,7 +156,7 @@ export default function AgentPerformanceIntelligence() {
 
             <section className="cx-command-shortcuts">
               <button type="button" onClick={handleExportCsv}><Download size={16}/><span><strong>Export agent activity</strong><small>Download the scoped roster</small></span></button>
-              <Link to="/cli-performance"><Users size={16}/><span><strong>CLI performance</strong><small>Inspect outbound caller-ID outcomes</small></span></Link>
+              <Link to={scoped('/cli-performance')}><Users size={16}/><span><strong>CLI performance</strong><small>Inspect outbound caller-ID outcomes</small></span></Link>
             </section>
           </>
         )}

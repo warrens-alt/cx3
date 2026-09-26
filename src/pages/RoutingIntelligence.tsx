@@ -5,8 +5,10 @@ import { useAnalyticsData } from '../lib/useAnalyticsData';
 import { useClient } from '../lib/ClientContext';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
+import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 
 export default function RoutingIntelligence() {
+  const scoped = useScopedNavigationTarget();
   const { clientConfig } = useClient();
   const currency = clientConfig?.currency === 'GBP' ? '£' : clientConfig?.currency === 'USD' ? '$' : 'R ';
   const { data, loading, error, refetch } = useAnalyticsData('routing');
@@ -21,7 +23,7 @@ export default function RoutingIntelligence() {
           description="Understand routing depth, partner handoffs, repeated delivery journeys and the records that fail to produce a matched vendor transaction."
           status="NOT_VERIFIED"
           statusLabel="Legacy routing analytics"
-          actions={<Link to="/lead-explorer" className="cx-button-secondary">Inspect leads <ArrowRight size={13}/></Link>}
+          actions={<Link to={scoped('/lead-explorer')} className="cx-button-secondary">Inspect leads <ArrowRight size={13}/></Link>}
         />
 
         {error && <div className="cx-command-error"><AlertTriangle size={17}/>{String(error)}</div>}
@@ -131,8 +133,8 @@ export default function RoutingIntelligence() {
               </section>
 
               <section className="cx-command-shortcuts">
-                <Link to="/exceptions"><AlertTriangle size={16}/><span><strong>Exceptions</strong><small>Review operational populations needing attention</small></span><ArrowRight size={14}/></Link>
-                <Link to="/lead-explorer"><Clock3 size={16}/><span><strong>Explore leads</strong><small>Inspect record-level timelines</small></span><ArrowRight size={14}/></Link>
+                <Link to={scoped('/exceptions')}><AlertTriangle size={16}/><span><strong>Exceptions</strong><small>Review operational populations needing attention</small></span><ArrowRight size={14}/></Link>
+                <Link to={scoped('/lead-explorer')}><Clock3 size={16}/><span><strong>Explore leads</strong><small>Inspect record-level timelines</small></span><ArrowRight size={14}/></Link>
               </section>
             </>
           );

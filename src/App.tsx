@@ -14,11 +14,11 @@ import Modal from './components/Modal';
 import AppliedScope from './components/AppliedScope';
 import MobileBottomNav from './components/MobileBottomNav';
 import { PageSkeleton } from './components/Skeleton';
-import VersionedReports from './pages/VersionedReports';
 import { useDevice } from './hooks/useDevice';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import AuthGate from './components/AuthGate';
 
+const VersionedReports = React.lazy(() => import('./pages/VersionedReports'));
 const UserManagement = React.lazy(() => import('./pages/UserManagement'));
 const ExecutiveOverview = React.lazy(() => import('./pages/ExecutiveOverview'));
 const FunnelIntelligence = React.lazy(() => import('./pages/FunnelIntelligence'));
@@ -71,7 +71,14 @@ function Shell() {
   useEffect(()=>{try{localStorage.setItem(DENSITY_KEY,density);}catch{}},[density]);
   useEffect(()=>{
     setMobile(false);
-    document.getElementById('main-content')?.scrollTo({top:0});
+    setCommand(false);
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    const main = document.getElementById('main-content');
+    main?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    const frame = window.requestAnimationFrame(() => {
+      main?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
   },[location.pathname]);
   useEffect(()=>{const listener=(e:KeyboardEvent)=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();setMobile(false);setCommand(old=>!old);}};
     window.addEventListener('keydown',listener);return()=>window.removeEventListener('keydown',listener);
@@ -184,7 +191,7 @@ function Shell() {
           </Suspense>}
         </ErrorBoundary>
       </main>
-      <MobileBottomNav onOpenMenu={()=>setMobile(true)} onOpenSearch={openSearch} />
+      <MobileBottomNav onOpenMenu={()=>setMobile(true)} />
     </div>
     {command && <Suspense fallback={<Modal open label="Loading search" onClose={()=>setCommand(false)}><div className="p-6"><p role="status">Loading navigation…</p><button className="cx-button-secondary mt-4" onClick={()=>setCommand(false)}>Close</button></div></Modal>}><CommandPalette isOpen onClose={()=>setCommand(false)}/></Suspense>}
   </div>;

@@ -10,10 +10,12 @@ import {
   type CommercialData,
   type MarketingAttributionData,
 } from '../lib/offernetClient';
+import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 
 const money = (value: number | null) => value == null ? '—' : `R ${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
 export default function CommercialIntelligence() {
+  const scoped = useScopedNavigationTarget();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
   const [data, setData] = useState<CommercialData | null>(null);
@@ -64,7 +66,7 @@ export default function CommercialIntelligence() {
             <h1>Spend, revenue & efficiency</h1>
             <p>Observed media spend and recorded revenue, with attributed funnel economics activated only by an explicit cross-source key contract.</p>
           </div>
-          <Link to="/campaigns" className="cx-trust-pill">
+          <Link to={scoped('/campaigns')} className="cx-trust-pill">
             <DollarSign size={15}/>
             <span><strong>MEDIA DETAIL</strong><small>Campaign spend & efficiency</small></span>
             <ArrowRight size={14}/>

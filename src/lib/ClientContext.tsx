@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 export interface ClientConfig {
   id: string;
@@ -39,9 +40,12 @@ export interface ClientContextType {
 const ClientContext = createContext<ClientContextType | undefined>(undefined);
 
 export const ClientProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [clientConfig, setClientConfig] = useState<ClientConfig | null>(null);
   const [clients, setClients] = useState<ClientListItem[]>([]);
-  const [selectedClient, setSelectedClientState] = useState('');
+  const [selectedClient, setSelectedClientState] = useState(() =>
+    typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('clientId') || ''
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -58,13 +62,19 @@ export const ClientProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
 
       const authorised = json.data as ClientListItem[];
+      const requested = typeof window === 'undefined'
+        ? ''
+        : new URLSearchParams(window.location.search).get('clientId') || '';
+      const selected = authorised.some(client => client.id === requested) ? requested : authorised[0].id;
+      const match = authorised.find(client => client.id === selected)!;
       setClients(authorised);
-      setSelectedClientState(previous => {
-        const selected = authorised.some(client => client.id === previous) ? previous : authorised[0].id;
-        const match = authorised.find(client => client.id === selected)!;
-        setClientConfig(match as ClientConfig);
-        return selected;
-      });
+      setSelectedClientState(selected);
+      setClientConfig(match as ClientConfig);
+      setSearchParams(previous => {
+        const next = new URLSearchParams(previous);
+        next.set('clientId', selected);
+        return next;
+      }, { replace: true });
       setReady(true);
     } catch (err: any) {
       setClients([]);
@@ -74,7 +84,7 @@ export const ClientProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setSearchParams]);
 
   useEffect(() => {
     loadConfig();
@@ -85,7 +95,22 @@ export const ClientProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!match) return;
     setSelectedClientState(id);
     setClientConfig(match as ClientConfig);
-  }, [clients]);
+    setSearchParams(previous => {
+      const next = new URLSearchParams(previous);
+      next.set('clientId', id);
+      return next;
+    }, { replace: true });
+  }, [clients, setSearchParams]);
+
+  useEffect(() => {
+    if (!clients.length) return;
+    const requested = searchParams.get('clientId');
+    if (!requested || requested === selectedClient) return;
+    const match = clients.find(client => client.id === requested);
+    if (!match) return;
+    setSelectedClientState(requested);
+    setClientConfig(match as ClientConfig);
+  }, [searchParams, clients, selectedClient]);
 
   const reportAuthenticationFailure = useCallback((reason = 'Workspace authentication failed') => {
     setError(reason);

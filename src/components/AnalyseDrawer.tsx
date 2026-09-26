@@ -4,6 +4,7 @@ import { useAnalyticsData } from '../lib/useAnalyticsData';
 import { useClient } from '../lib/ClientContext';
 import { useFilters } from '../lib/FilterContext';
 import DataAuditDrawer from './DataAuditDrawer';
+import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 
 interface AnalyseDrawerProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export default function AnalyseDrawer({ isOpen, onClose, metric, metricLabel }: 
   const [activeDimension, setActiveDimension] = useState<'source' | 'vendor' | 'routing_depth' | 'medium'>('source');
   const [drillAuditOpen, setDrillAuditOpen] = useState(false);
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
+  const dialogRef = useDialogAccessibility<HTMLDivElement>(isOpen, onClose);
 
   const { data: driverData, loading, error } = useAnalyticsData<any>(
     '/drivers',
@@ -45,8 +47,8 @@ export default function AnalyseDrawer({ isOpen, onClose, metric, metricLabel }: 
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/50 backdrop-blur-xs flex justify-end">
-      <div className="w-full max-w-3xl bg-surface border-l border-border shadow-2xl h-full flex flex-col animate-slide-left">
+    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/50 backdrop-blur-xs flex justify-end" onMouseDown={event => { if (event.currentTarget === event.target) onClose(); }}>
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`Why did ${metricLabel} change?`} className="w-full max-w-3xl bg-surface border-l border-border shadow-2xl h-full flex flex-col animate-slide-left">
         {/* Header */}
         <div className="p-6 border-b border-border bg-surface-sec flex items-center justify-between">
           <div>
@@ -61,7 +63,9 @@ export default function AnalyseDrawer({ isOpen, onClose, metric, metricLabel }: 
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Close analysis"
             className="p-2 text-text-mute hover:text-text-main rounded-lg hover:bg-slate-200/50 transition-colors"
           >
             <X className="w-5 h-5" />

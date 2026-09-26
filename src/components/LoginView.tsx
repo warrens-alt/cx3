@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Activity, Shield, KeyRound, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
+import { Activity, Shield, KeyRound, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
 import { BRAND } from '../../contracts/naming';
 
@@ -47,22 +47,9 @@ export default function LoginView() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-2.5 py-1 text-xs rounded-md bg-slate-50 border border-slate-200 font-mono">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-            </span>
-            <span className="font-semibold text-slate-700 text-[10.5px] tracking-tight">
-              BIGQUERY SYNCED
-            </span>
-            <span className="text-slate-300" aria-hidden="true">·</span>
-            <span className="text-[9.5px] text-slate-500 uppercase font-semibold">LIVE</span>
-          </div>
-          <div className="hidden md:flex items-center gap-1.5 text-xs text-slate-500 font-mono pl-3 border-l border-slate-200">
-            <Shield className="w-3.5 h-3.5 text-blue-600" />
-            <span>Bastionflowe Production</span>
-          </div>
+        <div className="flex items-center gap-2 px-2.5 py-1 text-xs rounded-md bg-slate-50 border border-slate-200 font-mono">
+          <Shield className="w-3.5 h-3.5 text-blue-600" />
+          <span className="font-semibold text-slate-700 text-[10.5px] tracking-tight">ACCESS-CONTROLLED WORKSPACE</span>
         </div>
       </header>
 
@@ -80,7 +67,7 @@ export default function LoginView() {
               Identity & Access Verification
             </h1>
             <p className="text-xs text-slate-500 leading-relaxed max-w-sm mx-auto">
-              Single Sign-On authentication for verified analysts, operational teams, and workspace managers across Offernet.
+              Google sign-in for Offernet workspace access. Workspace permissions are applied after authentication.
             </p>
           </div>
 
@@ -134,24 +121,22 @@ export default function LoginView() {
             <div className="grid grid-cols-1 gap-2 text-[11.5px] text-slate-600">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                <span>Zero-Trust Google Account Verification</span>
+                <span>Google identity authentication</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                <span>Multi-Tenant Client Scoping (8 Tenants)</span>
+                <span>Server-authorised workspace scoping</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                <span>BigQuery Data Ledger Direct Pipeline</span>
+                <span>Authenticated analytical API access</span>
               </div>
             </div>
           </div>
 
           {/* Bottom Telemetry Strip */}
-          <div className="pt-2.5 flex items-center justify-between text-[10.5px] font-mono text-slate-400 border-t border-slate-100">
-            <span>TLS 1.3 / 256-BIT</span>
-            <span className="text-slate-300">·</span>
-            <span>AUTH DOMAIN: bastionflowe.com</span>
+          <div className="pt-2.5 text-center text-[10.5px] font-mono text-slate-400 border-t border-slate-100">
+            Access is granted only after account and workspace authorisation.
           </div>
         </div>
       </main>
@@ -166,7 +151,7 @@ export default function LoginView() {
           <span>{BRAND.engine}</span>
         </div>
         <div>
-          <span>Protected Enterprise BigQuery Warehouse</span>
+          <span>Protected analytical workspace</span>
         </div>
       </footer>
     </div>

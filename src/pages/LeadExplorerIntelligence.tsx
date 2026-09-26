@@ -14,6 +14,7 @@ import { useClient } from '../lib/ClientContext';
 import { fetchRawLeads, fetchLeadTimeline, type RawLeadsData, type LeadTimelineData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import { downloadCsv } from '../lib/formatters';
+import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 
 const DRILL_LABELS: Record<string, string> = {
   'awaiting-first-dial': 'Delivered leads awaiting first dial',
@@ -40,16 +41,18 @@ export default function LeadExplorerIntelligence() {
   const [params, setParams] = useSearchParams();
   const drill = params.get('drill') || '';
   const drillValue = params.get('drillValue') || '';
+  const appliedSearch = params.get('search') || '';
   const [data, setData] = useState<RawLeadsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState(params.get('search') || '');
+  const [search, setSearch] = useState(appliedSearch);
   const [page, setPage] = useState(0);
   const pageSize = 50;
 
   const [selectedLead, setSelectedLead] = useState<string | null>(null);
   const [timelineData, setTimelineData] = useState<LeadTimelineData | null>(null);
   const [timelineLoading, setTimelineLoading] = useState(false);
+  const timelineDialogRef = useDialogAccessibility<HTMLElement>(Boolean(selectedLead), () => setSelectedLead(null));
 
   const investigation = useMemo(() => {
     if (!drill) return null;
@@ -67,7 +70,7 @@ export default function LeadExplorerIntelligence() {
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         ...extractOffernetFilters(filters),
-        search: search || undefined,
+        search: appliedSearch || undefined,
         drill: drill || undefined,
         drillValue: drillValue || undefined,
         limit: pageSize,
@@ -83,11 +86,15 @@ export default function LeadExplorerIntelligence() {
 
   useEffect(() => {
     setPage(0);
-  }, [selectedClient, startDate, endDate, filters, drill, drillValue]);
+  }, [selectedClient, startDate, endDate, filters, drill, drillValue, appliedSearch]);
+
+  useEffect(() => {
+    setSearch(appliedSearch);
+  }, [appliedSearch]);
 
   useEffect(() => {
     if (selectedClient) loadData();
-  }, [selectedClient, startDate, endDate, filters, drill, drillValue, page]);
+  }, [selectedClient, startDate, endDate, filters, drill, drillValue, appliedSearch, page]);
 
   const handleSearchSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -98,7 +105,6 @@ export default function LeadExplorerIntelligence() {
       else next.delete('search');
       return next;
     }, { replace: true });
-    loadData(true);
   };
 
   const clearInvestigation = () => {
@@ -243,8 +249,8 @@ export default function LeadExplorerIntelligence() {
                       <td>{row.sale ? 'Yes' : 'No'}</td>
                       <td>{row.activated ? 'Yes' : 'No'}</td>
                       <td>
-                        <button type="button" className="cx-record-open" onClick={() => handleOpenTimeline(row.lead_id, row.vendor)} title="Open lead timeline">
-                          <Eye size={14} />
+                        <button type="button" className="cx-record-open" onClick={() => handleOpenTimeline(row.lead_id, row.vendor)} title="Open lead timeline" aria-label={`Open timeline for lead ${row.lead_id}`}>
+                          <Eye size={14} aria-hidden="true" />
                         </button>
                       </td>
                     </tr>
@@ -269,7 +275,7 @@ export default function LeadExplorerIntelligence() {
 
       {selectedLead && (
         <div className="cx-timeline-backdrop" onMouseDown={event => { if (event.currentTarget === event.target) setSelectedLead(null); }}>
-          <aside className="cx-timeline-modal" role="dialog" aria-modal="true" aria-label="Lead timeline">
+          <aside ref={timelineDialogRef} tabIndex={-1} className="cx-timeline-modal" role="dialog" aria-modal="true" aria-label="Lead timeline">
             <header>
               <div><span>Lead audit trail</span><h2>{selectedLead}</h2></div>
               <button type="button" onClick={() => setSelectedLead(null)} aria-label="Close lead timeline"><X size={18} /></button>

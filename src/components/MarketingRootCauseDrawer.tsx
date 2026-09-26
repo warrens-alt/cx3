@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BarChart3, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { useClient } from '../lib/ClientContext';
 import { useFilters } from '../lib/FilterContext';
+import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 import { fetchMarketingRootCause, type MarketingRootCauseData } from '../lib/offernetClient';
 
 type MetricId = NonNullable<MarketingRootCauseData['metric']>['id'];
@@ -28,6 +29,7 @@ export default function MarketingRootCauseDrawer({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState('channel');
+  const dialogRef = useDialogAccessibility<HTMLElement>(open, onClose);
 
   useEffect(() => {
     if (!open || !metric || !selectedClient || !startDate || !endDate) return;
@@ -62,7 +64,7 @@ export default function MarketingRootCauseDrawer({
     <div className="cx-rootcause-backdrop" onMouseDown={event => {
       if (event.currentTarget === event.target) onClose();
     }}>
-      <aside className="cx-rootcause-drawer" role="dialog" aria-modal="true" aria-label="Why did this media metric change?">
+      <aside ref={dialogRef} tabIndex={-1} className="cx-rootcause-drawer" role="dialog" aria-modal="true" aria-label="Why did this media metric change?">
         <header>
           <div>
             <span>Media diagnostics</span>

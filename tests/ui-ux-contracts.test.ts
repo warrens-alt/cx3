@@ -129,3 +129,134 @@ test('duplicate legacy routes redirect to maintained product surfaces', () => {
     assert.ok(app.includes(`path="${from}" element={<Navigate to="${to}" replace />}`), `missing redirect ${from} -> ${to}`);
   }
 });
+
+
+test('shared dialogs trap focus, restore focus and lock background scrolling', () => {
+  const modal = read('src/components/Modal.tsx');
+  const hook = read('src/hooks/useDialogAccessibility.ts');
+  assert.match(modal, /useDialogAccessibility/);
+  assert.match(modal, /role="dialog"/);
+  assert.match(hook, /document\.body\.style\.overflow = 'hidden'/);
+  assert.match(hook, /event\.key === 'Escape'/);
+  assert.match(hook, /event\.key !== 'Tab'/);
+  assert.match(hook, /previousFocus\.focus/);
+});
+
+test('root-cause and lead timeline dialogs use shared accessibility behavior', () => {
+  for (const path of [
+    'src/components/RootCauseDrawer.tsx',
+    'src/components/MarketingRootCauseDrawer.tsx',
+    'src/pages/LeadExplorerIntelligence.tsx',
+  ]) {
+    const source = read(path);
+    assert.match(source, /useDialogAccessibility/);
+    assert.match(source, /aria-modal="true"/);
+  }
+});
+
+test('legacy lead timeline request carries the selected workspace scope', () => {
+  const timeline = read('src/components/LeadTimelineModal.tsx');
+  assert.match(timeline, /useClient/);
+  assert.match(timeline, /clientId: selectedClient/);
+  assert.match(timeline, /encodeURIComponent\(leadId\)/);
+  assert.match(timeline, /credentials: 'same-origin'/);
+});
+
+test('login and access-state screens do not claim unverified live infrastructure state', () => {
+  const login = read('src/components/LoginView.tsx');
+  const pending = read('src/components/PendingApprovalView.tsx');
+  const suspended = read('src/components/SuspendedView.tsx');
+
+  assert.doesNotMatch(login, /BIGQUERY SYNCED/);
+  assert.doesNotMatch(login, /\bLIVE\b/);
+  assert.doesNotMatch(login, /TLS 1\.3/);
+  assert.doesNotMatch(login, /8 Tenants/);
+  assert.match(login, /ACCESS-CONTROLLED WORKSPACE/);
+
+  assert.doesNotMatch(pending, /administrators have been notified/i);
+  assert.doesNotMatch(pending, /window\.location\.reload/);
+  assert.match(pending, /monitored while this page is open/i);
+
+  assert.doesNotMatch(suspended, /mailto:/);
+  assert.match(suspended, /platform administrator or internal support owner/);
+});
+
+test('route changes reset overlays, scroll to top and move focus to main content', () => {
+  const app = read('src/App.tsx');
+  assert.match(app, /setMobile\(false\)/);
+  assert.match(app, /setCommand\(false\)/);
+  assert.match(app, /window\.scrollTo/);
+  assert.match(app, /const main = document\.getElementById\('main-content'\)/);
+  assert.match(app, /main\?\.scrollTo/);
+  assert.match(app, /main\?\.focus/);
+});
+
+test('evidence reports and Firebase are split from the main application bundle', () => {
+  const app = read('src/App.tsx');
+  const vite = read('vite.config.ts');
+  assert.match(app, /const VersionedReports = React\.lazy/);
+  assert.doesNotMatch(app, /import VersionedReports from/);
+  assert.match(vite, /vendor-firebase/);
+  assert.match(vite, /node_modules\/firebase/);
+});
+
+
+test('mobile and in-page operational navigation preserve reporting scope', () => {
+  const mobile = read('src/components/MobileBottomNav.tsx');
+  assert.match(mobile, /navigationTarget\('\/overview', location\.pathname, location\.search\)/);
+  assert.match(mobile, /navigationTarget\('\/funnel', location\.pathname, location\.search\)/);
+  assert.match(mobile, /navigationTarget\('\/speed-to-lead', location\.pathname, location\.search\)/);
+  assert.match(mobile, /navigationTarget\('\/vendor-quality', location\.pathname, location\.search\)/);
+
+  for (const path of [
+    'src/pages/ExecutiveOverview.tsx',
+    'src/pages/FunnelIntelligence.tsx',
+    'src/pages/SpeedToLeadIntelligence.tsx',
+    'src/pages/VendorLeadQuality.tsx',
+    'src/pages/Exceptions.tsx',
+    'src/pages/SalesActivationIntelligence.tsx',
+    'src/pages/CommercialIntelligence.tsx',
+    'src/pages/TemporalIntelligence.tsx',
+    'src/pages/AgentPerformanceIntelligence.tsx',
+    'src/pages/RoutingIntelligence.tsx',
+  ]) {
+    const source = read(path);
+    assert.match(source, /useScopedNavigationTarget/);
+    assert.doesNotMatch(source, /<Link\b[^>]*to=["']\/(?:overview|funnel|speed-to-lead|contact-strategy|vendor-quality|exceptions|campaigns|commercial|reports|lead-explorer|cli-performance)["']/);
+  }
+});
+
+test('selected client is URL-addressable and preserved through evidence navigation', () => {
+  const clients = read('src/lib/ClientContext.tsx');
+  const presentation = read('src/lib/presentation.ts');
+  assert.match(clients, /useSearchParams/);
+  assert.match(clients, /next\.set\('clientId', id\)/);
+  assert.match(clients, /searchParams\.get\('clientId'\)/);
+  assert.match(presentation, /currentParams\.get\('clientId'\)/);
+  assert.match(presentation, /workspace\.set\('clientId', clientId\)/);
+});
+
+test('Explorer record loading follows applied URL search state', () => {
+  const explorer = read('src/pages/LeadExplorerIntelligence.tsx');
+  assert.match(explorer, /const appliedSearch = params\.get\('search'\) \|\| ''/);
+  assert.match(explorer, /search: appliedSearch \|\| undefined/);
+  assert.match(explorer, /\[selectedClient, startDate, endDate, filters, drill, drillValue, appliedSearch, page\]/);
+  assert.match(explorer, /setSearch\(appliedSearch\)/);
+});
+
+test('all custom analysis drawers use focus-managed dialog semantics', () => {
+  for (const path of [
+    'src/components/AnalyseDrawer.tsx',
+    'src/components/MetricLineageDrawer.tsx',
+    'src/components/RootCauseDrawer.tsx',
+    'src/components/MarketingRootCauseDrawer.tsx',
+  ]) {
+    const source = read(path);
+    assert.match(source, /useDialogAccessibility/);
+    assert.match(source, /role="dialog"/);
+    assert.match(source, /aria-modal="true"/);
+  }
+  const hook = read('src/hooks/useDialogAccessibility.ts');
+  assert.match(hook, /topmostDialog/);
+  assert.match(hook, /querySelector<HTMLElement>\('\.cx-main'\)/);
+});

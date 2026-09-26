@@ -7,8 +7,10 @@ import { fetchSpeedToLead, type SpeedToLeadData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import { downloadCsv } from '../lib/formatters';
+import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 
 export default function SpeedToLeadIntelligence() {
+  const scoped = useScopedNavigationTarget();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
   const [data, setData] = useState<SpeedToLeadData | null>(null);
@@ -67,7 +69,7 @@ export default function SpeedToLeadIntelligence() {
           title="Speed to lead"
           description="Understand how quickly leads are contacted and how downstream outcomes change as first-dial age increases."
           actions={
-            <Link to="/contact-strategy" className="cx-button-secondary">
+            <Link to={scoped('/contact-strategy')} className="cx-button-secondary">
               Call-count outcomes <ArrowRight size={13}/>
             </Link>
           }
@@ -193,8 +195,8 @@ export default function SpeedToLeadIntelligence() {
             </section>
 
             <section className="cx-command-shortcuts">
-              <Link to="/contact-strategy"><Zap size={16}/><span><strong>Call-count outcomes</strong><small>See RPC and sales by recorded call count</small></span><ArrowRight size={14}/></Link>
-              <Link to="/exceptions"><AlertTriangle size={16}/><span><strong>SLA exceptions</strong><small>Investigate overdue first-dial populations</small></span><ArrowRight size={14}/></Link>
+              <Link to={scoped('/contact-strategy')}><Zap size={16}/><span><strong>Call-count outcomes</strong><small>See RPC and sales by recorded call count</small></span><ArrowRight size={14}/></Link>
+              <Link to={scoped('/exceptions')}><AlertTriangle size={16}/><span><strong>SLA exceptions</strong><small>Investigate overdue first-dial populations</small></span><ArrowRight size={14}/></Link>
               <button type="button" onClick={handleExportCsv}><Download size={16}/><span><strong>Export cohorts</strong><small>Download current scoped contact timing data</small></span><ArrowRight size={14}/></button>
             </section>
           </>
