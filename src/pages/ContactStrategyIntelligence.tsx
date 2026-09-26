@@ -48,10 +48,10 @@ export default function ContactStrategyIntelligence() {
         {data && <>
           {data.summary && (
             <section className="cx-command-metrics cx-contact-metrics" aria-label="Contact governance summary">
-              <article className="cx-command-metric"><span>Zero-call leads</span><strong>{data.summary.zeroCallLeads.toLocaleString()}</strong><div><small>No recorded call count</small></div></article>
-              <article className="cx-command-metric"><span>One-call share</span><strong>{data.summary.singleAttemptSharePct}%</strong><div><small>{data.summary.oneCallLeads.toLocaleString()} leads</small></div></article>
-              <article className="cx-command-metric"><span>Multi-call share</span><strong>{data.summary.multiAttemptSharePct}%</strong><div><small>{data.summary.multiAttemptLeads.toLocaleString()} leads</small></div></article>
-              <article className="cx-command-metric"><span>5+ calls, no RPC</span><strong>{data.summary.fivePlusNoRpcLeads.toLocaleString()}</strong><div><small>High effort without contact</small></div></article>
+              <article className="cx-command-metric"><span>Zero-call leads</span><strong>{Number(data.summary.zeroCallLeads || 0).toLocaleString()}</strong><div><small>No recorded call count</small></div></article>
+              <article className="cx-command-metric"><span>One-call share</span><strong>{data.summary.singleAttemptSharePct ?? 0}%</strong><div><small>{Number(data.summary.oneCallLeads || 0).toLocaleString()} leads</small></div></article>
+              <article className="cx-command-metric"><span>Multi-call share</span><strong>{data.summary.multiAttemptSharePct ?? 0}%</strong><div><small>{Number(data.summary.multiAttemptLeads || 0).toLocaleString()} leads</small></div></article>
+              <article className="cx-command-metric"><span>5+ calls, no RPC</span><strong>{Number(data.summary.fivePlusNoRpcLeads || 0).toLocaleString()}</strong><div><small>High effort without contact</small></div></article>
             </section>
           )}
           <section className="cx-command-panel">
@@ -75,7 +75,7 @@ export default function ContactStrategyIntelligence() {
             <div className="cx-performance-table-wrap">
               <table className="cx-performance-table">
                 <thead><tr><th>Call-count bucket</th><th>Leads</th><th>Share</th><th>RPC</th><th>RPC rate</th><th>Sales</th><th>Sale rate</th><th>Activations</th></tr></thead>
-                <tbody>{data.attemptPerformance.map(row=><tr key={row.bucket}><th>{row.bucket}</th><td>{row.leads.toLocaleString()}</td><td>{row.sharePct}%</td><td>{row.contacted.toLocaleString()}</td><td>{row.contactRate}%</td><td>{row.sales.toLocaleString()}</td><td>{row.saleRate}%</td><td>{row.activations.toLocaleString()}</td></tr>)}</tbody>
+                <tbody>{(data.attemptPerformance || []).map(row=><tr key={row.bucket}><th>{row.bucket}</th><td>{Number(row.leads || 0).toLocaleString()}</td><td>{row.sharePct}%</td><td>{Number(row.contacted || 0).toLocaleString()}</td><td>{row.contactRate}%</td><td>{Number(row.sales || 0).toLocaleString()}</td><td>{row.saleRate}%</td><td>{Number(row.activations || 0).toLocaleString()}</td></tr>)}</tbody>
               </table>
             </div>
           </section>

@@ -82,22 +82,22 @@ export default function SalesActivationIntelligence() {
             <section className="cx-command-metrics cx-outcome-metrics">
               <article className="cx-command-metric">
                 <span>Recorded sales</span>
-                <strong>{data.reconciliation.totalSales.toLocaleString()}</strong>
+                <strong>{Number(data.reconciliation?.totalSales || 0).toLocaleString()}</strong>
                 <div><small>Observed sale events</small></div>
               </article>
               <article className="cx-command-metric">
                 <span>Sales with revenue</span>
-                <strong>{data.reconciliation.billableSales.toLocaleString()}</strong>
-                <div><small>{data.reconciliation.unbilledSales.toLocaleString()} sales without recorded revenue</small></div>
+                <strong>{Number(data.reconciliation?.billableSales || 0).toLocaleString()}</strong>
+                <div><small>{Number(data.reconciliation?.unbilledSales || 0).toLocaleString()} sales without recorded revenue</small></div>
               </article>
               <article className="cx-command-metric">
                 <span>Recorded activations</span>
-                <strong>{data.reconciliation.totalActivations.toLocaleString()}</strong>
-                <div><small>{data.reconciliation.activationRate}% of recorded sales</small></div>
+                <strong>{Number(data.reconciliation?.totalActivations || 0).toLocaleString()}</strong>
+                <div><small>{data.reconciliation?.activationRate ?? 0}% of recorded sales</small></div>
               </article>
               <article className="cx-command-metric">
                 <span>Recorded revenue</span>
-                <strong>{money(data.reconciliation.realizedRevenue)}</strong>
+                <strong>{money(data.reconciliation?.realizedRevenue ?? null)}</strong>
                 <div><small>Source-recorded revenue only</small></div>
               </article>
             </section>
@@ -171,14 +171,14 @@ export default function SalesActivationIntelligence() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.byVendor.map((row, index) => (
+                    {(data.byVendor || []).map((row, index) => (
                       <tr key={`${row.vendor}-${index}`}>
                         <th>{row.vendor}</th>
-                        <td>{row.sales.toLocaleString()}</td>
-                        <td>{row.activations.toLocaleString()}</td>
-                        <td>{row.sales > 0 ? ((row.activations / row.sales) * 100).toFixed(1) : '0.0'}%</td>
+                        <td>{Number(row.sales || 0).toLocaleString()}</td>
+                        <td>{Number(row.activations || 0).toLocaleString()}</td>
+                        <td>{Number(row.sales || 0) > 0 ? ((Number(row.activations || 0) / Number(row.sales || 1)) * 100).toFixed(1) : '0.0'}%</td>
                         <td>{money(row.revenue)}</td>
-                        <td>{row.sales > 0 ? money(row.revenue / row.sales) : '—'}</td>
+                        <td>{Number(row.sales || 0) > 0 ? money(row.revenue / row.sales) : '—'}</td>
                       </tr>
                     ))}
                   </tbody>

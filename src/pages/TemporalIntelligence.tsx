@@ -105,8 +105,9 @@ export default function TemporalIntelligence() {
                         <div className="cx-temporal-day">{day}</div>
                         {hours.map(hour => {
                           const row = dayRows.find(item => item.hour === hour);
-                          const value = row ? (metricView === 'volume' ? row.volume : metricView === 'saleRate' ? row.saleRate : row.contactRate) : 0;
-                          const label = metricView === 'volume' ? value.toLocaleString() : `${value}%`;
+                          const rawVal = row ? (metricView === 'volume' ? row.volume : metricView === 'saleRate' ? row.saleRate : row.contactRate) : 0;
+                          const value = rawVal ?? 0;
+                          const label = metricView === 'volume' ? Number(value).toLocaleString() : `${value}%`;
                           return (
                             <div
                               key={`${day}-${hour}`}

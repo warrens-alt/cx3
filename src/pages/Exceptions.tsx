@@ -10,7 +10,7 @@ import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { ContactGovernancePanel } from '../components/OfferNetControlPanels';
 
-const fmt = (value: number) => value.toLocaleString();
+const fmt = (value: number | null | undefined) => (value == null || Number.isNaN(Number(value)) ? '0' : Number(value).toLocaleString());
 
 export default function Exceptions() {
   const scoped = useScopedNavigationTarget();
@@ -95,12 +95,12 @@ export default function Exceptions() {
               </article>
               <article>
                 <span>Awaiting first dial</span>
-                <strong>{fmt(data.backlog.awaitingFirstDial)}</strong>
-                <small>{fmt(data.backlog.over60Minutes)} waiting longer than 60 minutes</small>
+                <strong>{fmt(data.backlog?.awaitingFirstDial)}</strong>
+                <small>{fmt(data.backlog?.over60Minutes)} waiting longer than 60 minutes</small>
               </article>
               <article>
                 <span>15-minute SLA</span>
-                <strong>{data.sla.complianceRate}%</strong>
+                <strong>{data.sla?.complianceRate ?? 0}%</strong>
                 <small>Delivered leads dialled within target</small>
               </article>
             </section>

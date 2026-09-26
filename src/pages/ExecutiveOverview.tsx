@@ -24,7 +24,7 @@ import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { OperatingControlStrip } from '../components/OfferNetControlPanels';
 
-const fmt = (value: number) => value.toLocaleString();
+const fmt = (value: number | null | undefined) => (value == null || Number.isNaN(Number(value)) ? '0' : Number(value).toLocaleString());
 type RootMetric = RootCauseData['metric']['id'];
 
 function Change({ value, unit = '%' }: { value: number | null | undefined; unit?: string }) {
@@ -198,10 +198,10 @@ export default function ExecutiveOverview() {
                 <div className="cx-sla-number">{data.sla.complianceRate}%</div>
                 <div className="cx-sla-track"><span style={{ width: `${Math.min(100, Math.max(0, data.sla.complianceRate))}%` }} /></div>
                 <dl>
-                  <div><dt>Median delivery → dial</dt><dd>{data.sla.medianDeliveryToDial}</dd></div>
-                  <div><dt>P90 delivery → dial</dt><dd>{data.sla.p90DeliveryToDial}</dd></div>
-                  <div><dt>Awaiting first dial</dt><dd>{fmt(data.backlog.awaitingFirstDial)}</dd></div>
-                  <div><dt>Waiting &gt;60m</dt><dd>{fmt(data.backlog.over60Minutes)}</dd></div>
+                  <div><dt>Median delivery → dial</dt><dd>{data.sla?.medianDeliveryToDial || '—'}</dd></div>
+                  <div><dt>P90 delivery → dial</dt><dd>{data.sla?.p90DeliveryToDial || '—'}</dd></div>
+                  <div><dt>Awaiting first dial</dt><dd>{fmt(data.backlog?.awaitingFirstDial)}</dd></div>
+                  <div><dt>Waiting &gt;60m</dt><dd>{fmt(data.backlog?.over60Minutes)}</dd></div>
                 </dl>
               </section>
             </div>
@@ -212,28 +212,30 @@ export default function ExecutiveOverview() {
                 <Link to={scoped('/funnel')}>Full funnel <ArrowRight size={13} /></Link>
               </header>
               <div className="cx-funnel-strip">
-                {data.funnelStages.map((stage, index) => (
+                {(data.funnelStages || []).map((stage, index) => (
                   <React.Fragment key={stage.key}>
                     {isAdmin ? (
                       <Link className="cx-funnel-stage cx-funnel-stage-link" to={recordLink('funnel-stage', stage.key)} title={`Inspect ${stage.name} leads`}>
                         <span>{stage.name}</span><strong>{fmt(stage.volume)}</strong>{index > 0 && <small>{stage.transitionRate}% from prior stage</small>}
                       </Link>
                     ) : <div className="cx-funnel-stage"><span>{stage.name}</span><strong>{fmt(stage.volume)}</strong>{index > 0 && <small>{stage.transitionRate}% from prior stage</small>}</div>}
-                    {index < data.funnelStages.length - 1 && (
+                    {index < (data.funnelStages?.length || 0) - 1 && (
                       isAdmin ? (
                         <Link className="cx-funnel-arrow cx-funnel-arrow-link" to={recordLink('funnel-loss', lossKeys[index])} title="Inspect records lost at this transition">
-                          <ArrowRight size={15} /><small>−{fmt(data.funnelStages[index + 1].loss)}</small>
+                          <ArrowRight size={15} /><small>−{fmt(data.funnelStages?.[index + 1]?.loss)}</small>
                         </Link>
-                      ) : <div className="cx-funnel-arrow"><ArrowRight size={15} /><small>−{fmt(data.funnelStages[index + 1].loss)}</small></div>
+                      ) : <div className="cx-funnel-arrow"><ArrowRight size={15} /><small>−{fmt(data.funnelStages?.[index + 1]?.loss)}</small></div>
                     )}
                   </React.Fragment>
                 ))}
               </div>
-              <div className="cx-funnel-leak">
-                <GitFork size={16} />
-                <div><span>Largest measured loss</span><strong>{data.funnelLeak.from} → {data.funnelLeak.to}</strong></div>
-                <b>−{fmt(data.funnelLeak.loss)}</b><small>{data.funnelLeak.rate}% progressed</small>
-              </div>
+              {data.funnelLeak && (
+                <div className="cx-funnel-leak">
+                  <GitFork size={16} />
+                  <div><span>Largest measured loss</span><strong>{data.funnelLeak.from} → {data.funnelLeak.to}</strong></div>
+                  <b>−{fmt(data.funnelLeak.loss)}</b><small>{data.funnelLeak.rate}% progressed</small>
+                </div>
+              )}
             </section>
 
             <div className="cx-command-grid cx-command-grid-backlog">

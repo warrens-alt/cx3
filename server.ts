@@ -94,7 +94,7 @@ if (isMain) {
   const isTsFile = currentFileHref.endsWith('.ts');
   const bundlePath = path.join(process.cwd(), 'dist', 'server', 'server.mjs');
 
-  if (isTsFile && fs.existsSync(bundlePath) && !process.env.TSX_ACTIVE) {
+  if (isTsFile && fs.existsSync(bundlePath) && process.env.NODE_ENV === 'production' && !process.env.TSX_ACTIVE) {
     // When invoked as 'node server.ts' in production, delegate to pre-bundled server
     const bundleUrl = pathToFileURL(bundlePath).href;
     const serverModule = await import(/* @vite-ignore */ bundleUrl);

@@ -115,8 +115,8 @@ export default function CommercialIntelligence() {
               {attribution?.summary && (
                 <div className="cx-commercial-source">
                   <div><span>Matched spend</span><strong>{money(attribution.summary.matchedSpend)}</strong><small>{attribution.summary.matchedSpendSharePct == null ? 'Coverage unavailable' : `${attribution.summary.matchedSpendSharePct}% of observed spend`}</small></div>
-                  <div><span>Unmatched media spend</span><strong>{money(attribution.summary.unmatchedMarketingSpend)}</strong><small>{attribution.summary.marketingOnlyKeys.toLocaleString()} marketing-only keys</small></div>
-                  <div><span>Join-key coverage</span><strong>{attribution.summary.matchedKeys.toLocaleString()} matched keys</strong><small>{attribution.summary.operationsOnlyKeys.toLocaleString()} operations-only keys</small></div>
+                  <div><span>Unmatched media spend</span><strong>{money(attribution.summary.unmatchedMarketingSpend)}</strong><small>{Number(attribution.summary.marketingOnlyKeys || 0).toLocaleString()} marketing-only keys</small></div>
+                  <div><span>Join-key coverage</span><strong>{Number(attribution.summary.matchedKeys || 0).toLocaleString()} matched keys</strong><small>{Number(attribution.summary.operationsOnlyKeys || 0).toLocaleString()} operations-only keys</small></div>
                 </div>
               )}
 
@@ -145,13 +145,13 @@ export default function CommercialIntelligence() {
                           <th>{row.key}</th>
                           <td>{row.hasMarketing && row.hasOperations ? 'Matched' : row.hasMarketing ? 'Marketing only' : 'Operations only'}</td>
                           <td>{money(row.spend)}</td>
-                          <td>{row.platformLeads.toLocaleString()}</td>
-                          <td>{row.fetched.toLocaleString()}</td>
-                          <td>{row.delivered.toLocaleString()}</td>
-                          <td>{row.dialled.toLocaleString()}</td>
-                          <td>{row.rpc.toLocaleString()}</td>
-                          <td>{row.sales.toLocaleString()}</td>
-                          <td>{row.activations.toLocaleString()}</td>
+                          <td>{Number(row.platformLeads || 0).toLocaleString()}</td>
+                          <td>{Number(row.fetched || 0).toLocaleString()}</td>
+                          <td>{Number(row.delivered || 0).toLocaleString()}</td>
+                          <td>{Number(row.dialled || 0).toLocaleString()}</td>
+                          <td>{Number(row.rpc || 0).toLocaleString()}</td>
+                          <td>{Number(row.sales || 0).toLocaleString()}</td>
+                          <td>{Number(row.activations || 0).toLocaleString()}</td>
                           <td>{money(row.spendPerFetchedLead)}</td>
                           <td>{money(row.spendPerSale)}</td>
                           <td>{money(row.spendPerActivation)}</td>

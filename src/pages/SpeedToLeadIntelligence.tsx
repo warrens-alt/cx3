@@ -158,7 +158,7 @@ export default function SpeedToLeadIntelligence() {
                   <article key={`${row.cohort}-${index}`}>
                     <div className="cx-contact-cohort-label">
                       <strong>{row.cohort}</strong>
-                      <small>{row.leads.toLocaleString()} leads</small>
+                      <small>{Number(row.leads || 0).toLocaleString()} leads</small>
                     </div>
                     <div className="cx-contact-cohort-volume"><i style={{ width: `${(row.leads / cohortMax) * 100}%` }}/></div>
                     <dl>

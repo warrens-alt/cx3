@@ -79,7 +79,7 @@ export default function DataIntegrityIntelligence() {
                     {badge(source.status)}
                     <dl>
                       <div><dt>Age</dt><dd>{source.ageHours == null ? '—' : `${source.ageHours}h`}</dd></div>
-                      <div><dt>Rows</dt><dd>{source.rowCount == null ? '—' : source.rowCount.toLocaleString()}</dd></div>
+                      <div><dt>Rows</dt><dd>{source.rowCount == null ? '—' : Number(source.rowCount).toLocaleString()}</dd></div>
                     </dl>
                     <p>{source.detail}</p>
                     <small>{source.table || 'No table configured'}</small>
@@ -91,7 +91,7 @@ export default function DataIntegrityIntelligence() {
             {controls.data && <DataCompletenessPanel data={controls.data} />}
 
             <section className="cx-exception-summary">
-              <article><span>Distinct leads audited</span><strong>{data.totalRecordsAudited.toLocaleString()}</strong><small>Selected operational scope</small></article>
+              <article><span>Distinct leads audited</span><strong>{Number(data.totalRecordsAudited || 0).toLocaleString()}</strong><small>Selected operational scope</small></article>
               <article><span>Validation status</span><strong className="text-base">{data.validationStatus || data.healthGrade}</strong><small>No synthetic score is assigned</small></article>
               <article><span>Observed checks</span><strong>{data.checks.length}</strong><small>Concrete discrepancy populations</small></article>
             </section>
@@ -107,7 +107,7 @@ export default function DataIntegrityIntelligence() {
                         <th>{check.checkName}</th>
                         <td>{check.category}</td>
                         <td>{badge(check.status)}</td>
-                        <td>{check.discrepancyCount.toLocaleString()}</td>
+                        <td>{Number(check.discrepancyCount || 0).toLocaleString()}</td>
                         <td><strong className="font-mono text-[10px]">{check.evidence}</strong><br/><span>{check.detail}</span></td>
                       </tr>
                     ))}
