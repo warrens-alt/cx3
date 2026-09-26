@@ -7,8 +7,8 @@ import { fetchTemporal, type TemporalData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import { downloadCsv } from '../lib/formatters';
-
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
+
 type MetricView = 'contactRate' | 'saleRate' | 'volume';
 
 export default function TemporalIntelligence() {
