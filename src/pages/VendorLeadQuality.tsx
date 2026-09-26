@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, BarChart3, ShieldCheck } from 'lucide-react';
 import {
   CartesianGrid,
@@ -69,6 +70,10 @@ export default function VendorLeadQuality() {
             <span className="cx-command-eyebrow">Performance</span>
             <h1>Vendors, sources and lead quality</h1>
             <p>Compare operational execution and test whether lead-quality signals are associated with better downstream outcomes.</p>
+          </div>
+          <div className="flex gap-2 flex-wrap justify-end">
+            <Link to="/campaigns" className="cx-button-secondary">Campaigns & spend</Link>
+            <Link to="/commercial" className="cx-button-secondary">Commercial view</Link>
           </div>
           <Link to="/reports" className="cx-trust-pill">
             <ShieldCheck size={15} />
