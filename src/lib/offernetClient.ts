@@ -546,9 +546,14 @@ export interface CampaignData {
   summary: {
     spend: number | null;
     impressions: number;
+    reach: number | null;
+    frequency: number | null;
     clicks: number;
+    outboundClicks: number | null;
     leads: number;
     ctr: number;
+    outboundCtr: number | null;
+    clickToLeadRate: number | null;
     cpc: number | null;
     cpm: number | null;
     cpl: number | null;
@@ -583,8 +588,13 @@ export interface CampaignData {
     spend: number | null;
     latestBudget: number | null;
     impressions: number;
+    reach: number | null;
+    frequency: number | null;
     clicks: number;
+    outboundClicks: number | null;
     ctr: number;
+    outboundCtr: number | null;
+    clickToLeadRate: number | null;
     leads: number;
     cpc: number | null;
     cpm: number | null;
@@ -606,7 +616,9 @@ export interface MarketingDiscoveryData {
       campaign: string;
       adset: string;
       impressions: string;
+      reach: string | null;
       clicks: string;
+      outboundClicks: string | null;
       leads: string;
     };
     approvedSpendFields: string[];
