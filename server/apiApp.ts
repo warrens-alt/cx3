@@ -12,6 +12,7 @@ export async function mountApi(app: Application) {
   const { createReportingRouter } = await import('./reporting/router');
   const { analyticsRouter } = await import('./api');
   const { createBlcRouter } = await import('./blc/router');
+  const { createCliImportRouter } = await import('./cliImports/router');
   const { authenticate } = await import('./security');
   const { apiErrorHandler } = await import('./apiErrors');
   const { analyticalConcurrency, apiAuditLog, requestContext, sameOriginRequests, securityHeaders } = await import('./httpGuards');
@@ -20,6 +21,8 @@ export async function mountApi(app: Application) {
   app.use(requestContext());
   app.use(securityHeaders());
   app.use(compression());
+  // Allow JSON escaping overhead for the separately enforced 48 KiB CSV ceiling.
+  app.use('/api/analytics/cli-performance/import', express.json({ limit: '128kb' }));
   app.use(express.json({ limit: '64kb' }));
 
   // Liveness deliberately stays outside the authenticated API boundary.
@@ -50,7 +53,7 @@ export async function mountApi(app: Application) {
   app.use('/api/analytics', concurrency, (_req, res, next) => {
     res.setHeader('X-Analytics-Status', 'UNVERIFIED');
     next();
-  }, analyticsRouter, createBlcRouter());
+  }, createCliImportRouter(), analyticsRouter, createBlcRouter());
 
   app.use('/api/bq', (_req, res) => res.status(410).json({
     success: false,
