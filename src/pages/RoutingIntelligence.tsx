@@ -28,7 +28,12 @@ export default function RoutingIntelligence() {
           description="Understand routing depth, partner handoffs, repeated delivery journeys and the records that fail to produce a matched vendor transaction."
           status="NOT_VERIFIED"
           statusLabel="Legacy routing analytics"
-          actions={<Link to={scoped('/lead-explorer')} className="cx-button-secondary">Inspect leads <ArrowRight size={13}/></Link>}
+          actions={
+            <div className="flex items-center gap-2">
+              <Link to="/offershop-flow" className="cx-button-secondary">Offershop Deal Flow <GitFork size={13}/></Link>
+              <Link to={scoped('/lead-explorer')} className="cx-button-secondary">Inspect leads <ArrowRight size={13}/></Link>
+            </div>
+          }
         />
 
         {error && <div className="cx-command-error"><AlertTriangle size={17}/>{String(error)}</div>}

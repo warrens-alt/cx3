@@ -1,6 +1,7 @@
 import { useOperationalData } from '../lib/useOperationalData';
 import React from 'react';
-import { AlertTriangle, Clock3, Database, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Clock3, Database, ShieldCheck, GitFork } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import { useClient } from '../lib/ClientContext';
 import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
@@ -47,11 +48,16 @@ export default function DataIntegrityIntelligence() {
     <div className="cx-command-page">
       <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />
       <div className="cx-command-content">
-        <header className="cx-command-hero">
+        <header className="cx-command-hero flex flex-wrap items-center justify-between gap-4">
           <div>
             <span className="cx-command-eyebrow">Data trust</span>
             <h1>Source observability & integrity</h1>
             <p>Freshness, mapping readiness and observed warehouse discrepancies without a synthetic health score.</p>
+          </div>
+          <div>
+            <Link to="/offershop-flow" className="cx-button-secondary">
+              Offershop Deal Flow <GitFork size={13} />
+            </Link>
           </div>
         </header>
 

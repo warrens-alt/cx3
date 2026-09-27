@@ -1106,3 +1106,5 @@ export async function clearCliImport(clientId: string): Promise<{ success: boole
   return data;
 }
 
+export { fetchOffershopFlow, fetchOffershopStage, simulateOffershopRule } from './offernet/client';
+

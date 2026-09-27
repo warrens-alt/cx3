@@ -22,6 +22,8 @@ import type {
 } from './types';
 import { fetchOffernetJson, buildQueryString } from './cache';
 import type { ExceptionAnalyticsData } from '../../../contracts/exceptionAnalytics';
+import type { OffershopProcessOverview } from '../../../server/analytics/process/offershopProcess';
+import type { ReadOnlyRuleSimulationRequest, ReadOnlyRuleSimulationResult } from '../../../contracts/offershopProcess';
 
 export async function fetchExceptions(params: Record<string, any> = {}, forceRefresh = false, signal?: AbortSignal): Promise<ExceptionAnalyticsData> {
   return fetchOffernetJson<ExceptionAnalyticsData>(`/api/analytics/offernet/exceptions${buildQueryString(params)}`, forceRefresh, signal);
@@ -154,4 +156,26 @@ export async function clearCliImport(clientId: string): Promise<{ success: boole
     throw new Error(data.error || 'Failed to clear imported CLI report');
   }
   return data;
+}
+
+export async function fetchOffershopFlow(params: Record<string, any> = {}, forceRefresh = false, signal?: AbortSignal): Promise<OffershopProcessOverview> {
+  return fetchOffernetJson<OffershopProcessOverview>(`/api/analytics/offernet/offershop-flow${buildQueryString(params)}`, forceRefresh, signal);
+}
+
+export async function fetchOffershopStage(stageId: string, params: Record<string, any> = {}, forceRefresh = false, signal?: AbortSignal): Promise<any> {
+  return fetchOffernetJson<any>(`/api/analytics/offernet/offershop-stage/${encodeURIComponent(stageId)}${buildQueryString(params)}`, forceRefresh, signal);
+}
+
+export async function simulateOffershopRule(simulationReq: ReadOnlyRuleSimulationRequest, params: Record<string, any> = {}): Promise<ReadOnlyRuleSimulationResult> {
+  const res = await fetch(`/api/analytics/offernet/offershop-simulation${buildQueryString(params)}`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(simulationReq),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) {
+    throw new Error(data.error || 'Failed to execute read-only rule simulation');
+  }
+  return data.data;
 }

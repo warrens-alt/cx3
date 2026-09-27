@@ -53,6 +53,9 @@
 | `/calls` | redirect → /contact-strategy |
 | `/leads` | redirect → /lead-explorer |
 | `/lead-ledger` | LeadLedger |
+| `/offershop-flow` | OffershopProcessObservability |
+| `/deal-flow` | redirect → /offershop-flow |
+| `/process-flow` | redirect → /offershop-flow |
 | `/platform-insights` | redirect → /campaigns |
 | `/validation` | AdminValidation |
 | `*` | inline 404 |
@@ -104,6 +107,9 @@
 | GET | `/api/analytics/offernet/marketing-attribution` | `server/api.ts` |
 | GET | `/api/analytics/offernet/marketing-discovery` | `server/api.ts` |
 | GET | `/api/analytics/offernet/marketing-root-cause` | `server/api.ts` |
+| GET | `/api/analytics/offernet/offershop-flow` | `server/api.ts` |
+| POST | `/api/analytics/offernet/offershop-simulation` | `server/api.ts` |
+| GET | `/api/analytics/offernet/offershop-stage/:stageId` | `server/api.ts` |
 | GET | `/api/analytics/offernet/operating-controls` | `server/api.ts` |
 | GET | `/api/analytics/offernet/overview` | `server/api.ts` |
 | GET | `/api/analytics/offernet/raw-leads` | `server/api.ts` |

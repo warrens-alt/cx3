@@ -23,6 +23,7 @@ export function primarySection(section: NavigationSection): NavigationSection {
 export const NAVIGATION_PAGES: NavigationPage[] = [
   { name: 'Overview', path: '/overview', description: 'What changed and what needs attention?', section: 'overview', icon: LayoutDashboard, aliases: ['workspace', 'dashboard', 'weekly review', 'why is conversion down'] },
   { name: 'Lead funnel', path: '/funnel', description: 'Where do leads stop progressing?', section: 'funnel', icon: GitFork, aliases: ['funnel', 'journey', 'conversion', 'leakage'] },
+  { name: 'Offershop deal flow', path: '/offershop-flow', description: 'End-to-end evidence tracking across acquisition, hospital, partner ROR and HLC delivery.', section: 'funnel', icon: Route, aliases: ['deal flow', 'offershop', 'process flow', 'pipeline', 'hospital', 'hlc'] },
   { name: 'Campaigns & acquisition', path: '/campaigns', description: 'Where did leads come from and how did media perform?', section: 'funnel', icon: Megaphone, aliases: ['marketing', 'advertising', 'campaigns spend', 'budget', 'cpl'] },
   { name: 'Vetting & validation', path: '/vetting', description: 'Are leads eligible and what explains qualification losses?', section: 'funnel', icon: ListChecks, aliases: ['qualification', 'deduplication', 'colour'] },
   { name: 'Vendor performance', path: '/vendor-quality', description: 'Compare vendors, sources and lead quality on like-for-like populations.', section: 'performance', icon: BarChart3, aliases: ['quality', 'partners', 'source performance', 'grade mix'] },
@@ -65,6 +66,7 @@ export const OPERATIONAL_ROUTES: string[] = [
   '/consumers',
   '/validation',
   '/lead-ledger',
+  '/offershop-flow',
   '/users',
   '/settings',
 ];

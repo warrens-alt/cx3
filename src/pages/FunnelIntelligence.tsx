@@ -54,9 +54,14 @@ export default function FunnelIntelligence() {
           title="Stage progression"
           description="See where lead populations progress, where they stop, and how vendor, source and grade cohorts differ."
           actions={
-            <Link to={scoped('/lead-explorer')} className="cx-button-secondary">
-              Inspect records <ArrowRight size={13} />
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link to="/offershop-flow" className="cx-button-secondary">
+                Offershop Deal Flow <GitFork size={13} />
+              </Link>
+              <Link to={scoped('/lead-explorer')} className="cx-button-secondary">
+                Inspect records <ArrowRight size={13} />
+              </Link>
+            </div>
           }
         />
 

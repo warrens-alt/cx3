@@ -65,6 +65,7 @@ const CommercialReconciliation = React.lazy(() => safeImport(() => import('./pag
 const DemoWorkspace = React.lazy(() => safeImport(() => import('./pages/DemoWorkspace')));
 const LeadLedger = React.lazy(() => safeImport(() => import('./pages/LeadLedger')));
 const WarehouseAnalytics = React.lazy(() => safeImport(() => import('./pages/WarehouseAnalytics')));
+const OffershopProcessObservability = React.lazy(() => safeImport(() => import('./pages/OffershopProcessObservability')));
 
 
 function Shell() {
@@ -210,6 +211,9 @@ function Shell() {
               <Route path="/calls" element={<Navigate to="/contact-strategy" replace />} />
               <Route path="/leads" element={<Navigate to="/lead-explorer" replace />} />
               <Route path="/lead-ledger" element={<LeadLedger />} />
+              <Route path="/offershop-flow" element={<OffershopProcessObservability />} />
+              <Route path="/deal-flow" element={<Navigate to="/offershop-flow" replace />} />
+              <Route path="/process-flow" element={<Navigate to="/offershop-flow" replace />} />
               <Route path="/platform-insights" element={<Navigate to="/campaigns" replace />} />
               <Route path="/validation" element={<AdminValidation />} />
               <Route path="*" element={<section className="cx-route-error"><h1>Page not found</h1><p>The requested workspace page does not exist.</p><Link className="cx-button-primary" to="/">Open Overview</Link></section>}/>

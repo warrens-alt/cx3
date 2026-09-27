@@ -240,6 +240,26 @@ analyticsRouter.get('/offernet/source-observability', cacheResponse(60), asyncRo
   res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
+analyticsRouter.get('/offernet/offershop-flow', cacheResponse(60), asyncRoute(async (req, res) => {
+  const params = buildOffernetQueryParams(req, res);
+  const data = await singleFlight(res, 'offernet-offershop-flow', params, () => offernetAnalytics.getOffershopProcessFlow(params));
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, 'offershop-flow') });
+}));
+
+analyticsRouter.get('/offernet/offershop-stage/:stageId', cacheResponse(60), asyncRoute(async (req, res) => {
+  const params = buildOffernetQueryParams(req, res);
+  const rawStageId = req.params.stageId;
+  const stageId = Array.isArray(rawStageId) ? rawStageId[0] : (rawStageId || '');
+  const data = await singleFlight(res, `offernet-offershop-stage-${stageId}`, params, () => offernetAnalytics.getOffershopStageDetails(stageId, params));
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, 'offershop-stage') });
+}));
+
+analyticsRouter.post('/offernet/offershop-simulation', asyncRoute(async (req, res) => {
+  const params = buildOffernetQueryParams(req, res);
+  const data = offernetAnalytics.getOffershopSimulation(params, req.body || {});
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, 'offershop-simulation') });
+}));
+
 analyticsRouter.get('/offernet/funnel', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-funnel', params, () => offernetAnalytics.getFunnelIntelligence(params));
