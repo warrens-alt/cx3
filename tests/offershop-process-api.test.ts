@@ -100,3 +100,32 @@ test('getOffershopSimulation runs read-only simulation with mandatory disclaimer
   assert.ok(result.simulatedChangePct !== null && result.simulatedChangePct < 0);
   assert.equal(result.observedBaselineCount, 4200); // Baseline preserved
 });
+
+test('getOffershopProcessFlow does not manufacture fixed fallbacks (12450, 4920) or synthetic fractions', async () => {
+  const result = await getOffershopProcessFlow({
+    clientId: 'default_tenant',
+    startDate: '2026-09-01',
+    endDate: '2026-09-27',
+  });
+
+  // Verify that uninstrumented or offline metrics are null, NOT synthetic 12450 or 4920
+  const acquisition = result.stages.acquisition;
+  assert.notEqual(acquisition.observedMetrics.totalSubmissions, 12450);
+  assert.equal(acquisition.observedMetrics.onChannelSharePct, null);
+  assert.equal(acquisition.observedMetrics.abandonedConversationsPendingRecovery, null);
+
+  const dialler = result.stages.dialler_activity;
+  assert.notEqual(dialler.observedMetrics.rightPartyContacts, 4920);
+  assert.notEqual(dialler.observedMetrics.discreteCallAttempts, 28400);
+
+  // Partner summary must have null for uninstrumented counts, not synthetic fractions
+  const mondo = result.partnerSummary.mondo;
+  assert.equal(mondo.observedEligibleCount, null);
+  assert.equal(mondo.observedSuppressedCount, null);
+
+  // Consumer hospital tags must be null, not synthetic 45% or 28% fractions
+  const hospital = result.consumerHospitalSummary;
+  assert.equal(hospital.tagsObserved.EXACT, null);
+  assert.equal(hospital.tagsObserved.SMALL_DIFF_1_DIGIT, null);
+});
+

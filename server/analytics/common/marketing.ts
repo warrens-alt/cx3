@@ -61,15 +61,11 @@ async function loadMarketingContract(client: ReturnType<typeof getBigQueryClient
   ];
   const missingRequired = [...new Set(requiredFields.filter(field => !byLower.has(field.toLowerCase())))];
   if (!contract.spendGrainFields.length) missingRequired.push('declared spend grain');
-  let spendCandidates = contract.approvedSpendFields
+  const spendCandidates = contract.approvedSpendFields
     .filter(name => !/(budget|planned|estimated)/i.test(name) && !contract.approvedBudgetFields.some(budget => budget.toLowerCase() === name.toLowerCase()))
     .map(name => byLower.get(name.toLowerCase())).filter(Boolean);
 
   const hasPhysicalMediaSpend = byLower.has('media_spend');
-  if (spendCandidates.length === 0 && byLower.has('budget') && contract.approvedSpendFields.some(f => f.toLowerCase() === 'media_spend')) {
-    byLower.set('media_spend', 'media_spend');
-    spendCandidates = ['media_spend'];
-  }
 
   const distinctSpendCandidates = [...new Set(spendCandidates)] as string[];
   const spendColumn = distinctSpendCandidates.length === 1 && contract.spendUnitByField[distinctSpendCandidates[0].toLowerCase()] ? distinctSpendCandidates[0] : null;
@@ -146,7 +142,6 @@ export async function validateMarketingSpendGrain(
         SELECT
           * EXCEPT(channel_adset_name),
           COALESCE(NULLIF(TRIM(channel_adset_name), ''), CASE WHEN LOWER(channel) = 'google' THEN '[google_campaign_grain]' ELSE NULL END) AS channel_adset_name
-          ${spendValue?.includes('media_spend') ? ', COALESCE(SAFE_CAST(budget AS NUMERIC), 0) AS media_spend' : ''}
         FROM \`${contract.table}\`
         WHERE ${conditions.length ? conditions.join(' AND ') : 'TRUE'}
       )

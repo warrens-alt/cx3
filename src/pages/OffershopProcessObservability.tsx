@@ -15,6 +15,7 @@ import { formatTableNumber, formatPercent } from '../lib/formatters';
 import { useOperationalData } from '../lib/useOperationalData';
 import { fetchOffershopFlow, simulateOffershopRule } from '../lib/offernetClient';
 import type { OffershopProcessOverview, StageObservabilityData } from '../../server/analytics/process/offershopProcess';
+import { OffershopProcessDiagram } from '../components/offershop/OffershopProcessDiagram';
 import {
   OFFERSHOP_PARTNER_CONFIGS,
   CONSUMER_HOSPITAL_TAGS,
@@ -34,6 +35,7 @@ export default function OffershopProcessObservability() {
   const [matrixSearch, setMatrixSearch] = useState('');
   const [matrixStatusFilter, setMatrixStatusFilter] = useState<string>('all');
   const [selectedStageDetail, setSelectedStageDetail] = useState<OffershopProcessFamily | null>('acquisition');
+  const [flowViewMode, setFlowViewMode] = useState<'graph' | 'grid'>('graph');
 
   // Simulation state
   const [simPartner, setSimPartner] = useState<OffershopPartner>('mondo');
@@ -243,41 +245,73 @@ export default function OffershopProcessObservability() {
             {activeTab === 'flow' && (
               <div className="space-y-6">
                 <section className="cx-command-panel">
-                  <header>
+                  <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                       <span className="cx-command-section-kicker">Lifecycle Map</span>
-                      <h2>Offershop Deal Flow Stages</h2>
+                      <h2>Offershop Deal Flow Connected Process Logic</h2>
                       <p>How submissions move through acquisition, validation, recovery, partner ROR, HLC delivery, dialler calls and commercial activation.</p>
+                    </div>
+                    <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg border border-slate-200 self-start sm:self-auto shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setFlowViewMode('graph')}
+                        className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                          flowViewMode === 'graph'
+                            ? 'bg-white text-slate-900 shadow-xs font-semibold'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Process Logic Graph
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFlowViewMode('grid')}
+                        className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                          flowViewMode === 'grid'
+                            ? 'bg-white text-slate-900 shadow-xs font-semibold'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Stage Cards
+                      </button>
                     </div>
                   </header>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-slate-50/50 rounded-lg border border-slate-200">
-                    {Object.entries(data.stages).map(([familyKey, stage]) => {
-                      const isSelected = selectedStageDetail === familyKey;
-                      return (
-                        <div
-                          key={familyKey}
-                          onClick={() => setSelectedStageDetail(familyKey as OffershopProcessFamily)}
-                          className={`p-3.5 rounded-lg border text-left cursor-pointer transition-all ${
-                            isSelected
-                              ? 'bg-white border-slate-900 shadow-sm ring-1 ring-slate-900/10'
-                              : 'bg-white/80 border-slate-200 hover:border-slate-300'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5">
-                            <span>{stage.nodes.length} nodes</span>
-                            <span>{getStatusBadge(stage.readiness)}</span>
+                  {flowViewMode === 'graph' ? (
+                    <OffershopProcessDiagram
+                      stages={data.stages}
+                      selectedStage={selectedStageDetail}
+                      onSelectStage={(family) => setSelectedStageDetail(family)}
+                    />
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-slate-50/50 rounded-lg border border-slate-200">
+                      {Object.entries(data.stages).map(([familyKey, stage]) => {
+                        const isSelected = selectedStageDetail === familyKey;
+                        return (
+                          <div
+                            key={familyKey}
+                            onClick={() => setSelectedStageDetail(familyKey as OffershopProcessFamily)}
+                            className={`p-3.5 rounded-lg border text-left cursor-pointer transition-all ${
+                              isSelected
+                                ? 'bg-white border-slate-900 shadow-sm ring-1 ring-slate-900/10'
+                                : 'bg-white/80 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5">
+                              <span>{stage.nodes.length} nodes</span>
+                              <span>{getStatusBadge(stage.readiness)}</span>
+                            </div>
+                            <h4 className="text-sm font-semibold text-slate-900 mb-1">{stage.title}</h4>
+                            <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">{stage.description}</p>
+                            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+                              <span className="text-slate-500">Inspect stage</span>
+                              <ChevronRight size={13} className="text-slate-400" />
+                            </div>
                           </div>
-                          <h4 className="text-sm font-semibold text-slate-900 mb-1">{stage.title}</h4>
-                          <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">{stage.description}</p>
-                          <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
-                            <span className="text-slate-500">Inspect stage</span>
-                            <ChevronRight size={13} className="text-slate-400" />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </section>
 
                 {/* Selected Stage Detail Panel */}

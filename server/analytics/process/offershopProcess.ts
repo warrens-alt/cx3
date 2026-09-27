@@ -40,6 +40,9 @@ import { OBSERVED_EXPORT_FAILURES } from '../../../contracts/warehouseDictionary
 import type { OffernetQueryParams } from '../common/types';
 import { getBigQueryClient } from '../../bigquery/client';
 import { getClientConfig } from '../../bigquery/config';
+import { configuredSourceTable } from '../common/warehouse';
+import { buildFilterClause } from '../common/scope';
+import { RequestError } from '../../bigquery/filters';
 
 export interface OffershopProcessOverview {
   processVersion: string;
@@ -137,56 +140,71 @@ export async function getOffershopProcessFlow(params: OffernetQueryParams): Prom
   const readinessPct = Math.round((mappedCount / totalNodes) * 100);
 
   // 2. Query bounded data from lead_ledger where possible
-  let rawTotalLeads = 0;
-  let validIdCount = 0;
-  let validPhoneCount = 0;
-  let hospitalCount = 0;
-  let revetCount = 0;
-  let deliveredCount = 0;
-  let diallerCallsCount = 0;
-  let rpcCount = 0;
-  let reportedSalesCount = 0;
-  let verifiedActivationsCount = 0;
+  let rawTotalLeads: number | null = null;
+  let validIdCount: number | null = null;
+  let validPhoneCount: number | null = null;
+  let hospitalCount: number | null = null;
+  let revetCount: number | null = null;
+  let deliveredCount: number | null = null;
+  let gradeAssignedCount: number | null = null;
+  let colourAssignedCount: number | null = null;
+  let dialledCount: number | null = null;
+  let rpcCount: number | null = null;
+  let reportedSalesCount: number | null = null;
+  let verifiedActivationsCount: number | null = null;
 
   try {
+    const tableId = configuredSourceTable(client.id, 'leads');
+    const { whereSql, queryParams } = buildFilterClause(params, 'l', '');
     const bq = getBigQueryClient(client.bigQueryProject);
-    const tableId = `\`${client.bigQueryProject}.${client.bigQueryDatasets[0]}.clustered_lead_ledger\``;
     const query = `
       SELECT
         COUNT(1) as total_leads,
-        COUNTIF(valid_idno = 1 OR valid_idno = true) as valid_id,
-        COUNTIF(phone_valid = 1 OR phone_valid = true) as valid_phone,
-        COUNTIF(hospital_applied_date IS NOT NULL) as in_hospital,
-        COUNTIF(LOWER(offershop_source) LIKE '%revet%' OR LOWER(offershop_source) LIKE '%re-vet%') as revetted,
-        COUNTIF(ARRAY_LENGTH(hlc_details) > 0) as delivered_leads
-      FROM ${tableId}
-      WHERE 1=1
-      ${params.startDate ? `AND fetched >= '${params.startDate}'` : ''}
-      ${params.endDate ? `AND fetched <= '${params.endDate}'` : ''}
+        COUNTIF(l.valid_idno = 1 OR l.valid_idno = true) as valid_id,
+        COUNTIF(l.phone_valid = 1 OR l.phone_valid = true) as valid_phone,
+        COUNTIF(l.hospital_applied_date IS NOT NULL) as in_hospital,
+        COUNTIF(LOWER(l.offershop_source) LIKE '%revet%' OR LOWER(l.offershop_source) LIKE '%re-vet%') as revetted,
+        COUNTIF(ARRAY_LENGTH(l.hlc_details) > 0) as delivered_leads,
+        COUNTIF(l.offershop_grade IS NOT NULL) as grade_assigned_count,
+        COUNTIF(l.offershop_color_vetting IS NOT NULL) as colour_assigned_count,
+        COUNTIF(EXISTS(SELECT 1 FROM UNNEST(l.hlc_details) h WHERE h.first_call_date IS NOT NULL)) as dialled_leads,
+        COUNTIF(EXISTS(SELECT 1 FROM UNNEST(l.hlc_details) h WHERE SAFE_CAST(h.rpc AS INT64) > 0)) as rpc_leads,
+        COUNTIF(EXISTS(SELECT 1 FROM UNNEST(l.hlc_details) h WHERE h.sale IS NOT NULL)) as sale_leads,
+        COUNTIF(EXISTS(SELECT 1 FROM UNNEST(l.hlc_details) h WHERE h.activated IS NOT NULL)) as activated_leads
+      FROM \`${tableId}\` l
+      ${whereSql}
     `;
 
-    const [rows] = await bq.query({ query, location: 'EU', maxResults: 1 });
+    const [rows] = await bq.query({ query, params: queryParams, location: 'EU', maxResults: 1 });
     if (rows && rows.length > 0) {
       const r = rows[0];
-      rawTotalLeads = Number(r.total_leads || 0);
-      validIdCount = Number(r.valid_id || 0);
-      validPhoneCount = Number(r.valid_phone || 0);
-      hospitalCount = Number(r.in_hospital || 0);
-      revetCount = Number(r.revetted || 0);
-      deliveredCount = Number(r.delivered_leads || 0);
+      rawTotalLeads = r.total_leads != null ? Number(r.total_leads) : null;
+      validIdCount = r.valid_id != null ? Number(r.valid_id) : null;
+      validPhoneCount = r.valid_phone != null ? Number(r.valid_phone) : null;
+      hospitalCount = r.in_hospital != null ? Number(r.in_hospital) : null;
+      revetCount = r.revetted != null ? Number(r.revetted) : null;
+      deliveredCount = r.delivered_leads != null ? Number(r.delivered_leads) : null;
+      gradeAssignedCount = r.grade_assigned_count != null ? Number(r.grade_assigned_count) : null;
+      colourAssignedCount = r.colour_assigned_count != null ? Number(r.colour_assigned_count) : null;
+      dialledCount = r.dialled_leads != null ? Number(r.dialled_leads) : null;
+      rpcCount = r.rpc_leads != null ? Number(r.rpc_leads) : null;
+      reportedSalesCount = r.sale_leads != null ? Number(r.sale_leads) : null;
+      verifiedActivationsCount = r.activated_leads != null ? Number(r.activated_leads) : null;
     }
   } catch (_e) {
-    // If table query is not authorized or offline in dev/test, fallback to bounded default metrics
-    rawTotalLeads = 12450;
-    validIdCount = 11080;
-    validPhoneCount = 11720;
-    hospitalCount = 1370;
-    revetCount = 420;
-    deliveredCount = 9850;
-    diallerCallsCount = 28400;
-    rpcCount = 4920;
-    reportedSalesCount = 485;
-    verifiedActivationsCount = 295;
+    // Fail closed: without warehouse connectivity, observed counts are null. Never fabricate synthetic fallbacks.
+    rawTotalLeads = null;
+    validIdCount = null;
+    validPhoneCount = null;
+    hospitalCount = null;
+    revetCount = null;
+    deliveredCount = null;
+    gradeAssignedCount = null;
+    colourAssignedCount = null;
+    dialledCount = null;
+    rpcCount = null;
+    reportedSalesCount = null;
+    verifiedActivationsCount = null;
   }
 
   // 3. Stage-by-stage observability data
@@ -199,11 +217,11 @@ export async function getOffershopProcessFlow(params: OffernetQueryParams): Prom
       nodes: OFFERSHOP_PROCESS_NODES.filter(n => n.family === 'acquisition'),
       observedMetrics: {
         totalSubmissions: rawTotalLeads,
-        onChannelSharePct: 62.4,
-        offChannelSharePct: 24.1,
-        offlineSharePct: 13.5,
-        abandonedConversationsPendingRecovery: 312,
-        idleOlderThanTwoHoursThresholdMet: 184,
+        onChannelSharePct: null,
+        offChannelSharePct: null,
+        offlineSharePct: null,
+        abandonedConversationsPendingRecovery: null,
+        idleOlderThanTwoHoursThresholdMet: null,
       },
       notes: [
         'OnChannel, OffChannel and Offline are preserved as documented classifications.',
@@ -220,11 +238,11 @@ export async function getOffershopProcessFlow(params: OffernetQueryParams): Prom
       observedMetrics: {
         ingestedLeads: rawTotalLeads,
         distinctLeadIds: rawTotalLeads,
-        targetTable: 'clustered_lead_ledger',
-        ingestionStatus: 'ACTIVE',
+        targetTable: configuredSourceTable(client.id, 'leads'),
+        ingestionStatus: rawTotalLeads !== null ? 'ACTIVE' : 'UNAVAILABLE',
       },
       notes: [
-        'Grounded in clustered_lead_ledger table.',
+        'Grounded in configured lead_ledger source.',
         'Declared views with offershop prefix (e.g. view_all_offershop_lead_submit) exist but have failing underlying dependencies.',
       ],
     },
@@ -237,14 +255,14 @@ export async function getOffershopProcessFlow(params: OffernetQueryParams): Prom
       observedMetrics: {
         totalEvaluated: rawTotalLeads,
         idValidationValidCode1: validIdCount,
-        idValidationInvalidCode2: rawTotalLeads - validIdCount,
-        idValidationRatePct: rawTotalLeads > 0 ? Number(((validIdCount / rawTotalLeads) * 100).toFixed(2)) : 0,
+        idValidationInvalidCode2: rawTotalLeads !== null && validIdCount !== null ? rawTotalLeads - validIdCount : null,
+        idValidationRatePct: rawTotalLeads !== null && validIdCount !== null && rawTotalLeads > 0 ? Number(((validIdCount / rawTotalLeads) * 100).toFixed(2)) : null,
         phoneValidationValidCode1: validPhoneCount,
-        phoneValidationInvalidCode2: rawTotalLeads - validPhoneCount,
-        phoneValidationRatePct: rawTotalLeads > 0 ? Number(((validPhoneCount / rawTotalLeads) * 100).toFixed(2)) : 0,
-        placeholderEmailDetected: Math.round(rawTotalLeads * 0.08),
-        mondoGradeAssigned: Math.round(rawTotalLeads * 0.74),
-        blcColourAssigned: Math.round(rawTotalLeads * 0.81),
+        phoneValidationInvalidCode2: rawTotalLeads !== null && validPhoneCount !== null ? rawTotalLeads - validPhoneCount : null,
+        phoneValidationRatePct: rawTotalLeads !== null && validPhoneCount !== null && rawTotalLeads > 0 ? Number(((validPhoneCount / rawTotalLeads) * 100).toFixed(2)) : null,
+        placeholderEmailDetected: null,
+        mondoGradeAssigned: gradeAssignedCount,
+        blcColourAssigned: colourAssignedCount,
       },
       notes: [
         'Diagram field encoding: 1 = valid / successful, 2 = invalid / unsuccessful. Preserved explicitly.',
@@ -261,9 +279,9 @@ export async function getOffershopProcessFlow(params: OffernetQueryParams): Prom
       observedMetrics: {
         hospitalEntries: hospitalCount,
         recoveredIdentities: revetCount,
-        recoveryRatePct: hospitalCount > 0 ? Number(((revetCount / hospitalCount) * 100).toFixed(2)) : 0,
+        recoveryRatePct: hospitalCount !== null && revetCount !== null && hospitalCount > 0 ? Number(((revetCount / hospitalCount) * 100).toFixed(2)) : null,
         pipelineReentries: revetCount,
-        terminalMorgueRecords: hospitalCount - revetCount,
+        terminalMorgueRecords: hospitalCount !== null && revetCount !== null ? Math.max(0, hospitalCount - revetCount) : null,
       },
       notes: [
         'Tags (EXACT, INVALID_ID_ZERO, SMALL_DIFF_1/2/3_DIGIT, DIFFERENT) represent upstream source outcomes, not confidence probabilities.',
@@ -279,13 +297,13 @@ export async function getOffershopProcessFlow(params: OffernetQueryParams): Prom
       nodes: OFFERSHOP_PROCESS_NODES.filter(n => n.family === 'partner_qualification'),
       observedMetrics: {
         totalEvaluated: deliveredCount,
-        blcEligible: Math.round(deliveredCount * 0.42),
-        mondoEligible: Math.round(deliveredCount * 0.36),
-        mtnEligible: Math.round(deliveredCount * 0.31),
-        realPromotionsEligible: Math.round(deliveredCount * 0.18),
-        bizvoipEligible: Math.round(deliveredCount * 0.12),
-        rewardscoEligible: Math.round(deliveredCount * 0.15),
-        invalidIdCampaignEligible: Math.round(deliveredCount * 0.07),
+        blcEligible: null,
+        mondoEligible: null,
+        mtnEligible: null,
+        realPromotionsEligible: null,
+        bizvoipEligible: null,
+        rewardscoEligible: null,
+        invalidIdCampaignEligible: null,
       },
       notes: [
         'ROR terminology retained without expansion.',
@@ -301,10 +319,10 @@ export async function getOffershopProcessFlow(params: OffernetQueryParams): Prom
       nodes: OFFERSHOP_PROCESS_NODES.filter(n => n.family === 'hlc_delivery'),
       observedMetrics: {
         deliveredEpisodes: deliveredCount,
-        uniqueDeliveredLeads: Math.round(deliveredCount * 0.88),
-        avgVendorEpisodesPerLead: 1.14,
-        partnerAcceptanceRatePct: 91.2,
-        suppressedDuplicates: Math.round(deliveredCount * 0.14),
+        uniqueDeliveredLeads: deliveredCount,
+        avgVendorEpisodesPerLead: null,
+        partnerAcceptanceRatePct: null,
+        suppressedDuplicates: null,
       },
       notes: [
         'Duplicate windows documented: BLC 48h, Mondo 10d, MTN 48h, Real Promotions 7d, BizVoIP 48h, RewardsCo 48h.',
@@ -319,11 +337,11 @@ export async function getOffershopProcessFlow(params: OffernetQueryParams): Prom
       readiness: 'MAPPED',
       nodes: OFFERSHOP_PROCESS_NODES.filter(n => n.family === 'dialler_activity'),
       observedMetrics: {
-        discreteCallAttempts: diallerCallsCount || 28400,
-        leadsDialled: Math.round(deliveredCount * 0.82),
-        rightPartyContacts: rpcCount || 4920,
-        rpcRatePct: 21.1,
-        avgCallsPerDialledLead: 3.51,
+        discreteCallAttempts: null,
+        leadsDialled: dialledCount,
+        rightPartyContacts: rpcCount,
+        rpcRatePct: dialledCount !== null && rpcCount !== null && dialledCount > 0 ? Number(((rpcCount / dialledCount) * 100).toFixed(2)) : null,
+        avgCallsPerDialledLead: null,
       },
       notes: [
         'Discrete call events are kept distinct from cumulative HLC call counters.',
@@ -338,10 +356,10 @@ export async function getOffershopProcessFlow(params: OffernetQueryParams): Prom
       readiness: 'MAPPED',
       nodes: OFFERSHOP_PROCESS_NODES.filter(n => n.family === 'commercial_activation'),
       observedMetrics: {
-        reportedSales: reportedSalesCount || 485,
-        saleRateFromLeadsPct: 3.9,
-        verifiedActivations: verifiedActivationsCount || 295,
-        activationRateFromSalesPct: 60.8,
+        reportedSales: reportedSalesCount,
+        saleRateFromLeadsPct: rawTotalLeads !== null && reportedSalesCount !== null && rawTotalLeads > 0 ? Number(((reportedSalesCount / rawTotalLeads) * 100).toFixed(2)) : null,
+        verifiedActivations: verifiedActivationsCount,
+        activationRateFromSalesPct: reportedSalesCount !== null && verifiedActivationsCount !== null && reportedSalesCount > 0 ? Number(((verifiedActivationsCount / reportedSalesCount) * 100).toFixed(2)) : null,
       },
       notes: [
         'A partner reported sale is not automatically an activation or recognised revenue.',
@@ -390,10 +408,10 @@ export async function getOffershopProcessFlow(params: OffernetQueryParams): Prom
       duplicateAction: OFFERSHOP_PARTNER_CONFIGS.blc_ontact.duplicateAction,
       warehouseReadiness: 'DEPENDENCY_BLOCKED',
       failingDependency: OBSERVED_EXPORT_FAILURES['dashboards-422710.lead_ledger.view_lead_ledger_blc_lead_submit_open']?.failingDependency,
-      observedEligibleCount: Math.round(deliveredCount * 0.42),
-      observedSuppressedCount: Math.round(deliveredCount * 0.05),
-      deliveredEpisodes: Math.round(deliveredCount * 0.39),
-      reportedSales: Math.round(reportedSalesCount * 0.45),
+      observedEligibleCount: null,
+      observedSuppressedCount: null,
+      deliveredEpisodes: null,
+      reportedSales: null,
       verifiedActivations: verifiedActivationsCount,
       notes: 'Dedicated BLC view blocked by external_data_echos permission; alternative reconciliation via blc_remote_activations.',
     },
@@ -404,10 +422,10 @@ export async function getOffershopProcessFlow(params: OffernetQueryParams): Prom
       duplicateAction: OFFERSHOP_PARTNER_CONFIGS.mondo.duplicateAction,
       warehouseReadiness: 'DEPENDENCY_BLOCKED',
       failingDependency: OBSERVED_EXPORT_FAILURES['dashboards-422710.lead_ledger.view_lead_ledger_mondo_lead_submit_open']?.failingDependency,
-      observedEligibleCount: Math.round(deliveredCount * 0.36),
-      observedSuppressedCount: Math.round(deliveredCount * 0.12),
-      deliveredEpisodes: Math.round(deliveredCount * 0.28),
-      reportedSales: Math.round(reportedSalesCount * 0.3),
+      observedEligibleCount: null,
+      observedSuppressedCount: null,
+      deliveredEpisodes: null,
+      reportedSales: null,
       verifiedActivations: null,
       notes: 'Duplicate window is 10 days. Underlying view blocked by offernet-dmp:hot_lead_connect.',
     },
@@ -418,10 +436,10 @@ export async function getOffershopProcessFlow(params: OffernetQueryParams): Prom
       duplicateAction: OFFERSHOP_PARTNER_CONFIGS.mtn.duplicateAction,
       warehouseReadiness: 'DEPENDENCY_BLOCKED',
       failingDependency: OBSERVED_EXPORT_FAILURES['dashboards-422710.lead_ledger.view_lead_ledger_mtn_lead_submit_open']?.failingDependency,
-      observedEligibleCount: Math.round(deliveredCount * 0.31),
-      observedSuppressedCount: Math.round(deliveredCount * 0.04),
-      deliveredEpisodes: Math.round(deliveredCount * 0.25),
-      reportedSales: Math.round(reportedSalesCount * 0.15),
+      observedEligibleCount: null,
+      observedSuppressedCount: null,
+      deliveredEpisodes: null,
+      reportedSales: null,
       verifiedActivations: null,
       notes: 'Product branches kept separate from grade-only classification. 48-hour duplicate window.',
     },
@@ -432,10 +450,10 @@ export async function getOffershopProcessFlow(params: OffernetQueryParams): Prom
       duplicateAction: OFFERSHOP_PARTNER_CONFIGS.real_promotions.duplicateAction,
       warehouseReadiness: 'DEPENDENCY_BLOCKED',
       failingDependency: OBSERVED_EXPORT_FAILURES['dashboards-422710.lead_ledger.view_lead_ledger_real_promotions_lead_submit_open']?.failingDependency,
-      observedEligibleCount: Math.round(deliveredCount * 0.18),
-      observedSuppressedCount: Math.round(deliveredCount * 0.03),
-      deliveredEpisodes: Math.round(deliveredCount * 0.14),
-      reportedSales: Math.round(reportedSalesCount * 0.06),
+      observedEligibleCount: null,
+      observedSuppressedCount: null,
+      deliveredEpisodes: null,
+      reportedSales: null,
       verifiedActivations: null,
       notes: 'Duplicate window is 7 days (168 hours). Blocked dependency on real_promotions_calls_master.',
     },
@@ -446,10 +464,10 @@ export async function getOffershopProcessFlow(params: OffernetQueryParams): Prom
       duplicateAction: OFFERSHOP_PARTNER_CONFIGS.bizvoip.duplicateAction,
       warehouseReadiness: 'DEPENDENCY_BLOCKED',
       failingDependency: OBSERVED_EXPORT_FAILURES['dashboards-422710.lead_ledger.view_lead_ledger_bizvoip_lead_submit_open']?.failingDependency,
-      observedEligibleCount: Math.round(deliveredCount * 0.12),
-      observedSuppressedCount: Math.round(deliveredCount * 0.02),
-      deliveredEpisodes: Math.round(deliveredCount * 0.09),
-      reportedSales: Math.round(reportedSalesCount * 0.03),
+      observedEligibleCount: null,
+      observedSuppressedCount: null,
+      deliveredEpisodes: null,
+      reportedSales: null,
       verifiedActivations: null,
       notes: '48-hour duplicate window. Business and PBX qualifications.',
     },
@@ -459,9 +477,9 @@ export async function getOffershopProcessFlow(params: OffernetQueryParams): Prom
       duplicateWindowText: OFFERSHOP_PARTNER_CONFIGS.invalid_id_campaign.duplicateWindowText,
       duplicateAction: OFFERSHOP_PARTNER_CONFIGS.invalid_id_campaign.duplicateAction,
       warehouseReadiness: 'NOT_INSTRUMENTED',
-      observedEligibleCount: Math.round(deliveredCount * 0.07),
-      observedSuppressedCount: Math.round(deliveredCount * 0.01),
-      deliveredEpisodes: Math.round(deliveredCount * 0.05),
+      observedEligibleCount: null,
+      observedSuppressedCount: null,
+      deliveredEpisodes: null,
       reportedSales: null,
       verifiedActivations: null,
       notes: 'Dedicated re-engagement campaign for unverified identities.',
@@ -473,9 +491,9 @@ export async function getOffershopProcessFlow(params: OffernetQueryParams): Prom
       duplicateAction: OFFERSHOP_PARTNER_CONFIGS.rewardsco.duplicateAction,
       warehouseReadiness: 'DEPENDENCY_BLOCKED',
       failingDependency: OBSERVED_EXPORT_FAILURES['dashboards-422710.lead_ledger.view_lead_ledger_rewardsco_lead_submit_open']?.failingDependency,
-      observedEligibleCount: Math.round(deliveredCount * 0.15),
-      observedSuppressedCount: Math.round(deliveredCount * 0.02),
-      deliveredEpisodes: Math.round(deliveredCount * 0.11),
+      observedEligibleCount: null,
+      observedSuppressedCount: null,
+      deliveredEpisodes: null,
       reportedSales: null,
       verifiedActivations: null,
       notes: '48-hour duplicate window. View blocked on offernet-dmp:hot_lead_connect.',
@@ -488,14 +506,14 @@ export async function getOffershopProcessFlow(params: OffernetQueryParams): Prom
     hospitalEntries: hospitalCount,
     hospitalRecovered: revetCount,
     pipelineReturns: revetCount,
-    terminalMorgueCount: hospitalCount - revetCount,
+    terminalMorgueCount: hospitalCount !== null && revetCount !== null ? Math.max(0, hospitalCount - revetCount) : null,
     tagsObserved: {
-      EXACT: Math.round(revetCount * 0.45),
-      SMALL_DIFF_1_DIGIT: Math.round(revetCount * 0.28),
-      SMALL_DIFF_2_DIGIT: Math.round(revetCount * 0.16),
-      SMALL_DIFF_3_DIGIT: Math.round(revetCount * 0.08),
-      INVALID_ID_ZERO: Math.round(hospitalCount * 0.22),
-      DIFFERENT: Math.round(hospitalCount * 0.35),
+      EXACT: null,
+      SMALL_DIFF_1_DIGIT: null,
+      SMALL_DIFF_2_DIGIT: null,
+      SMALL_DIFF_3_DIGIT: null,
+      INVALID_ID_ZERO: null,
+      DIFFERENT: null,
     },
     directions: {
       phoneToId: { status: 'NOT_INSTRUMENTED', note: 'Upstream identity graph lookup; not logged directly to BigQuery view.' },

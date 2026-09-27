@@ -49,7 +49,7 @@ Reporting releases also bind the engine source fingerprint. `node scripts/engine
 
 ## Verified implementation state
 
-The original v2 implementation was committed as `8d790659b3d61c692b10b5bda039e8c4e6b7eb19`. The current application-level verification record, remediation tracker and deployment boundary are maintained in `docs/AUDIT-2026-09-21.md`. Route/API lineage is in `docs/SURFACE-COVERAGE.md`, and physical/source-to-metric lineage is in `docs/SOURCE-METRIC-COVERAGE.md`.
+The original v2 implementation was committed as `8d790659b3d61c692b10b5bda039e8c4e6b7eb19`. The current application-level verification record, remediation tracker and deployment boundary are maintained in `docs/AUDIT-2026-09-21.md` and `docs/NUMERICAL-AUDIT-MATRIX.md` (with machine-readable schema in `docs/NUMERICAL-AUDIT-INVENTORY.json`). Route/API lineage is in `docs/SURFACE-COVERAGE.md`, and physical/source-to-metric lineage is in `docs/SOURCE-METRIC-COVERAGE.md`.
 
 The application and verification tool dependency graphs now both have committed lockfiles. CI uses `npm ci` for each. Current local evidence includes TypeScript, contract/HTTP tests, a production build, Dataform compilation/dependency checks and desktop/mobile Playwright flows against handwritten fixtures. Dataform compilation is not SQL execution, and browser fixtures are not a live warehouse query.
 

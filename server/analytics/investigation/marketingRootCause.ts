@@ -82,7 +82,6 @@ export async function getMarketingRootCauseAnalysis(params: OffernetQueryParams)
       SELECT
         * EXCEPT(channel_adset_name),
         COALESCE(NULLIF(TRIM(channel_adset_name), ''), CASE WHEN LOWER(channel) = 'google' THEN '[google_campaign_grain]' ELSE NULL END) AS channel_adset_name
-        ${spendValue?.includes('media_spend') && !resolved.hasPhysicalMediaSpend ? ', COALESCE(SAFE_CAST(budget AS NUMERIC), 0) AS media_spend' : ''}
       FROM \`${contract.table}\`
       WHERE ${conditions.join(' AND ')}
     ),
