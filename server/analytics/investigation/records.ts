@@ -91,6 +91,39 @@ export async function getRawLeads(params: OffernetQueryParams) {
         'rpc-to-sales': 'm.is_rpc AND NOT m.is_sale',
         'sales-to-activated': 'm.is_sale AND NOT m.is_activated',
       } as Record<string, string>)[value]; break;
+      case 'lifecycle-segment': {
+        const colonIndex = value.indexOf(':');
+        if (colonIndex === -1) throw new RequestError('Invalid lifecycle segment drill value format', 422);
+        const dimension = value.slice(0, colonIndex).trim().toLowerCase();
+        const segmentValue = value.slice(colonIndex + 1).trim();
+        if (!['vendor', 'source', 'grade'].includes(dimension)) {
+          throw new RequestError(`Unsupported lifecycle segment dimension: ${dimension}`, 422);
+        }
+        if (!segmentValue) throw new RequestError('Missing lifecycle segment value', 422);
+        const expr = `COALESCE(NULLIF(TRIM(m.${dimension}), ''), 'Unrecorded')`;
+        if (segmentValue.toLowerCase() === 'unrecorded') {
+          condition = `${expr} = 'Unrecorded'`;
+        } else {
+          queryParams.lifecycleSegmentValue = segmentValue;
+          condition = `LOWER(${expr}) = LOWER(@lifecycleSegmentValue)`;
+        }
+        break;
+      }
+      case 'lifecycle-vendor':
+      case 'lifecycle-source':
+      case 'lifecycle-grade': {
+        const dimension = normalizedParams.drill.replace('lifecycle-', '');
+        const segmentValue = value.trim();
+        if (!segmentValue) throw new RequestError('Missing lifecycle segment value', 422);
+        const expr = `COALESCE(NULLIF(TRIM(m.${dimension}), ''), 'Unrecorded')`;
+        if (segmentValue.toLowerCase() === 'unrecorded') {
+          condition = `${expr} = 'Unrecorded'`;
+        } else {
+          queryParams.lifecycleSegmentValue = segmentValue;
+          condition = `LOWER(${expr}) = LOWER(@lifecycleSegmentValue)`;
+        }
+        break;
+      }
       default: throw new RequestError('Unsupported drill-down population', 422);
     }
     if (!condition) throw new RequestError(`Unsupported ${normalizedParams.drill} drill`, 422);

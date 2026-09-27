@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useOperationalData } from '../../../lib/useOperationalData';
 import { useFilters, extractOffernetFilters } from '../../../lib/FilterContext';
 import { useClient } from '../../../lib/ClientContext';
@@ -40,6 +40,13 @@ export function useOverviewModel() {
 
   const [inspectorContent, setInspectorContent] = useState<InspectorContent | null>(null);
   const [rootMetric, setRootMetric] = useState<RootMetric | null>(null);
+  const [controlsExpanded, setControlsExpanded] = useState(false);
+  const [commercialExpanded, setCommercialExpanded] = useState(false);
+
+  // Invalidate contextual inspection whenever reporting scope changes
+  useEffect(() => {
+    setInspectorContent(null);
+  }, [selectedClient, startDate, endDate, filters]);
 
   const scope = useMemo(() => ({
     clientId: selectedClient,
@@ -49,19 +56,28 @@ export function useOverviewModel() {
   }), [selectedClient, startDate, endDate, filters]);
 
   const overviewQuery = useOperationalData<FullOverviewData>('ExecutiveOverview', scope, fetchOverview);
-  const commercialQuery = useOperationalData('commercial', scope, fetchCommercial);
-  const controls = useOperatingControls();
+  // Defer commercial evidence and operating controls queries until their respective disclosures are opened
+  const commercialQuery = useOperationalData('commercial', scope, fetchCommercial, commercialExpanded);
+  const controls = useOperatingControls(controlsExpanded);
 
   const data = overviewQuery.data;
   const loading = overviewQuery.loading;
   const error = overviewQuery.error;
 
   const refreshAll = async () => {
-    await Promise.allSettled([
-      overviewQuery.loadData(true),
-      commercialQuery.loadData(true),
-      controls.refetch(),
-    ]);
+    const refreshTasks: Promise<any>[] = [overviewQuery.loadData(true)];
+    if (commercialExpanded) {
+      refreshTasks.push(commercialQuery.loadData(true));
+    }
+    if (controlsExpanded) {
+      refreshTasks.push(controls.refetch());
+    }
+    const results = await Promise.allSettled(refreshTasks);
+    for (const res of results) {
+      if (res.status === 'rejected') {
+        console.error('Overview refresh failed:', res.reason);
+      }
+    }
   };
 
   const hasComparison = Boolean(startDate && endDate && data?.comparisonWindow);
@@ -87,6 +103,10 @@ export function useOverviewModel() {
     setRootMetric,
     commercial: commercialQuery,
     controls,
+    controlsExpanded,
+    setControlsExpanded,
+    commercialExpanded,
+    setCommercialExpanded,
     scope,
   };
 }

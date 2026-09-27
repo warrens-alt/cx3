@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Info, ArrowRight, RefreshCw, Settings2, ChevronDown, Clock3, TrendingUp, TrendingDown, Search } from 'lucide-react';
 import { useOverviewModel, type RootMetric } from './model/useOverviewModel';
+import { useFilters } from '../../lib/FilterContext';
 import OutcomeStrip from './components/OutcomeStrip';
 import PerformanceTrend from './components/PerformanceTrend';
 import AttentionList from './components/AttentionList';
@@ -20,6 +21,7 @@ import OverviewCommercialPanel from '../../components/OverviewCommercialPanel';
 
 export default function OverviewPage() {
   const scoped = useScopedNavigationTarget();
+  const { filters } = useFilters();
   const {
     data,
     loading,
@@ -35,6 +37,10 @@ export default function OverviewPage() {
     setRootMetric,
     commercial,
     controls,
+    controlsExpanded,
+    setControlsExpanded,
+    commercialExpanded,
+    setCommercialExpanded,
     scope,
   } = useOverviewModel();
 
@@ -70,7 +76,7 @@ export default function OverviewPage() {
       clientId,
       startDate: scope.startDate,
       endDate: scope.endDate,
-      filters: scope,
+      filters: filters,
       validationStatus: data.validationStatus || 'NOT_VERIFIED',
       dateBasis: 'lead_capture_cohort',
       definitions: ['fetched_leads', 'delivery_rate', 'dial_rate', 'rpc_rate', 'sales_per_fetched_rate', 'activation_rate'],
@@ -153,7 +159,15 @@ export default function OverviewPage() {
           {/* 1. Principal Supported Outcome Measures */}
           <OutcomeStrip
             data={data}
-            onInspect={content => setInspectorContent(content)}
+            onInspect={content => setInspectorContent({
+              ...content,
+              scope: {
+                clientId: scope.clientId,
+                startDate: scope.startDate,
+                endDate: scope.endDate,
+                filters,
+              },
+            })}
             onWhyChanged={investigate}
             isAdmin={isAdmin}
             hasComparison={hasComparison}
@@ -246,6 +260,12 @@ export default function OverviewPage() {
                   drillValue: stage.key,
                   label: `Inspect ${stage.name} lead records in Lead Explorer`,
                 },
+                scope: {
+                  clientId: scope.clientId,
+                  startDate: scope.startDate,
+                  endDate: scope.endDate,
+                  filters,
+                },
               });
             }}
             onInspectLoss={(from, to, loss, lossKey) => {
@@ -261,6 +281,12 @@ export default function OverviewPage() {
                   drill: 'funnel-loss',
                   drillValue: lossKey,
                   label: `Inspect ${from} → ${to} loss records in Lead Explorer`,
+                },
+                scope: {
+                  clientId: scope.clientId,
+                  startDate: scope.startDate,
+                  endDate: scope.endDate,
+                  filters,
                 },
               });
             }}
@@ -285,9 +311,15 @@ export default function OverviewPage() {
                 reportPath: segment.dimension === 'grade' ? '/funnel' : '/vendor-quality',
                 reportLabel: `Open complete ${segment.dimension} breakdown`,
                 recordDrill: {
-                  drill: segment.dimension,
-                  drillValue: segment.name,
+                  drill: 'lifecycle-segment',
+                  drillValue: `${segment.dimension}:${segment.name}`,
                   label: `Inspect ${segment.name} lead records in Lead Explorer`,
+                },
+                scope: {
+                  clientId: scope.clientId,
+                  startDate: scope.startDate,
+                  endDate: scope.endDate,
+                  filters,
                 },
                 details: (
                   <div className="space-y-3 p-4 bg-surface border border-border-subtle rounded-lg text-xs">
@@ -329,34 +361,66 @@ export default function OverviewPage() {
             }}
           />
 
-          {/* 5. Collapsible Operating Controls */}
-          {controls.data && (
-            <details className="cx-overview-controls rounded-lg border border-border-subtle bg-surface p-4">
-              <summary className="flex items-center justify-between cursor-pointer list-none">
-                <div className="flex items-center gap-2">
-                  <Settings2 size={18} className="text-brand-primary" aria-hidden="true" />
-                  <div>
-                    <strong className="text-sm text-text-main block">Operating controls</strong>
-                    <small className="text-xs text-text-mute">Call effort, coverage and activation backlog</small>
-                  </div>
+          {/* 5. Collapsible Operating Controls (Deferred Query) */}
+          <details
+            open={controlsExpanded}
+            onToggle={(e) => setControlsExpanded(e.currentTarget.open)}
+            className="cx-overview-controls rounded-lg border border-border-subtle bg-surface p-4"
+          >
+            <summary className="flex items-center justify-between cursor-pointer list-none">
+              <div className="flex items-center gap-2">
+                <Settings2 size={18} className="text-brand-primary" aria-hidden="true" />
+                <div>
+                  <strong className="text-sm text-text-main block">Operating controls</strong>
+                  <small className="text-xs text-text-mute">Call effort, coverage and activation backlog</small>
                 </div>
-                <ChevronDown size={16} className="text-text-mute" aria-hidden="true" />
-              </summary>
-              <div className="mt-4 pt-4 border-t border-border-subtle">
-                <OperatingControlStrip data={controls.data} />
               </div>
-            </details>
-          )}
+              <ChevronDown size={16} className={`text-text-mute transition-transform ${controlsExpanded ? 'rotate-180' : ''}`} aria-hidden="true" />
+            </summary>
+            {controlsExpanded && (
+              <div className="mt-4 pt-4 border-t border-border-subtle">
+                {controls.error ? (
+                  <OperationalError
+                    message={controls.error instanceof Error ? controls.error.message : 'Operating controls are unavailable.'}
+                    onRetry={() => { void controls.refetch(); }}
+                    retrying={controls.isFetching}
+                  />
+                ) : controls.data ? (
+                  <OperatingControlStrip data={controls.data} />
+                ) : (
+                  <p className="text-xs text-text-mute py-4" role="status">Loading operating controls…</p>
+                )}
+              </div>
+            )}
+          </details>
 
-          {/* 6. Overview Commercial Summary */}
-          {commercial.data && (
-            <OverviewCommercialPanel
-              data={commercial.data}
-              loading={commercial.loading}
-              error={commercial.error}
-              onRetry={() => { void commercial.loadData(true); }}
-            />
-          )}
+          {/* 6. Collapsible Commercial Summary (Deferred Query) */}
+          <details
+            open={commercialExpanded}
+            onToggle={(e) => setCommercialExpanded(e.currentTarget.open)}
+            className="rounded-lg border border-border-subtle bg-surface p-4"
+          >
+            <summary className="flex items-center justify-between cursor-pointer list-none">
+              <div className="flex items-center gap-2">
+                <Settings2 size={18} className="text-brand-primary" aria-hidden="true" />
+                <div>
+                  <strong className="text-sm text-text-main block">Commercial overview</strong>
+                  <small className="text-xs text-text-mute">Spend, revenue and unit economics reconciliation</small>
+                </div>
+              </div>
+              <ChevronDown size={16} className={`text-text-mute transition-transform ${commercialExpanded ? 'rotate-180' : ''}`} aria-hidden="true" />
+            </summary>
+            {commercialExpanded && (
+              <div className="mt-4 pt-4 border-t border-border-subtle">
+                <OverviewCommercialPanel
+                  data={commercial.data ?? null}
+                  loading={commercial.loading}
+                  error={commercial.error}
+                  onRetry={() => { void commercial.loadData(true); }}
+                />
+              </div>
+            )}
+          </details>
         </>
       )}
 

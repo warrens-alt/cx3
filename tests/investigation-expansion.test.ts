@@ -195,3 +195,44 @@ test('CLI imports reject malformed or missing required count values without synt
   assert.equal(zero.salePerCallRate, null);
   assert.equal(zero.callsPerLead, null);
 });
+
+test('R2 closeout: getRawLeads executes lifecycle-segment drill with correct dimension predicate, parameter binding, and blank/null semantics', async t => {
+  const queries: any[] = [];
+  t.mock.method(client, 'query', async (options: any) => {
+    queries.push(options);
+    return [[{ total_count: 0, evidence_rows: [] }]];
+  });
+
+  // 1. Vendor dimension with parameter binding
+  await getRawLeads({ ...scope, drill: 'lifecycle-segment', drillValue: 'vendor:CallForce' });
+  const vendorQuery = queries.at(-1);
+  assert.ok(vendorQuery.query.includes("COALESCE(NULLIF(TRIM(m.vendor), ''), 'Unrecorded')"));
+  assert.equal(vendorQuery.params.lifecycleSegmentValue, 'CallForce');
+
+  // 2. Unrecorded bucket uses exact unrecorded semantics without literal string matching
+  await getRawLeads({ ...scope, drill: 'lifecycle-segment', drillValue: 'vendor:Unrecorded' });
+  const unrecQuery = queries.at(-1);
+  assert.ok(unrecQuery.query.includes("COALESCE(NULLIF(TRIM(m.vendor), ''), 'Unrecorded') = 'Unrecorded'"));
+
+  // 3. Source and grade dimensions
+  await getRawLeads({ ...scope, drill: 'lifecycle-segment', drillValue: 'source:Google Ads' });
+  assert.ok(queries.at(-1).query.includes("COALESCE(NULLIF(TRIM(m.source), ''), 'Unrecorded')"));
+  assert.equal(queries.at(-1).params.lifecycleSegmentValue, 'Google Ads');
+
+  await getRawLeads({ ...scope, drill: 'lifecycle-segment', drillValue: 'grade:Grade A' });
+  assert.ok(queries.at(-1).query.includes("COALESCE(NULLIF(TRIM(m.grade), ''), 'Unrecorded')"));
+  assert.equal(queries.at(-1).params.lifecycleSegmentValue, 'Grade A');
+
+  // 4. Rejection of unsupported dimensions
+  await assert.rejects(
+    getRawLeads({ ...scope, drill: 'lifecycle-segment', drillValue: 'campaign:BlackFriday' }),
+    (err: any) => err.status === 422 && /unsupported lifecycle segment dimension/i.test(err.message)
+  );
+
+  // 5. Rejection of malformed drill value
+  await assert.rejects(
+    getRawLeads({ ...scope, drill: 'lifecycle-segment', drillValue: 'invalid' }),
+    (err: any) => err.status === 422 && /invalid lifecycle segment drill/i.test(err.message)
+  );
+});
+

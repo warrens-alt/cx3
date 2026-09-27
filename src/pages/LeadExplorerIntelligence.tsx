@@ -36,6 +36,7 @@ const DRILL_LABELS: Record<string, string> = {
   'missing-source': 'Missing source', 'missing-vendor': 'Missing vendor', 'missing-grade': 'Missing grade',
   'invalid-timestamps': 'Out-of-order lifecycle timestamps',
   'delivery-age': 'Delivery to first dial age cohort',
+  'lifecycle-segment': 'Lifecycle segment population',
 };
 
 const FUNNEL_LABELS: Record<string, string> = {
@@ -90,6 +91,16 @@ export default function LeadExplorerIntelligence() {
     const base = DRILL_LABELS[drill] || 'Investigation population';
     if (drill === 'funnel-loss' && drillValue) return FUNNEL_LABELS[drillValue] || base;
     if (drill === 'funnel-stage' && drillValue) return STAGE_LABELS[drillValue] ? `Funnel stage: ${STAGE_LABELS[drillValue]}` : `${base}: ${drillValue}`;
+    if (drill === 'lifecycle-segment' && drillValue) {
+      const colonIdx = drillValue.indexOf(':');
+      if (colonIdx !== -1) {
+        const dim = drillValue.slice(0, colonIdx);
+        const val = drillValue.slice(colonIdx + 1);
+        const dimLabel = dim ? dim.charAt(0).toUpperCase() + dim.slice(1) : 'Segment';
+        return `Lifecycle segment (${dimLabel}): ${val}`;
+      }
+      return `Lifecycle segment: ${drillValue}`;
+    }
     return drillValue ? `${base}: ${drillValue}` : base;
   }, [drill, drillValue]);
 

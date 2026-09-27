@@ -3,8 +3,9 @@ import { X, ExternalLink, ShieldCheck, Info, FileText, ArrowRight } from 'lucide
 import { useDialogAccessibility } from '../../hooks/useDialogAccessibility';
 import { AUTHORITATIVE_METRICS, type AuthoritativeMetricDefinition } from '../../../contracts/metricRegistry';
 import { useAuth } from '../../lib/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useScopedNavigationTarget } from '../../hooks/useScopedNavigationTarget';
+import { navigationTarget } from '../../lib/presentation';
 
 export interface InspectorContent {
   type: 'metric' | 'stage' | 'segment' | 'custom';
@@ -26,6 +27,37 @@ export interface InspectorContent {
     label?: string;
   };
   details?: React.ReactNode;
+  /** Explicit reporting context at the time the evidence was generated/displayed */
+  scope?: {
+    clientId: string;
+    startDate?: string;
+    endDate?: string;
+    filters?: Record<string, any>;
+  };
+}
+
+export function buildScopeSearch(scope?: InspectorContent['scope']): string {
+  if (!scope) return '';
+  const searchParams = new URLSearchParams();
+  if (scope.clientId) searchParams.set('clientId', scope.clientId);
+  if (scope.startDate) searchParams.set('startDate', scope.startDate);
+  if (scope.endDate) searchParams.set('endDate', scope.endDate);
+  if (scope.filters) {
+    for (const [key, filter] of Object.entries(scope.filters)) {
+      if (typeof filter === 'string' && filter.trim()) {
+        searchParams.set(key, filter.trim());
+      } else if (filter && typeof filter === 'object') {
+        const cond = filter as { operator?: string; value?: string; values?: string[] };
+        if (cond.value && typeof cond.value === 'string') {
+          searchParams.set(key, cond.value.trim());
+        } else if (Array.isArray(cond.values) && cond.values.length === 1 && typeof cond.values[0] === 'string') {
+          searchParams.set(key, cond.values[0].trim());
+        }
+      }
+    }
+  }
+  const s = searchParams.toString();
+  return s ? `?${s}` : '';
 }
 
 interface InspectorHostProps {
@@ -38,9 +70,21 @@ export default function InspectorHost({ open, onClose, content }: InspectorHostP
   const dialogRef = useRef<HTMLDivElement>(null);
   useDialogAccessibility(open, onClose);
   const { isAdmin } = useAuth();
-  const scoped = useScopedNavigationTarget();
+  const location = useLocation();
+  const scopedTarget = useScopedNavigationTarget();
 
   if (!open || !content) return null;
+
+  const scopeSearch = content.scope ? buildScopeSearch(content.scope) : undefined;
+  const scoped = (path: string | null) => {
+    if (!path) return '';
+    if (scopeSearch !== undefined) {
+      const res = navigationTarget(path, location.pathname, scopeSearch);
+      return res.pathname + res.search;
+    }
+    const res = scopedTarget(path);
+    return res.pathname + res.search;
+  };
 
   const authMetric: AuthoritativeMetricDefinition | undefined = content.metricId
     ? AUTHORITATIVE_METRICS[content.metricId]

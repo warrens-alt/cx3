@@ -4,10 +4,10 @@ import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
 import { fetchOperatingControls } from '../lib/offernetClient';
 import { operationalQueryOptions } from '../lib/operationalQueries';
 
-export function useOperatingControls() {
+export function useOperatingControls(enabledOverride = true) {
   const { selectedClient, ready, reportAuthenticationFailure } = useClient();
   const { startDate, endDate, filters, filterError } = useFilters();
-  const enabled = ready && !filterError && Boolean(selectedClient);
+  const enabled = enabledOverride && ready && !filterError && Boolean(selectedClient);
   const query = useQuery(operationalQueryOptions('operating-controls', {
     clientId: selectedClient,
     startDate: startDate || undefined,

@@ -6,8 +6,8 @@
 
 | Route | Current target |
 | --- | --- |
-| `/` | ExecutiveOverview |
-| `/overview` | ExecutiveOverview |
+| `/` | OverviewPage |
+| `/overview` | OverviewPage |
 | `/funnel` | FunnelIntelligence |
 | `/speed-to-lead` | SpeedToLeadIntelligence |
 | `/contact-strategy` | ContactStrategyIntelligence |

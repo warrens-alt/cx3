@@ -667,4 +667,47 @@ test('R2: InspectorHost preserves reporting scope on evidence drill navigation',
   assert.match(inspector, /to=\{scoped\(drillPath\)\}/);
 });
 
+test('R2 closeout: OverviewPage binds lifecycle-segment drill and attaches explicit reporting scope to inspector activations', () => {
+  const overviewPage = read('src/features/overview/OverviewPage.tsx');
+  assert.match(overviewPage, /drill:\s*'lifecycle-segment'/);
+  assert.match(overviewPage, /drillValue:\s*`\$\{segment\.dimension\}:\$\{segment\.name\}`/);
+  // Confirms scope is attached to inspector activations
+  assert.match(overviewPage, /scope:\s*\{\s*clientId:\s*scope\.clientId,\s*startDate:\s*scope\.startDate,\s*endDate:\s*scope\.endDate,\s*filters,\s*\}/);
+});
+
+test('R2 closeout: OverviewPage exports canonical filters dictionary rather than raw scope object', () => {
+  const overviewPage = read('src/features/overview/OverviewPage.tsx');
+  // Filters passed to export must be canonical filters, not the entire scope request object
+  assert.match(overviewPage, /filters:\s*filters,/);
+  assert.doesNotMatch(overviewPage, /filters:\s*scope,/);
+});
+
+test('R2 closeout: useOverviewModel invalidates inspectorContent on date/filter change and defers controls/commercial queries', () => {
+  const model = read('src/features/overview/model/useOverviewModel.ts');
+  assert.match(model, /useEffect\(\(\)\s*=>\s*\{\s*setInspectorContent\(null\);\s*\},\s*\[selectedClient,\s*startDate,\s*endDate,\s*filters\]\)/);
+  assert.match(model, /commercialQuery\s*=\s*useOperationalData\('commercial',\s*scope,\s*fetchCommercial,\s*commercialExpanded\)/);
+  assert.match(model, /controls\s*=\s*useOperatingControls\(controlsExpanded\)/);
+});
+
+test('R2 closeout: InspectorHost binds content.scope to search query params', async () => {
+  const { buildScopeSearch } = await import('../src/shared/evidence/InspectorHost');
+  const search = buildScopeSearch({
+    clientId: 'tenant-a',
+    startDate: '2026-09-01',
+    endDate: '2026-09-15',
+    filters: { vendor: 'CallForce' },
+  });
+  assert.match(search, /clientId=tenant-a/);
+  assert.match(search, /startDate=2026-09-01/);
+  assert.match(search, /endDate=2026-09-15/);
+  assert.match(search, /vendor=CallForce/);
+});
+
+test('R2 closeout: LeadExplorerIntelligence supports lifecycle-segment drill and displays formatted investigation label', () => {
+  const explorer = read('src/pages/LeadExplorerIntelligence.tsx');
+  assert.match(explorer, /'lifecycle-segment':\s*'Lifecycle segment population'/);
+  assert.match(explorer, /Lifecycle segment \(\$\{dimLabel\}\):\s*\$\{val\}/);
+});
+
+
 
