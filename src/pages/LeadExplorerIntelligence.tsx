@@ -37,6 +37,7 @@ const DRILL_LABELS: Record<string, string> = {
   'invalid-timestamps': 'Out-of-order lifecycle timestamps',
   'delivery-age': 'Delivery to first dial age cohort',
   'lifecycle-segment': 'Lifecycle segment population',
+  'call-effort': 'Call effort bucket population',
 };
 
 const FUNNEL_LABELS: Record<string, string> = {
@@ -101,6 +102,7 @@ export default function LeadExplorerIntelligence() {
       }
       return `Lifecycle segment: ${drillValue}`;
     }
+    if (drill === 'call-effort' && drillValue) return `Call effort bucket: ${drillValue}`;
     return drillValue ? `${base}: ${drillValue}` : base;
   }, [drill, drillValue]);
 

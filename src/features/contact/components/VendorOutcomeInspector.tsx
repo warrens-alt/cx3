@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { X, Search, Filter, Download, ExternalLink, ShieldCheck, AlertCircle, Info } from 'lucide-react';
 import { useDialogAccessibility } from '../../../hooks/useDialogAccessibility';
 import { formatPercent, formatTableNumber } from '../../../lib/formatters';
@@ -19,8 +19,19 @@ interface VendorOutcomeInspectorProps {
   vendorSummary: VendorDispositionSummaryItem | null;
   rawRows: DetailedDispositionRow[];
   initialGroupFilter?: string;
+  onGroupFilterChange?: (group: string) => void;
   onFilterReportByVendor?: (vendor: string) => void;
   onExportVendorRaw?: (vendor: string) => void;
+  onExportSelectedBreakdown?: (params: {
+    vendor: string;
+    groupFilter: string;
+    searchQuery: string;
+    rows: DetailedDispositionRow[];
+  }) => void;
+  reportVersion?: string;
+  dateBasis?: string;
+  countingGrain?: string;
+  evaluatedAt?: string;
   explorerPath?: string | { pathname: string; search: string };
 }
 
@@ -32,16 +43,43 @@ export default function VendorOutcomeInspector({
   vendorSummary,
   rawRows,
   initialGroupFilter = 'ALL',
+  onGroupFilterChange,
   onFilterReportByVendor,
   onExportVendorRaw,
+  onExportSelectedBreakdown,
   explorerPath,
 }: VendorOutcomeInspectorProps) {
   const dialogRef = useDialogAccessibility<HTMLDivElement>(open, onClose);
   const [searchQuery, setSearchQuery] = useState('');
-  const [groupFilter, setGroupFilter] = useState(initialGroupFilter);
+  const [groupFilter, setGroupFilter] = useState(initialGroupFilter || 'ALL');
+
+  // Derive selection from current URL/props whenever history or external group selection changes
+  useEffect(() => {
+    setGroupFilter(initialGroupFilter || 'ALL');
+  }, [initialGroupFilter]);
+
+  // Reset transient search query whenever switching vendors to prevent lingering stale query
+  useEffect(() => {
+    setSearchQuery('');
+  }, [vendor]);
+
+  const handleGroupSelect = (newGroup: string) => {
+    setGroupFilter(newGroup);
+    onGroupFilterChange?.(newGroup);
+  };
 
   const isCallMode = mode === 'call_records';
 
+  // Group total counts for calculating share of group
+  const groupTotals = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of rawRows) {
+      map.set(r.approvedGroup, (map.get(r.approvedGroup) || 0) + r.count);
+    }
+    return map;
+  }, [rawRows]);
+
+  // Production filtered rows used identically by table and export
   const filteredRows = useMemo(() => {
     let list = [...rawRows];
     if (groupFilter !== 'ALL') {
@@ -69,6 +107,19 @@ export default function VendorOutcomeInspector({
   }, [rawRows]);
 
   if (!open || !vendor || !vendorSummary) return null;
+
+  const handleTriggerExport = () => {
+    if (onExportSelectedBreakdown) {
+      onExportSelectedBreakdown({
+        vendor,
+        groupFilter,
+        searchQuery,
+        rows: filteredRows,
+      });
+    } else if (onExportVendorRaw) {
+      onExportVendorRaw(vendor);
+    }
+  };
 
   return (
     <div
@@ -177,7 +228,7 @@ export default function VendorOutcomeInspector({
 
               <select
                 value={groupFilter}
-                onChange={(e) => setGroupFilter(e.target.value)}
+                onChange={(e) => handleGroupSelect(e.target.value)}
                 aria-label="Filter by outcome group"
                 className="text-xs bg-surface border border-border-subtle rounded-lg px-2.5 py-1.5 text-text-main focus:outline-hidden focus:ring-1 focus:ring-brand-primary cursor-pointer"
               >
@@ -203,20 +254,19 @@ export default function VendorOutcomeInspector({
                 </button>
               )}
 
-              {onExportVendorRaw && (
-                <button
-                  type="button"
-                  onClick={() => onExportVendorRaw(vendor)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-primary text-white hover:bg-brand-hover text-xs font-semibold rounded-lg transition-colors cursor-pointer"
-                >
-                  <Download size={12} />
-                  <span>Export raw CSV</span>
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handleTriggerExport}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-primary text-white hover:bg-brand-hover text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                title="Export the currently visible filtered breakdown as CSV"
+              >
+                <Download size={12} />
+                <span>Export selected breakdown</span>
+              </button>
             </div>
           </div>
 
-          {/* Raw Codes Table */}
+          {/* Raw Codes Table - Harmonized with CSV Export */}
           <div className="bg-surface rounded-lg border border-border-subtle overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
@@ -225,8 +275,9 @@ export default function VendorOutcomeInspector({
                     <th className="px-3.5 py-2.5">Raw Code</th>
                     <th className="px-3.5 py-2.5">Description</th>
                     <th className="px-3.5 py-2.5">Outcome Group</th>
-                    <th className="px-3.5 py-2.5 text-right">Count</th>
-                    <th className="px-3.5 py-2.5 text-right">% of Base</th>
+                    <th className="px-3.5 py-2.5 text-right">Volume</th>
+                    <th className="px-3.5 py-2.5 text-right">Share of Group %</th>
+                    <th className="px-3.5 py-2.5 text-right">Share of Vendor %</th>
                     <th className="px-3.5 py-2.5">Mapping Status</th>
                     <th className="px-3.5 py-2.5 text-right">RPC</th>
                     <th className="px-3.5 py-2.5 text-right">Sales</th>
@@ -236,7 +287,7 @@ export default function VendorOutcomeInspector({
                 <tbody className="divide-y divide-border-subtle text-text-main">
                   {filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-4 py-8 text-center text-text-sec">
+                      <td colSpan={10} className="px-4 py-8 text-center text-text-sec">
                         No raw disposition codes match the current filter.
                       </td>
                     </tr>
@@ -244,6 +295,8 @@ export default function VendorOutcomeInspector({
                     filteredRows.map((r, idx) => {
                       const groupConfig = APPROVED_DISPOSITION_GROUPS[r.approvedGroup];
                       const isUnmapped = r.isUnmapped || r.approvedGroup === 'UNMAPPED';
+                      const grpTotal = groupTotals.get(r.approvedGroup) || 0;
+                      const shareOfGroup = grpTotal > 0 ? (r.count / grpTotal) * 100 : null;
 
                       return (
                         <tr key={`${r.rawDisposition}-${idx}`} className="hover:bg-surface-subtle/40 transition-colors">
@@ -268,7 +321,10 @@ export default function VendorOutcomeInspector({
                             {formatTableNumber(r.count)}
                           </td>
                           <td className="px-3.5 py-2.5 text-right cx-tabular font-medium text-text-sec">
-                            {r.percentOfBase !== null ? `${r.percentOfBase}%` : '—'}
+                            {shareOfGroup !== null ? `${shareOfGroup.toFixed(1)}%` : '—'}
+                          </td>
+                          <td className="px-3.5 py-2.5 text-right cx-tabular font-medium text-text-sec">
+                            {r.percentOfBase !== null && r.percentOfBase !== undefined ? `${r.percentOfBase}%` : '—'}
                           </td>
                           <td className="px-3.5 py-2.5">
                             {isUnmapped ? (
@@ -301,28 +357,37 @@ export default function VendorOutcomeInspector({
             </div>
           </div>
 
-          {/* Lead Explorer Link for lead_status mode */}
-          {!isCallMode && explorerPath && (
-            <div className="p-4 bg-surface-subtle/50 rounded-lg border border-border-subtle flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <span className="text-xs font-semibold text-text-main block">
-                  Inspect Supporting Lead Records
+          {/* Evidence Destination & Broader Scope Navigation */}
+          <div className="p-4 bg-surface-subtle/50 rounded-lg border border-border-subtle space-y-3">
+            <div className="flex items-start gap-2">
+              <Info size={14} className="text-brand-primary shrink-0 mt-0.5" />
+              <div className="text-xs text-text-sec">
+                <span className="font-semibold text-text-main block">
+                  Aggregate Raw Disposition Evidence Destination
                 </span>
-                <p className="text-xs text-text-sec mt-0.5">
-                  Inspect individual lead records for {vendor} in Lead Explorer with current scope preserved.
+                <p className="mt-0.5">
+                  This raw code breakdown is the verified aggregate evidence for {vendor}. Individual lead records and call events are restricted by role authorization, and individual record queries require active global vendor scope.
                 </p>
               </div>
-
-              <Link
-                to={explorerPath}
-                onClick={onClose}
-                className="inline-flex items-center gap-2 px-3 py-1.5 bg-brand-primary text-white rounded-lg text-xs font-semibold hover:bg-brand-hover transition-colors shrink-0"
-              >
-                <span>Open Lead Explorer</span>
-                <ExternalLink size={13} />
-              </Link>
             </div>
-          )}
+
+            {explorerPath && (
+              <div className="pt-2 border-t border-border-subtle flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <span className="text-xs text-text-mute">
+                  To inspect records for {vendor}, first apply the vendor filter above.
+                </span>
+
+                <Link
+                  to={explorerPath}
+                  onClick={onClose}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border-subtle text-text-main rounded-lg text-xs font-medium hover:bg-surface-subtle transition-colors shrink-0"
+                >
+                  <span>Open Broader Lead Explorer</span>
+                  <ExternalLink size={12} />
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Footer */}

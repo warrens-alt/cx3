@@ -501,6 +501,10 @@ export interface DispositionExportMetadata {
   userRole?: string;
   userEmail?: string;
   generatedAt?: string;
+  inspectedVendor?: string | null;
+  activeGroupFilter?: string | null;
+  searchQuery?: string | null;
+  returnedRowCount?: number | null;
 }
 
 export function buildDispositionExportRows(
@@ -524,6 +528,10 @@ export function buildDispositionExportRows(
     'User role',
     'User identity',
     'Generated at',
+    'Inspected vendor',
+    'Active group filter',
+    'Search query',
+    'Returned row count',
   ];
   const auditValues: AnalysisCell[] = [
     meta.clientId,
@@ -540,6 +548,10 @@ export function buildDispositionExportRows(
     meta.userRole || 'authenticated',
     meta.userEmail || 'system',
     meta.generatedAt || new Date().toISOString(),
+    meta.inspectedVendor ?? null,
+    meta.activeGroupFilter ?? null,
+    meta.searchQuery ?? null,
+    meta.returnedRowCount !== undefined && meta.returnedRowCount !== null ? meta.returnedRowCount : (dataRows.length > 1 ? dataRows.length - 1 : 0),
   ];
   return [
     headers,

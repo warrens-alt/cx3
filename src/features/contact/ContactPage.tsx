@@ -31,6 +31,7 @@ export default function ContactPage() {
     handleTabChange,
     handleModeChange,
     handleSelectVendor,
+    handleInspectGroupChange,
     handleFilterReportByVendor,
     refreshAll,
     scope,
@@ -46,9 +47,24 @@ export default function ContactPage() {
     handleExportCallCountsCsv,
     handleExportVendorSummaryTable,
     handleExportVendorRawBreakdown,
+    handleExportVendorSelectedBreakdown,
   } = useContactModel();
 
   const handleInspectBucket = (bucket: string, leads: number) => {
+    // Only allowlisted buckets produced by contact service strategy.ts
+    const supportedBuckets = ['0 calls', '1 call', '2 calls', '3 calls', '4 calls', '5+ calls', 'Unrecorded'];
+    const isSupported = supportedBuckets.includes(bucket);
+
+    // Reuse existing zero-call-leads predicate for '0 calls' where definition exactly matches (m.recorded_call_count = 0).
+    // For other allowlisted buckets, use 'call-effort' with the exact bucket value.
+    const recordDrill = isSupported
+      ? {
+          drill: bucket === '0 calls' ? 'zero-call-leads' : 'call-effort',
+          drillValue: bucket === '0 calls' ? undefined : bucket,
+          label: `Inspect ${bucket} lead records in Lead Explorer`,
+        }
+      : undefined;
+
     setInspectorContent({
       type: 'stage',
       title: `Call Bucket: ${bucket}`,
@@ -57,11 +73,8 @@ export default function ContactPage() {
       unit: 'records',
       reportPath: '/contact-strategy',
       reportLabel: 'Back to contact strategy',
-      recordDrill: {
-        drill: bucket === '0 calls' ? 'zero-call' : bucket === '1 call' ? 'one-call-only' : 'contact-effort',
-        drillValue: bucket,
-        label: `Inspect ${bucket} lead records in Lead Explorer`,
-      },
+      recordDrill,
+      detailLimitation: !isSupported ? 'Individual record drill is not available for this aggregate bucket.' : undefined,
       scope: {
         clientId: scope.clientId,
         startDate: scope.startDate,
@@ -257,8 +270,14 @@ export default function ContactPage() {
           vendorSummary={selectedVendorSummary}
           rawRows={selectedVendorRows}
           initialGroupFilter={inspectGroup}
+          onGroupFilterChange={handleInspectGroupChange}
           onFilterReportByVendor={handleFilterReportByVendor}
           onExportVendorRaw={handleExportVendorRawBreakdown}
+          onExportSelectedBreakdown={handleExportVendorSelectedBreakdown}
+          reportVersion={dispData?.reportVersion}
+          dateBasis={dispData?.dateBasis}
+          countingGrain={dispData?.countingGrain}
+          evaluatedAt={dispData?.evaluatedAt}
           explorerPath={scoped('/lead-explorer')}
         />
       )}

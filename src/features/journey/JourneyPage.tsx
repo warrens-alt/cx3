@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -21,6 +21,7 @@ import { formatPercent, formatRatioPercent, formatTableNumber } from '../../lib/
 import { MatchedPeriodPanel } from '../../components/LifecycleDiagnostics';
 import { SlaBandsPanel } from '../../components/OfferNetControlPanels';
 import { useJourneyModel } from './model/useJourneyModel';
+import { adaptJourneyData } from './model/journeyAdapter';
 import JourneyProgression, { type StageItem } from './components/JourneyProgression';
 import JourneySegments, { type JourneyDimension } from './components/JourneySegments';
 import JourneyTiming from './components/JourneyTiming';
@@ -45,20 +46,25 @@ export default function JourneyPage() {
     handleExportCsv,
   } = useJourneyModel();
 
+  // Authoritative journey display adapter separating stage totals from transition intersections
+  const { headline, stages, transitions } = useMemo(() => adaptJourneyData(data), [data]);
+
   const handleInspectStage = (stage: StageItem) => {
+    const isSupported = ['fetched', 'delivered', 'dialled', 'rpc', 'sales', 'activated'].includes(stage.key);
     setInspectorContent({
       type: 'stage',
       title: `${stage.name} Stage`,
       subtitle: 'Observed lifecycle population across the selected reporting period.',
-      value: `${formatTableNumber(stage.volume)} leads`,
+      value: stage.volume !== null ? `${formatTableNumber(stage.volume)} leads` : '—',
       unit: 'records',
       reportPath: '/funnel',
       reportLabel: 'Open deep funnel analysis',
-      recordDrill: {
+      recordDrill: isSupported ? {
         drill: 'funnel-stage',
         drillValue: stage.key,
         label: `Inspect ${stage.name} lead records in Lead Explorer`,
-      },
+      } : undefined,
+      detailLimitation: !isSupported ? `Individual record drill is not supported for ${stage.name}.` : undefined,
       scope: {
         clientId: scope.clientId,
         startDate: scope.startDate,
@@ -69,19 +75,28 @@ export default function JourneyPage() {
   };
 
   const handleInspectTransition = (from: string, to: string, lost: number, lossKey: string) => {
+    const isSupported = [
+      'fetched-to-delivered',
+      'delivered-to-dialled',
+      'dialled-to-rpc',
+      'rpc-to-sales',
+      'sales-to-activated',
+    ].includes(lossKey);
+
     setInspectorContent({
       type: 'stage',
       title: `${from} → ${to} Transition Dropoff`,
       subtitle: `Leads observed in ${from} that did not progress to ${to}.`,
-      value: `−${formatTableNumber(lost)} leads`,
+      value: lost !== null && lost !== undefined ? (lost > 0 ? `−${formatTableNumber(lost)} leads` : '0 leads') : '—',
       unit: 'dropoff records',
       reportPath: '/funnel',
       reportLabel: 'Open deep funnel analysis',
-      recordDrill: {
+      recordDrill: isSupported && lost > 0 ? {
         drill: 'funnel-loss',
         drillValue: lossKey,
         label: `Inspect ${from} → ${to} loss records in Lead Explorer`,
-      },
+      } : undefined,
+      detailLimitation: !isSupported ? 'Loss record drill is not supported for this transition.' : undefined,
       scope: {
         clientId: scope.clientId,
         startDate: scope.startDate,
@@ -117,18 +132,6 @@ export default function JourneyPage() {
       },
     });
   };
-
-  // KPI calculations
-  const totalVolume = data?.lifecycle?.transitions[0]?.population ?? (data?.byVendor ? data.byVendor.reduce((sum, v) => sum + v.leads, 0) : null);
-  const deliveredVolume = data?.lifecycle?.transitions[0]?.converted ?? (data?.byVendor ? data.byVendor.reduce((sum, v) => sum + v.delivered, 0) : null);
-  const deliveryPct = totalVolume && totalVolume > 0 && deliveredVolume !== null ? (deliveredVolume / totalVolume) * 100 : null;
-  const dialledVolume = data?.lifecycle?.transitions[1]?.converted ?? (data?.byVendor ? data.byVendor.reduce((sum, v) => sum + v.dialled, 0) : null);
-  const dialPct = deliveredVolume && deliveredVolume > 0 && dialledVolume !== null ? (dialledVolume / deliveredVolume) * 100 : null;
-  const rpcVolume = data?.lifecycle?.transitions[2]?.converted ?? (data?.byVendor ? data.byVendor.reduce((sum, v) => sum + v.contacted, 0) : null);
-  const rpcPct = dialledVolume && dialledVolume > 0 && rpcVolume !== null ? (rpcVolume / dialledVolume) * 100 : null;
-  const salesVolume = data?.lifecycle?.transitions[3]?.converted ?? (data?.byVendor ? data.byVendor.reduce((sum, v) => sum + v.sales, 0) : null);
-  const salePct = totalVolume && totalVolume > 0 && salesVolume !== null ? (salesVolume / totalVolume) * 100 : null;
-  const activationsVolume = data?.lifecycle?.transitions[4]?.converted ?? (data?.byVendor ? data.byVendor.reduce((sum, v) => sum + v.activations, 0) : null);
 
   return (
     <div className="space-y-6">
@@ -191,14 +194,14 @@ export default function JourneyPage() {
 
       {data && (
         <>
-          {/* Outcome Summary KPI Strip */}
+          {/* Outcome Summary KPI Strip: Authoritative Independent Stage Totals & True Rates */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <div className="p-4 bg-surface rounded-xl border border-border-subtle shadow-2xs">
               <span className="text-[11px] font-semibold text-text-mute uppercase tracking-wider block">
                 Acquired Demand
               </span>
               <span className="text-2xl font-extrabold text-text-main cx-tabular mt-1 block">
-                {totalVolume !== null ? formatTableNumber(totalVolume) : '—'}
+                {headline.totalVolume !== null ? formatTableNumber(headline.totalVolume) : '—'}
               </span>
               <span className="text-[11px] text-text-sec mt-1 block">Intake cohort</span>
             </div>
@@ -208,10 +211,10 @@ export default function JourneyPage() {
                 Delivery Rate
               </span>
               <span className="text-2xl font-extrabold text-text-main cx-tabular mt-1 block">
-                {deliveryPct !== null ? `${deliveryPct.toFixed(1)}%` : '—'}
+                {headline.deliveryPct !== null ? `${headline.deliveryPct.toFixed(1)}%` : '—'}
               </span>
               <span className="text-[11px] text-text-sec mt-1 block">
-                {deliveredVolume !== null ? `${formatTableNumber(deliveredVolume)} delivered` : 'Delivered'}
+                {headline.deliveredVolume !== null ? `${formatTableNumber(headline.deliveredVolume)} delivered` : 'Delivered'}
               </span>
             </div>
 
@@ -220,10 +223,10 @@ export default function JourneyPage() {
                 Dial Coverage
               </span>
               <span className="text-2xl font-extrabold text-text-main cx-tabular mt-1 block">
-                {dialPct !== null ? `${dialPct.toFixed(1)}%` : '—'}
+                {headline.dialPct !== null ? `${headline.dialPct.toFixed(1)}%` : '—'}
               </span>
               <span className="text-[11px] text-text-sec mt-1 block">
-                {dialledVolume !== null ? `${formatTableNumber(dialledVolume)} dialled` : 'Dialled'}
+                {headline.dialledVolume !== null ? `${formatTableNumber(headline.dialledVolume)} dialled` : 'Dialled'}
               </span>
             </div>
 
@@ -232,10 +235,10 @@ export default function JourneyPage() {
                 Contact Rate (RPC)
               </span>
               <span className="text-2xl font-extrabold text-text-main cx-tabular mt-1 block">
-                {rpcPct !== null ? `${rpcPct.toFixed(1)}%` : '—'}
+                {headline.rpcPct !== null ? `${headline.rpcPct.toFixed(1)}%` : '—'}
               </span>
               <span className="text-[11px] text-text-sec mt-1 block">
-                {rpcVolume !== null ? `${formatTableNumber(rpcVolume)} contacted` : 'Contacted'}
+                {headline.rpcVolume !== null ? `${formatTableNumber(headline.rpcVolume)} contacted` : 'Contacted'}
               </span>
             </div>
 
@@ -244,10 +247,10 @@ export default function JourneyPage() {
                 Lead → Sale
               </span>
               <span className="text-2xl font-extrabold text-brand-primary cx-tabular mt-1 block">
-                {salePct !== null ? `${salePct.toFixed(2)}%` : '—'}
+                {headline.salePct !== null ? `${headline.salePct.toFixed(2)}%` : '—'}
               </span>
               <span className="text-[11px] text-text-sec mt-1 block">
-                {salesVolume !== null ? `${formatTableNumber(salesVolume)} sales` : 'Sales'}
+                {headline.salesVolume !== null ? `${formatTableNumber(headline.salesVolume)} sales` : 'Sales'}
               </span>
             </div>
 
@@ -256,20 +259,21 @@ export default function JourneyPage() {
                 Activations
               </span>
               <span className="text-2xl font-extrabold text-text-main cx-tabular mt-1 block">
-                {activationsVolume !== null ? formatTableNumber(activationsVolume) : '—'}
+                {headline.activationsVolume !== null ? formatTableNumber(headline.activationsVolume) : '—'}
               </span>
               <span className="text-[11px] text-text-sec mt-1 block">Fulfilled deals</span>
             </div>
           </div>
 
-          {/* Region A: Progression */}
+          {/* Region A: Progression Rail and Transition Evidence */}
           <section aria-labelledby="progression-heading">
             <h2 id="progression-heading" className="sr-only">
               Lifecycle Stage Progression
             </h2>
             <JourneyProgression
-              transitions={data.lifecycle?.transitions}
-              totalPopulation={totalVolume}
+              stages={stages}
+              transitions={transitions}
+              totalPopulation={headline.totalVolume}
               onInspectStage={handleInspectStage}
               onInspectTransition={handleInspectTransition}
             />
@@ -278,134 +282,97 @@ export default function JourneyPage() {
           {/* Region B: Segment Comparison */}
           <section aria-labelledby="segments-heading">
             <h2 id="segments-heading" className="sr-only">
-              Segment Decomposition
+              Lifecycle Breakdown Dimensions
             </h2>
             <JourneySegments
               segments={data.lifecycle?.segments}
-              totalPopulation={totalVolume}
-              unsupportedDimensions={data.lifecycle?.unsupportedDimensions}
               onInspectSegment={handleInspectSegment}
             />
           </section>
 
-          {/* Region C: Lifecycle Timing */}
-          <section aria-labelledby="timing-heading">
-            <h2 id="timing-heading" className="sr-only">
-              Lifecycle Timing
+          {/* Region C: Operational Timing & Velocity */}
+          <section aria-labelledby="velocity-heading">
+            <h2 id="velocity-heading" className="sr-only">
+              Lifecycle Transition Velocity
             </h2>
-            <JourneyTiming
-              velocity={data.velocity}
-              speedToLeadPath={scoped('/speed-to-lead')}
-            />
+            <JourneyTiming velocity={data.velocity} />
           </section>
 
-          {/* Region D: Operating Controls & Matched-Period Disclosures */}
-          <div className="space-y-4">
-            {controls.data && (
-              <details
-                className="group bg-surface rounded-xl border border-border-subtle overflow-hidden transition-colors"
-                open={controlsExpanded}
-                onToggle={(e) => setControlsExpanded(e.currentTarget.open)}
+          {/* Region D: Matched Period & Diagnostics Control */}
+          {data.lifecycle?.period && (
+            <section className="bg-surface rounded-xl border border-border-subtle overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setMatchedPeriodExpanded(!matchedPeriodExpanded)}
+                className="w-full px-5 py-4 flex items-center justify-between hover:bg-surface-subtle transition-colors cursor-pointer text-left"
               >
-                <summary className="flex items-center justify-between p-4 cursor-pointer hover:bg-surface-subtle transition-colors list-none select-none">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-text-main uppercase tracking-wider">
-                      Operating Controls & SLA Performance
-                    </span>
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-surface-sec text-text-sec border border-border-subtle">
-                      Response bands & operating windows
-                    </span>
+                <div className="flex items-center gap-2">
+                  <span className="p-1 rounded bg-brand-soft text-brand-primary">
+                    <FileCheck2 size={16} />
+                  </span>
+                  <div>
+                    <h3 className="text-sm font-bold text-text-main">
+                      Period-Over-Period Diagnostics
+                    </h3>
+                    <p className="text-xs text-text-sec mt-0.5">
+                      Matched window comparisons and rate change decompositions.
+                    </p>
                   </div>
-                  <ChevronDown
-                    size={16}
-                    className="text-text-mute transition-transform duration-200 group-open:rotate-180"
-                  />
-                </summary>
-
-                <div className="p-5 border-t border-border-subtle bg-surface-subtle/30 space-y-4">
-                  <SlaBandsPanel data={controls.data} />
                 </div>
-              </details>
-            )}
+                <ChevronDown
+                  size={16}
+                  className={`text-text-mute transition-transform duration-200 ${
+                    matchedPeriodExpanded ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
 
-            {data.lifecycle?.comparisons && (
-              <details
-                className="group bg-surface rounded-xl border border-border-subtle overflow-hidden transition-colors"
-                open={matchedPeriodExpanded}
-                onToggle={(e) => setMatchedPeriodExpanded(e.currentTarget.open)}
-              >
-                <summary className="flex items-center justify-between p-4 cursor-pointer hover:bg-surface-subtle transition-colors list-none select-none">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-text-main uppercase tracking-wider">
-                      Matched Period Comparison
-                    </span>
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-surface-sec text-text-sec border border-border-subtle">
-                      {data.lifecycle.period ? `${data.lifecycle.period.days} calendar days` : 'Prior period comparison'}
-                    </span>
-                  </div>
-                  <ChevronDown
-                    size={16}
-                    className="text-text-mute transition-transform duration-200 group-open:rotate-180"
-                  />
-                </summary>
-
-                <div className="p-5 border-t border-border-subtle bg-surface-subtle/30">
+              {matchedPeriodExpanded && (
+                <div className="p-5 border-t border-border-subtle bg-surface-sec space-y-4">
                   <MatchedPeriodPanel data={data.lifecycle} />
                 </div>
-              </details>
+              )}
+            </section>
+          )}
+
+          {/* Region E: SLA & Operating Parameters */}
+          <section className="bg-surface rounded-xl border border-border-subtle overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setControlsExpanded(!controlsExpanded)}
+              className="w-full px-5 py-4 flex items-center justify-between hover:bg-surface-subtle transition-colors cursor-pointer text-left"
+            >
+              <div className="flex items-center gap-2">
+                <span className="p-1 rounded bg-surface-subtle text-text-sec">
+                  <RouteIcon size={16} />
+                </span>
+                <div>
+                  <h3 className="text-sm font-bold text-text-main">
+                    Operating Parameters & SLA Bands
+                  </h3>
+                  <p className="text-xs text-text-sec mt-0.5">
+                    View active tenant SLA targets, dialling windows, and threshold configurations.
+                  </p>
+                </div>
+              </div>
+              <ChevronDown
+                size={16}
+                className={`text-text-mute transition-transform duration-200 ${
+                  controlsExpanded ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            {controlsExpanded && controls.data && (
+              <div className="p-5 border-t border-border-subtle bg-surface-sec space-y-4">
+                <SlaBandsPanel data={controls.data} />
+              </div>
             )}
-          </div>
-
-          {/* Contextual navigation shortcuts */}
-          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
-            <Link
-              to={scoped('/speed-to-lead')}
-              className="p-3.5 bg-surface hover:bg-surface-subtle border border-border-subtle rounded-xl flex items-center justify-between group transition-colors shadow-2xs"
-            >
-              <div>
-                <span className="text-xs font-bold text-text-main block">Response speed</span>
-                <span className="text-[11px] text-text-sec block mt-0.5">Diagnose latency & undialled backlog</span>
-              </div>
-              <ArrowRight size={14} className="text-text-mute group-hover:text-brand-primary transition-colors" />
-            </Link>
-
-            <Link
-              to={scoped('/vendor-quality')}
-              className="p-3.5 bg-surface hover:bg-surface-subtle border border-border-subtle rounded-xl flex items-center justify-between group transition-colors shadow-2xs"
-            >
-              <div>
-                <span className="text-xs font-bold text-text-main block">Vendor quality</span>
-                <span className="text-[11px] text-text-sec block mt-0.5">Quality grades & vendor downstream</span>
-              </div>
-              <ArrowRight size={14} className="text-text-mute group-hover:text-brand-primary transition-colors" />
-            </Link>
-
-            <Link
-              to={scoped('/campaigns')}
-              className="p-3.5 bg-surface hover:bg-surface-subtle border border-border-subtle rounded-xl flex items-center justify-between group transition-colors shadow-2xs"
-            >
-              <div>
-                <span className="text-xs font-bold text-text-main block">Acquisition channels</span>
-                <span className="text-[11px] text-text-sec block mt-0.5">Media campaigns & acquisition volume</span>
-              </div>
-              <ArrowRight size={14} className="text-text-mute group-hover:text-brand-primary transition-colors" />
-            </Link>
-
-            <Link
-              to={scoped('/vetting')}
-              className="p-3.5 bg-surface hover:bg-surface-subtle border border-border-subtle rounded-xl flex items-center justify-between group transition-colors shadow-2xs"
-            >
-              <div>
-                <span className="text-xs font-bold text-text-main block">Qualification checks</span>
-                <span className="text-[11px] text-text-sec block mt-0.5">Vetting validation & rejection rules</span>
-              </div>
-              <ArrowRight size={14} className="text-text-mute group-hover:text-brand-primary transition-colors" />
-            </Link>
           </section>
         </>
       )}
 
-      {/* Inspector Host */}
+      {/* 4. Evidence Inspector Drawer */}
       <InspectorHost
         open={Boolean(inspectorContent)}
         onClose={() => setInspectorContent(null)}

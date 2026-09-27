@@ -21,6 +21,7 @@ export interface InspectorContent {
   rate?: number | null;
   reportPath?: string;
   reportLabel?: string;
+  detailLimitation?: string;
   recordDrill?: {
     drill: string;
     drillValue?: string;
@@ -235,6 +236,14 @@ export default function InspectorHost({ open, onClose, content }: InspectorHostP
 
           {/* Custom Details slot */}
           {content.details}
+
+          {/* Limitation notice if individual records are not supported */}
+          {content.detailLimitation && (
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded text-amber-800 dark:text-amber-300 text-xs">
+              <span className="font-semibold">Detail Scope: </span>
+              <span>{content.detailLimitation}</span>
+            </div>
+          )}
 
           {/* Record-Level Evidence Action */}
           <div className="pt-4 border-t border-border-subtle space-y-3">

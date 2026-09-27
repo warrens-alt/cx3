@@ -98,10 +98,25 @@ export async function getRawLeads(params: OffernetQueryParams) {
       case 'funnel-loss': condition = ({
         'fetched-to-delivered': 'NOT m.is_delivered',
         'delivered-to-dialled': 'm.is_delivered AND NOT m.is_dialled',
-        'dialled-to-rpc': 'm.is_dialled AND m.is_rpc IS FALSE',
+        'dialled-to-rpc': 'm.is_dialled AND (m.is_rpc IS FALSE OR m.is_rpc IS NULL)',
         'rpc-to-sales': 'm.is_rpc AND NOT m.is_sale',
         'sales-to-activated': 'm.is_sale AND NOT m.is_activated',
       } as Record<string, string>)[value]; break;
+      case 'call-effort': {
+        const buckets: Record<string, string> = {
+          '0 calls': 'm.recorded_call_count = 0',
+          '1 call': 'm.recorded_call_count = 1',
+          '2 calls': 'm.recorded_call_count = 2',
+          '3 calls': 'm.recorded_call_count = 3',
+          '4 calls': 'm.recorded_call_count = 4',
+          '5+ calls': 'm.recorded_call_count >= 5',
+          'Unrecorded': 'm.recorded_call_count IS NULL',
+        };
+        const bucketCondition = buckets[value];
+        if (!bucketCondition) throw new RequestError(`Unsupported call effort bucket: ${value}`, 422);
+        condition = bucketCondition;
+        break;
+      }
       case 'lifecycle-segment': {
         const colonIndex = value.indexOf(':');
         if (colonIndex === -1) throw new RequestError('Invalid lifecycle segment drill value format', 422);

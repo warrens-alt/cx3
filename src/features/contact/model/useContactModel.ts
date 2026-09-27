@@ -13,7 +13,7 @@ import {
 import {
   DISPOSITION_REPORT_VERSION,
   type DispositionReportingMode,
-  type ApprovedDispositionGroup,
+  type DetailedDispositionRow,
 } from '../../../../contracts/vendorDispositions';
 import {
   downloadAnalysisCsv,
@@ -48,6 +48,18 @@ export function useContactModel() {
   useEffect(() => {
     setInspectorContent(null);
   }, [selectedClient, startDate, endDate, filters]);
+
+  // Reset drawer selection on client changes without modifying global filters
+  useEffect(() => {
+    if (inspectVendor) {
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.delete('inspectVendor');
+        next.delete('inspectGroup');
+        return next;
+      }, { replace: true });
+    }
+  }, [selectedClient]);
 
   const scope = useMemo(() => ({
     clientId: selectedClient,
@@ -93,7 +105,7 @@ export function useContactModel() {
     }, { replace: false });
   };
 
-  // Mode change handler
+  // Mode change handler: resets local drawer selection without altering global vendor filter
   const handleModeChange = (newMode: DispositionReportingMode) => {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
@@ -102,7 +114,6 @@ export function useContactModel() {
       } else {
         next.set('mode', 'call_records');
       }
-      // Clear drawer selection on mode switch
       next.delete('inspectVendor');
       next.delete('inspectGroup');
       return next;
@@ -128,6 +139,12 @@ export function useContactModel() {
     }, { replace: false });
   };
 
+  const handleInspectGroupChange = (group: string) => {
+    if (inspectVendor) {
+      handleSelectVendor(inspectVendor, group);
+    }
+  };
+
   // Explicit action to filter entire report by vendor
   const handleFilterReportByVendor = (vendor: string) => {
     setVendor(vendor);
@@ -145,23 +162,24 @@ export function useContactModel() {
   // Metadata generator for disposition exports
   const getDispositionExportMeta = (isTruncated = false): DispositionExportMetadata => {
     const isCallMode = dispositionMode === 'call_records';
+    const report = dispQuery.data;
     return {
       clientId: selectedClient,
       startDate: startDate || null,
       endDate: endDate || null,
       filters: extractOffernetFilters(filters),
       mode: dispositionMode,
-      dateBasis: isCallMode ? 'call_event_timestamp' : 'lead_capture_cohort',
-      countingGrain: isCallMode ? 'call_event' : 'lead_record',
-      totalPopulation: dispQuery.data?.summary.totalEntities || 0,
+      dateBasis: report?.dateBasis || (isCallMode ? 'call_event_timestamp' : 'lead_capture_cohort'),
+      countingGrain: report?.countingGrain || (isCallMode ? 'call_event' : 'lead_record'),
+      totalPopulation: report?.summary.totalEntities || 0,
       denominatorDefinition: isCallMode
         ? 'Total verified call attempts in selected period'
         : 'Dialled leads within capture cohort (leads with at least one dial attempt)',
       isTruncated,
-      taxonomyVersion: DISPOSITION_REPORT_VERSION,
+      taxonomyVersion: report?.reportVersion || DISPOSITION_REPORT_VERSION,
       userRole: profile?.role || 'user',
       userEmail: user?.email || undefined,
-      generatedAt: new Date().toISOString(),
+      generatedAt: report?.evaluatedAt || new Date().toISOString(),
     };
   };
 
@@ -229,44 +247,102 @@ export function useContactModel() {
     );
   };
 
-  // Raw breakdown export for single vendor
-  const handleExportVendorRawBreakdown = (vendor: string) => {
-    const rows = dispQuery.data?.breakdown.filter(r => r.vendor === vendor) || [];
+  // Result-bound vendor raw breakdown export matching exact inspected filteredRows
+  const handleExportVendorSelectedBreakdown = (params: {
+    vendor: string;
+    groupFilter: string;
+    searchQuery: string;
+    rows: DetailedDispositionRow[];
+  }) => {
+    const { vendor, groupFilter, searchQuery, rows } = params;
     const isCallMode = dispositionMode === 'call_records';
+    const report = dispQuery.data;
+
+    // Group totals for this vendor from report breakdown
+    const allVendorRows = report?.breakdown.filter(r => r.vendor === vendor) || [];
+    const groupTotals = new Map<string, number>();
+    for (const r of allVendorRows) {
+      groupTotals.set(r.approvedGroup, (groupTotals.get(r.approvedGroup) || 0) + r.count);
+    }
+
     const headers = [
       'Vendor',
       'Raw Disposition Code',
-      'Raw Description',
+      'Description',
       'Approved Outcome Group',
-      'Count',
-      '% of Vendor Base',
+      'Volume',
+      'Share of Group %',
+      'Share of Vendor %',
       'Mapping Status',
-      'Right-Party Contact (RPC)',
-      'Reported Sales',
-      'Callbacks Requested',
+      'RPC',
+      'Sales',
+      'Callbacks',
       ...(isCallMode ? ['Avg Duration (sec)', 'Valid Duration Count', 'Latest Observation'] : []),
     ];
+
     const dataRows = [
       headers,
-      ...rows.map(r => [
-        r.vendor,
-        r.rawDisposition,
-        r.rawDescription,
-        r.approvedGroupLabel,
-        r.count,
-        r.percentOfBase !== null ? `${r.percentOfBase}%` : '—',
-        r.mappingStatus || (r.isUnmapped ? 'UNMAPPED' : 'APPROVED'),
-        r.rpcCount,
-        r.saleCount,
-        r.callbackCount,
-        ...(isCallMode ? [r.avgDurationSec ?? '—', r.validDurationCount ?? '—', r.latestObservation ?? '—'] : []),
-      ]),
+      ...rows.map(r => {
+        const grpTotal = groupTotals.get(r.approvedGroup) || 0;
+        const shareOfGrp = grpTotal > 0 ? (r.count / grpTotal) * 100 : null;
+        const shareOfVendor = r.percentOfBase;
+        return [
+          r.vendor,
+          r.rawDisposition,
+          r.rawDescription || '—',
+          r.approvedGroupLabel,
+          r.count,
+          shareOfGrp !== null ? `${shareOfGrp.toFixed(1)}%` : '—',
+          shareOfVendor !== null ? `${shareOfVendor}%` : '—',
+          r.isUnmapped || r.approvedGroup === 'UNMAPPED' ? 'UNMAPPED' : (r.mappingStatus || 'APPROVED'),
+          r.rpcCount,
+          r.saleCount,
+          r.callbackCount,
+          ...(isCallMode ? [r.avgDurationSec ?? '—', r.validDurationCount ?? '—', r.latestObservation ?? '—'] : []),
+        ];
+      }),
     ];
-    downloadDispositionExportCsv(
-      `raw_dispositions_${vendor}_${dispositionMode}_${selectedClient}`,
-      dataRows,
-      getDispositionExportMeta(false)
-    );
+
+    const totalVolume = rows.reduce((sum, r) => sum + r.count, 0);
+    const groupPart = groupFilter && groupFilter !== 'ALL' ? `_${groupFilter.toLowerCase()}` : '';
+    const searchPart = searchQuery.trim() ? '_filtered' : '';
+    const filename = `raw_dispositions_${vendor}${groupPart}${searchPart}_${dispositionMode}_${selectedClient}`;
+
+    const metadata: DispositionExportMetadata = {
+      clientId: selectedClient,
+      startDate: startDate || null,
+      endDate: endDate || null,
+      filters: extractOffernetFilters(filters),
+      mode: dispositionMode,
+      dateBasis: report?.dateBasis || (isCallMode ? 'call_event_timestamp' : 'lead_capture_cohort'),
+      countingGrain: report?.countingGrain || (isCallMode ? 'call_event' : 'lead_record'),
+      totalPopulation: totalVolume,
+      denominatorDefinition: isCallMode
+        ? `Call attempts recorded for vendor ${vendor}`
+        : `Dialled leads recorded for vendor ${vendor}`,
+      isTruncated: false,
+      taxonomyVersion: report?.reportVersion || DISPOSITION_REPORT_VERSION,
+      userRole: profile?.role || 'user',
+      userEmail: user?.email || undefined,
+      generatedAt: report?.evaluatedAt || new Date().toISOString(),
+      inspectedVendor: vendor,
+      activeGroupFilter: groupFilter,
+      searchQuery: searchQuery || null,
+      returnedRowCount: rows.length,
+    };
+
+    downloadDispositionExportCsv(filename, dataRows, metadata);
+  };
+
+  // Backward-compatible fallback for raw export
+  const handleExportVendorRawBreakdown = (vendor: string) => {
+    const rows = dispQuery.data?.breakdown.filter(r => r.vendor === vendor) || [];
+    handleExportVendorSelectedBreakdown({
+      vendor,
+      groupFilter: inspectGroup || 'ALL',
+      searchQuery: '',
+      rows,
+    });
   };
 
   return {
@@ -277,6 +353,7 @@ export function useContactModel() {
     handleTabChange,
     handleModeChange,
     handleSelectVendor,
+    handleInspectGroupChange,
     handleFilterReportByVendor,
     refreshAll,
     scope,
@@ -294,6 +371,7 @@ export function useContactModel() {
     handleExportCallCountsCsv,
     handleExportVendorSummaryTable,
     handleExportVendorRawBreakdown,
+    handleExportVendorSelectedBreakdown,
     getDispositionExportMeta,
   };
 }
