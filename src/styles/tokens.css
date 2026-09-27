@@ -90,10 +90,16 @@
   --cx-radius-lg: 10px;
   --cx-radius-xl: 12px;
 
+  /* Compatibility names consumed by existing cards, controls and product.css. */
+  --cx-radius-card: var(--cx-radius-lg);
+  --cx-radius-control: var(--cx-radius-sm);
+
   /* Elevation */
   --cx-shadow-sm: 0 1px 2px 0 rgba(21, 34, 56, 0.04);
   --cx-shadow-md: 0 4px 6px -1px rgba(21, 34, 56, 0.05), 0 2px 4px -2px rgba(21, 34, 56, 0.03);
   --cx-shadow-drawer: -4px 0 24px -4px rgba(21, 34, 56, 0.12);
+  --cx-shadow-card: var(--cx-shadow-sm);
+  --cx-shadow-elevated: var(--cx-shadow-md);
 
   /* Touch & Controls */
   --cx-control-height: 38px;
@@ -130,6 +136,14 @@
   --cx-warning: #F59E0B;
   --cx-warning-bg: rgba(245, 158, 11, 0.14);
 
+  /* Same category identities with sufficient contrast on dark chart surfaces. */
+  --cx-data-fetched: #93A4EC;
+  --cx-data-delivered: #67C9DE;
+  --cx-data-dialled: #B6A0DE;
+  --cx-data-rpc: #D9A4C5;
+  --cx-data-sales: #92BACB;
+  --cx-data-activation: #B7C4D7;
+
   /* Hairlines & Boundaries (Dark) */
   --cx-border-subtle: #1E2B45;
   --cx-border-default: #2D3D5E;
@@ -140,4 +154,11 @@
   --cx-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.45);
   --cx-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
   --cx-shadow-drawer: -4px 0 24px -4px rgba(0, 0, 0, 0.6);
+}
+
+/* Existing JSX uses these utilities; --cx-* alone does not register them with
+   Tailwind. Inline aliases keep utilities responsive to the element's theme. */
+@theme inline {
+  --color-brand-primary: var(--cx-brand-primary);
+  --color-surface-subtle: var(--cx-surface-subtle);
 }
