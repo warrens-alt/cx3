@@ -50,6 +50,9 @@ const stringField = (doc: FirestoreDocument, name: string) => doc.fields?.[name]
 const stringArrayField = (doc: FirestoreDocument, name: string) =>
   (doc.fields?.[name]?.arrayValue?.values || []).map(value => value.stringValue || '').filter(Boolean);
 
+const principalCache = new Map<string, { principal: Principal; expiresAt: number }>();
+const inFlightPrincipals = new Map<string, Promise<Principal>>();
+
 /**
  * Resolve a Firebase-authenticated analytical principal.
  *
@@ -59,41 +62,59 @@ const stringArrayField = (doc: FirestoreDocument, name: string) =>
  * analytical access.
  */
 export async function resolveFirebasePrincipal(token: string): Promise<Principal> {
-  const claims = decodeClaims(token);
-  const uid = claims.sub || claims.user_id!;
-  const email = claims.email!.toLowerCase();
-
-  const profile = await readFirestoreDocument(`users/${encodeURIComponent(uid)}`, token);
-  if (!profile) throw new RequestError('No Firebase access profile exists for this account', 403);
-
-  const profileUid = stringField(profile, 'uid');
-  const profileEmail = stringField(profile, 'email').toLowerCase();
-  const status = stringField(profile, 'status');
-  const profileRole = stringField(profile, 'role');
-  if (profileUid !== uid || profileEmail !== email || status !== 'active') {
-    throw new RequestError('This Firebase account is not active for workspace access', 403);
+  const cached = principalCache.get(token);
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.principal;
   }
+  const inFlight = inFlightPrincipals.get(token);
+  if (inFlight) return inFlight;
 
-  const allTenantIds = getAllClients().map(client => client.id);
-  let role: 'viewer' | 'admin' = 'viewer';
-  let tenants: string[];
+  const promise = (async () => {
+    try {
+      const claims = decodeClaims(token);
+      const uid = claims.sub || claims.user_id!;
+      const email = claims.email!.toLowerCase();
 
-  if (profileRole === 'admin') {
-    const marker = await readFirestoreDocument(`admins/${encodeURIComponent(uid)}`, token);
-    if (!marker || stringField(marker, 'uid') !== uid || stringField(marker, 'email').toLowerCase() !== email) {
-      throw new RequestError('Administrator authority marker is missing', 403);
+      const profile = await readFirestoreDocument(`users/${encodeURIComponent(uid)}`, token);
+      if (!profile) throw new RequestError('No Firebase access profile exists for this account', 403);
+
+      const profileUid = stringField(profile, 'uid');
+      const profileEmail = stringField(profile, 'email').toLowerCase();
+      const status = stringField(profile, 'status');
+      const profileRole = stringField(profile, 'role');
+      if (profileUid !== uid || profileEmail !== email || status !== 'active') {
+        throw new RequestError('This Firebase account is not active for workspace access', 403);
+      }
+
+      const allTenantIds = getAllClients().map(client => client.id);
+      let role: 'viewer' | 'admin' = 'viewer';
+      let tenants: string[];
+
+      if (profileRole === 'admin') {
+        const marker = await readFirestoreDocument(`admins/${encodeURIComponent(uid)}`, token);
+        if (!marker || stringField(marker, 'uid') !== uid || stringField(marker, 'email').toLowerCase() !== email) {
+          throw new RequestError('Administrator authority marker is missing', 403);
+        }
+        role = 'admin';
+        tenants = allTenantIds;
+      } else if (profileRole === 'analyst' || profileRole === 'viewer') {
+        const allowed = new Set(stringArrayField(profile, 'allowedTenants'));
+        tenants = allTenantIds.filter(id => allowed.has(id));
+      } else {
+        throw new RequestError('Unsupported Firebase workspace role', 403);
+      }
+
+      if (!tenants.length) throw new RequestError('This account has no authorised workspaces', 403);
+      const principal: Principal = { subject: uid, email, tenants, role };
+      principalCache.set(token, { principal, expiresAt: Date.now() + 10_000 });
+      return principal;
+    } finally {
+      inFlightPrincipals.delete(token);
     }
-    role = 'admin';
-    tenants = allTenantIds;
-  } else if (profileRole === 'analyst' || profileRole === 'viewer') {
-    const allowed = new Set(stringArrayField(profile, 'allowedTenants'));
-    tenants = allTenantIds.filter(id => allowed.has(id));
-  } else {
-    throw new RequestError('Unsupported Firebase workspace role', 403);
-  }
+  })();
 
-  if (!tenants.length) throw new RequestError('This account has no authorised workspaces', 403);
-  return { subject: uid, email, tenants, role };
+  inFlightPrincipals.set(token, promise);
+  return promise;
 }
 
 /** Backwards-compatible name retained for Preview tests and older imports. */

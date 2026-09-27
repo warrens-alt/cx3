@@ -32,7 +32,7 @@ async function loadExceptionAnalytics(params: OffernetQueryParams): Promise<Exce
   const { queryParams } = buildFilterClause(scope);
   const [rows] = await getBigQueryClient(config.bigQueryProject).query({
     query: `WITH ${operationalLeadCtes(scope)}, populations AS (
-      SELECT m.*, ${comparison ? "IF(DATE(m.fetched_ts, @exceptionTimezone) >= @currentStartDate, 'current', 'previous')" : "'current'"} AS comparison_period,
+      SELECT m.vendor, m.source, ${comparison ? "IF(DATE(m.fetched_ts, @exceptionTimezone) >= @currentStartDate, 'current', 'previous')" : "'current'"} AS comparison_period,
         [${EXCEPTION_DEFINITIONS.map(item => `STRUCT('${item.id}' AS id, (${exceptionPredicate(item.id)}) AS affected)`).join(',\n')} ] AS exceptions
       FROM operational_leads m
     )

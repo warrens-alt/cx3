@@ -3,21 +3,34 @@ import fs from 'node:fs';
 import express from 'express';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { mountApi } from './server/apiApp';
 
 export async function createApp() {
+  const { mountApi } = await import('./server/apiApp');
   const app = express();
   await mountApi(app);
 
-  const isTsxDev = Boolean(process.env.TSX_ACTIVE);
+  const isTsxDev = Boolean(
+    process.env.TSX_ACTIVE ||
+    process.env.npm_lifecycle_event === 'dev' ||
+    process.execArgv.some(a => a.includes('tsx'))
+  );
   const hasDist = fs.existsSync(path.join(process.cwd(), 'dist', 'client', 'index.html'))
-    || fs.existsSync(path.join(process.cwd(), 'dist', 'index.html'));
+    || fs.existsSync(path.join(process.cwd(), 'dist', 'index.html'))
+    || fs.existsSync(path.join(process.cwd(), 'client', 'index.html'))
+    || fs.existsSync(path.join(process.cwd(), 'index.html'));
   const isProduction = process.env.NODE_ENV === 'production' || (!isTsxDev && hasDist);
 
   if (isProduction && hasDist) {
-    const clientDirectory = fs.existsSync(path.join(process.cwd(), 'dist', 'client', 'index.html'))
-      ? path.join(process.cwd(), 'dist', 'client')
-      : path.join(process.cwd(), 'dist');
+    let clientDirectory = path.join(process.cwd(), 'dist');
+    if (fs.existsSync(path.join(process.cwd(), 'dist', 'client', 'index.html'))) {
+      clientDirectory = path.join(process.cwd(), 'dist', 'client');
+    } else if (fs.existsSync(path.join(process.cwd(), 'dist', 'index.html'))) {
+      clientDirectory = path.join(process.cwd(), 'dist');
+    } else if (fs.existsSync(path.join(process.cwd(), 'client', 'index.html'))) {
+      clientDirectory = path.join(process.cwd(), 'client');
+    } else if (fs.existsSync(path.join(process.cwd(), 'index.html'))) {
+      clientDirectory = process.cwd();
+    }
     app.use(express.static(clientDirectory, {
       dotfiles: 'deny',
       setHeaders: (res, filePath) => {
@@ -63,7 +76,9 @@ const isMain = currentFileHref === entryFileHref;
 
 if (isMain) {
   const isTsFile = currentFileHref.endsWith('.ts');
-  const bundlePath = path.join(process.cwd(), 'dist', 'server', 'server.mjs');
+  const bundlePath = fs.existsSync(path.join(process.cwd(), 'dist', 'server.mjs'))
+    ? path.join(process.cwd(), 'dist', 'server.mjs')
+    : path.join(process.cwd(), 'dist', 'server', 'server.mjs');
 
   if (isTsFile && fs.existsSync(bundlePath) && process.env.NODE_ENV === 'production' && !process.env.TSX_ACTIVE) {
     const bundleUrl = pathToFileURL(bundlePath).href;

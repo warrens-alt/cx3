@@ -259,8 +259,8 @@ export default function ExecutiveOverview() {
               <section className="cx-command-panel">
                 <header><div><h2>Waiting for a first call</h2><p>How long delivered leads have been waiting. {isAdmin ? 'Select a bucket to inspect records.' : ''}</p></div></header>
                 <div className="cx-backlog-bars">
-                  {!data.backlog.buckets.length && <OperationalEmpty title="No backlog breakdown available">There are no backlog age groups in the current response.</OperationalEmpty>}
-                  {data.backlog.buckets.map(bucket => {
+                  {!(data.backlog?.buckets || []).length && <OperationalEmpty title="No backlog breakdown available">There are no backlog age groups in the current response.</OperationalEmpty>}
+                  {(data.backlog?.buckets || []).map(bucket => {
                     const body = <><span>{bucket.bucket}</span><div><i style={{ width: `${(bucket.count / maxBacklog) * 100}%` }} /></div><strong>{fmt(bucket.count)}</strong></>;
                     return isAdmin ? (
                       <Link key={bucket.bucket} to={recordLink('backlog-age', bucket.bucket)} className="cx-backlog-row cx-backlog-link" data-severity={bucket.severity}>{body}</Link>
@@ -275,7 +275,7 @@ export default function ExecutiveOverview() {
                   <Link to={scoped('/vendor-quality')}>Vendor view <ArrowRight size={13} /></Link>
                 </header>
                 <div className="cx-backlog-vendors">
-                  {data.backlog.byVendor.length ? data.backlog.byVendor.map((vendor, index) => {
+                  {(data.backlog?.byVendor || []).length ? (data.backlog?.byVendor || []).map((vendor, index) => {
                     const body = <><span>{vendor.vendor}</span><strong>{fmt(vendor.awaiting_first_dial)}</strong><small>{fmt(vendor.over_60m)} &gt;60m</small></>;
                     return isAdmin ? (
                       <Link key={`${vendor.vendor}-${index}`} to={recordLink('awaiting-first-dial', undefined, { vendor: vendor.vendor })}>{body}</Link>

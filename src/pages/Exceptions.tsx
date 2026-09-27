@@ -47,12 +47,22 @@ export default function Exceptions() {
     next.set('drill', drill);
     if (drillValue) next.set('drillValue', drillValue);
     if (extra) Object.entries(extra).forEach(([key, value]) => next.set(key, value));
+    if (selectedClient && !next.has('clientId')) next.set('clientId', selectedClient);
+    if (startDate && !next.has('startDate')) next.set('startDate', startDate);
+    if (endDate && !next.has('endDate')) next.set('endDate', endDate);
     return `/lead-explorer?${next.toString()}`;
   };
 
-  const severityRank = { high: 3, medium: 2, low: 1 } as const;
+  const severityRank: Record<string, number> = { high: 3, medium: 2, low: 1 };
   const ordered = useMemo(
-    () => [...(queue.data?.exceptions || [])].filter(item => item.count > 0).sort((a, b) => severityRank[b.severity] - severityRank[a.severity] || b.count - a.count),
+    () =>
+      [...(queue.data?.exceptions || [])]
+        .filter(item => item && Number(item.count || 0) > 0)
+        .sort(
+          (a, b) =>
+            (severityRank[b.severity] || 0) - (severityRank[a.severity] || 0) ||
+            Number(b.count || 0) - Number(a.count || 0),
+        ),
     [queue.data?.exceptions],
   );
 
@@ -69,7 +79,7 @@ export default function Exceptions() {
           <Link to={scoped('/reports')} className="cx-trust-pill">
             <ShieldCheck size={15} />
             <span>
-              <strong>{data?.validationStatus || 'NOT_VERIFIED'}</strong>
+              <strong>{queue.data?.validationStatus || data?.validationStatus || 'NOT_VERIFIED'}</strong>
               <small>Operational rules</small>
             </span>
             <ArrowRight size={14} />
@@ -77,46 +87,54 @@ export default function Exceptions() {
         </header>
 
         {(error || queue.error) && <div className="cx-command-error"><AlertTriangle size={17} />{error || queue.error}</div>}
-        {loading && !data && <div className="cx-command-loading"><div className="cx-command-spinner" />Loading exception populations…</div>}
-
-        {data && (
+        {(!data && loading) && (!queue.data && queue.loading) ? (
+          <div className="cx-command-loading"><div className="cx-command-spinner" />Loading exception populations…</div>
+        ) : (
           <>
             <section className="cx-exception-summary">
               <article>
                 <span>Active exception types</span>
-                <strong>{ordered.length}</strong>
+                <strong>{queue.loading && !queue.data ? '…' : ordered.length}</strong>
                 <small>Configured operational checks with affected records</small>
               </article>
               <article>
                 <span>Awaiting first dial</span>
-                <strong>{fmt(data.backlog?.awaitingFirstDial)}</strong>
-                <small>{fmt(data.backlog?.over60Minutes)} waiting longer than 60 minutes</small>
+                <strong>{loading && !data ? '…' : fmt(data?.backlog?.awaitingFirstDial)}</strong>
+                <small>{loading && !data ? 'Loading backlog…' : `${fmt(data?.backlog?.over60Minutes)} waiting longer than 60 minutes`}</small>
               </article>
               <article>
                 <span>15-minute SLA</span>
-                <strong>{formatPercent(data.sla?.complianceRate)}</strong>
+                <strong>{loading && !data ? '…' : formatPercent(data?.sla?.complianceRate)}</strong>
                 <small>Delivered leads dialled within target</small>
               </article>
             </section>
 
-            {ordered.length > 0 && <RankedMetricChart
-              title="Largest active exception populations"
-              subtitle="Ranked by affected records. Severity remains visible in the action queue below."
-              data={ordered.map(item => ({ exception: item.title, id: item.id, count: item.count }))}
-              categoryKey="exception"
-              valueKey="count"
-              valueLabel="Affected records"
-              maxItems={10}
-              onSelect={(_, row) => {
-                const item = ordered.find(candidate => candidate.id === row.id);
-                if (item) navigate(isAdmin ? recordLink(item.id) : scoped('/data-integrity'));
-              }}
-            />}
+            {queue.loading && !queue.data ? (
+              <div className="cx-command-panel p-6 text-center text-slate-500 text-xs flex items-center justify-center gap-2">
+                <div className="cx-command-spinner" />
+                Loading exception ranking chart…
+              </div>
+            ) : ordered.length > 0 ? (
+              <RankedMetricChart
+                title="Largest active exception populations"
+                subtitle="Ranked by affected records. Severity remains visible in the action queue below."
+                data={ordered.map(item => ({ exception: item.title, id: item.id, count: item.count }))}
+                categoryKey="exception"
+                valueKey="count"
+                valueLabel="Affected records"
+                maxItems={10}
+                onSelect={(_, row) => {
+                  const item = ordered.find(candidate => candidate.id === row.id);
+                  if (item) navigate(isAdmin ? recordLink(item.id) : scoped('/data-integrity'));
+                }}
+              />
+            ) : null}
 
             {controls.data && <ContactGovernancePanel
               data={controls.data}
               highAttemptHref={isAdmin ? recordLink('high-attempt-no-rpc') : undefined}
               oneCallHref={isAdmin ? recordLink('one-call-only') : undefined}
+              missingDispositionHref={isAdmin ? recordLink('missing-disposition') : undefined}
             />}
 
             <section className="cx-command-panel">
@@ -133,10 +151,17 @@ export default function Exceptions() {
                 {queue.data.comparison && <p>Previous: {queue.data.comparison.previous.startDate} – {queue.data.comparison.previous.endDate} ({queue.data.comparison.days} days)</p>}
                 <ExportAnalysisButton filename="exception_populations" rows={[
                   ['Exception', 'Count', 'Previous cohort', 'Absolute change', 'Change (%)', 'Severity', 'Definition'],
-                  ...queue.data.exceptions.map(item => [item.title, item.count, item.previousCount, item.absoluteChange, item.percentageChange, item.severity, item.detail]),
+                  ...(queue.data.exceptions || []).map(item => [item.title, item.count, item.previousCount, item.absoluteChange, item.percentageChange, item.severity, item.detail]),
                 ]} definitions={queue.data.populationNote} validationStatus={queue.data.validationStatus} />
               </div>}
-              {queue.loading && !queue.data ? <div className="cx-command-loading">Loading exact exception populations…</div> : ordered.length ? (
+              {queue.loading && !queue.data ? (
+                <div className="cx-command-loading">Loading exact exception populations…</div>
+              ) : queue.error ? (
+                <div className="cx-command-error">
+                  <AlertTriangle size={16} />
+                  Unable to load exception populations: {queue.error}
+                </div>
+              ) : ordered.length ? (
                 <div className="cx-live-exception-list">
                   {ordered.map(item => (
                     <Link key={item.id} to={isAdmin ? recordLink(item.id) : scoped('/data-integrity')} className="cx-live-exception" data-severity={item.severity}>
@@ -147,9 +172,9 @@ export default function Exceptions() {
                         <span className="cx-live-exception-severity">{item.severity}</span>
                         <h3>{item.title}</h3>
                         <p>{item.detail}</p>
-                        <p>Previous cohort: {fmt(item.previousCount)} · Δ {item.absoluteChange === null ? 'Unavailable' : `${item.absoluteChange > 0 ? '+' : ''}${fmt(item.absoluteChange)}`}</p>
-                        <p>Vendors: {item.byVendor.slice(0, 3).map(group => `${group.name} (${group.count.toLocaleString()})`).join(', ') || 'None'}</p>
-                        <p>Sources: {item.bySource.slice(0, 3).map(group => `${group.name} (${group.count.toLocaleString()})`).join(', ') || 'None'}</p>
+                        <p>Previous cohort: {fmt(item.previousCount)} · Δ {item.absoluteChange === null || item.absoluteChange === undefined ? 'Unavailable' : `${Number(item.absoluteChange) > 0 ? '+' : ''}${fmt(item.absoluteChange)}`}</p>
+                        <p>Vendors: {(item.byVendor || []).slice(0, 3).map(group => `${group.name || 'Unknown'} (${fmt(group.count)})`).join(', ') || 'None'}</p>
+                        <p>Sources: {(item.bySource || []).slice(0, 3).map(group => `${group.name || 'Unknown'} (${fmt(group.count)})`).join(', ') || 'None'}</p>
                       </div>
                       <strong>{fmt(item.count)}</strong>
                       <ArrowRight size={16} />
@@ -174,14 +199,18 @@ export default function Exceptions() {
                   </div>
                   <Link to={scoped('/speed-to-lead')}>Open contact analysis <ArrowRight size={13} /></Link>
                 </header>
-                <div className="cx-exception-buckets">
-                  {data.backlog.buckets.map(bucket => {
-                    const content = <><span>{bucket.bucket}</span><strong>{fmt(bucket.count)}</strong></>;
-                    return isAdmin
-                      ? <Link key={bucket.bucket} to={recordLink('backlog-age', bucket.bucket)} data-severity={bucket.severity}>{content}</Link>
-                      : <div key={bucket.bucket} data-severity={bucket.severity}>{content}</div>;
-                  })}
-                </div>
+                {loading && !data ? (
+                  <div className="cx-command-loading">Loading backlog…</div>
+                ) : (
+                  <div className="cx-exception-buckets">
+                    {(data?.backlog?.buckets || []).map(bucket => {
+                      const content = <><span>{bucket.bucket}</span><strong>{fmt(bucket.count)}</strong></>;
+                      return isAdmin
+                        ? <Link key={bucket.bucket} to={recordLink('backlog-age', bucket.bucket)} data-severity={bucket.severity}>{content}</Link>
+                        : <div key={bucket.bucket} data-severity={bucket.severity}>{content}</div>;
+                    })}
+                  </div>
+                )}
               </section>
 
               <section className="cx-command-panel">
@@ -193,14 +222,18 @@ export default function Exceptions() {
                   </div>
                   <Link to={scoped('/vendor-quality')}>Performance view <ArrowRight size={13} /></Link>
                 </header>
-                <div className="cx-backlog-vendors">
-                  {data.backlog.byVendor.length ? data.backlog.byVendor.map((vendor, index) => {
-                    const content = <><span>{vendor.vendor}</span><strong>{fmt(vendor.awaiting_first_dial)}</strong><small>{fmt(vendor.over_60m)} &gt;60m</small></>;
-                    return isAdmin
-                      ? <Link key={`${vendor.vendor}-${index}`} to={recordLink('awaiting-first-dial', undefined, { vendor: vendor.vendor })}>{content}</Link>
-                      : <div key={`${vendor.vendor}-${index}`}>{content}</div>;
-                  }) : <div className="cx-command-empty">No vendor backlog is currently observed.</div>}
-                </div>
+                {loading && !data ? (
+                  <div className="cx-command-loading">Loading vendor backlog…</div>
+                ) : (
+                  <div className="cx-backlog-vendors">
+                    {(data?.backlog?.byVendor || []).length ? (data.backlog?.byVendor || []).map((vendor, index) => {
+                      const content = <><span>{vendor.vendor}</span><strong>{fmt(vendor.awaiting_first_dial)}</strong><small>{fmt(vendor.over_60m)} &gt;60m</small></>;
+                      return isAdmin
+                        ? <Link key={`${vendor.vendor}-${index}`} to={recordLink('awaiting-first-dial', undefined, { vendor: vendor.vendor })}>{content}</Link>
+                        : <div key={`${vendor.vendor}-${index}`}>{content}</div>;
+                    }) : <div className="cx-command-empty">No vendor backlog is currently observed.</div>}
+                  </div>
+                )}
               </section>
             </div>
           </>

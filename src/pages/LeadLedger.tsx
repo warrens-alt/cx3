@@ -74,7 +74,7 @@ export default function LeadLedger() {
                 <h2 className="text-sm font-bold uppercase tracking-wider text-slate-800">Scoped record sample</h2>
                 <p className="text-[11px] text-slate-500 mt-0.5">Maximum 50 rows for the current authorised scope.</p>
               </div>
-              <span className="font-mono text-xs text-slate-500">{data.rows.length} rows</span>
+              <span className="font-mono text-xs text-slate-500">{(data.rows || []).length} rows</span>
             </div>
 
             <div className="overflow-auto max-h-[620px]">
@@ -87,7 +87,7 @@ export default function LeadLedger() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-mono">
-                  {data.rows.map((row, rowIndex) => (
+                  {(data.rows || []).map((row, rowIndex) => (
                     <tr key={rowIndex} className="hover:bg-slate-50">
                       {columns.map(column => (
                         <td key={column} className="px-3 py-2.5 max-w-[320px] overflow-hidden text-ellipsis">
@@ -96,7 +96,7 @@ export default function LeadLedger() {
                       ))}
                     </tr>
                   ))}
-                  {data.rows.length === 0 && (
+                  {!(data.rows || []).length && (
                     <tr>
                       <td colSpan={Math.max(columns.length, 1)} className="px-4 py-8 text-center text-slate-500">
                         No records are available for the selected scope.

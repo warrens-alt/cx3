@@ -315,10 +315,12 @@ export function ContactGovernancePanel({
   data,
   highAttemptHref,
   oneCallHref,
+  missingDispositionHref,
 }: {
   data: OperatingControlsData;
   highAttemptHref?: string;
   oneCallHref?: string;
+  missingDispositionHref?: string;
 }) {
   const s = data?.summary;
   if (!s) return <UnavailableControlPanel title="Attempt & disposition exceptions" />;
@@ -345,6 +347,7 @@ export function ContactGovernancePanel({
       title: 'Missing latest dial disposition',
       value: c?.missingDisposition,
       detail: `${pct(s.dispositionCompletenessPct)} disposition completeness across dialled leads.`,
+      href: missingDispositionHref,
       severity: 'medium',
     },
   ];

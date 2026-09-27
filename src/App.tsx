@@ -159,6 +159,7 @@ function Shell() {
         {clientReady && !evidencePage && <div id="legacy-filters" hidden={!filtersOpen}>{filtersOpen && !filterError && <Suspense fallback={<p className="cx-filter-loading" role="status">Loading report controls…</p>}><GlobalFilter/></Suspense>}</div>}
         <ErrorBoundary
           resetKeys={[location.pathname]}
+          onError={(err) => console.error('Route error caught by ErrorBoundary:', err)}
           fallbackRender={({ error, resetErrorBoundary }: any) => {
             const isChunkError = error && (
               error.message?.includes('dynamically imported module') ||
@@ -170,7 +171,7 @@ function Shell() {
               <section className="cx-route-error" role="alert">
                 <AlertCircle size={28}/>
                 <h1>{isChunkError ? 'App update available' : 'This page could not be displayed'}</h1>
-                <p>{isChunkError ? 'A newer version of ConversionX was deployed. Reloading will fetch the latest page.' : 'Navigation is still available. Retry the page or return to Overview.'}</p>
+                <p>{isChunkError ? 'A newer version of ConversionX was deployed. Reloading will fetch the latest page.' : error?.message || 'Navigation is still available. Retry the page or return to Overview.'}</p>
                 <div>
                   <button className="cx-button-primary" onClick={isChunkError ? () => window.location.reload() : resetErrorBoundary}>
                     {isChunkError ? 'Reload page' : 'Retry page'}

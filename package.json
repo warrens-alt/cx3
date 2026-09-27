@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "rm -rf dist build && vite build && mkdir -p dist/client build && cp dist/index.html dist/client/ && cp -r dist/assets dist/client/ && cp dist/index.html build/ && cp -r dist/assets build/ && esbuild server.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=dist/server/server.mjs",
+    "build": "rm -rf dist build && vite build && mkdir -p dist/client build && cp dist/index.html dist/client/ && cp -r dist/assets dist/client/ && cp dist/index.html build/ && cp -r dist/assets build/ && esbuild server.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=dist/server.mjs && mkdir -p dist/server && cp dist/server.mjs dist/server/server.mjs && cp dist/server.mjs dist/server.cjs",
     "gcp-build": "npm run build",
     "start": "node dist/server/server.mjs",
     "clean": "rm -rf dist build",
