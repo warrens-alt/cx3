@@ -31,21 +31,21 @@ import {
 } from '../../../contracts/vendorDispositions';
 
 export async function getContactDispositionsAnalytics(
-  params: OffernetQueryParams & { mode?: DispositionReportingMode }
+  params: OffernetQueryParams & { mode?: DispositionReportingMode; demo?: boolean }
 ): Promise<ContactDispositionsData> {
   const mode: DispositionReportingMode = params.mode === 'call_records' ? 'call_records' : 'lead_status';
   const client = getClientConfig(params.clientId || 'default_tenant');
 
-  try {
-    const bq = getBigQueryClient(client.bigQueryProject);
-    if (mode === 'lead_status') {
-      return await queryLeadStatusDispositions(bq, params, client);
-    } else {
-      return await queryCallRecordsDispositions(bq, params, client);
-    }
-  } catch (_err) {
-    // Graceful fallback to deterministic bounded dataset if offline or test environment
+  // Explicit fixture boundary for test / synthetic environments only
+  if (params.demo || process.env.USE_DISPOSITION_FIXTURES === 'true') {
     return getFallbackDispositions(params, mode);
+  }
+
+  const bq = getBigQueryClient(client.bigQueryProject);
+  if (mode === 'lead_status') {
+    return await queryLeadStatusDispositions(bq, params, client);
+  } else {
+    return await queryCallRecordsDispositions(bq, params, client);
   }
 }
 
@@ -68,7 +68,8 @@ async function queryLeadStatusDispositions(
         COALESCE(NULLIF(TRIM(hlc.vendor), ''), 'Unknown') AS vendor,
         SAFE_CAST(hlc.first_call_date AS TIMESTAMP) AS first_call_ts,
         SAFE_CAST(hlc.delivered AS TIMESTAMP) AS delivered_ts,
-        SAFE_CAST(hlc.date_created AS TIMESTAMP) AS date_created_ts,
+        SAFE_CAST(hlc.attempted_to_deliver AS TIMESTAMP) AS attempted_ts,
+        SAFE_CAST(l.fetched AS TIMESTAMP) AS fetched_ts,
         hlc.transaction_id,
         SAFE_CAST(hlc.total_calls AS INT64) AS total_calls,
         SAFE_CAST(hlc.rpc AS INT64) > 0 AS is_rpc,
@@ -82,7 +83,7 @@ async function queryLeadStatusDispositions(
       SELECT
         lead_id,
         vendor,
-        ARRAY_AGG(last_dialer_status IGNORE NULLS ORDER BY IF(first_call_ts IS NULL, 1, 0), first_call_ts DESC, delivered_ts DESC, date_created_ts DESC, transaction_id DESC LIMIT 1)[SAFE_OFFSET(0)] AS current_status,
+        ARRAY_AGG(last_dialer_status IGNORE NULLS ORDER BY IF(first_call_ts IS NULL, 1, 0), first_call_ts DESC, delivered_ts DESC, fetched_ts DESC, transaction_id DESC LIMIT 1)[SAFE_OFFSET(0)] AS current_status,
         MAX(total_calls) AS total_calls,
         COUNTIF(first_call_ts IS NOT NULL) > 0 AS is_dialled,
         LOGICAL_OR(is_rpc) AS is_rpc,

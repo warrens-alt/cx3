@@ -10,6 +10,7 @@ import {
   buildLeadStatusResult,
   buildCallRecordsResult,
   getFallbackDispositions,
+  getContactDispositionsAnalytics,
 } from '../../server/analytics/contact/dispositions';
 
 test('vendor-dispositions: version and taxonomy integrity', () => {
@@ -156,6 +157,12 @@ test('vendor-dispositions: metric calculations handle zero denominator safely wi
   assert.equal(result.summary.dialledEntities, 0);
   assert.equal(result.summary.dispositionCoveragePct, null);
   assert.deepEqual(result.vendorSummaries, []);
+});
+
+test('vendor-dispositions: query failure throws an explicit error and does not return fallback vendor figures', async () => {
+  await assert.rejects(async () => {
+    await getContactDispositionsAnalytics({ clientId: 'nonexistent_client_fail_closed' });
+  });
 });
 
 test('vendor-dispositions: fallback generator produces deterministic datasets for both modes', () => {

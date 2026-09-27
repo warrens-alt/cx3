@@ -29,8 +29,8 @@ export const NAVIGATION_PAGES: NavigationPage[] = [
   { name: 'Vendor performance', path: '/vendor-quality', description: 'Compare vendors, sources and lead quality on like-for-like populations.', section: 'performance', icon: BarChart3, aliases: ['quality', 'partners', 'source performance', 'grade mix'] },
   { name: 'Lead routing', path: '/routing', description: 'Did leads reach the intended receiving operation?', section: 'funnel', icon: Route, aliases: ['handoffs', 'assignment', 'product routing'] },
   { name: 'Cohort maturation', path: '/cohorts', description: 'Compare outcomes after equivalent follow-up time.', section: 'funnel', icon: ChartNoAxesCombined, aliases: ['cohort', 'age', 'maturation'] },
+  { name: 'Contact performance', path: '/contact-strategy', description: 'Observe call-count outcomes, attempt saturation and vendor dispositions.', section: 'contact', icon: PhoneCall, aliases: ['dispositions', 'vendor dispositions', 'attempts', 'retry', 'redial', 'recycling', 'one call', 'contact performance'] },
   { name: 'Speed to lead', path: '/speed-to-lead', description: 'How quickly are delivered leads first dialled?', section: 'contact', icon: Timer, aliases: ['response', 'first call', 'sla', 'undialled'] },
-  { name: 'Contact strategy', path: '/contact-strategy', description: 'Are call attempts, follow-up and outcomes evidenced?', section: 'contact', icon: ListChecks, aliases: ['attempts', 'retry', 'redial', 'recycling', 'one call'] },
   { name: 'Caller ID performance', path: '/cli-performance', description: 'Which caller numbers have different observed call outcomes?', section: 'contact', icon: PhoneOutgoing, aliases: ['cli', 'phone', 'dialler'] },
   { name: 'Agent activity', path: '/agent-performance', description: 'What calls and outcomes are recorded per agent?', section: 'contact', icon: Users, aliases: ['agent performance', 'rpc', 'team'] },
   { name: 'Time & day performance', path: '/temporal', description: 'How do capture and calling windows differ?', section: 'contact', icon: CalendarDays, aliases: ['calendar', 'temporal', 'hourly', 'overnight', 'weekend'] },
@@ -46,7 +46,7 @@ export const NAVIGATION_PAGES: NavigationPage[] = [
   { name: 'Settings', path: '/admin', description: 'Workspace connections and display preferences.', section: 'settings', icon: Settings, aliases: ['appearance', 'density', 'spacing', 'system', 'configuration'] },
   { name: 'Access control', path: '/access-control', description: 'Manage roles and permitted workspaces.', section: 'settings', icon: Shield, aliases: ['users', 'admin', 'permissions', 'invite'], adminOnly: true },
 ];
-const primaryPaths = ['/overview', '/funnel', '/speed-to-lead', '/sales-activation', '/commercial', '/exceptions', '/admin'];
+const primaryPaths = ['/overview', '/funnel', '/contact-strategy', '/sales-activation', '/commercial', '/exceptions', '/admin'];
 const primaryItems = primaryPaths.map(path => {
   const page = NAVIGATION_PAGES.find(item => item.path === path)!;
   return { ...page, name: SECTION_NAMES[page.section], icon: page.section === 'contact' ? PhoneCall : page.icon };
