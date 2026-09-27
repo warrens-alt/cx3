@@ -14,8 +14,11 @@ import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import { RankedMetricChart } from '../components/charts/OperationalVisuals';
 import { DataIntakePanel } from '../components/DataIntakePanel';
 import { useAuth } from '../lib/AuthContext';
+import BlcLifecycleCard from '../components/BlcLifecycleCard';
+import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 
 export default function DataIntegrityIntelligence() {
+  const scoped = useScopedNavigationTarget();
   const { selectedClient } = useClient();
   const { isAdmin } = useAuth();
   const controls = useOperatingControls();
@@ -72,7 +75,9 @@ export default function DataIntegrityIntelligence() {
                 <Clock3 size={16} className="text-slate-400"/>
               </header>
               <div className="cx-source-grid">
-                {(data.sources || []).map(source => (
+                {(data.sources || []).map(source => source.key === 'activationLifecycle' ? (
+                  <BlcLifecycleCard key={source.key} source={source} reportHref={scoped('/sales-activation')} />
+                ) : (
                   <article key={source.key}>
                     <div>
                       <span>{source.label}</span>
