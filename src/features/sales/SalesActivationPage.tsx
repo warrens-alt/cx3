@@ -22,6 +22,7 @@ import SalesOutcomeSummary from './components/SalesOutcomeSummary';
 import ActivationAgeing from './components/ActivationAgeing';
 import SalesSegmentComparison from './components/SalesSegmentComparison';
 import SalesTimingAndCoverage from './components/SalesTimingAndCoverage';
+import BlcReportingPanel from './components/BlcReportingPanel';
 
 export default function SalesActivationPage() {
   const {
@@ -128,6 +129,9 @@ export default function SalesActivationPage() {
             Intake window filtering: does not truncate delayed post-sale activation events
           </div>
         </div>
+
+        {/* Independent source evidence remains available when the cohort query is unavailable. */}
+        <BlcReportingPanel />
 
         {/* Error State */}
         {error && (
