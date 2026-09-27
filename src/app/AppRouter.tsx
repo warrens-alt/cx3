@@ -21,6 +21,7 @@ function safeImport<T>(loader: () => Promise<T>): Promise<T> {
 // Lazy-loaded report and specialist surfaces
 export const VersionedReports = React.lazy(() => safeImport(() => import('../pages/VersionedReports')));
 export const UserManagement = React.lazy(() => safeImport(() => import('../pages/UserManagement')));
+export const OverviewPage = React.lazy(() => safeImport(() => import('../features/overview/OverviewPage')));
 export const ExecutiveOverview = React.lazy(() => safeImport(() => import('../pages/ExecutiveOverview')));
 export const FunnelIntelligence = React.lazy(() => safeImport(() => import('../pages/FunnelIntelligence')));
 export const SpeedToLeadIntelligence = React.lazy(() => safeImport(() => import('../pages/SpeedToLeadIntelligence')));
@@ -108,8 +109,8 @@ export default function AppRouter() {
       >
         <Routes>
           {/* PRIMARY OFFERNET OPERATIONAL INTELLIGENCE PLATFORM ROUTES */}
-          <Route path="/" element={<ExecutiveOverview key={selectedClient} />} />
-          <Route path="/overview" element={<ExecutiveOverview key={selectedClient} />} />
+          <Route path="/" element={<OverviewPage key={selectedClient} />} />
+          <Route path="/overview" element={<OverviewPage key={selectedClient} />} />
           <Route path="/funnel" element={<FunnelIntelligence key={selectedClient} />} />
           <Route path="/speed-to-lead" element={<SpeedToLeadIntelligence key={selectedClient} />} />
           <Route path="/contact-strategy" element={<ContactStrategyIntelligence key={selectedClient} />} />

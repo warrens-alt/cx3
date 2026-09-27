@@ -1,20 +1,42 @@
 import { useState, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { useOperationalData } from '../../../lib/useOperationalData';
 import { useFilters, extractOffernetFilters } from '../../../lib/FilterContext';
 import { useClient } from '../../../lib/ClientContext';
 import { useAuth } from '../../../lib/AuthContext';
 import { fetchOverview, fetchCommercial, type OverviewData, type RootCauseData } from '../../../lib/offernetClient';
+import type { LifecycleExtension } from '../../../../contracts/lifecycleAnalytics';
 import { useOperatingControls } from '../../../hooks/useOperatingControls';
 import type { InspectorContent } from '../../../shared/evidence/InspectorHost';
 
 export type RootMetric = RootCauseData['metric']['id'];
 
+export type FullOverviewData = OverviewData & LifecycleExtension & {
+  revenueEvidence?: { missingLeadValues: number; basis: string };
+  contactEvidence?: {
+    zeroCallLeads: number;
+    oneCallLeads: number;
+    oneCallShare: number | null;
+    multiCallShare: number | null;
+    fivePlusNoRpc: number;
+    medianCaptureToDial: string;
+    p90CaptureToDial: string;
+    within30m: number | null;
+    within60m: number | null;
+    backlogOver15m: number;
+    backlogOver30m: number;
+    backlogOver6h: number;
+    backlogOver12h: number;
+    awaitingActivation: number;
+    activationOver3d: number;
+    activationOver7d: number;
+    activationOver30d: number;
+  };
+};
+
 export function useOverviewModel() {
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
   const { isAdmin } = useAuth();
-  const [searchParams] = useSearchParams();
 
   const [inspectorContent, setInspectorContent] = useState<InspectorContent | null>(null);
   const [rootMetric, setRootMetric] = useState<RootMetric | null>(null);
@@ -26,7 +48,7 @@ export function useOverviewModel() {
     ...extractOffernetFilters(filters),
   }), [selectedClient, startDate, endDate, filters]);
 
-  const overviewQuery = useOperationalData<OverviewData>('ExecutiveOverview', scope, fetchOverview);
+  const overviewQuery = useOperationalData<FullOverviewData>('ExecutiveOverview', scope, fetchOverview);
   const commercialQuery = useOperationalData('commercial', scope, fetchCommercial);
   const controls = useOperatingControls();
 
@@ -44,12 +66,19 @@ export function useOverviewModel() {
 
   const hasComparison = Boolean(startDate && endDate && data?.comparisonWindow);
 
+  const investigate = (metric: RootMetric) => {
+    if (hasComparison) {
+      setRootMetric(metric);
+    }
+  };
+
   return {
     data,
     loading,
     error,
     refreshAll,
     hasComparison,
+    investigate,
     isAdmin,
     inspectorContent,
     setInspectorContent,
@@ -58,5 +87,6 @@ export function useOverviewModel() {
     setRootMetric,
     commercial: commercialQuery,
     controls,
+    scope,
   };
 }

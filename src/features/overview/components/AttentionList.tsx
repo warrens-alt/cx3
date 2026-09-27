@@ -62,7 +62,7 @@ export default function AttentionList({ items = [], isAdmin }: AttentionListProp
                 <Link
                   to={
                     isAdmin
-                      ? `/lead-explorer?drill=${encodeURIComponent(item.id)}`
+                      ? scoped(`/lead-explorer?drill=${encodeURIComponent(item.id)}`)
                       : scoped(item.path)
                   }
                   className="p-2.5 rounded-lg border border-border-subtle bg-surface-subtle hover:bg-surface-sec hover:border-brand-primary/40 transition-colors flex items-center justify-between gap-3 text-xs group"

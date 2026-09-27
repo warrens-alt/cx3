@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Info, ArrowRight, ShieldCheck, RefreshCw } from 'lucide-react';
-import { useOverviewModel } from './model/useOverviewModel';
+import { Info, ArrowRight, RefreshCw, Settings2, ChevronDown, Clock3, TrendingUp, TrendingDown, Search } from 'lucide-react';
+import { useOverviewModel, type RootMetric } from './model/useOverviewModel';
 import OutcomeStrip from './components/OutcomeStrip';
 import PerformanceTrend from './components/PerformanceTrend';
 import AttentionList from './components/AttentionList';
@@ -13,6 +13,10 @@ import { OperationalEmpty, OperationalError, OverviewSkeleton } from '../../comp
 import { statusLabel } from '../../lib/statusPresentation';
 import { useScopedNavigationTarget } from '../../hooks/useScopedNavigationTarget';
 import RootCauseDrawer from '../../components/RootCauseDrawer';
+import { formatPercent, formatTableNumber } from '../../lib/formatters';
+import { downloadAnalysisCsv, type AnalysisCell } from '../../lib/analysisExport';
+import { OperatingControlStrip } from '../../components/OfferNetControlPanels';
+import OverviewCommercialPanel from '../../components/OverviewCommercialPanel';
 
 export default function OverviewPage() {
   const scoped = useScopedNavigationTarget();
@@ -21,18 +25,82 @@ export default function OverviewPage() {
     loading,
     error,
     refreshAll,
+    hasComparison,
+    investigate,
     isAdmin,
     inspectorContent,
     setInspectorContent,
     closeInspector,
     rootMetric,
     setRootMetric,
+    commercial,
+    controls,
+    scope,
   } = useOverviewModel();
+
+  // Export Overview summary CSV carrying full scope and analytical audit metadata
+  const handleExportOverviewCsv = () => {
+    if (!data) return;
+    const clientId = scope.clientId || 'overview';
+    const filename = `overview_${clientId}_${scope.startDate || 'all'}_${scope.endDate || 'all'}`;
+
+    const rows: AnalysisCell[][] = [
+      ['Section', 'Metric / Item', 'Observed Value', 'Rate / Context'],
+      ['Outcomes', 'Fetched leads', data.kpis.fetchedLeads, 'Total acquired demand'],
+      ['Outcomes', 'Delivered leads', data.kpis.deliveredLeads, `${formatPercent(data.kpis.deliveryRate)} delivery rate`],
+      ['Outcomes', 'Dialled leads', data.kpis.dialledLeads, `${formatPercent(data.kpis.dialRate)} dial rate`],
+      ['Outcomes', 'Right-party contact (RPC)', data.kpis.contactedLeads, `${formatPercent(data.kpis.contactRate)} contact rate`],
+      ['Outcomes', 'Recorded sales', data.kpis.saleLeads, `${formatPercent(data.kpis.leadToSaleRate)} lead-to-sale rate`],
+      ['Outcomes', 'Activations', data.kpis.activatedLeads, `${formatPercent(data.kpis.activationRate)} of recorded sales`],
+      ...(data.funnelStages || []).map(stage => [
+        'Lifecycle Journey',
+        stage.name,
+        stage.volume,
+        stage.transitionRate != null ? `${formatPercent(stage.transitionRate)} from prior` : 'Intake population',
+      ]),
+      ...(data.attention || []).map(att => [
+        'Attention Queue',
+        att.title,
+        att.value,
+        att.detail,
+      ]),
+    ];
+
+    downloadAnalysisCsv(filename, rows, {
+      clientId,
+      startDate: scope.startDate,
+      endDate: scope.endDate,
+      filters: scope,
+      validationStatus: data.validationStatus || 'NOT_VERIFIED',
+      dateBasis: 'lead_capture_cohort',
+      definitions: ['fetched_leads', 'delivery_rate', 'dial_rate', 'rpc_rate', 'sales_per_fetched_rate', 'activation_rate'],
+    });
+  };
+
+  // Matched-period meaningful changes ranked by absolute significance
+  const meaningfulChanges = useMemo(() => {
+    if (!data?.comparison) return [];
+    const c = data.comparison;
+    return [
+      { label: 'Lead volume', value: c.fetchedDelta, unit: '%', metric: 'fetchedLeads' as RootMetric },
+      { label: 'Delivery rate', value: c.deliveryRateDelta, unit: 'pp', metric: 'deliveryRate' as RootMetric },
+      { label: 'Dial coverage', value: c.dialRateDelta, unit: 'pp', metric: 'dialRate' as RootMetric },
+      { label: 'Right-party contact', value: c.contactRateDelta, unit: 'pp', metric: 'contactRate' as RootMetric },
+      { label: 'Lead-to-sale rate', value: c.saleRateDelta, unit: 'pp', metric: 'leadToSaleRate' as RootMetric },
+      { label: 'Activation / sale', value: c.activationRateDelta, unit: 'pp', metric: 'activationRate' as RootMetric },
+    ]
+      .filter(item => item.value !== null && Number.isFinite(item.value))
+      .sort((a, b) => Math.abs(Number(b.value)) - Math.abs(Number(a.value)))
+      .slice(0, 4);
+  }, [data?.comparison]);
 
   return (
     <div className="space-y-6">
       {/* Scope Bar */}
-      <ReportingScopeBar onRefresh={refreshAll} />
+      <ReportingScopeBar
+        onRefresh={refreshAll}
+        onExportCsv={data ? handleExportOverviewCsv : undefined}
+      />
 
       {/* Page Header */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-1 border-b border-border-subtle pb-4">
@@ -47,7 +115,7 @@ export default function OverviewPage() {
 
         <Link
           to={scoped('/reports')}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border-subtle bg-surface hover:bg-surface-subtle transition-colors text-xs text-text-sec shadow-xs"
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border-subtle bg-surface hover:bg-surface-subtle transition-colors text-xs text-text-sec shadow-xs shrink-0"
           title="Inspect evidence and verification status"
         >
           <Info size={14} className="text-brand-primary" aria-hidden="true" />
@@ -86,13 +154,61 @@ export default function OverviewPage() {
           <OutcomeStrip
             data={data}
             onInspect={content => setInspectorContent(content)}
+            onWhyChanged={investigate}
             isAdmin={isAdmin}
+            hasComparison={hasComparison}
           />
 
           {data.kpis?.fetchedLeads === 0 && (
             <OperationalEmpty title="No leads in this selection">
               Try a different period or remove a filter. Measured counts remain zero; rates without a population are unavailable.
             </OperationalEmpty>
+          )}
+
+          {/* Meaningful Matched-Period Changes Banner (when comparison is active) */}
+          {hasComparison && meaningfulChanges.length > 0 && (
+            <section
+              aria-label="Meaningful outcome changes"
+              className="p-3.5 rounded-lg bg-surface-subtle border border-border-subtle flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs"
+            >
+              <div className="flex items-center gap-2 text-text-sec shrink-0">
+                <Clock3 size={15} className="text-brand-primary" />
+                <span className="font-semibold text-text-main">Meaningful changes:</span>
+                <span className="text-text-mute hidden lg:inline">
+                  Ranked by shift vs {data.comparisonWindow?.startDate} – {data.comparisonWindow?.endDate}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {meaningfulChanges.map(change => {
+                  const val = Number(change.value);
+                  const isPos = val > 0;
+                  const isZero = val === 0;
+                  const Icon = isPos ? TrendingUp : isZero ? ArrowRight : TrendingDown;
+                  return (
+                    <button
+                      key={change.label}
+                      type="button"
+                      onClick={() => investigate(change.metric)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface border border-border-subtle hover:border-brand-primary/40 hover:text-brand-primary transition-colors cursor-pointer group"
+                      title={`Investigate ${change.label} shift`}
+                    >
+                      <span className="text-text-sec">{change.label}:</span>
+                      <span
+                        className={`font-semibold cx-tabular inline-flex items-center gap-0.5 ${
+                          isPos ? 'text-semantic-pos' : isZero ? 'text-text-mute' : 'text-semantic-neg'
+                        }`}
+                      >
+                        <Icon size={11} />
+                        <span>{isPos ? '+' : ''}{change.value}{change.unit}</span>
+                      </span>
+                      <span className="text-[10px] text-text-mute group-hover:text-brand-primary inline-flex items-center ml-0.5">
+                        Why? <Search size={10} className="ml-0.5" />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
           )}
 
           {/* 2. Primary 8/4 Layout: Performance Trend (2/3) + Needs Attention (1/3) */}
@@ -105,7 +221,7 @@ export default function OverviewPage() {
             </div>
             <div className="lg:col-span-4">
               <AttentionList
-                items={data.attention as any}
+                items={data.attention}
                 isAdmin={isAdmin}
               />
             </div>
@@ -116,10 +232,131 @@ export default function OverviewPage() {
             stages={data.funnelStages}
             funnelLeak={data.funnelLeak}
             isAdmin={isAdmin}
+            onInspectStage={(stage) => {
+              setInspectorContent({
+                type: 'stage',
+                title: `${stage.name} Stage`,
+                subtitle: 'Observed lifecycle population across the selected reporting period.',
+                value: `${formatTableNumber(stage.volume)} leads`,
+                unit: 'records',
+                reportPath: '/funnel',
+                reportLabel: 'Open deep funnel analysis',
+                recordDrill: {
+                  drill: 'funnel-stage',
+                  drillValue: stage.key,
+                  label: `Inspect ${stage.name} lead records in Lead Explorer`,
+                },
+              });
+            }}
+            onInspectLoss={(from, to, loss, lossKey) => {
+              setInspectorContent({
+                type: 'stage',
+                title: `${from} → ${to} Transition Dropoff`,
+                subtitle: `Leads observed in ${from} that did not progress to ${to}.`,
+                value: `−${formatTableNumber(loss)} leads`,
+                unit: 'dropoff records',
+                reportPath: '/funnel',
+                reportLabel: 'Open deep funnel analysis',
+                recordDrill: {
+                  drill: 'funnel-loss',
+                  drillValue: lossKey,
+                  label: `Inspect ${from} → ${to} loss records in Lead Explorer`,
+                },
+              });
+            }}
           />
 
-          {/* 4. Segment Comparison (Replaces stacked tables with Tabbed Vendor / Source / Grade) */}
-          <SegmentComparison data={(data as any).segments ?? (data as any).backlog} />
+          {/* 4. Segment Comparison (Receives verified lifecycle segments, no backlog fallback!) */}
+          <SegmentComparison
+            segments={data.lifecycle?.segments || null}
+            totalPopulation={data.kpis?.fetchedLeads}
+            unsupportedDimensions={data.lifecycle?.unsupportedDimensions}
+            onInspectSegment={(segment) => {
+              setInspectorContent({
+                type: 'segment',
+                title: `${segment.dimension.charAt(0).toUpperCase() + segment.dimension.slice(1)}: ${segment.name}`,
+                subtitle: `Observed outcome rates and stage conversion in current reporting scope.`,
+                value: `${formatTableNumber(segment.volume)} leads`,
+                unit: 'records',
+                numeratorCount: segment.sales,
+                numeratorLabel: 'Recorded sales (sales count)',
+                denominatorCount: segment.volume,
+                denominatorLabel: 'Fetched leads (denominator)',
+                reportPath: segment.dimension === 'grade' ? '/funnel' : '/vendor-quality',
+                reportLabel: `Open complete ${segment.dimension} breakdown`,
+                recordDrill: {
+                  drill: segment.dimension,
+                  drillValue: segment.name,
+                  label: `Inspect ${segment.name} lead records in Lead Explorer`,
+                },
+                details: (
+                  <div className="space-y-3 p-4 bg-surface border border-border-subtle rounded-lg text-xs">
+                    <h3 className="font-semibold text-text-mute uppercase tracking-wider">
+                      Segment Lifecycle Progression
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2 text-text-sec">
+                      <div className="p-2 rounded bg-surface-subtle border border-border-subtle">
+                        <span className="text-[11px] text-text-mute block">Delivered</span>
+                        <span className="font-bold text-sm cx-tabular text-text-main">
+                          {formatTableNumber(segment.delivered)}
+                        </span>
+                        <span className="text-text-mute ml-1">({formatPercent(segment.deliveryRate)})</span>
+                      </div>
+                      <div className="p-2 rounded bg-surface-subtle border border-border-subtle">
+                        <span className="text-[11px] text-text-mute block">Right-Party Contact</span>
+                        <span className="font-bold text-sm cx-tabular text-text-main">
+                          {formatTableNumber(segment.rpc)}
+                        </span>
+                        <span className="text-text-mute ml-1">({formatPercent(segment.contactRate)})</span>
+                      </div>
+                      <div className="p-2 rounded bg-surface-subtle border border-border-subtle">
+                        <span className="text-[11px] text-text-mute block">Recorded Sales</span>
+                        <span className="font-bold text-sm cx-tabular text-text-main">
+                          {formatTableNumber(segment.sales)}
+                        </span>
+                        <span className="text-text-mute ml-1">({formatPercent(segment.saleRate)})</span>
+                      </div>
+                      <div className="p-2 rounded bg-surface-subtle border border-border-subtle">
+                        <span className="text-[11px] text-text-mute block">Activations</span>
+                        <span className="font-bold text-sm cx-tabular text-text-main">
+                          {formatTableNumber(segment.activations)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ),
+              });
+            }}
+          />
+
+          {/* 5. Collapsible Operating Controls */}
+          {controls.data && (
+            <details className="cx-overview-controls rounded-lg border border-border-subtle bg-surface p-4">
+              <summary className="flex items-center justify-between cursor-pointer list-none">
+                <div className="flex items-center gap-2">
+                  <Settings2 size={18} className="text-brand-primary" aria-hidden="true" />
+                  <div>
+                    <strong className="text-sm text-text-main block">Operating controls</strong>
+                    <small className="text-xs text-text-mute">Call effort, coverage and activation backlog</small>
+                  </div>
+                </div>
+                <ChevronDown size={16} className="text-text-mute" aria-hidden="true" />
+              </summary>
+              <div className="mt-4 pt-4 border-t border-border-subtle">
+                <OperatingControlStrip data={controls.data} />
+              </div>
+            </details>
+          )}
+
+          {/* 6. Overview Commercial Summary */}
+          {commercial.data && (
+            <OverviewCommercialPanel
+              data={commercial.data}
+              loading={commercial.loading}
+              error={commercial.error}
+              onRetry={() => { void commercial.loadData(true); }}
+            />
+          )}
         </>
       )}
 

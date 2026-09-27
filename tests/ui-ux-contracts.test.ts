@@ -618,3 +618,53 @@ test('duplicate section navigation is removed and does not compete with AppShell
   assert.match(sectionNav, /return null/);
 });
 
+test('R2: Overview router mounts OverviewPage on / and /overview', () => {
+  const router = read('src/app/AppRouter.tsx');
+  assert.match(router, /import\('\.\.\/features\/overview\/OverviewPage'\)/);
+  assert.match(router, /path="\/" element={<OverviewPage key={selectedClient} \/>}/);
+  assert.match(router, /path="\/overview" element={<OverviewPage key={selectedClient} \/>}/);
+});
+
+test('R2: PerformanceTrend adapts Overview API dailyTrends without zero-filling absent metrics', async () => {
+  const { adaptDailyTrends } = await import('../src/features/overview/components/PerformanceTrend');
+  const apiRows = [
+    { date: '2026-09-01', leads: 150, delivered: 120, sales: 15, activations: 10, dialled: 110, contacted: 60, revenue: 15000 },
+    { date: '2026-09-02', leads: 200, delivered: 180, sales: 25 },
+  ];
+  const adapted = adaptDailyTrends(apiRows);
+  assert.equal(adapted.length, 2);
+  assert.equal(adapted[0].leads, 150);
+  assert.equal(adapted[0].delivered, 120);
+  assert.equal(adapted[0].sales, 15);
+  assert.equal(adapted[0].activations, 10);
+  assert.equal(adapted[0].dialled, 110);
+  assert.equal(adapted[0].contacted, 60);
+
+  // Absent values must remain undefined rather than fabricated zero
+  assert.equal(adapted[1].dialled, undefined);
+  assert.equal(adapted[1].contacted, undefined);
+  assert.equal(adapted[1].activations, undefined);
+  assert.equal(adapted[1].revenue, undefined);
+});
+
+test('R2: OverviewPage binds verified lifecycle segments directly and eliminates backlog substitution', () => {
+  const overviewPage = read('src/features/overview/OverviewPage.tsx');
+  assert.doesNotMatch(overviewPage, /data\.segments \?\? data\.backlog/);
+  assert.match(overviewPage, /segments=\{data\.lifecycle\?\.segments \|\| null\}/);
+});
+
+test('R2: SegmentComparison defines typed segment model, sorts by volume with stable tie-breaker, and discloses subset', () => {
+  const segmentComp = read('src/features/overview/components/SegmentComparison.tsx');
+  assert.match(segmentComp, /TypedSegmentItem/);
+  assert.match(segmentComp, /b\.volume - a\.volume/);
+  assert.match(segmentComp, /a\.name\.localeCompare\(b\.name\)/);
+  assert.match(segmentComp, /Showing top \{displayedSubset\.length\} of \{sortedItems\.length\}/);
+});
+
+test('R2: InspectorHost preserves reporting scope on evidence drill navigation', () => {
+  const inspector = read('src/shared/evidence/InspectorHost.tsx');
+  assert.match(inspector, /useScopedNavigationTarget/);
+  assert.match(inspector, /to=\{scoped\(drillPath\)\}/);
+});
+
+
