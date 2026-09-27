@@ -5,23 +5,14 @@ import { safeWarehouseColumn } from '../common/warehouse';
 import { buildFilterClause } from '../common/scope';
 import { marketingTenantFilter } from '../common/marketing';
 import { safeSourceError } from '../../bigquery/sourceAccess';
-import { activationSourceIsOwned } from '../../bigquery/sourceTenantScope';
+import { getBlcLifecycleDiagnostics, blcLifecycleSourceCards } from '../../blc/lifecycleDiagnostics';
+import type { LifecycleSourceCard } from '../../../contracts/blcLifecycle';
 import { validTimestampSql } from '../../bigquery/integrity';
 
 export async function getSourceObservability(params: Pick<OffernetQueryParams, 'clientId'>) {
   const clientConfig = getClientConfig(params.clientId);
   const client = getBigQueryClient(clientConfig.bigQueryProject);
-  const sources: Array<{
-    key: string;
-    label: string;
-    status: string;
-    table: string | null;
-    latestRecordAt: string | null;
-    ageHours: number | null;
-    rowCount: number | null;
-    detail: string;
-    missingTimestampRows?: number;
-  }> = [];
+  const sources: LifecycleSourceCard[] = [];
 
   const pushFreshness = async (
     key: string,
@@ -117,7 +108,7 @@ export async function getSourceObservability(params: Pick<OffernetQueryParams, '
     sources.push({
       key: 'calls', label: 'Dialler calls', status: 'MAPPING_REQUIRED', table: callTable || null,
       latestRecordAt: null, ageHours: null, rowCount: null,
-      detail: 'Approved vendor ownership mapping is required before this tenant can inspect the shared call source.',
+      detail: 'Approved vendor ownership mapping is required for this tenant before it can inspect the shared call source.',
     });
   }
 
@@ -157,32 +148,9 @@ export async function getSourceObservability(params: Pick<OffernetQueryParams, '
     );
   }
 
-  if (clientConfig.semanticMappings.tables.activations && !activationSourceIsOwned(params.clientId)) {
-    sources.push({
-      key: 'activations', label: 'Activation source', status: 'MAPPING_REQUIRED',
-      table: clientConfig.semanticMappings.tables.activations,
-      latestRecordAt: null, ageHours: null, rowCount: null,
-      detail: 'Tenant ownership is not established for the separate activation lifecycle source.',
-    });
-  } else if (clientConfig.semanticMappings.tables.activations) {
-    await pushFreshness(
-      'activations',
-      'Activation source',
-      clientConfig.semanticMappings.tables.activations,
-      validTimestampSql('date_created'),
-    );
-  } else {
-    sources.push({
-      key: 'activations',
-      label: 'Activation source',
-      status: 'UNAVAILABLE',
-      table: null,
-      latestRecordAt: null,
-      ageHours: null,
-      rowCount: null,
-      detail: 'No separate activation lifecycle table is contracted for this tenant; nested operational activation timestamps remain the available source.',
-    });
-  }
+  // Source and lifecycle cards share one metadata check and aggregate read.
+  const activationCards = blcLifecycleSourceCards(await getBlcLifecycleDiagnostics(params.clientId));
+  sources.push(activationCards[0]);
 
   sources.push({
     key: 'diallerRealtime',
@@ -195,16 +163,7 @@ export async function getSourceObservability(params: Pick<OffernetQueryParams, '
     detail: 'Required for live agent states, hopper priority/levels, dial level, drop rate and hopper-reset events. Historical BigQuery call rows do not provide this live control-plane state.',
   });
 
-  sources.push({
-    key: 'activationLifecycle',
-    label: 'BLC Rubix / activation lifecycle contract',
-    status: 'CONTRACT_REQUIRED',
-    table: clientConfig.semanticMappings.tables.activations || null,
-    latestRecordAt: null,
-    ageHours: null,
-    rowCount: null,
-    detail: 'Contract ID, Rubix status, activation status, activation timestamp and deal/color need a reconciled record-level source contract before CX3 treats lifecycle stages as canonical.',
-  });
+  if (activationCards[1]) sources.push(activationCards[1]);
 
   return {
     status: 'OBSERVED',
