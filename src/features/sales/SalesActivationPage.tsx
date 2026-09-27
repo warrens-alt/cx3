@@ -7,10 +7,8 @@ import {
   CheckCircle2,
   Clock3,
   DollarSign,
-  Download,
   Info,
   PackageCheck,
-  RefreshCw,
   Search,
   ShieldCheck,
   X,
@@ -64,19 +62,17 @@ export default function SalesActivationPage() {
 
       <div className="cx-command-content space-y-5">
         {/* Page Header */}
-        <header className="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-2 border-b border-slate-100">
+        <header className="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-2 border-b border-border-subtle">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
-                Outcomes
-              </span>
-              <span className="text-xs text-slate-400">•</span>
-              <span className="text-xs text-slate-500">Sales & activation</span>
+            <div className="flex items-center gap-1.5 text-xs text-text-sec">
+              <span className="cx-command-eyebrow">Outcomes</span>
+              <span className="text-text-muted" aria-hidden="true">·</span>
+              <span className="font-medium text-text-muted">Sales & activation</span>
             </div>
-            <h1 className="text-2xl font-bold text-slate-900 mt-1 tracking-tight">
+            <h1 className="text-2xl font-bold text-text-main mt-1 tracking-tight">
               Sales & activation
             </h1>
-            <p className="text-xs text-slate-600 mt-1 max-w-2xl leading-relaxed">
+            <p className="text-xs text-text-sec mt-1 max-w-2xl leading-relaxed">
               Recorded outcomes for the selected operational intake cohort. Understand confirmed sales, independent activation fulfilment, post-sale queue ageing, and source-recorded revenue.
             </p>
           </div>
@@ -92,28 +88,6 @@ export default function SalesActivationPage() {
               <span>About methodology</span>
             </button>
 
-            <button
-              type="button"
-              onClick={refreshAll}
-              disabled={loading}
-              className="cx-button-secondary text-xs flex items-center gap-1.5 py-1.5 px-3"
-              title="Refresh sales & activation outcomes"
-            >
-              <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-              <span>Refresh</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleExportCompleteWorkbook}
-              disabled={!model}
-              className="cx-button-primary text-xs flex items-center gap-1.5 py-1.5 px-3.5"
-              title="Download complete sales & activation outcomes CSV"
-            >
-              <Download size={13} />
-              <span>Export outcomes</span>
-            </button>
-
             <Link
               to={scoped('/commercial')}
               className="cx-button-secondary text-xs flex items-center gap-1 py-1.5 px-3"
@@ -126,31 +100,31 @@ export default function SalesActivationPage() {
         </header>
 
         {/* Operational Context Sub-Bar */}
-        <div className="bg-slate-50 border border-slate-200/80 rounded-lg p-2.5 px-3.5 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
+        <div className="bg-surface-subtle border border-border rounded-lg p-2.5 px-3.5 flex flex-wrap items-center justify-between gap-3 text-xs text-text-sec">
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-slate-700">Date basis:</span>
-              <span className="text-slate-900 bg-white border border-slate-200 px-2 py-0.5 rounded font-mono text-[11px]">
+              <span className="font-semibold text-text-sec">Date basis:</span>
+              <span className="text-text-main bg-surface border border-border px-2 py-0.5 rounded font-mono text-[11px]">
                 Operational intake cohort (lead intake date)
               </span>
             </div>
 
             <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-slate-700">Timezone:</span>
-              <span className="text-slate-900 font-mono text-[11px]">
+              <span className="font-semibold text-text-sec">Timezone:</span>
+              <span className="text-text-main font-mono text-[11px]">
                 {model?.methodology.timezone || 'Workspace standard (UTC)'}
               </span>
             </div>
 
             <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-slate-700">Currency:</span>
-              <span className="text-slate-900 font-mono text-[11px]">
+              <span className="font-semibold text-text-sec">Currency:</span>
+              <span className="text-text-main font-mono text-[11px]">
                 {model?.summary.currency || 'Not specified'}
               </span>
             </div>
           </div>
 
-          <div className="text-[11px] text-slate-500">
+          <div className="text-[11px] text-text-mute">
             Intake window filtering: does not truncate delayed post-sale activation events
           </div>
         </div>
@@ -165,8 +139,8 @@ export default function SalesActivationPage() {
 
         {/* Loading State */}
         {loading && !model && (
-          <div className="cx-command-loading py-12 text-center text-sm text-slate-500 flex flex-col items-center justify-center gap-3">
-            <div className="cx-command-spinner w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          <div className="cx-command-loading py-12 text-center text-sm text-text-sec flex flex-col items-center justify-center gap-3">
+            <div className="cx-command-spinner w-6 h-6 border-2 border-action border-t-transparent rounded-full animate-spin" />
             <span>Loading recorded sales and activation outcomes…</span>
           </div>
         )}
@@ -214,44 +188,44 @@ export default function SalesActivationPage() {
             <section className="cx-command-shortcuts grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
               <Link
                 to={scoped('/commercial')}
-                className="enterprise-card p-3 flex items-center justify-between hover:bg-slate-50 transition-colors rounded-lg border border-slate-200"
+                className="enterprise-card p-3 flex items-center justify-between hover:bg-surface-subtle transition-colors rounded-lg border border-border"
               >
                 <div className="flex items-center gap-2.5">
                   <DollarSign size={18} className="text-purple-600" />
                   <div>
-                    <strong className="text-xs font-semibold text-slate-900 block">Spend & commercial</strong>
-                    <small className="text-[11px] text-slate-500">Relate observed media spend to recorded outcomes</small>
+                    <strong className="text-xs font-semibold text-text-main block">Spend & commercial</strong>
+                    <small className="text-[11px] text-text-sec">Relate observed media spend to recorded outcomes</small>
                   </div>
                 </div>
-                <ArrowRight size={14} className="text-slate-400" />
+                <ArrowRight size={14} className="text-text-mute" />
               </Link>
 
               <Link
                 to={scoped('/funnel')}
-                className="enterprise-card p-3 flex items-center justify-between hover:bg-slate-50 transition-colors rounded-lg border border-slate-200"
+                className="enterprise-card p-3 flex items-center justify-between hover:bg-surface-subtle transition-colors rounded-lg border border-border"
               >
                 <div className="flex items-center gap-2.5">
-                  <PackageCheck size={18} className="text-indigo-600" />
+                  <PackageCheck size={18} className="text-brand-primary" />
                   <div>
-                    <strong className="text-xs font-semibold text-slate-900 block">Funnel progression</strong>
-                    <small className="text-[11px] text-slate-500">Trace progression dropoff before sale and activation</small>
+                    <strong className="text-xs font-semibold text-text-main block">Funnel progression</strong>
+                    <small className="text-[11px] text-text-sec">Trace progression dropoff before sale and activation</small>
                   </div>
                 </div>
-                <ArrowRight size={14} className="text-slate-400" />
+                <ArrowRight size={14} className="text-text-mute" />
               </Link>
 
               <Link
                 to={scoped('/lead-explorer')}
-                className="enterprise-card p-3 flex items-center justify-between hover:bg-slate-50 transition-colors rounded-lg border border-slate-200"
+                className="enterprise-card p-3 flex items-center justify-between hover:bg-surface-subtle transition-colors rounded-lg border border-border"
               >
                 <div className="flex items-center gap-2.5">
-                  <Search size={18} className="text-emerald-600" />
+                  <Search size={18} className="text-semantic-pos" />
                   <div>
-                    <strong className="text-xs font-semibold text-slate-900 block">Lead explorer</strong>
-                    <small className="text-[11px] text-slate-500">Inspect individual authorized lead records and timelines</small>
+                    <strong className="text-xs font-semibold text-text-main block">Lead explorer</strong>
+                    <small className="text-[11px] text-text-sec">Inspect individual authorized lead records and timelines</small>
                   </div>
                 </div>
-                <ArrowRight size={14} className="text-slate-400" />
+                <ArrowRight size={14} className="text-text-mute" />
               </Link>
             </section>
           </div>
@@ -274,8 +248,8 @@ export default function SalesActivationPage() {
         <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2">
-              <BadgeCheck size={18} className="text-indigo-600" />
-              <h2 className="text-base font-bold text-slate-900">
+              <BadgeCheck size={18} className="text-action" />
+              <h2 className="text-base font-bold text-text-main">
                 Sales & Activation Methodology & Governance
               </h2>
             </div>

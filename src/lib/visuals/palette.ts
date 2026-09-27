@@ -1,5 +1,5 @@
 export const CHART_PALETTE = [
-  '#3562B3', // primary blue
+  '#315BCB', // primary blue
   '#0284c7', // cyan
   '#059669', // emerald
   '#d97706', // amber

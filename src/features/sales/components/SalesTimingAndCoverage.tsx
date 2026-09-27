@@ -50,35 +50,35 @@ export default function SalesTimingAndCoverage({
 
           <div className="grid grid-cols-2 gap-3 pt-3">
             {/* Capture to Sale */}
-            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-              <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">
+            <div className="bg-surface-subtle p-2.5 rounded-lg border border-border-subtle">
+              <span className="text-[11px] font-semibold text-text-sec block">
                 Capture → Sale
               </span>
               <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-lg font-bold text-slate-900">{timing.avgTimeToSale}</span>
-                <span className="text-[11px] text-slate-500">avg</span>
+                <span className="text-lg font-bold text-text-main">{timing.avgTimeToSale}</span>
+                <span className="text-[11px] text-text-muted">avg</span>
               </div>
-              <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
+              <div className="text-[11px] text-text-sec mt-1 flex items-center justify-between">
                 <span>Median: <strong>{timing.medianTimeToSale}</strong></span>
               </div>
-              <div className="text-[10px] text-slate-400 mt-1">
+              <div className="text-[10px] text-text-muted mt-1">
                 Start: Lead intake • End: Sale timestamp
               </div>
             </div>
 
             {/* Sale to Activation */}
-            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-              <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">
+            <div className="bg-surface-subtle p-2.5 rounded-lg border border-border-subtle">
+              <span className="text-[11px] font-semibold text-text-sec block">
                 Sale → Activation
               </span>
               <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-lg font-bold text-slate-900">{timing.avgTimeToActivation}</span>
-                <span className="text-[11px] text-slate-500">avg</span>
+                <span className="text-lg font-bold text-text-main">{timing.avgTimeToActivation}</span>
+                <span className="text-[11px] text-text-muted">avg</span>
               </div>
-              <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
+              <div className="text-[11px] text-text-sec mt-1 flex items-center justify-between">
                 <span>Median: <strong>{timing.medianTimeToActivation}</strong></span>
               </div>
-              <div className="text-[10px] text-slate-400 mt-1">
+              <div className="text-[10px] text-text-muted mt-1">
                 Start: Sale timestamp • End: Activation timestamp
               </div>
             </div>
@@ -128,12 +128,12 @@ export default function SalesTimingAndCoverage({
           aria-expanded={operatingControlsExpanded}
         >
           <div className="flex items-center gap-2.5">
-            <SlidersHorizontal size={15} className="text-indigo-600" />
+            <SlidersHorizontal size={15} className="text-action" />
             <div>
-              <h3 className="text-xs font-semibold text-slate-900">
+              <h3 className="text-xs font-semibold text-text-main">
                 Operating controls & SLA threshold configuration
               </h3>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-text-sec">
                 {operatingControlsExpanded
                   ? 'Showing active SLA limits and ageing thresholds for this client workspace.'
                   : 'Load client SLA threshold configuration and operating rules (loaded on demand).'}
@@ -141,7 +141,7 @@ export default function SalesTimingAndCoverage({
             </div>
           </div>
 
-          <div className="flex items-center gap-1 text-xs font-medium text-indigo-600">
+          <div className="flex items-center gap-1 text-xs font-medium text-action">
             <span>{operatingControlsExpanded ? 'Collapse' : 'Expand operating controls'}</span>
             {operatingControlsExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </div>

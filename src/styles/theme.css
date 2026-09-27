@@ -31,6 +31,13 @@
   --cx-primary-hover: #60A5FA;
   --cx-primary-soft: rgba(59, 130, 246, 0.14);
   --cx-primary-soft-hover: rgba(59, 130, 246, 0.24);
+  --cx-action: #3B82F6;
+  --cx-action-hover: #60A5FA;
+  --cx-selected-bg: rgba(59, 130, 246, 0.14);
+  --cx-brand-primary: #3B82F6;
+  --cx-brand-hover: #60A5FA;
+  --cx-brand-soft: rgba(59, 130, 246, 0.14);
+  --cx-brand-soft-hover: rgba(59, 130, 246, 0.24);
 
   /* Semantic Data States */
   --cx-positive: #10B981;

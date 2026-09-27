@@ -22,7 +22,6 @@ import { getAreaForPath, BUSINESS_AREAS } from '../routeManifest';
 import { useClient } from '../../lib/ClientContext';
 import { useAuth } from '../../lib/AuthContext';
 import ReviewLauncher from '../../components/ReviewLauncher';
-import ThemeToggle from '../../components/ThemeToggle';
 import '../../styles/guidedAnalytics.css';
 
 interface PrimaryNavigationProps {
@@ -185,7 +184,6 @@ export default function PrimaryNavigation({
             <small>{clientConfig?.name || 'Select a workspace'}</small>
           </span>
           <div className="flex items-center gap-0.5">
-            <ThemeToggle />
             <Link
               to={navigationTarget('/admin', location.pathname, location.search)}
               aria-label="Open Settings"
@@ -198,19 +196,11 @@ export default function PrimaryNavigation({
 
         <div className="cx-account-row">
           <div className="cx-account-identity">
-            {user?.photoURL ? (
-              <img
-                src={user.photoURL}
-                alt={`${user.displayName || user.email || 'User'} profile avatar`}
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <span className="cx-account-avatar">
-                {user?.displayName
-                  ? user.displayName.split(' ').map(name => name[0]).join('').slice(0, 2).toUpperCase()
-                  : user?.email?.charAt(0).toUpperCase() || 'U'}
-              </span>
-            )}
+            <span className="cx-account-avatar">
+              {user?.displayName
+                ? user.displayName.split(' ').map(name => name[0]).join('').slice(0, 2).toUpperCase()
+                : user?.email?.charAt(0).toUpperCase() || 'U'}
+            </span>
             <span>
               <strong>{user?.displayName || 'Team member'}</strong>
               <small>{profile?.role || 'authenticated'}</small>

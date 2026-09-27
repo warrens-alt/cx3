@@ -215,8 +215,8 @@ export default function OverviewPage() {
                         <Icon size={11} />
                         <span>{isPos ? '+' : ''}{change.value}{change.unit}</span>
                       </span>
-                      <span className="text-[10px] text-text-mute group-hover:text-brand-primary inline-flex items-center ml-0.5">
-                        Why? <Search size={10} className="ml-0.5" />
+                      <span className="text-xs text-text-mute group-hover:text-brand-primary inline-flex items-center ml-0.5">
+                        Why? <Search size={11} className="ml-0.5" />
                       </span>
                     </button>
                   );

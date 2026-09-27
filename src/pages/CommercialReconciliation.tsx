@@ -119,7 +119,7 @@ export default function CommercialReconciliation() {
     {!loading && workspace.catalogue.data && !workspace.catalogue.data.available && (
       <div className="enterprise-card p-6 border-blue-200 bg-blue-50/50 space-y-4 my-4">
         <div className="flex items-center gap-2 text-blue-900 font-semibold">
-          <Database size={18} className="text-[#3562B3]" />
+          <Database size={18} className="text-[#315BCB]" />
           <span>Operational Release Telemetry Guidance</span>
         </div>
         <p className="text-sm text-text-sec">

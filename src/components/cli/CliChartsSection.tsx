@@ -100,7 +100,7 @@ export const CliChartsSection: React.FC<CliChartsSectionProps> = ({
                   );
                 }}
               />
-              <Bar dataKey="value" fill="#3562B3" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="value" fill="#315BCB" radius={[0, 4, 4, 0]}>
                 {rankingChartData.map((_entry, index) => (
                   <Cell key={`cell-${index}`} fill={index === 0 ? '#1E3A8A' : index < 3 ? '#2563EB' : '#3B82F6'} />
                 ))}
@@ -203,7 +203,7 @@ export const CliChartsSection: React.FC<CliChartsSectionProps> = ({
                 <XAxis dataKey="band" tick={{ fontSize: 10, fill: '#64748B' }} />
                 <YAxis tick={{ fontSize: 10, fill: '#64748B' }} />
                 <Tooltip />
-                <Bar dataKey="contactRatePct" name="RPC Rate %" fill="#3562B3" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="contactRatePct" name="RPC Rate %" fill="#315BCB" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="salePerCallRatePct" name="Sale / Call Rate %" fill="#059669" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -241,8 +241,8 @@ export const CliChartsSection: React.FC<CliChartsSectionProps> = ({
               <AreaChart data={data.trend} margin={{ top: 10, right: 20, left: -10, bottom: 5 }}>
                 <defs>
                   <linearGradient id="cliTrendColor" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3562B3" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#3562B3" stopOpacity={0.0} />
+                    <stop offset="5%" stopColor="#315BCB" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#315BCB" stopOpacity={0.0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
@@ -266,7 +266,7 @@ export const CliChartsSection: React.FC<CliChartsSectionProps> = ({
                 <Area
                   type="monotone"
                   dataKey={trendMetric}
-                  stroke="#3562B3"
+                  stroke="#315BCB"
                   strokeWidth={2}
                   fillOpacity={1}
                   fill="url(#cliTrendColor)"

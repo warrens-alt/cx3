@@ -37,7 +37,7 @@ export const CliKpiStrip: React.FC<CliKpiStripProps> = ({
               checked={Boolean(comparison) && showPeriodComparison}
               disabled={!comparison}
               onChange={e => setShowPeriodComparison(e.target.checked)}
-              className="rounded text-[#3562B3] focus:ring-[#3562B3]"
+              className="rounded text-[#315BCB] focus:ring-[#315BCB]"
             />
             <span>Period comparison</span>
           </label>
@@ -144,7 +144,7 @@ export const CliKpiStrip: React.FC<CliKpiStripProps> = ({
             <button
               type="button"
               onClick={() => setActiveInfoMetric(activeInfoMetric === 'contactRate' ? null : 'contactRate')}
-              className="text-[#3562B3] hover:text-[#254A8C]"
+              className="text-[#315BCB] hover:text-[#254A8C]"
               aria-label="Metric details"
             >
               <Info size={13} />
@@ -276,7 +276,7 @@ export const CliKpiStrip: React.FC<CliKpiStripProps> = ({
         <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-700 flex items-start justify-between gap-3 animate-fadeIn">
           <div className="space-y-1">
             <div className="font-semibold text-slate-900 flex items-center gap-1.5">
-              <Info size={13} className="text-[#3562B3]" />
+              <Info size={13} className="text-[#315BCB]" />
               <span>{CLI_METRIC_DEFINITIONS[activeInfoMetric].label}</span>
               <span className="font-mono text-[11px] bg-slate-200 text-slate-800 px-1.5 py-0.2 rounded">
                 Formula: {CLI_METRIC_DEFINITIONS[activeInfoMetric].formula}
@@ -303,7 +303,7 @@ export const CliKpiStrip: React.FC<CliKpiStripProps> = ({
       {showPeriodComparison && comparison?.observations && comparison.observations.length > 0 && (
         <div className="bg-[#F8FAFC] border border-slate-200 rounded-lg p-3 text-xs text-slate-700 space-y-1.5">
           <div className="font-semibold text-slate-900 flex items-center gap-1.5">
-            <Clock size={13} className="text-[#3562B3]" />
+            <Clock size={13} className="text-[#315BCB]" />
             <span>Observed Movement vs Prior Period:</span>
           </div>
           <ul className="list-disc list-inside space-y-1 pl-1 text-slate-600">

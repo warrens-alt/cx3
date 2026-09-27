@@ -5,37 +5,79 @@
 
 :root {
   /* Canvas & Surfaces (Light) */
-  --cx-canvas: #F5F7FA;
+  --cx-canvas: #F4F6FA;
+  --cx-bg: #F4F6FA;
   --cx-surface: #FFFFFF;
   --cx-surface-subtle: #F8FAFC;
   --cx-surface-elevated: #FFFFFF;
-  --cx-surface-active: #EDF5FC;
+  --cx-surface-active: #EAF0FF;
 
   /* Typography & Ink (Light) */
-  --cx-ink: #142033;
-  --cx-text-secondary: #4A5568;
-  --cx-text-muted: #718096;
-  --cx-text-disabled: #A0AEC0;
+  --cx-ink: #152238;
+  --cx-text: #152238;
+  --cx-text-secondary: #475569;
+  --cx-text-muted: #5D6B80;
+  --cx-text-disabled: #94A3B8;
 
-  /* Restrained Brand Blue */
-  --cx-brand-primary: #3562B3;
-  --cx-brand-hover: #2A4E90;
-  --cx-brand-soft: #EDF5FC;
-  --cx-brand-soft-hover: #E2EFF9;
+  /* Action & Focus */
+  --cx-action: #315BCB;
+  --cx-action-hover: #2447AD;
+  --cx-selected-bg: #EAF0FF;
+  --cx-focus: #315BCB;
+
+  /* Restrained Brand Blue (Aliased to Action) */
+  --cx-brand-primary: #315BCB;
+  --cx-brand-hover: #2447AD;
+  --cx-brand-soft: #EAF0FF;
+  --cx-brand-soft-hover: #DEE9FF;
+  --cx-primary: #315BCB;
+  --cx-primary-hover: #2447AD;
+  --cx-primary-soft: #EAF0FF;
+  --cx-primary-soft-hover: #DEE9FF;
 
   /* Quantitative Semantics */
   --cx-favourable: #059669;
   --cx-favourable-bg: #ECFDF5;
+  --cx-positive: #059669;
+  --cx-positive-bg: #ECFDF5;
   --cx-unfavourable: #E11D48;
   --cx-unfavourable-bg: #FFF1F2;
+  --cx-negative: #E11D48;
+  --cx-negative-bg: #FFF1F2;
   --cx-warning: #D97706;
   --cx-warning-bg: #FFFBEB;
 
-  /* Hairlines & Boundaries */
-  --cx-border-subtle: rgba(20, 32, 51, 0.08);
-  --cx-border-default: rgba(20, 32, 51, 0.14);
-  --cx-border-strong: rgba(20, 32, 51, 0.22);
-  --cx-border-focus: #3562B3;
+  /* Semantic Status Tokens (Light) */
+  --cx-status-favorable-bg: #ECFDF5;
+  --cx-status-favorable-text: #047857;
+  --cx-status-favorable-border: #A7F3D0;
+  --cx-status-unfavorable-bg: #FEF2F2;
+  --cx-status-unfavorable-text: #B91C1C;
+  --cx-status-unfavorable-border: #FECACA;
+  --cx-status-warning-bg: #FFFBEB;
+  --cx-status-warning-text: #B45309;
+  --cx-status-warning-border: #FDE68A;
+  --cx-status-neutral-bg: #F1F5F9;
+  --cx-status-neutral-text: #334155;
+  --cx-status-neutral-border: #CBD5E1;
+
+  /* Chart & Analytics Data Series */
+  --cx-data-fetched: #4F5FB7;
+  --cx-data-delivered: #0E7490;
+  --cx-data-rpc: #2563EB;
+  --cx-data-sales: #7C3AED;
+  --cx-data-activation: #15803D;
+
+  /* Hairlines, Separators & Input Boundaries */
+  --cx-border: #D7DFEA;
+  --cx-border-default: #D7DFEA;
+  --cx-border-subtle: #E2E8F0;
+  --cx-border-strong: #7B8BA1;
+  --cx-control-border: #7B8BA1;
+  --cx-border-focus: #315BCB;
+  --cx-line: #D7DFEA;
+  --cx-muted: #5D6B80;
+  --cx-accent: #315BCB;
 
   /* Radii scale */
   --cx-radius-sm: 6px;
@@ -44,13 +86,13 @@
   --cx-radius-xl: 12px;
 
   /* Elevation */
-  --cx-shadow-sm: 0 1px 2px 0 rgba(20, 32, 51, 0.05);
-  --cx-shadow-md: 0 4px 6px -1px rgba(20, 32, 51, 0.06), 0 2px 4px -2px rgba(20, 32, 51, 0.04);
-  --cx-shadow-drawer: -4px 0 24px -4px rgba(20, 32, 51, 0.16);
+  --cx-shadow-sm: 0 1px 2px 0 rgba(21, 34, 56, 0.04);
+  --cx-shadow-md: 0 4px 6px -1px rgba(21, 34, 56, 0.05), 0 2px 4px -2px rgba(21, 34, 56, 0.03);
+  --cx-shadow-drawer: -4px 0 24px -4px rgba(21, 34, 56, 0.12);
 
   /* Touch & Controls */
-  --cx-control-height: 40px;
-  --cx-touch-target: 44px;
+  --cx-control-height: 38px;
+  --cx-touch-target: 40px;
 }
 
 [data-theme="dark"],

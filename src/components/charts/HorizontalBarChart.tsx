@@ -27,7 +27,7 @@ export function HorizontalBarChart({
   valuePrefix = '',
   valueSuffix = '',
   height = 300,
-  color = '#3562B3',
+  color = '#315BCB',
   auditTitle,
   auditContext,
   auditGrain

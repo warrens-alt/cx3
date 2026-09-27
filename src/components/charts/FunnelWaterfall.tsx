@@ -144,7 +144,7 @@ export function FunnelWaterfall({
                 ? 'bg-[#0F1E2E]' 
                 : idx < 4 
                   ? 'bg-[#1E3A52]' 
-                  : 'bg-[#3562B3]';
+                  : 'bg-[#315BCB]';
 
             const isBarWide = pctOfMax > 18;
             const costCode = step.costMetric;
@@ -210,7 +210,7 @@ export function FunnelWaterfall({
                 <div className={`p-3.5 rounded-lg border transition-all ${
                   step.isTerminal 
                     ? 'bg-emerald-50/70 border-emerald-200' 
-                    : 'bg-surface border-border-subtle hover:border-[#3562B3]/50'
+                    : 'bg-surface border-border-subtle hover:border-[#315BCB]/50'
                 }`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">

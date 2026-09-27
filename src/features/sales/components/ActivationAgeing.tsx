@@ -50,43 +50,43 @@ export default function ActivationAgeing({
     if (!bucket) return null;
 
     return (
-      <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-xl text-xs space-y-1.5 max-w-xs z-50">
-        <div className="font-semibold text-slate-900 flex items-center justify-between">
+      <div className="bg-surface border border-border rounded-lg p-3 shadow-md text-xs space-y-1.5 max-w-xs z-50">
+        <div className="font-semibold text-text-main flex items-center justify-between">
           <span>{bucket.bucket}</span>
           {bucket.isInvalidFuture && (
-            <span className="text-[10px] bg-red-100 text-red-700 px-1 py-0.5 rounded font-mono font-bold">
+            <span className="text-[11px] text-semantic-neg font-mono font-bold">
               ANOMALY
             </span>
           )}
         </div>
-        <p className="text-slate-500 text-[11px] leading-tight">{bucket.description}</p>
-        <div className="pt-1 border-t border-slate-100 flex items-center justify-between text-slate-700">
+        <p className="text-text-sec text-[11px] leading-tight">{bucket.description}</p>
+        <div className="pt-1 border-t border-border-subtle flex items-center justify-between text-text-main">
           <span>Awaiting activation:</span>
-          <span className="font-bold text-slate-900">{formatTableNumber(bucket.sales)} sales</span>
+          <span className="font-bold text-text-main">{formatTableNumber(bucket.sales)} sales</span>
         </div>
-        <div className="flex items-center justify-between text-slate-500 text-[11px]">
+        <div className="flex items-center justify-between text-text-mute text-[11px]">
           <span>Share of backlog:</span>
           <span>{bucket.shareOfUnactivated !== null ? formatPercent(bucket.shareOfUnactivated) : '—'}</span>
         </div>
-        <div className="text-[10px] text-indigo-600 font-medium pt-1">Click to open aggregate evidence</div>
+        <div className="text-[11px] text-action font-medium pt-1">Click to open aggregate evidence</div>
       </div>
     );
   };
 
   return (
     <section className="enterprise-card cx-analytics-card" aria-label="Activation ageing queue">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-2 p-4 border-b border-slate-100">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-2 p-4 border-b border-border-subtle">
         <div>
           <div className="flex items-center gap-2">
             <span className="cx-command-section-kicker">Post-sale queue</span>
-            <Clock3 size={15} className="text-slate-400" />
+            <Clock3 size={15} className="text-text-mute" />
           </div>
-          <h2 className="text-base font-semibold text-slate-900">Sales awaiting activation by completed age</h2>
-          <p className="text-xs text-slate-500">
+          <h2 className="text-base font-semibold text-text-main">Sales awaiting activation by completed age</h2>
+          <p className="text-xs text-text-sec">
             Non-overlapping completed-day age cohorts measured from recorded sale timestamp. Total unactivated:{' '}
-            <strong className="text-slate-700">{formatTableNumber(ageing.totalUnactivated)}</strong>
+            <strong className="text-text-main">{formatTableNumber(ageing.totalUnactivated)}</strong>
             {ageing.hasInvalidFuture && (
-              <span className="text-red-600 ml-1.5 font-medium">
+              <span className="text-semantic-neg ml-1.5 font-medium">
                 ({formatTableNumber(ageing.invalidFuture)} future timestamp anomaly)
               </span>
             )}
@@ -107,7 +107,7 @@ export default function ActivationAgeing({
       </header>
 
       {/* Visual Bar Chart: Strictly chronological order */}
-      <div className="p-4 bg-slate-50/50">
+      <div className="p-4 bg-surface-subtle">
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
@@ -143,7 +143,7 @@ export default function ActivationAgeing({
                 {chartData.map((entry) => (
                   <Cell
                     key={entry.name}
-                    fill={BUCKET_COLORS[entry.name] || '#3562B3'}
+                    fill={BUCKET_COLORS[entry.name] || '#315BCB'}
                   />
                 ))}
               </Bar>
@@ -157,11 +157,11 @@ export default function ActivationAgeing({
         <table className="cx-performance-table w-full text-left border-collapse">
           <thead>
             <tr>
-              <th className="py-2.5 px-3 text-xs font-semibold text-slate-700">Completed age cohort</th>
-              <th className="py-2.5 px-3 text-xs font-semibold text-slate-700">Cohort definition</th>
-              <th className="py-2.5 px-3 text-xs font-semibold text-slate-700 text-right">Sales awaiting activation</th>
-              <th className="py-2.5 px-3 text-xs font-semibold text-slate-700 text-right">Share of backlog</th>
-              <th className="py-2.5 px-3 text-xs font-semibold text-slate-700 text-right">Status / Evidence</th>
+              <th className="py-2.5 px-3 text-xs font-semibold text-text-sec">Completed age cohort</th>
+              <th className="py-2.5 px-3 text-xs font-semibold text-text-sec">Cohort definition</th>
+              <th className="py-2.5 px-3 text-xs font-semibold text-text-sec text-right">Sales awaiting activation</th>
+              <th className="py-2.5 px-3 text-xs font-semibold text-text-sec text-right">Share of backlog</th>
+              <th className="py-2.5 px-3 text-xs font-semibold text-text-sec text-right">Status / Evidence</th>
             </tr>
           </thead>
           <tbody>
@@ -169,49 +169,49 @@ export default function ActivationAgeing({
               <tr
                 key={b.bucket}
                 onClick={() => onInspectBucket(b)}
-                className={`cursor-pointer transition-colors hover:bg-slate-50 ${
+                className={`cursor-pointer transition-colors hover:bg-surface-subtle ${
                   b.isInvalidFuture ? 'bg-red-50/40 hover:bg-red-50/70' : ''
                 }`}
               >
-                <th className="py-2.5 px-3 text-xs font-semibold text-slate-900 flex items-center gap-2">
+                <th className="py-2.5 px-3 text-xs font-semibold text-text-main flex items-center gap-2">
                   <span
                     className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
-                    style={{ background: BUCKET_COLORS[b.bucket] || '#3562B3' }}
+                    style={{ background: BUCKET_COLORS[b.bucket] || '#315BCB' }}
                   />
                   <span>{b.bucket}</span>
                 </th>
-                <td className="py-2.5 px-3 text-xs text-slate-500">
+                <td className="py-2.5 px-3 text-xs text-text-sec">
                   {b.description}
                 </td>
-                <td className="py-2.5 px-3 text-xs font-mono font-medium text-slate-900 text-right">
+                <td className="py-2.5 px-3 text-xs font-mono font-medium text-text-main text-right">
                   {formatTableNumber(b.sales)}
                 </td>
-                <td className="py-2.5 px-3 text-xs text-slate-600 text-right">
+                <td className="py-2.5 px-3 text-xs text-text-sec text-right">
                   {b.shareOfUnactivated !== null ? formatPercent(b.shareOfUnactivated) : '—'}
                 </td>
                 <td className="py-2.5 px-3 text-xs text-right">
                   {b.isInvalidFuture ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-700 bg-red-100/80 px-2 py-0.5 rounded">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-semantic-neg">
                       <AlertTriangle size={11} /> Timestamp error
                     </span>
                   ) : b.drillSupported ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-700 hover:text-indigo-900">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-action hover:text-action-hover">
                       Record drill available <ExternalLink size={10} />
                     </span>
                   ) : (
-                    <span className="text-[11px] text-slate-400">Aggregate only</span>
+                    <span className="text-[11px] text-text-disabled">Aggregate only</span>
                   )}
                 </td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr className="border-t-2 border-slate-200 bg-slate-50/80 font-bold text-slate-900">
+            <tr className="border-t-2 border-border bg-surface-subtle font-bold text-text-main">
               <th className="py-2.5 px-3 text-xs">Total observed backlog</th>
-              <td className="py-2.5 px-3 text-xs text-slate-500">Complete non-overlapping age queue</td>
+              <td className="py-2.5 px-3 text-xs text-text-sec">Complete non-overlapping age queue</td>
               <td className="py-2.5 px-3 text-xs font-mono text-right">{formatTableNumber(ageing.totalUnactivated)}</td>
               <td className="py-2.5 px-3 text-xs text-right">100.0%</td>
-              <td className="py-2.5 px-3 text-xs text-right text-slate-500">
+              <td className="py-2.5 px-3 text-xs text-right text-text-sec">
                 {ageing.hasInvalidFuture ? `${formatTableNumber(ageing.invalidFuture)} anomalies` : 'Queue verified'}
               </td>
             </tr>

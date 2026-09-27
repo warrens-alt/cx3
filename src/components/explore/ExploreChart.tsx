@@ -61,7 +61,7 @@ export default function ExploreChart({
             <Line
               type="monotone"
               dataKey="numericValue"
-              stroke="#3562B3"
+              stroke="#315BCB"
               strokeWidth={2}
               dot={{ r: 3 }}
             />
@@ -75,8 +75,8 @@ export default function ExploreChart({
             <Area
               type="monotone"
               dataKey="numericValue"
-              stroke="#3562B3"
-              fill="#3562B3"
+              stroke="#315BCB"
+              fill="#315BCB"
               fillOpacity={0.2}
             />
           </AreaChart>
@@ -106,7 +106,7 @@ export default function ExploreChart({
             <Tooltip />
             <Bar
               dataKey="numericValue"
-              fill="#3562B3"
+              fill="#315BCB"
               maxBarSize={36}
               onClick={(e: any) => onInspect(e)}
             />
@@ -119,7 +119,7 @@ export default function ExploreChart({
             <Tooltip />
             <Bar
               dataKey="numericValue"
-              fill="#3562B3"
+              fill="#315BCB"
               maxBarSize={24}
               onClick={(e: any) => onInspect(e)}
             />

@@ -40,7 +40,7 @@ function Fallback({ error, resetErrorBoundary }: any) {
         <button 
           type="button"
           onClick={chunkError ? () => { if (!attemptChunkRecovery(0)) window.location.reload(); } : resetErrorBoundary}
-          className="bg-[#3562B3] text-white px-4 py-2 rounded-md font-medium hover:bg-[#294F95] transition-colors whitespace-nowrap cursor-pointer"
+          className="bg-primary-blue text-white px-4 py-2 rounded-md font-medium hover:bg-primary-blue-dark transition-colors whitespace-nowrap cursor-pointer"
         >
           {chunkError ? 'Reload Application' : 'Try Again'}
         </button>

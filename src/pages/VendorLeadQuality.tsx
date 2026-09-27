@@ -197,7 +197,7 @@ export default function VendorLeadQuality() {
                           );
                         }}
                       />
-                      <Scatter data={scatter} fill="#3562B3" />
+                      <Scatter data={scatter} fill="#315BCB" />
                     </ScatterChart>
                   </ResponsiveContainer>
                 </div>

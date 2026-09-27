@@ -60,7 +60,7 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
                 setCurrentPage(1);
               }}
               placeholder="Search CLI number or campaign…"
-              className="w-full text-xs pl-8 pr-7 py-1.5 border border-slate-300 rounded bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#3562B3]"
+              className="w-full text-xs pl-8 pr-7 py-1.5 border border-slate-300 rounded bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#315BCB]"
             />
             {searchCli && (
               <button
@@ -122,7 +122,7 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
               >
                 <div className="flex items-center gap-1">
                   <span>CLI Number</span>
-                  <ArrowUpDown size={11} className={sortField === 'cli' ? 'text-[#3562B3]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'cli' ? 'text-[#315BCB]' : 'text-slate-300'} />
                 </div>
               </th>
               <th
@@ -132,7 +132,7 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
               >
                 <div className="flex items-center gap-1">
                   <span>Campaign</span>
-                  <ArrowUpDown size={11} className={sortField === 'campaign' ? 'text-[#3562B3]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'campaign' ? 'text-[#315BCB]' : 'text-slate-300'} />
                 </div>
               </th>
               <th
@@ -142,7 +142,7 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>Total Calls</span>
-                  <ArrowUpDown size={11} className={sortField === 'totalCalls' ? 'text-[#3562B3]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'totalCalls' ? 'text-[#315BCB]' : 'text-slate-300'} />
                 </div>
               </th>
               <th
@@ -152,7 +152,7 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>Dialed Leads</span>
-                  <ArrowUpDown size={11} className={sortField === 'distinctLeads' ? 'text-[#3562B3]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'distinctLeads' ? 'text-[#315BCB]' : 'text-slate-300'} />
                 </div>
               </th>
               <th
@@ -162,7 +162,7 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>ASR %</span>
-                  <ArrowUpDown size={11} className={sortField === 'asrRate' ? 'text-[#3562B3]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'asrRate' ? 'text-[#315BCB]' : 'text-slate-300'} />
                 </div>
               </th>
               <th
@@ -172,7 +172,7 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>Answer %</span>
-                  <ArrowUpDown size={11} className={sortField === 'answeredRate' ? 'text-[#3562B3]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'answeredRate' ? 'text-[#315BCB]' : 'text-slate-300'} />
                 </div>
               </th>
               <th
@@ -182,7 +182,7 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>RPC %</span>
-                  <ArrowUpDown size={11} className={sortField === 'contactRate' ? 'text-[#3562B3]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'contactRate' ? 'text-[#315BCB]' : 'text-slate-300'} />
                 </div>
               </th>
               <th
@@ -192,7 +192,7 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>Sales</span>
-                  <ArrowUpDown size={11} className={sortField === 'saleCount' ? 'text-[#3562B3]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'saleCount' ? 'text-[#315BCB]' : 'text-slate-300'} />
                 </div>
               </th>
               <th
@@ -202,7 +202,7 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>Sale/Call %</span>
-                  <ArrowUpDown size={11} className={sortField === 'salePerCallRate' ? 'text-[#3562B3]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'salePerCallRate' ? 'text-[#315BCB]' : 'text-slate-300'} />
                 </div>
               </th>
               <th
@@ -212,7 +212,7 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>Sale/RPC %</span>
-                  <ArrowUpDown size={11} className={sortField === 'salePerContactRate' ? 'text-[#3562B3]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'salePerContactRate' ? 'text-[#315BCB]' : 'text-slate-300'} />
                 </div>
               </th>
               <th
@@ -222,7 +222,7 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>&gt;= 5m %</span>
-                  <ArrowUpDown size={11} className={sortField === 'durationGe5mPct' ? 'text-[#3562B3]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'durationGe5mPct' ? 'text-[#315BCB]' : 'text-slate-300'} />
                 </div>
               </th>
               <th
@@ -232,7 +232,7 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>Avg Sec</span>
-                  <ArrowUpDown size={11} className={sortField === 'avgDurationSeconds' ? 'text-[#3562B3]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'avgDurationSeconds' ? 'text-[#315BCB]' : 'text-slate-300'} />
                 </div>
               </th>
               <th
@@ -242,7 +242,7 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>Lead Age</span>
-                  <ArrowUpDown size={11} className={sortField === 'avgLeadAgeDays' ? 'text-[#3562B3]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'avgLeadAgeDays' ? 'text-[#315BCB]' : 'text-slate-300'} />
                 </div>
               </th>
             </tr>

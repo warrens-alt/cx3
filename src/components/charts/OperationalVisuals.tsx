@@ -16,7 +16,7 @@ import { formatChartAxis, formatPercent, formatTableNumber } from '../../lib/for
 import { ChartToolbar } from './ChartToolbar';
 
 export const ANALYTICS_COLORS = {
-  volume: '#3562B3',
+  volume: '#315BCB',
   secondary: '#64748B',
   rpc: '#0F766E',
   sale: '#7C3AED',
@@ -235,7 +235,7 @@ export function GroupedOutcomeChart({ title, subtitle, data, xKey, series, heigh
 }
 
 
-const SERIES_PALETTE = ['#3562B3','#0F766E','#7C3AED','#15803D','#B7791F','#64748B','#0E7490','#BE185D'];
+const SERIES_PALETTE = ['#315BCB','#0F766E','#7C3AED','#15803D','#B7791F','#64748B','#0E7490','#BE185D'];
 
 interface MultiSeriesTrendChartProps {
   title: string;

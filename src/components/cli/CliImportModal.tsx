@@ -44,14 +44,14 @@ export const CliImportModal: React.FC<CliImportModalProps> = ({
       >
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <Upload size={18} className="text-[#3562B3]" />
+            <Upload size={18} className="text-[#315BCB]" />
             <span>Import VICIdial CLI Report</span>
           </h3>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close dialog"
-            className="text-slate-400 hover:text-slate-600 focus:outline-hidden focus:ring-2 focus:ring-[#3562B3] rounded-sm"
+            className="text-slate-400 hover:text-slate-600 focus:outline-hidden focus:ring-2 focus:ring-[#315BCB] rounded-sm"
           >
             <X size={18} />
           </button>
@@ -75,7 +75,7 @@ export const CliImportModal: React.FC<CliImportModalProps> = ({
         )}
 
         {/* Option A: Upload File */}
-        <div className="border-2 border-dashed border-slate-300 rounded-lg p-5 text-center hover:border-[#3562B3] transition-colors space-y-2">
+        <div className="border-2 border-dashed border-slate-300 rounded-lg p-5 text-center hover:border-[#315BCB] transition-colors space-y-2">
           <FileSpreadsheet size={32} className="mx-auto text-slate-400" />
           <div>
             <label className="cx-button-primary text-xs py-1.5 px-3 cursor-pointer inline-block">
@@ -114,7 +114,7 @@ export const CliImportModal: React.FC<CliImportModalProps> = ({
                 disabled={uploading}
                 className="cx-button-secondary text-xs py-1.5 px-3 whitespace-nowrap shrink-0 flex items-center gap-1.5"
               >
-                <Sparkles size={13} className="text-[#3562B3]" />
+                <Sparkles size={13} className="text-[#315BCB]" />
                 <span>Load sample</span>
               </button>
             </div>

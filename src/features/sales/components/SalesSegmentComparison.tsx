@@ -163,14 +163,14 @@ export default function SalesSegmentComparison({
       {/* Comparison Chart */}
       <div className="p-4 bg-slate-50/50 border-b border-slate-100">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-slate-700">
+          <span className="text-xs font-semibold text-text-main">
             Volume & activation ratio ({showAllInChart ? `All ${allRows.length}` : `Top ${chartRows.length} by sales`})
           </span>
           {allRows.length > 8 && (
             <button
               type="button"
               onClick={onToggleShowAllInChart}
-              className="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1"
+              className="text-xs text-action hover:text-action-hover font-medium flex items-center gap-1 cursor-pointer"
             >
               {showAllInChart ? (
                 <>Show top 8 <ChevronUp size={13} /></>
@@ -222,23 +222,23 @@ export default function SalesSegmentComparison({
                     return (
                       <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-xl text-xs space-y-1 z-50">
                         <div className="font-semibold text-slate-900">{label}</div>
-                        <div className="flex items-center justify-between text-slate-700">
+                        <div className="flex items-center justify-between text-text-main">
                           <span>Recorded sales:</span>
                           <b>{formatTableNumber(r.sales)}</b>
                         </div>
-                        <div className="flex items-center justify-between text-emerald-700">
+                        <div className="flex items-center justify-between text-semantic-pos">
                           <span>Recorded activations:</span>
                           <b>{formatTableNumber(r.activations)}</b>
                         </div>
-                        <div className="flex items-center justify-between text-indigo-700">
+                        <div className="flex items-center justify-between text-action">
                           <span>Activation / sale:</span>
                           <b>{r.activationRatio !== null ? formatPercent(r.activationRatio) : '—'}</b>
                         </div>
-                        <div className="flex items-center justify-between text-purple-700 border-t border-slate-100 pt-1">
+                        <div className="flex items-center justify-between text-semantic-purple border-t border-border-subtle pt-1">
                           <span>Source revenue:</span>
                           <b>{formatWorkspaceCurrency(r.revenue, currency)}</b>
                         </div>
-                        <div className="text-[10px] text-indigo-600 font-medium pt-1">
+                        <div className="text-[10px] text-action font-medium pt-1">
                           Click row below to inspect segment evidence
                         </div>
                       </div>
@@ -250,7 +250,7 @@ export default function SalesSegmentComparison({
                   yAxisId="volume"
                   dataKey="sales"
                   name="Recorded sales"
-                  fill="#3562B3"
+                  fill="#315BCB"
                   radius={[3, 3, 0, 0]}
                   maxBarSize={32}
                   isAnimationActive={false}
@@ -286,18 +286,18 @@ export default function SalesSegmentComparison({
       </div>
 
       {/* Table Toolbar / Search */}
-      <div className="p-3 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div className="p-3 border-b border-border-subtle flex flex-col sm:flex-row items-center justify-between gap-2">
         <div className="relative w-full sm:w-64">
-          <Search size={14} className="absolute left-2.5 top-2.5 text-slate-400" />
+          <Search size={14} className="absolute left-2.5 top-2.5 text-text-muted" />
           <input
             type="text"
             placeholder={`Filter ${dimensionTitle.toLowerCase()}s…`}
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-xs rounded-md border border-slate-200 focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
+            className="w-full pl-8 pr-3 py-1.5 text-xs rounded-md border border-border focus:outline-hidden focus:ring-1 focus:ring-action focus:border-action"
           />
         </div>
-        <div className="text-xs text-slate-500 self-end sm:self-auto">
+        <div className="text-xs text-text-sec self-end sm:self-auto">
           Showing {filteredRows.length} of {allRows.length} {dimensionTitle.toLowerCase()}s
         </div>
       </div>
@@ -348,7 +348,7 @@ export default function SalesSegmentComparison({
                   )}
                 </td>
                 <td className="py-2.5 px-3 text-xs text-right">
-                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-700 hover:text-indigo-900">
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-action hover:text-action-hover">
                     Inspect <ExternalLink size={10} />
                   </span>
                 </td>

@@ -111,7 +111,7 @@ export default function VendorPerformance() {
     {missingReleaseReason && (
       <section className="enterprise-card p-6 border-slate-200 bg-slate-50/70 space-y-4">
         <div className="flex items-start gap-3">
-          <Info className="w-5 h-5 text-[#3562B3] shrink-0 mt-0.5" />
+          <Info className="w-5 h-5 text-[#315BCB] shrink-0 mt-0.5" />
           <div className="space-y-2">
             <h2 className="font-semibold text-text-main text-base">Live Vendor Telemetry & BigQuery Data Checks</h2>
             <p className="text-sm text-text-sec">

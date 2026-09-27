@@ -67,7 +67,7 @@ export function TrendChart({
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#3562B3] dark:bg-[#3B82F6] shrink-0" />
+              <span className="w-2.5 h-2.5 rounded-full bg-[#315BCB] dark:bg-[#3B82F6] shrink-0" />
               <span>Current</span>
             </div>
             <span className="font-mono font-bold text-slate-900 dark:text-slate-100 tabular-nums">
@@ -113,7 +113,7 @@ export function TrendChart({
             aria-label={`${title} measure`}
             value={selectedOption}
             onChange={(e) => onOptionChange?.(e.target.value)}
-            className="border border-border-subtle rounded-lg px-3 py-1.5 bg-surface text-xs sm:text-sm font-medium text-text-main outline-none focus:border-[#3562B3] focus:ring-1 focus:ring-[#3562B3]/30 transition-all cursor-pointer shadow-2xs"
+            className="border border-border-subtle rounded-lg px-3 py-1.5 bg-surface text-xs sm:text-sm font-medium text-text-main outline-none focus:border-[#315BCB] focus:ring-1 focus:ring-[#315BCB]/30 transition-all cursor-pointer shadow-2xs"
           >
             {options.map(o => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -127,8 +127,8 @@ export function TrendChart({
           <AreaChart data={data} margin={{ top: 12, right: 14, left: -10, bottom: 4 }}>
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3562B3" stopOpacity={0.22}/>
-                <stop offset="95%" stopColor="#3562B3" stopOpacity={0.01}/>
+                <stop offset="5%" stopColor="#315BCB" stopOpacity={0.22}/>
+                <stop offset="95%" stopColor="#315BCB" stopOpacity={0.01}/>
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -166,9 +166,9 @@ export function TrendChart({
               isAnimationActive={false}
               type="monotone" 
               dataKey={currentKey} 
-              stroke="#3562B3" 
+              stroke="#315BCB" 
               strokeWidth={2.5}
-              activeDot={{ r: 5, fill: '#3562B3', stroke: '#ffffff', strokeWidth: 2 }}
+              activeDot={{ r: 5, fill: '#315BCB', stroke: '#ffffff', strokeWidth: 2 }}
               fillOpacity={1} 
               fill={`url(#${gradientId})`} 
               name="Current Period"

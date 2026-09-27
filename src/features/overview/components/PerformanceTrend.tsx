@@ -69,9 +69,9 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
   const [activeMetric, setActiveMetric] = useState<SelectableTrendMetric>('leads');
 
   const metricConfigs: Record<SelectableTrendMetric, { label: string; color: string }> = {
-    leads: { label: 'Fetched leads', color: '#3562B3' },
-    delivered: { label: 'Delivered leads', color: '#0284C7' },
-    sales: { label: 'Recorded sales', color: '#059669' },
+    leads: { label: 'Fetched leads', color: '#4F5FB7' },
+    delivered: { label: 'Delivered leads', color: '#0E7490' },
+    sales: { label: 'Recorded sales', color: '#7C3AED' },
   };
 
   const chartData = useMemo(() => adaptDailyTrends(data), [data]);
@@ -130,12 +130,12 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border-subtle)" />
               <XAxis
                 dataKey="date"
-                tick={{ fill: 'var(--cx-text-muted)', fontSize: 11 }}
+                tick={{ fill: 'var(--cx-text-muted)', fontSize: 12 }}
                 tickLine={false}
                 axisLine={{ stroke: 'var(--cx-border-subtle)' }}
               />
               <YAxis
-                tick={{ fill: 'var(--cx-text-muted)', fontSize: 11 }}
+                tick={{ fill: 'var(--cx-text-muted)', fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={val => (val >= 1000 ? `${(val / 1000).toFixed(0)}k` : String(val))}

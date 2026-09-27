@@ -150,7 +150,7 @@ export const DataIntakePanel: React.FC<DataIntakePanelProps> = ({ clientId, isAd
         <div>
           <span className="cx-command-section-kicker">Data intake &amp; reconciliation</span>
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <Database size={18} className="text-[#3562B3]" />
+            <Database size={18} className="text-[#315BCB]" />
             <span>Warehouse Source Intake &amp; Raw Profiling</span>
           </h2>
           <p className="text-xs text-slate-600 mt-0.5">
@@ -415,7 +415,7 @@ export const DataIntakePanel: React.FC<DataIntakePanelProps> = ({ clientId, isAd
               type="button"
               disabled={profiling || !isAdmin}
               onClick={handleRunProfile}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#3562B3] text-white rounded font-medium text-xs hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#315BCB] text-white rounded font-medium text-xs hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-2xs"
             >
               {profiling ? <div className="cx-command-spinner mr-1" /> : <Play size={14} />}
               <span>{profiling ? 'Profiling bounded sample…' : 'Run Bounded Profile'}</span>
@@ -631,7 +631,7 @@ export const DataIntakePanel: React.FC<DataIntakePanelProps> = ({ clientId, isAd
               <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                   <h4 className="font-bold text-slate-800 flex items-center gap-1.5">
-                    <BarChart2 size={15} className="text-[#3562B3]" />
+                    <BarChart2 size={15} className="text-[#315BCB]" />
                     <span>Independent Stage Comparison (No Funnel Clamp)</span>
                   </h4>
                   <span className="text-[10px] text-slate-500">Source: offershop aggregate pipeline</span>

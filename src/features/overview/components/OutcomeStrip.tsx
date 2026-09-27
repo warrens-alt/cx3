@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Info, ArrowUpRight, TrendingUp, TrendingDown, ArrowRight, Search } from 'lucide-react';
+import { ArrowUpRight, TrendingUp, TrendingDown, ArrowRight, Search } from 'lucide-react';
 import { formatPercent, formatTableNumber } from '../../../lib/formatters';
 import type { OverviewData } from '../../../lib/offernetClient';
 import type { InspectorContent } from '../../../shared/evidence/InspectorHost';
@@ -177,18 +177,9 @@ export default function OutcomeStrip({
           className="cx-card p-4 flex flex-col justify-between hover:border-brand-primary/40 transition-colors group"
         >
           <div className="flex items-start justify-between">
-            <span className="text-xs font-semibold text-text-sec uppercase tracking-wider">
+            <span className="text-xs font-semibold text-text-sec">
               {item.label}
             </span>
-            <button
-              type="button"
-              onClick={() => onInspect(item.inspectContent)}
-              className="text-text-mute hover:text-brand-primary p-1 rounded transition-colors cursor-pointer"
-              title={`Inspect ${item.label} specification and evidence`}
-              aria-label={`Inspect ${item.label} specification`}
-            >
-              <Info size={14} />
-            </button>
           </div>
 
           <div className="my-2">

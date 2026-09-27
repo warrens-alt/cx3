@@ -66,7 +66,7 @@ export default function DataAuditDrawer({ isOpen, onClose, title, defaultGrain =
     <div className="flex flex-col max-h-[80dvh] min-w-0">
       <header className="flex items-start justify-between gap-3 p-4 sm:p-6 border-b border-border-subtle bg-surface-sec">
         <div className="min-w-0">
-          <h2 className="text-xl font-bold text-text-main flex items-center gap-2"><TableIcon className="w-5 h-5 text-[#3562B3] shrink-0" />{title}</h2>
+          <h2 className="text-xl font-bold text-text-main flex items-center gap-2"><TableIcon className="w-5 h-5 text-[#315BCB] shrink-0" />{title}</h2>
           <p className="text-sm text-text-sec mt-1">Supporting records · {clientConfig?.name} · capture dates {startDate} to {endDate}. Active and chart filters apply.</p>
         </div>
         <button type="button" onClick={onClose} aria-label="Close supporting records" className="cx-icon-button shrink-0"><X size={20} /></button>
@@ -92,7 +92,7 @@ export default function DataAuditDrawer({ isOpen, onClose, title, defaultGrain =
           {query.metadata?.generatedAt && <p className="text-sm text-text-sec">Response generated: {String(query.metadata.generatedAt)}. Source freshness is not established by this timestamp.</p>}
           <fieldset className="flex flex-wrap gap-2"><legend className="text-sm font-semibold mb-2">Visible column groups</legend>
             {allGroups.map(group => <button key={group} type="button" aria-pressed={activeGroups.includes(group)} onClick={() => toggleGroup(group)}
-              className={`cx-button-secondary ${activeGroups.includes(group) ? 'bg-[#EDF5FC] border-[#3562B3] text-[#315EAD]' : ''}`}>{group}</button>)}
+              className={`cx-button-secondary ${activeGroups.includes(group) ? 'bg-[#EDF5FC] border-[#315BCB] text-[#315EAD]' : ''}`}>{group}</button>)}
           </fieldset>
           <div className="border rounded-lg overflow-auto" tabIndex={0} role="region" aria-label="Supporting records table">
             <VisualTable visual={{ id: 'legacy.audit', data }} initialView="table" className="w-full text-left border-collapse text-sm whitespace-nowrap">

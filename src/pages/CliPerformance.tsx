@@ -264,7 +264,7 @@ export default function CliPerformance() {
     const contacts = parseInt(s.contactCount, 10) || 0;
     const sales = parseInt(s.saleCount, 10) || 0;
     const stages: Array<{ stage: string; count: number; pct: number; color: string }> = [
-      { stage: 'Total Calls', count: calls, pct: 100, color: '#3562B3' },
+      { stage: 'Total Calls', count: calls, pct: 100, color: '#315BCB' },
     ];
     if (s.answeredCount !== null) {
       const answered = parseInt(s.answeredCount, 10) || 0;
