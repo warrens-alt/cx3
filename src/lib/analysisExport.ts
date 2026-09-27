@@ -500,11 +500,17 @@ export interface DispositionExportMetadata {
   taxonomyVersion: string;
   userRole?: string;
   userEmail?: string;
-  generatedAt?: string;
+  generatedAt: string;
   inspectedVendor?: string | null;
   activeGroupFilter?: string | null;
   searchQuery?: string | null;
   returnedRowCount?: number | null;
+  reportPopulation?: number | null;
+  vendorPopulation?: number | null;
+  vendorBase?: number | null;
+  preSearchGroupPopulation?: number | null;
+  selectedVolume?: number | null;
+  exportScope?: string | null;
 }
 
 export function buildDispositionExportRows(
@@ -512,6 +518,23 @@ export function buildDispositionExportRows(
   meta: DispositionExportMetadata
 ): AnalysisCell[][] {
   if (!dataRows.length) return [];
+
+  if (!meta.generatedAt || !meta.generatedAt.trim()) {
+    throw new Error('Missing required generatedAt in disposition export metadata; substitute timestamps are prohibited.');
+  }
+  if (!meta.dateBasis || !meta.dateBasis.trim()) {
+    throw new Error('Missing required dateBasis in disposition export metadata; substitute date basis is prohibited.');
+  }
+  if (!meta.countingGrain || !meta.countingGrain.trim()) {
+    throw new Error('Missing required countingGrain in disposition export metadata; substitute counting grain is prohibited.');
+  }
+  if (!meta.taxonomyVersion || !meta.taxonomyVersion.trim()) {
+    throw new Error('Missing required taxonomyVersion in disposition export metadata; substitute version is prohibited.');
+  }
+  if (meta.totalPopulation === undefined || meta.totalPopulation === null || isNaN(meta.totalPopulation)) {
+    throw new Error('Missing required totalPopulation in disposition export metadata; substitute population is prohibited.');
+  }
+
   const headers = [
     ...dataRows[0],
     'Scope client',
@@ -532,6 +555,12 @@ export function buildDispositionExportRows(
     'Active group filter',
     'Search query',
     'Returned row count',
+    'Report population',
+    'Vendor population',
+    'Vendor base',
+    'Pre-search group population',
+    'Selected volume',
+    'Export scope',
   ];
   const auditValues: AnalysisCell[] = [
     meta.clientId,
@@ -547,11 +576,17 @@ export function buildDispositionExportRows(
     meta.taxonomyVersion,
     meta.userRole || 'authenticated',
     meta.userEmail || 'system',
-    meta.generatedAt || new Date().toISOString(),
+    meta.generatedAt,
     meta.inspectedVendor ?? null,
     meta.activeGroupFilter ?? null,
     meta.searchQuery ?? null,
     meta.returnedRowCount !== undefined && meta.returnedRowCount !== null ? meta.returnedRowCount : (dataRows.length > 1 ? dataRows.length - 1 : 0),
+    meta.reportPopulation !== undefined && meta.reportPopulation !== null ? meta.reportPopulation : meta.totalPopulation,
+    meta.vendorPopulation ?? null,
+    meta.vendorBase ?? null,
+    meta.preSearchGroupPopulation ?? null,
+    meta.selectedVolume !== undefined && meta.selectedVolume !== null ? meta.selectedVolume : meta.totalPopulation,
+    meta.exportScope ?? (meta.inspectedVendor ? 'VENDOR_SELECTED_BREAKDOWN' : 'SUMMARY_TABLE'),
   ];
   return [
     headers,

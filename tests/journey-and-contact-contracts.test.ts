@@ -3,7 +3,17 @@ import assert from 'node:assert/strict';
 import { adaptJourneyData } from '../src/features/journey/model/journeyAdapter';
 import type { JourneyData } from '../src/features/journey/model/useJourneyModel';
 import { buildDispositionExportRows, serializeCsv, type DispositionExportMetadata } from '../src/lib/analysisExport';
-import { DISPOSITION_REPORT_VERSION, type DetailedDispositionRow } from '../contracts/vendorDispositions';
+import {
+  DISPOSITION_REPORT_VERSION,
+  presentMappingStatus,
+  type ContactDispositionsData,
+  type DetailedDispositionRow,
+} from '../contracts/vendorDispositions';
+import {
+  buildVendorSelectedExport,
+  filterDispositionRows,
+  calculateGroupTotals,
+} from '../src/features/contact/model/dispositionSelection';
 import { getRawLeads } from '../server/analytics/investigation/records';
 
 test('adaptJourneyData: acceptance fixture separates independent stage totals from transition intersections', () => {
@@ -186,144 +196,575 @@ test('adaptJourneyData: empty eligible population has null rates and measured ze
   assert.equal(adapted.transitions[1].lost, null);
 });
 
-test('vendor disposition export: buildDispositionExportRows binds result selection metadata', () => {
-  const meta: DispositionExportMetadata = {
-    clientId: 'tenant-omega',
-    startDate: '2026-09-01',
-    endDate: '2026-09-15',
-    filters: { campaign: 'Brand_Direct' },
-    mode: 'lead_status',
-    dateBasis: 'lead_capture_cohort',
-    countingGrain: 'lead_record',
-    totalPopulation: 142,
-    denominatorDefinition: 'Dialled leads recorded for vendor CallForce',
-    isTruncated: false,
-    taxonomyVersion: DISPOSITION_REPORT_VERSION,
-    userRole: 'analyst',
-    userEmail: 'analyst@cx3.test',
-    generatedAt: '2026-09-27T10:00:00.000Z',
-    inspectedVendor: 'CallForce',
-    activeGroupFilter: 'CONTACTED_RPC',
-    searchQuery: 'SALE',
-    returnedRowCount: 1,
-  };
+const sampleReportFixture: ContactDispositionsData = {
+  reportVersion: DISPOSITION_REPORT_VERSION,
+  mode: 'lead_status',
+  modeHeading: 'Current recorded status for the selected capture cohort',
+  modeDescription: 'Reconciles repeated HLC records deterministically per lead-vendor pair.',
+  dateBasis: 'lead_capture_cohort',
+  countingGrain: 'lead_vendor_pairs',
+  clientId: 'tenant-omega',
+  timezone: 'Africa/Johannesburg',
+  summary: {
+    totalEntities: 500,
+    dialledEntities: 400,
+    zeroCallEntities: 60,
+    unrecordedActivityEntities: 40,
+    conflictingEntities: 20,
+    recordedDispositions: 350,
+    missingDispositions: 50,
+    unmappedDispositions: 30,
+    dispositionCoveragePct: 87.5,
+    mappingCoveragePct: 91.4,
+    rpcCount: 150,
+    saleCount: 50,
+    callbackCount: 30,
+  },
+  vendorSummaries: [
+    {
+      vendor: 'CallForce',
+      totalPopulation: 300,
+      dialledCount: 250,
+      recordedDispositionCount: 220,
+      missingDispositionCount: 30,
+      unmappedDispositionCount: 20,
+      dispositionCoveragePct: 88.0,
+      mappingCoveragePct: 90.9,
+      rpcCount: 100,
+      saleCount: 35,
+      callbackCount: 20,
+      sourceTable: 'clustered_lead_ledger.hlc_details',
+      dateBasis: 'lead_capture_cohort',
+      latestObservedFeedback: null,
+      coverageLimitations: [],
+    },
+    {
+      vendor: 'Mondo',
+      totalPopulation: 200,
+      dialledCount: 150,
+      recordedDispositionCount: 130,
+      missingDispositionCount: 20,
+      unmappedDispositionCount: 10,
+      dispositionCoveragePct: 86.7,
+      mappingCoveragePct: 92.3,
+      rpcCount: 50,
+      saleCount: 15,
+      callbackCount: 10,
+      sourceTable: 'clustered_lead_ledger.hlc_details',
+      dateBasis: 'lead_capture_cohort',
+      latestObservedFeedback: null,
+      coverageLimitations: [],
+    },
+  ],
+  breakdown: [
+    {
+      vendor: 'CallForce',
+      rawDisposition: 'RPC_HUMAN',
+      rawDescription: 'Right Party Contact Human',
+      approvedGroup: 'CONTACTED_RPC',
+      approvedGroupLabel: 'Contacted / RPC',
+      count: 60,
+      percentOfBase: 24.0,
+      distinctLeadVendorPairs: 60,
+      rpcCount: 60,
+      saleCount: 0,
+      callbackCount: 0,
+      avgDurationSec: null,
+      validDurationCount: null,
+      latestObservation: null,
+      mappingStatus: 'APPROVED',
+    },
+    {
+      vendor: 'CallForce',
+      rawDisposition: 'RPC_CALLBACK',
+      rawDescription: 'Customer Requested Callback',
+      approvedGroup: 'CONTACTED_RPC',
+      approvedGroupLabel: 'Contacted / RPC',
+      count: 40,
+      percentOfBase: 16.0,
+      distinctLeadVendorPairs: 40,
+      rpcCount: 40,
+      saleCount: 0,
+      callbackCount: 20,
+      avgDurationSec: null,
+      validDurationCount: null,
+      latestObservation: null,
+      mappingStatus: 'APPROVED',
+    },
+    {
+      vendor: 'CallForce',
+      rawDisposition: 'SALE_MADE',
+      rawDescription: 'Sale Closed Deal',
+      approvedGroup: 'REPORTED_SALE',
+      approvedGroupLabel: 'Reported Sale',
+      count: 35,
+      percentOfBase: 14.0,
+      distinctLeadVendorPairs: 35,
+      rpcCount: 35,
+      saleCount: 35,
+      callbackCount: 0,
+      avgDurationSec: null,
+      validDurationCount: null,
+      latestObservation: null,
+      mappingStatus: 'APPROVED',
+    },
+    {
+      vendor: 'CallForce',
+      rawDisposition: 'UNMAPPED_RAW_X',
+      rawDescription: 'Unknown code from CallForce',
+      approvedGroup: 'UNMAPPED',
+      approvedGroupLabel: 'Unmapped Disposition',
+      count: 20,
+      percentOfBase: 8.0,
+      distinctLeadVendorPairs: 20,
+      rpcCount: 0,
+      saleCount: 0,
+      callbackCount: 0,
+      avgDurationSec: null,
+      validDurationCount: null,
+      latestObservation: null,
+      isUnmapped: true,
+      mappingStatus: 'UNMAPPED',
+    },
+    {
+      vendor: 'CallForce',
+      rawDisposition: 'MISSING_DISPOSITION',
+      rawDescription: 'Missing disposition code',
+      approvedGroup: 'MISSING_DISPOSITION',
+      approvedGroupLabel: 'Missing Disposition',
+      count: 30,
+      percentOfBase: 12.0,
+      distinctLeadVendorPairs: 30,
+      rpcCount: 0,
+      saleCount: 0,
+      callbackCount: 0,
+      avgDurationSec: null,
+      validDurationCount: null,
+      latestObservation: null,
+      mappingStatus: 'MISSING',
+    },
+    {
+      vendor: 'CallForce',
+      rawDisposition: 'CONFLICTING_EVIDENCE',
+      rawDescription: 'Contradictory status observations',
+      approvedGroup: 'CONFLICTING_EVIDENCE',
+      approvedGroupLabel: 'Conflicting Evidence',
+      count: 20,
+      percentOfBase: 8.0,
+      distinctLeadVendorPairs: 20,
+      rpcCount: 5,
+      saleCount: 0,
+      callbackCount: 0,
+      avgDurationSec: null,
+      validDurationCount: null,
+      latestObservation: null,
+      mappingStatus: 'CONFLICTING',
+    },
+    {
+      vendor: 'CallForce',
+      rawDisposition: 'UNKNOWN_CUSTOM_CODE',
+      rawDescription: 'Unclassified operational code',
+      approvedGroup: 'OTHER',
+      approvedGroupLabel: 'Other',
+      count: 10,
+      percentOfBase: 4.0,
+      distinctLeadVendorPairs: 10,
+      rpcCount: 0,
+      saleCount: 0,
+      callbackCount: 0,
+      avgDurationSec: null,
+      validDurationCount: null,
+      latestObservation: null,
+      mappingStatus: undefined, // Absent status
+    },
+    {
+      vendor: 'CallForce',
+      rawDisposition: 'CONTRADICTORY_CODE',
+      rawDescription: 'Marked approved but flagged unmapped',
+      approvedGroup: 'OTHER',
+      approvedGroupLabel: 'Other',
+      count: 5,
+      percentOfBase: 2.0,
+      distinctLeadVendorPairs: 5,
+      rpcCount: 0,
+      saleCount: 0,
+      callbackCount: 0,
+      avgDurationSec: null,
+      validDurationCount: null,
+      latestObservation: null,
+      isUnmapped: true,
+      mappingStatus: 'APPROVED', // Contradictory fields!
+    },
+    {
+      vendor: 'Mondo',
+      rawDisposition: 'SALE',
+      rawDescription: 'Approved Deal',
+      approvedGroup: 'REPORTED_SALE',
+      approvedGroupLabel: 'Reported Sale',
+      count: 15,
+      percentOfBase: 10.0,
+      distinctLeadVendorPairs: 15,
+      rpcCount: 15,
+      saleCount: 15,
+      callbackCount: 0,
+      avgDurationSec: null,
+      validDurationCount: null,
+      latestObservation: null,
+      mappingStatus: 'APPROVED',
+    },
+  ],
+  matrix: [],
+  trends: [],
+  comparableGroups: [],
+  capabilities: {
+    leadStatusSupported: true,
+    callRecordsSupported: true,
+    supportedFilters: [],
+    unsupportedFilters: [],
+  },
+  methodology: 'Test',
+  evaluatedAt: '2026-09-27T10:00:00.000Z',
+};
 
-  const sampleDataRows = [
-    [
-      'Vendor',
-      'Raw Disposition Code',
-      'Description',
-      'Approved Outcome Group',
-      'Volume',
-      'Share of Group %',
-      'Share of Vendor %',
-      'Mapping Status',
-      'RPC',
-      'Sales',
-      'Callbacks',
-    ],
-    [
-      'CallForce',
-      'SALE',
-      'Sale Made',
-      'Reported Sale',
-      142,
-      '100.0%',
-      '24.5%',
-      'APPROVED',
-      142,
-      142,
-      0,
-    ],
-  ];
+test('vendor disposition export: select vendor + group + raw-code search synchronizes drawer rows and export output in data, status labels and order', () => {
+  const allCallForceRows = sampleReportFixture.breakdown.filter((r) => r.vendor === 'CallForce');
 
-  const exportRows = buildDispositionExportRows(sampleDataRows, meta);
-  assert.equal(exportRows.length, 2);
+  // Exercise real path: select vendor CallForce, group CONTACTED_RPC, search "HUMAN"
+  const drawerRows = filterDispositionRows(allCallForceRows, 'CONTACTED_RPC', 'HUMAN');
+  assert.equal(drawerRows.length, 1);
+  assert.equal(drawerRows[0].rawDisposition, 'RPC_HUMAN');
 
-  const header = exportRows[0];
-  // Verify standard audit columns
-  assert.ok(header.includes('Scope client'));
-  assert.ok(header.includes('Reporting mode'));
-  assert.ok(header.includes('Date basis'));
-  assert.ok(header.includes('Counting grain'));
-  assert.ok(header.includes('Taxonomy version'));
-  // Verify new selection-bound audit columns
-  assert.ok(header.includes('Inspected vendor'));
-  assert.ok(header.includes('Active group filter'));
-  assert.ok(header.includes('Search query'));
-  assert.ok(header.includes('Returned row count'));
+  const exportResult = buildVendorSelectedExport({
+    report: sampleReportFixture,
+    requestContext: {
+      clientId: 'tenant-omega',
+      startDate: '2026-09-01',
+      endDate: '2026-09-15',
+    },
+    selection: {
+      vendor: 'CallForce',
+      groupFilter: 'CONTACTED_RPC',
+      searchQuery: 'HUMAN',
+    },
+  });
 
-  const row = exportRows[1];
-  assert.equal(row[0], 'CallForce');
-  assert.equal(row[1], 'SALE');
-  assert.equal(row[4], 142); // Volume
+  // Drawer rows and export rows match in data and row count
+  assert.equal(exportResult.selectedRows.length, drawerRows.length);
+  assert.equal(exportResult.selectedRows[0].rawDisposition, drawerRows[0].rawDisposition);
+  assert.equal(exportResult.selectedRows[0].count, drawerRows[0].count);
 
-  // Positional audit column verification (compatible with earlier contract tests)
-  const clientIdx = header.indexOf('Scope client');
-  assert.equal(row[clientIdx], 'tenant-omega');
+  // Status label matches exactly between drawer presenter and CSV output
+  const drawerStatus = presentMappingStatus(drawerRows[0]);
+  assert.equal(drawerStatus.label, 'Approved mapping');
 
-  const vendorIdx = header.indexOf('Inspected vendor');
-  assert.equal(row[vendorIdx], 'CallForce');
+  const dataRow = exportResult.dataRows[1];
+  assert.equal(dataRow[0], 'CallForce');
+  assert.equal(dataRow[1], 'RPC_HUMAN');
+  assert.equal(dataRow[7], 'Approved mapping'); // Mapping Status column
 
-  const groupIdx = header.indexOf('Active group filter');
-  assert.equal(row[groupIdx], 'CONTACTED_RPC');
-
-  const searchIdx = header.indexOf('Search query');
-  assert.equal(row[searchIdx], 'SALE');
-
-  const rowCountIdx = header.indexOf('Returned row count');
-  assert.equal(row[rowCountIdx], 1);
-
-  const csv = serializeCsv(exportRows);
-  assert.ok(csv.startsWith('\uFEFF'));
-  assert.ok(csv.includes('"CallForce"'));
-  assert.ok(csv.includes('"CONTACTED_RPC"'));
+  // CSV output contains the identical label
+  assert.ok(exportResult.csv.includes('"Approved mapping"'));
+  assert.ok(exportResult.csv.includes('"RPC_HUMAN"'));
 });
 
-test('vendor disposition export: empty filtered rows returns empty breakdown with header and metadata', () => {
-  const meta: DispositionExportMetadata = {
-    clientId: 'tenant-omega',
-    startDate: '2026-09-01',
-    endDate: '2026-09-15',
-    filters: {},
-    mode: 'call_records',
-    dateBasis: 'call_event_timestamp',
-    countingGrain: 'call_event',
-    totalPopulation: 0,
-    denominatorDefinition: 'Call attempts recorded for vendor Mondo',
-    isTruncated: false,
-    taxonomyVersion: DISPOSITION_REPORT_VERSION,
-    inspectedVendor: 'Mondo',
-    activeGroupFilter: 'VOICEMAIL',
-    searchQuery: 'nonexistent_code',
-    returnedRowCount: 0,
+test('vendor disposition export: mapping status presenter and export output exercise all explicit mapping-status variants without favorable bias', () => {
+  // Test shared presenter with all 5 variants
+  const approved = presentMappingStatus({ mappingStatus: 'APPROVED' });
+  assert.equal(approved.status, 'APPROVED');
+  assert.equal(approved.label, 'Approved mapping');
+
+  const unmapped = presentMappingStatus({ mappingStatus: 'UNMAPPED' });
+  assert.equal(unmapped.status, 'UNMAPPED');
+  assert.equal(unmapped.label, 'Unmapped code');
+
+  const missing = presentMappingStatus({ mappingStatus: 'MISSING' });
+  assert.equal(missing.status, 'MISSING');
+  assert.equal(missing.label, 'Missing disposition');
+
+  const conflicting = presentMappingStatus({ mappingStatus: 'CONFLICTING' });
+  assert.equal(conflicting.status, 'CONFLICTING');
+  assert.equal(conflicting.label, 'Conflicting evidence');
+
+  const unknown = presentMappingStatus({ mappingStatus: 'SOME_UNKNOWN_CODE' as any });
+  assert.equal(unknown.status, 'UNAVAILABLE');
+  assert.equal(unknown.label, 'Mapping status unavailable');
+
+  const absent = presentMappingStatus({});
+  assert.equal(absent.status, 'UNAVAILABLE');
+  assert.equal(absent.label, 'Mapping status unavailable');
+
+  // Contradictory status fields are handled explicitly rather than silently choosing Approved
+  const contradictory = presentMappingStatus({ mappingStatus: 'APPROVED', isUnmapped: true });
+  assert.equal(contradictory.status, 'CONFLICTING');
+  assert.equal(contradictory.label, 'Conflicting evidence');
+
+  // Documented contract alternatives when mappingStatus is absent
+  const documentedUnmapped = presentMappingStatus({ isUnmapped: true });
+  assert.equal(documentedUnmapped.status, 'UNMAPPED');
+  assert.equal(documentedUnmapped.label, 'Unmapped code');
+
+  const documentedMissing = presentMappingStatus({ approvedGroup: 'MISSING_DISPOSITION' });
+  assert.equal(documentedMissing.status, 'MISSING');
+  assert.equal(documentedMissing.label, 'Missing disposition');
+
+  // Full export of CallForce exercises all variants in CSV
+  const exportResult = buildVendorSelectedExport({
+    report: sampleReportFixture,
+    requestContext: { clientId: 'tenant-omega' },
+    selection: { vendor: 'CallForce', groupFilter: 'ALL', searchQuery: '' },
+  });
+
+  const headers = exportResult.dataRows[0];
+  const statusIdx = headers.indexOf('Mapping Status');
+  assert.ok(statusIdx >= 0);
+
+  const statusLabelsInCsv = exportResult.dataRows.slice(1).map((r) => r[statusIdx]);
+  assert.ok(statusLabelsInCsv.includes('Approved mapping'));
+  assert.ok(statusLabelsInCsv.includes('Unmapped code'));
+  assert.ok(statusLabelsInCsv.includes('Missing disposition'));
+  assert.ok(statusLabelsInCsv.includes('Conflicting evidence'));
+  assert.ok(statusLabelsInCsv.includes('Mapping status unavailable'));
+});
+
+test('vendor disposition export: missing report metadata fails cleanly with explicit readable error and produces no download', () => {
+  const reqContext = { clientId: 'tenant-omega' };
+  const selection = { vendor: 'CallForce', groupFilter: 'ALL', searchQuery: '' };
+
+  // Missing report
+  assert.throws(
+    () => buildVendorSelectedExport({ report: null, requestContext: reqContext, selection }),
+    /No disposition report data is available/
+  );
+
+  // Missing reportVersion
+  assert.throws(
+    () =>
+      buildVendorSelectedExport({
+        report: { ...sampleReportFixture, reportVersion: '' },
+        requestContext: reqContext,
+        selection,
+      }),
+    /Missing required reportVersion/
+  );
+
+  // Missing mode
+  assert.throws(
+    () =>
+      buildVendorSelectedExport({
+        report: { ...sampleReportFixture, mode: '' as any },
+        requestContext: reqContext,
+        selection,
+      }),
+    /Missing or invalid mode/
+  );
+
+  // Missing dateBasis
+  assert.throws(
+    () =>
+      buildVendorSelectedExport({
+        report: { ...sampleReportFixture, dateBasis: '' },
+        requestContext: reqContext,
+        selection,
+      }),
+    /Missing required dateBasis/
+  );
+
+  // Missing countingGrain
+  assert.throws(
+    () =>
+      buildVendorSelectedExport({
+        report: { ...sampleReportFixture, countingGrain: '' },
+        requestContext: reqContext,
+        selection,
+      }),
+    /Missing required countingGrain/
+  );
+
+  // Missing totalEntities population
+  assert.throws(
+    () =>
+      buildVendorSelectedExport({
+        report: {
+          ...sampleReportFixture,
+          summary: { ...sampleReportFixture.summary, totalEntities: null as any },
+        },
+        requestContext: reqContext,
+        selection,
+      }),
+    /Missing required totalEntities population/
+  );
+
+  // Missing evaluatedAt
+  assert.throws(
+    () =>
+      buildVendorSelectedExport({
+        report: { ...sampleReportFixture, evaluatedAt: '' },
+        requestContext: reqContext,
+        selection,
+      }),
+    /Missing required evaluatedAt timestamp/
+  );
+
+  // Measured zero is valid (not missing!)
+  const zeroReport: ContactDispositionsData = {
+    ...sampleReportFixture,
+    summary: { ...sampleReportFixture.summary, totalEntities: 0 },
+    vendorSummaries: [{ ...sampleReportFixture.vendorSummaries[0], totalPopulation: 0, dialledCount: 0 }],
+    breakdown: [],
   };
+  const zeroResult = buildVendorSelectedExport({
+    report: zeroReport,
+    requestContext: reqContext,
+    selection,
+  });
+  assert.equal(zeroResult.metadata.totalPopulation, 0);
+  assert.equal(zeroResult.metadata.reportPopulation, 0);
+  assert.equal(zeroResult.isEmptyMatch, true);
+});
 
-  const emptyDataRows = [
-    [
-      'Vendor',
-      'Raw Disposition Code',
-      'Description',
-      'Approved Outcome Group',
-      'Volume',
-      'Share of Group %',
-      'Share of Vendor %',
-      'Mapping Status',
-      'RPC',
-      'Sales',
-      'Callbacks',
-    ],
-  ];
+test('vendor disposition export: selected export CSV distinctly labels all five population metrics without overloading', () => {
+  const exportResult = buildVendorSelectedExport({
+    report: sampleReportFixture,
+    requestContext: { clientId: 'tenant-omega' },
+    selection: { vendor: 'CallForce', groupFilter: 'CONTACTED_RPC', searchQuery: 'HUMAN' },
+  });
 
-  const exportRows = buildDispositionExportRows(emptyDataRows, meta);
-  // Contains only the header row, no data rows
-  assert.equal(exportRows.length, 1);
-  assert.equal(exportRows[0][0], 'Vendor');
-  assert.ok(exportRows[0].includes('Inspected vendor'));
+  const headers = exportResult.fullRows[0];
 
-  const csv = serializeCsv(exportRows);
+  // Verify all 5 distinct population columns exist in the CSV header
+  assert.ok(headers.includes('Report population'));
+  assert.ok(headers.includes('Counting grain'));
+  assert.ok(headers.includes('Vendor population'));
+  assert.ok(headers.includes('Vendor base'));
+  assert.ok(headers.includes('Pre-search group population'));
+  assert.ok(headers.includes('Selected volume'));
+  assert.ok(headers.includes('Returned row count'));
+
+  const row = exportResult.fullRows[1];
+  const reportPopIdx = headers.indexOf('Report population');
+  const totalPopIdx = headers.indexOf('Total population');
+  const grainIdx = headers.indexOf('Counting grain');
+  const vendorPopIdx = headers.indexOf('Vendor population');
+  const vendorBaseIdx = headers.indexOf('Vendor base');
+  const preSearchGrpIdx = headers.indexOf('Pre-search group population');
+  const selectedVolIdx = headers.indexOf('Selected volume');
+  const returnedRowIdx = headers.indexOf('Returned row count');
+
+  // 1. Full report population and counting grain
+  assert.equal(row[reportPopIdx], 500);
+  assert.equal(row[totalPopIdx], 500); // Preserves report total, NOT selected volume!
+  assert.equal(row[grainIdx], 'lead_vendor_pairs');
+
+  // 2. Selected vendor population and actual percentage base
+  assert.equal(row[vendorPopIdx], 300);
+  assert.equal(row[vendorBaseIdx], 250); // dialledCount in lead_status mode
+
+  // 3. Selected outcome-group population before table search (60 + 40 = 100 for CONTACTED_RPC)
+  assert.equal(row[preSearchGrpIdx], 100);
+
+  // 4. Volume represented by the searched/selected rows (only RPC_HUMAN = 60)
+  assert.equal(row[selectedVolIdx], 60);
+
+  // 5. Number of raw-code rows exported
+  assert.equal(row[returnedRowIdx], 1);
+});
+
+test('vendor disposition export: share of group uses pre-search group volume as denominator, and share of vendor retains report base and percentOfBase', () => {
+  // CONTACTED_RPC has 2 rows: RPC_HUMAN (60) and RPC_CALLBACK (40). Total = 100.
+  // Search for "HUMAN" -> returns only RPC_HUMAN (60).
+  const exportResult = buildVendorSelectedExport({
+    report: sampleReportFixture,
+    requestContext: { clientId: 'tenant-omega' },
+    selection: { vendor: 'CallForce', groupFilter: 'CONTACTED_RPC', searchQuery: 'HUMAN' },
+  });
+
+  assert.equal(exportResult.selectedRows.length, 1);
+  const dataRow = exportResult.dataRows[1];
+
+  // Share of Group % must use 100 as denominator, so 60 / 100 = 60.0% (NOT 100%!)
+  const headers = exportResult.dataRows[0];
+  const shareOfGrpIdx = headers.indexOf('Share of Group %');
+  const shareOfVendorIdx = headers.indexOf('Share of Vendor %');
+
+  assert.equal(dataRow[shareOfGrpIdx], '60.0%');
+
+  // Share of Vendor % retains the report's percentOfBase (24.0%) based on dialled leads 250
+  assert.equal(dataRow[shareOfVendorIdx], '24%');
+});
+
+test('vendor disposition export: empty search match yields explicit empty state and cannot be downloaded as all outcomes or corrupt file', () => {
+  const exportResult = buildVendorSelectedExport({
+    report: sampleReportFixture,
+    requestContext: { clientId: 'tenant-omega' },
+    selection: { vendor: 'CallForce', groupFilter: 'CONTACTED_RPC', searchQuery: 'NON_EXISTENT_QUERY' },
+  });
+
+  assert.equal(exportResult.isEmptyMatch, true);
+  assert.equal(exportResult.selectedRows.length, 0);
+  assert.equal(exportResult.metadata.returnedRowCount, 0);
+  assert.equal(exportResult.metadata.selectedVolume, 0);
+
+  // Contains header row only; no data rows, no fake rows, no fallback to all outcomes
+  assert.equal(exportResult.dataRows.length, 1);
+  assert.equal(exportResult.fullRows.length, 1);
+  assert.equal(exportResult.dataRows[0][0], 'Vendor');
+
+  const csv = exportResult.csv;
   assert.ok(csv.startsWith('\uFEFF'));
   assert.ok(csv.includes('"Vendor"'));
+  assert.ok(!csv.includes('"RPC_HUMAN"'));
+  assert.ok(!csv.includes('"SALE_MADE"'));
+});
+
+test('vendor disposition export: changing group or search query updates rendered table rows and export data simultaneously', () => {
+  const allCallForceRows = sampleReportFixture.breakdown.filter((r) => r.vendor === 'CallForce');
+
+  // 1. Initial view: group ALL, no search query
+  const view1Drawer = filterDispositionRows(allCallForceRows, 'ALL', '');
+  const view1Export = buildVendorSelectedExport({
+    report: sampleReportFixture,
+    requestContext: { clientId: 'tenant-omega' },
+    selection: { vendor: 'CallForce', groupFilter: 'ALL', searchQuery: '' },
+  });
+  assert.equal(view1Drawer.length, 8);
+  assert.equal(view1Export.selectedRows.length, 8);
+
+  // 2. Change group to REPORTED_SALE: both table and export update together
+  const view2Drawer = filterDispositionRows(allCallForceRows, 'REPORTED_SALE', '');
+  const view2Export = buildVendorSelectedExport({
+    report: sampleReportFixture,
+    requestContext: { clientId: 'tenant-omega' },
+    selection: { vendor: 'CallForce', groupFilter: 'REPORTED_SALE', searchQuery: '' },
+  });
+  assert.equal(view2Drawer.length, 1);
+  assert.equal(view2Export.selectedRows.length, 1);
+  assert.equal(view2Drawer[0].rawDisposition, 'SALE_MADE');
+  assert.equal(view2Export.selectedRows[0].rawDisposition, 'SALE_MADE');
+
+  // 3. Change search query to "Deal": both table and export update together
+  const view3Drawer = filterDispositionRows(allCallForceRows, 'ALL', 'Deal');
+  const view3Export = buildVendorSelectedExport({
+    report: sampleReportFixture,
+    requestContext: { clientId: 'tenant-omega' },
+    selection: { vendor: 'CallForce', groupFilter: 'ALL', searchQuery: 'Deal' },
+  });
+  assert.equal(view3Drawer.length, 1);
+  assert.equal(view3Export.selectedRows.length, 1);
+  assert.equal(view3Drawer[0].rawDisposition, 'SALE_MADE');
+  assert.equal(view3Export.selectedRows[0].rawDisposition, 'SALE_MADE');
+
+  // 4. Change vendor to Mondo: both table and export update together
+  const allMondoRows = sampleReportFixture.breakdown.filter((r) => r.vendor === 'Mondo');
+  const view4Drawer = filterDispositionRows(allMondoRows, 'ALL', '');
+  const view4Export = buildVendorSelectedExport({
+    report: sampleReportFixture,
+    requestContext: { clientId: 'tenant-omega' },
+    selection: { vendor: 'Mondo', groupFilter: 'ALL', searchQuery: '' },
+  });
+  assert.equal(view4Drawer.length, 1);
+  assert.equal(view4Export.selectedRows.length, 1);
+  assert.equal(view4Drawer[0].rawDisposition, 'SALE');
+  assert.equal(view4Export.selectedRows[0].rawDisposition, 'SALE');
 });
 
 test('investigation records: getRawLeads handles call-effort and funnel-stage drills correctly', async t => {

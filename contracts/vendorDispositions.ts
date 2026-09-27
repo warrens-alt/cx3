@@ -347,6 +347,77 @@ export interface DetailedDispositionRow {
   mappingStatus?: 'APPROVED' | 'UNMAPPED' | 'MISSING' | 'CONFLICTING';
 }
 
+export type MappingStatusPresentation = {
+  status: 'APPROVED' | 'UNMAPPED' | 'MISSING' | 'CONFLICTING' | 'UNAVAILABLE';
+  label: 'Approved mapping' | 'Unmapped code' | 'Missing disposition' | 'Conflicting evidence' | 'Mapping status unavailable';
+};
+
+/**
+ * Shared mapping status presenter for UI table and CSV export.
+ * Renders explicit labels and handles contradictory status fields deterministically:
+ * - APPROVED -> Approved mapping
+ * - UNMAPPED -> Unmapped code
+ * - MISSING -> Missing disposition
+ * - CONFLICTING -> Conflicting evidence
+ * - Absent/unsupported status -> Mapping status unavailable (unless valid contract alternative)
+ */
+export function presentMappingStatus(row: {
+  mappingStatus?: string | null;
+  isUnmapped?: boolean | null;
+  approvedGroup?: string | null;
+  rawDisposition?: string | null;
+}): MappingStatusPresentation {
+  const rawStatus = row.mappingStatus;
+  const isUnmapped = Boolean(row.isUnmapped || row.approvedGroup === 'UNMAPPED');
+  const isMissing = row.approvedGroup === 'MISSING_DISPOSITION';
+  const isConflicting = row.approvedGroup === 'CONFLICTING_EVIDENCE';
+
+  // 1. Contradiction check:
+  // If explicitly marked APPROVED, but unmapped/missing/conflicting flags or groups are present,
+  // evidence is contradictory. Never silently choose Approved.
+  if (rawStatus === 'APPROVED' && (isUnmapped || isMissing || isConflicting)) {
+    return { status: 'CONFLICTING', label: 'Conflicting evidence' };
+  }
+  if (rawStatus === 'UNMAPPED' && (isMissing || isConflicting)) {
+    return { status: 'CONFLICTING', label: 'Conflicting evidence' };
+  }
+  if (rawStatus === 'MISSING' && (isUnmapped || isConflicting)) {
+    return { status: 'CONFLICTING', label: 'Conflicting evidence' };
+  }
+
+  // 2. Direct recognized mappingStatus resolution
+  if (rawStatus === 'APPROVED') {
+    return { status: 'APPROVED', label: 'Approved mapping' };
+  }
+  if (rawStatus === 'UNMAPPED') {
+    return { status: 'UNMAPPED', label: 'Unmapped code' };
+  }
+  if (rawStatus === 'MISSING') {
+    return { status: 'MISSING', label: 'Missing disposition' };
+  }
+  if (rawStatus === 'CONFLICTING') {
+    return { status: 'CONFLICTING', label: 'Conflicting evidence' };
+  }
+
+  // 3. Fallback to documented contract alternatives when mappingStatus is absent
+  if (rawStatus === undefined || rawStatus === null || rawStatus === '') {
+    if (isConflicting) {
+      return { status: 'CONFLICTING', label: 'Conflicting evidence' };
+    }
+    if (isMissing) {
+      return { status: 'MISSING', label: 'Missing disposition' };
+    }
+    if (isUnmapped) {
+      return { status: 'UNMAPPED', label: 'Unmapped code' };
+    }
+    // Absent status with no documented alternative flag
+    return { status: 'UNAVAILABLE', label: 'Mapping status unavailable' };
+  }
+
+  // 4. Any other unsupported/unknown mapping status string
+  return { status: 'UNAVAILABLE', label: 'Mapping status unavailable' };
+}
+
 export interface DispositionMatrixCell {
   vendor: string;
   group: ApprovedDispositionGroup;

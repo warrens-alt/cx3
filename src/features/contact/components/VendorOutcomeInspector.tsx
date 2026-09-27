@@ -4,11 +4,16 @@ import { useDialogAccessibility } from '../../../hooks/useDialogAccessibility';
 import { formatPercent, formatTableNumber } from '../../../lib/formatters';
 import {
   APPROVED_DISPOSITION_GROUPS,
+  presentMappingStatus,
   type ApprovedDispositionGroup,
   type DispositionReportingMode,
   type DetailedDispositionRow,
   type VendorDispositionSummaryItem,
 } from '../../../../contracts/vendorDispositions';
+import {
+  filterDispositionRows,
+  calculateGroupTotals,
+} from '../model/dispositionSelection';
 import { Link } from 'react-router-dom';
 
 interface VendorOutcomeInspectorProps {
@@ -32,6 +37,17 @@ interface VendorOutcomeInspectorProps {
   dateBasis?: string;
   countingGrain?: string;
   evaluatedAt?: string;
+  timezone?: string;
+  reportContext?: {
+    reportVersion?: string;
+    dateBasis?: string;
+    countingGrain?: string;
+    evaluatedAt?: string;
+    timezone?: string;
+    clientId?: string;
+  };
+  exportError?: string | null;
+  onClearExportError?: () => void;
   explorerPath?: string | { pathname: string; search: string };
 }
 
@@ -47,6 +63,14 @@ export default function VendorOutcomeInspector({
   onFilterReportByVendor,
   onExportVendorRaw,
   onExportSelectedBreakdown,
+  reportVersion,
+  dateBasis,
+  countingGrain,
+  evaluatedAt,
+  timezone,
+  reportContext,
+  exportError,
+  onClearExportError,
   explorerPath,
 }: VendorOutcomeInspectorProps) {
   const dialogRef = useDialogAccessibility<HTMLDivElement>(open, onClose);
@@ -70,31 +94,39 @@ export default function VendorOutcomeInspector({
 
   const isCallMode = mode === 'call_records';
 
-  // Group total counts for calculating share of group
-  const groupTotals = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const r of rawRows) {
-      map.set(r.approvedGroup, (map.get(r.approvedGroup) || 0) + r.count);
-    }
-    return map;
-  }, [rawRows]);
+  // Effective report context derived from props
+  const effectiveVersion = reportContext?.reportVersion || reportVersion;
+  const effectiveDateBasis = reportContext?.dateBasis || dateBasis;
+  const effectiveGrain = reportContext?.countingGrain || countingGrain;
+  const effectiveEvaluatedAt = reportContext?.evaluatedAt || evaluatedAt;
 
-  // Production filtered rows used identically by table and export
+  // Readable labels derived from returned grain
+  const grainBadgeLabel = useMemo(() => {
+    if (effectiveGrain === 'lead_vendor_pairs') return 'Lead–vendor pair grain';
+    if (effectiveGrain === 'dialler_records') return 'Dialler records grain';
+    if (effectiveGrain === 'call_event') return 'Call events grain';
+    if (effectiveGrain) return `${effectiveGrain.replace(/_/g, ' ')} grain`;
+    return isCallMode ? 'Dialler records grain' : 'Lead–vendor pair grain';
+  }, [effectiveGrain, isCallMode]);
+
+  const totalPopulationLabel = useMemo(() => {
+    if (effectiveGrain === 'lead_vendor_pairs') return 'Total Lead–Vendor Pairs';
+    if (effectiveGrain === 'dialler_records') return 'Total Dialler Records';
+    return isCallMode ? 'Total Dialler Records' : 'Total Lead–Vendor Pairs';
+  }, [effectiveGrain, isCallMode]);
+
+  const dialledBaseLabel = useMemo(() => {
+    if (effectiveGrain === 'lead_vendor_pairs') return 'Dialled Pairs (Base)';
+    if (effectiveGrain === 'dialler_records') return 'Dialled Records (Base)';
+    return isCallMode ? 'Dialled Records (Base)' : 'Dialled Pairs (Base)';
+  }, [effectiveGrain, isCallMode]);
+
+  // Group total counts pre-search for calculating share of group
+  const groupTotals = useMemo(() => calculateGroupTotals(rawRows), [rawRows]);
+
+  // Production filtered rows shared with export builder
   const filteredRows = useMemo(() => {
-    let list = [...rawRows];
-    if (groupFilter !== 'ALL') {
-      list = list.filter((r) => r.approvedGroup === groupFilter);
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      list = list.filter(
-        (r) =>
-          r.rawDisposition.toLowerCase().includes(q) ||
-          (r.rawDescription && r.rawDescription.toLowerCase().includes(q)) ||
-          r.approvedGroupLabel.toLowerCase().includes(q)
-      );
-    }
-    return list;
+    return filterDispositionRows(rawRows, groupFilter, searchQuery);
   }, [rawRows, groupFilter, searchQuery]);
 
   // Available groups for dropdown
@@ -146,7 +178,7 @@ export default function VendorOutcomeInspector({
                   {isCallMode ? 'Call-Event Dispositions' : 'Lead-Status Dispositions'}
                 </span>
                 <span className="text-[11px] px-2 py-0.5 rounded bg-surface border border-border-subtle text-text-sec">
-                  {isCallMode ? 'Call events grain' : 'Lead–vendor pair grain'}
+                  {grainBadgeLabel}
                 </span>
               </div>
               <h2 id="vendor-inspector-title" className="text-xl font-bold text-text-main mt-1">
@@ -154,8 +186,8 @@ export default function VendorOutcomeInspector({
               </h2>
               <p className="text-xs text-text-sec mt-0.5">
                 {isCallMode
-                  ? 'All verified call disposition codes recorded during the selected period.'
-                  : 'Latest recorded status for leads delivered to this vendor in the capture cohort.'}
+                  ? 'Recorded disposition breakdown for dialler records in the selected period.'
+                  : 'Recorded status breakdown for lead-vendor pairs in the selected cohort.'}
               </p>
             </div>
 
@@ -173,7 +205,7 @@ export default function VendorOutcomeInspector({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
             <div className="p-2.5 bg-surface rounded border border-border-subtle">
               <span className="text-[10px] uppercase font-semibold text-text-mute block">
-                {isCallMode ? 'Total Calls' : 'Total Leads'}
+                {totalPopulationLabel}
               </span>
               <span className="text-lg font-bold text-text-main cx-tabular mt-0.5 block">
                 {formatTableNumber(vendorSummary.totalPopulation)}
@@ -182,7 +214,7 @@ export default function VendorOutcomeInspector({
 
             <div className="p-2.5 bg-surface rounded border border-border-subtle">
               <span className="text-[10px] uppercase font-semibold text-text-mute block">
-                {isCallMode ? 'Dialled Attempts' : 'Dialled Leads (Base)'}
+                {dialledBaseLabel}
               </span>
               <span className="text-lg font-bold text-text-main cx-tabular mt-0.5 block">
                 {formatTableNumber(vendorSummary.dialledCount)}
@@ -207,10 +239,63 @@ export default function VendorOutcomeInspector({
               </span>
             </div>
           </div>
+
+          {/* Consumed Report Metadata Context Strip */}
+          {(effectiveDateBasis || effectiveGrain || effectiveVersion || effectiveEvaluatedAt) && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 pt-3 border-t border-border-subtle text-[11px] text-text-mute font-mono">
+              {effectiveDateBasis && (
+                <span>
+                  Date basis: <strong className="text-text-sec font-sans">{effectiveDateBasis}</strong>
+                </span>
+              )}
+              {effectiveGrain && (
+                <span>
+                  Grain: <strong className="text-text-sec font-sans">{effectiveGrain}</strong>
+                </span>
+              )}
+              {effectiveVersion && (
+                <span>
+                  Version: <strong className="text-text-sec font-sans">{effectiveVersion}</strong>
+                </span>
+              )}
+              {effectiveEvaluatedAt && (
+                <span>
+                  Evaluated:{' '}
+                  <strong className="text-text-sec font-sans">
+                    {effectiveEvaluatedAt.replace('T', ' ').replace(/\..+/, '')}
+                  </strong>
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Content Body */}
         <div className="p-6 space-y-6 flex-1 text-sm text-text-main">
+          {/* Accessible Export Error Alert */}
+          {exportError && (
+            <div
+              role="alert"
+              aria-live="polite"
+              className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-xs text-red-700 dark:text-red-400 flex items-center justify-between gap-2"
+            >
+              <div className="flex items-center gap-2">
+                <AlertCircle size={14} className="shrink-0" />
+                <span>{exportError}</span>
+              </div>
+              {onClearExportError && (
+                <button
+                  type="button"
+                  onClick={onClearExportError}
+                  className="p-1 hover:bg-red-500/20 rounded cursor-pointer"
+                  aria-label="Dismiss export error"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Controls: Search, Filter, Actions */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-3 border-b border-border-subtle">
             <div className="flex items-center gap-2 flex-1">
@@ -256,9 +341,18 @@ export default function VendorOutcomeInspector({
 
               <button
                 type="button"
+                disabled={filteredRows.length === 0}
                 onClick={handleTriggerExport}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-primary text-white hover:bg-brand-hover text-xs font-semibold rounded-lg transition-colors cursor-pointer"
-                title="Export the currently visible filtered breakdown as CSV"
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                  filteredRows.length === 0
+                    ? 'bg-surface-subtle text-text-mute cursor-not-allowed border border-border-subtle'
+                    : 'bg-brand-primary text-white hover:bg-brand-hover cursor-pointer'
+                }`}
+                title={
+                  filteredRows.length === 0
+                    ? 'No raw disposition codes match the current filter'
+                    : 'Export the currently visible filtered breakdown as CSV'
+                }
               >
                 <Download size={12} />
                 <span>Export selected breakdown</span>
@@ -294,9 +388,9 @@ export default function VendorOutcomeInspector({
                   ) : (
                     filteredRows.map((r, idx) => {
                       const groupConfig = APPROVED_DISPOSITION_GROUPS[r.approvedGroup];
-                      const isUnmapped = r.isUnmapped || r.approvedGroup === 'UNMAPPED';
                       const grpTotal = groupTotals.get(r.approvedGroup) || 0;
                       const shareOfGroup = grpTotal > 0 ? (r.count / grpTotal) * 100 : null;
+                      const statusPres = presentMappingStatus(r);
 
                       return (
                         <tr key={`${r.rawDisposition}-${idx}`} className="hover:bg-surface-subtle/40 transition-colors">
@@ -327,17 +421,26 @@ export default function VendorOutcomeInspector({
                             {r.percentOfBase !== null && r.percentOfBase !== undefined ? `${r.percentOfBase}%` : '—'}
                           </td>
                           <td className="px-3.5 py-2.5">
-                            {isUnmapped ? (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 dark:text-amber-400">
-                                <AlertCircle size={11} />
-                                Unmapped
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
-                                <ShieldCheck size={11} />
-                                Approved
-                              </span>
-                            )}
+                            <span
+                              className={`inline-flex items-center gap-1 text-[11px] font-medium ${
+                                statusPres.status === 'APPROVED'
+                                  ? 'text-emerald-700 dark:text-emerald-400'
+                                  : statusPres.status === 'UNMAPPED'
+                                  ? 'text-amber-700 dark:text-amber-400'
+                                  : statusPres.status === 'MISSING'
+                                  ? 'text-red-700 dark:text-red-400'
+                                  : statusPres.status === 'CONFLICTING'
+                                  ? 'text-amber-600 dark:text-amber-500'
+                                  : 'text-text-mute'
+                              }`}
+                            >
+                              {statusPres.status === 'APPROVED' && <ShieldCheck size={11} />}
+                              {statusPres.status === 'UNMAPPED' && <AlertCircle size={11} />}
+                              {statusPres.status === 'MISSING' && <AlertCircle size={11} />}
+                              {statusPres.status === 'CONFLICTING' && <AlertCircle size={11} />}
+                              {statusPres.status === 'UNAVAILABLE' && <Info size={11} />}
+                              <span>{statusPres.label}</span>
+                            </span>
                           </td>
                           <td className="px-3.5 py-2.5 text-right cx-tabular text-text-sec">
                             {formatTableNumber(r.rpcCount)}
@@ -363,10 +466,10 @@ export default function VendorOutcomeInspector({
               <Info size={14} className="text-brand-primary shrink-0 mt-0.5" />
               <div className="text-xs text-text-sec">
                 <span className="font-semibold text-text-main block">
-                  Aggregate Raw Disposition Evidence Destination
+                  Recorded Aggregate Raw Disposition Evidence
                 </span>
                 <p className="mt-0.5">
-                  This raw code breakdown is the verified aggregate evidence for {vendor}. Individual lead records and call events are restricted by role authorization, and individual record queries require active global vendor scope.
+                  This raw code breakdown reflects recorded aggregate dispositions for {vendor}. Individual records are restricted by role authorization, and record-level inspection requires active vendor scope.
                 </p>
               </div>
             </div>

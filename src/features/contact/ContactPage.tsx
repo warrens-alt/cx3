@@ -44,6 +44,8 @@ export default function ContactPage() {
     dispError,
     inspectorContent,
     setInspectorContent,
+    exportError,
+    clearExportError,
     handleExportCallCountsCsv,
     handleExportVendorSummaryTable,
     handleExportVendorRawBreakdown,
@@ -278,6 +280,21 @@ export default function ContactPage() {
           dateBasis={dispData?.dateBasis}
           countingGrain={dispData?.countingGrain}
           evaluatedAt={dispData?.evaluatedAt}
+          timezone={dispData?.timezone}
+          reportContext={
+            dispData
+              ? {
+                  reportVersion: dispData.reportVersion,
+                  dateBasis: dispData.dateBasis,
+                  countingGrain: dispData.countingGrain,
+                  evaluatedAt: dispData.evaluatedAt,
+                  timezone: dispData.timezone,
+                  clientId: dispData.clientId,
+                }
+              : undefined
+          }
+          exportError={exportError}
+          onClearExportError={clearExportError}
           explorerPath={scoped('/lead-explorer')}
         />
       )}

@@ -20,6 +20,7 @@ import {
   downloadDispositionExportCsv,
   type DispositionExportMetadata,
 } from '../../../lib/analysisExport';
+import { buildVendorSelectedExport } from './dispositionSelection';
 import type { InspectorContent } from '../../../shared/evidence/InspectorHost';
 
 export type ContactTab = 'call_counts' | 'vendor_dispositions';
@@ -44,9 +45,14 @@ export function useContactModel() {
   // Inspector host state for call effort bucket inspections
   const [inspectorContent, setInspectorContent] = useState<InspectorContent | null>(null);
 
+  // Export error state for accessible feedback
+  const [exportError, setExportError] = useState<string | null>(null);
+  const clearExportError = () => setExportError(null);
+
   // Invalidate inspector when scope changes
   useEffect(() => {
     setInspectorContent(null);
+    setExportError(null);
   }, [selectedClient, startDate, endDate, filters]);
 
   // Reset drawer selection on client changes without modifying global filters
@@ -59,6 +65,7 @@ export function useContactModel() {
         return next;
       }, { replace: true });
     }
+    setExportError(null);
   }, [selectedClient]);
 
   const scope = useMemo(() => ({
@@ -161,25 +168,51 @@ export function useContactModel() {
 
   // Metadata generator for disposition exports
   const getDispositionExportMeta = (isTruncated = false): DispositionExportMetadata => {
-    const isCallMode = dispositionMode === 'call_records';
     const report = dispQuery.data;
+    if (!report) {
+      throw new Error('Cannot export summary: Disposition report data is not available.');
+    }
+    if (!report.reportVersion || !report.reportVersion.trim()) {
+      throw new Error('Cannot export summary: Missing reportVersion in report data.');
+    }
+    if (!report.dateBasis || !report.dateBasis.trim()) {
+      throw new Error('Cannot export summary: Missing dateBasis in report data.');
+    }
+    if (!report.countingGrain || !report.countingGrain.trim()) {
+      throw new Error('Cannot export summary: Missing countingGrain in report data.');
+    }
+    if (!report.evaluatedAt || !report.evaluatedAt.trim()) {
+      throw new Error('Cannot export summary: Missing evaluatedAt timestamp in report data.');
+    }
+    if (
+      report.summary === undefined ||
+      report.summary === null ||
+      typeof report.summary.totalEntities !== 'number' ||
+      isNaN(report.summary.totalEntities)
+    ) {
+      throw new Error('Cannot export summary: Missing total population in report summary.');
+    }
+
+    const isCallMode = report.mode === 'call_records';
     return {
-      clientId: selectedClient,
+      clientId: report.clientId || selectedClient || 'unknown_tenant',
       startDate: startDate || null,
       endDate: endDate || null,
       filters: extractOffernetFilters(filters),
-      mode: dispositionMode,
-      dateBasis: report?.dateBasis || (isCallMode ? 'call_event_timestamp' : 'lead_capture_cohort'),
-      countingGrain: report?.countingGrain || (isCallMode ? 'call_event' : 'lead_record'),
-      totalPopulation: report?.summary.totalEntities || 0,
+      mode: report.mode,
+      dateBasis: report.dateBasis,
+      countingGrain: report.countingGrain,
+      totalPopulation: report.summary.totalEntities,
+      reportPopulation: report.summary.totalEntities,
       denominatorDefinition: isCallMode
-        ? 'Total verified call attempts in selected period'
+        ? 'Total call events recorded during selected period'
         : 'Dialled leads within capture cohort (leads with at least one dial attempt)',
       isTruncated,
-      taxonomyVersion: report?.reportVersion || DISPOSITION_REPORT_VERSION,
+      taxonomyVersion: report.reportVersion,
       userRole: profile?.role || 'user',
       userEmail: user?.email || undefined,
-      generatedAt: report?.evaluatedAt || new Date().toISOString(),
+      generatedAt: report.evaluatedAt,
+      exportScope: 'SUMMARY_TABLE',
     };
   };
 
@@ -215,133 +248,89 @@ export function useContactModel() {
 
   // Vendor summary table export
   const handleExportVendorSummaryTable = () => {
-    if (!dispQuery.data?.vendorSummaries) return;
-    const isCallMode = dispositionMode === 'call_records';
-    const headers = [
-      'Vendor',
-      isCallMode ? 'Total Calls' : 'Total Leads',
-      isCallMode ? 'Dialled Calls' : 'Dialled Leads',
-      'Disposition Coverage %',
-      'Mapping Coverage %',
-      'RPC Count',
-      'Sale Count',
-      'Callback Count',
-    ];
-    const dataRows = [
-      headers,
-      ...dispQuery.data.vendorSummaries.map(v => [
-        v.vendor,
-        v.totalPopulation,
-        v.dialledCount,
-        v.dispositionCoveragePct !== null ? `${v.dispositionCoveragePct}%` : '—',
-        v.mappingCoveragePct !== null ? `${v.mappingCoveragePct}%` : '—',
-        v.rpcCount,
-        v.saleCount,
-        v.callbackCount,
-      ]),
-    ];
-    downloadDispositionExportCsv(
-      `vendor_dispositions_summary_${dispositionMode}_${selectedClient}`,
-      dataRows,
-      getDispositionExportMeta(false)
-    );
+    try {
+      setExportError(null);
+      if (!dispQuery.data?.vendorSummaries) {
+        throw new Error('Cannot export summary: No vendor summary data is available.');
+      }
+      const isCallMode = dispositionMode === 'call_records';
+      const headers = [
+        'Vendor',
+        isCallMode ? 'Total Calls' : 'Total Leads',
+        isCallMode ? 'Dialled Calls' : 'Dialled Leads',
+        'Disposition Coverage %',
+        'Mapping Coverage %',
+        'RPC Count',
+        'Sale Count',
+        'Callback Count',
+      ];
+      const dataRows = [
+        headers,
+        ...dispQuery.data.vendorSummaries.map(v => [
+          v.vendor,
+          v.totalPopulation,
+          v.dialledCount,
+          v.dispositionCoveragePct !== null ? `${v.dispositionCoveragePct}%` : '—',
+          v.mappingCoveragePct !== null ? `${v.mappingCoveragePct}%` : '—',
+          v.rpcCount,
+          v.saleCount,
+          v.callbackCount,
+        ]),
+      ];
+      downloadDispositionExportCsv(
+        `vendor_dispositions_summary_${dispositionMode}_${selectedClient}`,
+        dataRows,
+        getDispositionExportMeta(false)
+      );
+    } catch (err: any) {
+      setExportError(err?.message || 'Failed to export vendor summary table.');
+    }
   };
 
-  // Result-bound vendor raw breakdown export matching exact inspected filteredRows
+  // Result-bound vendor raw breakdown export matching exact inspected selection
   const handleExportVendorSelectedBreakdown = (params: {
     vendor: string;
     groupFilter: string;
     searchQuery: string;
-    rows: DetailedDispositionRow[];
+    rows?: DetailedDispositionRow[];
   }) => {
-    const { vendor, groupFilter, searchQuery, rows } = params;
-    const isCallMode = dispositionMode === 'call_records';
-    const report = dispQuery.data;
+    try {
+      setExportError(null);
+      const result = buildVendorSelectedExport({
+        report: dispQuery.data,
+        requestContext: {
+          clientId: selectedClient,
+          startDate: startDate || null,
+          endDate: endDate || null,
+          filters: extractOffernetFilters(filters),
+          timezone: dispQuery.data?.timezone || clientConfig?.timezone,
+          userRole: profile?.role,
+          userEmail: user?.email,
+        },
+        selection: {
+          vendor: params.vendor,
+          groupFilter: params.groupFilter,
+          searchQuery: params.searchQuery,
+        },
+      });
 
-    // Group totals for this vendor from report breakdown
-    const allVendorRows = report?.breakdown.filter(r => r.vendor === vendor) || [];
-    const groupTotals = new Map<string, number>();
-    for (const r of allVendorRows) {
-      groupTotals.set(r.approvedGroup, (groupTotals.get(r.approvedGroup) || 0) + r.count);
+      if (result.isEmptyMatch) {
+        setExportError(`No disposition records matched the filter "${params.searchQuery}". Export cancelled.`);
+        return;
+      }
+
+      downloadDispositionExportCsv(result.filename, result.dataRows, result.metadata);
+    } catch (err: any) {
+      setExportError(err?.message || 'Failed to generate disposition export.');
     }
-
-    const headers = [
-      'Vendor',
-      'Raw Disposition Code',
-      'Description',
-      'Approved Outcome Group',
-      'Volume',
-      'Share of Group %',
-      'Share of Vendor %',
-      'Mapping Status',
-      'RPC',
-      'Sales',
-      'Callbacks',
-      ...(isCallMode ? ['Avg Duration (sec)', 'Valid Duration Count', 'Latest Observation'] : []),
-    ];
-
-    const dataRows = [
-      headers,
-      ...rows.map(r => {
-        const grpTotal = groupTotals.get(r.approvedGroup) || 0;
-        const shareOfGrp = grpTotal > 0 ? (r.count / grpTotal) * 100 : null;
-        const shareOfVendor = r.percentOfBase;
-        return [
-          r.vendor,
-          r.rawDisposition,
-          r.rawDescription || '—',
-          r.approvedGroupLabel,
-          r.count,
-          shareOfGrp !== null ? `${shareOfGrp.toFixed(1)}%` : '—',
-          shareOfVendor !== null ? `${shareOfVendor}%` : '—',
-          r.isUnmapped || r.approvedGroup === 'UNMAPPED' ? 'UNMAPPED' : (r.mappingStatus || 'APPROVED'),
-          r.rpcCount,
-          r.saleCount,
-          r.callbackCount,
-          ...(isCallMode ? [r.avgDurationSec ?? '—', r.validDurationCount ?? '—', r.latestObservation ?? '—'] : []),
-        ];
-      }),
-    ];
-
-    const totalVolume = rows.reduce((sum, r) => sum + r.count, 0);
-    const groupPart = groupFilter && groupFilter !== 'ALL' ? `_${groupFilter.toLowerCase()}` : '';
-    const searchPart = searchQuery.trim() ? '_filtered' : '';
-    const filename = `raw_dispositions_${vendor}${groupPart}${searchPart}_${dispositionMode}_${selectedClient}`;
-
-    const metadata: DispositionExportMetadata = {
-      clientId: selectedClient,
-      startDate: startDate || null,
-      endDate: endDate || null,
-      filters: extractOffernetFilters(filters),
-      mode: dispositionMode,
-      dateBasis: report?.dateBasis || (isCallMode ? 'call_event_timestamp' : 'lead_capture_cohort'),
-      countingGrain: report?.countingGrain || (isCallMode ? 'call_event' : 'lead_record'),
-      totalPopulation: totalVolume,
-      denominatorDefinition: isCallMode
-        ? `Call attempts recorded for vendor ${vendor}`
-        : `Dialled leads recorded for vendor ${vendor}`,
-      isTruncated: false,
-      taxonomyVersion: report?.reportVersion || DISPOSITION_REPORT_VERSION,
-      userRole: profile?.role || 'user',
-      userEmail: user?.email || undefined,
-      generatedAt: report?.evaluatedAt || new Date().toISOString(),
-      inspectedVendor: vendor,
-      activeGroupFilter: groupFilter,
-      searchQuery: searchQuery || null,
-      returnedRowCount: rows.length,
-    };
-
-    downloadDispositionExportCsv(filename, dataRows, metadata);
   };
 
   // Backward-compatible fallback for raw export
   const handleExportVendorRawBreakdown = (vendor: string) => {
-    const rows = dispQuery.data?.breakdown.filter(r => r.vendor === vendor) || [];
     handleExportVendorSelectedBreakdown({
       vendor,
       groupFilter: inspectGroup || 'ALL',
       searchQuery: '',
-      rows,
     });
   };
 
@@ -368,6 +357,8 @@ export function useContactModel() {
     dispError: dispQuery.error,
     inspectorContent,
     setInspectorContent,
+    exportError,
+    clearExportError,
     handleExportCallCountsCsv,
     handleExportVendorSummaryTable,
     handleExportVendorRawBreakdown,
