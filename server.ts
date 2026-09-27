@@ -5,7 +5,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export async function createApp() {
-  const { mountApi } = await import('./server/apiApp');
+  const { mountApi } = await import('./server/apiApp.ts').catch(() => import('./server/apiApp'));
   const app = express();
   await mountApi(app);
 
@@ -19,7 +19,11 @@ export async function createApp() {
   if (isProduction) {
     const configuredClientDir = process.env.CLIENT_DIR
       ? path.resolve(process.env.CLIENT_DIR)
-      : path.join(process.cwd(), 'dist', 'client');
+      : fs.existsSync(path.join(process.cwd(), 'dist', 'index.html'))
+      ? path.join(process.cwd(), 'dist')
+      : fs.existsSync(path.join(process.cwd(), 'dist', 'client', 'index.html'))
+      ? path.join(process.cwd(), 'dist', 'client')
+      : path.join(process.cwd(), 'build');
     const hasClientBuild = fs.existsSync(path.join(configuredClientDir, 'index.html'));
 
     if (!hasClientBuild) {
@@ -103,7 +107,7 @@ if (isMain) {
     ? path.join(process.cwd(), 'dist', 'server.mjs')
     : path.join(process.cwd(), 'dist', 'server', 'server.mjs');
 
-  if (isTsFile && fs.existsSync(bundlePath) && process.env.NODE_ENV === 'production' && !process.env.TSX_ACTIVE) {
+  if (isTsFile && fs.existsSync(bundlePath) && !process.env.TSX_ACTIVE) {
     const bundleUrl = pathToFileURL(bundlePath).href;
     const serverModule = await import(/* @vite-ignore */ bundleUrl);
     if (typeof serverModule.startServer === 'function') {

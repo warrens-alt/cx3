@@ -1,6 +1,5 @@
 .gcloudignore
 .git
-.gitignore
 node_modules/
 !dist/
 !dist/**
@@ -8,3 +7,4 @@ node_modules/
 !build/**
 !server.js
 !server.ts
+!server.mjs

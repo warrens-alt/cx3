@@ -1,4 +1,0 @@
-# The Worker bundle is deployed separately by Wrangler.
-# Only the built client should be uploaded through the Assets binding.
-server/
-*.map

@@ -1,7 +1,4 @@
 node_modules/
-dist/
-build/
-server.js
 .vite/
 .env*
 !.env.example

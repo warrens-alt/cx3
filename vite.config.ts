@@ -1,31 +1,11 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig, type Plugin} from 'vite';
-
-function previewApiBridge(): Plugin {
-  return {
-    name: 'conversionx-preview-api',
-    apply: 'serve',
-    async configureServer(viteServer) {
-      const express = (await import('express')).default;
-      const { mountApi } = await import('./server/apiApp');
-      const api = express();
-      await mountApi(api);
-
-      // AI Studio can launch Vite directly. Without this bridge /api requests
-      // fall through to index.html and misleadingly return HTTP 200.
-      viteServer.middlewares.use((req, res, next) => {
-        if (!req.url?.startsWith('/api')) return next();
-        api(req as any, res as any, next as any);
-      });
-    },
-  };
-}
+import { defineConfig } from 'vite';
 
 export default defineConfig(() => {
   return {
-    plugins: [previewApiBridge(), react(), tailwindcss()],
+    plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
@@ -33,7 +13,7 @@ export default defineConfig(() => {
     },
     build: {
       outDir: 'dist',
-      emptyOutDir: false,
+      emptyOutDir: true,
       chunkSizeWarningLimit: 1000,
       rollupOptions: {
         output: {
@@ -44,7 +24,11 @@ export default defineConfig(() => {
             if (id.includes('node_modules/lucide-react')) {
               return 'vendor-lucide';
             }
-            if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/scheduler')) {
+            if (
+              id.includes('node_modules/react') ||
+              id.includes('node_modules/react-dom') ||
+              id.includes('node_modules/scheduler')
+            ) {
               return 'vendor-react';
             }
             if (id.includes('node_modules/@tanstack')) {
