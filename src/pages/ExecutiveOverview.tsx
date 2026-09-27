@@ -3,7 +3,7 @@ import type { LifecycleExtension } from '../../contracts/lifecycleAnalytics';
 import { MatchedPeriodPanel } from '../components/LifecycleDiagnostics';
 import { useOperationalData } from '../lib/useOperationalData';
 import React, { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, type To } from 'react-router-dom';
 import {
   ArrowRight,
   CheckCircle2,
@@ -57,6 +57,8 @@ function Metric({
   change,
   changeUnit = '%',
   onWhyChanged,
+  to,
+  inspectLabel,
 }: {
   label: string;
   value: string;
@@ -64,20 +66,35 @@ function Metric({
   change?: number | null;
   changeUnit?: string;
   onWhyChanged?: () => void;
+  to?: To;
+  inspectLabel?: string;
 }) {
   return (
     <article className="cx-command-metric">
       <span>{label}</span>
-      <strong>{value}</strong>
+      {to ? (
+        <Link to={to} className="cx-command-metric-link block hover:underline" title={inspectLabel || `Inspect ${label}`}>
+          <strong>{value}</strong>
+        </Link>
+      ) : (
+        <strong>{value}</strong>
+      )}
       <div>
         <small>{note}</small>
         <Change value={change} unit={changeUnit} />
       </div>
-      {onWhyChanged && (
-        <button type="button" className="cx-command-why" onClick={onWhyChanged}>
-          Why changed? <Search size={11} />
-        </button>
-      )}
+      <div className="flex items-center gap-2 mt-1">
+        {onWhyChanged && (
+          <button type="button" className="cx-command-why" onClick={onWhyChanged}>
+            Why changed? <Search size={11} />
+          </button>
+        )}
+        {to && (
+          <Link to={to} className="cx-command-why" title={inspectLabel || `Inspect ${label} records`}>
+            Inspect <ArrowRight size={11} />
+          </Link>
+        )}
+      </div>
     </article>
   );
 }
@@ -160,11 +177,55 @@ export default function ExecutiveOverview() {
           <>
             <div className="cx-overview-summary">
               <section className="cx-command-metrics" aria-label="Primary operational metrics">
-                <Metric label="Fetched leads" value={fmt(data.kpis.fetchedLeads)} note="Incoming leads" change={data.comparison?.fetchedDelta} onWhyChanged={hasComparison ? () => investigate('fetchedLeads') : undefined} />
-                <Metric label="Delivery rate" value={formatPercent(data.kpis.deliveryRate)} note={`${fmt(data.kpis.deliveredLeads)} delivered`} change={data.comparison?.deliveryRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('deliveryRate') : undefined} />
-                <Metric label="Dial coverage" value={formatPercent(data.kpis.dialRate)} note={`${fmt(data.kpis.dialledLeads)} dialled`} change={data.comparison?.dialRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('dialRate') : undefined} />
-                <Metric label="Right-party contact" value={formatPercent(data.kpis.contactRate)} note={`${fmt(data.kpis.contactedLeads)} contacted`} change={data.comparison?.contactRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('contactRate') : undefined} />
-                <Metric label="Lead-to-sale rate" value={formatPercent(data.kpis.leadToSaleRate)} note={`${fmt(data.kpis.saleLeads)} recorded sales`} change={data.comparison?.saleRateDelta} changeUnit="pp" onWhyChanged={hasComparison ? () => investigate('leadToSaleRate') : undefined} />
+                <Metric
+                  label="Fetched leads"
+                  value={fmt(data.kpis.fetchedLeads)}
+                  note="Incoming leads"
+                  change={data.comparison?.fetchedDelta}
+                  onWhyChanged={hasComparison ? () => investigate('fetchedLeads') : undefined}
+                  to={isAdmin ? recordLink('funnel-stage', 'fetched') : scoped('/funnel')}
+                  inspectLabel={isAdmin ? 'Inspect fetched lead records in evidence surface' : 'View funnel breakdown'}
+                />
+                <Metric
+                  label="Delivery rate"
+                  value={formatPercent(data.kpis.deliveryRate)}
+                  note={`${fmt(data.kpis.deliveredLeads)} delivered`}
+                  change={data.comparison?.deliveryRateDelta}
+                  changeUnit="pp"
+                  onWhyChanged={hasComparison ? () => investigate('deliveryRate') : undefined}
+                  to={isAdmin ? recordLink('funnel-stage', 'delivered') : scoped('/funnel')}
+                  inspectLabel={isAdmin ? 'Inspect delivered lead records in evidence surface' : 'View delivery breakdown'}
+                />
+                <Metric
+                  label="Dial coverage"
+                  value={formatPercent(data.kpis.dialRate)}
+                  note={`${fmt(data.kpis.dialledLeads)} dialled`}
+                  change={data.comparison?.dialRateDelta}
+                  changeUnit="pp"
+                  onWhyChanged={hasComparison ? () => investigate('dialRate') : undefined}
+                  to={isAdmin ? recordLink('funnel-stage', 'dialled') : scoped('/speed-to-lead')}
+                  inspectLabel={isAdmin ? 'Inspect dialled lead records in evidence surface' : 'View response times'}
+                />
+                <Metric
+                  label="Right-party contact"
+                  value={formatPercent(data.kpis.contactRate)}
+                  note={`${fmt(data.kpis.contactedLeads)} contacted`}
+                  change={data.comparison?.contactRateDelta}
+                  changeUnit="pp"
+                  onWhyChanged={hasComparison ? () => investigate('contactRate') : undefined}
+                  to={isAdmin ? recordLink('funnel-stage', 'rpc') : scoped('/contact-strategy')}
+                  inspectLabel={isAdmin ? 'Inspect contacted (RPC) lead records in evidence surface' : 'View contact strategy'}
+                />
+                <Metric
+                  label="Lead-to-sale rate"
+                  value={formatPercent(data.kpis.leadToSaleRate)}
+                  note={`${fmt(data.kpis.saleLeads)} recorded sales`}
+                  change={data.comparison?.saleRateDelta}
+                  changeUnit="pp"
+                  onWhyChanged={hasComparison ? () => investigate('leadToSaleRate') : undefined}
+                  to={isAdmin ? recordLink('funnel-stage', 'sales') : scoped('/sales-activation')}
+                  inspectLabel={isAdmin ? 'Inspect recorded sales in evidence surface' : 'View sales activation'}
+                />
               </section>
 
               <p className="cx-comparison-context"><Clock3 size={13} aria-hidden="true" />{data.comparisonWindow ? `Compared with ${data.comparisonWindow.startDate} – ${data.comparisonWindow.endDate}. Rate changes are percentage points.` : 'Choose a date period to compare performance.'}</p>

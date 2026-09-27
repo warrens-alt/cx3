@@ -801,6 +801,7 @@ export interface AiInsightsData {
 
 export interface RawLeadsData {
   rows: Array<Record<string, any>>;
+  totalCount?: number | null;
   limit: number;
   offset: number;
   drill: string | null;

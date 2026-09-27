@@ -46,6 +46,15 @@ const FUNNEL_LABELS: Record<string, string> = {
   'sales-to-activated': 'Sales → Activated loss',
 };
 
+const STAGE_LABELS: Record<string, string> = {
+  fetched: 'Fetched leads',
+  delivered: 'Delivered leads',
+  dialled: 'Dialled leads',
+  rpc: 'Right-party contact (RPC) leads',
+  sales: 'Recorded sales leads',
+  activated: 'Activated leads',
+};
+
 export default function LeadExplorerIntelligence() {
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
@@ -79,6 +88,7 @@ export default function LeadExplorerIntelligence() {
     if (!drill) return null;
     const base = DRILL_LABELS[drill] || 'Investigation population';
     if (drill === 'funnel-loss' && drillValue) return FUNNEL_LABELS[drillValue] || base;
+    if (drill === 'funnel-stage' && drillValue) return STAGE_LABELS[drillValue] ? `Funnel stage: ${STAGE_LABELS[drillValue]}` : `${base}: ${drillValue}`;
     return drillValue ? `${base}: ${drillValue}` : base;
   }, [drill, drillValue]);
 
@@ -134,6 +144,7 @@ export default function LeadExplorerIntelligence() {
 
   const handleExportCsv = () => {
     if (!data?.rows.length) return;
+    const isTruncated = data.totalCount != null ? data.rows.length < data.totalCount : data.rows.length >= pageSize;
     const headers = ['Lead ID', 'Consumer ID', 'Fetched', 'Source', 'Vendor', 'Grade', 'Delivered', 'First dial', 'Calls', 'Latest disposition', 'Dialled', 'RPC', 'Sale', 'Activated', 'Revenue'];
     const rows = data.rows.map(row => [
       row.lead_id,
@@ -148,11 +159,20 @@ export default function LeadExplorerIntelligence() {
       row.activated ? 'Yes' : 'No',
       row.revenue,
     ]);
-    downloadAnalysisCsv(`lead_records_${selectedClient}_p${page + 1}`, [headers, ...rows], { clientId: selectedClient, startDate, endDate, filters: { ...filters, drill, drillValue, search: appliedSearch }, definitions: 'Administrator record export. Current page only; one row per scoped lead.', truncated: true });
+    const predicateDesc = investigation ? `Investigation: ${investigation}. ` : '';
+    downloadAnalysisCsv(`lead_records_${selectedClient}_p${page + 1}`, [headers, ...rows], {
+      clientId: selectedClient,
+      startDate,
+      endDate,
+      filters: { ...filters, drill, drillValue, search: appliedSearch },
+      definitions: `Administrator record export. ${predicateDesc}Current page ${page + 1} (${data.rows.length} records${data.totalCount != null ? ` of ${formatTableNumber(data.totalCount)} in scope` : ''}); one row per scoped lead.`,
+      truncated: isTruncated,
+    });
   };
 
   const shownStart = data?.rows.length ? page * pageSize + 1 : 0;
   const shownEnd = data ? page * pageSize + data.rows.length : 0;
+  const totalCountText = data?.totalCount != null ? ` of ${formatTableNumber(data.totalCount)}` : '';
 
   return (
     <div className="cx-command-page">
@@ -187,7 +207,7 @@ export default function LeadExplorerIntelligence() {
               <h2>Affected lead population</h2>
               <p>One representative warehouse row per lead. Open a lead to inspect its chronological source events.</p>
             </div>
-            <span className="cx-explorer-count">{shownStart}–{shownEnd}</span>
+            <span className="cx-explorer-count">{shownStart}–{shownEnd}{totalCountText}</span>
           </header>
 
           <form onSubmit={handleSearchSubmit} className="cx-explorer-search">
@@ -253,10 +273,10 @@ export default function LeadExplorerIntelligence() {
           )}
 
           <footer className="cx-explorer-pagination">
-            <span>Page {page + 1}</span>
+            <span>Page {page + 1}{data?.totalCount != null ? ` · Total: ${formatTableNumber(data.totalCount)} matching leads` : ''}</span>
             <div>
               <button type="button" className="cx-button-secondary" disabled={page === 0} onClick={() => setPage(value => Math.max(0, value - 1))}><ChevronLeft size={14} />Previous</button>
-              <button type="button" className="cx-button-secondary" disabled={loading || !data || data.rows.length < pageSize} onClick={() => setPage(value => value + 1)}>Next<ChevronRight size={14} /></button>
+              <button type="button" className="cx-button-secondary" disabled={loading || !data || data.rows.length < pageSize || (data.totalCount != null && shownEnd >= data.totalCount)} onClick={() => setPage(value => value + 1)}>Next<ChevronRight size={14} /></button>
             </div>
           </footer>
         </section>

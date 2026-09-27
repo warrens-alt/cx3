@@ -840,6 +840,7 @@ export interface GoogleApiStatusData {
 
 export interface RawLeadsData {
   rows: Array<Record<string, any>>;
+  totalCount?: number | null;
   limit: number;
   offset: number;
   drill: string | null;
@@ -1111,13 +1112,47 @@ export type { ContactDispositionsData } from '../../contracts/vendorDispositions
 export type { AuthoritativeMetricDefinition } from '../../contracts/metricRegistry';
 
 export async function fetchAuthoritativeMetrics(
-  forceRefresh = false,
-  signal?: AbortSignal
+  paramsOrForceRefresh: Record<string, any> | boolean = false,
+  forceRefreshOrSignal?: boolean | AbortSignal,
+  optionalSignal?: AbortSignal
 ): Promise<{ success: boolean; version: string; totalMetrics: number; data: Record<string, import('../../contracts/metricRegistry').AuthoritativeMetricDefinition> }> {
-  return fetchOffernetJson<{ success: boolean; version: string; totalMetrics: number; data: Record<string, import('../../contracts/metricRegistry').AuthoritativeMetricDefinition> }>(
-    '/api/analytics/metrics/registry',
-    forceRefresh,
-    signal
-  );
+  let params: Record<string, any> = {};
+  let signal: AbortSignal | undefined;
+
+  if (typeof paramsOrForceRefresh === 'boolean') {
+    if (forceRefreshOrSignal instanceof AbortSignal) {
+      signal = forceRefreshOrSignal;
+    }
+  } else if (paramsOrForceRefresh && typeof paramsOrForceRefresh === 'object') {
+    params = paramsOrForceRefresh;
+    signal = optionalSignal;
+  }
+
+  const { baseUrl, ...queryParams } = params;
+  const q = new URLSearchParams();
+  for (const [key, value] of Object.entries(queryParams).sort(([a], [b]) => a.localeCompare(b))) {
+    if (value !== undefined && value !== null && value !== '') {
+      q.set(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+    }
+  }
+  const queryString = q.toString() ? `?${q.toString()}` : '';
+  const url = `${baseUrl || ''}/api/analytics/metrics/registry${queryString}`;
+
+  const response = await fetch(url, { credentials: 'same-origin', signal });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw Object.assign(new Error(body.error || `Server request failed with status ${response.status}`), { status: response.status });
+  }
+  const json = await response.json();
+  if (json.success === false) throw new Error(json.error || 'The analytics request failed.');
+  if (json.version && json.data) {
+    return json;
+  }
+  return {
+    success: true,
+    version: json.version || 'cx.metric.2.0.0',
+    totalMetrics: json.totalMetrics || (json.data ? Object.keys(json.data).length : 0),
+    data: json.data || json,
+  };
 }
 

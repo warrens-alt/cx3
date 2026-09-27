@@ -103,6 +103,7 @@ export async function getRawLeads(params: OffernetQueryParams) {
     ), ${operationalLeadCtes(params, false, 'scoped_leads')}
     SELECT
       l.lead_id,
+      COUNT(*) OVER() as full_evidence_total,
       l.consumer_id,
       FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', m.fetched_ts) as fetched,
       COALESCE(l.offershop_source, 'Unknown') as source,
@@ -140,8 +141,13 @@ export async function getRawLeads(params: OffernetQueryParams) {
   `;
 
   const [rows] = await client.query({ query, params: queryParams });
+  const totalCount = rows.length > 0
+    ? (rows[0].full_evidence_total != null ? Number(rows[0].full_evidence_total) : rows.length)
+    : (offset > 0 ? null : 0);
+  const cleanRows = rows.map(({ full_evidence_total, ...r }: any) => r);
   return {
-    rows,
+    rows: cleanRows,
+    totalCount,
     limit,
     offset,
     drill: params.drill || null,
