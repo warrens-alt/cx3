@@ -14,7 +14,7 @@ import { useClient } from '../lib/ClientContext';
 import { fetchRawLeads, fetchLeadTimeline, type RawLeadsData, type LeadTimelineData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import { formatCurrency, formatTableNumber } from '../lib/formatters';
-import { downloadAnalysisCsv } from '../lib/analysisExport';
+import { buildLeadEvidenceExport } from '../lib/analysisExport';
 import { downloadCsv } from '../lib/formatters';
 import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 import { useOperationalData } from '../lib/useOperationalData';
@@ -143,33 +143,18 @@ export default function LeadExplorerIntelligence() {
   };
 
   const handleExportCsv = () => {
-    if (!data?.rows.length) return;
-    const isTruncated = data.totalCount != null ? data.rows.length < data.totalCount : data.rows.length >= pageSize;
-    const headers = ['Lead ID', 'Consumer ID', 'Fetched', 'Source', 'Vendor', 'Grade', 'Delivered', 'First dial', 'Calls', 'Latest disposition', 'Dialled', 'RPC', 'Sale', 'Activated', 'Revenue'];
-    const rows = data.rows.map(row => [
-      row.lead_id,
-      row.consumer_id,
-      row.fetched,
-      row.source,
-      row.vendor,
-      row.grade, row.delivered_time, row.first_call_time, row.total_calls, row.last_dialer_status,
-      row.dialled ? 'Yes' : 'No',
-      row.contacted == null ? 'Unavailable' : row.contacted ? 'Yes' : 'No',
-      row.sale ? 'Yes' : 'No',
-      row.activated ? 'Yes' : 'No',
-      row.revenue,
-    ]);
-    const predicateDesc = investigation ? `Investigation: ${investigation}. ` : '';
-    downloadAnalysisCsv(`lead_records_${selectedClient}_p${page + 1}`, [headers, ...rows], {
+    if (!data?.rows.length || loading || error) return;
+    const exportResult = buildLeadEvidenceExport(data, {
       clientId: selectedClient,
       startDate: startDate || undefined,
       endDate: endDate || undefined,
       filters: { ...filters, drill, drillValue, search: appliedSearch },
-      validationStatus: 'NOT_VERIFIED',
-      dateBasis: 'intake_cohort',
-      definitions: `Administrator record export. ${predicateDesc}Current page ${page + 1} (${data.rows.length} records${data.totalCount != null ? ` of ${formatTableNumber(data.totalCount)} in scope` : ''}); one row per scoped lead.`,
-      truncated: isTruncated,
+      search: appliedSearch,
+      investigation: investigation || undefined,
+      page,
+      pageSize,
     });
+    downloadCsv(exportResult.filename, exportResult.rows);
   };
 
   const shownStart = data?.rows.length ? page * pageSize + 1 : 0;

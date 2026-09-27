@@ -806,6 +806,20 @@ export interface RawLeadsData {
   offset: number;
   drill: string | null;
   drillValue: string | null;
+  search?: string | null;
+  clientId?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  filters?: Record<string, any>;
+  timezone?: string;
+  dateBasis?: string;
+  definitionVersion?: string;
+  metricId?: string;
+  countingGrain?: string;
+  validationStatus?: string;
+  sourceCutoff?: string | null;
+  generatedAt?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface LeadTimelineData {

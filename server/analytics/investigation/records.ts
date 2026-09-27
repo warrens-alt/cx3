@@ -6,10 +6,12 @@ import { validTimestampSql } from '../../bigquery/integrity';
 import { buildFilterClause } from '../common/scope';
 import { operationalLeadCtes } from '../common/leadMetrics';
 import { exceptionPredicate } from './exceptionPredicates';
+import { METRIC_REGISTRY_VERSION } from '../../../contracts/metricRegistry';
 import type { OffernetQueryParams } from '../common/types';
 
 export async function getRawLeads(params: OffernetQueryParams) {
-  const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
+  const clientConfig = getClientConfig(params.clientId);
+  const client = getBigQueryClient(clientConfig.bigQueryProject);
   const limit = Math.min(Math.max(Number(params.limit) || 50, 10), 200);
   const offset = Math.max(Number(params.offset) || 0, 0);
   const { whereSql, queryParams } = buildFilterClause(params);
@@ -239,12 +241,21 @@ export async function getRawLeads(params: OffernetQueryParams) {
   if (offset >= totalCount && totalCount > 0 && pageRows.length > 0) {
     throw new RequestError(`Evidence page contains ${pageRows.length} rows at offset ${offset} beyond total_count ${totalCount}`, 502);
   }
-  const maxPossibleRows = Math.min(limit, Math.max(0, totalCount - offset));
-  if (pageRows.length > maxPossibleRows) {
-    throw new RequestError(`Evidence page contains ${pageRows.length} rows exceeding max possible in scope (${maxPossibleRows})`, 502);
+  const expectedPageRows = Math.min(limit, Math.max(0, totalCount - offset));
+  if (pageRows.length !== expectedPageRows) {
+    throw new RequestError(
+      `Evidence page contains ${pageRows.length} rows, expected complete page of ${expectedPageRows} rows for total_count ${totalCount}, limit ${limit}, offset ${offset}`,
+      502
+    );
   }
 
   const cleanRows = pageRows.map(({ fetched_ts, full_evidence_total, ...r }: any) => r);
+  const metricId = params.drill === 'funnel-stage' && params.drillValue === 'delivered'
+    ? 'delivered_leads'
+    : params.drill === 'funnel-stage' && params.drillValue === 'fetched'
+    ? 'fetched_leads'
+    : params.drill || 'lead_records';
+
   return {
     rows: cleanRows,
     totalCount,
@@ -252,5 +263,18 @@ export async function getRawLeads(params: OffernetQueryParams) {
     offset,
     drill: params.drill || null,
     drillValue: params.drillValue || null,
+    search: params.search || null,
+    clientId: params.clientId,
+    startDate: params.startDate || null,
+    endDate: params.endDate || null,
+    filters: params.filters || {},
+    timezone: clientConfig?.timezone || 'Africa/Johannesburg',
+    dateBasis: 'intake_cohort',
+    definitionVersion: METRIC_REGISTRY_VERSION,
+    metricId,
+    countingGrain: 'lead',
+    validationStatus: 'NOT_VERIFIED',
+    sourceCutoff: null,
+    generatedAt: new Date().toISOString(),
   };
 }

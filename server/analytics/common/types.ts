@@ -18,6 +18,7 @@ export interface OffernetQueryParams {
   metric?: string;
   limit?: number;
   offset?: number;
+  filters?: Record<string, any>;
 }
 
 export * from './metrics';
