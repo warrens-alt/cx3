@@ -4,8 +4,104 @@ import express from 'express';
 import { once } from 'node:events';
 import { createSourceRouter } from '../server/bigquery/sourceRouter';
 import { RequestError } from '../server/bigquery/filters';
+import type { SourceAccess } from '../server/bigquery/sourceAccess';
 
-function createTestApp(role = 'admin', tenant = 'default_tenant', denyTenant = false) {
+function createControlledSourceAccess(overrides?: {
+  ontactRows?: any[];
+  onvestRows?: any[];
+  shouldThrow?: boolean;
+}): () => SourceAccess {
+  return () => ({
+    async metadata() {
+      return { type: 'TABLE', numRows: '100' };
+    },
+    async listTables() {
+      return [];
+    },
+    async execute(options: { query: string; params?: Record<string, any> }) {
+      if (overrides?.shouldThrow) {
+        throw new Error('Connection refused: BigQuery backend unavailable');
+      }
+      if (options.query.includes('ontact_raw_data')) {
+        return {
+          rows: overrides?.ontactRows ?? [
+            {
+              unique_id: 'call-1',
+              source: 'ontact',
+              timestamp: '2026-09-27T08:00:00Z',
+              raw_data: JSON.stringify({
+                uniqueid: 'call-1',
+                client_code: 'ontact_blc',
+                start_epoch: 1790496000,
+                end_epoch: 1790496120,
+                length_in_sec: 120,
+                call_date: '2026-09-27 10:00:00',
+                status: 'SALE',
+                call_result: 'SALE',
+                campaign_id: 'camp_alpha',
+                list_id: 'list_100',
+              }),
+            },
+            {
+              unique_id: 'call-2',
+              source: 'ontact',
+              timestamp: '2026-09-27T08:05:00Z',
+              raw_data: JSON.stringify({
+                uniqueid: 'call-2',
+                client_code: 'ontact_blc',
+                start_epoch: 1790496300,
+                end_epoch: 1790496360,
+                length_in_sec: 60,
+                call_date: '2026-09-27 10:05:00',
+                status: 'NA',
+                call_result: 'NA',
+                campaign_id: 'camp_alpha',
+                list_id: 'list_100',
+              }),
+            },
+          ],
+          jobId: 'test-job-ontact',
+        };
+      }
+      if (options.query.includes('onvest_raw_data')) {
+        return {
+          rows: overrides?.onvestRows ?? [
+            {
+              unique_id: 'onvest-1',
+              source: 'onvest',
+              timestamp: '2026-09-26T12:00:00Z',
+              raw_data: JSON.stringify({
+                event_id: 'ev-1',
+                date: '2026-09-26',
+                offershop_source: 'offershop_test',
+                Amount_Spent: '1250.50',
+                Fetched_Leads: 100,
+                Accepted_Leads: 95,
+                Qualified_Leads: 90,
+                Total_Leads_WithValid_Phone_ID: 85,
+                Clicks: 300,
+                Impressions: '5000',
+                Reach: '4200',
+                Outbound_Clicks: '280',
+                MTN_Dialed_Leads: 80,
+                MTN_Sales: 12,
+              }),
+            },
+          ],
+          jobId: 'test-job-onvest',
+        };
+      }
+      return { rows: [], jobId: 'test-job-empty' };
+    },
+  });
+}
+
+function createTestApp(
+  role = 'admin',
+  tenant = 'default_tenant',
+  denyTenant = false,
+  accessProvider: () => SourceAccess = createControlledSourceAccess(),
+) {
   const app = express();
   app.use(express.json());
   app.use((req, res, next) => {
@@ -16,7 +112,7 @@ function createTestApp(role = 'admin', tenant = 'default_tenant', denyTenant = f
     };
     next();
   });
-  app.use('/api/analytics', createSourceRouter());
+  app.use('/api/analytics', createSourceRouter(accessProvider));
   app.use((err: any, _req: any, res: any, _next: any) => {
     res.status(err instanceof RequestError ? err.status : 500).json({
       success: false,
@@ -201,6 +297,96 @@ test('GET /sources/onvest/touchpoints rejects campaign filter, isolates tenant, 
     // 6. Sources breakdown
     assert.ok(Array.isArray(data.sourcesBreakdown));
     assert.ok(data.sourcesBreakdown.some((s: any) => s.source.includes('offershop')));
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>(resolve => server.close(() => resolve()));
+  }
+});
+
+test('GET /sources/ontact/summary rejects non-admin viewer with 403', async () => {
+  const viewerApp = createTestApp('viewer');
+  const server = viewerApp.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const port = (server.address() as any).port;
+
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/api/analytics/sources/ontact/summary?clientId=default_tenant`);
+    assert.equal(res.status, 403);
+    const body = await res.json();
+    assert.match(body.error, /Admin access required/);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>(resolve => server.close(() => resolve()));
+  }
+});
+
+test('GET /sources/ontact/summary rejects tenant without approved ONtact ownership with 403', async () => {
+  const adminApp = createTestApp('admin');
+  const server = adminApp.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const port = (server.address() as any).port;
+
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/api/analytics/sources/ontact/summary?clientId=mtn`);
+    assert.equal(res.status, 403);
+    const body = await res.json();
+    assert.match(body.error, /does not have approved source ownership/);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>(resolve => server.close(() => resolve()));
+  }
+});
+
+test('GET /sources/ontact/summary returns 503 safe error when warehouse query fails', async () => {
+  const failingApp = createTestApp('admin', 'default_tenant', false, createControlledSourceAccess({ shouldThrow: true }));
+  const server = failingApp.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const port = (server.address() as any).port;
+
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/api/analytics/sources/ontact/summary?clientId=default_tenant`);
+    assert.equal(res.status, 503);
+    const body = await res.json();
+    assert.equal(body.success, false);
+    assert.ok(body.requestId);
+    assert.match(body.error, /Warehouse source/);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>(resolve => server.close(() => resolve()));
+  }
+});
+
+test('GET /sources/ontact/summary handles valid empty observations cleanly', async () => {
+  const emptyApp = createTestApp('admin', 'default_tenant', false, createControlledSourceAccess({ ontactRows: [] }));
+  const server = emptyApp.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const port = (server.address() as any).port;
+
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/api/analytics/sources/ontact/summary?clientId=default_tenant`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.success, true);
+    assert.equal(body.data.totalObservations, 0);
+    assert.equal(body.data.averageDurationSec, 0);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>(resolve => server.close(() => resolve()));
+  }
+});
+
+test('GET /sources/onvest/touchpoints returns 503 safe error when warehouse query fails', async () => {
+  const failingApp = createTestApp('admin', 'mtn', false, createControlledSourceAccess({ shouldThrow: true }));
+  const server = failingApp.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const port = (server.address() as any).port;
+
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/api/analytics/sources/onvest/touchpoints?clientId=mtn`);
+    assert.equal(res.status, 503);
+    const body = await res.json();
+    assert.equal(body.success, false);
+    assert.ok(body.requestId);
   } finally {
     server.closeAllConnections();
     await new Promise<void>(resolve => server.close(() => resolve()));

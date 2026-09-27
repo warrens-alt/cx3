@@ -61,6 +61,15 @@ export interface ObservedViewFailure {
   tenantId?: string;
 }
 
+export interface HistoricalExportOutcome {
+  status: 'SUCCESS' | 'RESTRICTED' | 'UNKNOWN';
+  rowsExported: number | null;
+  exportedAt: string | null;
+  failingDependency?: string | null;
+  errorReason?: string | null;
+  ownerActionRequired: string;
+}
+
 /** Observed dependency failures from the 2026-09-27 bulk export notice files. */
 export const OBSERVED_EXPORT_FAILURES: Record<string, ObservedViewFailure> = {
   // Dedicated tenant views (8)
@@ -454,4 +463,47 @@ export const CANDIDATE_SPEND_SOURCES = [
   'dashboards-422710.vibe_coding_data.view_onvest_online_data_v1',
   'dashboards-422710.vibe_coding_data.view_output_view',
 ] as const;
+
+/**
+ * Explicit per-source outcomes from the 2026-09-27 bulk export.
+ * Success is consumed from verified export manifests; never inferred from absence of failure.
+ */
+export const HISTORICAL_EXPORT_OUTCOMES: Record<string, HistoricalExportOutcome> = {
+  // Confirmed successful tables in 2026-09-27 export
+  'dashboards-422710.lead_ledger.blc_remote_activations': { status: 'SUCCESS', rowsExported: 50, exportedAt: EXPORT_MANIFEST_EVIDENCE.exportedAt, ownerActionRequired: 'None (Available in historical export)' },
+  'dashboards-422710.lead_ledger.clustered_lead_ledger': { status: 'SUCCESS', rowsExported: 50, exportedAt: EXPORT_MANIFEST_EVIDENCE.exportedAt, ownerActionRequired: 'None (Available in historical export)' },
+  'dashboards-422710.lead_ledger.clustered_lead_ledger_open': { status: 'SUCCESS', rowsExported: 50, exportedAt: EXPORT_MANIFEST_EVIDENCE.exportedAt, ownerActionRequired: 'None (Available in historical export)' },
+  'dashboards-422710.lead_ledger.clustered_lead_ledger_open_backup': { status: 'SUCCESS', rowsExported: 50, exportedAt: EXPORT_MANIFEST_EVIDENCE.exportedAt, ownerActionRequired: 'None (Available in historical export)' },
+  'dashboards-422710.lead_ledger.lead_ledger_all_vicidial_insights': { status: 'SUCCESS', rowsExported: 50, exportedAt: EXPORT_MANIFEST_EVIDENCE.exportedAt, ownerActionRequired: 'None (Available in historical export)' },
+  'dashboards-422710.lead_ledger.lead_ledger_all_vicidial_insights_time_to_dial': { status: 'SUCCESS', rowsExported: 50, exportedAt: EXPORT_MANIFEST_EVIDENCE.exportedAt, ownerActionRequired: 'None (Available in historical export)' },
+  'dashboards-422710.lead_ledger.lead_ledger_platform_insights': { status: 'SUCCESS', rowsExported: 50, exportedAt: EXPORT_MANIFEST_EVIDENCE.exportedAt, ownerActionRequired: 'None (Available in historical export)' },
+  'dashboards-422710.lead_ledger.tbl_blc_activations': { status: 'SUCCESS', rowsExported: 50, exportedAt: EXPORT_MANIFEST_EVIDENCE.exportedAt, ownerActionRequired: 'None (Available in historical export)' },
+  'dashboards-422710.lead_ledger.tbl_lead_ledger_all_lewis_group_lead_submit_open': { status: 'SUCCESS', rowsExported: 50, exportedAt: EXPORT_MANIFEST_EVIDENCE.exportedAt, ownerActionRequired: 'None (Available in historical export)' },
+  'dashboards-422710.lead_ledger.tbl_lead_ledger_lewis_group_top_stores': { status: 'SUCCESS', rowsExported: 50, exportedAt: EXPORT_MANIFEST_EVIDENCE.exportedAt, ownerActionRequired: 'None (Available in historical export)' },
+  'dashboards-422710.lead_ledger.tbl_lewis_group_waterfall_report': { status: 'SUCCESS', rowsExported: 50, exportedAt: EXPORT_MANIFEST_EVIDENCE.exportedAt, ownerActionRequired: 'None (Available in historical export)' },
+  'dashboards-422710.lead_ledger.tbl_touchpoint_projects': { status: 'SUCCESS', rowsExported: 31, exportedAt: EXPORT_MANIFEST_EVIDENCE.exportedAt, ownerActionRequired: 'None (Available in historical export)' },
+  'dashboards-422710.lead_ledger.view_lead_ledger_using_open_leadger': { status: 'SUCCESS', rowsExported: 50, exportedAt: EXPORT_MANIFEST_EVIDENCE.exportedAt, ownerActionRequired: 'None (Available in historical export)' },
+  'dashboards-422710.vibe_coding_data.tbl_offershop_lead_ledger': { status: 'SUCCESS', rowsExported: 50, exportedAt: EXPORT_MANIFEST_EVIDENCE.exportedAt, ownerActionRequired: 'None (Available in historical export)' },
+  'dashboards-422710.vibe_coding_data.tbl_vibe_code_warren_stear_ontact_analytics_api': { status: 'SUCCESS', rowsExported: 50, exportedAt: EXPORT_MANIFEST_EVIDENCE.exportedAt, ownerActionRequired: 'None (Available in historical export)' },
+  'dashboards-422710.vibe_coding_data.tbl_vibe_code_warren_stear_ontact_ofline_data': { status: 'SUCCESS', rowsExported: 50, exportedAt: EXPORT_MANIFEST_EVIDENCE.exportedAt, ownerActionRequired: 'None (Available in historical export)' },
+  'dashboards-422710.vibe_coding_data.view_vibe-code-warren--stear--ontact--analytics--api': { status: 'SUCCESS', rowsExported: 50, exportedAt: EXPORT_MANIFEST_EVIDENCE.exportedAt, ownerActionRequired: 'None (Available in historical export)' },
+  'dashboards-422710.vibe_coding_data.view_vibe_code_warren_stear_ontact_analytics_api': { status: 'SUCCESS', rowsExported: 50, exportedAt: EXPORT_MANIFEST_EVIDENCE.exportedAt, ownerActionRequired: 'None (Available in historical export)' },
+  'vibe-code-warren-stear.analytics_warehouse.ontact_raw_data': { status: 'SUCCESS', rowsExported: 50, exportedAt: EXPORT_MANIFEST_EVIDENCE.exportedAt, ownerActionRequired: 'None (Available in historical export)' },
+  'vibe-code-warren-stear.analytics_warehouse.onvest_raw_data': { status: 'SUCCESS', rowsExported: 50, exportedAt: EXPORT_MANIFEST_EVIDENCE.exportedAt, ownerActionRequired: 'None (Available in historical export)' },
+
+  // Observed restricted views populated from OBSERVED_EXPORT_FAILURES
+  ...Object.fromEntries(
+    Object.entries(OBSERVED_EXPORT_FAILURES).map(([key, fail]) => [
+      key,
+      {
+        status: 'RESTRICTED' as const,
+        rowsExported: 0,
+        exportedAt: EXPORT_MANIFEST_EVIDENCE.exportedAt,
+        failingDependency: fail.failingDependency,
+        errorReason: fail.errorReason,
+        ownerActionRequired: fail.ownerActionRequired,
+      },
+    ])
+  ),
+};
 
