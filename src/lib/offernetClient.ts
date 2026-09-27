@@ -852,6 +852,10 @@ export interface RawLeadsData {
   clientId?: string;
   startDate?: string | null;
   endDate?: string | null;
+  vendor?: string | null;
+  source?: string | null;
+  medium?: string | null;
+  grade?: string | null;
   filters?: Record<string, any>;
   timezone?: string;
   dateBasis?: string;

@@ -7,21 +7,23 @@ import { buildFilterClause } from '../common/scope';
 import { operationalLeadCtes } from '../common/leadMetrics';
 import { exceptionPredicate } from './exceptionPredicates';
 import { METRIC_REGISTRY_VERSION } from '../../../contracts/metricRegistry';
+import { normalizeOperationalParams } from '../../offernetScope';
 import type { OffernetQueryParams } from '../common/types';
 
 export async function getRawLeads(params: OffernetQueryParams) {
-  const clientConfig = getClientConfig(params.clientId);
+  const { params: normalizedParams, effectiveFilters, filterValues } = normalizeOperationalParams(params, '/offernet/raw-leads');
+  const clientConfig = getClientConfig(normalizedParams.clientId);
   const client = getBigQueryClient(clientConfig.bigQueryProject);
-  const limit = Math.min(Math.max(Number(params.limit) || 50, 10), 200);
-  const offset = Math.max(Number(params.offset) || 0, 0);
-  const { whereSql, queryParams } = buildFilterClause(params);
+  const limit = Math.min(Math.max(Number(normalizedParams.limit) || 50, 10), 200);
+  const offset = Math.max(Number(normalizedParams.offset) || 0, 0);
+  const { whereSql, queryParams } = buildFilterClause(normalizedParams);
   // Every drill predicate must inspect the same vendor population as the outer row.
   const vendorPredicates: string[] = [];
   if (queryParams.tenantVendors) vendorPredicates.push('LOWER(h.vendor) IN UNNEST(@tenantVendors)');
   if (queryParams.vendor) vendorPredicates.push('LOWER(h.vendor) = LOWER(@vendor)');
 
   let searchCondition = '';
-  if (params.search) {
+  if (normalizedParams.search) {
     searchCondition = `AND (
       LOWER(l.lead_id) LIKE LOWER(@search)
       OR CAST(l.consumer_id AS STRING) LIKE @search
@@ -29,17 +31,17 @@ export async function getRawLeads(params: OffernetQueryParams) {
       OR LOWER(l.offershop_source) LIKE LOWER(@search)
       OR LOWER(hlc.last_dialer_status) LIKE LOWER(@search)
     )`;
-    queryParams.search = `%${params.search}%`;
+    queryParams.search = `%${normalizedParams.search}%`;
   }
 
   // These predicates share the exact lead grain and normalized timestamps used by the widgets.
   const timing = 'TIMESTAMP_DIFF(m.first_call_ts, m.delivered_ts, SECOND)';
   const wait = 'TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), m.delivered_ts, SECOND)';
   let drillCondition = '';
-  if (params.drill) {
-    const value = params.drillValue || '';
-    let condition: string | undefined = exceptionPredicate(params.drill);
-    if (!condition) switch (params.drill) {
+  if (normalizedParams.drill) {
+    const value = normalizedParams.drillValue || '';
+    let condition: string | undefined = exceptionPredicate(normalizedParams.drill);
+    if (!condition) switch (normalizedParams.drill) {
       case 'awaiting-first-dial': condition = 'm.is_delivered AND NOT m.is_dialled'; break;
       case 'missing-disposition': condition = 'm.is_dialled AND NOT m.has_disposition'; break;
       case 'unactivated-sales': condition = 'm.is_sale AND NOT m.is_activated AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), m.sale_ts, DAY) > 14'; break;
@@ -63,7 +65,7 @@ export async function getRawLeads(params: OffernetQueryParams) {
       case 'funnel-stage': condition = ({ fetched: 'TRUE', delivered: 'm.is_delivered', dialled: 'm.is_dialled', rpc: 'm.is_rpc', sales: 'm.is_sale', activated: 'm.is_activated' } as Record<string, string>)[value]; break;
       case 'delivery-age':
       case 'lead-age': {
-        const timing = params.drill === 'lead-age' ? 'TIMESTAMP_DIFF(m.first_call_ts, m.fetched_ts, SECOND)' : 'TIMESTAMP_DIFF(m.first_call_ts, m.delivered_ts, SECOND)';
+        const timing = normalizedParams.drill === 'lead-age' ? 'TIMESTAMP_DIFF(m.first_call_ts, m.fetched_ts, SECOND)' : 'TIMESTAMP_DIFF(m.first_call_ts, m.delivered_ts, SECOND)';
         const buckets: Record<string, string> = {
           'Invalid timing': `${timing} < 0`,
           '0–5m': `${timing} BETWEEN 0 AND 300`,
@@ -79,7 +81,7 @@ export async function getRawLeads(params: OffernetQueryParams) {
           '6–24h': `${timing} > 21600 AND ${timing} <= 86400`,
           '24h+': `${timing} > 86400`,
         };
-        condition = value === 'Not delivered' ? 'NOT m.is_delivered' : value === 'Undialled' ? (params.drill === 'lead-age' ? 'NOT m.is_dialled' : 'm.is_delivered AND NOT m.is_dialled') : buckets[value] ? `m.is_dialled AND ${buckets[value]}` : undefined;
+        condition = value === 'Not delivered' ? 'NOT m.is_delivered' : value === 'Undialled' ? (normalizedParams.drill === 'lead-age' ? 'NOT m.is_dialled' : 'm.is_delivered AND NOT m.is_dialled') : buckets[value] ? `m.is_dialled AND ${buckets[value]}` : undefined;
         break;
       }
       case 'funnel-loss': condition = ({
@@ -91,7 +93,7 @@ export async function getRawLeads(params: OffernetQueryParams) {
       } as Record<string, string>)[value]; break;
       default: throw new RequestError('Unsupported drill-down population', 422);
     }
-    if (!condition) throw new RequestError(`Unsupported ${params.drill} drill`, 422);
+    if (!condition) throw new RequestError(`Unsupported ${normalizedParams.drill} drill`, 422);
     drillCondition = `AND (${condition})`;
   }
 
@@ -101,8 +103,8 @@ export async function getRawLeads(params: OffernetQueryParams) {
         ARRAY(SELECT AS STRUCT h.* FROM UNNEST(l.hlc_details) h
           WHERE ${vendorPredicates.length ? vendorPredicates.join(' AND ') : 'TRUE'}) AS hlc_details
       )
-      FROM ${configuredSourceTable(params.clientId, 'leads')} l
-    ), ${operationalLeadCtes(params, false, 'scoped_leads')},
+      FROM ${configuredSourceTable(normalizedParams.clientId, 'leads')} l
+    ), ${operationalLeadCtes(normalizedParams, false, 'scoped_leads')},
     qualified_evidence AS (
     SELECT
       l.lead_id,
@@ -250,24 +252,28 @@ export async function getRawLeads(params: OffernetQueryParams) {
   }
 
   const cleanRows = pageRows.map(({ fetched_ts, full_evidence_total, ...r }: any) => r);
-  const metricId = params.drill === 'funnel-stage' && params.drillValue === 'delivered'
+  const metricId = normalizedParams.drill === 'funnel-stage' && normalizedParams.drillValue === 'delivered'
     ? 'delivered_leads'
-    : params.drill === 'funnel-stage' && params.drillValue === 'fetched'
+    : normalizedParams.drill === 'funnel-stage' && normalizedParams.drillValue === 'fetched'
     ? 'fetched_leads'
-    : params.drill || 'lead_records';
+    : normalizedParams.drill || 'lead_records';
 
   return {
     rows: cleanRows,
     totalCount,
     limit,
     offset,
-    drill: params.drill || null,
-    drillValue: params.drillValue || null,
-    search: params.search || null,
-    clientId: params.clientId,
-    startDate: params.startDate || null,
-    endDate: params.endDate || null,
-    filters: params.filters || {},
+    drill: normalizedParams.drill || null,
+    drillValue: normalizedParams.drillValue || null,
+    search: normalizedParams.search || null,
+    clientId: normalizedParams.clientId,
+    startDate: normalizedParams.startDate || null,
+    endDate: normalizedParams.endDate || null,
+    vendor: filterValues.vendor || null,
+    source: filterValues.source || null,
+    medium: filterValues.medium || null,
+    grade: filterValues.grade || null,
+    filters: effectiveFilters,
     timezone: clientConfig?.timezone || 'Africa/Johannesburg',
     dateBasis: 'intake_cohort',
     definitionVersion: METRIC_REGISTRY_VERSION,

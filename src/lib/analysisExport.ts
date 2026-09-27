@@ -33,6 +33,10 @@ export interface LeadEvidenceExportContext {
   filters?: Record<string, any>;
   search?: string | null;
   investigation?: string | null;
+  timezone?: string;
+  definitionVersion?: string;
+  totalCount?: number | null;
+  generatedAt?: string;
   page?: number;
   pageSize?: number;
   exportCreatedAt?: string;
@@ -147,6 +151,10 @@ export function buildLeadEvidenceExport(
     clientId?: string;
     startDate?: string | null;
     endDate?: string | null;
+    vendor?: string | null;
+    source?: string | null;
+    medium?: string | null;
+    grade?: string | null;
     filters?: Record<string, any>;
     timezone?: string;
     dateBasis?: string;
@@ -164,7 +172,17 @@ export function buildLeadEvidenceExport(
     throw new Error('Cannot export invalid lead evidence result: rows must be an array');
   }
 
-  const totalCount = result.totalCount ?? result.rows.length;
+  // Enforce strict totalCount: builder cannot invent or fall back from missing totalCount to rows.length
+  const rawTotal = typeof result.totalCount === 'number'
+    ? result.totalCount
+    : typeof context.totalCount === 'number'
+    ? context.totalCount
+    : null;
+  if (rawTotal === null || !Number.isSafeInteger(rawTotal) || rawTotal < 0) {
+    throw new Error('Cannot export lead evidence: verified totalCount is required and cannot be inferred from row count');
+  }
+  const totalCount = rawTotal;
+
   const limit = result.limit ?? context.pageSize ?? 50;
   const offset = result.offset ?? ((context.page ?? 0) * limit);
 
@@ -176,22 +194,58 @@ export function buildLeadEvidenceExport(
     );
   }
 
-  const clientId = result.clientId || context.clientId || 'default_tenant';
-  const startDate = result.startDate ?? context.startDate ?? null;
-  const endDate = result.endDate ?? context.endDate ?? null;
-  const filters = result.filters || context.filters || {};
-  const search = result.search ?? context.search ?? null;
+  // Enforce strict client context: cannot invent default_tenant when context is missing
+  const clientId = result.clientId || result.metadata?.clientId || context.clientId;
+  if (!clientId || typeof clientId !== 'string' || !clientId.trim()) {
+    throw new Error('Cannot export lead evidence: verified clientId is required');
+  }
+
+  // Truthful date bounds: preserve null when result ran with unbounded dates; do not allow UI context to substitute
+  const startDate = 'startDate' in result
+    ? (result.startDate ?? null)
+    : ('startDate' in (result.metadata || {}))
+    ? (result.metadata?.startDate ?? null)
+    : (context.startDate ?? null);
+
+  const endDate = 'endDate' in result
+    ? (result.endDate ?? null)
+    : ('endDate' in (result.metadata || {}))
+    ? (result.metadata?.endDate ?? null)
+    : (context.endDate ?? null);
+
+  // Truthful search: preserve null when query ran without search; do not allow UI context to substitute
+  const search = 'search' in result
+    ? (result.search ?? null)
+    : ('search' in (result.metadata || {}))
+    ? (result.metadata?.search ?? null)
+    : (context.search ?? null);
+
+  // Truthful applied filters: preserve explicitly empty filters {} from server result; do not substitute newer UI filters
+  const filters = result.filters !== undefined
+    ? result.filters
+    : result.metadata?.appliedFilters !== undefined
+    ? result.metadata.appliedFilters
+    : context.filters !== undefined
+    ? context.filters
+    : {};
+
   const drill = result.drill || null;
   const drillValue = result.drillValue || null;
   const investigation = context.investigation || (drill ? (drillValue ? `${drill}: ${drillValue}` : drill) : null);
   const predicate = investigation || (drill ? `${drill}${drillValue ? `=${drillValue}` : ''}` : null);
-  const timezone = result.timezone || result.metadata?.timezone || 'Africa/Johannesburg';
+  const timezone = result.timezone || result.metadata?.timezone || context.timezone || 'Africa/Johannesburg';
   const dateBasis = result.dateBasis || result.metadata?.dateBasis || 'intake_cohort';
-  const definitionVersion = result.definitionVersion || 'cx.metric.2.0.0';
+
+  // Enforce strict definitionVersion: builder cannot supply default version when context is missing
+  const definitionVersion = result.definitionVersion || result.metadata?.definitionVersion || context.definitionVersion;
+  if (!definitionVersion || typeof definitionVersion !== 'string' || !definitionVersion.trim()) {
+    throw new Error('Cannot export lead evidence: verified definitionVersion is required');
+  }
+
   const metricId = result.metricId || (drill === 'funnel-stage' && drillValue === 'delivered' ? 'delivered_leads' : drill === 'funnel-stage' && drillValue === 'fetched' ? 'fetched_leads' : drill || 'lead_records');
   const countingGrain = result.countingGrain || 'lead';
   const validationStatus = result.validationStatus || 'NOT_VERIFIED';
-  const generatedAt = result.generatedAt || result.metadata?.generatedAt || 'Unavailable';
+  const generatedAt = result.generatedAt || result.metadata?.generatedAt || context.generatedAt || 'Unavailable';
   const sourceCutoff = result.sourceCutoff ?? null;
   const exportCreatedAt = context.exportCreatedAt;
 

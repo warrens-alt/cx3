@@ -689,6 +689,19 @@ function evaluatePopulationOracle(
     totalCount,
     rows: pageRows,
     allFiltered: filtered,
+    clientId: scope.clientId,
+    startDate: scope.startDate || null,
+    endDate: scope.endDate || null,
+    filters: {},
+    limit,
+    offset,
+    drill: options.drill || null,
+    drillValue: options.drillValue || null,
+    definitionVersion: METRIC_REGISTRY_VERSION,
+    timezone: 'Africa/Johannesburg',
+    dateBasis: 'intake_cohort',
+    validationStatus: 'NOT_VERIFIED',
+    generatedAt: new Date().toISOString(),
   };
 }
 
@@ -1152,7 +1165,209 @@ test('Phase 1.1: Deterministic 55-lead case with pagination, tie-breaks, out-of-
 });
 
 // ---------------------------------------------------------------------------
-// 6. Honest Test Layer Boundary Documentation
+// 6. Preservation of Applied Filters & Export Contract Enforcement
+// ---------------------------------------------------------------------------
+
+test('Phase 1.1: Preserves truthful applied-filter metadata across HTTP endpoint, service, and CSV export', async t => {
+  const app = createTestApiApp('admin', 'default_tenant');
+  const server = app.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const port = (server.address() as any).port;
+  const baseUrl = `http://127.0.0.1:${port}`;
+
+  const client = getBigQueryClient(getClientConfig('default_tenant').bigQueryProject);
+  const recordedQueries: any[] = [];
+  t.mock.method(client, 'query', async (query: any) => {
+    recordedQueries.push(query);
+    if (query?.query?.includes('qualified_evidence AS')) {
+      return [[{
+        total_count: 1,
+        evidence_rows: [{ lead_id: 'lead-filter-1', consumer_id: 111, fetched: '2026-09-05T10:00:00Z', vendor: 'MTN', source: 'Web' }],
+      }]];
+    }
+    return [[]];
+  });
+
+  try {
+    // A. Shorthand query parameters ?vendor=MTN&source=Web
+    recordedQueries.length = 0;
+    const resA = await fetch(`${baseUrl}/api/analytics/offernet/raw-leads?clientId=default_tenant&vendor=MTN&source=Web&limit=50&offset=0`);
+    assert.equal(resA.status, 200);
+    const bodyA = await resA.json();
+    assert.equal(bodyA.success, true);
+    assert.equal(bodyA.data.vendor, 'MTN');
+    assert.equal(bodyA.data.source, 'Web');
+    assert.deepEqual(bodyA.data.filters, {
+      vendor: { operator: 'equals', value: 'MTN' },
+      source: { operator: 'equals', value: 'Web' },
+    });
+    assert.deepEqual(bodyA.metadata.appliedFilters, {
+      vendor: { operator: 'equals', value: 'MTN' },
+      source: { operator: 'equals', value: 'Web' },
+    });
+    assert.equal(recordedQueries[0].params.vendor, 'MTN');
+    assert.equal(recordedQueries[0].params.source, 'Web');
+
+    // Export contains the exact applied filters
+    const exportA = buildLeadEvidenceExport(bodyA.data);
+    assert.deepEqual(exportA.metadata.filters, bodyA.data.filters);
+    assert.ok(exportA.rows[1][exportA.rows[1].length - 19]?.toString().includes('"vendor":{"operator":"equals","value":"MTN"}'));
+
+    // B. Canonical alias normalization: ?partner=MTN normalizes to vendor
+    recordedQueries.length = 0;
+    const resB = await fetch(`${baseUrl}/api/analytics/offernet/raw-leads?clientId=default_tenant&partner=MTN&limit=50&offset=0`);
+    assert.equal(resB.status, 200);
+    const bodyB = await resB.json();
+    assert.equal(bodyB.data.vendor, 'MTN');
+    assert.deepEqual(bodyB.data.filters, { vendor: { operator: 'equals', value: 'MTN' } });
+    assert.deepEqual(bodyB.metadata.appliedFilters, { vendor: { operator: 'equals', value: 'MTN' } });
+    assert.equal(recordedQueries[0].params.vendor, 'MTN');
+
+    // C. Encoded filters produce equivalent effective scope to shorthand
+    recordedQueries.length = 0;
+    const resC = await fetch(`${baseUrl}/api/analytics/offernet/raw-leads?clientId=default_tenant&filters=${encodeURIComponent(JSON.stringify({ vendor: { operator: 'equals', value: 'MTN' } }))}&limit=50&offset=0`);
+    assert.equal(resC.status, 200);
+    const bodyC = await resC.json();
+    assert.deepEqual(bodyC.data.filters, bodyB.data.filters);
+    assert.deepEqual(bodyC.metadata.appliedFilters, bodyB.metadata.appliedFilters);
+
+    // D. Conflicting representations are rejected before querying
+    recordedQueries.length = 0;
+    const resD = await fetch(`${baseUrl}/api/analytics/offernet/raw-leads?clientId=default_tenant&vendor=MTN&filters=${encodeURIComponent(JSON.stringify({ vendor: { operator: 'equals', value: 'Vodacom' } }))}`);
+    assert.equal(resD.status, 422);
+    assert.equal(recordedQueries.length, 0, 'No query should run when filters conflict');
+
+    // E. Unsupported dimensions on raw-leads are rejected
+    recordedQueries.length = 0;
+    const resE = await fetch(`${baseUrl}/api/analytics/offernet/raw-leads?clientId=default_tenant&filters=${encodeURIComponent(JSON.stringify({ campaign: { operator: 'equals', value: 'Camp1' } }))}`);
+    assert.equal(resE.status, 422);
+    assert.equal(recordedQueries.length, 0);
+
+    // F. Multiple values on single-equality report are rejected
+    recordedQueries.length = 0;
+    const resF = await fetch(`${baseUrl}/api/analytics/offernet/raw-leads?clientId=default_tenant&filters=${encodeURIComponent(JSON.stringify({ vendor: { operator: 'in', values: ['MTN', 'Vodacom'] } }))}`);
+    assert.equal(resF.status, 422);
+    assert.equal(recordedQueries.length, 0);
+
+    // G. Explicitly empty filter set preserves {} and does NOT substitute unapplied UI context filters
+    recordedQueries.length = 0;
+    const resG = await fetch(`${baseUrl}/api/analytics/offernet/raw-leads?clientId=default_tenant&limit=50&offset=0`);
+    assert.equal(resG.status, 200);
+    const bodyG = await resG.json();
+    assert.deepEqual(bodyA.data.vendor, 'MTN'); // Sanity: earlier result had vendor
+    assert.equal(bodyG.data.vendor, null);
+    assert.deepEqual(bodyG.data.filters, {});
+    assert.deepEqual(bodyG.metadata.appliedFilters, {});
+
+    // Try to pass newer unapplied UI filters in context: export MUST ignore them and keep truthful {}
+    const exportG = buildLeadEvidenceExport(bodyG.data, {
+      filters: { vendor: { operator: 'equals', value: 'StaleUIFilter' } },
+    });
+    assert.deepEqual(exportG.metadata.filters, {}, 'Export must keep server result filters {} and not substitute UI context');
+
+    // H. Unbounded query with null startDate and endDate preserves null; do not substitute UI dates
+    assert.equal(bodyG.data.startDate, null);
+    assert.equal(bodyG.data.endDate, null);
+    const exportH = buildLeadEvidenceExport(bodyG.data, {
+      startDate: '2026-09-01',
+      endDate: '2026-09-15',
+    });
+    assert.equal(exportH.metadata.startDate, null, 'Null start date must remain null and not be filled by UI context');
+    assert.equal(exportH.metadata.endDate, null, 'Null end date must remain null and not be filled by UI context');
+
+    // I. Unbounded search preserves null; do not substitute UI search
+    assert.equal(bodyG.data.search, null);
+    const exportI = buildLeadEvidenceExport(bodyG.data, {
+      search: 'StaleSearchKeyword',
+    });
+    assert.equal(exportI.metadata.search, null, 'Null search must remain null and not be filled by UI context');
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>(resolve => server.close(() => resolve()));
+  }
+});
+
+test('Phase 1.1: Direct getRawLeads applies filters in SQL and rejects conflicting representations', async t => {
+  const client = getBigQueryClient(getClientConfig('default_tenant').bigQueryProject);
+  const recordedQueries: any[] = [];
+  t.mock.method(client, 'query', async (query: any) => {
+    recordedQueries.push(query);
+    return [[{ total_count: 0, evidence_rows: [] }]];
+  });
+
+  // 1. Direct call with filters object applies condition to SQL
+  recordedQueries.length = 0;
+  const res1 = await getRawLeads({
+    clientId: 'default_tenant',
+    filters: { vendor: { operator: 'equals', value: 'MTN' } },
+    limit: 50,
+    offset: 0,
+  });
+  assert.equal(recordedQueries.length, 1);
+  assert.equal(recordedQueries[0].params.vendor, 'MTN');
+  assert.ok(recordedQueries[0].query.includes('LOWER(h.vendor) = LOWER(@vendor)'));
+  assert.equal(res1.vendor, 'MTN');
+  assert.deepEqual(res1.filters, { vendor: { operator: 'equals', value: 'MTN' } });
+
+  // 2. Direct call with conflicting vendor representations throws 422
+  await assert.rejects(async () => {
+    await getRawLeads({
+      clientId: 'default_tenant',
+      vendor: 'MTN',
+      filters: { vendor: { operator: 'equals', value: 'Vodacom' } },
+    });
+  }, { name: 'RequestError', status: 422 });
+
+  // 3. Direct call with unsupported dimension throws 422
+  await assert.rejects(async () => {
+    await getRawLeads({
+      clientId: 'default_tenant',
+      filters: { campaign: { operator: 'equals', value: 'Camp1' } },
+    });
+  }, { name: 'RequestError', status: 422 });
+});
+
+test('Phase 1.1: Export builder enforces strict contract and cannot invent missing reporting context', () => {
+  // 1. Missing totalCount: builder MUST throw and cannot fall back to rows.length
+  assert.throws(() => {
+    buildLeadEvidenceExport({
+      rows: [{ lead_id: 'lead-1' }],
+      totalCount: undefined,
+      clientId: 'default_tenant',
+      definitionVersion: METRIC_REGISTRY_VERSION,
+    });
+  }, /verified totalCount is required/i);
+
+  assert.throws(() => {
+    buildLeadEvidenceExport({
+      rows: [{ lead_id: 'lead-1' }],
+      totalCount: null,
+      clientId: 'default_tenant',
+      definitionVersion: METRIC_REGISTRY_VERSION,
+    });
+  }, /verified totalCount is required/i);
+
+  // 2. Missing clientId: builder MUST throw and cannot supply default_tenant
+  assert.throws(() => {
+    buildLeadEvidenceExport({
+      rows: [{ lead_id: 'lead-1' }],
+      totalCount: 1,
+      definitionVersion: METRIC_REGISTRY_VERSION,
+    });
+  }, /verified clientId is required/i);
+
+  // 3. Missing definitionVersion: builder MUST throw and cannot supply cx.metric.2.0.0
+  assert.throws(() => {
+    buildLeadEvidenceExport({
+      rows: [{ lead_id: 'lead-1' }],
+      totalCount: 1,
+      clientId: 'default_tenant',
+    });
+  }, /verified definitionVersion is required/i);
+});
+
+// ---------------------------------------------------------------------------
+// 7. Honest Test Layer Boundary Documentation
 // ---------------------------------------------------------------------------
 
 test('Phase 1.1: Test layers are honestly distinguished', () => {

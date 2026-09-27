@@ -18,7 +18,7 @@ import { cacheResponse } from './cacheMiddleware';
 import { MODEL_VERSION } from './bigquery/integrity';
 import { serverQueryCache } from './cache';
 import { analyticalRoute as asyncRoute } from './analyticalWork';
-import { operationalFilterValues } from './offernetScope';
+import { operationalFilterValues, canonicalOperationalFilters } from './offernetScope';
 import { operationalMetadata } from './analytics/common/lineage';
 import { redactReportRecords } from './analytics/common/reportAccess';
 import { analyticsRequestTenant } from './requestTenant';
@@ -40,13 +40,20 @@ function scopeFrom(req: Request): QueryScope {
     ? req.query
     : { ...req.query, ...(req.body || {}) };
   const filters = validateFilters(input.filters);
-  for (const key of ['source', 'medium', 'vendor', 'grade', 'cli', 'campaign', 'channel', 'adset', 'agent']) {
+  for (const key of ['source', 'medium', 'vendor', 'partner', 'ror_partner', 'grade', 'cli', 'campaign', 'channel', 'adset', 'agent']) {
     const value = scalarString(input[key], key, 500);
     if (value) {
-      const values=value.split(',').map(v=>v.trim()).filter(Boolean);
-      const existing=filters[key];
-      if(existing && (existing.operator!=='in'||JSON.stringify([...existing.values!].sort())!==JSON.stringify([...values].sort()))) throw new RequestError(`Conflicting ${key} filters`);
-      if(!existing)filters[key]={operator:'in',values};
+      const values = value.split(',').map(v => v.trim()).filter(Boolean);
+      const targetKey = ['partner', 'ror_partner'].includes(key) ? 'vendor' : key;
+      const existing = filters[targetKey] || filters[key];
+      if (existing) {
+        const existingValues = existing.operator === 'in' ? existing.values : existing.operator === 'equals' ? [existing.value] : [];
+        if (JSON.stringify([...(existingValues || [])].sort()) !== JSON.stringify([...values].sort())) {
+          throw new RequestError(`Conflicting ${targetKey} filters`, 422);
+        }
+      } else {
+        filters[targetKey] = { operator: 'in', values };
+      }
     }
   }
   // Old report functions implement vendor/partner cohort predicates for IN, not equality.
@@ -195,11 +202,14 @@ import * as offernetAnalytics from './analytics';
 function buildOffernetQueryParams(req: Request, res: Response): offernetAnalytics.OffernetQueryParams {
   const scope = res.locals.scope as QueryScope;
   const values = operationalFilterValues(scope.filters, req.path);
+  const effectiveFilters = canonicalOperationalFilters(values);
+  scope.filters = effectiveFilters;
   return {
     clientId: scope.clientId,
     startDate: scope.startDate,
     endDate: scope.endDate,
     ...values,
+    filters: effectiveFilters,
     search: scalarString(req.query.search, 'search', 200),
     drill: scalarString(req.query.drill, 'drill'),
     drillValue: scalarString(req.query.drillValue, 'drillValue'),

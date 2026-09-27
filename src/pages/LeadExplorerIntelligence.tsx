@@ -145,11 +145,6 @@ export default function LeadExplorerIntelligence() {
   const handleExportCsv = () => {
     if (!data?.rows.length || loading || error) return;
     const exportResult = buildLeadEvidenceExport(data, {
-      clientId: selectedClient,
-      startDate: startDate || undefined,
-      endDate: endDate || undefined,
-      filters: { ...filters, drill, drillValue, search: appliedSearch },
-      search: appliedSearch,
       investigation: investigation || undefined,
       page,
       pageSize,

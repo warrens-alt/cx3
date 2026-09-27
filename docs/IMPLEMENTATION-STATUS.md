@@ -163,6 +163,11 @@ CX3 Phase 1.1 establishes an end-to-end trace from measured metric definitions t
    - Lead Explorer CSV export (`handleExportCsv`) dynamically evaluates whether the exported page is truncated against the total matching population (`data.totalCount != null ? data.rows.length < data.totalCount : data.rows.length >= pageSize`).
    - Metadata headers and export definitions accurately declare the applied client scope, date range, dimension filters, investigation predicate, and truncation status.
 
+5. **Truthful Applied Filters & Strict Export Contract Enforcement**:
+   - `server/offernetScope.ts` implements `canonicalOperationalFilters` and `normalizeOperationalParams` to ensure consistency between scalar dimension properties (`vendor`, `source`, `medium`, `grade`) and structured filters, normalizing aliases (`partner`, `ror_partner` to `vendor`) and rejecting conflicting representations before querying.
+   - `buildOffernetQueryParams` in `server/api.ts` carries the canonical `effectiveFilters` into `scope.filters` and `params.filters`, ensuring that both `result.filters` and `metadata.appliedFilters` truthfully reflect the exact query scope that ran.
+   - `buildLeadEvidenceExport` in `src/lib/analysisExport.ts` enforces the export contract without fabricating missing context: requires verified `totalCount`, `clientId`, and `definitionVersion`; validates complete page invariants (`result.rows.length === expectedPageRows`); preserves explicitly empty filters `{}` without substituting stale UI context; and preserves truthful nulls for unbounded dates and search.
+
 ### Requirement-to-Implementation-to-Verification Matrix
 
 | Requirement | Implementation Artifacts | Verification Method |
@@ -173,6 +178,7 @@ CX3 Phase 1.1 establishes an end-to-end trace from measured metric definitions t
 | **Complete Evidence Pages & Response Validation** | `server/analytics/investigation/records.ts` (aggregate envelope, integral total_count, unique lead IDs, count/offset invariants, strict complete page requirement `pageRows.length === expectedPageRows`) | `tests/phase-1-1-metric-workflow.test.ts` (two-of-eight and empty-of-eight rejection, safe integer/string/wrapper pagination) |
 | **Overview Metric Lineage & About Action** | `src/pages/ExecutiveOverview.tsx`, `src/components/MetricLineageDrawer.tsx` | `tests/phase-1-1-metric-workflow.test.ts` (About metric action, numerator/denominator inspection, concrete timezone and timestamps) |
 | **Pure Production Export Builder & Fixture Oracle** | `src/pages/LeadExplorerIntelligence.tsx` (`handleExportCsv`), `src/lib/analysisExport.ts` (`buildLeadEvidenceExport`) | `tests/phase-1-1-metric-workflow.test.ts` (10-lead and 55-lead complete fixture oracles, exact ID sets, tie-break ordering, complete/partial population labelling, result context audit headers) |
+| **Preserve Applied Filters & Enforce Export Contract** | `server/offernetScope.ts`, `server/api.ts`, `server/analytics/investigation/records.ts`, `src/lib/analysisExport.ts` | `tests/phase-1-1-metric-workflow.test.ts` (truthful applied-filter metadata across endpoint/service/CSV, alias normalization, conflict rejection, strict export contract without fabricated context) |
 
 ## Verification
 

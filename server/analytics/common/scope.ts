@@ -2,8 +2,10 @@ import { getClientConfig, tenantVendorScopeValues } from '../../bigquery/config'
 import type { OffernetQueryParams } from './types';
 import { RequestError } from '../../bigquery/filters';
 import { assertLeadSourceDimensions } from '../../bigquery/leadSource';
+import { normalizeOperationalParams } from '../../offernetScope';
 
-export function buildFilterClause(params: OffernetQueryParams, alias = 'l', hlcAlias = 'hlc') {
+export function buildFilterClause(paramsInput: OffernetQueryParams, alias = 'l', hlcAlias = 'hlc') {
+  const { params } = normalizeOperationalParams(paramsInput, '/offernet/raw-leads');
   assertLeadSourceDimensions(params.clientId, params);
   for (const dimension of ['campaign', 'channel', 'adset', 'agent', 'cli'] as const) {
     if (params[dimension]) throw new RequestError(`UNSUPPORTED_FILTER: ${dimension} has no approved mapping to this lead population.`, 422);
