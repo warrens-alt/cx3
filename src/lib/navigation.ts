@@ -54,6 +54,24 @@ export const NAV_GROUPS = [
   { title: 'Administration', items: primaryItems.filter(page => page.section === 'settings') },
 ];
 export const SECONDARY_DESTINATIONS = NAVIGATION_PAGES.filter(page => !primaryPaths.includes(page.path));
+
+export const OPERATIONAL_ROUTES: string[] = [
+  '/',
+  ...NAVIGATION_PAGES.map(p => p.path),
+  '/ai-insights',
+  '/visuals',
+  '/consumers',
+  '/validation',
+  '/lead-ledger',
+  '/users',
+  '/settings',
+];
+
+export function isOperationalRoute(pathname: string): boolean {
+  const canonical = ({ '/': '/overview', '/users': '/access-control', '/settings': '/admin' } as Record<string, string>)[pathname] || pathname;
+  return OPERATIONAL_ROUTES.includes(canonical) || OPERATIONAL_ROUTES.includes(pathname);
+}
+
 export function navigationPage(pathname: string): NavigationPage | undefined {
   const canonical = ({ '/': '/overview', '/users': '/access-control', '/settings': '/admin' } as Record<string, string>)[pathname] || pathname;
   return NAVIGATION_PAGES.find(page => page.path === canonical);

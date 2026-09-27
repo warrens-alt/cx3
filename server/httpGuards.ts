@@ -130,15 +130,21 @@ export function apiAuditLog(req: Request, res: Response, next: NextFunction): vo
   res.once('finish', () => {
     const elapsedMs = Number(process.hrtime.bigint() - start) / 1_000_000;
     const route = req.route?.path ? String(req.route.path) : 'UNMATCHED_API';
-    console.info(JSON.stringify({
-      action: 'API_REQUEST',
+    const isError = res.statusCode >= 400;
+    const payload = {
+      action: isError ? 'API_REQUEST_ERROR' : 'API_REQUEST',
       requestId: res.locals.requestId,
       subject: res.locals.principal?.subject ?? null,
       method: req.method,
       route,
       status: res.statusCode,
       durationMs: Number(elapsedMs.toFixed(1)),
-    }));
+    };
+    if (isError) {
+      console.warn(JSON.stringify(payload));
+    } else if (process.env.CX_ENABLE_AUDIT_LOG === 'true') {
+      console.info(JSON.stringify(payload));
+    }
   });
   next();
 }

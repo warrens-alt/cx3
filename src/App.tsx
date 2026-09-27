@@ -9,7 +9,7 @@ import { BRAND, PAGE_TITLES } from '../contracts/naming';
 import { ClientProvider, useClient } from './lib/ClientContext';
 import { FilterProvider, useFilters } from './lib/FilterContext';
 import { useTableDensity } from './lib/useTableDensity';
-import { navigationPage } from './lib/navigation';
+import { navigationPage, isOperationalRoute } from './lib/navigation';
 import { applicationMode, DEMO_ENTRY_URL } from './lib/applicationMode';
 import Sidebar from './components/Sidebar';
 import Modal from './components/Modal';
@@ -74,14 +74,8 @@ function Shell() {
   const pageTitle = navigationPage(location.pathname)?.name || ({ '/visuals': 'Visual Workspace', '/vetting': 'Vetting', '/validation': 'Validation' } as Record<string, string>)[location.pathname] || PAGE_TITLES[location.pathname] || 'Operational Platform';
   const searchShortcut = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘ K' : 'Ctrl K';
   
-  const operationalRoutes = [
-    '/', '/overview', '/funnel', '/speed-to-lead', '/contact-strategy', 
-    '/cli-performance',
-    '/vendor-quality', '/temporal', '/sales-activation', '/commercial', 
-    '/data-integrity', '/agent-performance', '/campaigns', '/ai-insights', '/lead-explorer', '/exceptions', '/routing', '/cohorts'
-  ];
-  const isOperationalPage = operationalRoutes.includes(location.pathname);
-  const evidencePage = ['/reports','/vendors','/exceptions','/reconciliation','/lead-ledger','/admin','/access-control','/users'].includes(location.pathname) || isOperationalPage;
+  const isOperationalPage = isOperationalRoute(location.pathname);
+  const evidencePage = true;
   useEffect(() => { document.title = `${pageTitle} · ${BRAND.name}`; }, [pageTitle]);
   useEffect(()=>{
     setMobile(false);
@@ -113,19 +107,6 @@ function Shell() {
         <button type="button" className="cx-icon-button cx-desktop-toggle" aria-label={sidebar?'Collapse navigation':'Expand navigation'} title={sidebar?'Collapse navigation':'Expand navigation'} aria-controls="desktop-navigation" aria-expanded={sidebar} onClick={()=>setSidebar(old=>!old)}>{sidebar?<PanelLeftClose size={18} aria-hidden="true"/>:<PanelLeftOpen size={18} aria-hidden="true"/>}</button>
         <div className="cx-breadcrumb" aria-label="Current page"><span>{BRAND.name}</span><span aria-hidden="true">/</span><strong title={pageTitle}>{pageTitle}</strong></div>
         <div className="cx-topbar-actions">
-          {isAdmin && (
-            <Link
-              to="/access-control"
-              aria-label="User and Access Control"
-              title="User & Access Control"
-              className={`cx-icon-button !px-2.5 !gap-1.5 !w-auto text-xs font-semibold ${
-                location.pathname === '/access-control' || location.pathname === '/users' ? '!bg-blue-50 !text-blue-700 !border-blue-300' : ''
-              }`}
-            >
-              <Shield size={14} className="text-blue-600" />
-              <span className="hidden md:inline">Access Control</span>
-            </Link>
-          )}
           <button type="button" className="cx-search-trigger" aria-label="Search pages" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title={`Find a page (${searchShortcut})`} onClick={openSearch}><Search size={16} aria-hidden="true"/><span>Find a page</span><kbd aria-hidden="true">{searchShortcut}</kbd></button>
           <button type="button" className="cx-icon-button cx-density-toggle hidden sm:inline-flex" aria-label={density==='comfortable'?'Use compact table spacing':'Use comfortable table spacing'} title={`Table spacing: ${density}. Switch to ${density==='comfortable'?'compact':'comfortable'}.`} aria-pressed={density==='compact'} onClick={toggleDensity}><Columns3 size={18} aria-hidden="true"/><span>Spacing: {density==='comfortable'?'Comfortable':'Compact'}</span></button>
           {!isOperationalPage && (

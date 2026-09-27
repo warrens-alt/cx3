@@ -140,10 +140,11 @@ export default function DataIntegrityIntelligence() {
             <section className="cx-command-panel">
               <header><div><span className="cx-command-section-kicker">Trust boundary</span><h2>Current validation state</h2><p>Source freshness and discrepancy counts are operational observations, not financial or evidence-release certification.</p></div><ShieldCheck size={16} className="text-slate-400"/></header>
             </section>
-
-            <DataIntakePanel clientId={selectedClient} isAdmin={isAdmin} />
           </>
         )}
+
+        {/* Source Intake & Diagnostic Recovery Console - always accessible to authorized workspace users */}
+        <DataIntakePanel clientId={selectedClient} isAdmin={isAdmin} />
       </div>
     </div>
   );
