@@ -1111,24 +1111,41 @@ export { fetchOffershopFlow, fetchOffershopStage, simulateOffershopRule, fetchCo
 export type { ContactDispositionsData } from '../../contracts/vendorDispositions';
 export type { AuthoritativeMetricDefinition } from '../../contracts/metricRegistry';
 
+export interface AuthoritativeMetricsEnvelope {
+  success: true;
+  version: string;
+  totalMetrics: number;
+  data: Record<string, import('../../contracts/metricRegistry').AuthoritativeMetricDefinition>;
+}
+
 export async function fetchAuthoritativeMetrics(
   paramsOrForceRefresh: Record<string, any> | boolean = false,
   forceRefreshOrSignal?: boolean | AbortSignal,
   optionalSignal?: AbortSignal
-): Promise<{ success: boolean; version: string; totalMetrics: number; data: Record<string, import('../../contracts/metricRegistry').AuthoritativeMetricDefinition> }> {
+): Promise<AuthoritativeMetricsEnvelope> {
   let params: Record<string, any> = {};
+  let forceRefresh = false;
   let signal: AbortSignal | undefined;
 
   if (typeof paramsOrForceRefresh === 'boolean') {
+    forceRefresh = paramsOrForceRefresh;
     if (forceRefreshOrSignal instanceof AbortSignal) {
       signal = forceRefreshOrSignal;
     }
   } else if (paramsOrForceRefresh && typeof paramsOrForceRefresh === 'object') {
     params = paramsOrForceRefresh;
-    signal = optionalSignal;
+    if (typeof params.forceRefresh === 'boolean') forceRefresh = params.forceRefresh;
+    if (params.signal instanceof AbortSignal) signal = params.signal;
+    if (typeof forceRefreshOrSignal === 'boolean') forceRefresh = forceRefreshOrSignal;
+    else if (forceRefreshOrSignal instanceof AbortSignal) signal = forceRefreshOrSignal;
+    if (optionalSignal instanceof AbortSignal) signal = optionalSignal;
+  } else {
+    if (typeof forceRefreshOrSignal === 'boolean') forceRefresh = forceRefreshOrSignal;
+    else if (forceRefreshOrSignal instanceof AbortSignal) signal = forceRefreshOrSignal;
+    if (optionalSignal instanceof AbortSignal) signal = optionalSignal;
   }
 
-  const { baseUrl, ...queryParams } = params;
+  const { baseUrl, forceRefresh: _fr, signal: _sig, ...queryParams } = params;
   const q = new URLSearchParams();
   for (const [key, value] of Object.entries(queryParams).sort(([a], [b]) => a.localeCompare(b))) {
     if (value !== undefined && value !== null && value !== '') {
@@ -1138,21 +1155,112 @@ export async function fetchAuthoritativeMetrics(
   const queryString = q.toString() ? `?${q.toString()}` : '';
   const url = `${baseUrl || ''}/api/analytics/metrics/registry${queryString}`;
 
-  const response = await fetch(url, { credentials: 'same-origin', signal });
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    throw Object.assign(new Error(body.error || `Server request failed with status ${response.status}`), { status: response.status });
+  const now = Date.now();
+  pruneOffernetCache(now);
+  if (!forceRefresh && memoryCache.has(url)) {
+    const entry = memoryCache.get(url)!;
+    if (now - entry.timestamp < CACHE_TTL_MS) {
+      return entry.data as AuthoritativeMetricsEnvelope;
+    }
   }
-  const json = await response.json();
-  if (json.success === false) throw new Error(json.error || 'The analytics request failed.');
-  if (json.version && json.data) {
-    return json;
+
+  if (!forceRefresh && inFlightRequests.has(url)) {
+    return inFlightRequests.get(url) as Promise<AuthoritativeMetricsEnvelope>;
   }
-  return {
-    success: true,
-    version: json.version || 'cx.metric.2.0.0',
-    totalMetrics: json.totalMetrics || (json.data ? Object.keys(json.data).length : 0),
-    data: json.data || json,
-  };
+
+  const fetchPromise = (async () => {
+    try {
+      const response = await fetch(url, { credentials: 'same-origin', signal });
+      if (!response.ok) {
+        let errorMsg = `Server request failed with status ${response.status}`;
+        try {
+          const errJson = await response.json();
+          if (errJson?.error) errorMsg = errJson.error;
+        } catch {
+          // ignore json parse error
+        }
+        throw Object.assign(new Error(errorMsg), { status: response.status });
+      }
+
+      let json: any;
+      try {
+        json = await response.json();
+      } catch {
+        throw new Error('Invalid metric registry: response is not valid JSON');
+      }
+
+      if (!json || typeof json !== 'object' || Array.isArray(json)) {
+        throw new Error('Invalid metric registry: response envelope must be a non-null object');
+      }
+
+      if (json.success !== true) {
+        throw new Error(typeof json.error === 'string' ? json.error : 'Invalid metric registry: envelope missing explicit success = true');
+      }
+
+      if (typeof json.version !== 'string' || !json.version.trim()) {
+        throw new Error('Invalid metric registry: missing or invalid definition version string');
+      }
+
+      const versionMatch = json.version.trim().match(/^cx\.metric\.(\d+)\.(\d+)\.(\d+)$/);
+      if (!versionMatch) {
+        throw new Error(`Unsupported metric definition version format: "${json.version}"`);
+      }
+      const majorVersion = Number(versionMatch[1]);
+      if (majorVersion < 2) {
+        throw new Error(`Unsupported legacy metric definition version: "${json.version}" (requires v2+)`);
+      }
+
+      if (typeof json.totalMetrics !== 'number' || !Number.isInteger(json.totalMetrics) || json.totalMetrics < 0) {
+        throw new Error('Invalid metric registry: totalMetrics must be a non-negative integer');
+      }
+
+      if (!json.data || typeof json.data !== 'object' || Array.isArray(json.data)) {
+        throw new Error('Invalid metric registry: data must be a non-array metric dictionary');
+      }
+
+      const metricEntries = Object.entries(json.data);
+      if (metricEntries.length !== json.totalMetrics) {
+        throw new Error(`Invalid metric registry: totalMetrics (${json.totalMetrics}) does not match dictionary count (${metricEntries.length})`);
+      }
+
+      for (const [key, entry] of metricEntries) {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+          throw new Error(`Invalid metric definition entry for key "${key}": must be an object`);
+        }
+        const metric = entry as Record<string, any>;
+        if (metric.id !== key) {
+          throw new Error(`Metric entry key "${key}" does not match metric id "${metric.id}"`);
+        }
+        if (typeof metric.businessLabel !== 'string' || !metric.businessLabel.trim()) {
+          throw new Error(`Metric "${key}" is missing a valid businessLabel`);
+        }
+        if (typeof metric.unit !== 'string' || !metric.unit.trim()) {
+          throw new Error(`Metric "${key}" is missing a valid unit`);
+        }
+        if (typeof metric.countingGrain !== 'string' || !metric.countingGrain.trim()) {
+          throw new Error(`Metric "${key}" is missing a valid countingGrain`);
+        }
+        if (typeof metric.version !== 'string' || !metric.version.trim()) {
+          throw new Error(`Metric "${key}" is missing a valid definition version`);
+        }
+      }
+
+      const validated: AuthoritativeMetricsEnvelope = {
+        success: true,
+        version: json.version.trim(),
+        totalMetrics: json.totalMetrics,
+        data: json.data as Record<string, import('../../contracts/metricRegistry').AuthoritativeMetricDefinition>,
+      };
+
+      memoryCache.set(url, { data: validated, timestamp: Date.now() });
+      pruneOffernetCache();
+      return validated;
+    } finally {
+      inFlightRequests.delete(url);
+    }
+  })();
+
+  inFlightRequests.set(url, fetchPromise);
+  return fetchPromise;
 }
 

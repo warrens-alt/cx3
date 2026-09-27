@@ -134,25 +134,33 @@ Recorded source revenue remains a source field and must not be described as audi
 
 ## CX3 Phase 1.1 — Measured metric → overview → evidence → export workflow
 
-CX3 Phase 1.1 establishes an end-to-end trace from measured metric definitions to executive overview widgets, drill-down evidence populations, and repeatable exports:
+CX3 Phase 1.1 establishes an end-to-end trace from measured metric definitions to executive overview widgets, drill-down evidence populations, and repeatable exports across three primary operational measures (Fetched leads, Delivered leads, Delivered / fetched):
 
 1. **Authoritative Metric Path (`cx.metric.2.0.0`)**:
    - The authoritative metric registry (`contracts/metricRegistry.ts`) defines 15 distinct operational metric specifications with strict mathematical relationships (additive counts, percentage rate scalings, parent cohort denominators, observation cutoffs, and treatment of unknown values).
+   - Definition approval (`mappingStatus: 'APPROVED'`) is strictly separated from runtime reconciliation (`reconciliationStatus: 'NOT_VERIFIED'`), removing unsupported blanket claims that every result is reconciled.
    - Re-exported via `server/analytics/index.ts` and served at `GET /api/analytics/metrics/registry` and `GET /api/analytics/metrics/authoritative`.
-   - The client API `fetchAuthoritativeMetrics` in `src/lib/offernetClient.ts` validates and returns the complete registry envelope without stripping metadata.
-   - The Metric Definitions UI (`src/components/AnalyticsDefinitions.tsx`) maps domain metrics to authoritative contracts, rendering lineage drawers with counting grain, treatment of unknown, and observation cutoffs.
+   - The client API `fetchAuthoritativeMetrics` in `src/lib/offernetClient.ts` enforces strict runtime envelope validation (explicit `success === true`, non-empty version matching `^cx\.metric\.\d+\.\d+\.\d+$`, non-negative integer `totalMetrics` matching dictionary count, and entry key-to-id integrity with required fields). Permissive fallbacks that manufactured success or version strings have been eliminated.
+   - The Metric Definitions UI (`src/components/AnalyticsDefinitions.tsx`) and Overview "About this metric" drawers map domain metrics to authoritative contracts, rendering lineage drawers with counting grain, treatment of unknown, real response timestamps, and known limitations.
 
-2. **Navigation Consistency & Evidence Surface Alignment**:
-   - In `src/pages/ExecutiveOverview.tsx`, primary operational metrics (Fetched leads, Delivery rate, Dial coverage, Right-party contact, Lead-to-sale rate) and funnel stages provide explicit navigation to the evidence surface (`/lead-explorer?drill=funnel-stage&drillValue=...`) for administrators.
+2. **Overview Evidence Navigation & Unified Journey**:
+   - In `src/pages/ExecutiveOverview.tsx`, primary operational metrics (Fetched leads, Delivery rate, Dial coverage, Right-party contact, Lead-to-sale rate) provide an "About this metric" action displaying the metric definition and the context of the displayed result (including numerator and denominator counts).
+   - "Delivery rate" explicitly labels its numerator inspection as Delivered leads and clarifies its Fetched leads denominator, providing direct admin links to each population.
    - For aggregate users without lead-level drill authority, navigation gracefully routes to corresponding aggregate views (`/funnel`, `/speed-to-lead`, `/contact-strategy`, `/sales-activation`).
    - Active client ID, date ranges, and dimension filters are preserved across transitions without state loss or cross-tenant leakage.
+   - Duplicate waterfall and journey strip presentations have been consolidated into one unified lifecycle progression representation with stage and transition loss inspection links.
 
-3. **Full Evidence Totals Independent of Pagination**:
-   - `server/analytics/investigation/records.ts` computes the complete population count via `COUNT(*) OVER()` across the filtered and qualified cohort prior to limit and offset application.
-   - `RawLeadsData.totalCount` is propagated to `src/pages/LeadExplorerIntelligence.tsx`, allowing the UI to present `X–Y of [Total]` records and disable the Next control only when the full evidence total is reached.
+3. **Deduplicated Evidence Counting via Dedicated CTEs**:
+   - In `server/analytics/investigation/records.ts`, `getRawLeads` refactors the query into dedicated CTEs:
+     - `qualified_evidence` applies approved workspace, period, vendor, search, and drill predicates, keeping exactly one deterministic representative row per distinct lead via `QUALIFY ROW_NUMBER() OVER (PARTITION BY l.lead_id ORDER BY delivered DESC NULLS LAST, transaction_id ASC NULLS LAST) = 1`.
+     - `evidence_stats` computes `SELECT COUNT(*) AS total_count FROM qualified_evidence`, guaranteeing that expanded transaction rows (e.g. multiple HLC rows per lead) do not inflate the total evidence count.
+     - `evidence_page` applies `ORDER BY fetched_ts DESC NULLS LAST, lead_id ASC LIMIT ... OFFSET ...`.
+     - The query returns both `total_count` and `evidence_rows` in a single execution.
+   - Out-of-range offsets return the true `total_count` with an empty page, and genuinely empty populations return `totalCount = 0` and `rows = []`. Internal helper fields (`fetched_ts`, `full_evidence_total`) are stripped from public rows.
+   - `LeadExplorerIntelligence.tsx` presents `X–Y of [Total]` records and provides a "Return to page 1" action when an out-of-range page is requested without clearing or broadening the selected scope.
 
 4. **Export Fidelity & Traceability**:
-   - Lead Explorer CSV export (`handleExportCsv`) dynamically evaluates whether the exported page is truncated against the total matching population.
+   - Lead Explorer CSV export (`handleExportCsv`) dynamically evaluates whether the exported page is truncated against the total matching population (`data.totalCount != null ? data.rows.length < data.totalCount : data.rows.length >= pageSize`).
    - Metadata headers and export definitions accurately declare the applied client scope, date range, dimension filters, investigation predicate, and truncation status.
 
 ### Requirement-to-Implementation-to-Verification Matrix
@@ -160,10 +168,10 @@ CX3 Phase 1.1 establishes an end-to-end trace from measured metric definitions t
 | Requirement | Implementation Artifacts | Verification Method |
 | :--- | :--- | :--- |
 | **Authoritative Registry Endpoint** | `server/api.ts`, `contracts/metricRegistry.ts`, `server/analytics/index.ts` | `tests/authoritative-metrics.test.ts` (15 declared metrics, denominators, 401 unauthenticated check) |
-| **Envelope-Preserving Client** | `src/lib/offernetClient.ts` (`fetchAuthoritativeMetrics`) | `tests/phase-1-1-metric-workflow.test.ts` (envelope fidelity, error handling) |
-| **Overview Evidence Navigation** | `src/pages/ExecutiveOverview.tsx` (`Metric` inspect links) | `tests/phase-1-1-metric-workflow.test.ts` (route resolution, role-based target checks) |
-| **Evidence Total Independence** | `server/analytics/investigation/records.ts` (`COUNT(*) OVER()`), `src/lib/offernet/types.ts` | `tests/phase-1-1-metric-workflow.test.ts` (`totalCount` calculation across pagination slices) |
-| **Export Predicate & Truncation** | `src/pages/LeadExplorerIntelligence.tsx` (`handleExportCsv`) | `tests/phase-1-1-metric-workflow.test.ts` (CSV metadata and truncation flag checks) |
+| **Runtime-Validated Registry Client** | `src/lib/offernetClient.ts` (`fetchAuthoritativeMetrics`) | `tests/phase-1-1-metric-workflow.test.ts` (strict envelope validation, rejection of malformed payloads, cancellation) |
+| **Deduplicated Evidence Counting** | `server/analytics/investigation/records.ts` (`qualified_evidence`, `evidence_stats`), `src/lib/offernet/types.ts` | `tests/phase-1-1-metric-workflow.test.ts` (CTE deduplication before count, multi-HLC handling, out-of-range offset totalCount) |
+| **Overview Metric Lineage & About Action** | `src/pages/ExecutiveOverview.tsx`, `src/components/MetricLineageDrawer.tsx` | `tests/phase-1-1-metric-workflow.test.ts` (About metric action, numerator/denominator inspection, consolidated journey) |
+| **Export Predicate & Truncation** | `src/pages/LeadExplorerIntelligence.tsx` (`handleExportCsv`) | `tests/phase-1-1-metric-workflow.test.ts` (CSV audit metadata, accurate truncation flag) |
 
 ## Verification
 

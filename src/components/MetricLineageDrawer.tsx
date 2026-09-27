@@ -186,23 +186,45 @@ export default function MetricLineageDrawer({ isOpen, onClose, title, lineage, m
             <div className="enterprise-card p-4 space-y-2 text-sm">
               <div className="flex justify-between items-center gap-4">
                 <span className="text-text-sec shrink-0">Primary View/Table</span>
-                <span className="font-medium text-text-main font-mono text-xs">{lineage.source || 'vw_lead_lifecycle'}</span>
+                <span className="font-medium text-text-main font-mono text-xs">{lineage.source || 'Operational leads (configured tenant source)'}</span>
               </div>
               <div className="flex justify-between items-center gap-4">
-                <span className="text-text-sec shrink-0">Refresh Strategy</span>
-                <span className="font-medium text-text-main">{lineage.refreshStrategy || 'Materialized Query Cache'}</span>
+                <span className="text-text-sec shrink-0">Query Strategy</span>
+                <span className="font-medium text-text-main">{lineage.refreshStrategy || 'Direct analytical query on request'}</span>
+              </div>
+              <div className="flex justify-between items-center gap-4">
+                <span className="text-text-sec shrink-0">Source Cutoff / Freshness</span>
+                <span className="font-medium text-text-main text-xs">{metadata?.dataAsOf || 'Unknown (not certified by warehouse source)'}</span>
               </div>
             </div>
           </div>
 
           {metadata && (
             <div>
-              <h3 className="text-card-title mb-3 flex items-center gap-1.5"><Calendar className="w-4 h-4" /> Query Execution Trace</h3>
+              <h3 className="text-card-title mb-3 flex items-center gap-1.5"><Calendar className="w-4 h-4" /> Response Metadata</h3>
               <div className="enterprise-card p-4 space-y-2 text-[13px]">
                 <div className="flex justify-between">
-                  <span className="text-text-sec">Last Refreshed</span>
-                  <span className="font-medium text-text-main">{new Date().toLocaleTimeString()}</span>
+                  <span className="text-text-sec">Response Timestamp</span>
+                  <span className="font-medium text-text-main">{metadata.generatedAt || metadata.receivedAt ? (metadata.generatedAt || new Date(metadata.receivedAt).toISOString()) : 'Unknown'}</span>
                 </div>
+                {metadata.validationStatus && (
+                  <div className="flex justify-between">
+                    <span className="text-text-sec">Validation Status</span>
+                    <span className="font-medium text-text-main">{metadata.validationStatus}</span>
+                  </div>
+                )}
+                {metadata.dateBasis && (
+                  <div className="flex justify-between">
+                    <span className="text-text-sec">Date Basis</span>
+                    <span className="font-medium text-text-main font-mono text-xs">{metadata.dateBasis}</span>
+                  </div>
+                )}
+                {metadata.timezone && (
+                  <div className="flex justify-between">
+                    <span className="text-text-sec">Timezone</span>
+                    <span className="font-medium text-text-main">{metadata.timezone}</span>
+                  </div>
+                )}
                 {metadata.durationMs && (
                   <div className="flex justify-between">
                     <span className="text-text-sec">Execution Time</span>

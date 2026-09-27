@@ -25,6 +25,8 @@ import { useAuth } from '../lib/AuthContext';
 import { fetchCommercial, fetchOverview, type OverviewData, type RootCauseData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import RootCauseDrawer from '../components/RootCauseDrawer';
+import MetricLineageDrawer from '../components/MetricLineageDrawer';
+import { AUTHORITATIVE_METRICS, METRIC_REGISTRY_VERSION } from '../../contracts/metricRegistry';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { OperatingControlStrip } from '../components/OfferNetControlPanels';
@@ -57,8 +59,11 @@ function Metric({
   change,
   changeUnit = '%',
   onWhyChanged,
+  onAbout,
   to,
   inspectLabel,
+  denominatorLink,
+  denominatorLabel,
 }: {
   label: string;
   value: string;
@@ -66,12 +71,28 @@ function Metric({
   change?: number | null;
   changeUnit?: string;
   onWhyChanged?: () => void;
+  onAbout?: () => void;
   to?: To;
   inspectLabel?: string;
+  denominatorLink?: To;
+  denominatorLabel?: string;
 }) {
   return (
     <article className="cx-command-metric">
-      <span>{label}</span>
+      <div className="flex items-center justify-between">
+        <span>{label}</span>
+        {onAbout && (
+          <button
+            type="button"
+            className="text-text-mute hover:text-brand-primary p-0.5 rounded transition-colors"
+            onClick={onAbout}
+            title={`About ${label} definition`}
+            aria-label={`About ${label} definition`}
+          >
+            <Info size={13} />
+          </button>
+        )}
+      </div>
       {to ? (
         <Link to={to} className="cx-command-metric-link block hover:underline" title={inspectLabel || `Inspect ${label}`}>
           <strong>{value}</strong>
@@ -83,7 +104,12 @@ function Metric({
         <small>{note}</small>
         <Change value={change} unit={changeUnit} />
       </div>
-      <div className="flex items-center gap-2 mt-1">
+      <div className="flex flex-wrap items-center gap-2 mt-1">
+        {onAbout && (
+          <button type="button" className="cx-command-why" onClick={onAbout}>
+            About <Info size={11} />
+          </button>
+        )}
         {onWhyChanged && (
           <button type="button" className="cx-command-why" onClick={onWhyChanged}>
             Why changed? <Search size={11} />
@@ -92,6 +118,11 @@ function Metric({
         {to && (
           <Link to={to} className="cx-command-why" title={inspectLabel || `Inspect ${label} records`}>
             Inspect <ArrowRight size={11} />
+          </Link>
+        )}
+        {denominatorLink && denominatorLabel && (
+          <Link to={denominatorLink} className="cx-command-why" title="Inspect denominator records">
+            {denominatorLabel} <ArrowRight size={11} />
           </Link>
         )}
       </div>
@@ -104,9 +135,10 @@ export default function ExecutiveOverview() {
   const { selectedClient } = useClient();
   const controls = useOperatingControls();
   const { isAdmin } = useAuth();
-  const { startDate, endDate, filters } = useFilters();
+  const { startDate, endDate, filters, appliedFilters } = useFilters();
   const [searchParams] = useSearchParams();
   const [rootMetric, setRootMetric] = useState<RootMetric | null>(null);
+  const [aboutMetricId, setAboutMetricId] = useState<string | null>(null);
 
   const scope = {
     clientId: selectedClient,
@@ -145,8 +177,8 @@ export default function ExecutiveOverview() {
     ].filter(item => item.value !== null).sort((a, b) => Math.abs(Number(b.value)) - Math.abs(Number(a.value))).slice(0, 4);
   }, [data?.comparison]);
 
-  const maxBacklog = Math.max(1, ...(data?.backlog.buckets || []).map(item => item.count));
   const lossKeys = ['fetched-to-delivered', 'delivered-to-dialled', 'dialled-to-rpc', 'rpc-to-sales', 'sales-to-activated'];
+  const activeAuthMetric = aboutMetricId ? AUTHORITATIVE_METRICS[aboutMetricId] : undefined;
 
   return (
     <div className="cx-command-page cx-overview-page">
@@ -172,7 +204,6 @@ export default function ExecutiveOverview() {
         {loading && !data && <OverviewSkeleton />}
         {loading && data && <p className="cx-view-updating" role="status">Updating this overview…</p>}
 
-
         {data && (
           <>
             <div className="cx-overview-summary">
@@ -183,6 +214,7 @@ export default function ExecutiveOverview() {
                   note="Incoming leads"
                   change={data.comparison?.fetchedDelta}
                   onWhyChanged={hasComparison ? () => investigate('fetchedLeads') : undefined}
+                  onAbout={() => setAboutMetricId('fetched_leads')}
                   to={isAdmin ? recordLink('funnel-stage', 'fetched') : scoped('/funnel')}
                   inspectLabel={isAdmin ? 'Inspect fetched lead records in evidence surface' : 'View funnel breakdown'}
                 />
@@ -193,8 +225,11 @@ export default function ExecutiveOverview() {
                   change={data.comparison?.deliveryRateDelta}
                   changeUnit="pp"
                   onWhyChanged={hasComparison ? () => investigate('deliveryRate') : undefined}
+                  onAbout={() => setAboutMetricId('delivery_rate')}
                   to={isAdmin ? recordLink('funnel-stage', 'delivered') : scoped('/funnel')}
-                  inspectLabel={isAdmin ? 'Inspect delivered lead records in evidence surface' : 'View delivery breakdown'}
+                  inspectLabel={isAdmin ? 'Inspect delivered lead records (numerator) in evidence surface' : 'View delivery breakdown'}
+                  denominatorLink={isAdmin ? recordLink('funnel-stage', 'fetched') : undefined}
+                  denominatorLabel="Fetched (denom)"
                 />
                 <Metric
                   label="Dial coverage"
@@ -203,6 +238,7 @@ export default function ExecutiveOverview() {
                   change={data.comparison?.dialRateDelta}
                   changeUnit="pp"
                   onWhyChanged={hasComparison ? () => investigate('dialRate') : undefined}
+                  onAbout={() => setAboutMetricId('dial_rate')}
                   to={isAdmin ? recordLink('funnel-stage', 'dialled') : scoped('/speed-to-lead')}
                   inspectLabel={isAdmin ? 'Inspect dialled lead records in evidence surface' : 'View response times'}
                 />
@@ -213,6 +249,7 @@ export default function ExecutiveOverview() {
                   change={data.comparison?.contactRateDelta}
                   changeUnit="pp"
                   onWhyChanged={hasComparison ? () => investigate('contactRate') : undefined}
+                  onAbout={() => setAboutMetricId('rpc_rate')}
                   to={isAdmin ? recordLink('funnel-stage', 'rpc') : scoped('/contact-strategy')}
                   inspectLabel={isAdmin ? 'Inspect contacted (RPC) lead records in evidence surface' : 'View contact strategy'}
                 />
@@ -223,6 +260,7 @@ export default function ExecutiveOverview() {
                   change={data.comparison?.saleRateDelta}
                   changeUnit="pp"
                   onWhyChanged={hasComparison ? () => investigate('leadToSaleRate') : undefined}
+                  onAbout={() => setAboutMetricId('sales_per_fetched_rate')}
                   to={isAdmin ? recordLink('funnel-stage', 'sales') : scoped('/sales-activation')}
                   inspectLabel={isAdmin ? 'Inspect recorded sales in evidence surface' : 'View sales activation'}
                 />
@@ -232,17 +270,6 @@ export default function ExecutiveOverview() {
             </div>
 
             {data.kpis.fetchedLeads === 0 && <OperationalEmpty title="No leads in this selection">Try a different period or remove a filter. Measured counts remain zero; rates without a population are unavailable.</OperationalEmpty>}
-
-            {data.funnelStages?.length > 1 && <FunnelWaterfall
-              title="Lead-to-activation journey"
-              subtitle={data.funnelLeak ? `Largest measured loss: ${stageLabel(data.funnelLeak.from)} → ${stageLabel(data.funnelLeak.to)} · ${fmt(data.funnelLeak.loss)} leads` : 'Observed lifecycle progression in the current scope.'}
-              steps={data.funnelStages.map(stage => ({
-                label: stageLabel(stage.name),
-                value: stage.volume,
-                rate: stage.transitionRate ?? undefined,
-                dropoff: stage.loss ?? undefined,
-              }))}
-            />}
 
             <div className="cx-command-grid cx-command-grid-attention">
               <section className="cx-command-panel">
@@ -284,10 +311,13 @@ export default function ExecutiveOverview() {
               {controls.error ? <OperationalError message={controls.error instanceof Error ? controls.error.message : 'Operating controls are unavailable.'} onRetry={() => { void controls.refetch(); }} retrying={controls.isFetching} /> : controls.data ? <OperatingControlStrip data={controls.data} /> : <p className="cx-view-updating" role="status">Loading operating controls…</p>}
             </details>
 
-            <section className="cx-command-panel cx-funnel-panel">
+            <section className="cx-command-panel cx-funnel-panel" aria-label="Lead-to-activation journey and lifecycle progression">
               <header>
-                <div><h2>Lead journey</h2><p>Follow leads from arrival to activation.</p></div>
-                <Link to={scoped('/funnel')}>View funnel <ArrowRight size={13} /></Link>
+                <div><h2>Lead-to-activation journey</h2><p>Follow leads from arrival to activation across independently observed lifecycle stages.</p></div>
+                <div className="flex items-center gap-3">
+                  {isAdmin && <span className="text-xs text-slate-500">Select any stage or loss to inspect records</span>}
+                  <Link to={scoped('/funnel')}>View funnel <ArrowRight size={13} /></Link>
+                </div>
               </header>
               <div className="cx-funnel-strip" role="region" aria-label="Lead journey stages" tabIndex={0}>
                 {(data.funnelStages || []).map((stage, index) => (
@@ -314,6 +344,20 @@ export default function ExecutiveOverview() {
                   <b>−{fmt(data.funnelLeak.loss)}</b><small>{formatPercent(data.funnelLeak.rate)} progressed</small>
                 </div>
               )}
+              {data.funnelStages?.length > 1 && (
+                <div className="mt-4 pt-4 border-t border-border-subtle">
+                  <FunnelWaterfall
+                    title="Lead-to-activation journey"
+                    subtitle={data.funnelLeak ? `Largest measured loss: ${stageLabel(data.funnelLeak.from)} → ${stageLabel(data.funnelLeak.to)} · ${fmt(data.funnelLeak.loss)} leads` : 'Observed lifecycle progression in the current scope.'}
+                    steps={data.funnelStages.map(stage => ({
+                      label: stageLabel(stage.name),
+                      value: stage.volume,
+                      rate: stage.transitionRate ?? undefined,
+                      dropoff: stage.loss ?? undefined,
+                    }))}
+                  />
+                </div>
+              )}
             </section>
 
             <div className="cx-command-grid cx-command-grid-backlog">
@@ -322,7 +366,7 @@ export default function ExecutiveOverview() {
                 <div className="cx-backlog-bars">
                   {!(data.backlog?.buckets || []).length && <OperationalEmpty title="No backlog breakdown available">There are no backlog age groups in the current response.</OperationalEmpty>}
                   {(data.backlog?.buckets || []).map(bucket => {
-                    const body = <><span>{bucket.bucket}</span><div><i style={{ width: `${(bucket.count / maxBacklog) * 100}%` }} /></div><strong>{fmt(bucket.count)}</strong></>;
+                    const body = <><span>{bucket.bucket}</span><div><i style={{ width: `${(bucket.count / Math.max(1, ...(data.backlog?.buckets || []).map(item => item.count))) * 100}%` }} /></div><strong>{fmt(bucket.count)}</strong></>;
                     return isAdmin ? (
                       <Link key={bucket.bucket} to={recordLink('backlog-age', bucket.bucket)} className="cx-backlog-row cx-backlog-link" data-severity={bucket.severity}>{body}</Link>
                     ) : <div key={bucket.bucket} className="cx-backlog-row" data-severity={bucket.severity}>{body}</div>;
@@ -399,6 +443,122 @@ export default function ExecutiveOverview() {
       </div>
 
       <RootCauseDrawer open={rootMetric !== null} metric={rootMetric} onClose={() => setRootMetric(null)} />
+
+      {aboutMetricId && activeAuthMetric && (
+        <MetricLineageDrawer
+          isOpen={true}
+          onClose={() => setAboutMetricId(null)}
+          title={activeAuthMetric.businessLabel}
+          lineage={{
+            canonicalName: activeAuthMetric.technicalLabel,
+            metric: activeAuthMetric.businessLabel,
+            definition: activeAuthMetric.plainDefinition,
+            numerator: activeAuthMetric.numerator ? `${activeAuthMetric.numerator}: ${activeAuthMetric.numeratorDescription}` : undefined,
+            denominator: activeAuthMetric.denominator ? `${activeAuthMetric.denominator}: ${activeAuthMetric.denominatorDescription}` : 'None (distinct lead count)',
+            source: 'leads (configured tenant source)',
+            refreshStrategy: 'Direct analytical query on request',
+          }}
+          metadata={{
+            validationStatus: data?.validationStatus || 'NOT_VERIFIED',
+            dateBasis: activeAuthMetric.dateBasis,
+            timezone: activeAuthMetric.timezone,
+            generatedAt: data ? new Date().toISOString() : undefined,
+            dataAsOf: null,
+          }}
+          additionalContent={
+            <div className="space-y-4">
+              <div className="p-3 bg-brand-primary/5 rounded border border-brand-primary/20 space-y-2 text-xs">
+                <div className="flex items-center justify-between font-semibold text-brand-primary">
+                  <span className="flex items-center gap-1.5"><ShieldCheck size={14} /> Authoritative Contract</span>
+                  <span className="font-mono text-[10px]">{METRIC_REGISTRY_VERSION}</span>
+                </div>
+                <p className="text-text-sec">{activeAuthMetric.plainDefinition}</p>
+                <dl className="grid grid-cols-2 gap-2 pt-1 border-t border-brand-primary/10">
+                  <div>
+                    <dt className="text-text-mute font-medium">Counting Grain</dt>
+                    <dd className="font-semibold text-text-main">{activeAuthMetric.countingGrain}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-text-mute font-medium">Unit</dt>
+                    <dd className="font-semibold text-text-main capitalize">{activeAuthMetric.unit}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-text-mute font-medium">Date Basis</dt>
+                    <dd className="font-semibold text-text-main">{activeAuthMetric.dateBasis}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-text-mute font-medium">Treatment of Unknown</dt>
+                    <dd className="font-semibold text-text-main">{activeAuthMetric.treatmentOfUnknown.replace(/_/g, ' ')}</dd>
+                  </div>
+                  {activeAuthMetric.observationCutoff && (
+                    <div className="col-span-2">
+                      <dt className="text-text-mute font-medium">Observation Horizon</dt>
+                      <dd className="text-text-main">{activeAuthMetric.observationCutoff}</dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+
+              <div className="enterprise-card p-3 space-y-2 text-xs">
+                <h4 className="font-bold text-text-sec uppercase tracking-wider text-[11px]">Current Displayed Population</h4>
+                <dl className="space-y-1.5">
+                  <div className="flex justify-between">
+                    <dt className="text-text-mute">Client</dt>
+                    <dd className="font-semibold text-text-main">{data?.clientName || selectedClient}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-text-mute">Intake Period</dt>
+                    <dd className="font-semibold text-text-main">{startDate && endDate ? `${startDate} → ${endDate}` : 'All available dates'}</dd>
+                  </div>
+                  {appliedFilters.length > 0 && (
+                    <div>
+                      <dt className="text-text-mute mb-0.5">Applied Filters</dt>
+                      <dd className="font-medium text-text-main">{appliedFilters.map(f => `${f.label}: ${f.value}`).join(' · ')}</dd>
+                    </div>
+                  )}
+                  {aboutMetricId === 'fetched_leads' && (
+                    <div className="flex justify-between border-t border-border-subtle pt-1 mt-1">
+                      <dt className="text-text-sec font-semibold">Displayed Count</dt>
+                      <dd className="font-bold text-brand-primary text-sm">{fmt(data?.kpis.fetchedLeads)} leads</dd>
+                    </div>
+                  )}
+                  {aboutMetricId === 'delivered_leads' && (
+                    <div className="flex justify-between border-t border-border-subtle pt-1 mt-1">
+                      <dt className="text-text-sec font-semibold">Displayed Count</dt>
+                      <dd className="font-bold text-brand-primary text-sm">{fmt(data?.kpis.deliveredLeads)} leads</dd>
+                    </div>
+                  )}
+                  {aboutMetricId === 'delivery_rate' && (
+                    <>
+                      <div className="flex justify-between border-t border-border-subtle pt-1 mt-1">
+                        <dt className="text-text-sec font-semibold">Displayed Rate</dt>
+                        <dd className="font-bold text-brand-primary text-sm">{formatPercent(data?.kpis.deliveryRate)}</dd>
+                      </div>
+                      <div className="flex justify-between text-slate-500">
+                        <dt>Numerator (Delivered)</dt>
+                        <dd className="font-mono">{fmt(data?.kpis.deliveredLeads)}</dd>
+                      </div>
+                      <div className="flex justify-between text-slate-500">
+                        <dt>Denominator (Fetched)</dt>
+                        <dd className="font-mono">{fmt(data?.kpis.fetchedLeads)}</dd>
+                      </div>
+                    </>
+                  )}
+                </dl>
+              </div>
+
+              {activeAuthMetric.caveats?.length > 0 && (
+                <div className="space-y-1 text-xs">
+                  <h4 className="font-bold text-text-sec uppercase tracking-wider text-[11px]">Known Limitations</h4>
+                  <ul className="list-disc pl-4 space-y-1 text-text-mute">
+                    {activeAuthMetric.caveats.map((c, i) => <li key={i}>{c}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          }
+        />
+      )}
     </div>
   );
 }

@@ -265,7 +265,23 @@ export default function LeadExplorerIntelligence() {
                     </tr>
                   ))}
                   {!loading && data && data.rows.length === 0 && (
-                    <tr><td colSpan={15}><div className="cx-command-empty"><Search size={17} />No records match this investigation and reporting scope.</div></td></tr>
+                    <tr>
+                      <td colSpan={15}>
+                        <div className="cx-command-empty">
+                          <Search size={17} />
+                          {data.totalCount != null && data.totalCount > 0 && page > 0 ? (
+                            <div className="space-y-2">
+                              <p>Page {page + 1} is beyond the available records ({formatTableNumber(data.totalCount)} matching leads in scope).</p>
+                              <button type="button" className="cx-button-primary" onClick={() => setPage(0)}>
+                                Return to page 1
+                              </button>
+                            </div>
+                          ) : (
+                            <span>No records match this investigation and reporting scope.</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>
