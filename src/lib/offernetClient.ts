@@ -1083,7 +1083,8 @@ export async function fetchGoogleApiStatus(
 }
 
 export async function fetchRawLeads(params: Record<string, any> = {}, forceRefresh = false, signal?: AbortSignal): Promise<RawLeadsData> {
-  return fetchOffernetJson<RawLeadsData>(`/api/analytics/offernet/raw-leads${buildQueryString(params)}`, forceRefresh, signal);
+  const { baseUrl, ...queryParams } = params;
+  return fetchOffernetJson<RawLeadsData>(`${baseUrl || ''}/api/analytics/offernet/raw-leads${buildQueryString(queryParams)}`, forceRefresh, signal);
 }
 
 export async function fetchLeadTimeline(leadId: string, params: Record<string, any> = {}, forceRefresh = false, signal?: AbortSignal): Promise<LeadTimelineData> {

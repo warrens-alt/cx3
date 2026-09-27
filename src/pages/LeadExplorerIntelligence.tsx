@@ -63,6 +63,7 @@ export default function LeadExplorerIntelligence() {
   const drillValue = params.get('drillValue') || '';
   const appliedSearch = params.get('search') || '';
   const [search, setSearch] = useState(appliedSearch);
+  const [exportError, setExportError] = useState<string | null>(null);
   const scopeKey = JSON.stringify([selectedClient, startDate, endDate, filters, drill, drillValue, appliedSearch]);
   const [pagination, setPagination] = useState({ scopeKey, page: 0 });
   const page = pagination.scopeKey === scopeKey ? pagination.page : 0;
@@ -108,6 +109,10 @@ export default function LeadExplorerIntelligence() {
     setSearch(appliedSearch);
   }, [appliedSearch]);
 
+  useEffect(() => {
+    setExportError(null);
+  }, [selectedClient, scopeKey]);
+
   const handleSearchSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     setPage(0);
@@ -142,23 +147,30 @@ export default function LeadExplorerIntelligence() {
     setTimelineSelection({ leadId, vendor: vendor || singleFilterValue(filters.vendor), scopeKey });
   };
 
+  const isCurrentClientData = Boolean(data && data.clientId === selectedClient);
+  const isExportAvailable = Boolean(isCurrentClientData && !loading && !error);
+
   const handleExportCsv = () => {
-    if (!data?.rows.length || loading || error) return;
-    const exportResult = buildLeadEvidenceExport(data, {
-      investigation: investigation || undefined,
-      page,
-      pageSize,
-    });
-    downloadCsv(exportResult.filename, exportResult.rows);
+    if (!isExportAvailable || !data) return;
+    setExportError(null);
+    try {
+      const exportResult = buildLeadEvidenceExport(data, {
+        investigation: investigation || undefined,
+        exportCreatedAt: new Date().toISOString(),
+      });
+      downloadCsv(exportResult.filename, exportResult.rows);
+    } catch (err: any) {
+      setExportError(err?.message || 'Failed to export lead evidence CSV');
+    }
   };
 
-  const shownStart = data?.rows.length ? page * pageSize + 1 : 0;
-  const shownEnd = data ? page * pageSize + data.rows.length : 0;
-  const totalCountText = data?.totalCount != null ? ` of ${formatTableNumber(data.totalCount)}` : '';
+  const shownStart = isCurrentClientData && data?.rows.length ? page * pageSize + 1 : 0;
+  const shownEnd = isCurrentClientData && data ? page * pageSize + data.rows.length : 0;
+  const totalCountText = isCurrentClientData && data?.totalCount != null ? ` of ${formatTableNumber(data.totalCount)}` : '';
 
   return (
     <div className="cx-command-page">
-      <OffernetFilterBar onRefresh={() => loadData(true)} onExportCsv={handleExportCsv} />
+      <OffernetFilterBar onRefresh={() => loadData(true)} onExportCsv={isExportAvailable ? handleExportCsv : undefined} />
 
       <div className="cx-command-content">
         <header className="cx-command-hero">
@@ -181,6 +193,7 @@ export default function LeadExplorerIntelligence() {
         )}
 
         {error && <div className="cx-command-error" role="alert"><AlertTriangle size={17} /><span>{error}</span></div>}
+        {exportError && <div className="cx-command-error" role="alert"><AlertTriangle size={17} /><span>{exportError}</span></div>}
 
         <section className="cx-command-panel">
           <header>
@@ -206,7 +219,7 @@ export default function LeadExplorerIntelligence() {
             {search && <button type="button" className="cx-button-secondary" onClick={clearSearch}>Clear</button>}
           </form>
 
-          {loading && !data ? (
+          {loading && !isCurrentClientData ? (
             <div className="cx-command-loading"><div className="cx-command-spinner" />Loading lead population…</div>
           ) : (
             <div className="cx-performance-table-wrap">
@@ -227,7 +240,7 @@ export default function LeadExplorerIntelligence() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data?.rows.map((row, index) => (
+                  {isCurrentClientData && data?.rows.map((row, index) => (
                     <tr key={`${row.lead_id}-${index}`}>
                       <th title={row.lead_id}>{row.lead_id}</th>
                       <td>{row.consumer_id || '—'}</td>
@@ -246,7 +259,7 @@ export default function LeadExplorerIntelligence() {
                       </td>
                     </tr>
                   ))}
-                  {!loading && data && data.rows.length === 0 && (
+                  {!loading && isCurrentClientData && data && data.rows.length === 0 && (
                     <tr>
                       <td colSpan={15}>
                         <div className="cx-command-empty">

@@ -8,8 +8,9 @@ import { getRawLeads } from '../server/analytics/investigation/records';
 import { getExecutiveOverview } from '../server/analytics/overview/service';
 import { getBigQueryClient } from '../server/bigquery/client';
 import { getClientConfig } from '../server/bigquery/config';
+import { configuredSourceTable } from '../server/analytics/common/warehouse';
 import { AUTHORITATIVE_METRICS, METRIC_REGISTRY_VERSION } from '../contracts/metricRegistry';
-import { buildLeadEvidenceExport, scopedAnalysisRows } from '../src/lib/analysisExport';
+import { buildLeadEvidenceExport, scopedAnalysisRows, serializeCsv, LEAD_EVIDENCE_COLUMNS, LEAD_EVIDENCE_AUDIT_COLUMNS } from '../src/lib/analysisExport';
 import { apiErrorHandler } from '../server/apiErrors';
 
 function createTestApiApp(role = 'admin', tenant = 'default_tenant', denyAuth = false) {
@@ -551,20 +552,27 @@ interface RawLeadEvent {
   }>;
 }
 
+function toTimezoneDate(isoString: string, timeZone = 'Africa/Johannesburg'): string {
+  const d = new Date(isoString);
+  return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+}
+
 /** Pure population oracle derived from raw lead events following verified BigQuery counting semantics */
 function evaluatePopulationOracle(
   rawLeads: RawLeadEvent[],
-  scope: { clientId: string; startDate: string; endDate: string; vendor?: string },
+  scope: { clientId: string; startDate: string; endDate: string; vendor?: string; timezone?: string },
   options: { drill?: string | null; drillValue?: string | null; limit?: number; offset?: number } = {}
 ) {
   const limit = options.limit ?? 50;
   const offset = options.offset ?? 0;
+  const tz = scope.timezone || 'Africa/Johannesburg';
 
-  // 1. Scope selection: client, date window on fetched timestamp, and optional vendor
+  // 1. Scope selection: client, date window on fetched timestamp using workspace timezone, and optional vendor
   const inScope = rawLeads.filter(lead => {
     if (lead.client !== scope.clientId) return false;
-    const fDate = lead.fetched.slice(0, 10);
-    if (fDate < scope.startDate || fDate > scope.endDate) return false;
+    const fDate = toTimezoneDate(lead.fetched, tz);
+    if (scope.startDate && fDate < scope.startDate) return false;
+    if (scope.endDate && fDate > scope.endDate) return false;
     if (scope.vendor) {
       const hasVendor = lead.hlc_details?.some(h => h.vendor?.toLowerCase() === scope.vendor?.toLowerCase());
       if (!hasVendor) return false;
@@ -572,9 +580,14 @@ function evaluatePopulationOracle(
     return true;
   });
 
-  // 2. Normalization to deduplicated operational lead grain
+  // 2. Normalization to deduplicated operational lead grain with vendor-narrowed HLC entries
   const operational = inScope.map(lead => {
-    const hlcs = lead.hlc_details || [];
+    const rawHlcs = lead.hlc_details || [];
+    // CRITICAL: Narrow HLC entries to the selected authorized vendor before deriving outcomes
+    const hlcs = scope.vendor
+      ? rawHlcs.filter(h => h.vendor?.toLowerCase() === scope.vendor?.toLowerCase())
+      : rawHlcs;
+
     const validDelivered = hlcs
       .map(h => h.delivered)
       .filter((d): d is string => Boolean(d) && !d.startsWith('1900') && !d.startsWith('1970'));
@@ -631,7 +644,7 @@ function evaluatePopulationOracle(
       fetched: lead.fetched,
       fetched_ts: lead.fetched,
       source: lead.offershop_source || 'Affiliate',
-      vendor: rep.vendor || hlcs[0]?.vendor || 'V1',
+      vendor: rep.vendor || (scope.vendor || hlcs[0]?.vendor || 'V1'),
       grade: lead.offershop_grade || 'A',
       delivered_time: earliestDelivered,
       first_call_time: earliestDial,
@@ -647,10 +660,10 @@ function evaluatePopulationOracle(
     };
   });
 
-  // 3. Overview aggregates
+  // 3. Overview aggregates (preserve null rate for an empty denominator)
   const fetchedCount = operational.length;
   const deliveredCount = operational.filter(o => o.is_delivered).length;
-  const deliveryRate = fetchedCount > 0 ? Number(((deliveredCount / fetchedCount) * 100).toFixed(1)) : 0;
+  const deliveryRate = fetchedCount > 0 ? Number(((deliveredCount / fetchedCount) * 100).toFixed(1)) : null;
 
   // 4. Drill filter
   let filtered = operational;
@@ -673,6 +686,12 @@ function evaluatePopulationOracle(
   const totalCount = filtered.length;
   const pageRows = filtered.slice(offset, offset + limit);
 
+  const metricId = options.drill === 'funnel-stage' && options.drillValue === 'delivered'
+    ? 'delivered_leads'
+    : options.drill === 'funnel-stage' && options.drillValue === 'fetched'
+    ? 'fetched_leads'
+    : options.drill || 'lead_records';
+
   return {
     overview: {
       fetched_leads: fetchedCount,
@@ -692,32 +711,36 @@ function evaluatePopulationOracle(
     clientId: scope.clientId,
     startDate: scope.startDate || null,
     endDate: scope.endDate || null,
-    filters: {},
+    filters: scope.vendor ? { vendor: { operator: 'equals', value: scope.vendor } } : {},
     limit,
     offset,
     drill: options.drill || null,
     drillValue: options.drillValue || null,
+    search: null,
     definitionVersion: METRIC_REGISTRY_VERSION,
-    timezone: 'Africa/Johannesburg',
+    timezone: tz,
     dateBasis: 'intake_cohort',
+    metricId,
+    countingGrain: 'lead',
     validationStatus: 'NOT_VERIFIED',
+    sourceCutoff: null,
     generatedAt: new Date().toISOString(),
   };
 }
 
 // Small synthetic fixture: 10 in-scope leads, 8 delivered, 2 undelivered, 3 excluded
 const smallFixture: RawLeadEvent[] = [
-  // lead-01: delivered, multiple HLC rows
+  // lead-01: delivered, multiple HLC rows, near-midnight boundary inside window (2026-09-15T21:59:00Z is 23:59 SAST Sept 15)
   {
     lead_id: 'lead-01',
     consumer_id: 1001,
     client: 'default_tenant',
-    fetched: '2026-09-05T10:00:00Z',
+    fetched: '2026-09-15T21:59:00Z',
     offershop_source: 'Affiliate',
     offershop_grade: 'A',
     hlc_details: [
-      { vendor: 'V1', transaction_id: 'tx-01-b', delivered: '2026-09-05T10:05:00Z', first_call_date: '2026-09-05T10:10:00Z', total_calls: 2, rpc: 1, last_dialer_status: 'CONNECTED', revenue_generated: 0 },
-      { vendor: 'V1', transaction_id: 'tx-01-a', delivered: '2026-09-05T10:02:00Z', total_calls: 1, rpc: 0 },
+      { vendor: 'V1', transaction_id: 'tx-01-b', delivered: '2026-09-15T22:05:00Z', first_call_date: '2026-09-15T22:10:00Z', total_calls: 2, rpc: 1, last_dialer_status: 'CONNECTED', revenue_generated: 0 },
+      { vendor: 'V1', transaction_id: 'tx-01-a', delivered: '2026-09-15T22:02:00Z', total_calls: 1, rpc: 0 },
     ],
   },
   // lead-02: delivered, multiple HLC rows across vendors, sale & activated
@@ -835,21 +858,21 @@ const smallFixture: RawLeadEvent[] = [
     fetched: '2026-09-05T08:00:00Z',
     hlc_details: [{ vendor: 'V1', delivered: '2026-09-05T08:05:00Z' }],
   },
-  // Excluded 2: before date window (2026-08-25)
+  // Excluded 2: before date window near-midnight boundary (2026-08-31T21:59:00Z is 23:59:00 SAST August 31, before 2026-09-01)
   {
     lead_id: 'lead-ex-before',
     consumer_id: 9002,
     client: 'default_tenant',
-    fetched: '2026-08-25T08:00:00Z',
-    hlc_details: [{ vendor: 'V1', delivered: '2026-08-25T08:05:00Z' }],
+    fetched: '2026-08-31T21:59:00Z',
+    hlc_details: [{ vendor: 'V1', delivered: '2026-08-31T22:05:00Z' }],
   },
-  // Excluded 3: after date window (2026-09-25)
+  // Excluded 3: after date window near-midnight boundary (2026-09-15T22:01:00Z is 00:01:00 SAST September 16, after 2026-09-15)
   {
     lead_id: 'lead-ex-after',
     consumer_id: 9003,
     client: 'default_tenant',
-    fetched: '2026-09-25T08:00:00Z',
-    hlc_details: [{ vendor: 'V1', delivered: '2026-09-25T08:05:00Z' }],
+    fetched: '2026-09-15T22:01:00Z',
+    hlc_details: [{ vendor: 'V1', delivered: '2026-09-15T22:05:00Z' }],
   },
 ];
 
@@ -955,7 +978,7 @@ test('Phase 1.1: Complete workflow with synthetic fixture and population oracle 
   // Verify actual values in export: delivery timestamp is real ISO string, not boolean
   const lead1ExportRow = exportResult.dataRows.find(r => r[0] === 'lead-01')!;
   assert.ok(lead1ExportRow, 'lead-01 row must exist');
-  assert.equal(lead1ExportRow[6], '2026-09-05T10:02:00Z', 'Delivered column must contain genuine timestamp string');
+  assert.equal(lead1ExportRow[6], '2026-09-15T22:02:00Z', 'Delivered column must contain genuine timestamp string');
   assert.equal(lead1ExportRow[10], 'Yes', 'Dialled flag');
   assert.equal(lead1ExportRow[11], 'Yes', 'RPC flag');
 
@@ -1144,7 +1167,7 @@ test('Phase 1.1: Deterministic 55-lead case with pagination, tie-breaks, out-of-
   const emptyRes = evaluatePopulationOracle([], scope);
   assert.equal(emptyRes.overview.fetched_leads, 0);
   assert.equal(emptyRes.overview.delivered_leads, 0);
-  assert.equal(emptyRes.overview.delivery_rate, 0);
+  assert.equal(emptyRes.overview.delivery_rate, null, 'Delivery rate must be null for empty denominator');
 
   // 9. Zero-delivery case: 10 fetched leads, 0 delivered
   const zeroDeliveryFixture: RawLeadEvent[] = Array.from({ length: 10 }, (_, i) => ({
@@ -1168,7 +1191,118 @@ test('Phase 1.1: Deterministic 55-lead case with pagination, tie-breaks, out-of-
 // 6. Preservation of Applied Filters & Export Contract Enforcement
 // ---------------------------------------------------------------------------
 
-test('Phase 1.1: Preserves truthful applied-filter metadata across HTTP endpoint, service, and CSV export', async t => {
+function parseCsvBytes(csvBytes: Buffer): { headers: string[]; rows: string[][] } {
+  let text = csvBytes.toString('utf8');
+  if (text.charCodeAt(0) === 0xfeff) {
+    text = text.slice(1);
+  }
+  const lines = text.split('\r\n').filter(line => line.length > 0);
+  const parseLine = (line: string): string[] => {
+    const cells: string[] = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (c === ',' && !inQuotes) {
+        cells.push(cur);
+        cur = '';
+      } else {
+        cur += c;
+      }
+    }
+    cells.push(cur);
+    return cells;
+  };
+  const [headerLine, ...rowLines] = lines;
+  return {
+    headers: parseLine(headerLine),
+    rows: rowLines.map(parseLine),
+  };
+}
+
+test('Phase 1.1: Decisive cross-vendor isolation: V1 delivery outcome does not leak into V2 evidence or export', async t => {
+  const scopeV2 = { clientId: 'default_tenant', startDate: '2026-09-01', endDate: '2026-09-15', vendor: 'V2' };
+
+  // Independently specified expected lead IDs for vendor V2
+  const expectedV2FetchedIds = ['lead-02', 'lead-06'];
+  const expectedV2DeliveredIds = ['lead-06'];
+
+  // 1. Oracle derivations: lead-02 has V1 delivery and V2 route with no delivery
+  const oracleV2Overview = evaluatePopulationOracle(smallFixture, scopeV2);
+  assert.equal(oracleV2Overview.overview.fetched_leads, 2, 'V2 fetched leads must be exactly 2 (lead-02, lead-06)');
+  assert.equal(oracleV2Overview.overview.delivered_leads, 1, 'V2 delivered leads must be exactly 1 (lead-06 only)');
+  assert.equal(oracleV2Overview.overview.delivery_rate, 50.0);
+
+  const oracleV2Fetched = evaluatePopulationOracle(smallFixture, scopeV2, { drill: 'funnel-stage', drillValue: 'fetched' });
+  assert.deepEqual(oracleV2Fetched.rows.map(r => r.lead_id), expectedV2FetchedIds);
+
+  const oracleV2Delivered = evaluatePopulationOracle(smallFixture, scopeV2, { drill: 'funnel-stage', drillValue: 'delivered' });
+  assert.deepEqual(oracleV2Delivered.rows.map(r => r.lead_id), expectedV2DeliveredIds);
+
+  // Assert lead-02 is in V2 fetched but NOT V2 delivered
+  assert.ok(oracleV2Fetched.rows.some(r => r.lead_id === 'lead-02'));
+  assert.ok(!oracleV2Delivered.rows.some(r => r.lead_id === 'lead-02'));
+
+  // Wire query client to oracle
+  const client = getBigQueryClient(getClientConfig('default_tenant').bigQueryProject);
+  t.mock.method(client, 'query', async (options: any) => {
+    if (options.query.includes('qualified_evidence AS')) {
+      const isDeliveredDrill = options.query.includes('AND (m.is_delivered)');
+      const drill = 'funnel-stage';
+      const drillValue = isDeliveredDrill ? 'delivered' : 'fetched';
+      const res = evaluatePopulationOracle(smallFixture, scopeV2, { drill, drillValue, limit: 50, offset: 0 });
+      return [[{ total_count: res.totalCount, evidence_rows: res.rows }]];
+    }
+    const res = evaluatePopulationOracle(smallFixture, scopeV2);
+    return [[res.overview]];
+  });
+
+  // Fetch V2 delivered evidence
+  const v2DeliveredEvidence = await getRawLeads({ ...scopeV2, drill: 'funnel-stage', drillValue: 'delivered', limit: 50, offset: 0 });
+  assert.equal(v2DeliveredEvidence.totalCount, 1);
+  assert.equal(v2DeliveredEvidence.rows.length, 1);
+  assert.equal(v2DeliveredEvidence.rows[0].lead_id, 'lead-06');
+
+  // Export V2 delivered evidence
+  const v2DeliveredExport = buildLeadEvidenceExport(v2DeliveredEvidence, {
+    investigation: 'Funnel stage: Delivered leads',
+  });
+  assert.deepEqual(v2DeliveredExport.leadIds, ['lead-06']);
+  assert.equal(v2DeliveredExport.dataRows.length, 1);
+  assert.equal(v2DeliveredExport.populationStatus, 'COMPLETE');
+
+  // Fetch V2 fetched evidence (which includes lead-02)
+  const v2FetchedEvidence = await getRawLeads({ ...scopeV2, drill: 'funnel-stage', drillValue: 'fetched', limit: 50, offset: 0 });
+  assert.equal(v2FetchedEvidence.totalCount, 2);
+  assert.deepEqual(v2FetchedEvidence.rows.map(r => r.lead_id), expectedV2FetchedIds);
+
+  const lead02Row = v2FetchedEvidence.rows.find(r => r.lead_id === 'lead-02');
+  assert.ok(lead02Row, 'lead-02 must be in V2 fetched evidence');
+  // Its V1 outcomes must NOT appear!
+  assert.equal(lead02Row.vendor, 'V2');
+  assert.equal(lead02Row.delivered_time, null, 'V1 delivery timestamp must not appear in V2 evidence');
+  assert.equal(lead02Row.sale, false, 'V1 sale must not appear in V2 evidence');
+  assert.equal(lead02Row.activated, false, 'V1 activation must not appear in V2 evidence');
+
+  const v2FetchedExport = buildLeadEvidenceExport(v2FetchedEvidence, {
+    investigation: 'Funnel stage: Fetched leads',
+  });
+  const exportedLead02 = v2FetchedExport.dataRows.find(r => r[0] === 'lead-02');
+  assert.ok(exportedLead02);
+  assert.equal(exportedLead02[4], 'V2', 'Exported vendor must be V2');
+  assert.equal(exportedLead02[6], '—', 'Exported delivered_time must be dash (null), not V1 delivery time');
+  assert.equal(exportedLead02[12], 'No', 'Exported sale must be No');
+  assert.equal(exportedLead02[13], 'No', 'Exported activation must be No');
+});
+
+test('Phase 1.1: Complete HTTP -> Frontend Adapter -> Download Path with byte-level CSV assertions', async t => {
   const app = createTestApiApp('admin', 'default_tenant');
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
@@ -1180,107 +1314,198 @@ test('Phase 1.1: Preserves truthful applied-filter metadata across HTTP endpoint
   t.mock.method(client, 'query', async (query: any) => {
     recordedQueries.push(query);
     if (query?.query?.includes('qualified_evidence AS')) {
+      const isDelivered = query.query.includes('AND (m.is_delivered)');
+      const isV1 = query.params.vendor === 'V1';
+      const isAffiliate = query.params.source === 'Affiliate';
+
+      if (isDelivered && isV1 && isAffiliate) {
+        // From smallFixture with V1 and Affiliate: 4 leads delivered (lead-01, lead-04, lead-08, plus undelivered lead-09)
+        const leads = [
+          { lead_id: 'lead-01', consumer_id: 1001, fetched: '2026-09-15T21:59:00Z', source: 'Affiliate', vendor: 'V1', grade: 'A', delivered_time: '2026-09-15T22:05:00Z', first_call_time: '2026-09-15T22:10:00Z', total_calls: 2, last_dialer_status: 'CONNECTED', dialled: true, contacted: true, sale: false, activated: false, revenue: null },
+          { lead_id: 'lead-04', consumer_id: 1004, fetched: '2026-09-05T09:30:00Z', source: 'Affiliate', vendor: 'V1', grade: 'A', delivered_time: '2026-09-05T09:32:00Z', first_call_time: null, total_calls: null, last_dialer_status: null, dialled: false, contacted: null, sale: false, activated: false, revenue: null },
+          { lead_id: 'lead-08', consumer_id: 1008, fetched: '2026-09-05T08:50:00Z', source: 'Affiliate', vendor: 'V1', grade: 'C', delivered_time: '2026-09-05T08:55:00Z', first_call_time: '2026-09-05T08:58:00Z', total_calls: 1, last_dialer_status: null, dialled: true, contacted: false, sale: false, activated: false, revenue: null },
+        ];
+        return [[{ total_count: leads.length, evidence_rows: leads }]];
+      }
+
+      if (isDelivered) {
+        // Standard 8 delivered leads
+        const res = evaluatePopulationOracle(smallFixture, { clientId: 'default_tenant', startDate: '2026-09-01', endDate: '2026-09-15' }, { drill: 'funnel-stage', drillValue: 'delivered', limit: 50, offset: 0 });
+        return [[{ total_count: res.totalCount, evidence_rows: res.rows }]];
+      }
+
+      // Default single record for filter tests
       return [[{
         total_count: 1,
-        evidence_rows: [{ lead_id: 'lead-filter-1', consumer_id: 111, fetched: '2026-09-05T10:00:00Z', vendor: 'MTN', source: 'Web' }],
+        evidence_rows: [{ lead_id: 'lead-filter-1', consumer_id: 111, fetched: '2026-09-05T10:00:00Z', vendor: 'MTN', source: 'Web', grade: 'A', delivered_time: '2026-09-05T10:05:00Z', total_calls: 1, dialled: true, sale: false, activated: false, revenue: null }],
       }]];
     }
     return [[]];
   });
 
   try {
-    // A. Shorthand query parameters ?vendor=MTN&source=Web
+    // 1. Full pipeline: fetchRawLeads adapter -> endpoint -> export builder -> serializeCsv -> parse CSV bytes
     recordedQueries.length = 0;
-    const resA = await fetch(`${baseUrl}/api/analytics/offernet/raw-leads?clientId=default_tenant&vendor=MTN&source=Web&limit=50&offset=0`);
-    assert.equal(resA.status, 200);
-    const bodyA = await resA.json();
-    assert.equal(bodyA.success, true);
-    assert.equal(bodyA.data.vendor, 'MTN');
-    assert.equal(bodyA.data.source, 'Web');
-    assert.deepEqual(bodyA.data.filters, {
-      vendor: { operator: 'equals', value: 'MTN' },
-      source: { operator: 'equals', value: 'Web' },
-    });
-    assert.deepEqual(bodyA.metadata.appliedFilters, {
-      vendor: { operator: 'equals', value: 'MTN' },
-      source: { operator: 'equals', value: 'Web' },
-    });
-    assert.equal(recordedQueries[0].params.vendor, 'MTN');
-    assert.equal(recordedQueries[0].params.source, 'Web');
-
-    // Export contains the exact applied filters
-    const exportA = buildLeadEvidenceExport(bodyA.data);
-    assert.deepEqual(exportA.metadata.filters, bodyA.data.filters);
-    assert.ok(exportA.rows[1][exportA.rows[1].length - 19]?.toString().includes('"vendor":{"operator":"equals","value":"MTN"}'));
-
-    // B. Canonical alias normalization: ?partner=MTN normalizes to vendor
-    recordedQueries.length = 0;
-    const resB = await fetch(`${baseUrl}/api/analytics/offernet/raw-leads?clientId=default_tenant&partner=MTN&limit=50&offset=0`);
-    assert.equal(resB.status, 200);
-    const bodyB = await resB.json();
-    assert.equal(bodyB.data.vendor, 'MTN');
-    assert.deepEqual(bodyB.data.filters, { vendor: { operator: 'equals', value: 'MTN' } });
-    assert.deepEqual(bodyB.metadata.appliedFilters, { vendor: { operator: 'equals', value: 'MTN' } });
-    assert.equal(recordedQueries[0].params.vendor, 'MTN');
-
-    // C. Encoded filters produce equivalent effective scope to shorthand
-    recordedQueries.length = 0;
-    const resC = await fetch(`${baseUrl}/api/analytics/offernet/raw-leads?clientId=default_tenant&filters=${encodeURIComponent(JSON.stringify({ vendor: { operator: 'equals', value: 'MTN' } }))}&limit=50&offset=0`);
-    assert.equal(resC.status, 200);
-    const bodyC = await resC.json();
-    assert.deepEqual(bodyC.data.filters, bodyB.data.filters);
-    assert.deepEqual(bodyC.metadata.appliedFilters, bodyB.metadata.appliedFilters);
-
-    // D. Conflicting representations are rejected before querying
-    recordedQueries.length = 0;
-    const resD = await fetch(`${baseUrl}/api/analytics/offernet/raw-leads?clientId=default_tenant&vendor=MTN&filters=${encodeURIComponent(JSON.stringify({ vendor: { operator: 'equals', value: 'Vodacom' } }))}`);
-    assert.equal(resD.status, 422);
-    assert.equal(recordedQueries.length, 0, 'No query should run when filters conflict');
-
-    // E. Unsupported dimensions on raw-leads are rejected
-    recordedQueries.length = 0;
-    const resE = await fetch(`${baseUrl}/api/analytics/offernet/raw-leads?clientId=default_tenant&filters=${encodeURIComponent(JSON.stringify({ campaign: { operator: 'equals', value: 'Camp1' } }))}`);
-    assert.equal(resE.status, 422);
-    assert.equal(recordedQueries.length, 0);
-
-    // F. Multiple values on single-equality report are rejected
-    recordedQueries.length = 0;
-    const resF = await fetch(`${baseUrl}/api/analytics/offernet/raw-leads?clientId=default_tenant&filters=${encodeURIComponent(JSON.stringify({ vendor: { operator: 'in', values: ['MTN', 'Vodacom'] } }))}`);
-    assert.equal(resF.status, 422);
-    assert.equal(recordedQueries.length, 0);
-
-    // G. Explicitly empty filter set preserves {} and does NOT substitute unapplied UI context filters
-    recordedQueries.length = 0;
-    const resG = await fetch(`${baseUrl}/api/analytics/offernet/raw-leads?clientId=default_tenant&limit=50&offset=0`);
-    assert.equal(resG.status, 200);
-    const bodyG = await resG.json();
-    assert.deepEqual(bodyA.data.vendor, 'MTN'); // Sanity: earlier result had vendor
-    assert.equal(bodyG.data.vendor, null);
-    assert.deepEqual(bodyG.data.filters, {});
-    assert.deepEqual(bodyG.metadata.appliedFilters, {});
-
-    // Try to pass newer unapplied UI filters in context: export MUST ignore them and keep truthful {}
-    const exportG = buildLeadEvidenceExport(bodyG.data, {
-      filters: { vendor: { operator: 'equals', value: 'StaleUIFilter' } },
-    });
-    assert.deepEqual(exportG.metadata.filters, {}, 'Export must keep server result filters {} and not substitute UI context');
-
-    // H. Unbounded query with null startDate and endDate preserves null; do not substitute UI dates
-    assert.equal(bodyG.data.startDate, null);
-    assert.equal(bodyG.data.endDate, null);
-    const exportH = buildLeadEvidenceExport(bodyG.data, {
+    const leadsData = await fetchRawLeads({
+      baseUrl,
+      clientId: 'default_tenant',
       startDate: '2026-09-01',
       endDate: '2026-09-15',
+      vendor: 'V1',
+      source: 'Affiliate',
+      drill: 'funnel-stage',
+      drillValue: 'delivered',
+      limit: 50,
+      offset: 0,
     });
-    assert.equal(exportH.metadata.startDate, null, 'Null start date must remain null and not be filled by UI context');
-    assert.equal(exportH.metadata.endDate, null, 'Null end date must remain null and not be filled by UI context');
 
-    // I. Unbounded search preserves null; do not substitute UI search
-    assert.equal(bodyG.data.search, null);
-    const exportI = buildLeadEvidenceExport(bodyG.data, {
-      search: 'StaleSearchKeyword',
+    // Verify compiled SQL query structure and parameters
+    assert.equal(recordedQueries.length, 1);
+    const compiledQuery = recordedQueries[0];
+    assert.ok(compiledQuery.query.includes('LOWER(h.vendor) = LOWER(@vendor)'), 'Must compile vendor predicate into scoped_leads CTE');
+    assert.ok(compiledQuery.query.includes('DATE(SAFE_CAST(l.fetched AS TIMESTAMP), @scopeTimezone) >= @startDate'), 'Must compile start date predicate');
+    assert.ok(compiledQuery.query.includes('DATE(SAFE_CAST(l.fetched AS TIMESTAMP), @scopeTimezone) <= @endDate'), 'Must compile end date predicate');
+    assert.ok(compiledQuery.query.includes(configuredSourceTable('default_tenant', 'leads')), 'Must query configured leads table for tenant');
+    assert.equal(compiledQuery.params.startDate, '2026-09-01');
+    assert.equal(compiledQuery.params.endDate, '2026-09-15');
+    assert.equal(compiledQuery.params.vendor, 'V1');
+    assert.equal(compiledQuery.params.source, 'Affiliate');
+
+    // Verify returned effective context on adapter result
+    assert.equal(leadsData.clientId, 'default_tenant');
+    assert.equal(leadsData.startDate, '2026-09-01');
+    assert.equal(leadsData.endDate, '2026-09-15');
+    assert.deepEqual(leadsData.filters, {
+      vendor: { operator: 'equals', value: 'V1' },
+      source: { operator: 'equals', value: 'Affiliate' },
     });
-    assert.equal(exportI.metadata.search, null, 'Null search must remain null and not be filled by UI context');
+    assert.equal(leadsData.drill, 'funnel-stage');
+    assert.equal(leadsData.drillValue, 'delivered');
+    assert.equal(leadsData.metricId, 'delivered_leads');
+    assert.equal(leadsData.totalCount, 3);
+    assert.equal(leadsData.rows.length, 3);
+
+    // Build production export
+    const exportResult = buildLeadEvidenceExport(leadsData, {
+      investigation: 'Funnel stage: Delivered leads',
+      exportCreatedAt: '2026-09-27T12:00:00.000Z',
+    });
+    assert.equal(exportResult.populationStatus, 'COMPLETE');
+    assert.equal(exportResult.metadata.predicate, 'funnel-stage=delivered');
+
+    // Serialize using the exact production serializer used by downloadCsv
+    const serializedCsv = serializeCsv(exportResult.rows);
+    const csvBytes = Buffer.from(serializedCsv, 'utf8');
+
+    // Parse actual CSV bytes
+    const parsedCsv = parseCsvBytes(csvBytes);
+    assert.equal(parsedCsv.headers.length, 37, 'Must contain 15 data headers + 22 audit headers');
+    assert.deepEqual(parsedCsv.headers.slice(0, 15), [...LEAD_EVIDENCE_COLUMNS]);
+    assert.deepEqual(parsedCsv.headers.slice(15), [...LEAD_EVIDENCE_AUDIT_COLUMNS]);
+    assert.equal(parsedCsv.rows.length, 3, 'Must contain exactly 3 data rows');
+
+    // Exact lead IDs and deterministic order
+    assert.equal(parsedCsv.rows[0][0], 'lead-01');
+    assert.equal(parsedCsv.rows[1][0], 'lead-04');
+    assert.equal(parsedCsv.rows[2][0], 'lead-08');
+
+    // Audit fields in row 0
+    assert.equal(parsedCsv.rows[0][15], 'default_tenant', 'Scope client');
+    assert.equal(parsedCsv.rows[0][16], '2026-09-01', 'Period start');
+    assert.equal(parsedCsv.rows[0][17], '2026-09-15', 'Period end');
+    assert.ok(parsedCsv.rows[0][18].includes('"vendor":{"operator":"equals","value":"V1"}'), 'Applied filters vendor');
+    assert.ok(parsedCsv.rows[0][18].includes('"source":{"operator":"equals","value":"Affiliate"}'), 'Applied filters source');
+    assert.equal(parsedCsv.rows[0][20], 'funnel-stage=delivered', 'Investigation predicate');
+    assert.equal(parsedCsv.rows[0][21], 'Africa/Johannesburg', 'Reporting timezone');
+    assert.equal(parsedCsv.rows[0][22], 'intake_cohort', 'Date basis');
+    assert.equal(parsedCsv.rows[0][24], 'delivered_leads', 'Canonical metric');
+    assert.equal(parsedCsv.rows[0][25], METRIC_REGISTRY_VERSION, 'Definition version');
+    assert.equal(parsedCsv.rows[0][26], 'lead', 'Counting grain');
+    assert.equal(parsedCsv.rows[0][27], '3', 'Population total');
+    assert.equal(parsedCsv.rows[0][32], 'COMPLETE', 'Population status');
+
+    // 2. Equivalent encoded filters produce identical effective scope
+    recordedQueries.length = 0;
+    const encodedData = await fetchRawLeads({
+      baseUrl,
+      clientId: 'default_tenant',
+      filters: JSON.stringify({
+        vendor: { operator: 'equals', value: 'V1' },
+        source: { operator: 'equals', value: 'Affiliate' },
+      }),
+      startDate: '2026-09-01',
+      endDate: '2026-09-15',
+      limit: 50,
+      offset: 0,
+    });
+    assert.deepEqual(encodedData.filters, leadsData.filters);
+    assert.equal(recordedQueries[0].params.vendor, 'V1');
+    assert.equal(recordedQueries[0].params.source, 'Affiliate');
+
+    // 3. Open-ended dates: null startDate and endDate preserved
+    recordedQueries.length = 0;
+    const openDatesData = await fetchRawLeads({
+      baseUrl,
+      clientId: 'default_tenant',
+      limit: 50,
+      offset: 0,
+    });
+    assert.equal(openDatesData.startDate, null);
+    assert.equal(openDatesData.endDate, null);
+    const openExport = buildLeadEvidenceExport(openDatesData);
+    assert.equal(openExport.metadata.startDate, null);
+    assert.equal(openExport.metadata.endDate, null);
+
+    // 4. Conflicting scope rejected before warehouse execution (HTTP 422)
+    recordedQueries.length = 0;
+    await assert.rejects(
+      async () => {
+        await fetchRawLeads({
+          baseUrl,
+          clientId: 'default_tenant',
+          vendor: 'V1',
+          filters: JSON.stringify({ vendor: { operator: 'equals', value: 'V2' } }),
+        });
+      },
+      /conflicting.*(?:filter|representation)|status 422/i
+    );
+    assert.equal(recordedQueries.length, 0, 'No query should run when scope conflicts');
+
+    // 5. Unsupported scope dimension rejected before warehouse execution (HTTP 422)
+    recordedQueries.length = 0;
+    await assert.rejects(
+      async () => {
+        await fetchRawLeads({
+          baseUrl,
+          clientId: 'default_tenant',
+          filters: JSON.stringify({ campaign: { operator: 'equals', value: 'Camp1' } }),
+        });
+      },
+      /cannot apply the .* filter|unsupported.*filter|status 422/i
+    );
+    assert.equal(recordedQueries.length, 0);
+
+    // 6. Denied record access: non-admin principal rejected before warehouse execution (HTTP 403)
+    const viewerApp = createTestApiApp('viewer', 'default_tenant');
+    const viewerServer = viewerApp.listen(0, '127.0.0.1');
+    await once(viewerServer, 'listening');
+    const viewerPort = (viewerServer.address() as any).port;
+    try {
+      recordedQueries.length = 0;
+      await assert.rejects(
+        async () => {
+          await fetchRawLeads({
+            baseUrl: `http://127.0.0.1:${viewerPort}`,
+            clientId: 'default_tenant',
+          });
+        },
+        /Admin.*required|status 403/i
+      );
+      assert.equal(recordedQueries.length, 0, 'No query should run when role is unauthorized');
+    } finally {
+      viewerServer.closeAllConnections();
+      await new Promise<void>(resolve => viewerServer.close(() => resolve()));
+    }
   } finally {
     server.closeAllConnections();
     await new Promise<void>(resolve => server.close(() => resolve()));
@@ -1327,54 +1552,116 @@ test('Phase 1.1: Direct getRawLeads applies filters in SQL and rejects conflicti
   }, { name: 'RequestError', status: 422 });
 });
 
-test('Phase 1.1: Export builder enforces strict contract and cannot invent missing reporting context', () => {
-  // 1. Missing totalCount: builder MUST throw and cannot fall back to rows.length
+test('Phase 1.1: Export builder strictly requires each guaranteed field and prevents export if missing, ignoring stale UI context', () => {
+  const baseValidResponse = {
+    rows: [{ lead_id: 'lead-1', consumer_id: 101, fetched: '2026-09-05T10:00:00Z', source: 'Web', vendor: 'V1', grade: 'A', delivered_time: '2026-09-05T10:05:00Z', first_call_time: null, total_calls: 0, last_dialer_status: null, dialled: false, contacted: null, sale: false, activated: false, revenue: null }],
+    totalCount: 1,
+    limit: 50,
+    offset: 0,
+    drill: 'funnel-stage',
+    drillValue: 'delivered',
+    search: null,
+    clientId: 'default_tenant',
+    startDate: '2026-09-01',
+    endDate: '2026-09-15',
+    filters: {},
+    timezone: 'Africa/Johannesburg',
+    dateBasis: 'intake_cohort',
+    definitionVersion: METRIC_REGISTRY_VERSION,
+    metricId: 'delivered_leads',
+    countingGrain: 'lead',
+    validationStatus: 'NOT_VERIFIED',
+    sourceCutoff: null,
+    generatedAt: '2026-09-27T10:00:00.000Z',
+  };
+
+  const staleUiContext: LeadEvidenceExportContext = {
+    clientId: 'stale-tenant',
+    startDate: '2026-01-01',
+    endDate: '2026-01-31',
+    filters: { vendor: { operator: 'equals', value: 'StaleVendor' } },
+    search: 'stale-search',
+    investigation: 'Stale investigation',
+    timezone: 'UTC',
+    definitionVersion: 'cx.metric.1.0.0',
+    totalCount: 999,
+    generatedAt: '2020-01-01T00:00:00.000Z',
+    page: 5,
+    pageSize: 10,
+  };
+
+  // Base response exports successfully
+  const validExport = buildLeadEvidenceExport(baseValidResponse, staleUiContext);
+  assert.equal(validExport.leadIds.length, 1);
+  assert.equal(validExport.leadIds[0], 'lead-1');
+  assert.equal(validExport.metadata.clientId, 'default_tenant', 'Must use server clientId, not stale UI context');
+  assert.equal(validExport.metadata.totalCount, 1, 'Must use server totalCount, not stale UI context');
+  assert.equal(validExport.metadata.startDate, '2026-09-01', 'Must use server startDate, not stale UI context');
+  assert.equal(validExport.metadata.timezone, 'Africa/Johannesburg', 'Must use server timezone, not stale UI context');
+  assert.equal(validExport.metadata.definitionVersion, METRIC_REGISTRY_VERSION);
+  assert.equal(validExport.metadata.predicate, 'funnel-stage=delivered', 'Predicate must be machine-readable from drill/drillValue');
+
+  // Deleting each guaranteed field MUST throw, even when stale UI context contains a replacement:
+  const guaranteedFields = [
+    'totalCount',
+    'limit',
+    'offset',
+    'clientId',
+    'startDate',
+    'endDate',
+    'filters',
+    'search',
+    'drill',
+    'timezone',
+    'dateBasis',
+    'definitionVersion',
+    'countingGrain',
+    'metricId',
+    'generatedAt',
+  ] as const;
+
+  for (const field of guaranteedFields) {
+    const corrupted: any = { ...baseValidResponse };
+    delete corrupted[field];
+    assert.throws(
+      () => buildLeadEvidenceExport(corrupted, staleUiContext),
+      new RegExp(`verified.*${field}|startDate|endDate|search|drill|filters`, 'i'),
+      `Deleting guaranteed field "${field}" must prevent export even when stale UI context contains a replacement`
+    );
+  }
+
+  // Meaningful numeric and date invariants
   assert.throws(() => {
-    buildLeadEvidenceExport({
-      rows: [{ lead_id: 'lead-1' }],
-      totalCount: undefined,
-      clientId: 'default_tenant',
-      definitionVersion: METRIC_REGISTRY_VERSION,
-    });
+    buildLeadEvidenceExport({ ...baseValidResponse, startDate: '2026-09-20', endDate: '2026-09-10' });
+  }, /startDate cannot be after endDate/i);
+
+  assert.throws(() => {
+    buildLeadEvidenceExport({ ...baseValidResponse, limit: -5 });
+  }, /verified limit is required/i);
+
+  assert.throws(() => {
+    buildLeadEvidenceExport({ ...baseValidResponse, offset: -1 });
+  }, /verified offset is required/i);
+
+  assert.throws(() => {
+    buildLeadEvidenceExport({ ...baseValidResponse, totalCount: -1 });
   }, /verified totalCount is required/i);
 
   assert.throws(() => {
-    buildLeadEvidenceExport({
-      rows: [{ lead_id: 'lead-1' }],
-      totalCount: null,
-      clientId: 'default_tenant',
-      definitionVersion: METRIC_REGISTRY_VERSION,
-    });
-  }, /verified totalCount is required/i);
-
-  // 2. Missing clientId: builder MUST throw and cannot supply default_tenant
-  assert.throws(() => {
-    buildLeadEvidenceExport({
-      rows: [{ lead_id: 'lead-1' }],
-      totalCount: 1,
-      definitionVersion: METRIC_REGISTRY_VERSION,
-    });
-  }, /verified clientId is required/i);
-
-  // 3. Missing definitionVersion: builder MUST throw and cannot supply cx.metric.2.0.0
-  assert.throws(() => {
-    buildLeadEvidenceExport({
-      rows: [{ lead_id: 'lead-1' }],
-      totalCount: 1,
-      clientId: 'default_tenant',
-    });
-  }, /verified definitionVersion is required/i);
+    buildLeadEvidenceExport({ ...baseValidResponse, generatedAt: 'not-a-date' });
+  }, /verified server generatedAt timestamp is required/i);
 });
 
 // ---------------------------------------------------------------------------
 // 7. Honest Test Layer Boundary Documentation
 // ---------------------------------------------------------------------------
 
-test('Phase 1.1: Test layers are honestly distinguished', () => {
-  // Layer 1: Fixture-oracle tests establish expected populations from raw events (tested above)
-  // Layer 2: Query-structure/parameter tests guard selected scope, drill predicates and deduplication ordering (tested in Section 2)
-  // Layer 3: Mounted HTTP and frontend tests establish transport, permissions and response handling (tested in Section 1 & Section 3)
-  // Layer 4: Actual compiled-query execution establishes SQL-runtime behaviour:
-  // LIVE BIGQUERY SQL-RUNTIME VERIFICATION IS NOT RUN IN OFFLINE TEST HARNESS.
+test('Phase 1.1: Honest and explicit test layer boundaries', () => {
+  // Layer 1: Fixture expectations (population oracle evaluated over raw events in memory)
+  // Layer 2: Compiled-query structure & parameters (SQL inspection of BigQuery query string and bindings)
+  // Layer 3: Mounted HTTP & role middleware (Express analyticsRouter with requireAdmin and scope middleware)
+  // Layer 4: Frontend/download integration (fetchRawLeads client adapter -> buildLeadEvidenceExport -> serializeCsv -> byte parsing)
+  // Layer 5: Browser execution (blocked in headless container due to missing browser binaries)
+  // Layer 6: BigQuery SQL runtime (SQL RUNTIME IS NOT RUN WITHOUT AUTHORISED CLOUD BIGQUERY ACCESS)
   assert.ok(true, 'Test layers are explicitly distinguished; SQL runtime is marked NOT RUN');
 });
