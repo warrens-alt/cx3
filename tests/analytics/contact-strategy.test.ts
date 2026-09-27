@@ -13,12 +13,13 @@ test('contact-strategy: normal attempt distribution yields accurate progression 
 
   const result = buildContactStrategyResult(rows);
 
-  // Total leads = 50 + 200 + 150 + 80 + 20 = 500
+  // Total leads = 50 + 200 + 150 + 80 + 20 = 500 (450 dialled)
   assert.equal(result.summary?.totalLeads, 500);
+  assert.equal(result.summary?.dialledLeads, 450);
   assert.equal(result.summary?.zeroCallLeads, 50);
   assert.equal(result.summary?.oneCallLeads, 200);
-  assert.equal(result.summary?.singleAttemptSharePct, 40.0); // 200 / 500 = 40.0%
-  assert.equal(result.summary?.multiAttemptSharePct, 50.0);  // (150 + 80 + 20) / 500 = 50.0%
+  assert.equal(result.summary?.singleAttemptSharePct, 44.4); // 200 / 450 dialled = 44.4%
+  assert.equal(result.summary?.multiAttemptSharePct, 55.6);  // (150 + 80 + 20) / 450 dialled = 55.6%
   assert.equal(result.summary?.fivePlusCallLeads, 20);
   assert.equal(result.summary?.fivePlusNoRpcLeads, 15);      // 20 leads - 5 contacted = 15
 

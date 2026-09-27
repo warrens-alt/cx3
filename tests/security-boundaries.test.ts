@@ -338,3 +338,9 @@ test('shared call analytics use canonical tenant vendor aliases', () => {
   assert.match(analytics, /callParams\.tenantVendors = tenantVendors/);
   assert.match(analytics, /queryParams\.tenantVendors = tenantVendors/);
 });
+
+test('server/api.ts routes through server/analytics domain services', () => {
+  const api = read('server/api.ts');
+  assert.match(api, /import \* as offernetAnalytics from '\.\/analytics';/);
+  assert.doesNotMatch(api, /from '\.\/bigquery\/offernet_analytics';/);
+});

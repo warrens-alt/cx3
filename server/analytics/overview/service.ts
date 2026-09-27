@@ -6,6 +6,94 @@ import { buildFilterClause } from '../common/scope';
 import { operationalLeadCtes, metricPercent } from '../common/leadMetrics';
 import { assembleLifecycleDiagnostics, compileLifecycleDiagnostics } from '../common/lifecycleDiagnostics';
 
+export function transformOverviewData(data: any, prior?: any) {
+  const fetched = Number(data.fetched_leads || 0);
+  const delivered = Number(data.delivered_leads || 0);
+  const dialled = Number(data.dialled_leads || 0);
+  const contacted = Number(data.contacted_leads || 0);
+  const sales = Number(data.sale_leads || 0);
+  const activated = Number(data.activated_leads || 0);
+  const revenue = data.total_revenue == null ? null : Number(data.total_revenue);
+  const totalCalls = data.total_calls_recorded == null ? null : Number(data.total_calls_recorded);
+
+  const rates = {
+    deliveryRate: metricPercent(delivered, fetched, 1),
+    dialRate: metricPercent(dialled, delivered, 1),
+    contactRate: metricPercent(contacted, dialled, 1),
+    leadToSaleRate: metricPercent(sales, fetched, 2),
+    contactToSaleRate: metricPercent(sales, contacted, 1),
+    activationRate: metricPercent(activated, sales, 1),
+  };
+
+  const slaCompliance = data.dialled_within_15m != null && delivered > 0
+    ? metricPercent(Number(data.dialled_within_15m), delivered, 1)
+    : null;
+
+  const validSec = (val: unknown) => {
+    if (val === null || val === undefined || typeof val === 'string' && isNaN(Number(val))) return null;
+    const n = Number(val);
+    return !isNaN(n) && n >= 0 ? n : null;
+  };
+
+  const medSec = validSec(data.median_delivery_to_dial_sec);
+  const p90Sec = validSec(data.p90_delivery_to_dial_sec);
+
+  const sla = {
+    medianDeliveryToDial: medSec !== null ? formatDuration(medSec) : '—',
+    p90DeliveryToDial: p90Sec !== null ? formatDuration(p90Sec) : '—',
+    complianceRate: slaCompliance,
+  };
+
+  const kpis = {
+    fetchedLeads: fetched,
+    deliveredLeads: delivered,
+    deliveryRate: rates.deliveryRate,
+    dialledLeads: dialled,
+    dialRate: rates.dialRate,
+    contactedLeads: contacted,
+    contactRate: rates.contactRate,
+    qualifiedLeads: null,
+    saleLeads: sales,
+    leadToSaleRate: rates.leadToSaleRate,
+    contactToSaleRate: rates.contactToSaleRate,
+    activatedLeads: activated,
+    activationRate: rates.activationRate,
+    totalCalls,
+    recordedCallsSubtotal: Number(data.recorded_calls_subtotal || 0),
+    unrecordedCallLeads: Number(data.unrecorded_call_leads || 0),
+    callsPerLead: totalCalls !== null && fetched > 0 ? Number((totalCalls / fetched).toFixed(1)) : null,
+    callsPerDialledLead: (data.dialled_calls_recorded != null ? Number(data.dialled_calls_recorded) : totalCalls) !== null && dialled > 0
+      ? Number(((data.dialled_calls_recorded != null ? Number(data.dialled_calls_recorded) : totalCalls!) / dialled).toFixed(1))
+      : null,
+    revenue,
+    directCost: null,
+    deliveryAgentCost: null,
+    revenuePerLead: revenue !== null && fetched > 0 ? Number((revenue / fetched).toFixed(1)) : null,
+    revenuePerSale: revenue !== null && sales > 0 ? Number((revenue / sales).toFixed(1)) : null,
+  };
+
+  let comparison: any = null;
+  if (prior) {
+    const priorFetched = Number(prior.fetched || prior.fetched_leads || 0);
+    const priorDelivered = Number(prior.delivered || prior.delivered_leads || 0);
+    const priorSales = Number(prior.sales || prior.sale_leads || 0);
+    const priorDeliveryRate = priorFetched > 0 ? (priorDelivered / priorFetched) * 100 : null;
+    const priorSaleRate = priorFetched > 0 ? (priorSales / priorFetched) * 100 : null;
+
+    comparison = {
+      fetchedDelta: priorFetched > 0 ? Number((((fetched - priorFetched) / priorFetched) * 100).toFixed(1)) : null,
+      deliveryRateDelta: rates.deliveryRate !== null && priorDeliveryRate !== null ? Number((rates.deliveryRate - priorDeliveryRate).toFixed(1)) : null,
+      saleRateDelta: rates.leadToSaleRate !== null && priorSaleRate !== null ? Number((rates.leadToSaleRate - priorSaleRate).toFixed(1)) : null,
+    };
+  }
+
+  return {
+    kpis,
+    sla,
+    comparison,
+  };
+}
+
 // 1. EXECUTIVE OVERVIEW
 export async function getExecutiveOverview(params: OffernetQueryParams, options: { includeDiagnostics?: boolean } = {}) {
   const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);

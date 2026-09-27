@@ -14,25 +14,43 @@ export async function createApp() {
     process.env.npm_lifecycle_event === 'dev' ||
     process.execArgv.some(a => a.includes('tsx'))
   );
-  const hasDist = fs.existsSync(path.join(process.cwd(), 'dist', 'client', 'index.html'))
-    || fs.existsSync(path.join(process.cwd(), 'dist', 'index.html'))
-    || fs.existsSync(path.join(process.cwd(), 'client', 'index.html'))
-    || fs.existsSync(path.join(process.cwd(), 'index.html'));
-  const isProduction = process.env.NODE_ENV === 'production' || (!isTsxDev && hasDist);
+  const isProduction = process.env.NODE_ENV === 'production' || (!isTsxDev && process.env.NODE_ENV !== 'development');
 
-  if (isProduction && hasDist) {
-    let clientDirectory = path.join(process.cwd(), 'dist');
-    if (fs.existsSync(path.join(process.cwd(), 'dist', 'client', 'index.html'))) {
-      clientDirectory = path.join(process.cwd(), 'dist', 'client');
-    } else if (fs.existsSync(path.join(process.cwd(), 'dist', 'index.html'))) {
-      clientDirectory = path.join(process.cwd(), 'dist');
-    } else if (fs.existsSync(path.join(process.cwd(), 'client', 'index.html'))) {
-      clientDirectory = path.join(process.cwd(), 'client');
-    } else if (fs.existsSync(path.join(process.cwd(), 'index.html'))) {
-      clientDirectory = process.cwd();
+  if (isProduction) {
+    const configuredClientDir = process.env.CLIENT_DIR
+      ? path.resolve(process.env.CLIENT_DIR)
+      : path.join(process.cwd(), 'dist', 'client');
+    const hasClientBuild = fs.existsSync(path.join(configuredClientDir, 'index.html'));
+
+    if (!hasClientBuild) {
+      if (process.env.API_ONLY === 'true') {
+        app.get(/.*/, (req, res) => {
+          if (req.path.startsWith('/api')) {
+            return res.status(404).json({ success: false, error: 'Unknown API endpoint' });
+          }
+          res.status(503).json({ success: false, error: 'API-only mode: production client assets are not deployed' });
+        });
+        return app;
+      }
+      throw new Error(`Production client assets are missing at ${configuredClientDir}. Build client assets before starting or configure CLIENT_DIR.`);
     }
-    app.use(express.static(clientDirectory, {
+
+    // Ensure server files, source files, and credentials cannot be served as assets
+    app.use((req, res, next) => {
+      const lower = req.path.toLowerCase();
+      if (
+        lower.endsWith('.ts') || lower.endsWith('.tsx') || lower.endsWith('.mjs') || lower.endsWith('.cjs') ||
+        lower.endsWith('.map') || lower.includes('.env') || lower.includes('package.json') ||
+        lower.includes('package-lock.json') || lower.includes('tsconfig') || lower.includes('server.mjs')
+      ) {
+        return res.status(404).end();
+      }
+      next();
+    });
+
+    app.use(express.static(configuredClientDir, {
       dotfiles: 'deny',
+      index: false,
       setHeaders: (res, filePath) => {
         if (filePath.endsWith('.html')) {
           res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -42,9 +60,14 @@ export async function createApp() {
       },
     }));
     app.get(/.*/, (req, res) => {
-      if (path.extname(req.path) || req.path.split('/').some(p => p.startsWith('.'))) return res.status(404).end();
+      if (req.path.startsWith('/api')) {
+        return res.status(404).json({ success: false, error: 'Unknown API endpoint' });
+      }
+      if (path.extname(req.path) || req.path.split('/').some(p => p.startsWith('.'))) {
+        return res.status(404).end();
+      }
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      return res.sendFile(path.join(clientDirectory, 'index.html'));
+      return res.sendFile(path.join(configuredClientDir, 'index.html'));
     });
   } else {
     const { createServer } = await import('vite');

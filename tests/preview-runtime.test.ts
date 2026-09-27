@@ -129,3 +129,52 @@ test('production defaults to IAP while Cloudflare Firebase mode requires explici
     /CX_AUTH_MODE must be either iap or firebase/,
   );
 });
+
+test('Firebase principal resolution rejects expired tokens', async () => {
+  const uid = 'expired-user';
+  const email = 'expired@example.test';
+  const pastExp = Math.floor(Date.now() / 1000) - 60; // 1 minute ago
+  const token = jwt({ sub: uid, email, email_verified: true, exp: pastExp });
+
+  await assert.rejects(
+    resolveFirebasePrincipal(token),
+    /expired/,
+  );
+});
+
+test('Firebase principal cache caps authority by token exp and bounds cache retention', async context => {
+  const { _resetPrincipalCacheForTesting, _getPrincipalCacheSizeForTesting } = await import('../server/firebasePreviewAuth');
+  _resetPrincipalCacheForTesting();
+
+  const uid = 'exp-cap-user';
+  const email = 'exp-cap@example.test';
+  let fetchCalls = 0;
+  context.mock.method(globalThis, 'fetch', async (input: any) => {
+    fetchCalls++;
+    const url = String(input);
+    if (url.includes(`/documents/users/${uid}`)) {
+      return documentResponse(200, {
+        uid: s(uid), email: s(email), status: s('active'), role: s('viewer'),
+        allowedTenants: list(['mtn']),
+      });
+    }
+    return documentResponse(404);
+  });
+
+  // Token expires in 1 second
+  const shortExp = Math.floor(Date.now() / 1000) + 1;
+  const token = jwt({ sub: uid, email, email_verified: true, exp: shortExp });
+
+  const p1 = await resolveFirebasePrincipal(token);
+  assert.equal(p1.subject, uid);
+  assert.equal(fetchCalls, 1);
+
+  // Cached immediate lookup should not fetch again
+  const p2 = await resolveFirebasePrincipal(token);
+  assert.equal(p2.subject, uid);
+  assert.equal(fetchCalls, 1);
+  assert.ok(_getPrincipalCacheSizeForTesting() > 0);
+
+  _resetPrincipalCacheForTesting();
+});
+

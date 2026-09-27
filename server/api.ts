@@ -168,7 +168,7 @@ for (const route of ['/explore', '/insights', '/drivers']) {
   analyticsRouter.post(route, handler);
 }
 
-import * as offernetAnalytics from './bigquery/offernet_analytics';
+import * as offernetAnalytics from './analytics';
 
 // Offernet Operational Intelligence Endpoints
 function buildOffernetQueryParams(req: Request, res: Response): offernetAnalytics.OffernetQueryParams {

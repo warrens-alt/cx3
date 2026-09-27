@@ -80,6 +80,17 @@ export async function getRootCauseAnalysis(params: OffernetQueryParams) {
   `;
 
   const [rows] = await client.query({ query, params: queryParams });
+  return buildRootCauseResult(rows, metric, params.startDate, params.endDate, previousStartDate, previousEndDate);
+}
+
+export function buildRootCauseResult(
+  rows: any[],
+  metric: string,
+  currentStartDate?: string,
+  currentEndDate?: string,
+  previousStartDate?: string,
+  previousEndDate?: string
+) {
   const numeric = (row: any, key: string) => Number(row?.[key] || 0);
   const parts = (row: any) => {
     switch (metric) {
@@ -173,7 +184,7 @@ export async function getRootCauseAnalysis(params: OffernetQueryParams) {
       delta,
       deltaUnit: metric === 'fetchedLeads' ? 'leads' : 'pp',
     },
-    currentWindow: { startDate: params.startDate, endDate: params.endDate },
+    currentWindow: { startDate: currentStartDate, endDate: currentEndDate },
     previousWindow: { startDate: previousStartDate, endDate: previousEndDate },
     dimensions,
     drivers,

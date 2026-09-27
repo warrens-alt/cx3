@@ -8,6 +8,7 @@ interface FirebaseClaims {
   user_id?: string;
   email?: string;
   email_verified?: boolean;
+  exp?: number;
 }
 
 interface FirestoreValue {
@@ -28,8 +29,12 @@ function decodeClaims(token: string): FirebaseClaims {
     if (!uid || uid.length > 128 || !claims.email || claims.email_verified !== true) {
       throw new Error('required claims missing');
     }
+    if (typeof claims.exp === 'number' && Number.isFinite(claims.exp) && claims.exp * 1000 <= Date.now()) {
+      throw new RequestError('Firebase identity token has expired', 401);
+    }
     return claims;
-  } catch {
+  } catch (error) {
+    if (error instanceof RequestError) throw error;
     throw new RequestError('Invalid Firebase identity', 401);
   }
 }
@@ -50,8 +55,26 @@ const stringField = (doc: FirestoreDocument, name: string) => doc.fields?.[name]
 const stringArrayField = (doc: FirestoreDocument, name: string) =>
   (doc.fields?.[name]?.arrayValue?.values || []).map(value => value.stringValue || '').filter(Boolean);
 
+const MAX_PRINCIPAL_CACHE_SIZE = 500;
+const PRINCIPAL_CACHE_TTL_MS = 10_000;
 const principalCache = new Map<string, { principal: Principal; expiresAt: number }>();
 const inFlightPrincipals = new Map<string, Promise<Principal>>();
+
+function prunePrincipalCache(now = Date.now()) {
+  for (const [key, entry] of principalCache.entries()) {
+    if (now >= entry.expiresAt) {
+      principalCache.delete(key);
+    }
+  }
+  while (principalCache.size >= MAX_PRINCIPAL_CACHE_SIZE) {
+    const oldestKey = principalCache.keys().next().value;
+    if (oldestKey !== undefined) {
+      principalCache.delete(oldestKey);
+    } else {
+      break;
+    }
+  }
+}
 
 /**
  * Resolve a Firebase-authenticated analytical principal.
@@ -62,9 +85,13 @@ const inFlightPrincipals = new Map<string, Promise<Principal>>();
  * analytical access.
  */
 export async function resolveFirebasePrincipal(token: string): Promise<Principal> {
+  const now = Date.now();
   const cached = principalCache.get(token);
-  if (cached && Date.now() < cached.expiresAt) {
-    return cached.principal;
+  if (cached) {
+    if (now < cached.expiresAt) {
+      return cached.principal;
+    }
+    principalCache.delete(token);
   }
   const inFlight = inFlightPrincipals.get(token);
   if (inFlight) return inFlight;
@@ -106,7 +133,12 @@ export async function resolveFirebasePrincipal(token: string): Promise<Principal
 
       if (!tenants.length) throw new RequestError('This account has no authorised workspaces', 403);
       const principal: Principal = { subject: uid, email, tenants, role };
-      principalCache.set(token, { principal, expiresAt: Date.now() + 10_000 });
+      const tokenExpMs = typeof claims.exp === 'number' && Number.isFinite(claims.exp) ? claims.exp * 1000 : Infinity;
+      const expiresAt = Math.min(Date.now() + PRINCIPAL_CACHE_TTL_MS, tokenExpMs);
+      if (expiresAt > Date.now()) {
+        prunePrincipalCache();
+        principalCache.set(token, { principal, expiresAt });
+      }
       return principal;
     } finally {
       inFlightPrincipals.delete(token);
@@ -115,6 +147,15 @@ export async function resolveFirebasePrincipal(token: string): Promise<Principal
 
   inFlightPrincipals.set(token, promise);
   return promise;
+}
+
+export function _resetPrincipalCacheForTesting() {
+  principalCache.clear();
+  inFlightPrincipals.clear();
+}
+
+export function _getPrincipalCacheSizeForTesting(): number {
+  return principalCache.size;
 }
 
 /** Backwards-compatible name retained for Preview tests and older imports. */
