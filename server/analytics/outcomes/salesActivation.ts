@@ -55,7 +55,10 @@ export async function getSalesActivationAnalytics(params: OffernetQueryParams) {
 
   const [rows] = await client.query({ query, params: queryParams });
   const data = rows[0] || {};
+  return buildSalesActivationResult(data);
+}
 
+export function buildSalesActivationResult(data: any) {
   const totalSales = Number(data.total_sales || 0);
   const billable = Number(data.billable_sales || 0);
   const activations = Number(data.total_activations || 0);
@@ -76,7 +79,8 @@ export async function getSalesActivationAnalytics(params: OffernetQueryParams) {
       realizedRevenue: data.realized_revenue == null ? null : Number(data.realized_revenue),
       avgTimeToSale: formatDuration(data.avg_time_to_sale_sec),
       avgTimeToActivation: formatDuration(data.avg_time_to_activation_sec),
-      medianTimeToSale: formatDuration(data.median_time_to_sale_sec), medianTimeToActivation: formatDuration(data.median_time_to_activation_sec)
+      medianTimeToSale: formatDuration(data.median_time_to_sale_sec),
+      medianTimeToActivation: formatDuration(data.median_time_to_activation_sec),
     },
     maturationCurve,
     maturationStatus: 'UNAVAILABLE',

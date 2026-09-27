@@ -92,3 +92,72 @@ export async function getCommercialAnalytics(params: OffernetQueryParams) {
     ],
   };
 }
+
+export function buildCommercialResult(
+  overview: any,
+  campaignData: any,
+  mediaReason: string = 'Media spend is unavailable for this scope.'
+) {
+  const kpis = overview?.kpis;
+  const mediaSpend = campaignData?.summary?.spend ?? null;
+  const platformCpl = campaignData?.summary?.cpl ?? null;
+  const platformCpc = campaignData?.summary?.cpc ?? null;
+  const platformCpm = campaignData?.summary?.cpm ?? null;
+  const spendObserved = mediaSpend !== null;
+  const blendedCostPerFetchedLead = spendObserved && kpis?.fetchedLeads > 0
+    ? Number((mediaSpend / kpis.fetchedLeads).toFixed(2))
+    : null;
+  const blendedCostPerSale = spendObserved && kpis?.saleLeads > 0
+    ? Number((mediaSpend / kpis.saleLeads).toFixed(2))
+    : null;
+  const blendedCostPerActivation = spendObserved && kpis?.activatedLeads > 0
+    ? Number((mediaSpend / kpis.activatedLeads).toFixed(2))
+    : null;
+  const revenueToMediaSpendRatio = spendObserved && mediaSpend > 0
+    ? Number((kpis.revenue / mediaSpend).toFixed(2))
+    : null;
+
+  return {
+    status: spendObserved ? 'PARTIAL' : 'UNAVAILABLE',
+    reason: spendObserved
+      ? 'Observed media spend and platform CPC/CPM/CPL are available. Blended cost-per-fetched-lead/sale/activation and recorded-revenue-to-media-spend are period-level cross-source ratios and are not attribution or full profitability. Telephony, commission, overhead and other operating costs remain withheld.'
+      : 'Profitability and media efficiency remain unavailable until an approved incurred-spend source is present for this scope.',
+    baseline: {
+      volume: kpis?.fetchedLeads ?? null,
+      cpl: platformCpl,
+      cpc: platformCpc,
+      cpm: platformCpm,
+      mediaSpend,
+      conversionRate: kpis?.leadToSaleRate ?? null,
+      revenuePerSale: kpis?.saleLeads > 0 ? Number((kpis.revenue / kpis.saleLeads).toFixed(2)) : null,
+      fixedOverhead: null,
+      revenue: kpis?.revenue ?? null,
+      totalCost: null,
+      contribution: null,
+      marginPct: null,
+      costPerSale: null,
+      costPerActivation: null,
+      breakEvenVolume: null,
+      blendedCostPerFetchedLead,
+      blendedCostPerSale,
+      blendedCostPerActivation,
+      revenueToMediaSpendRatio,
+    },
+    media: {
+      status: campaignData?.spendSource?.status || (spendObserved ? 'OBSERVED' : 'UNAVAILABLE'),
+      reason: mediaReason,
+      spendSourceColumn: campaignData?.spendSource?.column || null,
+      spendSourceTable: campaignData?.spendSource?.table || null,
+      platformLeads: campaignData?.summary?.leads ?? null,
+      platformClicks: campaignData?.summary?.clicks ?? null,
+      platformImpressions: campaignData?.summary?.impressions ?? null,
+      platformReach: campaignData?.summary?.reach ?? null,
+      platformOutboundClicks: campaignData?.summary?.outboundClicks ?? null,
+    },
+    currency: overview?.currency || 'ZAR',
+    pAndLBreakdown: [
+      ...(kpis?.revenue !== undefined && kpis?.revenue !== null ? [{ item: 'Recorded Revenue', amount: kpis.revenue, type: 'recorded_revenue' }] : []),
+      ...(spendObserved ? [{ item: 'Observed Media Spend', amount: -mediaSpend, type: 'observed_media_spend' }] : []),
+    ],
+  };
+}

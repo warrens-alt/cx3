@@ -113,9 +113,13 @@ export function buildRootCauseResult(
   const previousOverall = rows.find((row: any) => row.dimension === 'overall' && row.period === 'previous') || {};
   const currentValue = value(currentOverall);
   const previousValue = value(previousOverall);
-  const delta = currentValue === null || previousValue === null ? null : currentValue - previousValue;
   const currentParts = parts(currentOverall);
   const previousParts = parts(previousOverall);
+  const delta = currentValue === null || previousValue === null ? null : currentParts.kind === 'volume'
+    ? currentParts.numerator - previousParts.numerator
+    : currentParts.denominator > 0 && previousParts.denominator > 0
+      ? ((currentParts.numerator * previousParts.denominator - previousParts.numerator * currentParts.denominator) * 100) / (currentParts.denominator * previousParts.denominator)
+      : null;
 
   const labels: Record<string, string> = {
     fetchedLeads: 'Fetched leads',
@@ -145,7 +149,9 @@ export function buildRootCauseResult(
       const previousSegmentValue = value(previousRow);
       const contribution = delta === null ? null : cp.kind === 'volume'
         ? cp.numerator - pp.numerator
-        : ((cp.numerator / currentParts.denominator) - (pp.numerator / previousParts.denominator)) * 100;
+        : currentParts.denominator > 0 && previousParts.denominator > 0
+          ? ((cp.numerator * previousParts.denominator - pp.numerator * currentParts.denominator) * 100) / (currentParts.denominator * previousParts.denominator)
+          : null;
       return {
         name,
         currentValue: currentSegmentValue,

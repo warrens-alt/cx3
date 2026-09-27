@@ -99,7 +99,10 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
   const [rows] = await client.query({ query, params: queryParams });
   const data = rows[0] || { vendors: [], sources: [], grades: [], vetting: [] };
   const lifecycle = assembleLifecycleDiagnostics(data.lifecycle_rows || [], diagnostics.period);
+  return buildVendorQualityResult(data, lifecycle);
+}
 
+export function buildVendorQualityResult(data: any, lifecycle: any = null) {
   const vendors = (data.vendors || []).map((v: any) => {
     const leads = Number(v.leads || 0), delivered = Number(v.delivered || 0), dialled = Number(v.dialled || 0);
     const contacted = Number(v.contacted || 0), sales = Number(v.sales || 0), activations = Number(v.activations || 0);
@@ -148,20 +151,21 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
 
   const outcomeRates = (row: any, labelKey: 'grade' | 'vetting_color') => {
     const leads = Number(row.leads || 0), contacted = Number(row.contacted || 0), sales = Number(row.sales || 0), activations = Number(row.activations || 0);
+    const dialled = row.dialled !== undefined ? Number(row.dialled) : leads;
     return {
       [labelKey]: row[labelKey],
       leads,
       contacted,
       sales,
       activations,
-      contactRate: metricPercent(contacted, Number(row.dialled || 0), 1),
+      contactRate: metricPercent(contacted, dialled, 1),
       leadToSaleRate: metricPercent(sales, leads, 2),
       activationRate: metricPercent(activations, sales, 1),
     };
   };
 
   return {
-    lifecycle,
+    ...(lifecycle ? { lifecycle } : {}),
     vendors,
     vendorGrades: data.vendor_grades || [],
     qualityEvidence: 'Vendor activity includes one row per lead/vendor and can overlap across vendors. Grade and invalid-lead flags come from the lead ledger; duplicate lead identity needs an approved identity contract and is unavailable.',

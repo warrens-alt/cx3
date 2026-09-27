@@ -1,5 +1,6 @@
 import { matchedPeriodWindow, compareMetric } from '../../../contracts/periodComparison';
 import { commercialRatio, reconcileSpend } from '../../../contracts/commercial';
+import { percentOrNull } from '../common/metrics';
 import { getBigQueryClient } from '../../bigquery/client';
 import { getClientConfig } from '../../bigquery/config';
 import { RequestError } from '../../bigquery/filters';
@@ -329,4 +330,69 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams, op
       ),
     },
   };
+}
+
+export function buildCampaignRowsAndSummary(rows: any[], resolved: any, grainStatus: string) {
+  const hasSpend = Boolean(resolved.spendColumn && grainStatus === 'VALID');
+
+  const campaigns = rows.map((row: any) => {
+    const impressions = Number(row.impressions || 0);
+    const reach = row.reach === null || row.reach === undefined ? null : Number(row.reach || 0);
+    const clicks = Number(row.clicks || 0);
+    const outboundClicks = row.outbound_clicks === null || row.outbound_clicks === undefined ? null : Number(row.outbound_clicks || 0);
+    const leads = Number(row.recorded_leads || 0);
+    const spend = hasSpend && row.recorded_spend !== null ? Number(row.recorded_spend || 0) : null;
+    const latestBudget = resolved.budgetColumn && row.latest_budget !== null ? Number(row.latest_budget || 0) : null;
+
+    return {
+      client: row.client_name,
+      channel: row.channel || 'Unknown',
+      campaign: row.campaign_name || 'Unknown',
+      adset: row.adset_name || 'Unknown',
+      spend,
+      latestBudget,
+      impressions,
+      reach,
+      frequency: reach !== null && reach > 0 ? Number((impressions / reach).toFixed(2)) : null,
+      clicks,
+      outboundClicks,
+      ctr: percentOrNull(clicks, impressions, 2),
+      outboundCtr: outboundClicks !== null && impressions > 0 ? Number(((outboundClicks / impressions) * 100).toFixed(2)) : null,
+      clickToLeadRate: outboundClicks !== null && outboundClicks > 0 ? Number(((leads / outboundClicks) * 100).toFixed(2)) : clicks > 0 ? Number(((leads / clicks) * 100).toFixed(2)) : null,
+      leads,
+      cpc: spend !== null && clicks > 0 ? Number((spend / clicks).toFixed(2)) : null,
+      cpm: spend !== null && impressions > 0 ? Number(((spend / impressions) * 1000).toFixed(2)) : null,
+      cpl: spend !== null && leads > 0 ? Number((spend / leads).toFixed(2)) : null,
+    };
+  });
+
+  const totals = campaigns.reduce((acc, row) => {
+    acc.impressions += row.impressions;
+    if (row.reach !== null) acc.reach += row.reach;
+    acc.clicks += row.clicks;
+    if (row.outboundClicks !== null) acc.outboundClicks += row.outboundClicks;
+    acc.leads += row.leads;
+    if (row.spend !== null) acc.spend += row.spend;
+    return acc;
+  }, { spend: 0, impressions: 0, reach: 0, clicks: 0, outboundClicks: 0, leads: 0 });
+
+  const summary = {
+    spend: hasSpend ? Number(totals.spend.toFixed(2)) : null,
+    impressions: totals.impressions,
+    reach: resolved.reachColumn ? totals.reach : null,
+    frequency: resolved.reachColumn && totals.reach > 0 ? Number((totals.impressions / totals.reach).toFixed(2)) : null,
+    clicks: totals.clicks,
+    outboundClicks: resolved.outboundClicksColumn ? totals.outboundClicks : null,
+    leads: totals.leads,
+    ctr: percentOrNull(totals.clicks, totals.impressions, 2),
+    outboundCtr: resolved.outboundClicksColumn && totals.impressions > 0 ? Number(((totals.outboundClicks / totals.impressions) * 100).toFixed(2)) : null,
+    clickToLeadRate: resolved.outboundClicksColumn && totals.outboundClicks > 0
+      ? Number(((totals.leads / totals.outboundClicks) * 100).toFixed(2))
+      : totals.clicks > 0 ? Number(((totals.leads / totals.clicks) * 100).toFixed(2)) : null,
+    cpc: hasSpend && totals.clicks > 0 ? Number((totals.spend / totals.clicks).toFixed(2)) : null,
+    cpm: hasSpend && totals.impressions > 0 ? Number(((totals.spend / totals.impressions) * 1000).toFixed(2)) : null,
+    cpl: hasSpend && totals.leads > 0 ? Number((totals.spend / totals.leads).toFixed(2)) : null,
+  };
+
+  return { campaigns, summary, totals, hasSpend };
 }

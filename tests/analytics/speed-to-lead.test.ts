@@ -30,7 +30,7 @@ test('speed-to-lead: normal cohorts and percentiles return precise timings and r
   const result = buildSpeedToLeadResult(data, clientConfig, operating);
 
   // Timing stages
-  const capFetch = result.timingStages.find(s => s.stage === 'Capture → Fetch')!;
+  const capFetch = result.timingStages.find(s => s.stage === 'Capture → Delivery Attempt' || s.stage === 'Capture → Fetch')!;
   assert.equal(capFetch.medianSec, 10);
   assert.equal(capFetch.median, '10s');
   assert.equal(capFetch.p90, '35s');
@@ -76,7 +76,7 @@ test('speed-to-lead: null timestamps and zero cohorts do not produce false 0s', 
 
   const result = buildSpeedToLeadResult(data, clientConfig, operating);
 
-  const capFetch = result.timingStages.find(s => s.stage === 'Capture → Fetch')!;
+  const capFetch = result.timingStages.find(s => s.stage === 'Capture → Delivery Attempt' || s.stage === 'Capture → Fetch')!;
   assert.equal(capFetch.avgSec, null);
   assert.equal(capFetch.avg, '—');
   assert.equal(capFetch.median, '—');

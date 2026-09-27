@@ -121,6 +121,10 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
 
   const [rows] = await client.query({ query, params: queryParams });
   const data = rows[0] || { percentiles: {}, cohorts: [], after_hours: [] };
+  return buildSpeedToLeadResult(data, clientConfig, operating);
+}
+
+export function buildSpeedToLeadResult(data: any, clientConfig: any, operating: any) {
   const p = data.percentiles || {};
 
   // Formatted stages include only durations directly supported by source timestamps.
@@ -140,8 +144,8 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
       p95: formatDuration(numberOrNull(p.p95_cap_fetch)), p95Sec: numberOrNull(p.p95_cap_fetch)
     },
     {
-      stage: 'Capture → Delivery',
-      description: 'Recorded capture to first confirmed delivery',
+      stage: 'Fetch → Delivery',
+      description: 'Routing dispatch to recorded delivery',
       avgSec: numberOrNull(p.avg_fetch_deliv),
       medianSec: numberOrNull(p.med_fetch_deliv),
       p75Sec: numberOrNull(p.p75_fetch_deliv),
@@ -183,13 +187,14 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
   const cohorts = (data.cohorts || []).map((c: any) => {
     const leads = Number(c.leads || 0);
     const contacted = Number(c.contacted || 0);
+    const dialled = c.dialled !== undefined ? Number(c.dialled) : leads;
     const sales = Number(c.sales || 0);
     const activations = Number(c.activations || 0);
     return {
       cohort: c.age_cohort,
       leads,
       contacted,
-      contactRate: metricPercent(contacted, Number(c.dialled || 0)),
+      contactRate: metricPercent(contacted, dialled, 1),
       sales,
       saleRate: metricPercent(sales, leads, 2),
       activations,
@@ -199,12 +204,13 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
 
   const afterHours = (data.after_hours || []).map((a: any) => {
     const leads = Number(a.leads || 0);
+    const dialled = a.dialled !== undefined ? Number(a.dialled) : leads;
     const contacted = Number(a.contacted || 0);
     const sales = Number(a.sales || 0);
     return {
       type: a.is_after_hours == null ? 'Unrecorded capture time' : a.is_after_hours ? 'Outside configured operating hours' : `Operating hours (${operating.start}–${operating.end})`,
       leads,
-      contactRate: metricPercent(contacted, Number(a.dialled || 0)),
+      contactRate: metricPercent(contacted, dialled, 1),
       saleRate: metricPercent(sales, leads, 2),
       avgTimeToFirstDial: formatDuration(a.avg_dial_sec)
     };
