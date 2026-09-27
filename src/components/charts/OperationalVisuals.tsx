@@ -26,6 +26,15 @@ export const ANALYTICS_COLORS = {
   neutral: '#94A3B8',
 } as const;
 
+export function EmptyChartState({ message = 'No observations recorded for the active filters.' }: { message?: string }) {
+  return (
+    <div className="h-44 w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
+      <span className="font-medium text-slate-600 mb-1">{message}</span>
+      <span className="text-[11px] text-slate-400">Try adjusting dates, vendor scope, or filters to display data.</span>
+    </div>
+  );
+}
+
 const CHART_LEGEND_STYLE = { fontSize: 11, paddingTop: 10 };
 const CHART_TOOLTIP_STYLE = {
   borderRadius: 9,
@@ -64,7 +73,14 @@ export function VolumeRateComboChart({
   height = 320,
   onSelect,
 }: VolumeRateComboChartProps) {
-  if (!data.length) return null;
+  if (!data || !data.length) {
+    return (
+      <div className="enterprise-card cx-analytics-card">
+        <ChartToolbar visualData={data || []} title={title} subtitle={subtitle} />
+        <EmptyChartState />
+      </div>
+    );
+  }
 
   const tooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
@@ -158,12 +174,19 @@ export function RankedMetricChart({
   height = 320,
   onSelect,
 }: RankedMetricChartProps) {
-  const rows = [...data]
+  const rows = [...(data || [])]
     .filter(row => row[valueKey] !== null && row[valueKey] !== undefined && Number.isFinite(Number(row[valueKey])))
     .sort((a, b) => Number(b[valueKey]) - Number(a[valueKey]))
     .slice(0, maxItems);
 
-  if (!rows.length) return null;
+  if (!rows.length) {
+    return (
+      <div className="enterprise-card cx-analytics-card">
+        <ChartToolbar visualData={rows} title={title} subtitle={subtitle} />
+        <EmptyChartState />
+      </div>
+    );
+  }
 
   const formatValue = (value: unknown) => {
     const numeric = Number(value);
@@ -212,7 +235,14 @@ interface GroupedOutcomeChartProps {
 }
 
 export function GroupedOutcomeChart({ title, subtitle, data, xKey, series, height = 320 }: GroupedOutcomeChartProps) {
-  if (!data.length) return null;
+  if (!data || !data.length) {
+    return (
+      <div className="enterprise-card cx-analytics-card">
+        <ChartToolbar visualData={data || []} title={title} subtitle={subtitle} />
+        <EmptyChartState />
+      </div>
+    );
+  }
   return (
     <div className="enterprise-card cx-analytics-card">
       <ChartToolbar visualData={data} title={title} subtitle={subtitle} />
@@ -256,7 +286,14 @@ export function MultiSeriesTrendChart({
   valueSuffix = '%',
   height = 320,
 }: MultiSeriesTrendChartProps) {
-  if (!data.length || !series.length) return null;
+  if (!data || !data.length || !series || !series.length) {
+    return (
+      <div className="enterprise-card cx-analytics-card">
+        <ChartToolbar visualData={data || []} title={title} subtitle={subtitle} />
+        <EmptyChartState />
+      </div>
+    );
+  }
 
   return (
     <div className="enterprise-card cx-analytics-card">
@@ -306,7 +343,14 @@ export function StackedCompositionChart({
   series,
   height = 330,
 }: StackedCompositionChartProps) {
-  if (!data.length || !series.length) return null;
+  if (!data || !data.length || !series || !series.length) {
+    return (
+      <div className="enterprise-card cx-analytics-card">
+        <ChartToolbar visualData={data || []} title={title} subtitle={subtitle} />
+        <EmptyChartState />
+      </div>
+    );
+  }
 
   return (
     <div className="enterprise-card cx-analytics-card">
@@ -359,7 +403,15 @@ export function HorizontalStackedOutcomeChart({
   onSelect,
   tooltipBaseLabel = 'base',
 }: HorizontalStackedOutcomeChartProps) {
-  if (!data.length || !series.length) return null;
+  if (!data || !data.length || !series || !series.length) {
+    return (
+      <div className="w-full">
+        {title && <h3 className="text-sm font-semibold text-slate-900 mb-1">{title}</h3>}
+        {subtitle && <p className="text-xs text-slate-500 mb-3">{subtitle}</p>}
+        <EmptyChartState />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">

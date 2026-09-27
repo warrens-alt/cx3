@@ -183,7 +183,7 @@ export default function SalesSegmentComparison({
 
         {chartRows.length > 0 ? (
           <div style={{ height: Math.max(260, Math.min(420, chartRows.length * 28 + 60)), width: '100%' }}>
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
               <ComposedChart
                 data={chartRows}
                 margin={{ top: 12, right: 24, left: -10, bottom: chartRows.length > 6 ? 40 : 16 }}
@@ -220,25 +220,25 @@ export default function SalesSegmentComparison({
                     if (!active || !payload?.length) return null;
                     const r: AdaptedSegmentRow = payload[0]?.payload;
                     return (
-                      <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-xl text-xs space-y-1 z-50">
-                        <div className="font-semibold text-slate-900">{label}</div>
-                        <div className="flex items-center justify-between text-text-main">
+                      <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-lg p-3 shadow-xl text-xs space-y-1.5 z-50 ring-1 ring-black/5 dark:ring-white/5 min-w-[200px]">
+                        <div className="font-semibold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1 font-mono">{label}</div>
+                        <div className="flex items-center justify-between text-slate-700 dark:text-slate-300">
                           <span>Recorded sales:</span>
-                          <b>{formatTableNumber(r.sales)}</b>
+                          <b className="font-mono tabular-nums">{formatTableNumber(r.sales)}</b>
                         </div>
-                        <div className="flex items-center justify-between text-semantic-pos">
+                        <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-400">
                           <span>Recorded activations:</span>
-                          <b>{formatTableNumber(r.activations)}</b>
+                          <b className="font-mono tabular-nums">{formatTableNumber(r.activations)}</b>
                         </div>
-                        <div className="flex items-center justify-between text-action">
+                        <div className="flex items-center justify-between text-[#315BCB] dark:text-blue-400">
                           <span>Activation / sale:</span>
-                          <b>{r.activationRatio !== null ? formatPercent(r.activationRatio) : '—'}</b>
+                          <b className="font-mono tabular-nums">{r.activationRatio !== null ? formatPercent(r.activationRatio) : '—'}</b>
                         </div>
-                        <div className="flex items-center justify-between text-semantic-purple border-t border-border-subtle pt-1">
+                        <div className="flex items-center justify-between text-purple-700 dark:text-purple-400 border-t border-slate-100 dark:border-slate-800 pt-1">
                           <span>Source revenue:</span>
-                          <b>{formatWorkspaceCurrency(r.revenue, currency)}</b>
+                          <b className="font-mono tabular-nums">{formatWorkspaceCurrency(r.revenue, currency)}</b>
                         </div>
-                        <div className="text-[10px] text-action font-medium pt-1">
+                        <div className="text-[10px] text-blue-600 dark:text-blue-400 font-medium pt-1 font-sans">
                           Click row below to inspect segment evidence
                         </div>
                       </div>

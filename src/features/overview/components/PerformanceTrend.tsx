@@ -69,7 +69,7 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
   const [activeMetric, setActiveMetric] = useState<SelectableTrendMetric>('leads');
 
   const metricConfigs: Record<SelectableTrendMetric, { label: string; color: string }> = {
-    leads: { label: 'Fetched leads', color: '#4F5FB7' },
+    leads: { label: 'Fetched leads', color: '#315BCB' },
     delivered: { label: 'Delivered leads', color: '#0E7490' },
     sales: { label: 'Recorded sales', color: '#7C3AED' },
   };
@@ -125,19 +125,20 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
       {/* Chart Canvas */}
       <div className="h-64 w-full">
         {chartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 8, right: 12, left: -16, bottom: 0 }}>
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+            <LineChart data={chartData} margin={{ top: 8, right: 12, left: -2, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border-subtle)" />
               <XAxis
                 dataKey="date"
-                tick={{ fill: 'var(--cx-text-muted)', fontSize: 12 }}
+                tick={{ fill: 'var(--cx-text-muted)', fontSize: 11 }}
                 tickLine={false}
                 axisLine={{ stroke: 'var(--cx-border-subtle)' }}
               />
               <YAxis
-                tick={{ fill: 'var(--cx-text-muted)', fontSize: 12 }}
+                tick={{ fill: 'var(--cx-text-muted)', fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
+                width={42}
                 tickFormatter={val => (val >= 1000 ? `${(val / 1000).toFixed(0)}k` : String(val))}
               />
               <Tooltip content={<CustomTooltip />} />
@@ -153,8 +154,9 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <div className="h-full flex items-center justify-center text-xs text-text-mute">
-            No daily trend data available in this scope.
+          <div className="h-full flex flex-col items-center justify-center text-xs text-text-mute bg-surface-subtle/50 rounded-lg border border-dashed border-border-subtle p-4">
+            <span className="font-medium text-text-sec">No daily trend data available in this scope.</span>
+            <span className="text-[11px] text-text-mute mt-0.5">Select a broader date range or adjust tenant filters.</span>
           </div>
         )}
       </div>

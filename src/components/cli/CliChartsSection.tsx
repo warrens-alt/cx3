@@ -78,35 +78,55 @@ export const CliChartsSection: React.FC<CliChartsSectionProps> = ({
         </div>
 
         <div className="h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={rankingChartData} layout="vertical" margin={{ top: 5, right: 30, left: 60, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
-              <XAxis type="number" tick={{ fontSize: 11, fill: '#64748B' }} />
-              <YAxis type="category" dataKey="cli" tick={{ fontSize: 11, fill: '#334155' }} width={80} />
-              <Tooltip
-                content={({ active, payload }) => {
-                  if (!active || !payload?.length) return null;
-                  const d = payload[0].payload;
-                  return (
-                    <div className="bg-slate-900 text-white p-2.5 rounded shadow-lg text-xs space-y-1">
-                      <p className="font-semibold text-blue-300">{d.cli}</p>
-                      <p className="text-slate-300">{d.campaign}</p>
-                      <hr className="border-slate-700 my-1" />
-                      <p>Total Calls: <span className="font-bold">{d.calls.toLocaleString()}</span></p>
-                      <p>RPC Rate: <span className="font-bold">{d.rpcRate}%</span></p>
-                      <p>Sales: <span className="font-bold">{d.sales}</span></p>
-                      <p>Selected Metric Value: <span className="font-bold text-amber-400">{d.value}</span></p>
-                    </div>
-                  );
-                }}
-              />
-              <Bar dataKey="value" fill="#315BCB" radius={[0, 4, 4, 0]}>
-                {rankingChartData.map((_entry, index) => (
-                  <Cell key={`cell-${index}`} fill={index === 0 ? '#1E3A8A' : index < 3 ? '#2563EB' : '#3B82F6'} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          {!rankingChartData || !rankingChartData.length ? (
+            <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
+              <span className="font-medium text-slate-600 mb-1">No CLI ranking observations recorded.</span>
+              <span className="text-[11px] text-slate-400">Select a wider date range or check campaign filters.</span>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
+              <BarChart data={rankingChartData} layout="vertical" margin={{ top: 5, right: 30, left: 60, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" />
+                <XAxis type="number" tick={{ fontSize: 11, fill: '#64748B' }} />
+                <YAxis type="category" dataKey="cli" tick={{ fontSize: 11, fill: '#334155' }} width={80} />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const d = payload[0].payload;
+                    return (
+                      <div className="bg-slate-900/95 backdrop-blur-md text-white p-3 rounded-lg shadow-lg text-xs space-y-1.5 border border-slate-800 ring-1 ring-white/10 font-mono">
+                        <div className="font-semibold text-blue-300 border-b border-slate-800 pb-1 flex items-center justify-between">
+                          <span>{d.cli}</span>
+                          <span className="text-[10px] text-slate-400 font-sans">{d.campaign}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-4 text-slate-300">
+                          <span className="font-sans">Total Calls:</span>
+                          <span className="font-bold text-white tabular-nums">{d.calls.toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-4 text-slate-300">
+                          <span className="font-sans">RPC Rate:</span>
+                          <span className="font-bold text-blue-400 tabular-nums">{d.rpcRate}%</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-4 text-slate-300">
+                          <span className="font-sans">Sales:</span>
+                          <span className="font-bold text-emerald-400 tabular-nums">{d.sales}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-4 text-slate-300 pt-1 border-t border-slate-800">
+                          <span className="font-sans">Selected Value:</span>
+                          <span className="font-bold text-amber-400 tabular-nums">{d.value}</span>
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
+                <Bar dataKey="value" fill="#315BCB" radius={[0, 4, 4, 0]}>
+                  {rankingChartData.map((_entry, index) => (
+                    <Cell key={`cell-${index}`} fill={index === 0 ? '#1E3A8A' : index < 3 ? '#2563EB' : '#3B82F6'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
 
@@ -197,12 +217,36 @@ export const CliChartsSection: React.FC<CliChartsSectionProps> = ({
         </div>
         {data.leadAgeBands.bands.some(band => Number(band.callCount) > 0) ? (
           <div className="h-48 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.leadAgeBands.bands} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                <XAxis dataKey="band" tick={{ fontSize: 10, fill: '#64748B' }} />
-                <YAxis tick={{ fontSize: 10, fill: '#64748B' }} />
-                <Tooltip />
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
+              <BarChart data={data.leadAgeBands.bands} margin={{ top: 8, right: 10, left: -20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                <XAxis dataKey="band" tick={{ fontSize: 10, fill: '#64748B' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} />
+                <Tooltip
+                  content={({ active, payload, label }) => {
+                    if (!active || !payload?.length) return null;
+                    const b = payload[0]?.payload;
+                    return (
+                      <div className="bg-slate-900/95 backdrop-blur-md text-white p-3 rounded-lg shadow-lg text-xs space-y-1.5 border border-slate-800 ring-1 ring-white/10 font-mono">
+                        <div className="font-semibold text-blue-300 border-b border-slate-800 pb-1">
+                          Age Cohort: {label}
+                        </div>
+                        <div className="flex items-center justify-between gap-4 text-slate-300">
+                          <span className="font-sans">Calls in Band:</span>
+                          <span className="font-bold text-white tabular-nums">{Number(b.callCount || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-4 text-slate-300">
+                          <span className="font-sans">RPC Rate:</span>
+                          <span className="font-bold text-blue-400 tabular-nums">{b.contactRatePct}%</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-4 text-slate-300">
+                          <span className="font-sans">Sale / Call Rate:</span>
+                          <span className="font-bold text-emerald-400 tabular-nums">{b.salePerCallRatePct}%</span>
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
                 <Bar dataKey="contactRatePct" name="RPC Rate %" fill="#315BCB" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="salePerCallRatePct" name="Sale / Call Rate %" fill="#059669" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -237,7 +281,7 @@ export const CliChartsSection: React.FC<CliChartsSectionProps> = ({
           </div>
 
           <div className="h-56 w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
               <AreaChart data={data.trend} margin={{ top: 10, right: 20, left: -10, bottom: 5 }}>
                 <defs>
                   <linearGradient id="cliTrendColor" x1="0" y1="0" x2="0" y2="1">
@@ -245,20 +289,32 @@ export const CliChartsSection: React.FC<CliChartsSectionProps> = ({
                     <stop offset="95%" stopColor="#315BCB" stopOpacity={0.0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748B' }} />
-                <YAxis tick={{ fontSize: 10, fill: '#64748B' }} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748B' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: '#64748B' }} axisLine={false} tickLine={false} />
                 <Tooltip
                   content={({ active, payload }) => {
                     if (!active || !payload?.length) return null;
                     const d = payload[0].payload;
                     return (
-                      <div className="bg-slate-900 text-white p-2.5 rounded shadow-lg text-xs space-y-1">
-                        <p className="font-semibold text-blue-300">{d.date}</p>
-                        <p>Total Calls: <span className="font-bold">{d.totalCalls.toLocaleString()}</span></p>
-                        <p>Contact Rate: <span className="font-bold text-blue-400">{d.contactRate}%</span></p>
-                        <p>Sale Rate: <span className="font-bold text-emerald-400">{d.saleRate}%</span></p>
-                        <p>Talk &gt;= 5m: <span className="font-bold">{d.durationGe5mRate == null ? 'Unavailable' : `${d.durationGe5mRate}%`}</span></p>
+                      <div className="bg-slate-900/95 backdrop-blur-md text-white p-3 rounded-lg shadow-lg text-xs space-y-1.5 border border-slate-800 ring-1 ring-white/10 font-mono">
+                        <p className="font-semibold text-blue-300 border-b border-slate-800 pb-1">{d.date}</p>
+                        <div className="flex items-center justify-between gap-4 text-slate-300">
+                          <span className="font-sans">Total Calls:</span>
+                          <span className="font-bold text-white tabular-nums">{d.totalCalls.toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-4 text-slate-300">
+                          <span className="font-sans">Contact Rate:</span>
+                          <span className="font-bold text-blue-400 tabular-nums">{d.contactRate}%</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-4 text-slate-300">
+                          <span className="font-sans">Sale Rate:</span>
+                          <span className="font-bold text-emerald-400 tabular-nums">{d.saleRate}%</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-4 text-slate-300">
+                          <span className="font-sans">Talk &gt;= 5m:</span>
+                          <span className="font-bold text-slate-200 tabular-nums">{d.durationGe5mRate == null ? 'Unavailable' : `${d.durationGe5mRate}%`}</span>
+                        </div>
                       </div>
                     );
                   }}

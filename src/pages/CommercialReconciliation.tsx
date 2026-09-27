@@ -306,25 +306,53 @@ export default function CommercialReconciliation() {
           </>
         ) : (
           <div className="p-4 h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={filtered.slice(0, 15).map(row => ({
-                vendor: row.group,
-                sales: Number(available(row.metrics.sale_events)) || 0,
-                invoiced: Number(available(row.metrics.invoiced_value)) || 0,
-                collected: Number(available(row.metrics.collected_value)) || 0,
-              }))} margin={{ top: 10, right: 30, left: 10, bottom: 35 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="vendor" tick={{ fontSize: 9 }} stroke="#94a3b8" interval={0} angle={-25} textAnchor="end" height={45} />
-                <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                <Tooltip
-                  formatter={(val: any, name: any) => [`${currency} ${Number(val).toLocaleString()}`, name]}
-                  contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '6px', fontSize: '11px' }}
-                />
-                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                <Bar dataKey="invoiced" name="Invoiced Value" fill="#3b82f6" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="collected" name="Collected Value" fill="#10b981" radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {!filtered.length ? (
+              <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
+                <span className="font-medium text-slate-600 mb-1">No vendors matched the search query.</span>
+                <span className="text-[11px] text-slate-400">Try adjusting your filter or vendor name search.</span>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
+                <BarChart data={filtered.slice(0, 15).map(row => ({
+                  vendor: row.group,
+                  sales: Number(available(row.metrics.sale_events)) || 0,
+                  invoiced: Number(available(row.metrics.invoiced_value)) || 0,
+                  collected: Number(available(row.metrics.collected_value)) || 0,
+                }))} margin={{ top: 10, right: 30, left: 10, bottom: 35 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="vendor" tick={{ fontSize: 9, fill: '#64748b' }} stroke="#cbd5e1" interval={0} angle={-25} textAnchor="end" height={45} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" axisLine={false} tickLine={false} tickFormatter={v => `${currency} ${Number(v).toLocaleString()}`} />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload?.length) return null;
+                      return (
+                        <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg p-3 text-xs min-w-[200px] ring-1 ring-black/5 dark:ring-white/5 font-mono">
+                          <div className="font-semibold text-slate-800 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1 mb-2 font-mono">
+                            Vendor: {label}
+                          </div>
+                          <div className="space-y-1.5">
+                            {payload.map((entry: any, idx: number) => (
+                              <div key={idx} className="flex items-center justify-between gap-3">
+                                <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 font-sans">
+                                  <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ backgroundColor: entry.fill }} />
+                                  <span>{entry.name}</span>
+                                </span>
+                                <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">
+                                  {currency} {Number(entry.value || 0).toLocaleString()}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                  <Bar dataKey="invoiced" name="Invoiced Value" fill="#315BCB" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="collected" name="Collected Value" fill="#059669" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         )}
       </section>

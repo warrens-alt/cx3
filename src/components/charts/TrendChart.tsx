@@ -123,8 +123,14 @@ export function TrendChart({
       </ChartToolbar>
       
       <div style={{ height, width: '100%' }}>
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
-          <AreaChart data={data} margin={{ top: 12, right: 14, left: -10, bottom: 4 }}>
+        {!data || !data.length ? (
+          <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
+            <span className="font-medium text-slate-600 mb-1">No trend observations recorded.</span>
+            <span className="text-[11px] text-slate-400">Select a wider date range or check data filters.</span>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
+            <AreaChart data={data} margin={{ top: 12, right: 14, left: 0, bottom: 4 }}>
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#315BCB" stopOpacity={0.22}/>

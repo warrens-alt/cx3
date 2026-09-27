@@ -90,31 +90,59 @@ function Scorecard({title,rows,report}:{title:string;rows:VettingGroup[];report:
     ) : (
       <div className="p-4 bg-white rounded-lg border border-slate-200 mt-3">
         <div className="h-[320px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={matches.slice(0, 12).map((r: VettingGroup) => ({
-                name: r.series ? `${r.key} (${r.series})` : r.key,
-                leads: Number(r.leads || 0),
-                delivered: Number(r.delivered || 0),
-                called: Number(r.called || 0),
-                sales: Number(r.sales || 0),
-              }))}
-              margin={{ top: 20, right: 30, left: 10, bottom: 40 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" angle={-15} textAnchor="end" />
-              <YAxis tick={{ fontSize: 11, fill: '#64748b' }} stroke="#cbd5e1" tickFormatter={(v) => Number(v).toLocaleString()} />
-              <Tooltip
-                contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', backgroundColor: '#ffffff', fontSize: '12px' }}
-                formatter={(val: number) => [Number(val).toLocaleString(), '']}
-              />
-              <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-              <Bar dataKey="leads" name="Included Leads" fill="#64748b" />
-              <Bar dataKey="delivered" name="Delivered" fill="#3b82f6" />
-              <Bar dataKey="called" name="Dialled" fill="#8b5cf6" />
-              <Bar dataKey="sales" name="Sales" fill="#10b981" />
-            </BarChart>
-          </ResponsiveContainer>
+          {!matches.length ? (
+            <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
+              <span className="font-medium text-slate-600 mb-1">No matching vetting groups to graph.</span>
+              <span className="text-[11px] text-slate-400">Try adjusting your scorecard search.</span>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
+              <BarChart
+                data={matches.slice(0, 12).map((r: VettingGroup) => ({
+                  name: r.series ? `${r.key} (${r.series})` : r.key,
+                  leads: Number(r.leads || 0),
+                  delivered: Number(r.delivered || 0),
+                  called: Number(r.called || 0),
+                  sales: Number(r.sales || 0),
+                }))}
+                margin={{ top: 20, right: 30, left: 10, bottom: 40 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" angle={-15} textAnchor="end" axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} stroke="#cbd5e1" tickFormatter={(v) => Number(v).toLocaleString()} axisLine={false} tickLine={false} />
+                <Tooltip
+                  content={({ active, payload, label }) => {
+                    if (!active || !payload?.length) return null;
+                    return (
+                      <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg p-3 text-xs min-w-[190px] ring-1 ring-black/5 dark:ring-white/5 font-mono">
+                        <div className="font-semibold text-slate-800 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1 mb-2">
+                          {label}
+                        </div>
+                        <div className="space-y-1.5">
+                          {payload.map((entry: any, idx: number) => (
+                            <div key={idx} className="flex items-center justify-between gap-3">
+                              <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 font-sans">
+                                <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ backgroundColor: entry.fill }} />
+                                <span>{entry.name}</span>
+                              </span>
+                              <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">
+                                {Number(entry.value || 0).toLocaleString()}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
+                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                <Bar dataKey="leads" name="Included Leads" fill="#64748b" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="delivered" name="Delivered" fill="#315BCB" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="called" name="Dialled" fill="#7C3AED" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="sales" name="Sales" fill="#059669" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
     )}

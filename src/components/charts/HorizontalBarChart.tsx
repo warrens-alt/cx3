@@ -33,8 +33,9 @@ export function HorizontalBarChart({
   auditGrain
 }: HorizontalBarChartProps) {
   
-  const totalVal = data.reduce((acc, curr) => acc + (Number(curr[valueKey]) || 0), 0);
-  const maxVal = Math.max(...data.map(d => Number(d[valueKey]) || 0), 1);
+  const safeData = data || [];
+  const totalVal = safeData.reduce((acc, curr) => acc + (Number(curr[valueKey]) || 0), 0);
+  const maxVal = safeData.length ? Math.max(...safeData.map(d => Number(d[valueKey]) || 0), 1) : 1;
 
   const formatValue = (val: number) => {
     return `${valuePrefix}${formatTableNumber(val)}${valueSuffix}`;
@@ -79,8 +80,14 @@ export function HorizontalBarChart({
       <ChartToolbar visualData={data} title={title} subtitle={subtitle} auditTitle={auditTitle} auditContext={auditContext} auditGrain={auditGrain} />
       
       <div style={{ height, width: '100%' }}>
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
-          <BarChart data={data} layout="vertical" margin={{ top: 4, right: 20, left: 0, bottom: 4 }}>
+        {!safeData.length ? (
+          <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
+            <span className="font-medium text-slate-600 mb-1">No category observations recorded.</span>
+            <span className="text-[11px] text-slate-400">Select a wider date range or check data filters.</span>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
+            <BarChart data={safeData} layout="vertical" margin={{ top: 4, right: 20, left: 0, bottom: 4 }}>
             <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
             <XAxis 
               type="number"

@@ -214,21 +214,49 @@ export default function ConsumerReentry() {
             </div>
           ) : (
             <div className="p-5 h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={tiers} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="lead_tier" tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                  <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                  <Tooltip
-                    formatter={(val: any, name: any) => [Number(val).toLocaleString(), name]}
-                    contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '6px', fontSize: '11px' }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                  <Bar dataKey="consumer_count" name="Consumers" fill="#3b82f6" radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="total_leads" name="Total Leads" fill="#8b5cf6" radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="consumers_with_sale" name="Consumers with Sale" fill="#10b981" radius={[3, 3, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {!tiers.length ? (
+                <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
+                  <span className="font-medium text-slate-600 mb-1">No consumer tier observations recorded.</span>
+                  <span className="text-[11px] text-slate-400">Try adjusting your filters or date range.</span>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
+                  <BarChart data={tiers} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="lead_tier" tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" axisLine={false} tickLine={false} tickFormatter={v => Number(v).toLocaleString()} />
+                    <Tooltip
+                      content={({ active, payload, label }) => {
+                        if (!active || !payload?.length) return null;
+                        return (
+                          <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg p-3 text-xs min-w-[190px] ring-1 ring-black/5 dark:ring-white/5 font-mono">
+                            <div className="font-semibold text-slate-800 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1 mb-2 font-mono">
+                              Tier: {label}
+                            </div>
+                            <div className="space-y-1.5">
+                              {payload.map((entry: any, i: number) => (
+                                <div key={i} className="flex items-center justify-between gap-3">
+                                  <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 font-sans">
+                                    <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ backgroundColor: entry.color }} />
+                                    <span>{entry.name}</span>
+                                  </span>
+                                  <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">
+                                    {Number(entry.value || 0).toLocaleString()}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                    <Bar dataKey="consumer_count" name="Consumers" fill="#315BCB" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="total_leads" name="Total Leads" fill="#7C3AED" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="consumers_with_sale" name="Consumers with Sale" fill="#059669" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           )}
         </div>
@@ -314,30 +342,58 @@ export default function ConsumerReentry() {
             </div>
           ) : (
             <div className="p-5 h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={sequenceEconomics} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
-                  <defs>
-                    <linearGradient id="colorSeqRpc" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="colorSeqSale" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="entry_stage" tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                  <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" unit="%" />
-                  <Tooltip
-                    formatter={(val: any, name: any) => [`${Number(val).toFixed(1)}%`, name]}
-                    contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '6px', fontSize: '11px' }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                  <Area type="monotone" dataKey="rpc_rate_pct" name="RPC Rate %" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorSeqRpc)" />
-                  <Area type="monotone" dataKey="billable_sale_rate_pct" name="Sale Rate %" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorSeqSale)" />
-                </AreaChart>
-              </ResponsiveContainer>
+              {!sequenceEconomics.length ? (
+                <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
+                  <span className="font-medium text-slate-600 mb-1">No sequential entry observations recorded.</span>
+                  <span className="text-[11px] text-slate-400">Try adjusting your filters or date range.</span>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
+                  <AreaChart data={sequenceEconomics} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
+                    <defs>
+                      <linearGradient id="colorSeqRpc" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#315BCB" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#315BCB" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorSeqSale" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#059669" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#059669" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="entry_stage" tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" unit="%" axisLine={false} tickLine={false} />
+                    <Tooltip
+                      content={({ active, payload, label }) => {
+                        if (!active || !payload?.length) return null;
+                        return (
+                          <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg p-3 text-xs min-w-[190px] ring-1 ring-black/5 dark:ring-white/5 font-mono">
+                            <div className="font-semibold text-slate-800 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1 mb-2 font-mono">
+                              Entry: {label}
+                            </div>
+                            <div className="space-y-1.5">
+                              {payload.map((entry: any, i: number) => (
+                                <div key={i} className="flex items-center justify-between gap-3">
+                                  <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 font-sans">
+                                    <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ backgroundColor: entry.stroke || entry.color }} />
+                                    <span>{entry.name}</span>
+                                  </span>
+                                  <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">
+                                    {Number(entry.value || 0).toFixed(1)}%
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                    <Area type="monotone" dataKey="rpc_rate_pct" name="RPC Rate %" stroke="#315BCB" strokeWidth={2} fillOpacity={1} fill="url(#colorSeqRpc)" />
+                    <Area type="monotone" dataKey="billable_sale_rate_pct" name="Sale Rate %" stroke="#059669" strokeWidth={2} fillOpacity={1} fill="url(#colorSeqSale)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </div>
           )}
         </div>
@@ -421,23 +477,51 @@ export default function ConsumerReentry() {
             </div>
           ) : (
             <div className="p-5 h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={repeatConsumersSample} margin={{ top: 10, right: 30, left: 10, bottom: 30 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="consumer_id" tick={{ fontSize: 9 }} stroke="#94a3b8" interval={0} angle={-25} textAnchor="end" height={45} />
-                  <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                  <Tooltip
-                    formatter={(val: any, name: any) => [
-                      name === 'total_revenue' ? `${currencyPrefix}${Number(val).toLocaleString()}` : Number(val).toLocaleString(),
-                      name === 'total_revenue' ? 'Recorded Revenue' : 'Lead Count'
-                    ]}
-                    contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '6px', fontSize: '11px' }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                  <Bar dataKey="total_revenue" name="Recorded Revenue" fill="#10b981" radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="lead_count" name="Recorded Leads" fill="#3b82f6" radius={[3, 3, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {!repeatConsumersSample.length ? (
+                <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
+                  <span className="font-medium text-slate-600 mb-1">No repeat consumer sample observations recorded.</span>
+                  <span className="text-[11px] text-slate-400">Try adjusting your filters or date range.</span>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
+                  <BarChart data={repeatConsumersSample} margin={{ top: 10, right: 30, left: 10, bottom: 30 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="consumer_id" tick={{ fontSize: 9, fill: '#64748b' }} stroke="#cbd5e1" interval={0} angle={-25} textAnchor="end" height={45} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" axisLine={false} tickLine={false} />
+                    <Tooltip
+                      content={({ active, payload, label }) => {
+                        if (!active || !payload?.length) return null;
+                        return (
+                          <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg p-3 text-xs min-w-[200px] ring-1 ring-black/5 dark:ring-white/5 font-mono">
+                            <div className="font-semibold text-slate-800 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1 mb-2">
+                              Consumer: {label}
+                            </div>
+                            <div className="space-y-1.5">
+                              {payload.map((entry: any, i: number) => {
+                                const isRev = entry.dataKey === 'total_revenue';
+                                return (
+                                  <div key={i} className="flex items-center justify-between gap-3">
+                                    <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 font-sans">
+                                      <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ backgroundColor: entry.fill || entry.color }} />
+                                      <span>{isRev ? 'Recorded Revenue' : 'Recorded Leads'}</span>
+                                    </span>
+                                    <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">
+                                      {isRev ? `${currencyPrefix}${Number(entry.value || 0).toLocaleString()}` : Number(entry.value || 0).toLocaleString()}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                    <Bar dataKey="total_revenue" name="Recorded Revenue" fill="#059669" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="lead_count" name="Recorded Leads" fill="#315BCB" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           )}
         </div>

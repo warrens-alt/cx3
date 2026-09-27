@@ -161,7 +161,7 @@ export default function VendorLeadQuality() {
 
               {scatter.length ? (
                 <div className="cx-performance-scatter">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
                     <ScatterChart margin={{ top: 18, right: 28, bottom: 32, left: 8 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E8EDF3" />
                       <XAxis

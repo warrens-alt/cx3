@@ -33,9 +33,26 @@ export function FunnelWaterfall({
 }: FunnelWaterfallProps) {
   const [viewMode, setViewMode] = useState<'bars' | 'flow'>('bars');
 
-  if (!steps || steps.length === 0) return null;
+  if (!steps || steps.length === 0) {
+    return (
+      <div className="enterprise-card p-5 h-full flex flex-col">
+        <ChartToolbar 
+          visualData={[]}
+          title={title} 
+          subtitle={subtitle} 
+          auditTitle={auditTitle} 
+          auditContext={auditContext} 
+          auditGrain={auditGrain} 
+        />
+        <div className="h-48 w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4 my-auto">
+          <span className="font-medium text-slate-600 mb-1">No funnel stages recorded.</span>
+          <span className="text-[11px] text-slate-400">Select a wider date range or check data filters.</span>
+        </div>
+      </div>
+    );
+  }
   
-  const maxVal = Math.max(...steps.map(s => s.value)) || 1;
+  const maxVal = Math.max(...steps.map(s => Number(s.value) || 0), 1);
   const topOfFunnel = steps[0]?.value ?? 0;
   const bottomOfFunnel = steps[steps.length - 1]?.value || 0;
   const overallConversionPct = topOfFunnel > 0 ? ((bottomOfFunnel / topOfFunnel) * 100).toFixed(1) + '%' : 'Unavailable';

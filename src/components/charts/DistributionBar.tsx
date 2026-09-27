@@ -24,16 +24,16 @@ export function DistributionBar({
   bucketKey,
   valueKey,
   height = 250,
-  color = '#1E3A8A',
+  color = '#315BCB',
   formatValue,
   auditTitle,
   auditContext,
   auditGrain
 }: DistributionBarProps) {
-  
+  const safeData = data || [];
   const defaultFormat = (val: number) => formatKpiValue(val);
   const formatter = formatValue || defaultFormat;
-  const totalVal = data.reduce((acc, curr) => acc + (Number(curr[valueKey]) || 0), 0);
+  const totalVal = safeData.reduce((acc, curr) => acc + (Number(curr[valueKey]) || 0), 0);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload || !payload.length) return null;
@@ -65,34 +65,41 @@ export function DistributionBar({
 
   return (
     <div className="enterprise-card p-5 flex flex-col h-full w-full">
-      <ChartToolbar visualData={data} title={title} subtitle={subtitle} auditTitle={auditTitle} auditContext={auditContext} auditGrain={auditGrain} />
+      <ChartToolbar visualData={safeData} title={title} subtitle={subtitle} auditTitle={auditTitle} auditContext={auditContext} auditGrain={auditGrain} />
       
       <div style={{ height, width: '100%' }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 20, right: 10, left: -15, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-            <XAxis 
-              dataKey={bucketKey}
-              axisLine={false} 
-              tickLine={false} 
-              tick={{ fontSize: 11, fill: '#64748b' }} 
-              dy={8}
-            />
-            <YAxis 
-              axisLine={false} 
-              tickLine={false} 
-              tick={{ fontSize: 11, fill: '#64748b' }} 
-              tickFormatter={(val) => formatChartAxis(val)}
-            />
-            <RechartsTooltip content={<CustomTooltip />} />
-            <Bar dataKey={valueKey} radius={[4, 4, 0, 0]} isAnimationActive={false} maxBarSize={44}>
-              {data.map((_, index) => (
-                <Cell key={`cell-${index}`} fill={color} />
-              ))}
-              <LabelList dataKey={valueKey} position="top" formatter={formatter} style={{ fill: '#64748b', fontSize: 10, fontWeight: 600 }} />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+        {!safeData.length ? (
+          <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
+            <span className="font-medium text-slate-600 mb-1">No distribution observations recorded.</span>
+            <span className="text-[11px] text-slate-400">Select a wider date range or check data filters.</span>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+            <BarChart data={safeData} margin={{ top: 20, right: 10, left: 0, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis 
+                dataKey={bucketKey}
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 11, fill: '#64748b' }} 
+                dy={8}
+              />
+              <YAxis 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 11, fill: '#64748b' }} 
+                tickFormatter={(val) => formatChartAxis(val)}
+              />
+              <RechartsTooltip content={<CustomTooltip />} />
+              <Bar dataKey={valueKey} radius={[4, 4, 0, 0]} isAnimationActive={false} maxBarSize={44}>
+                {safeData.map((_, index) => (
+                  <Cell key={`cell-${index}`} fill={color} />
+                ))}
+                <LabelList dataKey={valueKey} position="top" formatter={formatter} style={{ fill: '#64748b', fontSize: 10, fontWeight: 600 }} />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </div>
   );

@@ -29,13 +29,14 @@ export function ComboChart({
   lineKey,
   barName,
   lineName,
-  barColor = '#18364F',
+  barColor = '#315BCB',
   lineColor = '#059669',
   height = 350,
   auditTitle,
   auditContext,
   auditGrain
 }: ComboChartProps) {
+  const safeData = data || [];
   
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload || !payload.length) return null;
@@ -74,61 +75,68 @@ export function ComboChart({
 
   return (
     <div className="enterprise-card p-5 flex flex-col h-full w-full">
-      <ChartToolbar visualData={data} title={title} subtitle={subtitle} auditTitle={auditTitle} auditContext={auditContext} auditGrain={auditGrain} />
+      <ChartToolbar visualData={safeData} title={title} subtitle={subtitle} auditTitle={auditTitle} auditContext={auditContext} auditGrain={auditGrain} />
       
       <div style={{ height, width: '100%' }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} margin={{ top: 16, right: 14, left: -10, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-            <XAxis 
-              dataKey={xKey} 
-              axisLine={false} 
-              tickLine={false} 
-              tick={{ fontSize: 11, fill: '#64748b' }} 
-              dy={10}
-            />
-            <YAxis 
-              yAxisId="left" 
-              axisLine={false} 
-              tickLine={false} 
-              tick={{ fontSize: 11, fill: '#64748b' }} 
-              tickFormatter={(val) => formatChartAxis(val)}
-            />
-            <YAxis 
-              yAxisId="right"
-              orientation="right"
-              axisLine={false} 
-              tickLine={false} 
-              tick={{ fontSize: 11, fill: '#64748b' }} 
-              tickFormatter={(val) => `${formatChartAxis(val)}%`}
-            />
-            <RechartsTooltip content={<CustomTooltip />} />
-            <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '16px' }} />
-            <Bar 
-              yAxisId="left" 
-              dataKey={barKey} 
-              name={barName || barKey} 
-              radius={[4, 4, 0, 0]} 
-              isAnimationActive={false}
-              maxBarSize={48}
-            >
-              {data.map((_, index) => (
-                <Cell key={`cell-${index}`} fill={barColor} />
-              ))}
-            </Bar>
-            <Line 
-              yAxisId="right" 
-              type="monotone" 
-              dataKey={lineKey} 
-              name={lineName || lineKey} 
-              stroke={lineColor} 
-              strokeWidth={2.5} 
-              dot={{ r: 3.5, fill: '#ffffff', stroke: lineColor, strokeWidth: 2 }} 
-              activeDot={{ r: 5, fill: lineColor, stroke: '#ffffff', strokeWidth: 2 }} 
-              isAnimationActive={false} 
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
+        {!safeData.length ? (
+          <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
+            <span className="font-medium text-slate-600 mb-1">No combo observations recorded.</span>
+            <span className="text-[11px] text-slate-400">Select a wider date range or check data filters.</span>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+            <ComposedChart data={safeData} margin={{ top: 16, right: 14, left: 0, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis 
+                dataKey={xKey} 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 11, fill: '#64748b' }} 
+                dy={10}
+              />
+              <YAxis 
+                yAxisId="left" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 11, fill: '#64748b' }} 
+                tickFormatter={(val) => formatChartAxis(val)}
+              />
+              <YAxis 
+                yAxisId="right"
+                orientation="right"
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 11, fill: '#64748b' }} 
+                tickFormatter={(val) => `${formatChartAxis(val)}%`}
+              />
+              <RechartsTooltip content={<CustomTooltip />} />
+              <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '16px' }} />
+              <Bar 
+                yAxisId="left" 
+                dataKey={barKey} 
+                name={barName || barKey} 
+                radius={[4, 4, 0, 0]} 
+                isAnimationActive={false}
+                maxBarSize={48}
+              >
+                {safeData.map((_, index) => (
+                  <Cell key={`cell-${index}`} fill={barColor} />
+                ))}
+              </Bar>
+              <Line 
+                yAxisId="right" 
+                type="monotone" 
+                dataKey={lineKey} 
+                name={lineName || lineKey} 
+                stroke={lineColor} 
+                strokeWidth={2.5} 
+                dot={{ r: 3.5, fill: '#ffffff', stroke: lineColor, strokeWidth: 2 }} 
+                activeDot={{ r: 5, fill: lineColor, stroke: '#ffffff', strokeWidth: 2 }} 
+                isAnimationActive={false} 
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </div>
   );

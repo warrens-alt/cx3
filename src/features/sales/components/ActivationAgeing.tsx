@@ -109,7 +109,7 @@ export default function ActivationAgeing({
       {/* Visual Bar Chart: Strictly chronological order */}
       <div className="p-4 bg-surface-subtle">
         <div className="h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
             <BarChart
               data={chartData}
               margin={{ top: 12, right: 16, left: -10, bottom: 20 }}

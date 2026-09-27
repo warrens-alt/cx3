@@ -61,21 +61,21 @@ export default function ExactBarChart({
               key={itemId}
               onClick={() => onSelect && onSelect(itemId)}
               className={`p-2 rounded-lg transition ${
-                onSelect ? 'cursor-pointer hover:bg-slate-50' : ''
-              } ${isSelected ? 'bg-blue-50 ring-1 ring-blue-400' : ''}`}
+                onSelect ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60' : ''
+              } ${isSelected ? 'bg-blue-50 dark:bg-blue-950/40 ring-1 ring-[#315BCB]' : ''}`}
             >
               <div className="flex justify-between text-xs mb-1">
-                <span className="font-medium text-slate-700 truncate max-w-[200px]">{item.label}</span>
-                <span className="font-mono font-semibold text-slate-900">{item.formatted}</span>
+                <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[200px]">{item.label}</span>
+                <span className="font-mono font-semibold text-slate-900 dark:text-slate-100 tabular-nums">{item.formatted}</span>
               </div>
-              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                 <div
-                  className="bg-blue-600 h-full rounded-full transition-all duration-300"
+                  className="bg-[#315BCB] dark:bg-[#3B82F6] h-full rounded-full transition-all duration-300"
                   style={{ width: `${pct}%` }}
                 />
               </div>
               {item.secondaryFormatted && (
-                <div className="text-[10px] text-slate-400 mt-0.5 text-right font-mono">
+                <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 text-right font-mono tabular-nums">
                   {item.secondaryFormatted}
                 </div>
               )}
