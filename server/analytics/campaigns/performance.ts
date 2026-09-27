@@ -116,7 +116,12 @@ export async function getClientCampaignAnalytics(params: OffernetQueryParams, op
     row[name] == null || Number(row[`missing_${name}_rows`] || 0) > 0 ? null : Number(row[name]);
   const buildGrainQuery = (includeDetails: boolean) => `
     WITH scoped_marketing AS (
-      SELECT * FROM \`${contract.table}\` WHERE ${conditions.join(' AND ')}
+      SELECT
+        * EXCEPT(channel_adset_name),
+        COALESCE(NULLIF(TRIM(channel_adset_name), ''), CASE WHEN LOWER(channel) = 'google' THEN '[google_campaign_grain]' ELSE NULL END) AS channel_adset_name
+        ${spendValue?.includes('media_spend') && !resolved.hasPhysicalMediaSpend ? ', COALESCE(SAFE_CAST(budget AS NUMERIC), 0) AS media_spend' : ''}
+      FROM \`${contract.table}\`
+      WHERE ${conditions.join(' AND ')}
     ), campaign_spend AS (
       ${includeDetails ? `SELECT CAST(${clientField} AS STRING) AS client_name, CAST(${channelField} AS STRING) AS channel,
         CAST(${campaignField} AS STRING) AS campaign_name, CAST(${adsetField} AS STRING) AS adset_name,

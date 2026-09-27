@@ -62,7 +62,12 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
   const campaignGroup = [contract.clientNameField, contract.channelField, contract.campaignField, contract.adsetField].map(safeWarehouseColumn).join(', ');
   const query = `
     WITH scoped_marketing AS (
-      SELECT * FROM \`${contract.table}\` WHERE ${conditions.join(' AND ')}
+      SELECT
+        * EXCEPT(channel_adset_name),
+        COALESCE(NULLIF(TRIM(channel_adset_name), ''), CASE WHEN LOWER(channel) = 'google' THEN '[google_campaign_grain]' ELSE NULL END) AS channel_adset_name
+        ${spendValue?.includes('media_spend') && !resolved.hasPhysicalMediaSpend ? ', COALESCE(SAFE_CAST(budget AS NUMERIC), 0) AS media_spend' : ''}
+      FROM \`${contract.table}\`
+      WHERE ${conditions.join(' AND ')}
     ), marketing_audit AS (
       SELECT COUNT(*) AS row_count,
         COUNT(DISTINCT ${grainExpression}) AS distinct_grain_count,

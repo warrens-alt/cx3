@@ -2,7 +2,7 @@ import { getBigQueryClient } from '../../bigquery/client';
 import type { RawSourceProfileResult, SourceProfileOptions } from '../../bigquery/warehouseRegistry';
 import { RAW_JSON_SOURCES } from '../../../contracts/warehouseDictionary';
 
-const SENSITIVE_KEY_PATTERN = /(email|token|secret|password|bearer|auth|ssn|id_number|idno|phone|mobile|cell|card|cvv)/i;
+const SENSITIVE_KEY_PATTERN = /(email|token|secret|password|bearer|auth|ssn|id_number|idno|phone|mobile|cell|card|cvv|first_name|last_name|surname|address)/i;
 const DYNAMIC_KEY_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$|^\d{9,16}$|^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
 
 export async function profileRawJsonSource(
@@ -28,8 +28,7 @@ export async function profileRawJsonSource(
       source,
       timestamp,
       JSON_TYPE(raw_data) AS json_root_type,
-      SAFE.JSON_KEYS(raw_data, 1) AS level_1_keys,
-      SAFE.JSON_KEYS(raw_data, 2) AS level_2_keys
+      raw_data
     FROM \`${project}.${dataset}.${table}\`
     WHERE raw_data IS NOT NULL
     LIMIT @limit
@@ -43,7 +42,6 @@ export async function profileRawJsonSource(
 
     return analyzeProfileRows(sourceTable, project, dataset, table, rows, options);
   } catch (err: any) {
-    // Return explicit dependency / unprofiled error result rather than throwing 500 or fabricating fake live data
     return {
       sourceId: sourceTable,
       project,
@@ -62,6 +60,8 @@ export async function profileRawJsonSource(
         detectedDynamicKeys: [],
       },
       sampleRecordsAnalyzed: 0,
+      samplingMethod: 'FIRST_N_ROWS_BOUNDED_SAMPLE',
+      samplingLimitations: 'Profiling failed to execute against the target warehouse source.',
       status: 'ERROR',
       error: err?.message || 'BigQuery query execution failed for raw source profiling',
       dependencies: [
@@ -80,41 +80,124 @@ export function analyzeProfileRows(
   rows: any[],
   options: SourceProfileOptions = {}
 ): RawSourceProfileResult {
-  const redact = options.redactDynamicKeys !== false;
-  const keyCounts = new Map<string, { type: string; count: number }>();
+  // Ordinary callers cannot disable redaction. All payload text is untrusted data.
+  const redact = true;
+  const keyStats = new Map<string, {
+    types: Set<string>;
+    presentCount: number;
+    explicitNullCount: number;
+    sampleValues: string[];
+  }>();
   const detectedDynamicKeys: string[] = [];
   const recordArrayCandidates: string[] = [];
-  let rootShape: 'object' | 'array' | 'scalar' | 'null' = 'null';
   let hasObject = false;
   let hasArray = false;
 
   for (const row of rows) {
-    const type = String(row.json_root_type || 'null').toLowerCase();
-    if (type === 'object') hasObject = true;
-    if (type === 'array') hasArray = true;
+    const rootType = String(row.json_root_type || 'null').toLowerCase();
+    if (rootType === 'object') hasObject = true;
+    if (rootType === 'array') hasArray = true;
 
-    const keys: string[] = Array.isArray(row.level_1_keys) ? row.level_1_keys : [];
-    for (const rawKey of keys) {
-      if (DYNAMIC_KEY_PATTERN.test(rawKey)) {
-        detectedDynamicKeys.push(redact ? '[REDACTED_DYNAMIC_KEY]' : rawKey);
-        continue;
+    let payload: Record<string, any> = {};
+    try {
+      if (typeof row.raw_data === 'string') {
+        payload = JSON.parse(row.raw_data);
+      } else if (row.raw_data && typeof row.raw_data === 'object') {
+        payload = row.raw_data;
       }
-      const isSensitive = SENSITIVE_KEY_PATTERN.test(rawKey);
-      const displayKey = isSensitive && redact ? `[REDACTED_${rawKey.toUpperCase()}]` : rawKey;
-      const current = keyCounts.get(displayKey) || { type: 'unknown', count: 0 };
-      current.count += 1;
-      keyCounts.set(displayKey, current);
+    } catch {
+      payload = {};
+    }
 
-      // Detect potential child record collections
-      if (/records|items|data|rows|leads|calls|events|payloads/i.test(rawKey)) {
-        if (!recordArrayCandidates.includes(displayKey)) {
+    if (payload && typeof payload === 'object' && !Array.isArray(payload) && Object.keys(payload).length > 0) {
+      hasObject = true;
+      for (const [rawKey, val] of Object.entries(payload)) {
+        if (DYNAMIC_KEY_PATTERN.test(rawKey)) {
+          detectedDynamicKeys.push(redact ? '[REDACTED_DYNAMIC_KEY]' : rawKey);
+          continue;
+        }
+
+        const isSensitive = SENSITIVE_KEY_PATTERN.test(rawKey);
+        const displayKey = isSensitive && redact ? `[REDACTED_${rawKey.toUpperCase()}]` : rawKey;
+        const current = keyStats.get(displayKey) || {
+          types: new Set<string>(),
+          presentCount: 0,
+          explicitNullCount: 0,
+          sampleValues: [],
+        };
+
+        current.presentCount += 1;
+        if (val === null || val === undefined) {
+          current.explicitNullCount += 1;
+          current.types.add('null');
+        } else if (Array.isArray(val)) {
+          current.types.add('array');
+          // Infer record array collection boundaries ONLY from actual array value contents,
+          // never from field-name regexes (e.g. Fetched_Leads is a number, not a record array).
+          if ((val.length > 0 && typeof val[0] === 'object' && val[0] !== null) || ['records', 'items', 'events', 'batch'].includes(rawKey.toLowerCase())) {
+            if (!recordArrayCandidates.includes(displayKey)) {
+              recordArrayCandidates.push(displayKey);
+            }
+          }
+        } else if (typeof val === 'number') {
+          current.types.add('number');
+          if (current.sampleValues.length < 3) current.sampleValues.push(String(val));
+        } else if (typeof val === 'boolean') {
+          current.types.add('boolean');
+          if (current.sampleValues.length < 3) current.sampleValues.push(String(val));
+        } else if (typeof val === 'object') {
+          current.types.add('object');
+        } else {
+          current.types.add('string');
+          if (!isSensitive && current.sampleValues.length < 3) {
+            const strVal = String(val).slice(0, 50);
+            current.sampleValues.push(strVal);
+          }
+        }
+
+        keyStats.set(displayKey, current);
+      }
+    } else if (Array.isArray(row.level_1_keys) && row.level_1_keys.length > 0) {
+      hasObject = true;
+      for (const rawKey of row.level_1_keys) {
+        if (DYNAMIC_KEY_PATTERN.test(rawKey)) {
+          detectedDynamicKeys.push(redact ? '[REDACTED_DYNAMIC_KEY]' : rawKey);
+          continue;
+        }
+
+        const isSensitive = SENSITIVE_KEY_PATTERN.test(rawKey);
+        const displayKey = isSensitive && redact ? `[REDACTED_${rawKey.toUpperCase()}]` : rawKey;
+        const isArrayCandidate = ['records', 'items', 'events', 'batch'].includes(rawKey.toLowerCase()) || rawKey.toLowerCase().endsWith('_list') || rawKey.toLowerCase().endsWith('_array');
+        if (isArrayCandidate && !recordArrayCandidates.includes(displayKey)) {
           recordArrayCandidates.push(displayKey);
         }
+
+        const current = keyStats.get(displayKey) || {
+          types: new Set<string>(),
+          presentCount: 0,
+          explicitNullCount: 0,
+          sampleValues: [],
+        };
+        current.presentCount += 1;
+        if (isArrayCandidate) {
+          current.types.add('array');
+        } else {
+          current.types.add('unknown');
+        }
+        keyStats.set(displayKey, current);
       }
+    } else if (Array.isArray(payload)) {
+      hasArray = true;
     }
   }
 
-  rootShape = hasObject && hasArray ? 'object' : hasArray ? 'array' : hasObject ? 'object' : 'null';
+  const rootShape: 'object' | 'array' | 'scalar' | 'null' = hasObject && hasArray
+    ? 'object'
+    : hasArray
+      ? 'array'
+      : hasObject
+        ? 'object'
+        : 'null';
   const scalarVsArrayDrift = hasObject && hasArray;
 
   let envelopeType: 'event' | 'snapshot' | 'batch_array' | 'unknown' = 'unknown';
@@ -130,14 +213,20 @@ export function analyzeProfileRows(
     dataset,
     table,
     profiledAt: new Date().toISOString(),
-    rowCountEstimate: rows.length,
+    rowCountEstimate: null, // Replaced rowCountEstimate = rows.length with explicit null (unknown warehouse count)
     scannedBytesEstimate: null,
     outerTimestampSemantics: 'outer_record_timestamp',
-    topLevelKeys: Array.from(keyCounts.entries()).map(([key, stat]) => ({
-      key,
-      type: stat.type,
-      nullCount: rows.length - stat.count,
-    })),
+    topLevelKeys: Array.from(keyStats.entries()).map(([key, stat]) => {
+      const typeStr = Array.from(stat.types).filter(t => t !== 'null').join(' | ') || 'null';
+      return {
+        key,
+        type: typeStr,
+        nullCount: stat.explicitNullCount,
+        missingCount: rows.length - stat.presentCount,
+        explicitNullCount: stat.explicitNullCount,
+        sampleValues: stat.sampleValues,
+      };
+    }),
     jsonStructureFindings: {
       envelopeType,
       topLevelShape: rootShape,
@@ -146,6 +235,8 @@ export function analyzeProfileRows(
       detectedDynamicKeys: Array.from(new Set(detectedDynamicKeys)),
     },
     sampleRecordsAnalyzed: rows.length,
+    samplingMethod: 'FIRST_N_ROWS_BOUNDED_SAMPLE',
+    samplingLimitations: 'Sample limited to at most 100 rows from recent ingestion. Inferred types, collection boundaries, dynamic keys, and null counts reflect inspected sample rows only; warehouse-wide row counts remain distinct.',
     status: 'PROFILED',
     dependencies: [],
   };

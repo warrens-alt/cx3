@@ -173,11 +173,16 @@ export function createSourceRouter(accessProvider?: () => SourceAccess) {
 
       const { ALL_WAREHOUSE_OBJECTS } = await import('./warehouseRegistry');
       const { EXPORT_MANIFEST_EVIDENCE, OBSERVED_EXPORT_FAILURES } = await import('../../contracts/warehouseDictionary');
+      const { probeService } = await import('./probeService');
+
+      const probeList = await probeService.listProbeRecords(clientId);
+      const probeMap = new Map(probeList.map(p => [p.sourceId, p]));
 
       const sources = ALL_WAREHOUSE_OBJECTS.map(obj => {
         const key = `${obj.project}.${obj.dataset}.${obj.tableName}`;
         const failureNotice = OBSERVED_EXPORT_FAILURES[key];
         const isHistoricalSuccess = !failureNotice;
+        const recordedProbe = probeMap.get(key);
 
         return {
           key,
@@ -197,12 +202,25 @@ export function createSourceRouter(accessProvider?: () => SourceAccess) {
             errorReason: isAdmin && failureNotice ? failureNotice.errorReason : (failureNotice ? 'Source restricted or dependency unavailable in export' : null),
             ownerActionRequired: failureNotice ? failureNotice.ownerActionRequired : 'None (Available in historical export)',
           },
-          currentApplicationProbe: {
-            status: isHistoricalSuccess ? 'CHECKED_READ_ONLY' : 'DEPENDENCY_RESTRICTED',
-            jobIdentity: config.bigQueryProject,
-            accessible: isHistoricalSuccess,
-            checkedAt: new Date().toISOString(),
-          },
+          currentApplicationProbe: recordedProbe
+            ? {
+                status: recordedProbe.status,
+                jobIdentity: isAdmin ? recordedProbe.jobId || recordedProbe.billingProject : recordedProbe.billingProject,
+                accessible: recordedProbe.accessible,
+                checkedAt: recordedProbe.checkedAt,
+                expiresAt: recordedProbe.expiresAt,
+                probeDurationMs: recordedProbe.probeDurationMs,
+                error: isAdmin ? recordedProbe.rawErrorDetail || recordedProbe.error : recordedProbe.error,
+              }
+            : {
+                status: 'NOT_CHECKED',
+                jobIdentity: null,
+                accessible: null,
+                checkedAt: null,
+                expiresAt: null,
+                probeDurationMs: null,
+                error: null,
+              },
         };
       });
 
@@ -214,6 +232,7 @@ export function createSourceRouter(accessProvider?: () => SourceAccess) {
           totalSources: sources.length,
           successfulSources: sources.filter(s => s.historicalExport.status === 'SUCCESS').length,
           restrictedSources: sources.filter(s => s.historicalExport.status === 'RESTRICTED').length,
+          probedSourcesCount: probeList.length,
           sources,
         },
       });
@@ -230,56 +249,30 @@ export function createSourceRouter(accessProvider?: () => SourceAccess) {
         throw new RequestError('Admin access required to probe warehouse sources', 403);
       }
       const { sourceKey } = req.body || {};
-      if (!sourceKey || typeof sourceKey !== 'string') {
-        throw new RequestError('sourceKey is required (format: project.dataset.table)', 400);
-      }
-      const parts = sourceKey.split('.');
-      if (parts.length !== 3) {
-        throw new RequestError('Invalid sourceKey format. Must be project.dataset.table', 400);
-      }
-      const [project, dataset, table] = parts;
-      const { getBigQueryClient } = await import('./client');
+      const { probeService } = await import('./probeService');
       const { OBSERVED_EXPORT_FAILURES } = await import('../../contracts/warehouseDictionary');
 
-      const client = getBigQueryClient(project);
-      const startTime = Date.now();
-      try {
-        await client.query({
-          query: `SELECT 1 FROM \`${project}.${dataset}.${table}\` LIMIT 1`,
-        });
-        res.json({
-          success: true,
-          data: {
-            sourceKey,
-            status: 'ACCESSIBLE',
-            probeDurationMs: Date.now() - startTime,
-            checkedAt: new Date().toISOString(),
-            jobIdentity: project,
-            message: 'Query path succeeded with current application execution identity.',
-          },
-        });
-      } catch (err: any) {
-        const failureNotice = OBSERVED_EXPORT_FAILURES[sourceKey];
-        const errorMsg = String(err?.message || 'Query execution failed');
-        let failureClassification = 'QUERY_ERROR';
-        if (/Access Denied|permission|403/i.test(errorMsg)) failureClassification = 'ACCESS_DENIED';
-        else if (/Not found|404/i.test(errorMsg)) failureClassification = 'RESOURCE_NOT_FOUND';
-        else if (/location|region/i.test(errorMsg)) failureClassification = 'LOCATION_MISMATCH';
+      const record = await probeService.probeSource(sourceKey, clientId, res.locals.principal);
+      const failureNotice = OBSERVED_EXPORT_FAILURES[record.sourceId];
 
-        res.json({
-          success: true,
-          data: {
-            sourceKey,
-            status: failureClassification,
-            probeDurationMs: Date.now() - startTime,
-            checkedAt: new Date().toISOString(),
-            jobIdentity: project,
-            error: errorMsg,
-            historicalFailingDependency: failureNotice?.failingDependency || null,
-            ownerActionRequired: failureNotice?.ownerActionRequired || 'Grant read permission on dataset/table to application identity',
-          },
-        });
-      }
+      res.json({
+        success: true,
+        data: {
+          sourceKey: record.sourceId,
+          status: record.status,
+          probeDurationMs: record.probeDurationMs,
+          checkedAt: record.checkedAt,
+          expiresAt: record.expiresAt,
+          jobIdentity: record.jobId || record.billingProject,
+          accessible: record.accessible,
+          message: record.accessible
+            ? 'Query path succeeded with current application execution identity.'
+            : (record.error || 'Probe failed'),
+          error: record.rawErrorDetail || record.error,
+          historicalFailingDependency: failureNotice?.failingDependency || null,
+          ownerActionRequired: failureNotice?.ownerActionRequired || (record.accessible ? 'None' : 'Grant read permission on dataset/table to application identity'),
+        },
+      });
     } catch (err) {
       next(err);
     }
@@ -296,7 +289,7 @@ export function createSourceRouter(accessProvider?: () => SourceAccess) {
       const client = getBigQueryClient('vibe-code-warren-stear');
 
       let rows: any[] = [];
-      let evidenceMode: 'LIVE_WAREHOUSE' | 'HANDOVER_SAMPLE' = 'LIVE_WAREHOUSE';
+      const evidenceMode = 'LIVE_WAREHOUSE';
 
       try {
         const [result] = await client.query({
@@ -304,34 +297,13 @@ export function createSourceRouter(accessProvider?: () => SourceAccess) {
           params: { limit },
         });
         rows = result;
-      } catch {
-        evidenceMode = 'HANDOVER_SAMPLE';
-        // Redacted synthetic fixture representation matching the 50 sampled rows
-        rows = Array.from({ length: 50 }, (_, i) => ({
-          unique_id: `sample_${i + 1}`,
-          source: 'ontact',
-          timestamp: '2026-06-13T07:39:24.503Z',
-          raw_data: {
-            uniqueid: `178127${4000 + i}.100${1000 + i}`,
-            lead_id: 30000 + i,
-            vendor_lead_code: `841215588${9000 + i}`,
-            call_date: '2026-06-12T16:25:56',
-            start_epoch: 1781274356 + i * 10,
-            end_epoch: 1781274356 + i * 10 + (i % 6 === 0 ? 0 : 15),
-            length_in_sec: i % 6 === 0 ? 0 : 15,
-            call_result: i % 5 === 0 ? 'CBHOLD' : (i % 7 === 0 ? 'VM' : 'N'),
-            status: i % 5 === 0 ? 'ALTNUM' : (i % 7 === 0 ? 'VM' : 'N'),
-            campaign_id: 'OUTBOUND',
-            list_id: i % 2 === 0 ? '9007' : '9008',
-            agent: `agent${(i % 12) + 1}`,
-            user: `agent${(i % 12) + 1}`,
-            user_group: 'AGENT',
-            called_count: (i % 8) + 1,
-            alt_dial: i % 3 === 0 ? 'MAIN' : (i % 3 === 1 ? 'ALT' : 'MANUAL'),
-            __source: 'ontact',
-            comments: 'Offernet Offer --- segment -> Orange | device_model -> BLACKVIEW WAVE',
-          },
-        }));
+      } catch (err: any) {
+        return res.status(503).json({
+          success: false,
+          status: 'UNAVAILABLE',
+          error: 'Warehouse source vibe-code-warren-stear.analytics_warehouse.ontact_raw_data is unavailable.',
+          detail: err?.message || 'Query execution failed',
+        });
       }
 
       let durationVerifiedCount = 0;
@@ -412,54 +384,20 @@ export function createSourceRouter(accessProvider?: () => SourceAccess) {
       const client = getBigQueryClient('vibe-code-warren-stear');
 
       let rows: any[] = [];
-      let evidenceMode: 'LIVE_WAREHOUSE' | 'HANDOVER_SAMPLE' = 'LIVE_WAREHOUSE';
+      const evidenceMode = 'LIVE_WAREHOUSE';
 
       try {
         const [result] = await client.query({
           query: `SELECT unique_id, source, timestamp, raw_data FROM \`vibe-code-warren-stear.analytics_warehouse.onvest_raw_data\` WHERE raw_data IS NOT NULL LIMIT 100`,
         });
         rows = result;
-      } catch {
-        evidenceMode = 'HANDOVER_SAMPLE';
-        // Synthetic rows representing the 50 sample rows with observed stage values
-        rows = [
-          {
-            unique_id: 'sample_onvest_1',
-            raw_data: {
-              date: '2026-05-23', offershop_source: 'online.offershop.co.za', Amount_Spent: '7722.4698',
-              Clicks: 3271, Impressions: '291437', Reach: '0', Outbound_Clicks: '1962',
-              Fetched_Leads: 358, Accepted_Leads: 220, Qualified_Leads: 231, Total_Leads_WithValid_Phone_ID: 349,
-              MTN_Dialed_Leads: 178, MTN_Answered_Calls: 99, MTN_Right_Party_Contact: 98, MTN_Sales: 0,
-              Total_Leads_Is_MTN_Lead: 119, Total_Leads_Delivered_MTN: 118, Total_Leads_SMS_Passed: 118,
-              Total_Mondo_Grade_Passed_Lead: 138, Total_Leads_Delivered_Mondo: 102, Total_Leads_Sold_A: 11, Total_Leads_Sold_B: 42,
-              Total_Leads_Passed_BLC_Vetting: 64, Total_Leads_Delivered_OnTact: 61,
-            },
-          },
-          {
-            unique_id: 'sample_onvest_2',
-            raw_data: {
-              date: '2026-04-29', offershop_source: 'online.offershop.co.za', Amount_Spent: '9525.25',
-              Clicks: 4468, Impressions: '304783', Reach: '0', Outbound_Clicks: '2699',
-              Fetched_Leads: 488, Accepted_Leads: 280, Qualified_Leads: 244, Total_Leads_WithValid_Phone_ID: 467,
-              MTN_Dialed_Leads: 99, MTN_Answered_Calls: 77, MTN_Right_Party_Contact: 77, MTN_Sales: 3,
-              Total_Leads_Is_MTN_Lead: 156, Total_Leads_Delivered_MTN: 134, Total_Leads_SMS_Passed: 134,
-              Total_Mondo_Grade_Passed_Lead: 187, Total_Leads_Delivered_Mondo: 146, Total_Leads_Sold_A: 35, Total_Leads_Sold_B: 52,
-              Total_Leads_Passed_BLC_Vetting: 100, Total_Leads_Delivered_OnTact: 96,
-            },
-          },
-          {
-            unique_id: 'sample_onvest_3',
-            raw_data: {
-              date: '2026-04-28', offershop_source: 'online.offershop.co.za', Amount_Spent: '9587.4601',
-              Clicks: 4973, Impressions: '320863', Reach: '0', Outbound_Clicks: '2972',
-              Fetched_Leads: 545, Accepted_Leads: 324, Qualified_Leads: 395, Total_Leads_WithValid_Phone_ID: 530,
-              MTN_Dialed_Leads: 219, MTN_Answered_Calls: 184, MTN_Right_Party_Contact: 182, MTN_Sales: 13,
-              Total_Leads_Is_MTN_Lead: 160, Total_Leads_Delivered_MTN: 144, Total_Leads_SMS_Passed: 144,
-              Total_Mondo_Grade_Passed_Lead: 218, Total_Leads_Delivered_Mondo: 180, Total_Leads_Sold_A: 25, Total_Leads_Sold_B: 81,
-              Total_Leads_Passed_BLC_Vetting: 114, Total_Leads_Delivered_OnTact: 110,
-            },
-          },
-        ];
+      } catch (err: any) {
+        return res.status(503).json({
+          success: false,
+          status: 'UNAVAILABLE',
+          error: 'Warehouse source vibe-code-warren-stear.analytics_warehouse.onvest_raw_data is unavailable.',
+          detail: err?.message || 'Query execution failed',
+        });
       }
 
       let totalExactSpend = '0';

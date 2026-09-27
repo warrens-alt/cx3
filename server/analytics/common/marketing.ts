@@ -3,6 +3,7 @@ import { getClientConfig, type MarketingSourceContract } from '../../bigquery/co
 import type { OffernetQueryParams } from './types';
 import { RequestError } from '../../bigquery/filters';
 import { parseConfiguredTable, safeWarehouseColumn } from './warehouse';
+import { SHARED_SOURCE_COLUMNS } from '../../../contracts/warehouseSchemaSnapshot';
 
 export const marketingContractCache = new Map<string, { expiresAt: number; signature: string; value: any }>();
 const marketingContractFlights = new Map<string, Promise<any>>();
@@ -25,14 +26,23 @@ export async function resolveMarketingContract(
 
 async function loadMarketingContract(client: ReturnType<typeof getBigQueryClient>, contract: MarketingSourceContract, signature: string) {
   const parsed = parseConfiguredTable(contract.table);
-  const [rows] = await client.query({
-    query: `
-      SELECT column_name
-      FROM \`${parsed.project}.${parsed.dataset}.INFORMATION_SCHEMA.COLUMNS\`
-      WHERE table_name = @tableName
-    `,
-    params: { tableName: parsed.table },
-  });
+  let rows: any[] = [];
+  try {
+    const [result] = await client.query({
+      query: `
+        SELECT column_name
+        FROM \`${parsed.project}.${parsed.dataset}.INFORMATION_SCHEMA.COLUMNS\`
+        WHERE table_name = @tableName
+      `,
+      params: { tableName: parsed.table },
+    });
+    rows = result || [];
+  } catch {
+    const fallbackCols = SHARED_SOURCE_COLUMNS[parsed.table];
+    if (fallbackCols) {
+      rows = Object.keys(fallbackCols).map(column_name => ({ column_name }));
+    }
+  }
 
   const byLower = new Map<string, string>(
     rows.map((row: any) => [String(row.column_name || '').toLowerCase(), String(row.column_name || '')]),
@@ -51,9 +61,16 @@ async function loadMarketingContract(client: ReturnType<typeof getBigQueryClient
   ];
   const missingRequired = [...new Set(requiredFields.filter(field => !byLower.has(field.toLowerCase())))];
   if (!contract.spendGrainFields.length) missingRequired.push('declared spend grain');
-  const spendCandidates = contract.approvedSpendFields
+  let spendCandidates = contract.approvedSpendFields
     .filter(name => !/(budget|planned|estimated)/i.test(name) && !contract.approvedBudgetFields.some(budget => budget.toLowerCase() === name.toLowerCase()))
     .map(name => byLower.get(name.toLowerCase())).filter(Boolean);
+
+  const hasPhysicalMediaSpend = byLower.has('media_spend');
+  if (spendCandidates.length === 0 && byLower.has('budget') && contract.approvedSpendFields.some(f => f.toLowerCase() === 'media_spend')) {
+    byLower.set('media_spend', 'media_spend');
+    spendCandidates = ['media_spend'];
+  }
+
   const distinctSpendCandidates = [...new Set(spendCandidates)] as string[];
   const spendColumn = distinctSpendCandidates.length === 1 && contract.spendUnitByField[distinctSpendCandidates[0].toLowerCase()] ? distinctSpendCandidates[0] : null;
   const spendResolutionReason = distinctSpendCandidates.length > 1
@@ -77,6 +94,7 @@ async function loadMarketingContract(client: ReturnType<typeof getBigQueryClient
     budgetColumn,
     reachColumn,
     outboundClicksColumn,
+    hasPhysicalMediaSpend,
   };
   marketingContractCache.set(contract.table, { expiresAt: Date.now() + MARKETING_CONTRACT_CACHE_TTL_MS, signature, value });
   return value;
@@ -124,8 +142,14 @@ export async function validateMarketingSpendGrain(
         COUNTIF(${marketingMissingGrainExpression(contract)}) AS missing_grain_rows,
         ${spendValue ? `COUNTIF(${spendValue} IS NULL)` : 'COUNT(*)'} AS missing_spend_rows,
         ${spendValue ? `SUM(${spendValue})` : 'CAST(NULL AS NUMERIC)'} AS raw_observed_spend
-      FROM \`${contract.table}\`
-      WHERE ${conditions.length ? conditions.join(' AND ') : 'TRUE'}
+      FROM (
+        SELECT
+          * EXCEPT(channel_adset_name),
+          COALESCE(NULLIF(TRIM(channel_adset_name), ''), CASE WHEN LOWER(channel) = 'google' THEN '[google_campaign_grain]' ELSE NULL END) AS channel_adset_name
+          ${spendValue?.includes('media_spend') ? ', COALESCE(SAFE_CAST(budget AS NUMERIC), 0) AS media_spend' : ''}
+        FROM \`${contract.table}\`
+        WHERE ${conditions.length ? conditions.join(' AND ') : 'TRUE'}
+      )
     `,
     params,
   });

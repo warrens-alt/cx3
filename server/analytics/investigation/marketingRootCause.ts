@@ -78,7 +78,15 @@ export async function getMarketingRootCauseAnalysis(params: OffernetQueryParams)
 
   const grainKey = `TO_JSON_STRING(STRUCT(${contract.spendGrainFields.map(safeWarehouseColumn).join(', ')}))`;
   const query = `
-    WITH base AS (
+    WITH scoped_marketing AS (
+      SELECT
+        * EXCEPT(channel_adset_name),
+        COALESCE(NULLIF(TRIM(channel_adset_name), ''), CASE WHEN LOWER(channel) = 'google' THEN '[google_campaign_grain]' ELSE NULL END) AS channel_adset_name
+        ${spendValue?.includes('media_spend') && !resolved.hasPhysicalMediaSpend ? ', COALESCE(SAFE_CAST(budget AS NUMERIC), 0) AS media_spend' : ''}
+      FROM \`${contract.table}\`
+      WHERE ${conditions.join(' AND ')}
+    ),
+    base AS (
       SELECT
         DATE(${dateField}) AS report_date,
         ${grainKey} AS grain_key,
@@ -90,8 +98,7 @@ export async function getMarketingRootCauseAnalysis(params: OffernetQueryParams)
         SAFE_CAST(${clicksField} AS NUMERIC) AS clicks,
         SAFE_CAST(${leadsField} AS NUMERIC) AS leads,
         ${spendValue ? spendValue : 'CAST(NULL AS FLOAT64)'} AS spend
-      FROM \`${contract.table}\`
-      WHERE ${conditions.join(' AND ')}
+      FROM scoped_marketing
     ),
     periodized AS (
       SELECT

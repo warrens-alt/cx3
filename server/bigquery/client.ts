@@ -1,7 +1,7 @@
 import { BigQuery, type Query } from '@google-cloud/bigquery';
 import { vendorScope } from '../analyticsContext';
 import { tableIdentifier } from './config';
-import { readOnlyQueryOptions } from './readOnly';
+import { readOnlyQueryOptions, readOnlyDryRunQueryOptions } from './readOnly';
 import { trackAnalyticalWork } from '../analyticalWork';
 
 const clients = new Map<string, AnalyticsBigQueryClient>();
@@ -33,6 +33,16 @@ export function guardedQueryOptions(options: Query): Query {
   });
 }
 
+export function guardedDryRunQueryOptions(options: Query): Query {
+  const queryStr = typeof options === 'string' ? options : (options.query || '');
+  const baseParams = typeof options === 'object' && options.params && !Array.isArray(options.params) ? options.params : {};
+  return readOnlyDryRunQueryOptions({
+    ...(typeof options === 'object' ? options : {}),
+    query: queryStr,
+    params: { ...baseParams, ...vendorScope().params },
+  });
+}
+
 /** Keep the SDK behind one scoped query boundary so older reporting modules receive the same vendor bindings. */
 export class AnalyticsBigQueryClient {
   constructor(private readonly bq: BigQuery) {}
@@ -46,11 +56,8 @@ export class AnalyticsBigQueryClient {
   }
 
   async dryRun(options: Query): Promise<{ totalBytesProcessed: number | null }> {
-    const guarded = guardedQueryOptions(options);
-    const [job] = await this.bq.createQueryJob({
-      ...guarded,
-      dryRun: true,
-    });
+    const guarded = guardedDryRunQueryOptions(options);
+    const [job] = await this.bq.createQueryJob(guarded);
     const metadata = job.metadata;
     const bytes = metadata?.statistics?.totalBytesProcessed;
     return {

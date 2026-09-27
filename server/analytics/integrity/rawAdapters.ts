@@ -226,15 +226,8 @@ export function extractRecordFromRawPayload(
     }
   }
 
-  // Fallback tenant resolution via comments or segment hints if present
-  if (!tenantId && payload.comments && typeof payload.comments === 'string') {
-    const comments = payload.comments.toLowerCase();
-    if (comments.includes('mtn')) tenantId = 'mtn';
-    else if (comments.includes('mondo')) tenantId = 'mondo';
-    else if (comments.includes('blc')) tenantId = 'ontact_blc';
-    else if (comments.includes('bizvoip') || comments.includes('vodacom')) tenantId = 'vodacom_bizvoip';
-  }
-
+  // Comments, source labels, phone numbers, and campaign guesses are rejected as ownership evidence.
+  // Unresolved records must fail closed into quarantine.
   if (!tenantId) {
     return {
       recordId: String(rawRow.unique_id || 'unknown'),
@@ -244,7 +237,7 @@ export function extractRecordFromRawPayload(
       eventTimestamp: rawRow.timestamp || null,
       fields: extractedFields,
       quarantineStatus: 'QUARANTINED',
-      quarantineReason: 'Unable to resolve tenant ownership; record quarantined to prevent cross-tenant exposure',
+      quarantineReason: 'Unable to resolve tenant ownership via approved payload mapping; record quarantined to prevent cross-tenant exposure',
     };
   }
 

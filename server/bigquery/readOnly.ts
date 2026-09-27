@@ -37,6 +37,12 @@ export function readOnlyQueryOptions(options: { query: string; params?: Record<s
   return result;
 }
 
+export function readOnlyDryRunQueryOptions(options: { query: string; params?: Record<string, any>; maximumBytesBilled?: string | number }, budget?: string) {
+  const result = readOnlyQueryOptions(options, budget);
+  result.dryRun = true;
+  return result;
+}
+
 /** Ignore quoted text/identifiers and comments when checking statement keywords.
  * This is a query boundary for application-generated SQL, not a replacement for IAM. */
 function queryTokens(sql: string): string[] {

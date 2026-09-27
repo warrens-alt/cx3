@@ -21,6 +21,8 @@ export interface RawSourceProfileResult {
     key: string;
     type: string;
     nullCount: number;
+    missingCount?: number;
+    explicitNullCount?: number;
     sampleValues?: string[];
   }>;
   jsonStructureFindings: {
@@ -31,6 +33,8 @@ export interface RawSourceProfileResult {
     detectedDynamicKeys: string[];
   };
   sampleRecordsAnalyzed: number;
+  samplingMethod?: string;
+  samplingLimitations?: string;
   status: 'PROFILED' | 'ERROR' | 'UNAUTHORIZED';
   error?: string;
   dependencies: string[];
