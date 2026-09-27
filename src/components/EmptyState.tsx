@@ -23,7 +23,11 @@ export function ErrorState({ title = 'Analysis Unavailable', message = 'The requ
       <h3 className="text-[16px] font-medium text-text-main mb-1">{title}</h3>
       <p className="text-[13px] text-text-sec max-w-sm mb-6">{message}</p>
       {onRetry && (
-        <button onClick={onRetry} className="px-4 py-2 bg-surface border border-border-strong rounded text-[13px] font-medium text-text-main hover:bg-surface-sec transition-colors shadow-sm">
+        <button
+          type="button"
+          onClick={onRetry}
+          className="px-4 py-2 bg-surface border border-border-strong rounded text-[13px] font-medium text-text-main hover:bg-surface-sec transition-colors shadow-sm whitespace-nowrap cursor-pointer"
+        >
           Retry Analysis
         </button>
       )}

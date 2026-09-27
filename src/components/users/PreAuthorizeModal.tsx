@@ -2,6 +2,7 @@ import React from 'react';
 import { X } from 'lucide-react';
 import type { UserRole } from '../../types/auth';
 import { AVAILABLE_TENANTS } from './userConstants';
+import { useDialogAccessibility } from '../../hooks/useDialogAccessibility';
 
 interface PreAuthorizeModalProps {
   isOpen: boolean;
@@ -28,11 +29,23 @@ export const PreAuthorizeModal: React.FC<PreAuthorizeModalProps> = ({
   submitting,
   onSubmit,
 }) => {
+  const dialogRef = useDialogAccessibility<HTMLDivElement>(Boolean(isOpen), onClose);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95">
+    <div
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+      onMouseDown={event => { if (event.currentTarget === event.target) onClose(); }}
+    >
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Pre-Authorize User"
+        className="bg-white rounded-lg max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95"
+      >
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h3 className="font-bold text-base text-slate-900">Pre-Authorize User</h3>
           <button

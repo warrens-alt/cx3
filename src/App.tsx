@@ -173,7 +173,7 @@ function Shell() {
                 <h1>{isChunkError ? 'App update available' : 'This page could not be displayed'}</h1>
                 <p>{isChunkError ? 'A newer version of ConversionX was deployed. Reloading will fetch the latest page.' : error?.message || 'Navigation is still available. Retry the page or return to Overview.'}</p>
                 <div>
-                  <button className="cx-button-primary" onClick={isChunkError ? () => window.location.reload() : resetErrorBoundary}>
+                  <button type="button" className="cx-button-primary" onClick={isChunkError ? () => window.location.reload() : resetErrorBoundary}>
                     {isChunkError ? 'Reload page' : 'Retry page'}
                   </button>
                   <Link className="cx-button-secondary" to="/">Overview</Link>
@@ -241,7 +241,7 @@ function Shell() {
       </main>
       <MobileBottomNav onOpenMenu={()=>setMobile(true)} menuOpen={mobile} />
     </div>
-    {command && <Suspense fallback={<Modal open label="Loading search" onClose={()=>setCommand(false)}><div className="p-6"><p role="status">Loading navigation…</p><button className="cx-button-secondary mt-4" onClick={()=>setCommand(false)}>Close</button></div></Modal>}><CommandPalette isOpen onClose={()=>setCommand(false)}/></Suspense>}
+    {command && <Suspense fallback={<Modal open label="Loading search" onClose={()=>setCommand(false)}><div className="p-6"><p role="status">Loading navigation…</p><button type="button" className="cx-button-secondary mt-4" onClick={()=>setCommand(false)}>Close</button></div></Modal>}><CommandPalette isOpen onClose={()=>setCommand(false)}/></Suspense>}
   </div>;
 }
 function LiveApp() {

@@ -2,6 +2,7 @@ import React from 'react';
 import { X } from 'lucide-react';
 import type { UserProfile } from '../../types/auth';
 import { AVAILABLE_TENANTS } from './userConstants';
+import { useDialogAccessibility } from '../../hooks/useDialogAccessibility';
 
 interface TenantScopeModalProps {
   user: UserProfile | null;
@@ -20,11 +21,23 @@ export const TenantScopeModal: React.FC<TenantScopeModalProps> = ({
   submitting,
   onSave,
 }) => {
+  const dialogRef = useDialogAccessibility<HTMLDivElement>(Boolean(user), onClose);
+
   if (!user) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+    <div
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+      onMouseDown={event => { if (event.currentTarget === event.target) onClose(); }}
+    >
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Manage Workspace Scopes for ${user.email}`}
+        className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95"
+      >
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div>
             <h3 className="font-bold text-base text-slate-900">Manage Workspace Scopes</h3>

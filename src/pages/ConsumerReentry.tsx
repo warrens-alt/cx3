@@ -195,8 +195,7 @@ export default function ConsumerReentry() {
                 <tbody className="divide-y divide-slate-100 font-mono text-xs">
                   {tiers.map((tier: any, idx: number) => (
                     <tr key={idx} className="hover:bg-slate-50/60">
-                      <td className="py-3 px-4 font-sans font-medium text-slate-900 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-[#3562B3]"></span>
+                      <td className="py-3 px-4 font-sans font-medium text-slate-900">
                         {tier.lead_tier}
                       </td>
                       <td className="py-3 px-4 text-right font-medium text-slate-900">{Number(tier.consumer_count || 0).toLocaleString()}</td>
@@ -296,8 +295,7 @@ export default function ConsumerReentry() {
                     const isFirst = seq.entry_stage === '1st Entry';
                     return (
                       <tr key={idx} className={isFirst ? 'bg-[#EDF5FC]/50 font-medium' : 'hover:bg-slate-50/60'}>
-                        <td className="py-3.5 px-4 font-sans font-semibold text-slate-900 flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${isFirst ? 'bg-[#3562B3]' : 'bg-slate-400'}`}></span>
+                        <td className="py-3.5 px-4 font-sans font-semibold text-slate-900">
                           {seq.entry_stage}
                         </td>
                         <td className="py-3.5 px-4 text-right font-medium text-slate-900">{Number(seq.leads || 0).toLocaleString()}</td>

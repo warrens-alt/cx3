@@ -68,7 +68,12 @@ export default function SuspendedView() {
           <div className="bg-slate-50 rounded-md p-3.5 border border-slate-200 text-left space-y-2.5 text-xs">
             <div className="flex items-center gap-3">
               {user?.photoURL ? (
-                <img src={user.photoURL} alt="" className="w-9 h-9 rounded-full ring-1 ring-slate-300 object-cover" />
+                <img
+                  src={user.photoURL}
+                  alt={`${user?.displayName || user?.email || 'User'} profile avatar`}
+                  referrerPolicy="no-referrer"
+                  className="w-9 h-9 rounded-full ring-1 ring-slate-300 object-cover"
+                />
               ) : (
                 <div className="w-9 h-9 rounded-full bg-slate-300 flex items-center justify-center text-slate-700 font-semibold text-xs">
                   {user?.displayName

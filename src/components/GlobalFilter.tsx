@@ -35,13 +35,13 @@ export default function GlobalFilter({ onOpenMobileMenu, onOpenCommandPalette }:
     </select></label>;
   return <header className="bg-white border-b p-4 space-y-3">
     <div className="flex flex-wrap items-end gap-3">
-      {onOpenMobileMenu && <button className="lg:hidden border rounded px-3 py-2" onClick={onOpenMobileMenu}>Menu</button>}
+      {onOpenMobileMenu && <button type="button" className="lg:hidden border rounded px-3 py-2 whitespace-nowrap cursor-pointer" onClick={onOpenMobileMenu}>Menu</button>}
       <label className="text-xs">Capture date from<input aria-label="Capture date from" type="date" className="block border rounded p-2" value={startDate} onChange={e => setDateRange(e.target.value, endDate)} /></label>
       <label className="text-xs">Capture date to<input aria-label="Capture date to" type="date" className="block border rounded p-2" value={endDate} onChange={e => setDateRange(startDate, e.target.value)} /></label>
-      <button className="border rounded px-3 py-2 text-xs" onClick={() => { const d = defaultDateRange(); setDateRange(d.start, d.end); }}>Last 30 days</button>
-      <button className="border rounded px-3 py-2 text-xs" disabled={refreshing} onClick={reload}>{refreshing ? 'Reloading…' : 'Reload results'}</button>
-      <button className="border rounded px-3 py-2 text-xs" onClick={clearFilters}>Clear filters</button>
-      {onOpenCommandPalette && <button className="border rounded px-3 py-2 text-xs" onClick={onOpenCommandPalette}>Find a page</button>}
+      <button type="button" className="border rounded px-3 py-2 text-xs whitespace-nowrap cursor-pointer" onClick={() => { const d = defaultDateRange(); setDateRange(d.start, d.end); }}>Last 30 days</button>
+      <button type="button" className="border rounded px-3 py-2 text-xs whitespace-nowrap cursor-pointer" disabled={refreshing} onClick={reload}>{refreshing ? 'Reloading…' : 'Reload results'}</button>
+      <button type="button" className="border rounded px-3 py-2 text-xs whitespace-nowrap cursor-pointer" onClick={clearFilters}>Clear filters</button>
+      {onOpenCommandPalette && <button type="button" className="border rounded px-3 py-2 text-xs whitespace-nowrap cursor-pointer" onClick={onOpenCommandPalette}>Find a page</button>}
     </div>
     <div className="grid sm:grid-cols-3 gap-3">{select('vendor', 'Attributed vendor', data.vendors || [])}{select('source', 'Lead source', data.sources || [])}{select('medium', 'Traffic medium', data.mediums || [])}</div>
     <details className="text-xs"><summary className="cursor-pointer">More filters ({Object.keys(filters).length} active)</summary><div className="grid sm:grid-cols-3 gap-3 mt-3">

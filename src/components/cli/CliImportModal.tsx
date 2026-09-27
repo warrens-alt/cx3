@@ -1,5 +1,6 @@
 import React from 'react';
 import { Upload, X, CheckCircle2, FileSpreadsheet, Sparkles } from 'lucide-react';
+import { useDialogAccessibility } from '../../hooks/useDialogAccessibility';
 
 interface CliImportModalProps {
   isOpen: boolean;
@@ -24,11 +25,23 @@ export const CliImportModal: React.FC<CliImportModalProps> = ({
   onFileUpload,
   onLoadSample,
 }) => {
+  const dialogRef = useDialogAccessibility<HTMLDivElement>(Boolean(isOpen && isAdmin), onClose);
+
   if (!isOpen || !isAdmin) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6 space-y-4 animate-scaleUp">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4"
+      onMouseDown={event => { if (event.currentTarget === event.target) onClose(); }}
+    >
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Import VICIdial CLI Report"
+        className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6 space-y-4 animate-scaleUp"
+      >
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
             <Upload size={18} className="text-[#3562B3]" />

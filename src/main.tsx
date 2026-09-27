@@ -38,8 +38,9 @@ function Fallback({ error, resetErrorBoundary }: any) {
             : (error?.message || 'An unexpected error occurred.')}
         </p>
         <button 
+          type="button"
           onClick={chunkError ? () => { if (!attemptChunkRecovery(0)) window.location.reload(); } : resetErrorBoundary}
-          className="bg-[#3562B3] text-white px-4 py-2 rounded-md font-medium hover:bg-[#294F95] transition-colors"
+          className="bg-[#3562B3] text-white px-4 py-2 rounded-md font-medium hover:bg-[#294F95] transition-colors whitespace-nowrap cursor-pointer"
         >
           {chunkError ? 'Reload Application' : 'Try Again'}
         </button>

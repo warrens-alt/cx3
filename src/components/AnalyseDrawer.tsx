@@ -53,7 +53,7 @@ export default function AnalyseDrawer({ isOpen, onClose, metric, metricLabel }: 
         <div className="p-6 border-b border-border bg-surface-sec flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs uppercase tracking-wider font-semibold text-teal px-2 py-0.5 rounded bg-teal/10">
+              <span className="text-xs uppercase tracking-wider font-semibold text-teal font-mono">
                 Contextual Analysis & Driver Decomposition
               </span>
             </div>
@@ -77,9 +77,10 @@ export default function AnalyseDrawer({ isOpen, onClose, metric, metricLabel }: 
           <span className="text-xs font-medium text-text-sec mr-2">Decompose By:</span>
           {(['source', 'vendor', 'routing_depth', 'medium'] as const).map(dim => (
             <button
+              type="button"
               key={dim}
               onClick={() => setActiveDimension(dim)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-t-lg transition-colors border-b-2 ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-t-lg transition-colors border-b-2 whitespace-nowrap cursor-pointer ${
                 activeDimension === dim
                   ? 'border-teal text-teal bg-teal/5'
                   : 'border-transparent text-text-sec hover:text-text-main'
@@ -160,18 +161,19 @@ export default function AnalyseDrawer({ isOpen, onClose, metric, metricLabel }: 
                             {isUp ? '+' : ''}{formatValue(r.change)}
                           </td>
                           <td className="text-right py-2.5 px-3">
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-semibold ${isUp ? 'bg-emerald-100 text-emerald-800' : isDown ? 'bg-red-100 text-red-800' : 'bg-slate-100 text-slate-700'}`}>
-                              {isUp ? <TrendingUp className="w-3.5 h-3.5" /> : isDown ? <TrendingDown className="w-3.5 h-3.5" /> : null}
+                            <span className={`inline-flex items-center justify-end gap-1 text-xs font-mono font-semibold tabular-nums ${isUp ? 'text-emerald-700' : isDown ? 'text-rose-700' : 'text-slate-600'}`}>
+                              {isUp ? <TrendingUp className="w-3.5 h-3.5 text-emerald-600" /> : isDown ? <TrendingDown className="w-3.5 h-3.5 text-rose-600" /> : null}
                               {r.pctChange > 0 ? '+' : ''}{r.pctChange}%
                             </span>
                           </td>
                           <td className="text-center py-2.5 px-3">
                             <button
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDrillSegment(r.segment);
                               }}
-                              className="text-xs text-teal hover:underline font-medium inline-flex items-center gap-1"
+                              className="text-xs text-teal hover:underline font-medium inline-flex items-center gap-1 cursor-pointer"
                             >
                               Audit <ArrowRight className="w-3 h-3" />
                             </button>
@@ -190,8 +192,9 @@ export default function AnalyseDrawer({ isOpen, onClose, metric, metricLabel }: 
         <div className="p-4 border-t border-border bg-surface-sec flex justify-between items-center">
           <span className="text-xs text-text-sec">Source: BigQuery vw_leads semantic layer</span>
           <button
+            type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-semibold rounded-lg transition-colors"
+            className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer"
           >
             Close Analysis
           </button>

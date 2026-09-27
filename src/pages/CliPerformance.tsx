@@ -20,7 +20,7 @@ import {
   Upload,
   AlertTriangle,
   CheckCircle2,
-  Sparkles,
+  Database,
   X,
 } from 'lucide-react';
 import { CliKpiStrip } from '../components/cli/CliKpiStrip';
@@ -371,9 +371,9 @@ export default function CliPerformance() {
                         type="button"
                         onClick={handleLoadSample}
                         disabled={uploading}
-                        className="cx-button-primary text-xs py-2 px-4 flex items-center gap-1.5"
+                        className="cx-button-primary text-xs py-2 px-4 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                       >
-                        <Sparkles size={14} />
+                        <Database size={14} />
                         <span>Load development sample</span>
                       </button>
                     )}

@@ -421,8 +421,8 @@ export default function UserManagement() {
           <Users className="w-4 h-4" />
           <span>User Directory ({usersList.length})</span>
           {pendingCount > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-white text-[10px]">
-              {pendingCount}
+            <span className="text-[11px] font-semibold text-amber-700 font-mono">
+              ({pendingCount} pending)
             </span>
           )}
         </button>
@@ -569,7 +569,8 @@ export default function UserManagement() {
                             {user.photoURL ? (
                               <img
                                 src={user.photoURL}
-                                alt=""
+                                alt={`${user.displayName || user.email} profile avatar`}
+                                referrerPolicy="no-referrer"
                                 className="w-8 h-8 rounded-full border border-slate-200 shrink-0"
                               />
                             ) : (
@@ -602,8 +603,8 @@ export default function UserManagement() {
                         {/* Role */}
                         <td className="px-4 py-3.5">
                           {isSuper ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800">
-                              <Shield className="w-3 h-3" />
+                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-purple-700 font-mono">
+                              <Shield className="w-3.5 h-3.5 text-purple-600" />
                               Admin
                             </span>
                           ) : (
@@ -624,20 +625,20 @@ export default function UserManagement() {
                         {/* Status */}
                         <td className="px-4 py-3.5">
                           {user.status === 'active' && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
+                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 font-mono">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
                               Active
                             </span>
                           )}
                           {user.status === 'pending' && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 animate-pulse">
-                              <Clock className="w-3 h-3" />
+                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 font-mono animate-pulse">
+                              <Clock className="w-3.5 h-3.5 text-amber-600" />
                               Pending Approval
                             </span>
                           )}
                           {user.status === 'suspended' && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-800">
-                              <UserX className="w-3 h-3" />
+                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-700 font-mono">
+                              <UserX className="w-3.5 h-3.5 text-rose-600" />
                               Suspended
                             </span>
                           )}

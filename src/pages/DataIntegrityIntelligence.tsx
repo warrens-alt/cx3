@@ -28,11 +28,16 @@ export default function DataIntegrityIntelligence() {
     const healthy = ['HEALTHY', 'OBSERVED'].includes(status);
     const warning = ['WARNING', 'MAPPING_REQUIRED', 'TIMESTAMP_CONTRACT_REQUIRED'].includes(status);
     const cls = healthy
-      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+      ? 'text-emerald-700'
       : warning
-        ? 'bg-amber-50 text-amber-800 border-amber-200'
-        : 'bg-slate-100 text-slate-700 border-slate-200';
-    return <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${cls}`}>{status}</span>;
+        ? 'text-amber-800'
+        : 'text-slate-700';
+    return (
+      <span className={`inline-flex items-center gap-1.5 text-xs font-semibold font-mono ${cls}`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${healthy ? 'bg-emerald-600' : warning ? 'bg-amber-600' : 'bg-slate-400'}`} aria-hidden="true" />
+        <span>{status}</span>
+      </span>
+    );
   };
 
   return (

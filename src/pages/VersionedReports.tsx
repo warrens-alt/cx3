@@ -43,8 +43,9 @@ export default function VersionedReports() {
           </div>
           <p className="text-sm">{(error as any)?.message || 'Failed to connect to reporting dataset'}</p>
           <button
+            type="button"
             onClick={() => refetch()}
-            className="cx-button-primary text-xs flex items-center gap-1.5"
+            className="cx-button-primary text-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
           >
             <RefreshCw className="w-3.5 h-3.5" /> Retry
           </button>
