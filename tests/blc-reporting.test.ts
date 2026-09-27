@@ -1,7 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { once } from 'node:events';
+import type { AddressInfo } from 'node:net';
+import express from 'express';
 import { BLC_SOURCES, BLC_SOURCE_IDS, formatBlcCount, isBlcSourceId } from '../contracts/blcReporting';
 import { buildBlcQuery, getBlcReport, validateBlcRequest } from '../server/blc/report';
+import { createBlcRouter } from '../server/blc/router';
+import { analyticsRouter } from '../server/api';
 import type { SourceAccess } from '../server/bigquery/sourceAccess';
 
 const scope = { clientId: 'ontact_blc', startDate: '2026-09-01', endDate: '2026-09-02', filters: {} };
@@ -125,4 +130,217 @@ test('Malformed or internally inconsistent results fail closed', async () => {
   assert.equal(result.status, 'UNAVAILABLE');
   assert.equal(result.summary, null);
   assert.equal(result.querySucceeded, false);
+});
+
+// Ephemeral HTTP test harness for route tests
+async function withBlcHttp(
+  options: {
+    principal?: { subject: string; role: string; tenants: string[] } | null;
+    access?: SourceAccess;
+  },
+  work: (baseUrl: string) => Promise<void>
+) {
+  const app = express();
+  app.use((_req, res, next) => {
+    if (options.principal !== null) {
+      res.locals.principal = options.principal !== undefined
+        ? options.principal
+        : { subject: 'test-admin', role: 'admin', tenants: ['ontact_blc', 'default_tenant'] };
+    }
+    next();
+  });
+  const accessProvider = () => options.access || fixture('journey');
+  app.use('/api/analytics', analyticsRouter, createBlcRouter(accessProvider));
+  app.use((error: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    res.status(error.status || 500).json({ success: false, error: error.message });
+  });
+  const server = app.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  try {
+    const port = (server.address() as AddressInfo).port;
+    await work(`http://127.0.0.1:${port}/api/analytics/blc`);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close(error => (error ? reject(error) : resolve())));
+  }
+}
+
+test('Route test: Catalogue returns recorded source definitions with readOnly flag', async () => {
+  await withBlcHttp({}, async baseUrl => {
+    const res = await fetch(`${baseUrl}/catalogue`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.success, true);
+    assert.equal(body.data.readOnly, true);
+    assert.equal(body.data.sources.length, 5);
+  });
+});
+
+test('Route test: Missing authentication rejects with 401', async () => {
+  await withBlcHttp({ principal: null }, async baseUrl => {
+    const res = await fetch(`${baseUrl}/report?clientId=ontact_blc&sourceId=journey&startDate=2026-09-01&endDate=2026-09-02`);
+    assert.equal(res.status, 401);
+    const body = await res.json();
+    assert.equal(body.success, false);
+    assert.match(body.error, /Authentication required/);
+  });
+});
+
+test('Route test: Wrong tenant rejects with 403', async () => {
+  // Principal without ontact_blc workspace
+  await withBlcHttp({ principal: { subject: 'other-user', role: 'viewer', tenants: ['mtn'] } }, async baseUrl => {
+    const res = await fetch(`${baseUrl}/report?clientId=mtn&sourceId=journey&startDate=2026-09-01&endDate=2026-09-02`);
+    assert.equal(res.status, 403);
+    const body = await res.json();
+    assert.equal(body.success, false);
+  });
+});
+
+test('Route test: Viewer vs Admin evidence handling', async () => {
+  // Viewer: query evidence is redacted (null)
+  await withBlcHttp(
+    { principal: { subject: 'viewer-user', role: 'viewer', tenants: ['ontact_blc'] } },
+    async baseUrl => {
+      const res = await fetch(`${baseUrl}/report?clientId=ontact_blc&sourceId=journey&startDate=2026-09-01&endDate=2026-09-02`);
+      assert.equal(res.status, 200);
+      const body = await res.json();
+      assert.equal(body.success, true);
+      assert.equal(body.data.queryEvidence, null);
+    }
+  );
+
+  // Admin: query evidence is provided
+  await withBlcHttp(
+    { principal: { subject: 'admin-user', role: 'admin', tenants: ['ontact_blc'] } },
+    async baseUrl => {
+      const res = await fetch(`${baseUrl}/report?clientId=ontact_blc&sourceId=journey&startDate=2026-09-01&endDate=2026-09-02`);
+      assert.equal(res.status, 200);
+      const body = await res.json();
+      assert.equal(body.success, true);
+      assert.notEqual(body.data.queryEvidence, null);
+      assert.equal(body.data.queryEvidence.jobId, 'synthetic-test-job');
+    }
+  );
+});
+
+test('Route test: Unsupported filters reject with 422', async () => {
+  await withBlcHttp({}, async baseUrl => {
+    // Unsupported 'grade' filter on journey
+    const res1 = await fetch(
+      `${baseUrl}/report?clientId=ontact_blc&sourceId=journey&startDate=2026-09-01&endDate=2026-09-02&filters=${encodeURIComponent(
+        JSON.stringify({ grade: { operator: 'equals', value: 'Gold' } })
+      )}`
+    );
+    assert.equal(res1.status, 422);
+    const body1 = await res1.json();
+    assert.match(body1.error, /cannot apply the grade filter/);
+
+    // Unsupported 'source' filter on remoteActivations
+    const res2 = await fetch(
+      `${baseUrl}/report?clientId=ontact_blc&sourceId=remoteActivations&startDate=2026-09-01&endDate=2026-09-02&filters=${encodeURIComponent(
+        JSON.stringify({ source: { operator: 'equals', value: 'Web' } })
+      )}`
+    );
+    assert.equal(res2.status, 422);
+    const body2 = await res2.json();
+    assert.match(body2.error, /cannot apply the source filter/);
+  });
+});
+
+test('Route test: Schema drift reports SCHEMA_MISMATCH and skips data query', async () => {
+  let executedQuery = false;
+  const driftingAccess: SourceAccess = {
+    metadata: async () => ({
+      type: 'VIEW',
+      schema: { fields: [{ name: 'fetched', type: 'STRING' }] }, // missing lead_id etc.
+    }),
+    listTables: async () => { throw new Error('Forbidden'); },
+    execute: async () => {
+      executedQuery = true;
+      throw new Error('Must not execute');
+    },
+  };
+
+  await withBlcHttp({ access: driftingAccess }, async baseUrl => {
+    const res = await fetch(`${baseUrl}/report?clientId=ontact_blc&sourceId=journey&startDate=2026-09-01&endDate=2026-09-02`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.data.status, 'SCHEMA_MISMATCH');
+    assert.equal(body.data.querySucceeded, false);
+    assert.equal(body.data.summary, null);
+    assert.ok(body.data.missingFields.includes('lead_id'));
+    assert.equal(executedQuery, false);
+  });
+});
+
+test('Route test: Query failures return safe sanitized status without leaking SQL', async () => {
+  const failingAccess: SourceAccess = {
+    metadata: async () => {
+      throw Object.assign(new Error('Sensitive database permission error: table select denied at secret_internal_db'), { code: 403 });
+    },
+    listTables: async () => { throw new Error('Forbidden'); },
+    execute: async () => { throw new Error('Must not execute'); },
+  };
+
+  await withBlcHttp({ access: failingAccess }, async baseUrl => {
+    const res = await fetch(`${baseUrl}/report?clientId=ontact_blc&sourceId=journey&startDate=2026-09-01&endDate=2026-09-02`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.data.status, 'ACCESS_DENIED');
+    assert.equal(body.data.querySucceeded, false);
+    assert.equal(body.data.summary, null);
+    assert.equal(JSON.stringify(body).includes('secret_internal_db'), false);
+  });
+});
+
+test('Route test: Truly empty results return EMPTY status and 0 counts', async () => {
+  await withBlcHttp({ access: fixture('journey', true) }, async baseUrl => {
+    const res = await fetch(`${baseUrl}/report?clientId=ontact_blc&sourceId=journey&startDate=2026-09-01&endDate=2026-09-02`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.data.status, 'EMPTY');
+    assert.equal(body.data.querySucceeded, true);
+    assert.equal(body.data.summary.sourceRows, '0');
+    assert.match(body.data.message, /returned no dated rows/);
+  });
+});
+
+test('Route test: Malformed response counts fail closed with UNAVAILABLE', async () => {
+  const brokenAccess = fixture('journey');
+  const origExecute = brokenAccess.execute;
+  brokenAccess.execute = async opts => {
+    const res = await origExecute(opts);
+    res.rows[0].daily[0].source_rows = '9999'; // doesn't match total source_rows
+    return res;
+  };
+
+  await withBlcHttp({ access: brokenAccess }, async baseUrl => {
+    const res = await fetch(`${baseUrl}/report?clientId=ontact_blc&sourceId=journey&startDate=2026-09-01&endDate=2026-09-02`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.data.status, 'UNAVAILABLE');
+    assert.equal(body.data.querySucceeded, false);
+    assert.equal(body.data.summary, null);
+  });
+});
+
+test('Route test: No cross-source fallback occurs on source failure', async () => {
+  const accessedTables: string[] = [];
+  const isolatedAccess: SourceAccess = {
+    metadata: async table => {
+      accessedTables.push(table);
+      throw Object.assign(new Error('Permission denied on source'), { code: 403 });
+    },
+    listTables: async () => { throw new Error('Forbidden'); },
+    execute: async () => { throw new Error('Should not reach execute'); },
+  };
+
+  await withBlcHttp({ access: isolatedAccess }, async baseUrl => {
+    const res = await fetch(`${baseUrl}/report?clientId=ontact_blc&sourceId=activationRegister&startDate=2026-09-01&endDate=2026-09-02`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.data.status, 'ACCESS_DENIED');
+    // Only the requested source table was accessed, no fallback to journey or any other table
+    assert.deepEqual(accessedTables, [BLC_SOURCES.activationRegister.table]);
+  });
 });

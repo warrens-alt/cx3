@@ -64,6 +64,8 @@
 | Method | Path | Declared in |
 | --- | --- | --- |
 | GET | `/api/analytics/acquisition` | `server/bigquery/sourceRouter.ts` |
+| GET | `/api/analytics/blc/catalogue` | `server/blc/router.ts` |
+| GET | `/api/analytics/blc/report` | `server/blc/router.ts` |
 | GET | `/api/analytics/call-performance` | `server/api.ts reports registry` |
 | GET | `/api/analytics/calls` | `server/api.ts reports registry` |
 | GET | `/api/analytics/cli-performance` | `server/api.ts` |

@@ -7,6 +7,7 @@ const apiSource = read('server/api.ts');
 const vettingSource = read('server/vetting/router.ts');
 const sourceRouterSource = read('server/bigquery/sourceRouter.ts');
 const reportingSource = read('server/reporting/router.ts');
+const blcSource = read('server/blc/router.ts');
 
 function routeTarget(element: string) {
   const nav = element.match(/<(?:Navigate|ScopePreservingRedirect)\s+to="([^"]+)"/);
@@ -40,6 +41,7 @@ function buildApiRoutes() {
     ...directRoutes(vettingSource, 'router', '/api/analytics', 'server/vetting/router.ts'),
     ...directRoutes(sourceRouterSource, 'router', '/api/analytics', 'server/bigquery/sourceRouter.ts'),
     ...directRoutes(reportingSource, 'router', '/api/reporting', 'server/reporting/router.ts'),
+    ...directRoutes(blcSource, 'router', '/api/analytics', 'server/blc/router.ts'),
   ];
 
   const reportsBlock = apiSource.match(/const reports:[\s\S]*?=\s*\[([\s\S]*?)\n\];/);
