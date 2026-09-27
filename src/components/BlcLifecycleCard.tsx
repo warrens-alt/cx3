@@ -1,11 +1,11 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, type To } from 'react-router-dom';
 import type { BlcLifecycleDiagnostics } from '../../contracts/blcLifecycle';
 import { formatBlcCount } from '../../contracts/blcReporting';
 
 interface Props {
   source: { detail?: string; table?: string | null; lifecycle?: BlcLifecycleDiagnostics };
-  reportHref: string;
+  reportHref: To;
 }
 const label = (value: string) => value.replaceAll('_', ' ').toLowerCase();
 const timestamp = (value: string | null) => value ? value.replace('T', ' ').replace('Z', ' UTC') : 'Unavailable';
