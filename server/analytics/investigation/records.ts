@@ -10,6 +10,17 @@ import { METRIC_REGISTRY_VERSION } from '../../../contracts/metricRegistry';
 import { normalizeOperationalParams } from '../../offernetScope';
 import type { OffernetQueryParams } from '../common/types';
 
+const LIFECYCLE_SEGMENT_DIMENSIONS = ['vendor', 'source', 'grade'] as const;
+type LifecycleSegmentDimension = typeof LIFECYCLE_SEGMENT_DIMENSIONS[number];
+
+function isLifecycleSegmentDimension(dimension: string): dimension is LifecycleSegmentDimension {
+  return (LIFECYCLE_SEGMENT_DIMENSIONS as readonly string[]).includes(dimension);
+}
+
+function lifecycleSegmentPredicate(dimension: LifecycleSegmentDimension): string {
+  return `COALESCE(NULLIF(TRIM(m.${dimension}), ''), 'Unrecorded') = @lifecycleSegmentValue`;
+}
+
 export async function getRawLeads(params: OffernetQueryParams) {
   const { params: normalizedParams, effectiveFilters, filterValues } = normalizeOperationalParams(params, '/offernet/raw-leads');
   const clientConfig = getClientConfig(normalizedParams.clientId);
@@ -96,17 +107,12 @@ export async function getRawLeads(params: OffernetQueryParams) {
         if (colonIndex === -1) throw new RequestError('Invalid lifecycle segment drill value format', 422);
         const dimension = value.slice(0, colonIndex).trim().toLowerCase();
         const segmentValue = value.slice(colonIndex + 1).trim();
-        if (!['vendor', 'source', 'grade'].includes(dimension)) {
+        if (!isLifecycleSegmentDimension(dimension)) {
           throw new RequestError(`Unsupported lifecycle segment dimension: ${dimension}`, 422);
         }
         if (!segmentValue) throw new RequestError('Missing lifecycle segment value', 422);
-        const expr = `COALESCE(NULLIF(TRIM(m.${dimension}), ''), 'Unrecorded')`;
-        if (segmentValue.toLowerCase() === 'unrecorded') {
-          condition = `${expr} = 'Unrecorded'`;
-        } else {
-          queryParams.lifecycleSegmentValue = segmentValue;
-          condition = `LOWER(${expr}) = LOWER(@lifecycleSegmentValue)`;
-        }
+        queryParams.lifecycleSegmentValue = segmentValue;
+        condition = lifecycleSegmentPredicate(dimension);
         break;
       }
       case 'lifecycle-vendor':
@@ -114,14 +120,12 @@ export async function getRawLeads(params: OffernetQueryParams) {
       case 'lifecycle-grade': {
         const dimension = normalizedParams.drill.replace('lifecycle-', '');
         const segmentValue = value.trim();
-        if (!segmentValue) throw new RequestError('Missing lifecycle segment value', 422);
-        const expr = `COALESCE(NULLIF(TRIM(m.${dimension}), ''), 'Unrecorded')`;
-        if (segmentValue.toLowerCase() === 'unrecorded') {
-          condition = `${expr} = 'Unrecorded'`;
-        } else {
-          queryParams.lifecycleSegmentValue = segmentValue;
-          condition = `LOWER(${expr}) = LOWER(@lifecycleSegmentValue)`;
+        if (!isLifecycleSegmentDimension(dimension)) {
+          throw new RequestError(`Unsupported lifecycle segment dimension: ${dimension}`, 422);
         }
+        if (!segmentValue) throw new RequestError('Missing lifecycle segment value', 422);
+        queryParams.lifecycleSegmentValue = segmentValue;
+        condition = lifecycleSegmentPredicate(dimension);
         break;
       }
       default: throw new RequestError('Unsupported drill-down population', 422);

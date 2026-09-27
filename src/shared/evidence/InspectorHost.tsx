@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { X, ExternalLink, ShieldCheck, Info, FileText, ArrowRight } from 'lucide-react';
 import { useDialogAccessibility } from '../../hooks/useDialogAccessibility';
 import { AUTHORITATIVE_METRICS, type AuthoritativeMetricDefinition } from '../../../contracts/metricRegistry';
@@ -67,8 +67,7 @@ interface InspectorHostProps {
 }
 
 export default function InspectorHost({ open, onClose, content }: InspectorHostProps) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useDialogAccessibility(open, onClose);
+  const dialogRef = useDialogAccessibility<HTMLDivElement>(open, onClose);
   const { isAdmin } = useAuth();
   const location = useLocation();
   const scopedTarget = useScopedNavigationTarget();
@@ -101,12 +100,17 @@ export default function InspectorHost({ open, onClose, content }: InspectorHostP
   return (
     <div
       className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-xs transition-opacity"
-      aria-modal="true"
-      role="dialog"
-      aria-labelledby="inspector-title"
+      role="presentation"
+      onMouseDown={event => {
+        if (event.target === event.currentTarget) onClose();
+      }}
     >
       <div
         ref={dialogRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="inspector-title"
         className="w-full max-w-xl h-full bg-surface border-l border-border-default shadow-drawer flex flex-col overflow-y-auto animate-in slide-in-from-right duration-200"
       >
         {/* Header */}

@@ -259,6 +259,7 @@ test('all custom analysis drawers use focus-managed dialog semantics', () => {
     'src/components/MetricLineageDrawer.tsx',
     'src/components/RootCauseDrawer.tsx',
     'src/components/MarketingRootCauseDrawer.tsx',
+    'src/shared/evidence/InspectorHost.tsx',
   ]) {
     const source = read(path);
     assert.match(source, /useDialogAccessibility/);
@@ -707,6 +708,17 @@ test('R2 closeout: LeadExplorerIntelligence supports lifecycle-segment drill and
   const explorer = read('src/pages/LeadExplorerIntelligence.tsx');
   assert.match(explorer, /'lifecycle-segment':\s*'Lifecycle segment population'/);
   assert.match(explorer, /Lifecycle segment \(\$\{dimLabel\}\):\s*\$\{val\}/);
+});
+
+test('R2 targeted fixes: InspectorHost binds dialogRef to useDialogAccessibility with dialog semantics and backdrop dismiss', () => {
+  const inspector = read('src/shared/evidence/InspectorHost.tsx');
+  assert.match(inspector, /const dialogRef = useDialogAccessibility<HTMLDivElement>\(open,\s*onClose\);/);
+  assert.match(inspector, /ref=\{dialogRef\}/);
+  assert.match(inspector, /tabIndex=\{-1\}/);
+  assert.match(inspector, /role="dialog"/);
+  assert.match(inspector, /aria-modal="true"/);
+  assert.match(inspector, /aria-labelledby="inspector-title"/);
+  assert.match(inspector, /onMouseDown=\{event\s*=>\s*\{\s*if\s*\(event\.target\s*===\s*event\.currentTarget\)\s*onClose\(\);\s*\}\}/);
 });
 
 
