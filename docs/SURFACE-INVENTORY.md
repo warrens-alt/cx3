@@ -14,7 +14,7 @@
 | `/cli-performance` | CliPerformance |
 | `/vendor-quality` | VendorLeadQuality |
 | `/temporal` | TemporalIntelligence |
-| `/sales-activation` | SalesActivationIntelligence |
+| `/sales-activation` | SalesActivationPage |
 | `/commercial` | CommercialIntelligence |
 | `/data-integrity` | DataIntegrityIntelligence |
 | `/agent-performance` | AgentPerformanceIntelligence |

@@ -81,9 +81,25 @@ export async function createApp() {
   return app;
 }
 
+export function resolvePort(): number {
+  const argv = process.argv;
+  const portIndex = argv.indexOf('--port');
+  if (portIndex !== -1 && argv[portIndex + 1]) {
+    const p = Number(argv[portIndex + 1]);
+    if (!isNaN(p) && p > 0) return p;
+  }
+  const envPort = Number(process.env.PORT);
+  // Port 8080 is reserved for the Nginx proxy/bridge in AI Studio container environments.
+  // The Node application must listen on port 3000 (proxied by Nginx).
+  if (envPort && envPort !== 8080 && envPort > 0) {
+    return envPort;
+  }
+  return 3000;
+}
+
 export async function startServer() {
   const app = await createApp();
-  const port = Math.min(Math.max(Number(process.env.PORT) || 3000, 1), 65535);
+  const port = resolvePort();
   return new Promise<express.Application>((resolve, reject) => {
     const server = app.listen(port, '0.0.0.0', () => {
       console.log(`ConversionX listening on ${port}`);
@@ -102,25 +118,8 @@ const entryFileHref = process.argv[1] ? pathToFileURL(path.resolve(process.argv[
 const isMain = currentFileHref === entryFileHref;
 
 if (isMain) {
-  const isTsFile = currentFileHref.endsWith('.ts');
-  const bundlePath = fs.existsSync(path.join(process.cwd(), 'dist', 'server.mjs'))
-    ? path.join(process.cwd(), 'dist', 'server.mjs')
-    : path.join(process.cwd(), 'dist', 'server', 'server.mjs');
-
-  if (isTsFile && fs.existsSync(bundlePath) && !process.env.TSX_ACTIVE) {
-    const bundleUrl = pathToFileURL(bundlePath).href;
-    const serverModule = await import(/* @vite-ignore */ bundleUrl);
-    if (typeof serverModule.startServer === 'function') {
-      await serverModule.startServer();
-    } else if (typeof serverModule.createApp === 'function') {
-      const app = await serverModule.createApp();
-      const port = Math.min(Math.max(Number(process.env.PORT) || 3000, 1), 65535);
-      app.listen(port, '0.0.0.0', () => console.log(`ConversionX listening on ${port}`));
-    }
-  } else {
-    startServer().catch((error) => {
-      console.error('Server startup failed:', error);
-      process.exitCode = 1;
-    });
-  }
+  startServer().catch((error) => {
+    console.error('Server startup failed:', error);
+    process.exitCode = 1;
+  });
 }

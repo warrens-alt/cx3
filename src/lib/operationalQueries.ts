@@ -3,6 +3,7 @@ const VIEW_RESOURCES: Record<string, string> = {
   FunnelIntelligence: 'funnel', SpeedToLeadIntelligence: 'speed-to-lead',
   ContactStrategyIntelligence: 'contact-strategy', VendorLeadQuality: 'vendor-quality',
   TemporalIntelligence: 'temporal', SalesActivationIntelligence: 'sales-activation',
+  SalesActivationPage: 'sales-activation',
   CommercialIntelligence: 'commercial', DataIntegrityIntelligence: 'data-integrity',
   AgentPerformanceIntelligence: 'agent-performance', CampaignIntelligence: 'campaigns',
 };

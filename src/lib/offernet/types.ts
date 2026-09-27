@@ -438,13 +438,16 @@ export interface SalesActivationData {
   reconciliation: {
     totalSales: number;
     billableSales: number;
+    salesWithRecordedRevenue?: number;
     unbilledSales: number;
+    unrecordedRevenueSales?: number;
     totalActivations: number;
     activationRate: number | null;
     realizedRevenue: number | null;
-    unrecordedRevenueSales?: number;
     avgTimeToSale: string;
     avgTimeToActivation: string;
+    medianTimeToSale?: string;
+    medianTimeToActivation?: string;
   };
   maturationCurve: Array<{
     day: string;
@@ -454,11 +457,49 @@ export interface SalesActivationData {
   maturationStatus: string;
   maturationReason: string;
   byVendor: Array<{
+    dimension?: string;
+    segment?: string;
     vendor: string;
     sales: number;
     activations: number;
-    revenue: number;
+    revenue: number | null;
+    unrecorded_revenue_sales?: number;
   }>;
+  bySource?: Array<{
+    dimension: string;
+    segment: string;
+    sales: number;
+    activations: number;
+    revenue: number | null;
+    unrecorded_revenue_sales?: number;
+  }>;
+  byGrade?: Array<{
+    dimension: string;
+    segment: string;
+    sales: number;
+    activations: number;
+    revenue: number | null;
+    unrecorded_revenue_sales?: number;
+  }>;
+  activationAgeing?: Array<{
+    bucket: string;
+    sales: number;
+  }>;
+  revenueEvidence?: string;
+  segmentMethodology?: string;
+  clientId?: string;
+  clientName?: string;
+  currency?: string;
+  timezone?: string;
+  generatedAt?: string;
+  metadata?: {
+    clientId?: string;
+    clientName?: string;
+    currency?: string;
+    timezone?: string;
+    generatedAt?: string;
+    dateBasis?: string;
+  };
 }
 
 export interface CommercialData {

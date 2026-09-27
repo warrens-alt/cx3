@@ -31,6 +31,7 @@ export const SpeedToLeadIntelligence = React.lazy(() => safeImport(() => import(
 export const ContactStrategyIntelligence = React.lazy(() => safeImport(() => import('../pages/ContactStrategyIntelligence')));
 export const VendorLeadQuality = React.lazy(() => safeImport(() => import('../pages/VendorLeadQuality')));
 export const TemporalIntelligence = React.lazy(() => safeImport(() => import('../pages/TemporalIntelligence')));
+export const SalesActivationPage = React.lazy(() => safeImport(() => import('../features/sales/SalesActivationPage')));
 export const SalesActivationIntelligence = React.lazy(() => safeImport(() => import('../pages/SalesActivationIntelligence')));
 export const CommercialIntelligence = React.lazy(() => safeImport(() => import('../pages/CommercialIntelligence')));
 export const DataIntegrityIntelligence = React.lazy(() => safeImport(() => import('../pages/DataIntegrityIntelligence')));
@@ -124,7 +125,7 @@ export default function AppRouter() {
           <Route path="/cli-performance" element={<CliPerformance key={selectedClient} />} />
           <Route path="/vendor-quality" element={<VendorLeadQuality key={selectedClient} />} />
           <Route path="/temporal" element={<TemporalIntelligence key={selectedClient} />} />
-          <Route path="/sales-activation" element={<SalesActivationIntelligence key={selectedClient} />} />
+          <Route path="/sales-activation" element={<SalesActivationPage key={selectedClient} />} />
           <Route path="/commercial" element={<CommercialIntelligence key={selectedClient} />} />
           <Route path="/data-integrity" element={<DataIntegrityIntelligence key={selectedClient} />} />
           <Route path="/agent-performance" element={<AgentPerformanceIntelligence key={selectedClient} />} />
