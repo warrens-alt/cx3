@@ -89,7 +89,7 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     scopePolicy: 'operational',
     isPrimaryTab: true,
     searchTerms: ['workspace', 'dashboard', 'weekly review', 'why is conversion down'],
-    urlAliases: ['/'],
+    urlAliases: ['/', '/insights'],
     legacySection: 'overview',
   },
 
@@ -195,7 +195,7 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     scopePolicy: 'operational',
     isPrimaryTab: true,
     searchTerms: ['dispositions', 'vendor dispositions', 'attempts', 'retry', 'redial', 'recycling', 'one call', 'contact performance'],
-    urlAliases: ['/calls', '/call-performance'],
+    urlAliases: ['/calls', '/call-performance', '/vendor-dispositions'],
     legacySection: 'contact',
   },
   {

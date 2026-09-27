@@ -150,7 +150,7 @@ function OperationalScopeBar({
   showGradeFilter = true,
   className = '',
 }: ReportingScopeBarProps) {
-  const { clients, selectedClient, setSelectedClient, loading: clientLoading } = useClient();
+  const { clients, selectedClient } = useClient();
   const {
     startDate,
     endDate,
@@ -340,25 +340,6 @@ function OperationalScopeBar({
         </button>
 
         <div className="cx-scope-editable" id={controlsId}>
-          <label className="cx-scope-control cx-scope-client">
-            <span>Client</span>
-            <select
-              value={selectedClient}
-              onChange={event => {
-                setStoredDraft(null);
-                setSelectedClient(event.target.value);
-              }}
-              aria-label="Client"
-              disabled={clientLoading || !clients.length}
-            >
-              {clients.map(client => (
-                <option key={client.id} value={client.id}>
-                  {client.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
           <label className="cx-scope-control cx-scope-period">
             <span>Period</span>
             <div className="cx-scope-control-icon">

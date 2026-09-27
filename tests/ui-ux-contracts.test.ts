@@ -127,7 +127,11 @@ test('duplicate legacy routes redirect to maintained product surfaces', () => {
     ['/audit', '/data-integrity'],
   ];
   for (const [from, to] of redirects) {
-    assert.ok(app.includes(`path="${from}" element={<Navigate to="${to}" replace />}`), `missing redirect ${from} -> ${to}`);
+    assert.ok(
+      app.includes(`path="${from}" element={<ScopePreservingRedirect to="${to}" replace />}`) ||
+      app.includes(`path="${from}" element={<Navigate to="${to}" replace />}`),
+      `missing redirect ${from} -> ${to}`
+    );
   }
 });
 
@@ -501,3 +505,116 @@ test('visual analytics styling is isolated and unreferenced legacy stylesheets s
     assert.equal(fs.existsSync(path), false, `unused legacy stylesheet returned: ${path}`);
   }
 });
+
+test('ScopePreservingRedirect preserves scope, client, dates, and vendor across legacy aliases', async () => {
+  const { buildPreservedDestination } = await import('../src/app/navigation/ScopePreservingRedirect');
+
+  // Concrete regression example from user specification:
+  // /calls?clientId=<authorised-fixture-client>&startDate=2026-09-01&endDate=2026-09-15&vendor=V1
+  // must reach /contact-strategy with the same effective client, dates and vendor
+  const callDestination = buildPreservedDestination(
+    '/contact-strategy',
+    '?clientId=test-client&startDate=2026-09-01&endDate=2026-09-15&vendor=V1'
+  );
+  assert.equal(
+    callDestination,
+    '/contact-strategy?clientId=test-client&startDate=2026-09-01&endDate=2026-09-15&vendor=V1'
+  );
+
+  // /acquisition -> /campaigns
+  const acqDestination = buildPreservedDestination(
+    '/campaigns',
+    '?clientId=test-client&startDate=2026-08-01&endDate=2026-08-31&campaign=CMP1'
+  );
+  assert.equal(
+    acqDestination,
+    '/campaigns?clientId=test-client&startDate=2026-08-01&endDate=2026-08-31&campaign=CMP1'
+  );
+});
+
+test('ScopePreservingRedirect preserves repeated parameters without silent last-value sanitization', async () => {
+  const { buildPreservedDestination } = await import('../src/app/navigation/ScopePreservingRedirect');
+
+  const destination = buildPreservedDestination(
+    '/contact-strategy',
+    '?clientId=c1&clientId=c2&vendor=V1&vendor=V2'
+  );
+  const params = new URLSearchParams(destination.split('?')[1]);
+  assert.deepEqual(params.getAll('vendor'), ['V1', 'V2']);
+  assert.deepEqual(params.getAll('clientId'), ['c1', 'c2']);
+});
+
+test('ScopePreservingRedirect preserves explore-local state for /leads and /explore', async () => {
+  const { buildPreservedDestination } = await import('../src/app/navigation/ScopePreservingRedirect');
+
+  const destination = buildPreservedDestination(
+    '/lead-explorer',
+    '?clientId=tenant&search=smith&drill=source&drillValue=v1&page=2&pageSize=50'
+  );
+  assert.equal(
+    destination,
+    '/lead-explorer?clientId=tenant&search=smith&drill=source&drillValue=v1&page=2&pageSize=50'
+  );
+
+  // Transient explore params must not leak into unrelated report families
+  const nonExplore = buildPreservedDestination(
+    '/sales-activation',
+    '?clientId=tenant&search=smith&drill=source&drillValue=v1&page=2'
+  );
+  assert.equal(nonExplore, '/sales-activation?clientId=tenant');
+});
+
+test('ScopePreservingRedirect forces vendor dispositions tab while preserving mode, group and global scope', async () => {
+  const { buildPreservedDestination } = await import('../src/app/navigation/ScopePreservingRedirect');
+
+  const destination = buildPreservedDestination(
+    '/contact-strategy?tab=vendor_dispositions',
+    '?clientId=tenant&startDate=2026-09-01&endDate=2026-09-15&vendor=V1&mode=call_records&group=CONTACTED_RPC'
+  );
+  assert.equal(
+    destination,
+    '/contact-strategy?clientId=tenant&startDate=2026-09-01&endDate=2026-09-15&vendor=V1&mode=call_records&group=CONTACTED_RPC&tab=vendor_dispositions'
+  );
+  const params = new URLSearchParams(destination.split('?')[1]);
+  assert.equal(params.get('tab'), 'vendor_dispositions');
+  assert.equal(params.get('mode'), 'call_records');
+  assert.equal(params.get('group'), 'CONTACTED_RPC');
+  assert.equal(params.get('vendor'), 'V1');
+  assert.equal(params.get('clientId'), 'tenant');
+});
+
+test('ScopePreservingRedirect isolates fixed release scope for /reports', async () => {
+  const { buildPreservedDestination } = await import('../src/app/navigation/ScopePreservingRedirect');
+
+  const destination = buildPreservedDestination(
+    '/reports',
+    '?clientId=tenant&release=v1.0.0&startDate=2026-09-01&endDate=2026-09-15&vendor=V1'
+  );
+  assert.equal(destination, '/reports?clientId=tenant&release=v1.0.0');
+});
+
+test('ScopePreservingRedirect rejects external redirect targets', async () => {
+  const { buildPreservedDestination } = await import('../src/app/navigation/ScopePreservingRedirect');
+
+  assert.equal(buildPreservedDestination('//evil.com', '?clientId=tenant'), '/overview');
+  assert.equal(buildPreservedDestination('https://evil.com', '?clientId=tenant'), '/overview');
+  assert.equal(buildPreservedDestination('javascript:alert(1)', '?clientId=tenant'), '/overview');
+});
+
+test('AppShell is the sole client switcher owner and ReportingScopeBar renders no competing interactive dropdown', () => {
+  const shell = read('src/app/layouts/AppShell.tsx');
+  const scopeBar = read('src/shared/reporting/ReportingScopeBar.tsx');
+
+  assert.match(shell, /aria-label="Active client"/);
+  assert.match(shell, /cx-workspace-select/);
+  assert.doesNotMatch(scopeBar, /<select[^>]*aria-label="Client"/);
+});
+
+test('duplicate section navigation is removed and does not compete with AppShell area navigation', () => {
+  const header = read('src/components/OperationalPageHeader.tsx');
+  const sectionNav = read('src/components/SectionNavigation.tsx');
+
+  assert.doesNotMatch(header, /SectionNavigation/);
+  assert.match(sectionNav, /return null/);
+});
+

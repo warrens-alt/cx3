@@ -148,26 +148,26 @@ export default function AppRouter() {
           <Route path="/validation" element={<AdminValidation />} />
 
           {/* EXPLICIT URL ALIASES & COMPATIBILITY REDIRECTS */}
-          <Route path="/insights" element={<Navigate to="/overview" replace />} />
-          <Route path="/explore" element={<Navigate to="/lead-explorer" replace />} />
-          <Route path="/acquisition" element={<Navigate to="/campaigns" replace />} />
-          <Route path="/lead-performance" element={<Navigate to="/funnel" replace />} />
-          <Route path="/call-performance" element={<Navigate to="/contact-strategy" replace />} />
-          <Route path="/outcomes" element={<Navigate to="/sales-activation" replace />} />
-          <Route path="/sources" element={<Navigate to="/vendor-quality" replace />} />
-          <Route path="/quality" element={<Navigate to="/vendor-quality" replace />} />
-          <Route path="/revetting" element={<Navigate to="/vetting" replace />} />
-          <Route path="/data-trust" element={<Navigate to="/data-integrity" replace />} />
-          <Route path="/data-quality" element={<Navigate to="/data-integrity" replace />} />
-          <Route path="/data-coverage" element={<Navigate to="/data-integrity" replace />} />
-          <Route path="/audit" element={<Navigate to="/data-integrity" replace />} />
-          <Route path="/explorer" element={<Navigate to="/lead-explorer" replace />} />
-          <Route path="/settings" element={<Navigate to="/admin" replace />} />
-          <Route path="/calls" element={<Navigate to="/contact-strategy" replace />} />
-          <Route path="/leads" element={<Navigate to="/lead-explorer" replace />} />
-          <Route path="/deal-flow" element={<Navigate to="/offershop-flow" replace />} />
-          <Route path="/process-flow" element={<Navigate to="/offershop-flow" replace />} />
-          <Route path="/platform-insights" element={<Navigate to="/campaigns" replace />} />
+          <Route path="/insights" element={<ScopePreservingRedirect to="/overview" replace />} />
+          <Route path="/explore" element={<ScopePreservingRedirect to="/lead-explorer" replace />} />
+          <Route path="/acquisition" element={<ScopePreservingRedirect to="/campaigns" replace />} />
+          <Route path="/lead-performance" element={<ScopePreservingRedirect to="/funnel" replace />} />
+          <Route path="/call-performance" element={<ScopePreservingRedirect to="/contact-strategy" replace />} />
+          <Route path="/outcomes" element={<ScopePreservingRedirect to="/sales-activation" replace />} />
+          <Route path="/sources" element={<ScopePreservingRedirect to="/vendor-quality" replace />} />
+          <Route path="/quality" element={<ScopePreservingRedirect to="/vendor-quality" replace />} />
+          <Route path="/revetting" element={<ScopePreservingRedirect to="/vetting" replace />} />
+          <Route path="/data-trust" element={<ScopePreservingRedirect to="/data-integrity" replace />} />
+          <Route path="/data-quality" element={<ScopePreservingRedirect to="/data-integrity" replace />} />
+          <Route path="/data-coverage" element={<ScopePreservingRedirect to="/data-integrity" replace />} />
+          <Route path="/audit" element={<ScopePreservingRedirect to="/data-integrity" replace />} />
+          <Route path="/explorer" element={<ScopePreservingRedirect to="/lead-explorer" replace />} />
+          <Route path="/settings" element={<ScopePreservingRedirect to="/admin" replace />} />
+          <Route path="/calls" element={<ScopePreservingRedirect to="/contact-strategy" replace />} />
+          <Route path="/leads" element={<ScopePreservingRedirect to="/lead-explorer" replace />} />
+          <Route path="/deal-flow" element={<ScopePreservingRedirect to="/offershop-flow" replace />} />
+          <Route path="/process-flow" element={<ScopePreservingRedirect to="/offershop-flow" replace />} />
+          <Route path="/platform-insights" element={<ScopePreservingRedirect to="/campaigns" replace />} />
 
           {/* 404 NOT FOUND */}
           <Route

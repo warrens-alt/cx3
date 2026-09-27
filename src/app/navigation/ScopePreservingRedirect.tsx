@@ -1,14 +1,17 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 
-interface ScopePreservingRedirectProps {
+export interface ScopePreservingRedirectProps {
   to: string;
   extraParams?: Record<string, string>;
   replace?: boolean;
 }
 
-const UNIVERSAL_SCOPE_PARAMS = new Set([
+// Universal operational reporting parameters:
+// clientId, workspace, date bounds, structured filters object, and scalar dimension filters.
+export const UNIVERSAL_SCOPE_PARAMS = new Set([
   'clientId',
+  'workspace',
   'startDate',
   'endDate',
   'filters',
@@ -23,6 +26,144 @@ const UNIVERSAL_SCOPE_PARAMS = new Set([
   'agent',
 ]);
 
+// Explore / Lead drill down parameters (compatible report-local state)
+export const EXPLORE_REPORT_PARAMS = new Set([
+  'search',
+  'drill',
+  'drillValue',
+  'page',
+  'pageSize',
+  'leadId',
+]);
+
+// Vendor dispositions local parameters
+export const DISPOSITION_REPORT_PARAMS = new Set([
+  'mode',
+  'group',
+]);
+
+// Fixed release scope parameters for /reports and /vendors
+export const RELEASE_SCOPE_PARAMS = new Set([
+  'clientId',
+  'workspace',
+  'release',
+  'snapshot',
+  'reportId',
+  'manifest',
+  'version',
+]);
+
+// Settings / Admin parameters
+export const SETTINGS_SCOPE_PARAMS = new Set([
+  'clientId',
+  'workspace',
+]);
+
+/**
+ * Returns the set of parameter keys allowed to be carried over to the given destination.
+ * Uses explicit destination policies rather than substring heuristics.
+ */
+export function getAllowedParamsForTarget(targetPath: string, targetQuery?: string): Set<string> {
+  // 1. Fixed evidence release reports
+  if (targetPath === '/reports' || targetPath === '/vendors') {
+    return RELEASE_SCOPE_PARAMS;
+  }
+
+  // 2. Settings / Access control / Visual workspace
+  if (targetPath === '/admin' || targetPath === '/access-control' || targetPath === '/visuals') {
+    return SETTINGS_SCOPE_PARAMS;
+  }
+
+  // 3. Lead Explorer (inspecting exact lead records and drilldowns)
+  if (targetPath === '/lead-explorer') {
+    return new Set([...UNIVERSAL_SCOPE_PARAMS, ...EXPLORE_REPORT_PARAMS]);
+  }
+
+  // 4. Contact strategy with vendor dispositions tab
+  if (targetPath === '/contact-strategy') {
+    const isVendorDispositions = targetQuery
+      ? new URLSearchParams(targetQuery).get('tab') === 'vendor_dispositions'
+      : false;
+    if (isVendorDispositions) {
+      return new Set([...UNIVERSAL_SCOPE_PARAMS, ...DISPOSITION_REPORT_PARAMS, 'tab']);
+    }
+    return UNIVERSAL_SCOPE_PARAMS;
+  }
+
+  // 5. Default operational reporting surfaces
+  return UNIVERSAL_SCOPE_PARAMS;
+}
+
+/**
+ * Builds the canonical destination URL with preserved analytical scope.
+ * Pure function that handles:
+ * - Rejecting external redirect targets
+ * - Preserving repeated parameters without silent last-value sanitization
+ * - Explicit destination policies for local vs global scope
+ * - Applying destination query and extraParams overrides atomically
+ */
+export function buildPreservedDestination(
+  to: string,
+  sourceSearch: string,
+  extraParams?: Record<string, string>
+): string {
+  const [rawTarget, targetQuery] = to.split('?');
+
+  // Prevent external redirect targets or scheme-relative URLs
+  if (
+    !rawTarget.startsWith('/') ||
+    rawTarget.startsWith('//') ||
+    /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(rawTarget)
+  ) {
+    return '/overview';
+  }
+
+  const targetPath = rawTarget;
+  const sourceParams = new URLSearchParams(sourceSearch);
+  const nextParams = new URLSearchParams();
+
+  const allowedParams = getAllowedParamsForTarget(targetPath, targetQuery);
+
+  // Preserve allowed parameters from source, including repeated parameters
+  const seenKeys = new Set<string>();
+  for (const key of sourceParams.keys()) {
+    if (seenKeys.has(key)) continue;
+    seenKeys.add(key);
+
+    if (allowedParams.has(key)) {
+      const values = sourceParams.getAll(key);
+      for (const val of values) {
+        nextParams.append(key, val);
+      }
+    }
+  }
+
+  // Explicit destination query overrides (e.g. tab=vendor_dispositions)
+  if (targetQuery) {
+    const targetParams = new URLSearchParams(targetQuery);
+    const seenTargetKeys = new Set<string>();
+    for (const key of targetParams.keys()) {
+      if (seenTargetKeys.has(key)) continue;
+      seenTargetKeys.add(key);
+      nextParams.delete(key);
+      for (const val of targetParams.getAll(key)) {
+        nextParams.append(key, val);
+      }
+    }
+  }
+
+  // Explicit extraParams overrides
+  if (extraParams) {
+    for (const [key, val] of Object.entries(extraParams)) {
+      nextParams.delete(key);
+      nextParams.append(key, val);
+    }
+  }
+
+  const searchStr = nextParams.toString() ? `?${nextParams.toString()}` : '';
+  return `${targetPath}${searchStr}`;
+}
+
 /**
  * Redirects to a canonical URL while preserving compatible analytical context
  * (clientId, reporting dates, structured filters, dimension parameters)
@@ -34,43 +175,7 @@ export default function ScopePreservingRedirect({
   replace = true,
 }: ScopePreservingRedirectProps) {
   const location = useLocation();
-
-  const [targetPath, targetQuery] = to.split('?');
-  const sourceParams = new URLSearchParams(location.search);
-  const nextParams = new URLSearchParams();
-
-  // 1. Copy universal reporting scope parameters from source
-  sourceParams.forEach((val, key) => {
-    if (UNIVERSAL_SCOPE_PARAMS.has(key)) {
-      nextParams.set(key, val);
-    }
-  });
-
-  // 2. Preserve search / pagination / drill context when landing on explore destinations
-  if (targetPath.includes('explore') || targetPath.includes('lead')) {
-    ['search', 'drill', 'drillValue', 'page', 'pageSize'].forEach(key => {
-      const val = sourceParams.get(key);
-      if (val) nextParams.set(key, val);
-    });
-  }
-
-  // 3. Atomically apply explicit destination query overrides
-  if (targetQuery) {
-    const targetParams = new URLSearchParams(targetQuery);
-    targetParams.forEach((val, key) => {
-      nextParams.set(key, val);
-    });
-  }
-
-  // 4. Apply explicit extraParams overrides
-  if (extraParams) {
-    Object.entries(extraParams).forEach(([key, val]) => {
-      nextParams.set(key, val);
-    });
-  }
-
-  const searchStr = nextParams.toString() ? `?${nextParams.toString()}` : '';
-  const finalDestination = `${targetPath}${searchStr}`;
-
-  return <Navigate to={finalDestination} replace={replace} />;
+  const destination = buildPreservedDestination(to, location.search, extraParams);
+  return <Navigate to={destination} replace={replace} />;
 }
+

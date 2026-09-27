@@ -26,7 +26,22 @@ export function navigationTarget(target: string, currentPath: string, search: st
 
   if (targetPath !== '/reports' && currentPath !== '/reports') {
     if (targetQuery !== undefined) {
-      return { pathname: targetPath, search: targetParams.toString() ? '?' + targetParams.toString() : '' };
+      const merged = new URLSearchParams();
+      const currentParams = new URLSearchParams(search || '');
+      const seen = new Set<string>();
+      for (const key of currentParams.keys()) {
+        if (seen.has(key)) continue;
+        seen.add(key);
+        if (!targetParams.has(key)) {
+          for (const val of currentParams.getAll(key)) {
+            merged.append(key, val);
+          }
+        }
+      }
+      for (const [k, v] of targetParams.entries()) {
+        merged.append(k, v);
+      }
+      return { pathname: targetPath, search: merged.toString() ? '?' + merged.toString() : '' };
     }
     return { pathname: targetPath, search: search || '' };
   }
