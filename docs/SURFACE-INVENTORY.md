@@ -21,6 +21,8 @@
 | `/campaigns` | CampaignIntelligence |
 | `/ai-insights` | AiOperationalInsights |
 | `/lead-explorer` | LeadExplorerIntelligence |
+| `/warehouse` | WarehouseAnalytics |
+| `/warehouse-analytics` | WarehouseAnalytics |
 | `/reports` | VersionedReports |
 | `/vendors` | VendorPerformance |
 | `/exceptions` | Exceptions |
@@ -80,6 +82,8 @@
 | GET | `/api/analytics/export` | `server/api.ts` |
 | GET | `/api/analytics/filter-options` | `server/api.ts reports registry` |
 | GET | `/api/analytics/funnel` | `server/api.ts reports registry` |
+| POST | `/api/analytics/google/ask` | `server/api.ts` |
+| GET | `/api/analytics/google/status` | `server/api.ts` |
 | GET | `/api/analytics/health` | `server/api.ts` |
 | GET | `/api/analytics/hlc-coverage` | `server/api.ts reports registry` |
 | GET | `/api/analytics/insights` | `server/api.ts dynamic analytics` |
@@ -131,6 +135,8 @@
 | GET | `/api/analytics/validation` | `server/api.ts` |
 | GET | `/api/analytics/vendor-coverage` | `server/api.ts reports registry` |
 | GET | `/api/analytics/vetting` | `server/vetting/router.ts` |
+| GET | `/api/analytics/warehouse/overview` | `server/api.ts` |
+| GET | `/api/analytics/warehouse/tables` | `server/api.ts` |
 | GET | `/api/health` | `server.ts` |
 | POST | `/api/reporting/` | `server/reporting/router.ts` |
 | GET | `/api/reporting/catalogue` | `server/reporting/router.ts` |

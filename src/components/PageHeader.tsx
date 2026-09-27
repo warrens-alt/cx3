@@ -34,21 +34,21 @@ export default function PageHeader({
             <span>{category}</span>
           </div>
         )}
-        <h1 className="text-page-title text-slate-900 tracking-tight" style={{ textWrap: 'balance' }}>
+        <h1 className="text-page-title text-slate-900 dark:text-slate-100 tracking-tight" style={{ textWrap: 'balance' }}>
           {displayTitle}
         </h1>
-        {desc && <p className="text-slate-600 text-xs sm:text-[13px] leading-relaxed mt-1 max-w-3xl">{desc}</p>}
+        {desc && <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-[13px] leading-relaxed mt-1 max-w-3xl">{desc}</p>}
         {badge && (
-          <div className="flex items-center gap-2 mt-2 text-xs text-slate-500 font-mono">
-            <span className="text-blue-700 font-semibold">{badge}</span>
+          <div className="flex items-center gap-2 mt-2 text-xs text-slate-500 dark:text-slate-400 font-mono">
+            <span className="text-blue-700 dark:text-blue-400 font-semibold">{badge}</span>
           </div>
         )}
         {badges && badges.length > 0 && (
-          <div className="flex items-center gap-2.5 mt-2.5 text-xs text-slate-500 font-mono flex-wrap">
+          <div className="flex items-center gap-2.5 mt-2.5 text-xs text-slate-500 dark:text-slate-400 font-mono flex-wrap">
             {badges.map((b, idx) => (
               <React.Fragment key={idx}>
-                {idx > 0 && <span className="text-slate-300" aria-hidden="true">·</span>}
-                <span className={b.variant === 'success' ? 'text-emerald-700 font-semibold' : 'text-slate-700 font-medium'}>
+                {idx > 0 && <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">·</span>}
+                <span className={b.variant === 'success' ? 'text-emerald-700 dark:text-emerald-400 font-semibold' : 'text-slate-700 dark:text-slate-300 font-medium'}>
                   {b.label}
                 </span>
               </React.Fragment>

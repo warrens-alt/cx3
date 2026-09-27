@@ -13,7 +13,7 @@ import { exportData } from './bigquery/export';
 import { validateScope, validateFilters, scalarString, boundedInteger, RequestError, type QueryScope } from './bigquery/filters';
 import { withAnalyticsScope } from './analyticsContext';
 import { requireTenant } from './securityPolicy';
-import { requireAdmin } from './security';
+import { requireAdmin, configuredAuthMode } from './security';
 import { cacheResponse } from './cacheMiddleware';
 import { MODEL_VERSION } from './bigquery/integrity';
 import { serverQueryCache } from './cache';
@@ -22,6 +22,8 @@ import { operationalFilterValues } from './offernetScope';
 import { operationalMetadata } from './analytics/common/lineage';
 import { redactReportRecords } from './analytics/common/reportAccess';
 import { analyticsRequestTenant } from './requestTenant';
+import { checkGeminiHealth, askGeminiAnalytics } from './gemini/client';
+import fs from 'node:fs';
 import {
   getCliPerformance,
   parseAndValidateCliCsv,
@@ -363,6 +365,97 @@ analyticsRouter.post('/explain', asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await offernetAnalytics.getAiInsightsAnalytics(params);
   res.json({ success: true, data });
+}));
+
+analyticsRouter.get('/google/status', asyncRoute(async (_req, res) => {
+  const client = getClientConfig(res.locals.scope.clientId);
+  const table = client.semanticMappings.tables.leads.split('.');
+  const [bqHealth, geminiHealth] = await Promise.all([
+    checkBigQueryHealth(table[0], table[1], table[2]),
+    checkGeminiHealth(),
+  ]);
+  const authMode = configuredAuthMode();
+  let oAuthClientId = '';
+  try {
+    const raw = fs.readFileSync('firebase-applet-config.json', 'utf8');
+    const cfg = JSON.parse(raw);
+    oAuthClientId = cfg.oAuthClientId || '';
+  } catch {
+    // optional
+  }
+  res.json({
+    success: true,
+    data: {
+      timestamp: new Date().toISOString(),
+      workspace: client.name,
+      clientId: client.id,
+      bigquery: bqHealth,
+      gemini: geminiHealth,
+      identity: {
+        authMode,
+        oAuthClientId,
+        provider: 'Google Identity Services (OAuth 2.0 / IAP)',
+        authenticatedPrincipal: res.locals.principal?.email || res.locals.principal?.subject || 'authenticated',
+      },
+    },
+  });
+}));
+
+analyticsRouter.post('/google/ask', asyncRoute(async (req, res) => {
+  const question = scalarString(req.body?.question, 'question', 1000);
+  if (!question) {
+    throw new RequestError('question is required as a non-empty string', 400);
+  }
+  const params = buildOffernetQueryParams(req, res);
+  const client = getClientConfig(params.clientId);
+  const [queue, change, warehouse] = await Promise.all([
+    offernetAnalytics.getExceptionAnalytics(params),
+    params.startDate && params.endDate ? offernetAnalytics.getRootCauseAnalysis({ ...params, metric: 'leadToSaleRate' }) : Promise.resolve(null),
+    offernetAnalytics.getWarehouseCrossDatasetAnalytics(params.clientId).catch(() => null),
+  ]);
+  const context = {
+    clientName: client.name,
+    currency: client.currency,
+    currentWindow: change ? change.currentWindow : (params.startDate && params.endDate ? { startDate: params.startDate, endDate: params.endDate } : undefined),
+    previousWindow: change ? change.previousWindow : undefined,
+    warehouse: warehouse ? {
+      totalProjects: warehouse.kpis.totalProjects,
+      totalDatasets: warehouse.kpis.totalDatasets,
+      totalWarehouseObjects: warehouse.kpis.totalWarehouseObjects,
+      datasetsTracked: warehouse.kpis.datasetsTracked,
+      waterfallTimelines: warehouse.waterfallSummary.timelines.length,
+      touchpointSources: warehouse.touchpointsSummary.sources.length,
+    } : undefined,
+    exceptions: queue.exceptions.filter(e => e.count > 0).map(e => ({
+      id: e.id,
+      title: e.title,
+      count: e.count,
+      severity: e.severity,
+      detail: e.detail,
+    })),
+    drivers: change?.dimensions.flatMap(d => d.segments.slice(0, 3).map(s => ({
+      dimension: d.label,
+      name: s.name,
+      delta: s.delta,
+      contribution: s.contribution || undefined,
+    }))),
+  };
+  const result = await askGeminiAnalytics(question, context);
+  res.json({ success: true, data: result });
+}));
+
+// WAREHOUSE PROJECTS, DATASETS & TABLES ANALYTICS ENDPOINTS
+analyticsRouter.get('/warehouse/overview', cacheResponse(60), asyncRoute(async (_req, res) => {
+  const data = await offernetAnalytics.getWarehouseCrossDatasetAnalytics(res.locals.scope.clientId);
+  res.json({ success: true, data });
+}));
+
+analyticsRouter.get('/warehouse/tables', cacheResponse(60), asyncRoute(async (req, res) => {
+  const query = scalarString(req.query.search, 'search', 100);
+  const dataset = scalarString(req.query.dataset, 'dataset', 100);
+  const family = scalarString(req.query.family, 'family', 100);
+  const data = offernetAnalytics.searchWarehouseTables(query, dataset, family);
+  res.json({ success: true, data, count: data.length });
 }));
 
 // DEDICATED CLI PERFORMANCE / DIALLER INTELLIGENCE ENDPOINTS

@@ -21,22 +21,28 @@ export async function getMarketingSourceDiscovery(params: Pick<OffernetQueryPara
   const resolved = await resolveMarketingContract(client, contract);
   const clientNameField = safeWarehouseColumn(contract.clientNameField);
   const dateField = safeWarehouseColumn(contract.dateField);
-  const [nameRows] = resolved.missingRequired.includes(contract.clientNameField)
-    ? [[]]
-    : await client.query({
+  let nameRows: any[] = [];
+  if (!resolved.missingRequired.includes(contract.clientNameField) && !resolved.missingRequired.includes(contract.dateField)) {
+    try {
+      const [rows] = await client.query({
         query: `
           SELECT
             CAST(${clientNameField} AS STRING) AS client_name,
-            COUNT(*) AS rows,
+            COUNT(*) AS row_count,
             MIN(DATE(${dateField})) AS earliest_date,
             MAX(DATE(${dateField})) AS latest_date
           FROM \`${contract.table}\`
           WHERE ${clientNameField} IS NOT NULL
           GROUP BY 1
-          ORDER BY rows DESC
+          ORDER BY row_count DESC
           LIMIT 200
         `,
       });
+      nameRows = rows || [];
+    } catch {
+      nameRows = [];
+    }
+  }
 
   return {
     status: resolved.missingRequired.length ? 'INVALID_CONTRACT' : contract.mappingStatus,
@@ -72,7 +78,7 @@ export async function getMarketingSourceDiscovery(params: Pick<OffernetQueryPara
     },
     availableClientNames: nameRows.map((row: any) => ({
       value: row.client_name,
-      rows: Number(row.rows || 0),
+      rows: Number(row.row_count ?? row.rows ?? 0),
       earliestDate: row.earliest_date?.value || row.earliest_date || null,
       latestDate: row.latest_date?.value || row.latest_date || null,
     })),

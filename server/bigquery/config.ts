@@ -1,6 +1,9 @@
 import { RequestError } from './filters';
 import { CALL_SOURCE_FIELDS, MARKETING_SOURCE_FIELDS, OFFERNET_SOURCE_TABLES, TIME_TO_DIAL_SOURCE_FIELDS } from '../../contracts/physicalSources';
 
+export const ALL_GOOGLE_PROJECTS = ['dashboards-422710', 'vibe-code-warren-stear'] as const;
+export const ALL_BIGQUERY_DATASETS = ['lead_ledger', 'watfall_report', 'vibe_coding_data', 'analytics_warehouse'] as const;
+
 export interface ClientOperationalConfig {
   operatingHours: { start: string; end: string; workdays: number[] };
   grading: string[];
@@ -178,7 +181,7 @@ const TENANTS: Record<string, TenantConfiguration> = {
     currency: 'ZAR',
     timezone: 'Africa/Johannesburg',
     bigQueryProject: 'dashboards-422710',
-    bigQueryDatasets: ['lead_ledger'],
+    bigQueryDatasets: ['lead_ledger', 'watfall_report', 'vibe_coding_data', 'analytics_warehouse'],
     dataSourceMode: 'separate',
     capabilities: { marketing: true, leads: true, calls: true, sales: true, activation: true, revenue: true },
     semanticMappings: {
@@ -212,7 +215,7 @@ const TENANTS: Record<string, TenantConfiguration> = {
     currency: 'ZAR',
     timezone: 'Africa/Johannesburg',
     bigQueryProject: 'dashboards-422710',
-    bigQueryDatasets: ['lead_ledger'],
+    bigQueryDatasets: ['lead_ledger', 'watfall_report', 'vibe_coding_data'],
     dataSourceMode: 'separate',
     capabilities: { marketing: true, leads: true, calls: true, sales: true, activation: true, revenue: true },
     semanticMappings: { tables: tenantTables(CONTRACT_LEAD_VIEWS.mondo), fields: {}, partners: ['mondo'] },
@@ -226,7 +229,7 @@ const TENANTS: Record<string, TenantConfiguration> = {
     currency: 'ZAR',
     timezone: 'Africa/Johannesburg',
     bigQueryProject: 'dashboards-422710',
-    bigQueryDatasets: ['lead_ledger'],
+    bigQueryDatasets: ['lead_ledger', 'watfall_report', 'vibe_coding_data'],
     dataSourceMode: 'separate',
     capabilities: { marketing: true, leads: true, calls: true, sales: true, activation: true, revenue: true },
     semanticMappings: { tables: tenantTables(CONTRACT_LEAD_VIEWS.mtn), fields: {}, partners: ['mtn'] },
@@ -240,7 +243,7 @@ const TENANTS: Record<string, TenantConfiguration> = {
     currency: 'ZAR',
     timezone: 'Africa/Johannesburg',
     bigQueryProject: 'dashboards-422710',
-    bigQueryDatasets: ['lead_ledger'],
+    bigQueryDatasets: ['lead_ledger', 'watfall_report', 'vibe_coding_data'],
     dataSourceMode: 'separate',
     capabilities: { marketing: true, leads: true, calls: true, sales: true, activation: true, revenue: true },
     semanticMappings: { tables: tenantTables(CONTRACT_LEAD_VIEWS.ontact_blc, true), fields: {}, partners: ['blc'] },
@@ -258,7 +261,7 @@ const TENANTS: Record<string, TenantConfiguration> = {
     currency: 'ZAR',
     timezone: 'Africa/Johannesburg',
     bigQueryProject: 'dashboards-422710',
-    bigQueryDatasets: ['lead_ledger'],
+    bigQueryDatasets: ['lead_ledger', 'watfall_report', 'vibe_coding_data'],
     dataSourceMode: 'separate',
     capabilities: { marketing: true, leads: true, calls: true, sales: true, activation: true, revenue: true },
     semanticMappings: { tables: tenantTables(CONTRACT_LEAD_VIEWS.vodacom_bizvoip), fields: {}, partners: ['bizvoip'] },
@@ -276,7 +279,7 @@ const TENANTS: Record<string, TenantConfiguration> = {
     currency: 'ZAR',
     timezone: 'Africa/Johannesburg',
     bigQueryProject: 'dashboards-422710',
-    bigQueryDatasets: ['lead_ledger'],
+    bigQueryDatasets: ['lead_ledger', 'watfall_report', 'vibe_coding_data'],
     dataSourceMode: 'separate',
     capabilities: { marketing: true, leads: true, calls: true, sales: true, activation: true, revenue: true },
     semanticMappings: { tables: tenantTables(CONTRACT_LEAD_VIEWS.real_promotions), fields: {}, partners: ['realpromotions'] },
@@ -290,7 +293,7 @@ const TENANTS: Record<string, TenantConfiguration> = {
     currency: 'ZAR',
     timezone: 'Africa/Johannesburg',
     bigQueryProject: 'dashboards-422710',
-    bigQueryDatasets: ['lead_ledger'],
+    bigQueryDatasets: ['lead_ledger', 'watfall_report', 'vibe_coding_data'],
     dataSourceMode: 'separate',
     capabilities: { marketing: true, leads: true, calls: true, sales: true, activation: true, revenue: true },
     semanticMappings: { tables: tenantTables(CONTRACT_LEAD_VIEWS.rewardsco), fields: {}, partners: ['rewardsco'] },
@@ -307,7 +310,7 @@ const TENANTS: Record<string, TenantConfiguration> = {
     currency: 'ZAR',
     timezone: 'Africa/Johannesburg',
     bigQueryProject: 'dashboards-422710',
-    bigQueryDatasets: ['lead_ledger'],
+    bigQueryDatasets: ['lead_ledger', 'watfall_report', 'vibe_coding_data'],
     dataSourceMode: 'separate',
     capabilities: { marketing: true, leads: true, calls: true, sales: true, activation: true, revenue: true },
     semanticMappings: { tables: tenantTables(CONTRACT_LEAD_VIEWS.oneplan), fields: {}, partners: ['oneplan_pet', 'oneplan_medical'] },
@@ -324,7 +327,7 @@ const TENANTS: Record<string, TenantConfiguration> = {
     currency: 'ZAR',
     timezone: 'Africa/Johannesburg',
     bigQueryProject: 'dashboards-422710',
-    bigQueryDatasets: ['lead_ledger'],
+    bigQueryDatasets: ['lead_ledger', 'watfall_report', 'vibe_coding_data'],
     dataSourceMode: 'separate',
     capabilities: { marketing: false, leads: true, calls: true, sales: true, activation: true, revenue: true },
     semanticMappings: { tables: tenantTables(CONTRACT_LEAD_VIEWS.affiliate), fields: {}, partners: ['affiliate'] },

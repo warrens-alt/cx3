@@ -1,4 +1,5 @@
 import { getMarketingRootCauseAnalysis } from '../server/analytics/investigation/marketingRootCause';
+import { getMarketingSourceDiscovery } from '../server/analytics/commercial/discovery';
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { commercialRatio, reconcileSpend } from '../contracts/commercial';
@@ -389,4 +390,11 @@ test('single-snapshot attribution still rejects partial, missing, inconsistent a
   delete overrides.marketing_grain; overrides.total_spend = 150;
   result = await getMarketingAttributionAnalytics(scope);
   assert.equal(result.status, 'NOT_VERIFIED'); assert.equal(result.economics!.spendPerFetchedLead, null);
+});
+
+test('marketing discovery SQL executes cleanly without reserved keyword rows error', async () => {
+  const result = await getMarketingSourceDiscovery({ clientId: 'default_tenant' });
+  assert.ok(result);
+  assert.equal(result.status, 'MASTER');
+  assert.ok(Array.isArray(result.availableClientNames));
 });

@@ -1,6 +1,7 @@
 import './styles/reportBrowsing.css';
 import './styles/operations.css';
 import './styles/navigation.css';
+import './styles/theme.css';
 import React, { Suspense, useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, Link } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
@@ -19,6 +20,8 @@ import { PageSkeleton } from './components/Skeleton';
 import { useDevice } from './hooks/useDevice';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import AuthGate from './components/AuthGate';
+import { ThemeProvider } from './lib/ThemeContext';
+import ThemeToggle from './components/ThemeToggle';
 import { isChunkLoadError, attemptChunkRecovery } from './lib/chunkRecovery';
 
 function safeImport<T>(loader: () => Promise<T>): Promise<T> {
@@ -61,6 +64,7 @@ const Exceptions = React.lazy(() => safeImport(() => import('./pages/Exceptions'
 const CommercialReconciliation = React.lazy(() => safeImport(() => import('./pages/CommercialReconciliation')));
 const DemoWorkspace = React.lazy(() => safeImport(() => import('./pages/DemoWorkspace')));
 const LeadLedger = React.lazy(() => safeImport(() => import('./pages/LeadLedger')));
+const WarehouseAnalytics = React.lazy(() => safeImport(() => import('./pages/WarehouseAnalytics')));
 
 
 function Shell() {
@@ -109,6 +113,7 @@ function Shell() {
         <div className="cx-topbar-actions">
           <button type="button" className="cx-search-trigger" aria-label="Search pages" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title={`Find a page (${searchShortcut})`} onClick={openSearch}><Search size={16} aria-hidden="true"/><span>Find a page</span><kbd aria-hidden="true">{searchShortcut}</kbd></button>
           <button type="button" className="cx-icon-button cx-density-toggle hidden sm:inline-flex" aria-label={density==='comfortable'?'Use compact table spacing':'Use comfortable table spacing'} title={`Table spacing: ${density}. Switch to ${density==='comfortable'?'compact':'comfortable'}.`} aria-pressed={density==='compact'} onClick={toggleDensity}><Columns3 size={18} aria-hidden="true"/><span>Spacing: {density==='comfortable'?'Comfortable':'Compact'}</span></button>
+          <ThemeToggle />
           {!isOperationalPage && (
             <label className="cx-workspace-select">
               <span className="hidden sm:inline">Client</span>
@@ -173,6 +178,8 @@ function Shell() {
               <Route path="/lead-explorer" element={<LeadExplorerIntelligence key={selectedClient} />} />
 
               {/* WAREHOUSE EVIDENCE & AUDIT REPORTS */}
+              <Route path="/warehouse" element={<WarehouseAnalytics key={selectedClient} />} />
+              <Route path="/warehouse-analytics" element={<WarehouseAnalytics key={selectedClient} />} />
               <Route path="/reports" element={<VersionedReports key={selectedClient} />} />
               <Route path="/vendors" element={<VendorPerformance key={selectedClient} />} />
               <Route path="/exceptions" element={<Exceptions key={selectedClient} />} />
@@ -218,15 +225,17 @@ function Shell() {
 function LiveApp() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AuthGate>
-          <ClientProvider>
-            <FilterProvider>
-              <Shell />
-            </FilterProvider>
-          </ClientProvider>
-        </AuthGate>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <AuthGate>
+            <ClientProvider>
+              <FilterProvider>
+                <Shell />
+              </FilterProvider>
+            </ClientProvider>
+          </AuthGate>
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }
@@ -234,6 +243,12 @@ function LiveApp() {
 export default function App(){
   // Select before mounting any live provider. Full-document mode links also discard the old query cache.
   const mode = applicationMode(typeof window === 'undefined' ? '' : window.location.search);
-  if (mode === 'demo') return <Suspense fallback={<p className="p-8" role="status">Loading synthetic demo data… No live connection.</p>}><DemoWorkspace/></Suspense>;
+  if (mode === 'demo') return (
+    <ThemeProvider>
+      <Suspense fallback={<p className="p-8" role="status">Loading synthetic demo data… No live connection.</p>}>
+        <DemoWorkspace/>
+      </Suspense>
+    </ThemeProvider>
+  );
   return <LiveApp/>;
 }

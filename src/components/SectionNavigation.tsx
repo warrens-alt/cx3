@@ -21,10 +21,10 @@ export default function SectionNavigation({ className = '' }: { className?: stri
 
   return (
     <nav
-      className={`cx-section-navigation flex items-center gap-1.5 overflow-x-auto py-1 px-1 border-b border-slate-200/80 bg-slate-50/70 text-xs ${className}`}
+      className={`cx-section-navigation flex items-center gap-1.5 overflow-x-auto py-1 px-1 border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 text-xs ${className}`}
       aria-label={`${sectionLabel} subnavigation`}
     >
-      <span className="font-semibold text-slate-500 uppercase tracking-wider text-[11px] px-2 shrink-0">
+      <span className="font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-[11px] px-2 shrink-0">
         {sectionLabel}:
       </span>
       <div className="flex items-center gap-1 shrink-0">
@@ -37,8 +37,8 @@ export default function SectionNavigation({ className = '' }: { className?: stri
               aria-current={isCurrent ? 'page' : undefined}
               className={`px-3 py-1 font-medium rounded transition-colors whitespace-nowrap ${
                 isCurrent
-                  ? 'bg-white text-blue-700 shadow-2xs font-semibold border border-slate-200/90'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
+                  ? 'bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-400 shadow-2xs font-semibold border border-slate-200/90 dark:border-slate-700'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100/60 dark:hover:bg-slate-800/60'
               }`}
             >
               {page.name}

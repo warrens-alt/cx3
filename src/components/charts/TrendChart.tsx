@@ -59,26 +59,26 @@ export function TrendChart({
     }
 
     return (
-      <div className="bg-white/95 backdrop-blur-md border border-slate-200 rounded-lg shadow-lg p-3 text-xs min-w-[190px] ring-1 ring-black/5">
-        <div className="font-semibold text-slate-800 border-b border-slate-100 pb-1.5 mb-2 font-mono flex items-center justify-between">
+      <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg p-3 text-xs min-w-[190px] ring-1 ring-black/5 dark:ring-white/5">
+        <div className="font-semibold text-slate-800 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1.5 mb-2 font-mono flex items-center justify-between">
           <span>{label}</span>
-          <span className="text-[10px] text-slate-400 font-sans font-normal">Daily Observation</span>
+          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-sans font-normal">Daily Observation</span>
         </div>
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-1.5 text-slate-600">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#3562B3] shrink-0" />
+            <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#3562B3] dark:bg-[#3B82F6] shrink-0" />
               <span>Current</span>
             </div>
-            <span className="font-mono font-bold text-slate-900 tabular-nums">
+            <span className="font-mono font-bold text-slate-900 dark:text-slate-100 tabular-nums">
               {currentVal !== undefined ? formatValue(Number(currentVal)) : '—'}
             </span>
           </div>
 
           {comparisonKey && prevVal !== null && prevVal !== undefined && (
-            <div className="flex items-center justify-between gap-3 text-slate-500">
+            <div className="flex items-center justify-between gap-3 text-slate-500 dark:text-slate-400">
               <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-0.5 bg-slate-400 shrink-0" />
+                <span className="w-2.5 h-0.5 bg-slate-400 dark:bg-slate-500 shrink-0" />
                 <span>Previous</span>
               </div>
               <span className="font-mono tabular-nums">
@@ -88,14 +88,14 @@ export function TrendChart({
           )}
 
           {deltaPct !== null && deltaAbs !== null && (
-            <div className={`mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between text-[11px] font-semibold ${
-              deltaPct >= 0 ? 'text-emerald-700' : 'text-rose-700'
+            <div className={`mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold ${
+              deltaPct >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'
             }`}>
               <span className="flex items-center gap-0.5">
                 {deltaPct >= 0 ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
                 {deltaPct >= 0 ? `+${deltaPct}%` : `${deltaPct}%`}
               </span>
-              <span className="font-mono text-[10px] font-normal text-slate-400">
+              <span className="font-mono text-[10px] font-normal text-slate-400 dark:text-slate-500">
                 ({deltaAbs >= 0 ? `+${formatValue(deltaAbs)}` : formatValue(deltaAbs)})
               </span>
             </div>

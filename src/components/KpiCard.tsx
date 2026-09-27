@@ -57,12 +57,12 @@ export default function KpiCard({
     <>
       <article className="enterprise-card cx-kpi">
         <div className="cx-kpi-heading">
-          <h3 className="text-slate-600 font-semibold text-[11px] uppercase tracking-wider font-mono">{title}</h3>
+          <h3 className="text-slate-600 dark:text-slate-400 font-semibold text-[11px] uppercase tracking-wider font-mono">{title}</h3>
           {lineage && (
             <div className="cx-kpi-tools">
               <button
                 type="button"
-                className="cx-kpi-action hover:bg-slate-100 rounded p-1 text-slate-400 hover:text-slate-700 transition-colors"
+                className="cx-kpi-action hover:bg-slate-100 dark:hover:bg-slate-800 rounded p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
                 aria-label={`Definition of ${title}`}
                 title="Metric definition"
                 onClick={() => setDrawerOpen(true)}
@@ -71,7 +71,7 @@ export default function KpiCard({
               </button>
               <button
                 type="button"
-                className="cx-kpi-action hover:bg-slate-100 rounded p-1 text-slate-400 hover:text-slate-700 transition-colors"
+                className="cx-kpi-action hover:bg-slate-100 dark:hover:bg-slate-800 rounded p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
                 aria-label={`Inspect selected lead population for ${title}`}
                 title="Selected lead population (legacy)"
                 onClick={() => setAuditOpen(true)}
@@ -83,24 +83,24 @@ export default function KpiCard({
         </div>
 
         <div className="cx-kpi-amount my-2">
-          {!missing && prefix && <small className="text-slate-500 font-medium text-xs mr-1">{prefix}</small>}
-          <strong className="text-2xl sm:text-[26px] font-bold tracking-tight text-slate-900 font-mono tabular-nums leading-none">
+          {!missing && prefix && <small className="text-slate-500 dark:text-slate-400 font-medium text-xs mr-1">{prefix}</small>}
+          <strong className="text-2xl sm:text-[26px] font-bold tracking-tight text-slate-900 dark:text-slate-100 font-mono tabular-nums leading-none">
             {missing ? 'Unavailable' : typeof value === 'number' ? formatKpiValue(value) : value}
           </strong>
-          {!missing && suffix && <small className="text-slate-500 font-medium text-xs ml-1">{suffix}</small>}
+          {!missing && suffix && <small className="text-slate-500 dark:text-slate-400 font-medium text-xs ml-1">{suffix}</small>}
         </div>
 
-        <div className="cx-kpi-note mt-auto pt-2 border-t border-slate-100">
+        <div className="cx-kpi-note mt-auto pt-2 border-t border-slate-100 dark:border-slate-800">
           {hasChange ? (
             <div className="inline-flex flex-wrap items-center gap-1.5 text-xs font-mono">
-              <span className="text-slate-500 text-[11px]">{changeLabel}</span>
+              <span className="text-slate-500 dark:text-slate-400 text-[11px]">{changeLabel}</span>
               <span
                 className={`inline-flex items-center gap-0.5 font-semibold text-[11px] tabular-nums ${
                   change === 0
-                    ? 'text-slate-500'
+                    ? 'text-slate-500 dark:text-slate-400'
                     : positive
-                    ? 'text-emerald-700'
-                    : 'text-rose-700'
+                    ? 'text-emerald-700 dark:text-emerald-400'
+                    : 'text-rose-700 dark:text-rose-400'
                 }`}
               >
                 <Icon size={12} className="shrink-0" />
@@ -108,7 +108,7 @@ export default function KpiCard({
               </span>
             </div>
           ) : (
-            <span className="text-slate-400 text-xs font-mono text-[11px]">{subtitle || 'No comparison supplied'}</span>
+            <span className="text-slate-400 dark:text-slate-500 text-xs font-mono text-[11px]">{subtitle || 'No comparison supplied'}</span>
           )}
         </div>
 

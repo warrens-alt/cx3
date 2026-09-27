@@ -61,14 +61,14 @@ export function FunnelWaterfall({
         auditContext={auditContext} 
         auditGrain={auditGrain} 
       >
-        <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5 text-xs">
+        <div className="inline-flex rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-0.5 text-xs">
           <button
             type="button"
             onClick={() => setViewMode('bars')}
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 font-medium rounded transition-colors ${
               viewMode === 'bars' 
-                ? 'bg-white text-blue-700 shadow-2xs font-semibold' 
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-400 shadow-2xs font-semibold' 
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
             title="Waterfall Bars"
           >
@@ -80,8 +80,8 @@ export function FunnelWaterfall({
             onClick={() => setViewMode('flow')}
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 font-medium rounded transition-colors ${
               viewMode === 'flow' 
-                ? 'bg-white text-blue-700 shadow-2xs font-semibold' 
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-400 shadow-2xs font-semibold' 
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
             title="Flow Progression"
           >
@@ -91,38 +91,38 @@ export function FunnelWaterfall({
         </div>
       </ChartToolbar>
 
-      <p className="text-xs text-slate-500 mb-3">
+      <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
         Stage ratios describe observed population progression across conversion milestones.
       </p>
 
       {/* Summary KPI Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 bg-slate-50/80 p-3.5 rounded-lg border border-slate-200/80 text-xs">
-        <div className="bg-white p-2.5 rounded border border-slate-100 shadow-2xs">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 bg-slate-50/80 dark:bg-slate-900/60 p-3.5 rounded-lg border border-slate-200/80 dark:border-slate-800 text-xs">
+        <div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-100 dark:border-slate-700/80 shadow-2xs">
+          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
             End-to-End Conversion
           </span>
-          <span className="font-bold text-emerald-700 font-mono text-lg tabular-nums">
+          <span className="font-bold text-emerald-700 dark:text-emerald-400 font-mono text-lg tabular-nums">
             {overallConversionPct}
           </span>
-          <span className="text-[10px] text-slate-400 block mt-0.5">{steps[steps.length - 1]?.label || 'Terminal'} / {steps[0]?.label || 'Inbound'}</span>
+          <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5">{steps[steps.length - 1]?.label || 'Terminal'} / {steps[0]?.label || 'Inbound'}</span>
         </div>
-        <div className="bg-white p-2.5 rounded border border-slate-100 shadow-2xs">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+        <div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-100 dark:border-slate-700/80 shadow-2xs">
+          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
             Total Funnel Fall-off
           </span>
-          <span className="font-bold text-rose-700 font-mono text-lg tabular-nums">
+          <span className="font-bold text-rose-700 dark:text-rose-400 font-mono text-lg tabular-nums">
             {formatKpiValue(topOfFunnel - bottomOfFunnel)}
           </span>
-          <span className="text-[10px] text-slate-400 block mt-0.5">Leads dropped before {steps[steps.length - 1]?.label || 'conversion'}</span>
+          <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5">Leads dropped before {steps[steps.length - 1]?.label || 'conversion'}</span>
         </div>
-        <div className="bg-white p-2.5 rounded border border-slate-100 shadow-2xs">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+        <div className="bg-white dark:bg-slate-800 p-2.5 rounded border border-slate-100 dark:border-slate-700/80 shadow-2xs">
+          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">
             Highest Drop Milestone
           </span>
-          <span className="font-bold text-slate-900 block truncate text-sm mt-0.5" title={maxDropoffStage}>
+          <span className="font-bold text-slate-900 dark:text-slate-100 block truncate text-sm mt-0.5" title={maxDropoffStage}>
             {maxDropoffStage || 'None recorded'}
           </span>
-          <span className="text-[10px] text-slate-400 block mt-0.5">Primary conversion bottleneck</span>
+          <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5">Primary conversion bottleneck</span>
         </div>
       </div>
       

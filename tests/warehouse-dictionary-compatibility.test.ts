@@ -97,7 +97,7 @@ test('catalogue metadata is concurrent, failures stay isolated and a view withou
     async execute() { throw new Error('Catalogue must not scan data'); },
   });
   await Promise.resolve();
-  assert.equal(started.length, 6);
+  assert.equal(started.length, 9);
   release();
   const report = await pending;
   assert.equal(report.sources[0].rowCount, null);

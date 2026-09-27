@@ -7,6 +7,7 @@ import { isCurrentPage, navigationTarget } from '../lib/presentation';
 import { useClient } from '../lib/ClientContext';
 import { useAuth } from '../lib/AuthContext';
 import ReviewLauncher from './ReviewLauncher';
+import ThemeToggle from './ThemeToggle';
 import '../styles/guidedAnalytics.css';
 
 export default function Sidebar({ onClose, onSearch, searchShortcut = 'Ctrl K' }: { onClose?: () => void; onSearch: () => void; searchShortcut?: string }) {
@@ -32,7 +33,7 @@ export default function Sidebar({ onClose, onSearch, searchShortcut = 'Ctrl K' }
     })}</ul></section>)}</nav>
     <div className="cx-sidebar-footer">
       <Link className="cx-sidebar-source-link" to={navigationTarget('/data-integrity', location.pathname, location.search)} onClick={onClose}><Database size={14} aria-hidden="true"/><span>Source status & completeness</span></Link>
-      <div className="cx-workspace"><Layers size={15} aria-hidden="true"/><span><strong>Workspace</strong><small>{clientConfig?.name || 'Select a workspace'}</small></span><Link to={navigationTarget('/admin', location.pathname, location.search)} aria-label="Open Settings" onClick={onClose}><Settings size={14}/></Link></div>
+      <div className="cx-workspace"><Layers size={15} aria-hidden="true"/><span><strong>Workspace</strong><small>{clientConfig?.name || 'Select a workspace'}</small></span><div className="flex items-center gap-0.5"><ThemeToggle /><Link to={navigationTarget('/admin', location.pathname, location.search)} aria-label="Open Settings" onClick={onClose}><Settings size={14}/></Link></div></div>
       {isAdmin && <Link to="/access-control" onClick={onClose} aria-current={location.pathname === '/access-control' || location.pathname === '/users' ? 'page' : undefined} className="cx-sidebar-admin"><Shield size={14}/><span>Access control</span><small>Admin</small></Link>}
       <div className="cx-account-row"><div className="cx-account-identity">{user?.photoURL ? <img src={user.photoURL} alt={`${user.displayName || user.email || 'User'} profile avatar`} referrerPolicy="no-referrer"/> : <span className="cx-account-avatar">{user?.displayName ? user.displayName.split(' ').map(name => name[0]).join('').slice(0, 2).toUpperCase() : user?.email?.charAt(0).toUpperCase() || 'U'}</span>}<span><strong>{user?.displayName || 'Team member'}</strong><small>{profile?.role || 'authenticated'}</small></span></div><button type="button" onClick={() => signOut()} aria-label="Sign out" title="Sign out"><LogOut size={15}/></button></div>
     </div>

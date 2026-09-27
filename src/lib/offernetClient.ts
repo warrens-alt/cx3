@@ -792,8 +792,12 @@ export interface SourceObservabilityData {
 
 export interface AiInsightsData {
   source: string;
+  model?: string;
   status?: string;
   reason?: string;
+  validationStatus?: string;
+  executiveSummary?: string;
+  strategicFocus?: string;
   insights: Array<{
     category: string;
     severity: 'HIGH' | 'MEDIUM' | 'LOW';
@@ -801,6 +805,37 @@ export interface AiInsightsData {
     metricReference: string;
     directive: string;
   }>;
+}
+
+export interface GoogleApiStatusData {
+  timestamp: string;
+  workspace: string;
+  clientId: string;
+  bigquery: {
+    status: 'Connected' | 'Degraded' | 'Error';
+    latestData: string | null;
+    freshnessVerified: boolean;
+    latencyMs?: number;
+    projectId: string;
+    dataset: string;
+    table: string;
+    engine: string;
+    maxBytesBilledCeiling: string;
+    error?: string;
+  };
+  gemini: {
+    status: 'Connected' | 'Not Configured' | 'Error';
+    model: string;
+    hasKey: boolean;
+    latencyMs?: number;
+    error?: string;
+  };
+  identity: {
+    authMode: string;
+    oAuthClientId?: string;
+    provider: string;
+    authenticatedPrincipal: string;
+  };
 }
 
 export interface RawLeadsData {
@@ -979,6 +1014,39 @@ export async function fetchCampaigns(params: Record<string, any> = {}, forceRefr
 
 export async function fetchAiInsights(params: Record<string, any> = {}, forceRefresh = false, signal?: AbortSignal): Promise<AiInsightsData> {
   return fetchOffernetJson<AiInsightsData>(`/api/analytics/offernet/ai-insights${buildQueryString(params)}`, forceRefresh, signal);
+}
+
+export async function askGeminiAnalytics(
+  question: string,
+  params: Record<string, any> = {},
+  signal?: AbortSignal
+): Promise<{ answer: string; model: string; citations: string[] }> {
+  const query = buildQueryString(params);
+  const response = await fetch(`/api/analytics/google/ask${query}`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question }),
+    signal,
+  });
+  if (!response.ok) {
+    let msg = `Request failed: ${response.status}`;
+    try {
+      const j = await response.json();
+      if (j.error) msg = j.error;
+    } catch {}
+    throw new Error(msg);
+  }
+  const json = await response.json();
+  return json.data;
+}
+
+export async function fetchGoogleApiStatus(
+  params: Record<string, any> = {},
+  forceRefresh = false,
+  signal?: AbortSignal
+): Promise<GoogleApiStatusData> {
+  return fetchOffernetJson<GoogleApiStatusData>(`/api/analytics/google/status${buildQueryString(params)}`, forceRefresh, signal);
 }
 
 export async function fetchRawLeads(params: Record<string, any> = {}, forceRefresh = false, signal?: AbortSignal): Promise<RawLeadsData> {
