@@ -486,11 +486,87 @@ export function downloadAnalysisCsv(filename: string, rows: AnalysisCell[][], sc
   downloadCsv(filename, scopedAnalysisRows(rows, scope));
 }
 
+export function validateDateBound(val: any, fieldName: string): string | null {
+  if (val === undefined) {
+    throw new Error(`Missing required ${fieldName} in disposition export; explicit date string or null is required.`);
+  }
+  if (val === null) {
+    return null;
+  }
+  if (typeof val !== 'string') {
+    throw new Error(`Invalid ${fieldName}: must be a valid YYYY-MM-DD string or null.`);
+  }
+  const trimmed = val.trim();
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (!match) {
+    throw new Error(`Invalid ${fieldName} format "${trimmed}": must be a valid YYYY-MM-DD string.`);
+  }
+  const year = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10);
+  const day = parseInt(match[3], 10);
+  if (month < 1 || month > 12 || day < 1 || day > 31) {
+    throw new Error(`Invalid ${fieldName} calendar date "${trimmed}": month or day out of range.`);
+  }
+  const d = new Date(Date.UTC(year, month - 1, day));
+  if (d.getUTCFullYear() !== year || d.getUTCMonth() !== month - 1 || d.getUTCDate() !== day) {
+    throw new Error(`Invalid ${fieldName} calendar date "${trimmed}": date does not exist.`);
+  }
+  return trimmed;
+}
+
+export function validateDateOrdering(start: string | null, end: string | null): void {
+  if (start !== null && end !== null && start > end) {
+    throw new Error(`Invalid date range: startDate "${start}" cannot be after endDate "${end}".`);
+  }
+}
+
+export function validateFilters(filters: any): Record<string, any> {
+  if (filters === undefined || filters === null) {
+    throw new Error('Missing required filters in disposition export metadata; an explicit object (such as {}) is required.');
+  }
+  if (typeof filters !== 'object' || Array.isArray(filters)) {
+    throw new Error('Invalid filters in disposition export: must be a non-null object.');
+  }
+  return filters;
+}
+
+export function validateTimezone(tz: any): string {
+  if (!tz || typeof tz !== 'string' || !tz.trim()) {
+    throw new Error('Missing required timezone in disposition export; unknown timezone context prevents export.');
+  }
+  return tz.trim();
+}
+
+export function validateEvaluationTimestamp(ts: any): string {
+  if (!ts || typeof ts !== 'string' || !ts.trim()) {
+    throw new Error('Missing required evaluation timestamp in disposition export metadata.');
+  }
+  const parsed = Date.parse(ts);
+  if (isNaN(parsed)) {
+    throw new Error(`Invalid evaluation timestamp "${ts}": must be a valid ISO 8601 date-time string.`);
+  }
+  return ts.trim();
+}
+
+export function validateCountField(val: any, fieldName: string, required: boolean): number | null {
+  if (val === undefined || val === null) {
+    if (required) {
+      throw new Error(`Missing required count field "${fieldName}" in disposition export.`);
+    }
+    return null;
+  }
+  if (typeof val !== 'number' || !Number.isFinite(val) || !Number.isSafeInteger(val) || val < 0) {
+    throw new Error(`Invalid count field "${fieldName}": value ${val} must be a finite, non-negative integer.`);
+  }
+  return val;
+}
+
 export interface DispositionExportMetadata {
   clientId: string;
   startDate?: string | null;
   endDate?: string | null;
   filters?: Record<string, any>;
+  timezone?: string;
   mode: 'lead_status' | 'call_records';
   dateBasis: string;
   countingGrain: string;
@@ -519,24 +595,43 @@ export function buildDispositionExportRows(
 ): AnalysisCell[][] {
   if (!dataRows.length) return [];
 
-  if (!meta.clientId || !meta.clientId.trim()) {
+  if (!meta.clientId || typeof meta.clientId !== 'string' || !meta.clientId.trim()) {
     throw new Error('Missing required clientId in disposition export metadata; substitute client scope is prohibited.');
   }
-  if (!meta.generatedAt || !meta.generatedAt.trim()) {
-    throw new Error('Missing required generatedAt in disposition export metadata; substitute timestamps are prohibited.');
+  if (!('startDate' in meta) || meta.startDate === undefined) {
+    throw new Error('Missing required startDate in disposition export metadata; explicit date string or null is required.');
   }
-  if (!meta.dateBasis || !meta.dateBasis.trim()) {
+  if (!('endDate' in meta) || meta.endDate === undefined) {
+    throw new Error('Missing required endDate in disposition export metadata; explicit date string or null is required.');
+  }
+  validateDateBound(meta.startDate, 'startDate');
+  validateDateBound(meta.endDate, 'endDate');
+  validateDateOrdering(meta.startDate, meta.endDate);
+
+  validateFilters(meta.filters);
+  validateTimezone(meta.timezone);
+
+  if (!meta.mode || (meta.mode !== 'lead_status' && meta.mode !== 'call_records')) {
+    throw new Error('Missing or invalid mode in disposition export metadata; must be "lead_status" or "call_records".');
+  }
+  if (!meta.dateBasis || typeof meta.dateBasis !== 'string' || !meta.dateBasis.trim()) {
     throw new Error('Missing required dateBasis in disposition export metadata; substitute date basis is prohibited.');
   }
-  if (!meta.countingGrain || !meta.countingGrain.trim()) {
+  if (!meta.countingGrain || typeof meta.countingGrain !== 'string' || !meta.countingGrain.trim()) {
     throw new Error('Missing required countingGrain in disposition export metadata; substitute counting grain is prohibited.');
   }
-  if (!meta.taxonomyVersion || !meta.taxonomyVersion.trim()) {
+  if (!meta.taxonomyVersion || typeof meta.taxonomyVersion !== 'string' || !meta.taxonomyVersion.trim()) {
     throw new Error('Missing required taxonomyVersion in disposition export metadata; substitute version is prohibited.');
   }
-  if (meta.totalPopulation === undefined || meta.totalPopulation === null || isNaN(meta.totalPopulation)) {
-    throw new Error('Missing required totalPopulation in disposition export metadata; substitute population is prohibited.');
-  }
+  validateEvaluationTimestamp(meta.generatedAt);
+
+  validateCountField(meta.totalPopulation, 'totalPopulation', true);
+  validateCountField(meta.reportPopulation, 'reportPopulation', false);
+  validateCountField(meta.vendorPopulation, 'vendorPopulation', false);
+  validateCountField(meta.vendorBase, 'vendorBase', false);
+  validateCountField(meta.preSearchGroupPopulation, 'preSearchGroupPopulation', false);
+  validateCountField(meta.selectedVolume, 'selectedVolume', false);
+  validateCountField(meta.returnedRowCount, 'returnedRowCount', false);
 
   const headers = [
     ...dataRows[0],
@@ -554,6 +649,7 @@ export function buildDispositionExportRows(
     'User role',
     'User identity',
     'Generated at',
+    'Reporting timezone',
     'Inspected vendor',
     'Active group filter',
     'Search query',
@@ -567,19 +663,20 @@ export function buildDispositionExportRows(
   ];
   const auditValues: AnalysisCell[] = [
     meta.clientId,
-    meta.startDate || null,
-    meta.endDate || null,
+    meta.startDate,
+    meta.endDate,
     meta.mode,
     meta.dateBasis,
     meta.countingGrain,
     meta.totalPopulation,
     meta.denominatorDefinition,
-    JSON.stringify(meta.filters || {}),
+    JSON.stringify(meta.filters),
     meta.isTruncated,
     meta.taxonomyVersion,
     meta.userRole || 'authenticated',
     meta.userEmail || 'system',
     meta.generatedAt,
+    meta.timezone,
     meta.inspectedVendor ?? null,
     meta.activeGroupFilter ?? null,
     meta.searchQuery ?? null,

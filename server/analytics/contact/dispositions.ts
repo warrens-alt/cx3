@@ -422,6 +422,8 @@ export function buildLeadStatusResult(rows: any[], params: OffernetQueryParams):
   return {
     reportVersion: DISPOSITION_REPORT_VERSION,
     mode: 'lead_status',
+    clientId: params.clientId || 'default_tenant',
+    timezone: (params as any).timezone || 'Africa/Johannesburg',
     modeHeading: 'Current recorded status for the selected capture cohort',
     modeDescription: 'What status is currently recorded for each vendor’s leads in the selected capture cohort? Reconciles repeated HLC records deterministically per lead-vendor pair.',
     dateBasis: 'lead_capture_cohort',
@@ -608,6 +610,8 @@ export function buildCallRecordsResult(rows: any[], params: OffernetQueryParams)
   return {
     reportVersion: DISPOSITION_REPORT_VERSION,
     mode: 'call_records',
+    clientId: params.clientId || 'default_tenant',
+    timezone: (params as any).timezone || 'Africa/Johannesburg',
     modeHeading: 'Outcomes recorded on calls made during the selected period',
     modeDescription: 'Outcomes recorded on discrete dialler events made during the selected date window. Uses call-start date semantics.',
     dateBasis: 'call_start_date',

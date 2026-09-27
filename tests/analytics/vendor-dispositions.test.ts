@@ -243,6 +243,7 @@ test('vendor-dispositions: export metadata and serialization preserves complete 
     startDate: '2026-09-01',
     endDate: '2026-09-30',
     filters: { vendor: 'BLC' },
+    timezone: 'Africa/Johannesburg',
     mode: 'lead_status' as const,
     dateBasis: 'lead_capture_cohort',
     countingGrain: 'lead_vendor_pairs',

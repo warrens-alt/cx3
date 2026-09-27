@@ -441,6 +441,7 @@ test('vendor disposition export: select vendor + group + raw-code search synchro
       clientId: 'tenant-omega',
       startDate: '2026-09-01',
       endDate: '2026-09-15',
+      filters: {},
     },
     selection: {
       vendor: 'CallForce',
@@ -511,7 +512,7 @@ test('vendor disposition export: mapping status presenter and export output exer
   // Full export of CallForce exercises all variants in CSV
   const exportResult = buildVendorSelectedExport({
     report: sampleReportFixture,
-    requestContext: { clientId: 'tenant-omega' },
+    requestContext: { clientId: 'tenant-omega', startDate: '2026-09-01', endDate: '2026-09-15', filters: {} },
     selection: { vendor: 'CallForce', groupFilter: 'ALL', searchQuery: '' },
   });
 
@@ -528,7 +529,7 @@ test('vendor disposition export: mapping status presenter and export output exer
 });
 
 test('vendor disposition export: missing report metadata fails cleanly with explicit readable error and produces no download', () => {
-  const reqContext = { clientId: 'tenant-omega' };
+  const reqContext = { clientId: 'tenant-omega', startDate: '2026-09-01', endDate: '2026-09-15', filters: {} };
   const selection = { vendor: 'CallForce', groupFilter: 'ALL', searchQuery: '' };
 
   // Missing report
@@ -606,6 +607,61 @@ test('vendor disposition export: missing report metadata fails cleanly with expl
     /Missing required evaluatedAt timestamp/
   );
 
+  // Missing startDate
+  assert.throws(
+    () =>
+      buildVendorSelectedExport({
+        report: sampleReportFixture,
+        requestContext: { clientId: 'tenant-omega', endDate: '2026-09-15', filters: {} } as any,
+        selection,
+      }),
+    /Missing required startDate/
+  );
+
+  // Missing endDate
+  assert.throws(
+    () =>
+      buildVendorSelectedExport({
+        report: sampleReportFixture,
+        requestContext: { clientId: 'tenant-omega', startDate: '2026-09-01', filters: {} } as any,
+        selection,
+      }),
+    /Missing required endDate/
+  );
+
+  // Missing filters
+  assert.throws(
+    () =>
+      buildVendorSelectedExport({
+        report: sampleReportFixture,
+        requestContext: { clientId: 'tenant-omega', startDate: '2026-09-01', endDate: '2026-09-15' } as any,
+        selection,
+      }),
+    /Missing required filters/
+  );
+
+  // Invalid date ordering
+  assert.throws(
+    () =>
+      buildVendorSelectedExport({
+        report: sampleReportFixture,
+        requestContext: { clientId: 'tenant-omega', startDate: '2026-09-20', endDate: '2026-09-10', filters: {} },
+        selection,
+      }),
+    /startDate "2026-09-20" cannot be after endDate "2026-09-10"/
+  );
+
+  // Missing timezone in report and requestContext
+  assert.throws(
+    () =>
+      buildVendorSelectedExport({
+        report: { ...sampleReportFixture, timezone: undefined },
+        requestContext: { clientId: 'tenant-omega', startDate: '2026-09-01', endDate: '2026-09-15', filters: {} },
+        selection,
+      }),
+    /Missing required timezone/
+  );
+
   // Measured zero is valid (not missing!)
   const zeroReport: ContactDispositionsData = {
     ...sampleReportFixture,
@@ -626,7 +682,7 @@ test('vendor disposition export: missing report metadata fails cleanly with expl
 test('vendor disposition export: selected export CSV distinctly labels all five population metrics without overloading', () => {
   const exportResult = buildVendorSelectedExport({
     report: sampleReportFixture,
-    requestContext: { clientId: 'tenant-omega' },
+    requestContext: { clientId: 'tenant-omega', startDate: '2026-09-01', endDate: '2026-09-15', filters: {} },
     selection: { vendor: 'CallForce', groupFilter: 'CONTACTED_RPC', searchQuery: 'HUMAN' },
   });
 
@@ -675,7 +731,7 @@ test('vendor disposition export: share of group uses pre-search group volume as 
   // Search for "HUMAN" -> returns only RPC_HUMAN (60).
   const exportResult = buildVendorSelectedExport({
     report: sampleReportFixture,
-    requestContext: { clientId: 'tenant-omega' },
+    requestContext: { clientId: 'tenant-omega', startDate: '2026-09-01', endDate: '2026-09-15', filters: {} },
     selection: { vendor: 'CallForce', groupFilter: 'CONTACTED_RPC', searchQuery: 'HUMAN' },
   });
 
@@ -696,7 +752,7 @@ test('vendor disposition export: share of group uses pre-search group volume as 
 test('vendor disposition export: empty search match yields explicit empty state and cannot be downloaded as all outcomes or corrupt file', () => {
   const exportResult = buildVendorSelectedExport({
     report: sampleReportFixture,
-    requestContext: { clientId: 'tenant-omega' },
+    requestContext: { clientId: 'tenant-omega', startDate: '2026-09-01', endDate: '2026-09-15', filters: {} },
     selection: { vendor: 'CallForce', groupFilter: 'CONTACTED_RPC', searchQuery: 'NON_EXISTENT_QUERY' },
   });
 
@@ -724,7 +780,7 @@ test('vendor disposition export: changing group or search query updates rendered
   const view1Drawer = filterDispositionRows(allCallForceRows, 'ALL', '');
   const view1Export = buildVendorSelectedExport({
     report: sampleReportFixture,
-    requestContext: { clientId: 'tenant-omega' },
+    requestContext: { clientId: 'tenant-omega', startDate: '2026-09-01', endDate: '2026-09-15', filters: {} },
     selection: { vendor: 'CallForce', groupFilter: 'ALL', searchQuery: '' },
   });
   assert.equal(view1Drawer.length, 8);
@@ -734,7 +790,7 @@ test('vendor disposition export: changing group or search query updates rendered
   const view2Drawer = filterDispositionRows(allCallForceRows, 'REPORTED_SALE', '');
   const view2Export = buildVendorSelectedExport({
     report: sampleReportFixture,
-    requestContext: { clientId: 'tenant-omega' },
+    requestContext: { clientId: 'tenant-omega', startDate: '2026-09-01', endDate: '2026-09-15', filters: {} },
     selection: { vendor: 'CallForce', groupFilter: 'REPORTED_SALE', searchQuery: '' },
   });
   assert.equal(view2Drawer.length, 1);
@@ -746,7 +802,7 @@ test('vendor disposition export: changing group or search query updates rendered
   const view3Drawer = filterDispositionRows(allCallForceRows, 'ALL', 'Deal');
   const view3Export = buildVendorSelectedExport({
     report: sampleReportFixture,
-    requestContext: { clientId: 'tenant-omega' },
+    requestContext: { clientId: 'tenant-omega', startDate: '2026-09-01', endDate: '2026-09-15', filters: {} },
     selection: { vendor: 'CallForce', groupFilter: 'ALL', searchQuery: 'Deal' },
   });
   assert.equal(view3Drawer.length, 1);
@@ -759,7 +815,7 @@ test('vendor disposition export: changing group or search query updates rendered
   const view4Drawer = filterDispositionRows(allMondoRows, 'ALL', '');
   const view4Export = buildVendorSelectedExport({
     report: sampleReportFixture,
-    requestContext: { clientId: 'tenant-omega' },
+    requestContext: { clientId: 'tenant-omega', startDate: '2026-09-01', endDate: '2026-09-15', filters: {} },
     selection: { vendor: 'Mondo', groupFilter: 'ALL', searchQuery: '' },
   });
   assert.equal(view4Drawer.length, 1);
@@ -884,6 +940,10 @@ test('vendor inspection bookmarks: valid saved inspectVendor and inspectGroup su
   const originalWindow = global.window;
   const originalDocument = global.document;
   const originalFetch = global.fetch;
+  const originalNavigator = (global as any).navigator;
+  const originalActFlag = (global as any).IS_REACT_ACT_ENVIRONMENT;
+  let root: any = null;
+  let queryClient: any = null;
 
   try {
     global.window = dom.window as any;
@@ -895,7 +955,7 @@ test('vendor inspection bookmarks: valid saved inspectVendor and inspectGroup su
         writable: true,
       });
     } catch {
-      // ignore if navigator is already set
+      (global as any).navigator = dom.window.navigator;
     }
     (global as any).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -929,9 +989,9 @@ test('vendor inspection bookmarks: valid saved inspectVendor and inspectGroup su
       return React.createElement('div', null, capturedModel.inspectVendor || 'NONE');
     }
 
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
     const container = document.getElementById('test-root')!;
-    const root = createRoot(container);
+    root = createRoot(container);
 
     await act(async () => {
       root.render(
@@ -987,14 +1047,26 @@ test('vendor inspection bookmarks: valid saved inspectVendor and inspectGroup su
     assert.equal(capturedParams.get('startDate'), '2026-09-01');
     assert.equal(capturedParams.get('endDate'), '2026-09-15');
     assert.equal(capturedParams.get('tab'), 'vendor_dispositions');
-
-    await act(async () => {
-      root.unmount();
-    });
-    await queryClient.cancelQueries();
-    queryClient.clear();
-    invalidateOffernetCache();
   } finally {
+    if (root) {
+      try {
+        const { act } = await import('react');
+        await act(async () => {
+          root.unmount();
+        });
+      } catch {
+        // ignore
+      }
+    }
+    if (queryClient) {
+      try {
+        await queryClient.cancelQueries();
+        queryClient.clear();
+      } catch {
+        // ignore
+      }
+    }
+    invalidateOffernetCache();
     try {
       dom.window.close();
     } catch {
@@ -1004,6 +1076,24 @@ test('vendor inspection bookmarks: valid saved inspectVendor and inspectGroup su
     delete (global as any).document;
     if (originalWindow !== undefined) (global as any).window = originalWindow;
     if (originalDocument !== undefined) (global as any).document = originalDocument;
+    if (originalNavigator !== undefined) {
+      try {
+        Object.defineProperty(global, 'navigator', {
+          value: originalNavigator,
+          configurable: true,
+          writable: true,
+        });
+      } catch {
+        (global as any).navigator = originalNavigator;
+      }
+    } else {
+      delete (global as any).navigator;
+    }
+    if (originalActFlag !== undefined) {
+      (global as any).IS_REACT_ACT_ENVIRONMENT = originalActFlag;
+    } else {
+      delete (global as any).IS_REACT_ACT_ENVIRONMENT;
+    }
     global.fetch = originalFetch;
   }
 });
@@ -1016,10 +1106,23 @@ test('vendor inspection bookmarks: client switch clears local inspection without
   const originalWindow = global.window;
   const originalDocument = global.document;
   const originalFetch = global.fetch;
+  const originalNavigator = (global as any).navigator;
+  const originalActFlag = (global as any).IS_REACT_ACT_ENVIRONMENT;
+  let root: any = null;
+  let queryClient: any = null;
 
   try {
     global.window = dom.window as any;
     global.document = dom.window.document as any;
+    try {
+      Object.defineProperty(global, 'navigator', {
+        value: dom.window.navigator,
+        configurable: true,
+        writable: true,
+      });
+    } catch {
+      (global as any).navigator = dom.window.navigator;
+    }
     (global as any).IS_REACT_ACT_ENVIRONMENT = true;
 
     global.fetch = (async (url: string) => {
@@ -1057,9 +1160,9 @@ test('vendor inspection bookmarks: client switch clears local inspection without
       return React.createElement('div', null, clientApi.selectedClient);
     }
 
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
     const container = document.getElementById('test-root-transition')!;
-    const root = createRoot(container);
+    root = createRoot(container);
 
     await act(async () => {
       root.render(
@@ -1114,14 +1217,26 @@ test('vendor inspection bookmarks: client switch clears local inspection without
     assert.equal(currentParams.get('startDate'), '2026-09-01', 'startDate must be preserved on client switch');
     assert.equal(currentParams.get('endDate'), '2026-09-15', 'endDate must be preserved on client switch');
     assert.equal(currentParams.get('tab'), 'vendor_dispositions', 'tab must be preserved on client switch');
-
-    await act(async () => {
-      root.unmount();
-    });
-    await queryClient.cancelQueries();
-    queryClient.clear();
-    invalidateOffernetCache();
   } finally {
+    if (root) {
+      try {
+        const { act } = await import('react');
+        await act(async () => {
+          root.unmount();
+        });
+      } catch {
+        // ignore
+      }
+    }
+    if (queryClient) {
+      try {
+        await queryClient.cancelQueries();
+        queryClient.clear();
+      } catch {
+        // ignore
+      }
+    }
+    invalidateOffernetCache();
     try {
       dom.window.close();
     } catch {
@@ -1131,6 +1246,24 @@ test('vendor inspection bookmarks: client switch clears local inspection without
     delete (global as any).document;
     if (originalWindow !== undefined) (global as any).window = originalWindow;
     if (originalDocument !== undefined) (global as any).document = originalDocument;
+    if (originalNavigator !== undefined) {
+      try {
+        Object.defineProperty(global, 'navigator', {
+          value: originalNavigator,
+          configurable: true,
+          writable: true,
+        });
+      } catch {
+        (global as any).navigator = originalNavigator;
+      }
+    } else {
+      delete (global as any).navigator;
+    }
+    if (originalActFlag !== undefined) {
+      (global as any).IS_REACT_ACT_ENVIRONMENT = originalActFlag;
+    } else {
+      delete (global as any).IS_REACT_ACT_ENVIRONMENT;
+    }
     global.fetch = originalFetch;
   }
 });
@@ -1224,6 +1357,61 @@ test('vendor outcome inspector: unknown vendor renders explicit unavailable dial
 
   assert.ok(unknownGroupHtml.includes('Outcome group &quot;UNRECORDED_GROUP&quot; is not recorded for CallForce.'));
   assert.ok(unknownGroupHtml.includes('disabled=""')); // Export button disabled
+
+  // 3. Loading state renders "Loading vendor outcomes" without claiming vendor is absent or enabling export
+  const loadingHtml = renderToString(
+    React.createElement(VendorOutcomeInspector, {
+      open: true,
+      onClose: () => {},
+      vendor: 'CallForce',
+      mode: 'lead_status',
+      loading: true,
+      vendorSummary: null,
+      rawRows: [],
+    })
+  );
+  assert.ok(loadingHtml.includes('Loading vendor outcomes'));
+  assert.ok(!loadingHtml.includes('is not represented in the authorised report'));
+  assert.ok(!loadingHtml.includes('Export selected breakdown'));
+
+  // 4. Failed request renders explicit safe error and retry action
+  const errorHtml = renderToString(
+    React.createElement(VendorOutcomeInspector, {
+      open: true,
+      onClose: () => {},
+      vendor: 'CallForce',
+      mode: 'lead_status',
+      loading: false,
+      error: 'Network connection lost to warehouse',
+      onRetry: () => {},
+      vendorSummary: null,
+      rawRows: [],
+    })
+  );
+  assert.ok(errorHtml.includes('Failed to load vendor outcomes'));
+  assert.ok(errorHtml.includes('Network connection lost to warehouse'));
+  assert.ok(errorHtml.includes('Retry request'));
+  assert.ok(!errorHtml.includes('is not represented in the authorised report'));
+
+  // 5. Unsupported capability renders capability state without widening scope
+  const unsupportedHtml = renderToString(
+    React.createElement(VendorOutcomeInspector, {
+      open: true,
+      onClose: () => {},
+      vendor: 'CallForce',
+      mode: 'call_records',
+      loading: false,
+      capabilities: {
+        callRecordsSupported: false,
+        unavailableReason: 'Call outcomes mode requires an approved tenant dialler calls table.',
+      },
+      vendorSummary: null,
+      rawRows: [],
+    })
+  );
+  assert.ok(unsupportedHtml.includes('Capability Unavailable'));
+  assert.ok(unsupportedHtml.includes('Call outcomes mode requires an approved tenant dialler calls table.'));
+  assert.ok(!unsupportedHtml.includes('is not represented in the authorised report'));
 });
 
 test('vendor disposition report: export error feedback is rendered directly in report surface where triggered', async () => {

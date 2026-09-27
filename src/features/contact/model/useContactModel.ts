@@ -18,6 +18,9 @@ import {
 import {
   downloadAnalysisCsv,
   downloadDispositionExportCsv,
+  validateDateBound,
+  validateDateOrdering,
+  validateFilters,
   type DispositionExportMetadata,
 } from '../../../lib/analysisExport';
 import { buildVendorSelectedExport } from './dispositionSelection';
@@ -31,9 +34,12 @@ export function useContactModel() {
   const { startDate, endDate, filters, setVendor } = useFilters();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Authoritative URL state
+  // Authoritative URL state: vendor inspection direct links preserve active vendor_dispositions tab
   const tabParam = searchParams.get('tab');
-  const activeTab: ContactTab = tabParam === 'vendor_dispositions' ? 'vendor_dispositions' : 'call_counts';
+  const activeTab: ContactTab =
+    tabParam === 'vendor_dispositions' || (!tabParam && searchParams.has('inspectVendor'))
+      ? 'vendor_dispositions'
+      : 'call_counts';
 
   const modeParam = searchParams.get('mode');
   const dispositionMode: DispositionReportingMode = modeParam === 'call_records' ? 'call_records' : 'lead_status';
@@ -45,19 +51,23 @@ export function useContactModel() {
   // Inspector host state for call effort bucket inspections
   const [inspectorContent, setInspectorContent] = useState<InspectorContent | null>(null);
 
-  // Export error state for accessible feedback
-  const [exportError, setExportError] = useState<string | null>(null);
-  const clearExportError = () => setExportError(null);
+  // Export error states for accessible feedback - separated between report summary and active modal
+  const [summaryExportError, setSummaryExportError] = useState<string | null>(null);
+  const [selectedExportError, setSelectedExportError] = useState<string | null>(null);
+  const clearSummaryExportError = () => setSummaryExportError(null);
+  const clearSelectedExportError = () => setSelectedExportError(null);
 
-  // Invalidate inspector when scope changes
+  // Invalidate inspector and errors when scope changes
   useEffect(() => {
     setInspectorContent(null);
-    setExportError(null);
+    setSummaryExportError(null);
+    setSelectedExportError(null);
   }, [selectedClient, startDate, endDate, filters]);
 
-  // Reset export error on client changes
+  // Reset export errors on client changes
   useEffect(() => {
-    setExportError(null);
+    setSummaryExportError(null);
+    setSelectedExportError(null);
   }, [selectedClient]);
 
   const scope = useMemo(() => ({
@@ -91,18 +101,24 @@ export function useContactModel() {
     activeTab === 'vendor_dispositions'
   );
 
-  // Invalidate stale data from a previous client to prevent delayed responses from opening inspectors under a new client
+  // Results must remain bound to the active workspace, period, mode and filters.
+  // Never interpret a missing clientId field as independent proof of ownership; use the established authorised request identity and query key.
   const isDispDataCurrentClient = Boolean(
-    dispQuery.data && (!dispQuery.data.clientId || dispQuery.data.clientId === selectedClient)
+    dispQuery.data &&
+    selectedClient &&
+    dispQuery.data.clientId &&
+    dispQuery.data.clientId === selectedClient
   );
   const dispData = isDispDataCurrentClient ? dispQuery.data : null;
 
-  // Tab change handler
+  // Tab change handler: deliberate tab changes clear local inspection parameters consistently
   const handleTabChange = (newTab: ContactTab) => {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
       if (newTab === 'call_counts') {
         next.delete('tab');
+        next.delete('inspectVendor');
+        next.delete('inspectGroup');
       } else {
         next.set('tab', 'vendor_dispositions');
       }
@@ -166,12 +182,12 @@ export function useContactModel() {
 
   // Metadata generator for disposition exports
   const getDispositionExportMeta = (isTruncated = false): DispositionExportMetadata => {
-    const report = dispQuery.data;
+    const report = dispData;
     if (!report) {
-      throw new Error('Cannot export summary: Disposition report data is not available.');
+      throw new Error('Cannot export summary: No active report data available.');
     }
     if (!report.reportVersion || !report.reportVersion.trim()) {
-      throw new Error('Cannot export summary: Missing reportVersion in report data.');
+      throw new Error('Cannot export summary: Missing taxonomyVersion in report data.');
     }
     if (!report.dateBasis || !report.dateBasis.trim()) {
       throw new Error('Cannot export summary: Missing dateBasis in report data.');
@@ -199,12 +215,25 @@ export function useContactModel() {
       throw new Error(`Cannot export summary: Report clientId "${report.clientId}" contradicts selected clientId "${selectedClient}".`);
     }
 
+    const resolvedTimezone = report.timezone || clientConfig?.timezone;
+    if (!resolvedTimezone || !resolvedTimezone.trim()) {
+      throw new Error('Cannot export summary: Missing required timezone in report context.');
+    }
+
+    const effectiveStartDate = startDate || null;
+    const effectiveEndDate = endDate || null;
+    validateDateBound(effectiveStartDate, 'startDate');
+    validateDateBound(effectiveEndDate, 'endDate');
+    validateDateOrdering(effectiveStartDate, effectiveEndDate);
+    const validatedFilters = validateFilters(extractOffernetFilters(filters));
+
     const isCallMode = report.mode === 'call_records';
     return {
       clientId: resolvedClientId,
-      startDate: startDate || null,
-      endDate: endDate || null,
-      filters: extractOffernetFilters(filters),
+      startDate: effectiveStartDate,
+      endDate: effectiveEndDate,
+      filters: validatedFilters,
+      timezone: resolvedTimezone.trim(),
       mode: report.mode,
       dateBasis: report.dateBasis,
       countingGrain: report.countingGrain,
@@ -255,7 +284,7 @@ export function useContactModel() {
   // Vendor summary table export
   const handleExportVendorSummaryTable = () => {
     try {
-      setExportError(null);
+      setSummaryExportError(null);
       if (!dispQuery.data?.vendorSummaries) {
         throw new Error('Cannot export summary: No vendor summary data is available.');
       }
@@ -289,7 +318,7 @@ export function useContactModel() {
         getDispositionExportMeta(false)
       );
     } catch (err: any) {
-      setExportError(err?.message || 'Failed to export vendor summary table.');
+      setSummaryExportError(err?.message || 'Failed to export vendor summary table.');
     }
   };
 
@@ -301,7 +330,7 @@ export function useContactModel() {
     rows?: DetailedDispositionRow[];
   }) => {
     try {
-      setExportError(null);
+      setSelectedExportError(null);
       const result = buildVendorSelectedExport({
         report: dispData,
         requestContext: {
@@ -321,13 +350,13 @@ export function useContactModel() {
       });
 
       if (result.isEmptyMatch) {
-        setExportError(`No disposition records matched the filter "${params.searchQuery}". Export cancelled.`);
+        setSelectedExportError(`No disposition records matched the filter "${params.searchQuery}". Export cancelled.`);
         return;
       }
 
       downloadDispositionExportCsv(result.filename, result.dataRows, result.metadata);
     } catch (err: any) {
-      setExportError(err?.message || 'Failed to generate disposition export.');
+      setSelectedExportError(err?.message || 'Failed to generate disposition export.');
     }
   };
 
@@ -363,8 +392,15 @@ export function useContactModel() {
     dispError: dispQuery.error,
     inspectorContent,
     setInspectorContent,
-    exportError,
-    clearExportError,
+    summaryExportError,
+    clearSummaryExportError,
+    selectedExportError,
+    clearSelectedExportError,
+    exportError: selectedExportError || summaryExportError,
+    clearExportError: () => {
+      clearSummaryExportError();
+      clearSelectedExportError();
+    },
     handleExportCallCountsCsv,
     handleExportVendorSummaryTable,
     handleExportVendorRawBreakdown,

@@ -6,10 +6,6 @@ import {
   Timer,
   Search,
   ArrowRight,
-  PhoneOutgoing,
-  Users,
-  CalendarDays,
-  ShieldCheck,
 } from 'lucide-react';
 import ReportingScopeBar from '../../shared/reporting/ReportingScopeBar';
 import InspectorHost from '../../shared/evidence/InspectorHost';
@@ -44,8 +40,10 @@ export default function ContactPage() {
     dispError,
     inspectorContent,
     setInspectorContent,
-    exportError,
-    clearExportError,
+    summaryExportError,
+    clearSummaryExportError,
+    selectedExportError,
+    clearSelectedExportError,
     handleExportCallCountsCsv,
     handleExportVendorSummaryTable,
     handleExportVendorRawBreakdown,
@@ -99,6 +97,7 @@ export default function ContactPage() {
   const loading = activeTab === 'call_counts' ? callCountLoading : dispLoading;
   const error = activeTab === 'call_counts' ? callCountError : dispError;
   const hasData = activeTab === 'call_counts' ? Boolean(callCountData) : Boolean(dispData);
+  const isVendorDispositionsTab = activeTab === 'vendor_dispositions';
 
   const handleExportCsv =
     activeTab === 'call_counts'
@@ -212,8 +211,8 @@ export default function ContactPage() {
           onSelectVendor={handleSelectVendor}
           onFilterReportByVendor={handleFilterReportByVendor}
           onExportSummaryTable={handleExportVendorSummaryTable}
-          exportError={exportError}
-          onClearExportError={clearExportError}
+          exportError={summaryExportError}
+          onClearExportError={clearSummaryExportError}
         />
       )}
 
@@ -264,13 +263,25 @@ export default function ContactPage() {
         </Link>
       </section>
 
-      {/* Vendor Outcome Inspector Drawer */}
-      {inspectVendor && (
+      {/* Vendor Outcome Inspector Drawer - active only on vendor_dispositions tab with inspectVendor selection */}
+      {isVendorDispositionsTab && inspectVendor && (
         <VendorOutcomeInspector
-          open={Boolean(inspectVendor)}
+          open={Boolean(isVendorDispositionsTab && inspectVendor)}
           onClose={() => handleSelectVendor(null)}
           vendor={inspectVendor}
           mode={dispositionMode}
+          loading={dispLoading}
+          error={dispError}
+          onRetry={refreshAll}
+          capabilities={
+            dispData?.capabilities
+              ? {
+                  leadStatusSupported: dispData.capabilities.leadStatusSupported,
+                  callRecordsSupported: dispData.capabilities.callRecordsSupported,
+                  unavailableReason: dispData.unavailableReason,
+                }
+              : undefined
+          }
           vendorSummary={selectedVendorSummary}
           rawRows={selectedVendorRows}
           initialGroupFilter={inspectGroup}
@@ -295,8 +306,8 @@ export default function ContactPage() {
                 }
               : undefined
           }
-          exportError={exportError}
-          onClearExportError={clearExportError}
+          exportError={selectedExportError}
+          onClearExportError={clearSelectedExportError}
           explorerPath={scoped('/lead-explorer')}
         />
       )}

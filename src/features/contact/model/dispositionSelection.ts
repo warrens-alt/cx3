@@ -9,6 +9,12 @@ import {
   type AnalysisCell,
   buildDispositionExportRows,
   serializeCsv,
+  validateDateBound,
+  validateDateOrdering,
+  validateFilters,
+  validateTimezone,
+  validateEvaluationTimestamp,
+  validateCountField,
 } from '../../../lib/analysisExport';
 
 export interface DispositionSelectionParams {
@@ -107,17 +113,21 @@ export function buildVendorSelectedExport(params: {
   if (!report.countingGrain || typeof report.countingGrain !== 'string' || !report.countingGrain.trim()) {
     throw new Error('Cannot export: Missing required countingGrain in disposition report.');
   }
+  if (!report.evaluatedAt || typeof report.evaluatedAt !== 'string' || !report.evaluatedAt.trim()) {
+    throw new Error('Cannot export: Missing required evaluatedAt timestamp in disposition report.');
+  }
+  validateEvaluationTimestamp(report.evaluatedAt);
+
   if (
     report.summary === undefined ||
     report.summary === null ||
     typeof report.summary.totalEntities !== 'number' ||
     isNaN(report.summary.totalEntities)
   ) {
-    throw new Error('Cannot export: Missing required totalEntities population in disposition report summary.');
+    throw new Error('Cannot export: Missing required totalEntities population in report summary.');
   }
-  if (!report.evaluatedAt || typeof report.evaluatedAt !== 'string' || !report.evaluatedAt.trim()) {
-    throw new Error('Cannot export: Missing required evaluatedAt timestamp in disposition report.');
-  }
+  validateCountField(report.summary.totalEntities, 'report.summary.totalEntities', true);
+
   if (!selection.vendor || typeof selection.vendor !== 'string' || !selection.vendor.trim()) {
     throw new Error('Cannot export: Missing required vendor selection.');
   }
@@ -131,9 +141,37 @@ export function buildVendorSelectedExport(params: {
     throw new Error(`Cannot export: Report clientId "${report.clientId}" contradicts request clientId "${requestContext.clientId}".`);
   }
 
+  // Required effective startDate and endDate validation
+  if (!('startDate' in requestContext) || requestContext.startDate === undefined) {
+    throw new Error('Cannot export: Missing required startDate in requestContext; explicit date string or null is required.');
+  }
+  if (!('endDate' in requestContext) || requestContext.endDate === undefined) {
+    throw new Error('Cannot export: Missing required endDate in requestContext; explicit date string or null is required.');
+  }
+  const startDate = validateDateBound(requestContext.startDate, 'startDate');
+  const endDate = validateDateBound(requestContext.endDate, 'endDate');
+  validateDateOrdering(startDate, endDate);
+
+  // Filters validation
+  if (!('filters' in requestContext) || requestContext.filters === undefined || requestContext.filters === null) {
+    throw new Error('Cannot export: Missing required filters in requestContext; an explicit object (such as {}) is required.');
+  }
+  const filters = validateFilters(requestContext.filters);
+
+  // Timezone validation
+  const resolvedTimezone = report.timezone || requestContext.timezone;
+  const timezone = validateTimezone(resolvedTimezone);
+
   const vendorSummary = report.vendorSummaries?.find((v) => v.vendor === selection.vendor);
   if (!vendorSummary) {
     throw new Error(`Cannot export: Vendor "${selection.vendor}" was not found in disposition report summary.`);
+  }
+
+  validateCountField(vendorSummary.totalPopulation, 'vendorSummary.totalPopulation', true);
+  validateCountField(vendorSummary.dialledCount, 'vendorSummary.dialledCount', true);
+
+  for (const r of report.breakdown || []) {
+    validateCountField(r.count, `row.count for ${r.rawDisposition}`, true);
   }
 
   const isCallMode = report.mode === 'call_records';
@@ -215,9 +253,10 @@ export function buildVendorSelectedExport(params: {
   // 7. Unambiguous metadata distinguishing all 5 population metrics
   const metadata: DispositionExportMetadata = {
     clientId: resolvedClientId,
-    startDate: requestContext.startDate || null,
-    endDate: requestContext.endDate || null,
-    filters: requestContext.filters || {},
+    startDate,
+    endDate,
+    filters,
+    timezone,
     mode: report.mode,
     dateBasis: report.dateBasis,
     countingGrain: report.countingGrain,

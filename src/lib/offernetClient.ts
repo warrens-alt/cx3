@@ -957,6 +957,9 @@ export async function fetchOffernetJson<T>(url: string, forceRefresh = false, si
         if (!('timezone' in (result as any)) && json.metadata.timezone) {
           (result as any).timezone = json.metadata.timezone;
         }
+        if (!('clientId' in (result as any)) && json.metadata.clientId) {
+          (result as any).clientId = json.metadata.clientId;
+        }
         if (!('metadata' in (result as any))) {
           (result as any).metadata = json.metadata;
         }
