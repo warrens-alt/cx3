@@ -119,9 +119,13 @@
 | GET | `/api/analytics/source-coverage` | `server/bigquery/sourceRouter.ts` |
 | GET | `/api/analytics/source-metrics/:role` | `server/bigquery/sourceRouter.ts` |
 | GET | `/api/analytics/sources` | `server/api.ts reports registry` |
+| POST | `/api/analytics/sources/check-readiness` | `server/bigquery/sourceRouter.ts` |
 | GET | `/api/analytics/sources/inventory` | `server/bigquery/sourceRouter.ts` |
 | GET | `/api/analytics/sources/mappings` | `server/bigquery/sourceRouter.ts` |
+| GET | `/api/analytics/sources/ontact/summary` | `server/bigquery/sourceRouter.ts` |
+| GET | `/api/analytics/sources/onvest/touchpoints` | `server/bigquery/sourceRouter.ts` |
 | POST | `/api/analytics/sources/profile` | `server/bigquery/sourceRouter.ts` |
+| GET | `/api/analytics/sources/readiness` | `server/bigquery/sourceRouter.ts` |
 | GET | `/api/analytics/speed-to-lead` | `server/api.ts reports registry` |
 | GET | `/api/analytics/timeseries` | `server/api.ts reports registry` |
 | GET | `/api/analytics/validation` | `server/api.ts` |

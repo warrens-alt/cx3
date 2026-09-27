@@ -37,10 +37,18 @@ export function compareExactDecimal(left: string, right: string): number {
 }
 
 /** Exact addition/subtraction for warehouse decimal strings. */
-export function addExactDecimals(left: string, right: string): string {
+export function addExactDecimals(left: string, right: string, preserveScale = false): string {
   const a = parts(left), b = parts(right), scale = Math.max(a.scale, b.scale);
   const av = a.coefficient * 10n ** BigInt(scale - a.scale);
   const bv = b.coefficient * 10n ** BigInt(scale - b.scale);
+  if (preserveScale) {
+    const sum = av + bv;
+    const negative = sum < 0n;
+    const absSum = negative ? -sum : sum;
+    const digits = absSum.toString().padStart(scale + 1, '0');
+    const raw = scale === 0 ? digits : `${digits.slice(0, -scale)}.${digits.slice(-scale)}`;
+    return negative && sum !== 0n ? `-${raw}` : raw;
+  }
   return fromParts(av + bv, scale);
 }
 
