@@ -22,6 +22,8 @@ import { fetchRawLeads, type RawLeadsData } from '../lib/offernetClient';
 import { useOperationalData } from '../lib/useOperationalData';
 import { LeadTimelineModal } from '../components/LeadTimelineModal';
 import { downloadCsv, formatTableCurrency, formatTableNumber } from '../lib/formatters';
+import { buildLeadLedgerExport } from '../lib/leadLedgerExport';
+import { ledgerValidation, ledgerOutcome, ledgerCalls } from '../lib/leadLedgerValues';
 
 export default function LeadLedger() {
   const { selectedClient } = useClient();
@@ -33,6 +35,7 @@ export default function LeadLedger() {
   const [appliedSearch, setAppliedSearch] = useState('');
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const queryParams = useMemo(() => ({
     clientId: selectedClient,
@@ -74,49 +77,15 @@ export default function LeadLedger() {
   };
 
   const handleExportCsv = () => {
-    if (!currentRows.length) return;
-    const headers = [
-      'Lead ID',
-      'Consumer ID',
-      'Fetched Date',
-      'Offershop Source',
-      'Vendor',
-      'Medium',
-      'Grade',
-      'Vetting',
-      'Valid ID',
-      'Valid Phone',
-      'Dialled',
-      'Contacted (RPC)',
-      'Total Calls',
-      'Last Disposition',
-      'Sale',
-      'Activated',
-      'Revenue',
-    ];
-    const exportData = currentRows.map(row => [
-      row.lead_id || '',
-      row.consumer_id ?? '',
-      row.fetched || '',
-      row.source || row.offershop_source || '',
-      row.vendor || '',
-      row.medium || row.offernet_medium || '',
-      row.grade || row.offershop_grade || '',
-      row.vetting || row.offershop_color_vetting || '',
-      row.valid_idno === 1 || row.valid_idno === true ? 'Valid (1)' : 'Invalid (2)',
-      row.phone_valid === 1 || row.phone_valid === true ? 'Valid (1)' : 'Invalid (2)',
-      row.dialled ? 'TRUE' : 'FALSE',
-      row.contacted ? 'TRUE' : 'FALSE',
-      row.total_calls ?? 0,
-      row.last_dialer_status || '',
-      row.sale ? 'TRUE' : 'FALSE',
-      row.activated ? 'TRUE' : 'FALSE',
-      row.revenue != null ? String(row.revenue) : '',
-    ]);
-    downloadCsv(
-      `cx-lead-ledger-${selectedClient}-${startDate || 'all'}-${endDate || 'all'}-page${page + 1}.csv`,
-      [headers, ...exportData]
-    );
+    setExportError(null);
+    if (loading || error || !data || !currentRows.length) return;
+    try {
+      // The result, not the currently selected controls, owns export scope and page metadata.
+      const exported = buildLeadLedgerExport(data);
+      downloadCsv(exported.filename, exported.rows);
+    } catch (cause) {
+      setExportError(cause instanceof Error ? cause.message : 'The current evidence page could not be exported.');
+    }
   };
 
   const startRecord = totalCount > 0 ? page * pageSize + 1 : 0;
@@ -137,7 +106,7 @@ export default function LeadLedger() {
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Tenant-scoped analytical records with bounded pagination, exact column semantics, and immutable row verification.
+              Tenant-scoped analytical records with bounded pagination. Missing evidence remains unavailable; source reconciliation is not implied.
             </p>
           </div>
 
@@ -145,7 +114,7 @@ export default function LeadLedger() {
             <button
               type="button"
               onClick={handleExportCsv}
-              disabled={!currentRows.length}
+              disabled={loading || Boolean(error) || !currentRows.length}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50 transition-colors shadow-xs"
             >
               <Download size={13} />
@@ -168,6 +137,15 @@ export default function LeadLedger() {
             <span>{error}</span>
           </div>
         )}
+
+        {exportError && (
+          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-xs text-red-800 flex items-center gap-2">
+            <AlertCircle size={16} className="shrink-0" aria-hidden="true" />
+            <span>{exportError}</span>
+            <button type="button" onClick={() => setExportError(null)} className="ml-auto" aria-label="Dismiss export error"><X size={16} /></button>
+          </div>
+        )}
+        <p className="text-xs text-slate-500">Page exports retain the 17 Ledger columns and append reporting-scope and page audit fields. Unavailable is not zero, false, or an invalid validation result.</p>
 
         {/* Search & Navigation Bar */}
         <div className="bg-white rounded-lg border border-slate-200 p-3 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
@@ -298,7 +276,7 @@ export default function LeadLedger() {
                     <td colSpan={17} className="px-4 py-16 text-center text-slate-500 font-sans">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <RefreshCw size={18} className="animate-spin text-[var(--cx-action)]" />
-                        <span>Loading verified lead records…</span>
+                        <span>Loading lead records…</span>
                       </div>
                     </td>
                   </tr>
@@ -312,8 +290,8 @@ export default function LeadLedger() {
                   currentRows.map((row, idx) => {
                     const leadId = String(row.lead_id || '');
                     const isCopied = copiedId === leadId;
-                    const isValidId = row.valid_idno === 1 || row.valid_idno === true || row.valid_idno === '1';
-                    const isValidPhone = row.phone_valid === 1 || row.phone_valid === true || row.phone_valid === '1';
+                    const idValidation = ledgerValidation(row.valid_idno);
+                    const phoneValidation = ledgerValidation(row.phone_valid);
                     const vetting = String(row.vetting || row.offershop_color_vetting || '').toLowerCase();
                     const vettingBadgeClass = vetting.includes('green')
                       ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -385,51 +363,27 @@ export default function LeadLedger() {
 
                         {/* ID Valid (1 vs 2) */}
                         <td className="py-2 px-3 whitespace-nowrap">
-                          {row.valid_idno != null ? (
-                            isValidId ? (
-                              <span className="text-emerald-700 font-semibold font-sans">1 (Valid)</span>
-                            ) : (
-                              <span className="text-amber-800 font-semibold font-sans">2 (Invalid)</span>
-                            )
-                          ) : (
-                            <span className="text-slate-400">—</span>
-                          )}
+                          {idValidation}
                         </td>
 
                         {/* Phone Valid (1 vs 2) */}
                         <td className="py-2 px-3 whitespace-nowrap">
-                          {row.phone_valid != null ? (
-                            isValidPhone ? (
-                              <span className="text-emerald-700 font-semibold font-sans">1 (Valid)</span>
-                            ) : (
-                              <span className="text-amber-800 font-semibold font-sans">2 (Invalid)</span>
-                            )
-                          ) : (
-                            <span className="text-slate-400">—</span>
-                          )}
+                          {phoneValidation}
                         </td>
 
                         {/* Dialled */}
                         <td className="py-2 px-3 text-center whitespace-nowrap">
-                          {row.dialled ? (
-                            <span className="text-emerald-600 font-bold">✓</span>
-                          ) : (
-                            <span className="text-slate-400">—</span>
-                          )}
+                          {ledgerOutcome(row.dialled) === 'TRUE' ? 'Yes' : ledgerOutcome(row.dialled) === 'FALSE' ? 'No' : 'Unavailable'}
                         </td>
 
                         {/* Contacted / RPC */}
                         <td className="py-2 px-3 text-center whitespace-nowrap">
-                          {row.contacted ? (
-                            <span className="text-emerald-600 font-bold">✓</span>
-                          ) : (
-                            <span className="text-slate-400">—</span>
-                          )}
+                          {ledgerOutcome(row.contacted) === 'TRUE' ? 'Yes' : ledgerOutcome(row.contacted) === 'FALSE' ? 'No' : 'Unavailable'}
                         </td>
 
                         {/* Calls */}
                         <td className="py-2 px-3 text-right font-mono tabular-nums text-slate-700 whitespace-nowrap">
-                          {row.total_calls ?? 0}
+                          {ledgerCalls(row.total_calls)}
                         </td>
 
                         {/* Last Status */}
@@ -439,24 +393,12 @@ export default function LeadLedger() {
 
                         {/* Sale */}
                         <td className="py-2 px-3 text-center whitespace-nowrap">
-                          {row.sale ? (
-                            <span className="px-1.5 py-0.5 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                              Sale
-                            </span>
-                          ) : (
-                            <span className="text-slate-400">—</span>
-                          )}
+                          {ledgerOutcome(row.sale) === 'TRUE' ? 'Yes' : ledgerOutcome(row.sale) === 'FALSE' ? 'No' : 'Unavailable'}
                         </td>
 
                         {/* Activated */}
                         <td className="py-2 px-3 text-center whitespace-nowrap">
-                          {row.activated ? (
-                            <span className="px-1.5 py-0.5 rounded text-[11px] font-semibold bg-blue-100 text-blue-800 border border-blue-200">
-                              Active
-                            </span>
-                          ) : (
-                            <span className="text-slate-400">—</span>
-                          )}
+                          {ledgerOutcome(row.activated) === 'TRUE' ? 'Yes' : ledgerOutcome(row.activated) === 'FALSE' ? 'No' : 'Unavailable'}
                         </td>
 
                         {/* Revenue */}
