@@ -11,3 +11,6 @@ application-source.tar.gz
 coverage/
 .DS_Store
 *.log
+.wrangler/
+.dev.vars*
+wrangler.cloudflare.local.jsonc
