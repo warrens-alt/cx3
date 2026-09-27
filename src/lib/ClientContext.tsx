@@ -50,6 +50,7 @@ export const ClientProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const activeLoad = useRef<AbortController | null>(null);
+  const resolvedClientRef = useRef<string | null>(null);
   const clientConfig = selectAuthorizedClient(clients, searchParams.get('clientId'), previousClient) as ClientConfig | null;
   const selectedClient = clientConfig?.id || '';
 
@@ -89,20 +90,32 @@ export const ClientProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const match = clients.find(client => client.id === id);
     if (!match) return;
     setPreviousClient(id);
+    resolvedClientRef.current = id;
     setSearchParams(previous => {
       const next = new URLSearchParams(previous);
       next.set('clientId', id);
+      next.delete('inspectVendor');
+      next.delete('inspectGroup');
       return next;
     }, { replace: true });
   }, [clients, setSearchParams]);
 
   useEffect(() => {
     if (!ready || !selectedClient) return;
+    const isClientTransition = resolvedClientRef.current !== null && resolvedClientRef.current !== selectedClient;
+    resolvedClientRef.current = selectedClient;
     setPreviousClient(selectedClient);
-    if (searchParams.get('clientId') === selectedClient) return;
+
+    const currentUrlClient = searchParams.get('clientId');
+    if (currentUrlClient === selectedClient && !isClientTransition) return;
+
     setSearchParams(previous => {
       const next = new URLSearchParams(previous);
       next.set('clientId', selectedClient);
+      if (isClientTransition) {
+        next.delete('inspectVendor');
+        next.delete('inspectGroup');
+      }
       return next;
     }, { replace: true });
   }, [ready, selectedClient, searchParams, setSearchParams]);

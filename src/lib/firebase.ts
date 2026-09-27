@@ -20,6 +20,6 @@ async function testConnection() {
   }
 }
 
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'test' && !(globalThis as any).IS_REACT_ACT_ENVIRONMENT) {
   testConnection().catch(() => {});
 }

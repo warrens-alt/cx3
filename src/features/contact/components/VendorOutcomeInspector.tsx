@@ -138,7 +138,80 @@ export default function VendorOutcomeInspector({
     return Array.from(set);
   }, [rawRows]);
 
-  if (!open || !vendor || !vendorSummary) return null;
+  const isUnknownGroup = Boolean(
+    groupFilter && groupFilter !== 'ALL' && !availableGroups.includes(groupFilter as any)
+  );
+
+  if (!open || !vendor) return null;
+
+  // Explicit unavailable state for vendors not represented in current authorized report
+  if (!vendorSummary) {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-xs transition-opacity"
+        role="presentation"
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+      >
+        <div
+          ref={dialogRef}
+          tabIndex={-1}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="vendor-inspector-unavailable-title"
+          className="w-full max-w-xl h-full bg-surface border-l border-border shadow-2xl flex flex-col p-6 overflow-y-auto animate-in slide-in-from-right duration-200"
+        >
+          <div className="flex items-start justify-between pb-4 border-b border-border-subtle">
+            <div>
+              <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400 text-xs font-semibold uppercase tracking-wider">
+                <AlertCircle size={14} />
+                <span>Inspection Unavailable</span>
+              </div>
+              <h2 id="vendor-inspector-unavailable-title" className="text-lg font-bold text-text-main mt-1">
+                Vendor Selection Unavailable
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 text-text-mute hover:text-text-main hover:bg-surface-subtle rounded-md transition-colors cursor-pointer"
+              aria-label="Close unavailable inspection"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="py-6 space-y-4 flex-1">
+            <div
+              className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-text-main space-y-2"
+              role="alert"
+            >
+              <p className="font-semibold text-amber-800 dark:text-amber-300">
+                The requested vendor &quot;{vendor}&quot; is not represented in the authorised report.
+              </p>
+              <p className="text-text-sec">
+                No recorded disposition evidence exists for this vendor in the active workspace and reporting period. The inspector cannot open an unrepresented vendor or silently widen scope.
+              </p>
+            </div>
+            <p className="text-xs text-text-mute">
+              Dismiss this inspection to return to the active report summary.
+            </p>
+          </div>
+
+          <div className="pt-4 border-t border-border-subtle flex justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-medium text-text-sec bg-surface border border-border-subtle rounded-md hover:bg-surface-subtle hover:text-text-main transition-colors cursor-pointer"
+            >
+              Dismiss inspection
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleTriggerExport = () => {
     if (onExportSelectedBreakdown) {
@@ -318,6 +391,11 @@ export default function VendorOutcomeInspector({
                 className="text-xs bg-surface border border-border-subtle rounded-lg px-2.5 py-1.5 text-text-main focus:outline-hidden focus:ring-1 focus:ring-brand-primary cursor-pointer"
               >
                 <option value="ALL">All Outcome Groups</option>
+                {isUnknownGroup && (
+                  <option value={groupFilter} disabled>
+                    {APPROVED_DISPOSITION_GROUPS[groupFilter as ApprovedDispositionGroup]?.label || groupFilter} (Not recorded)
+                  </option>
+                )}
                 {availableGroups.map((g) => (
                   <option key={g} value={g}>
                     {APPROVED_DISPOSITION_GROUPS[g]?.label || g}
@@ -359,6 +437,28 @@ export default function VendorOutcomeInspector({
               </button>
             </div>
           </div>
+
+          {/* Unknown group notice */}
+          {isUnknownGroup && (
+            <div
+              role="alert"
+              className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-800 dark:text-amber-300 flex items-center justify-between gap-2"
+            >
+              <div className="flex items-center gap-2">
+                <AlertCircle size={14} className="shrink-0" />
+                <span>
+                  {`Outcome group "${APPROVED_DISPOSITION_GROUPS[groupFilter as ApprovedDispositionGroup]?.label || groupFilter}" is not recorded for ${vendor}.`}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleGroupSelect('ALL')}
+                className="underline font-semibold cursor-pointer shrink-0"
+              >
+                Show all groups
+              </button>
+            </div>
+          )}
 
           {/* Raw Codes Table - Harmonized with CSV Export */}
           <div className="bg-surface rounded-lg border border-border-subtle overflow-hidden">

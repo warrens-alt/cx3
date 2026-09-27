@@ -55,16 +55,8 @@ export function useContactModel() {
     setExportError(null);
   }, [selectedClient, startDate, endDate, filters]);
 
-  // Reset drawer selection on client changes without modifying global filters
+  // Reset export error on client changes
   useEffect(() => {
-    if (inspectVendor) {
-      setSearchParams(prev => {
-        const next = new URLSearchParams(prev);
-        next.delete('inspectVendor');
-        next.delete('inspectGroup');
-        return next;
-      }, { replace: true });
-    }
     setExportError(null);
   }, [selectedClient]);
 
@@ -98,6 +90,12 @@ export function useContactModel() {
     fetchContactDispositions,
     activeTab === 'vendor_dispositions'
   );
+
+  // Invalidate stale data from a previous client to prevent delayed responses from opening inspectors under a new client
+  const isDispDataCurrentClient = Boolean(
+    dispQuery.data && (!dispQuery.data.clientId || dispQuery.data.clientId === selectedClient)
+  );
+  const dispData = isDispDataCurrentClient ? dispQuery.data : null;
 
   // Tab change handler
   const handleTabChange = (newTab: ContactTab) => {
@@ -193,9 +191,17 @@ export function useContactModel() {
       throw new Error('Cannot export summary: Missing total population in report summary.');
     }
 
+    const resolvedClientId = report.clientId || selectedClient;
+    if (!resolvedClientId || !resolvedClientId.trim()) {
+      throw new Error('Cannot export summary: Missing clientId in report data.');
+    }
+    if (report.clientId && selectedClient && report.clientId !== selectedClient) {
+      throw new Error(`Cannot export summary: Report clientId "${report.clientId}" contradicts selected clientId "${selectedClient}".`);
+    }
+
     const isCallMode = report.mode === 'call_records';
     return {
-      clientId: report.clientId || selectedClient || 'unknown_tenant',
+      clientId: resolvedClientId,
       startDate: startDate || null,
       endDate: endDate || null,
       filters: extractOffernetFilters(filters),
@@ -297,7 +303,7 @@ export function useContactModel() {
     try {
       setExportError(null);
       const result = buildVendorSelectedExport({
-        report: dispQuery.data,
+        report: dispData,
         requestContext: {
           clientId: selectedClient,
           startDate: startDate || null,
@@ -352,8 +358,8 @@ export function useContactModel() {
     callCountData: callCountQuery.data,
     callCountLoading: callCountQuery.loading,
     callCountError: callCountQuery.error,
-    dispData: dispQuery.data,
-    dispLoading: dispQuery.loading,
+    dispData,
+    dispLoading: dispQuery.loading || (Boolean(dispQuery.data) && !isDispDataCurrentClient),
     dispError: dispQuery.error,
     inspectorContent,
     setInspectorContent,

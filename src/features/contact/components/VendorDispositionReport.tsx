@@ -11,6 +11,8 @@ import {
   ShieldCheck,
   PhoneCall,
   Layers,
+  AlertCircle,
+  X,
 } from 'lucide-react';
 import { formatPercent, formatTableNumber } from '../../../lib/formatters';
 import { HorizontalStackedOutcomeChart } from '../../../components/charts/OperationalVisuals';
@@ -30,6 +32,8 @@ interface VendorDispositionReportProps {
   onFilterReportByVendor?: (vendor: string) => void;
   onExportSummaryTable?: () => void;
   onExportOutcomeComparison?: () => void;
+  exportError?: string | null;
+  onClearExportError?: () => void;
 }
 
 const OUTCOME_GROUPS_ORDER: ApprovedDispositionGroup[] = [
@@ -57,6 +61,8 @@ export default function VendorDispositionReport({
   onFilterReportByVendor,
   onExportSummaryTable,
   onExportOutcomeComparison,
+  exportError,
+  onClearExportError,
 }: VendorDispositionReportProps) {
   const [chartViewMode, setChartViewMode] = useState<'count' | 'percent'>('percent');
   const [showAllVendors, setShowAllVendors] = useState(false);
@@ -356,6 +362,30 @@ export default function VendorDispositionReport({
           </div>
         )}
       </div>
+
+      {/* Accessible Export Error Feedback */}
+      {exportError && (
+        <div
+          role="alert"
+          aria-live="polite"
+          className="p-3.5 bg-red-500/10 border border-red-500/30 rounded-xl text-xs text-red-700 dark:text-red-400 flex items-center justify-between gap-2"
+        >
+          <div className="flex items-center gap-2">
+            <AlertCircle size={15} className="shrink-0" />
+            <span>{exportError}</span>
+          </div>
+          {onClearExportError && (
+            <button
+              type="button"
+              onClick={onClearExportError}
+              className="p-1 hover:bg-red-500/20 rounded cursor-pointer"
+              aria-label="Dismiss export error"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* 4. Sortable Vendor Disposition Table */}
       <div className="bg-surface rounded-xl border border-border-subtle overflow-hidden">

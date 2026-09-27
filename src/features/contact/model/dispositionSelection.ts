@@ -122,6 +122,15 @@ export function buildVendorSelectedExport(params: {
     throw new Error('Cannot export: Missing required vendor selection.');
   }
 
+  // Scope validation: client must be present and must not contradict
+  const resolvedClientId = report.clientId || requestContext.clientId;
+  if (!resolvedClientId || typeof resolvedClientId !== 'string' || !resolvedClientId.trim()) {
+    throw new Error('Cannot export: Missing required clientId in disposition report and request context.');
+  }
+  if (report.clientId && requestContext.clientId && report.clientId !== requestContext.clientId) {
+    throw new Error(`Cannot export: Report clientId "${report.clientId}" contradicts request clientId "${requestContext.clientId}".`);
+  }
+
   const vendorSummary = report.vendorSummaries?.find((v) => v.vendor === selection.vendor);
   if (!vendorSummary) {
     throw new Error(`Cannot export: Vendor "${selection.vendor}" was not found in disposition report summary.`);
@@ -201,12 +210,11 @@ export function buildVendorSelectedExport(params: {
   // 6. Filename reflecting precise selection scope
   const groupSlug = effectiveGroup !== 'ALL' ? `_${effectiveGroup.toLowerCase()}` : '';
   const searchSlug = effectiveSearch ? '_filtered' : '';
-  const clientSlug = report.clientId || requestContext.clientId || 'tenant';
-  const filename = `raw_dispositions_${selection.vendor}${groupSlug}${searchSlug}_${report.mode}_${clientSlug}`;
+  const filename = `raw_dispositions_${selection.vendor}${groupSlug}${searchSlug}_${report.mode}_${resolvedClientId}`;
 
   // 7. Unambiguous metadata distinguishing all 5 population metrics
   const metadata: DispositionExportMetadata = {
-    clientId: report.clientId || requestContext.clientId || 'default_tenant',
+    clientId: resolvedClientId,
     startDate: requestContext.startDate || null,
     endDate: requestContext.endDate || null,
     filters: requestContext.filters || {},

@@ -15,6 +15,7 @@ import {
   calculateGroupTotals,
 } from '../src/features/contact/model/dispositionSelection';
 import { getRawLeads } from '../server/analytics/investigation/records';
+import { invalidateOffernetCache } from '../src/lib/offernet/cache';
 
 test('adaptJourneyData: acceptance fixture separates independent stage totals from transition intersections', () => {
   // Acceptance fixture:
@@ -873,4 +874,398 @@ test('investigation records: getRawLeads handles call-effort and funnel-stage dr
       status: 422,
     }
   );
+});
+
+test('vendor inspection bookmarks: valid saved inspectVendor and inspectGroup survive initial load, mount and effects', async (t) => {
+  const { JSDOM } = await import('jsdom');
+  const dom = new JSDOM('<!DOCTYPE html><html><body><div id="test-root"></div></body></html>', {
+    url: 'http://localhost/contact-strategy?clientId=tenant-a&startDate=2026-09-01&endDate=2026-09-15&tab=vendor_dispositions&inspectVendor=Vendor%20A&inspectGroup=NO_ANSWER',
+  });
+  const originalWindow = global.window;
+  const originalDocument = global.document;
+  const originalFetch = global.fetch;
+
+  try {
+    global.window = dom.window as any;
+    global.document = dom.window.document as any;
+    try {
+      Object.defineProperty(global, 'navigator', {
+        value: dom.window.navigator,
+        configurable: true,
+        writable: true,
+      });
+    } catch {
+      // ignore if navigator is already set
+    }
+    (global as any).IS_REACT_ACT_ENVIRONMENT = true;
+
+    global.fetch = (async (url: string) => {
+      if (url === '/api/analytics/clients') {
+        return {
+          ok: true,
+          json: async () => ({ success: true, data: [{ id: 'tenant-a', name: 'Tenant A' }] }),
+        };
+      }
+      return { ok: true, json: async () => ({ success: true, data: {} }) };
+    }) as any;
+
+    const React = await import('react');
+    const { act } = React;
+    const { createRoot } = await import('react-dom/client');
+    const { MemoryRouter, useSearchParams } = await import('react-router-dom');
+    const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query');
+    const { ClientProvider } = await import('../src/lib/ClientContext');
+    const { FilterProvider } = await import('../src/lib/FilterContext');
+    const { AuthContext } = await import('../src/lib/AuthContext');
+    const { useContactModel } = await import('../src/features/contact/model/useContactModel');
+
+    let capturedModel: any;
+    let capturedParams: URLSearchParams;
+
+    function Probe() {
+      const [params] = useSearchParams();
+      capturedParams = params;
+      capturedModel = useContactModel();
+      return React.createElement('div', null, capturedModel.inspectVendor || 'NONE');
+    }
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+    const container = document.getElementById('test-root')!;
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        React.createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          React.createElement(
+            MemoryRouter,
+            {
+              initialEntries: [
+                '/contact-strategy?clientId=tenant-a&startDate=2026-09-01&endDate=2026-09-15&tab=vendor_dispositions&inspectVendor=Vendor%20A&inspectGroup=NO_ANSWER',
+              ],
+            },
+            React.createElement(
+              AuthContext.Provider,
+              { value: { user: { email: 'test@example.com' }, profile: { role: 'admin' } } as any },
+              React.createElement(
+                ClientProvider,
+                null,
+                React.createElement(
+                  FilterProvider,
+                  null,
+                  React.createElement(Probe)
+                )
+              )
+            )
+          )
+        )
+      );
+    });
+
+    // Wait for microtasks, client resolution and effects to execute
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    // 1. inspectVendor and inspectGroup MUST survive initial mount and effects
+    assert.equal(
+      capturedParams.get('inspectVendor'),
+      'Vendor A',
+      'inspectVendor must not be deleted on initial load/mount'
+    );
+    assert.equal(
+      capturedParams.get('inspectGroup'),
+      'NO_ANSWER',
+      'inspectGroup must not be deleted on initial load/mount'
+    );
+    assert.equal(capturedModel.inspectVendor, 'Vendor A');
+    assert.equal(capturedModel.inspectGroup, 'NO_ANSWER');
+
+    // 2. Global filters must remain preserved
+    assert.equal(capturedParams.get('clientId'), 'tenant-a');
+    assert.equal(capturedParams.get('startDate'), '2026-09-01');
+    assert.equal(capturedParams.get('endDate'), '2026-09-15');
+    assert.equal(capturedParams.get('tab'), 'vendor_dispositions');
+
+    await act(async () => {
+      root.unmount();
+    });
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    invalidateOffernetCache();
+  } finally {
+    try {
+      dom.window.close();
+    } catch {
+      // ignore
+    }
+    delete (global as any).window;
+    delete (global as any).document;
+    if (originalWindow !== undefined) (global as any).window = originalWindow;
+    if (originalDocument !== undefined) (global as any).document = originalDocument;
+    global.fetch = originalFetch;
+  }
+});
+
+test('vendor inspection bookmarks: client switch clears local inspection without wiping global filters', async (t) => {
+  const { JSDOM } = await import('jsdom');
+  const dom = new JSDOM('<!DOCTYPE html><html><body><div id="test-root-transition"></div></body></html>', {
+    url: 'http://localhost/contact-strategy?clientId=tenant-a&startDate=2026-09-01&endDate=2026-09-15&tab=vendor_dispositions&inspectVendor=Vendor%20A&inspectGroup=NO_ANSWER',
+  });
+  const originalWindow = global.window;
+  const originalDocument = global.document;
+  const originalFetch = global.fetch;
+
+  try {
+    global.window = dom.window as any;
+    global.document = dom.window.document as any;
+    (global as any).IS_REACT_ACT_ENVIRONMENT = true;
+
+    global.fetch = (async (url: string) => {
+      if (url === '/api/analytics/clients') {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              { id: 'tenant-a', name: 'Tenant A' },
+              { id: 'tenant-b', name: 'Tenant B' },
+            ],
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({ success: true, data: {} }) };
+    }) as any;
+
+    const React = await import('react');
+    const { act } = React;
+    const { createRoot } = await import('react-dom/client');
+    const { MemoryRouter, useSearchParams } = await import('react-router-dom');
+    const { QueryClient, QueryClientProvider } = await import('@tanstack/react-query');
+    const { ClientProvider, useClient } = await import('../src/lib/ClientContext');
+    const { FilterProvider } = await import('../src/lib/FilterContext');
+    const { AuthContext } = await import('../src/lib/AuthContext');
+
+    let clientApi: any;
+    let currentParams: URLSearchParams;
+
+    function SwitcherProbe() {
+      const [params] = useSearchParams();
+      currentParams = params;
+      clientApi = useClient();
+      return React.createElement('div', null, clientApi.selectedClient);
+    }
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+    const container = document.getElementById('test-root-transition')!;
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        React.createElement(
+          QueryClientProvider,
+          { client: queryClient },
+          React.createElement(
+            MemoryRouter,
+            {
+              initialEntries: [
+                '/contact-strategy?clientId=tenant-a&startDate=2026-09-01&endDate=2026-09-15&tab=vendor_dispositions&inspectVendor=Vendor%20A&inspectGroup=NO_ANSWER',
+              ],
+            },
+            React.createElement(
+              AuthContext.Provider,
+              { value: { user: { email: 'test@example.com' }, profile: { role: 'admin' } } as any },
+              React.createElement(
+                ClientProvider,
+                null,
+                React.createElement(
+                  FilterProvider,
+                  null,
+                  React.createElement(SwitcherProbe)
+                )
+              )
+            )
+          )
+        )
+      );
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    // Before switch: bookmarks intact
+    assert.equal(currentParams.get('inspectVendor'), 'Vendor A');
+    assert.equal(clientApi.selectedClient, 'tenant-a');
+
+    // Perform client switch to tenant-b
+    await act(async () => {
+      clientApi.setSelectedClient('tenant-b');
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    // After switch: local inspection is cleared
+    assert.equal(currentParams.get('inspectVendor'), null, 'inspectVendor must be cleared on client switch');
+    assert.equal(currentParams.get('inspectGroup'), null, 'inspectGroup must be cleared on client switch');
+
+    // Global filters must remain preserved
+    assert.equal(currentParams.get('clientId'), 'tenant-b');
+    assert.equal(currentParams.get('startDate'), '2026-09-01', 'startDate must be preserved on client switch');
+    assert.equal(currentParams.get('endDate'), '2026-09-15', 'endDate must be preserved on client switch');
+    assert.equal(currentParams.get('tab'), 'vendor_dispositions', 'tab must be preserved on client switch');
+
+    await act(async () => {
+      root.unmount();
+    });
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    invalidateOffernetCache();
+  } finally {
+    try {
+      dom.window.close();
+    } catch {
+      // ignore
+    }
+    delete (global as any).window;
+    delete (global as any).document;
+    if (originalWindow !== undefined) (global as any).window = originalWindow;
+    if (originalDocument !== undefined) (global as any).document = originalDocument;
+    global.fetch = originalFetch;
+  }
+});
+
+test('vendor disposition export: export scope cannot invent or contradict clientId', () => {
+  const selection = { vendor: 'CallForce', groupFilter: 'ALL', searchQuery: '' };
+
+  // 1. Contradiction between report clientId and requestContext clientId throws explicit error
+  assert.throws(
+    () =>
+      buildVendorSelectedExport({
+        report: { ...sampleReportFixture, clientId: 'tenant-a' },
+        requestContext: { clientId: 'tenant-b' },
+        selection,
+      }),
+    /Report clientId "tenant-a" contradicts request clientId "tenant-b"/
+  );
+
+  // 2. Missing clientId in both report and requestContext throws explicit error (does not invent 'default_tenant')
+  assert.throws(
+    () =>
+      buildVendorSelectedExport({
+        report: { ...sampleReportFixture, clientId: undefined },
+        requestContext: { clientId: undefined },
+        selection,
+      }),
+    /Missing required clientId/
+  );
+
+  // 3. buildDispositionExportRows rejects missing or empty clientId
+  assert.throws(
+    () =>
+      buildDispositionExportRows(
+        [['Vendor', 'Code'], ['CallForce', 'SALE']],
+        {
+          clientId: '',
+          mode: 'lead_status',
+          dateBasis: 'capture_date',
+          countingGrain: 'lead_vendor_pairs',
+          totalPopulation: 100,
+          denominatorDefinition: 'Total leads',
+          isTruncated: false,
+          taxonomyVersion: DISPOSITION_REPORT_VERSION,
+          generatedAt: '2026-09-27T10:00:00Z',
+        }
+      ),
+    /Missing required clientId/
+  );
+});
+
+test('vendor outcome inspector: unknown vendor renders explicit unavailable dialog without opening another vendor or widening scope', async () => {
+  const React = await import('react');
+  const { renderToString } = await import('react-dom/server');
+  const VendorOutcomeInspector = (await import('../src/features/contact/components/VendorOutcomeInspector')).default;
+
+  // 1. Unknown vendor renders explicit unavailable state
+  const unavailableHtml = renderToString(
+    React.createElement(VendorOutcomeInspector, {
+      open: true,
+      onClose: () => {},
+      vendor: 'NonExistentVendor',
+      mode: 'lead_status',
+      vendorSummary: null,
+      rawRows: [],
+    })
+  );
+
+  assert.ok(unavailableHtml.includes('Inspection Unavailable'));
+  assert.ok(unavailableHtml.includes('NonExistentVendor'));
+  assert.ok(unavailableHtml.includes('is not represented in the authorised report'));
+  assert.ok(unavailableHtml.includes('Dismiss inspection'));
+  // Must NOT render export button or open another vendor
+  assert.ok(!unavailableHtml.includes('Export selected breakdown'));
+  assert.ok(!unavailableHtml.includes('CallForce'));
+
+  // 2. Known vendor with unrecorded group renders explicit warning and disabled export
+  const callForceSummary = sampleReportFixture.vendorSummaries.find(v => v.vendor === 'CallForce')!;
+  const callForceRows = sampleReportFixture.breakdown.filter(r => r.vendor === 'CallForce');
+
+  const unknownGroupHtml = renderToString(
+    React.createElement(VendorOutcomeInspector, {
+      open: true,
+      onClose: () => {},
+      vendor: 'CallForce',
+      mode: 'lead_status',
+      vendorSummary: callForceSummary,
+      rawRows: callForceRows,
+      initialGroupFilter: 'UNRECORDED_GROUP',
+    })
+  );
+
+  assert.ok(unknownGroupHtml.includes('Outcome group &quot;UNRECORDED_GROUP&quot; is not recorded for CallForce.'));
+  assert.ok(unknownGroupHtml.includes('disabled=""')); // Export button disabled
+});
+
+test('vendor disposition report: export error feedback is rendered directly in report surface where triggered', async () => {
+  const React = await import('react');
+  const { renderToString } = await import('react-dom/server');
+  const VendorDispositionReport = (await import('../src/features/contact/components/VendorDispositionReport')).default;
+
+  // 1. When exportError is present, render accessible role="alert" feedback banner
+  const errorHtml = renderToString(
+    React.createElement(VendorDispositionReport, {
+      data: sampleReportFixture,
+      mode: 'lead_status',
+      onModeChange: () => {},
+      onSelectVendor: () => {},
+      exportError: 'Cannot export summary: Missing total population in report summary.',
+      onClearExportError: () => {},
+    })
+  );
+
+  assert.ok(errorHtml.includes('role="alert"'));
+  assert.ok(errorHtml.includes('Cannot export summary: Missing total population in report summary.'));
+
+  // 2. When exportError is absent, no error alert is rendered
+  const cleanHtml = renderToString(
+    React.createElement(VendorDispositionReport, {
+      data: sampleReportFixture,
+      mode: 'lead_status',
+      onModeChange: () => {},
+      onSelectVendor: () => {},
+      exportError: null,
+    })
+  );
+
+  assert.ok(!cleanHtml.includes('Cannot export summary'));
+});
+
+test.after(async () => {
+  try {
+    const { db } = await import('../src/lib/firebase');
+    const { terminate } = await import('firebase/firestore');
+    await terminate(db);
+  } catch {
+    // ignore
+  }
 });

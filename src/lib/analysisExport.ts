@@ -519,6 +519,9 @@ export function buildDispositionExportRows(
 ): AnalysisCell[][] {
   if (!dataRows.length) return [];
 
+  if (!meta.clientId || !meta.clientId.trim()) {
+    throw new Error('Missing required clientId in disposition export metadata; substitute client scope is prohibited.');
+  }
   if (!meta.generatedAt || !meta.generatedAt.trim()) {
     throw new Error('Missing required generatedAt in disposition export metadata; substitute timestamps are prohibited.');
   }

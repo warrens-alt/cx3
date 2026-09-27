@@ -212,6 +212,8 @@ export default function ContactPage() {
           onSelectVendor={handleSelectVendor}
           onFilterReportByVendor={handleFilterReportByVendor}
           onExportSummaryTable={handleExportVendorSummaryTable}
+          exportError={exportError}
+          onClearExportError={clearExportError}
         />
       )}
 
@@ -263,7 +265,7 @@ export default function ContactPage() {
       </section>
 
       {/* Vendor Outcome Inspector Drawer */}
-      {selectedVendorSummary && (
+      {inspectVendor && (
         <VendorOutcomeInspector
           open={Boolean(inspectVendor)}
           onClose={() => handleSelectVendor(null)}
