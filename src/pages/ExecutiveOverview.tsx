@@ -132,7 +132,7 @@ function Metric({
 
 export default function ExecutiveOverview() {
   const scoped = useScopedNavigationTarget();
-  const { selectedClient } = useClient();
+  const { selectedClient, clientConfig } = useClient();
   const controls = useOperatingControls();
   const { isAdmin } = useAuth();
   const { startDate, endDate, filters, appliedFilters } = useFilters();
@@ -146,7 +146,7 @@ export default function ExecutiveOverview() {
     endDate: endDate || undefined,
     ...extractOffernetFilters(filters),
   };
-  const { data, loading, error, loadData } = useOperationalData<OverviewData & LifecycleExtension & { revenueEvidence?: { missingLeadValues:number; basis:string }; contactEvidence?: { zeroCallLeads:number;oneCallLeads:number;oneCallShare:number|null;multiCallShare:number|null;fivePlusNoRpc:number;medianCaptureToDial:string;p90CaptureToDial:string;within30m:number|null;within60m:number|null;backlogOver15m:number;backlogOver30m:number;backlogOver6h:number;backlogOver12h:number;awaitingActivation:number;activationOver3d:number;activationOver7d:number;activationOver30d:number } }>('ExecutiveOverview', scope, fetchOverview);
+  const { data, loading, error, loadData, receivedAt } = useOperationalData<OverviewData & LifecycleExtension & { revenueEvidence?: { missingLeadValues:number; basis:string }; contactEvidence?: { zeroCallLeads:number;oneCallLeads:number;oneCallShare:number|null;multiCallShare:number|null;fivePlusNoRpc:number;medianCaptureToDial:string;p90CaptureToDial:string;within30m:number|null;within60m:number|null;backlogOver15m:number;backlogOver30m:number;backlogOver6h:number;backlogOver12h:number;awaitingActivation:number;activationOver3d:number;activationOver7d:number;activationOver30d:number } }>('ExecutiveOverview', scope, fetchOverview);
   // Start independent evidence together and share the same cache key as the Commercial page.
   const commercial = useOperationalData('commercial', scope, fetchCommercial);
 
@@ -461,16 +461,24 @@ export default function ExecutiveOverview() {
           metadata={{
             validationStatus: data?.validationStatus || 'NOT_VERIFIED',
             dateBasis: activeAuthMetric.dateBasis,
-            timezone: activeAuthMetric.timezone,
-            generatedAt: data ? new Date().toISOString() : undefined,
+            timezone: data?.timezone || clientConfig?.timezone || 'Africa/Johannesburg',
+            generatedAt: data?.generatedAt,
+            receivedAt,
+            definitionVersion: data?.definitionVersion || METRIC_REGISTRY_VERSION,
             dataAsOf: null,
+            scope: {
+              clientId: selectedClient,
+              startDate: startDate || null,
+              endDate: endDate || null,
+              filters,
+            },
           }}
           additionalContent={
             <div className="space-y-4">
               <div className="p-3 bg-brand-primary/5 rounded border border-brand-primary/20 space-y-2 text-xs">
                 <div className="flex items-center justify-between font-semibold text-brand-primary">
                   <span className="flex items-center gap-1.5"><ShieldCheck size={14} /> Authoritative Contract</span>
-                  <span className="font-mono text-[10px]">{METRIC_REGISTRY_VERSION}</span>
+                  <span className="font-mono text-[10px]">{data?.definitionVersion || METRIC_REGISTRY_VERSION}</span>
                 </div>
                 <p className="text-text-sec">{activeAuthMetric.plainDefinition}</p>
                 <dl className="grid grid-cols-2 gap-2 pt-1 border-t border-brand-primary/10">
@@ -517,15 +525,39 @@ export default function ExecutiveOverview() {
                     </div>
                   )}
                   {aboutMetricId === 'fetched_leads' && (
-                    <div className="flex justify-between border-t border-border-subtle pt-1 mt-1">
+                    <div className="flex justify-between border-t border-border-subtle pt-1 mt-1 items-center">
                       <dt className="text-text-sec font-semibold">Displayed Count</dt>
-                      <dd className="font-bold text-brand-primary text-sm">{fmt(data?.kpis.fetchedLeads)} leads</dd>
+                      <dd className="font-bold text-brand-primary text-sm flex items-center gap-1.5">
+                        {fmt(data?.kpis.fetchedLeads)} leads
+                        {isAdmin && (
+                          <Link
+                            to={recordLink('funnel-stage', 'fetched')}
+                            onClick={() => setAboutMetricId(null)}
+                            className="text-brand-primary hover:underline text-xs font-normal inline-flex items-center gap-0.5 ml-1"
+                            title="Inspect fetched lead records"
+                          >
+                            Inspect <ArrowRight size={11} />
+                          </Link>
+                        )}
+                      </dd>
                     </div>
                   )}
                   {aboutMetricId === 'delivered_leads' && (
-                    <div className="flex justify-between border-t border-border-subtle pt-1 mt-1">
+                    <div className="flex justify-between border-t border-border-subtle pt-1 mt-1 items-center">
                       <dt className="text-text-sec font-semibold">Displayed Count</dt>
-                      <dd className="font-bold text-brand-primary text-sm">{fmt(data?.kpis.deliveredLeads)} leads</dd>
+                      <dd className="font-bold text-brand-primary text-sm flex items-center gap-1.5">
+                        {fmt(data?.kpis.deliveredLeads)} leads
+                        {isAdmin && (
+                          <Link
+                            to={recordLink('funnel-stage', 'delivered')}
+                            onClick={() => setAboutMetricId(null)}
+                            className="text-brand-primary hover:underline text-xs font-normal inline-flex items-center gap-0.5 ml-1"
+                            title="Inspect delivered lead records"
+                          >
+                            Inspect <ArrowRight size={11} />
+                          </Link>
+                        )}
+                      </dd>
                     </div>
                   )}
                   {aboutMetricId === 'delivery_rate' && (
@@ -534,13 +566,37 @@ export default function ExecutiveOverview() {
                         <dt className="text-text-sec font-semibold">Displayed Rate</dt>
                         <dd className="font-bold text-brand-primary text-sm">{formatPercent(data?.kpis.deliveryRate)}</dd>
                       </div>
-                      <div className="flex justify-between text-slate-500">
+                      <div className="flex justify-between text-slate-500 items-center">
                         <dt>Numerator (Delivered)</dt>
-                        <dd className="font-mono">{fmt(data?.kpis.deliveredLeads)}</dd>
+                        <dd className="font-mono flex items-center gap-1.5">
+                          {fmt(data?.kpis.deliveredLeads)}
+                          {isAdmin && (
+                            <Link
+                              to={recordLink('funnel-stage', 'delivered')}
+                              onClick={() => setAboutMetricId(null)}
+                              className="text-brand-primary hover:underline text-xs font-normal inline-flex items-center gap-0.5 ml-1"
+                              title="Inspect delivered lead records (numerator)"
+                            >
+                              Inspect <ArrowRight size={11} />
+                            </Link>
+                          )}
+                        </dd>
                       </div>
-                      <div className="flex justify-between text-slate-500">
+                      <div className="flex justify-between text-slate-500 items-center">
                         <dt>Denominator (Fetched)</dt>
-                        <dd className="font-mono">{fmt(data?.kpis.fetchedLeads)}</dd>
+                        <dd className="font-mono flex items-center gap-1.5">
+                          {fmt(data?.kpis.fetchedLeads)}
+                          {isAdmin && (
+                            <Link
+                              to={recordLink('funnel-stage', 'fetched')}
+                              onClick={() => setAboutMetricId(null)}
+                              className="text-brand-primary hover:underline text-xs font-normal inline-flex items-center gap-0.5 ml-1"
+                              title="Inspect fetched lead records (denominator)"
+                            >
+                              Inspect <ArrowRight size={11} />
+                            </Link>
+                          )}
+                        </dd>
                       </div>
                     </>
                   )}

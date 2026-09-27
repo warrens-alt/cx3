@@ -188,7 +188,13 @@ test('latency services use one normalized lead interval and preserve zero/missin
 
 test('operational drills share selected vendor lead grain and strict completed-day backlog boundary', async context => {
   const queries: string[] = [];
-  context.mock.method(client, 'query', async (request: any) => { queries.push(request.query); return [[{}]] as any; });
+  context.mock.method(client, 'query', async (request: any) => {
+    queries.push(request.query);
+    if (request.query?.includes('qualified_evidence AS')) {
+      return [[{ total_count: 0, evidence_rows: [] }]] as any;
+    }
+    return [[{}]] as any;
+  });
   await getOperatingControlsAnalytics(scope);
   assert.match(queries[0], /TIMESTAMP_DIFF\(CURRENT_TIMESTAMP\(\), sale_ts, DAY\) > 14/);
   assert.match(queries[0], /recorded_call_count >= 5 AND is_rpc IS FALSE/);

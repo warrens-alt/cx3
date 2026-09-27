@@ -5,6 +5,7 @@ import { formatDuration } from '../common/types';
 import { buildFilterClause } from '../common/scope';
 import { operationalLeadCtes, metricPercent } from '../common/leadMetrics';
 import { assembleLifecycleDiagnostics, compileLifecycleDiagnostics } from '../common/lifecycleDiagnostics';
+import { METRIC_REGISTRY_VERSION } from '../../../contracts/metricRegistry';
 
 export function transformOverviewData(data: any, prior?: any) {
   const fetched = Number(data.fetched_leads || 0);
@@ -358,7 +359,10 @@ export async function getExecutiveOverview(params: OffernetQueryParams, options:
     commercialReason: 'Commercial costs and profitability are withheld until an approved rate-card contract is configured.',
     validationStatus: 'NOT_VERIFIED',
     currency: clientConfig.currency || 'ZAR',
-    clientName: clientConfig.name
+    clientName: clientConfig.name,
+    timezone: clientConfig.timezone || 'Africa/Johannesburg',
+    generatedAt: new Date().toISOString(),
+    definitionVersion: METRIC_REGISTRY_VERSION,
   };
 }
 

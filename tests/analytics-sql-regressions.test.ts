@@ -78,7 +78,7 @@ test('all record drills operate on the vendor-scoped HLC array, including negati
   const queries: Array<{ query: string; params: Record<string, unknown> }> = [];
   context.mock.method(client, 'query', async (options: any) => {
     queries.push(options);
-    return [[]] as any;
+    return [[{ total_count: 0, evidence_rows: [] }]] as any;
   });
   for (const [drill, drillValue] of [
     ['awaiting-first-dial', ''], ['missing-disposition', ''], ['unactivated-sales', ''],

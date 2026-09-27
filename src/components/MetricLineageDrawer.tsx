@@ -213,6 +213,18 @@ export default function MetricLineageDrawer({ isOpen, onClose, title, lineage, m
                     <span className="font-medium text-text-main">{metadata.validationStatus}</span>
                   </div>
                 )}
+                {metadata.definitionVersion && (
+                  <div className="flex justify-between">
+                    <span className="text-text-sec">Definition Version</span>
+                    <span className="font-medium text-text-main font-mono text-xs">{metadata.definitionVersion}</span>
+                  </div>
+                )}
+                {metadata.scope?.clientId && (
+                  <div className="flex justify-between">
+                    <span className="text-text-sec">Scoped Client</span>
+                    <span className="font-medium text-text-main font-mono text-xs">{metadata.scope.clientId}</span>
+                  </div>
+                )}
                 {metadata.dateBasis && (
                   <div className="flex justify-between">
                     <span className="text-text-sec">Date Basis</span>

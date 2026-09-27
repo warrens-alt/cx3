@@ -170,8 +170,9 @@ CX3 Phase 1.1 establishes an end-to-end trace from measured metric definitions t
 | **Authoritative Registry Endpoint** | `server/api.ts`, `contracts/metricRegistry.ts`, `server/analytics/index.ts` | `tests/authoritative-metrics.test.ts` (15 declared metrics, denominators, 401 unauthenticated check) |
 | **Runtime-Validated Registry Client** | `src/lib/offernetClient.ts` (`fetchAuthoritativeMetrics`) | `tests/phase-1-1-metric-workflow.test.ts` (strict envelope validation, rejection of malformed payloads, cancellation) |
 | **Deduplicated Evidence Counting** | `server/analytics/investigation/records.ts` (`qualified_evidence`, `evidence_stats`), `src/lib/offernet/types.ts` | `tests/phase-1-1-metric-workflow.test.ts` (CTE deduplication before count, multi-HLC handling, out-of-range offset totalCount) |
-| **Overview Metric Lineage & About Action** | `src/pages/ExecutiveOverview.tsx`, `src/components/MetricLineageDrawer.tsx` | `tests/phase-1-1-metric-workflow.test.ts` (About metric action, numerator/denominator inspection, consolidated journey) |
-| **Export Predicate & Truncation** | `src/pages/LeadExplorerIntelligence.tsx` (`handleExportCsv`) | `tests/phase-1-1-metric-workflow.test.ts` (CSV audit metadata, accurate truncation flag) |
+| **Strict Evidence Response Validation** | `server/analytics/investigation/records.ts` (aggregate envelope, integral total_count, unique lead IDs, count/offset invariants) | `tests/phase-1-1-metric-workflow.test.ts` (rejection of null/negative/fractional counts, non-arrays, duplicates, invalid envelopes) |
+| **Overview Metric Lineage & About Action** | `src/pages/ExecutiveOverview.tsx`, `src/components/MetricLineageDrawer.tsx` | `tests/phase-1-1-metric-workflow.test.ts` (About metric action, numerator/denominator inspection, concrete timezone and timestamps) |
+| **Reconciled Workflow & Export Fidelity** | `src/pages/LeadExplorerIntelligence.tsx` (`handleExportCsv`), `src/lib/analysisExport.ts` | `tests/phase-1-1-metric-workflow.test.ts` (Fetched = 10, Delivered = 8, Delivery Rate = 80%, CSV export matching evidence rows and scope) |
 
 ## Verification
 

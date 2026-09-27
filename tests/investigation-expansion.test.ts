@@ -16,8 +16,11 @@ const scope = { clientId: 'default_tenant', startDate: '2026-09-08', endDate: '2
 
 test('exception counts, trend and every exact drill share the same scoped lead predicates', async t => {
   const queries: any[] = [];
-  t.mock.method(client, 'query', async options => {
+  t.mock.method(client, 'query', async (options: any) => {
     queries.push(options);
+    if (options.query?.includes('qualified_evidence AS')) {
+      return [[{ total_count: 0, evidence_rows: [] }]];
+    }
     return [[
       { id: 'zero-call-leads', comparison_period: 'current', vendor: 'A', source: 'Paid', affected_count: 3 },
       { id: 'zero-call-leads', comparison_period: 'current', vendor: 'B', source: 'Paid', affected_count: 2 },

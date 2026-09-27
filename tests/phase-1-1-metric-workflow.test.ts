@@ -337,7 +337,115 @@ test('Phase 1.1: getRawLeads applies approved predicates consistently for Fetche
 });
 
 // ---------------------------------------------------------------------------
-// 3. Complete Workflow Integration for the Three Operational Measures
+// 3. getRawLeads Strict Evidence Response Validation Tests
+// ---------------------------------------------------------------------------
+
+test('Phase 1.1: getRawLeads strictly rejects malformed upstream evidence response envelopes', async t => {
+  const client = getBigQueryClient(getClientConfig('default_tenant').bigQueryProject);
+  let mockResult: any = [];
+
+  t.mock.method(client, 'query', async () => [mockResult]);
+  const scope = { clientId: 'default_tenant', startDate: '2026-09-01', endDate: '2026-09-15', limit: 50, offset: 0 };
+
+  // 1. Empty outer array [] (SQL promises exactly 1 aggregate row)
+  mockResult = [];
+  await assert.rejects(getRawLeads(scope), (err: any) => err.status === 502 && /invalid evidence query response shape/i.test(err.message));
+
+  // 2. Multiple rows returned
+  mockResult = [
+    { total_count: 10, evidence_rows: [] },
+    { total_count: 10, evidence_rows: [] },
+  ];
+  await assert.rejects(getRawLeads(scope), (err: any) => err.status === 502 && /invalid evidence query response shape/i.test(err.message));
+
+  // 3. Non-object aggregate row
+  mockResult = ['invalid'];
+  await assert.rejects(getRawLeads(scope), (err: any) => err.status === 502 && /non-object evidence aggregate row/i.test(err.message));
+
+  // 4. Missing required fields
+  mockResult = [{}];
+  await assert.rejects(getRawLeads(scope), (err: any) => err.status === 502 && /missing required total_count or evidence_rows/i.test(err.message));
+
+  // 5. Null or missing total_count
+  mockResult = [{ total_count: null, evidence_rows: [] }];
+  await assert.rejects(getRawLeads(scope), (err: any) => err.status === 502 && /missing or null evidence total_count/i.test(err.message));
+
+  // 6. Negative total_count
+  mockResult = [{ total_count: -5, evidence_rows: [] }];
+  await assert.rejects(getRawLeads(scope), (err: any) => err.status === 502 && /invalid total_count/i.test(err.message));
+
+  // 7. Fractional total_count
+  mockResult = [{ total_count: 10.5, evidence_rows: [] }];
+  await assert.rejects(getRawLeads(scope), (err: any) => err.status === 502 && /invalid total_count/i.test(err.message));
+
+  // 8. Non-numeric string total_count
+  mockResult = [{ total_count: 'not-a-number', evidence_rows: [] }];
+  await assert.rejects(getRawLeads(scope), (err: any) => err.status === 502 && /non-integer total_count string/i.test(err.message));
+
+  // 9. evidence_rows is not an array
+  mockResult = [{ total_count: 10, evidence_rows: 'not-array' }];
+  await assert.rejects(getRawLeads(scope), (err: any) => err.status === 502 && /non-array evidence_rows/i.test(err.message));
+
+  // 10. Duplicate lead IDs in page array
+  mockResult = [{
+    total_count: 2,
+    evidence_rows: [
+      { lead_id: 'lead-1', consumer_id: 101, fetched: '2026-09-02T10:00:00Z' },
+      { lead_id: 'lead-1', consumer_id: 101, fetched: '2026-09-02T10:00:00Z' },
+    ],
+  }];
+  await assert.rejects(getRawLeads(scope), (err: any) => err.status === 502 && /duplicate lead_id "lead-1"/i.test(err.message));
+
+  // 11. Page rows > limit
+  mockResult = [{
+    total_count: 50,
+    evidence_rows: Array.from({ length: 11 }, (_, i) => ({ lead_id: `l-${i}`, fetched: '2026-09-01T00:00:00Z' })),
+  }];
+  await assert.rejects(getRawLeads({ ...scope, limit: 10 }), (err: any) => err.status === 502 && /exceeds requested limit/i.test(err.message));
+
+  // 12. page rows > 0 when total_count is 0
+  mockResult = [{
+    total_count: 0,
+    evidence_rows: [{ lead_id: 'l-1', fetched: '2026-09-01T00:00:00Z' }],
+  }];
+  await assert.rejects(getRawLeads(scope), (err: any) => err.status === 502 && /total_count is 0/i.test(err.message));
+
+  // 13. page rows > 0 when offset >= total_count
+  mockResult = [{
+    total_count: 5,
+    evidence_rows: [{ lead_id: 'l-1', fetched: '2026-09-01T00:00:00Z' }],
+  }];
+  await assert.rejects(getRawLeads({ ...scope, offset: 10 }), (err: any) => err.status === 502 && /beyond total_count/i.test(err.message));
+});
+
+test('Phase 1.1: getRawLeads accepts valid BigQuery numeric string representations and wrappers', async t => {
+  const client = getBigQueryClient(getClientConfig('default_tenant').bigQueryProject);
+
+  // BigQuery integer string representation
+  t.mock.method(client, 'query', async () => [[
+    {
+      total_count: '42',
+      evidence_rows: [{ lead_id: 'lead-42', consumer_id: 42, fetched: '2026-09-05T00:00:00Z' }],
+    },
+  ]]);
+  const resString = await getRawLeads({ clientId: 'default_tenant', limit: 10, offset: 0 });
+  assert.equal(resString.totalCount, 42);
+  assert.equal(resString.rows.length, 1);
+
+  // BigQuery Integer object wrapper { value: '108' }
+  t.mock.method(client, 'query', async () => [[
+    {
+      total_count: { value: '108' },
+      evidence_rows: [{ lead_id: 'lead-108', consumer_id: 108, fetched: '2026-09-05T00:00:00Z' }],
+    },
+  ]]);
+  const resWrapper = await getRawLeads({ clientId: 'default_tenant', limit: 10, offset: 0 });
+  assert.equal(resWrapper.totalCount, 108);
+  assert.equal(resWrapper.rows.length, 1);
+});
+
+// ---------------------------------------------------------------------------
+// 4. Complete Workflow Integration for the Three Operational Measures
 // ---------------------------------------------------------------------------
 
 test('Phase 1.1: Complete workflow for Fetched leads, Delivered leads, and Delivered / fetched', async t => {
@@ -345,14 +453,107 @@ test('Phase 1.1: Complete workflow for Fetched leads, Delivered leads, and Deliv
   const client = getBigQueryClient(getClientConfig('default_tenant').bigQueryProject);
   t.mock.method(client, 'query', async (options: any) => {
     if (options.query.includes('qualified_evidence AS')) {
-      // Evidence query mock
+      // Differentiate between fetched and delivered drills
+      if (options.query.includes('AND (m.is_delivered)')) {
+        // Delivered evidence: exactly 8 leads, all delivered
+        return [[
+          {
+            total_count: 8,
+            evidence_rows: [
+              {
+                lead_id: 'lead-1',
+                consumer_id: 1001,
+                source: 'Affiliate',
+                vendor: 'V1',
+                grade: 'A',
+                delivered_time: '2026-09-05T08:15:00Z',
+                first_call_time: '2026-09-05T08:20:00Z',
+                total_calls: 2,
+                last_dialer_status: 'ANSWERED',
+                dialled: true,
+                contacted: true,
+                sale: false,
+                activated: false,
+                revenue: null,
+                fetched: '2026-09-05T08:00:00Z',
+              },
+              {
+                lead_id: 'lead-2',
+                consumer_id: 1002,
+                source: 'Direct',
+                vendor: 'V1',
+                grade: 'B',
+                delivered_time: '2026-09-05T08:45:00Z',
+                first_call_time: '2026-09-05T08:50:00Z',
+                total_calls: 1,
+                last_dialer_status: 'CONNECTED',
+                dialled: true,
+                contacted: true,
+                sale: true,
+                activated: true,
+                revenue: 1500,
+                fetched: '2026-09-05T08:30:00Z',
+              },
+            ],
+          },
+        ]];
+      }
+      // Fetched evidence: exactly 10 leads, includes delivered and undelivered leads
       return [[
         {
           total_count: 10,
           evidence_rows: [
-            { lead_id: 'lead-1', consumer_id: 1001, is_delivered: true, fetched: '2026-09-05T08:00:00Z' },
-            { lead_id: 'lead-2', consumer_id: 1002, is_delivered: true, fetched: '2026-09-05T08:30:00Z' },
-            { lead_id: 'lead-3', consumer_id: 1003, is_delivered: false, fetched: '2026-09-05T09:00:00Z' },
+            {
+              lead_id: 'lead-1',
+              consumer_id: 1001,
+              source: 'Affiliate',
+              vendor: 'V1',
+              grade: 'A',
+              delivered_time: '2026-09-05T08:15:00Z',
+              first_call_time: '2026-09-05T08:20:00Z',
+              total_calls: 2,
+              last_dialer_status: 'ANSWERED',
+              dialled: true,
+              contacted: true,
+              sale: false,
+              activated: false,
+              revenue: null,
+              fetched: '2026-09-05T08:00:00Z',
+            },
+            {
+              lead_id: 'lead-2',
+              consumer_id: 1002,
+              source: 'Direct',
+              vendor: 'V1',
+              grade: 'B',
+              delivered_time: '2026-09-05T08:45:00Z',
+              first_call_time: '2026-09-05T08:50:00Z',
+              total_calls: 1,
+              last_dialer_status: 'CONNECTED',
+              dialled: true,
+              contacted: true,
+              sale: true,
+              activated: true,
+              revenue: 1500,
+              fetched: '2026-09-05T08:30:00Z',
+            },
+            {
+              lead_id: 'lead-3',
+              consumer_id: 1003,
+              source: 'Web',
+              vendor: 'V2',
+              grade: 'C',
+              delivered_time: null,
+              first_call_time: null,
+              total_calls: 0,
+              last_dialer_status: null,
+              dialled: false,
+              contacted: false,
+              sale: false,
+              activated: false,
+              revenue: null,
+              fetched: '2026-09-05T09:00:00Z',
+            },
           ],
         },
       ]];
@@ -380,6 +581,9 @@ test('Phase 1.1: Complete workflow for Fetched leads, Delivered leads, and Deliv
   assert.equal(overview.kpis.fetchedLeads, 10);
   assert.equal(overview.kpis.deliveredLeads, 8);
   assert.equal(overview.kpis.deliveryRate, 80); // (8 / 10) * 100 = 80.0%
+  assert.equal(overview.timezone, 'Africa/Johannesburg');
+  assert.equal(overview.definitionVersion, METRIC_REGISTRY_VERSION);
+  assert.ok(typeof overview.generatedAt === 'string' && overview.generatedAt.length > 0);
 
   // Step 2: About this metric authoritative definitions
   const fetchedDef = AUTHORITATIVE_METRICS.fetched_leads;
@@ -402,12 +606,38 @@ test('Phase 1.1: Complete workflow for Fetched leads, Delivered leads, and Deliv
 
   // Step 3: Matching evidence population
   const fetchedEvidence = await getRawLeads({ ...scope, drill: 'funnel-stage', drillValue: 'fetched' });
-  assert.equal(fetchedEvidence.totalCount, 10);
+  assert.equal(fetchedEvidence.totalCount, 10, 'Fetched evidence total must match Overview fetchedLeads');
+  assert.equal(fetchedEvidence.rows.length, 3);
 
   const deliveredEvidence = await getRawLeads({ ...scope, drill: 'funnel-stage', drillValue: 'delivered' });
-  assert.equal(deliveredEvidence.totalCount, 10);
+  assert.equal(deliveredEvidence.totalCount, 8, 'Delivered evidence total must match Overview deliveredLeads');
+  assert.equal(deliveredEvidence.rows.length, 2);
+  // Verify that all records in delivered evidence are indeed delivered
+  for (const row of deliveredEvidence.rows) {
+    assert.ok(row.delivered_time, `Lead ${row.lead_id} in delivered evidence must have a delivered timestamp`);
+  }
 
-  // Step 4: Correctly labelled export
+  // Step 4: Correctly labelled export built directly from the delivered evidence rows
+  const headers = ['Lead ID', 'Consumer ID', 'Fetched', 'Source', 'Vendor', 'Grade', 'Delivered', 'First dial', 'Calls', 'Latest disposition', 'Dialled', 'RPC', 'Sale', 'Activated', 'Revenue'];
+  const exportRows = deliveredEvidence.rows.map(row => [
+    row.lead_id,
+    row.consumer_id,
+    row.fetched,
+    row.source,
+    row.vendor,
+    row.grade,
+    row.delivered_time ? 'Yes' : 'No',
+    row.first_call_time || '—',
+    row.total_calls ?? 0,
+    row.last_dialer_status || '—',
+    row.dialled ? 'Yes' : 'No',
+    row.contacted ? 'Yes' : 'No',
+    row.sale ? 'Yes' : 'No',
+    row.activated ? 'Yes' : 'No',
+    row.revenue,
+  ]);
+  const rawRows = [headers, ...exportRows];
+
   const exportScope = {
     clientId: 'default_tenant',
     startDate: '2026-09-01',
@@ -415,18 +645,12 @@ test('Phase 1.1: Complete workflow for Fetched leads, Delivered leads, and Deliv
     filters: { drill: 'funnel-stage', drillValue: 'delivered' },
     validationStatus: 'NOT_VERIFIED',
     dateBasis: 'intake_cohort',
-    definitions: 'Administrator record export. Funnel stage: Delivered leads. Current page 1 (3 records of 10 in scope); one row per scoped lead.',
-    truncated: true,
+    definitions: `Administrator record export. Investigation: Funnel stage: Delivered leads. Current page 1 (${deliveredEvidence.rows.length} records of ${deliveredEvidence.totalCount} in scope); one row per scoped lead.`,
+    truncated: deliveredEvidence.rows.length < deliveredEvidence.totalCount,
   };
 
-  const rawRows = [
-    ['Lead ID', 'Consumer ID', 'Delivered'],
-    ['lead-1', 1001, 'Yes'],
-    ['lead-2', 1002, 'Yes'],
-  ];
-
   const exported = scopedAnalysisRows(rawRows, exportScope);
-  assert.equal(exported.length, 3);
+  assert.equal(exported.length, deliveredEvidence.rows.length + 1, 'Exported rows count must match header + evidence rows');
   const header = exported[0];
   assert.ok(header.includes('Scope client'));
   assert.ok(header.includes('Period start'));
@@ -436,8 +660,11 @@ test('Phase 1.1: Complete workflow for Fetched leads, Delivered leads, and Deliv
   assert.ok(header.includes('Metric definitions'));
   assert.ok(header.includes('Detail truncated'));
 
-  const dataRow = exported[1];
-  assert.equal(dataRow[dataRow.length - 1], true, 'Truncated flag must be accurately captured');
-  assert.equal(dataRow[dataRow.length - 3], 'intake_cohort');
-  assert.equal(dataRow[dataRow.length - 4], 'NOT_VERIFIED');
+  const dataRow1 = exported[1];
+  assert.equal(dataRow1[0], 'lead-1');
+  assert.equal(dataRow1[6], 'Yes', 'Delivered status must be Yes for delivered evidence');
+  assert.equal(dataRow1[dataRow1.length - 1], true, 'Truncated flag must be accurately captured');
+  assert.equal(dataRow1[dataRow1.length - 3], 'intake_cohort', 'Date basis must match authoritative metric');
+  assert.equal(dataRow1[dataRow1.length - 4], 'NOT_VERIFIED', 'Validation status must be NOT_VERIFIED');
+  assert.ok(String(dataRow1[dataRow1.length - 2]).includes('8 in scope'), 'Metric definitions must describe the true 8-lead population');
 });

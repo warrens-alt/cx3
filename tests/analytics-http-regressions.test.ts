@@ -64,7 +64,13 @@ test('HTTP CLI export keeps URL dates, exact filters and table search through ev
 test('HTTP operational requests reject unsupported scope before querying and preserve supported values', async context => {
   const client = getBigQueryClient(getClientConfig('default_tenant').bigQueryProject);
   const queries: any[] = [];
-  context.mock.method(client, 'query', async (query: any) => { queries.push(query); return [[]] as any; });
+  context.mock.method(client, 'query', async (query: any) => {
+    queries.push(query);
+    if (query?.query?.includes('qualified_evidence AS')) {
+      return [[{ total_count: 0, evidence_rows: [] }]] as any;
+    }
+    return [[]] as any;
+  });
   await withApi(async url => {
     const params = new URLSearchParams({ clientId: 'default_tenant', startDate: '2026-09-01', endDate: '2026-09-26' });
     for (const filters of [

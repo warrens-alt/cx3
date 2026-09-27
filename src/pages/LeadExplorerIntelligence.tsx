@@ -162,9 +162,11 @@ export default function LeadExplorerIntelligence() {
     const predicateDesc = investigation ? `Investigation: ${investigation}. ` : '';
     downloadAnalysisCsv(`lead_records_${selectedClient}_p${page + 1}`, [headers, ...rows], {
       clientId: selectedClient,
-      startDate,
-      endDate,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
       filters: { ...filters, drill, drillValue, search: appliedSearch },
+      validationStatus: 'NOT_VERIFIED',
+      dateBasis: 'intake_cohort',
       definitions: `Administrator record export. ${predicateDesc}Current page ${page + 1} (${data.rows.length} records${data.totalCount != null ? ` of ${formatTableNumber(data.totalCount)} in scope` : ''}); one row per scoped lead.`,
       truncated: isTruncated,
     });

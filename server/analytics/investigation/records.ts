@@ -156,28 +156,92 @@ export async function getRawLeads(params: OffernetQueryParams) {
   `;
 
   const [rows] = await client.query({ query, params: queryParams });
-  let totalCount = 0;
-  let pageRows: any[] = [];
 
-  if (rows && rows.length > 0) {
-    const firstRow = rows[0];
-    if (firstRow && 'total_count' in firstRow) {
-      totalCount = Number(firstRow.total_count ?? 0);
-      pageRows = Array.isArray(firstRow.evidence_rows) ? firstRow.evidence_rows : [];
-    } else if (firstRow && 'full_evidence_total' in firstRow) {
-      totalCount = Number(firstRow.full_evidence_total ?? 0);
-      pageRows = rows;
-    } else if (firstRow && 'evidence_rows' in firstRow) {
-      pageRows = Array.isArray(firstRow.evidence_rows) ? firstRow.evidence_rows : [];
-      totalCount = Number(firstRow.total_count ?? pageRows.length);
-    } else {
-      // Compatibility with tests mocking flat lead rows or generic query fixtures
-      pageRows = firstRow?.lead_id ? rows : [];
-      totalCount = pageRows.length;
+  // 1. Strict validation of aggregate row response envelope
+  if (!Array.isArray(rows) || rows.length !== 1) {
+    throw new RequestError('Upstream warehouse returned invalid evidence query response shape', 502);
+  }
+
+  const aggregateRow = rows[0];
+  if (!aggregateRow || typeof aggregateRow !== 'object' || Array.isArray(aggregateRow)) {
+    throw new RequestError('Upstream warehouse returned non-object evidence aggregate row', 502);
+  }
+  if (!('total_count' in aggregateRow) || !('evidence_rows' in aggregateRow)) {
+    throw new RequestError('Upstream warehouse evidence response missing required total_count or evidence_rows', 502);
+  }
+
+  // 2. Strict validation of total_count
+  let totalCount: number;
+  const rawTotal = aggregateRow.total_count;
+  if (rawTotal === null || rawTotal === undefined) {
+    throw new RequestError('Upstream warehouse returned missing or null evidence total_count', 502);
+  } else if (typeof rawTotal === 'number') {
+    if (!Number.isInteger(rawTotal) || rawTotal < 0 || !Number.isSafeInteger(rawTotal)) {
+      throw new RequestError(`Upstream warehouse returned invalid total_count value: ${rawTotal}`, 502);
     }
+    totalCount = rawTotal;
+  } else if (typeof rawTotal === 'string') {
+    const trimmed = rawTotal.trim();
+    if (!/^\d+$/.test(trimmed)) {
+      throw new RequestError(`Upstream warehouse returned non-integer total_count string: "${rawTotal}"`, 502);
+    }
+    const num = Number(trimmed);
+    if (!Number.isSafeInteger(num)) {
+      throw new RequestError(`Upstream warehouse total_count exceeds safe precision: "${rawTotal}"`, 502);
+    }
+    totalCount = num;
+  } else if (typeof rawTotal === 'bigint') {
+    if (rawTotal < 0n || rawTotal > BigInt(Number.MAX_SAFE_INTEGER)) {
+      throw new RequestError(`Upstream warehouse returned out-of-range bigint total_count: ${rawTotal}`, 502);
+    }
+    totalCount = Number(rawTotal);
+  } else if (typeof rawTotal === 'object' && rawTotal !== null && 'value' in rawTotal) {
+    const strVal = String(rawTotal.value).trim();
+    if (!/^\d+$/.test(strVal)) {
+      throw new RequestError(`Upstream warehouse returned invalid total_count wrapper: ${strVal}`, 502);
+    }
+    const num = Number(strVal);
+    if (!Number.isSafeInteger(num)) {
+      throw new RequestError(`Upstream warehouse total_count wrapper exceeds safe precision: ${strVal}`, 502);
+    }
+    totalCount = num;
   } else {
-    totalCount = 0;
-    pageRows = [];
+    throw new RequestError('Upstream warehouse returned unsupported total_count type', 502);
+  }
+
+  // 3. Strict validation of evidence_rows array and unique lead IDs
+  if (!Array.isArray(aggregateRow.evidence_rows)) {
+    throw new RequestError('Upstream warehouse returned non-array evidence_rows', 502);
+  }
+  const pageRows: any[] = aggregateRow.evidence_rows;
+  const seenLeadIds = new Set<string>();
+  for (const row of pageRows) {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) {
+      throw new RequestError('Upstream warehouse returned non-object evidence row', 502);
+    }
+    if (row.lead_id === undefined || row.lead_id === null || String(row.lead_id).trim() === '') {
+      throw new RequestError('Upstream warehouse evidence row missing lead_id', 502);
+    }
+    const leadIdStr = String(row.lead_id);
+    if (seenLeadIds.has(leadIdStr)) {
+      throw new RequestError(`Upstream warehouse returned duplicate lead_id "${leadIdStr}" in evidence page`, 502);
+    }
+    seenLeadIds.add(leadIdStr);
+  }
+
+  // 4. Validate page/count invariants against effective limit and offset
+  if (pageRows.length > limit) {
+    throw new RequestError(`Evidence page row count (${pageRows.length}) exceeds requested limit (${limit})`, 502);
+  }
+  if (totalCount === 0 && pageRows.length > 0) {
+    throw new RequestError(`Evidence page contains ${pageRows.length} rows but total_count is 0`, 502);
+  }
+  if (offset >= totalCount && totalCount > 0 && pageRows.length > 0) {
+    throw new RequestError(`Evidence page contains ${pageRows.length} rows at offset ${offset} beyond total_count ${totalCount}`, 502);
+  }
+  const maxPossibleRows = Math.min(limit, Math.max(0, totalCount - offset));
+  if (pageRows.length > maxPossibleRows) {
+    throw new RequestError(`Evidence page contains ${pageRows.length} rows exceeding max possible in scope (${maxPossibleRows})`, 502);
   }
 
   const cleanRows = pageRows.map(({ fetched_ts, full_evidence_total, ...r }: any) => r);

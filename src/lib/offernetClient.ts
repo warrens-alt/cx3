@@ -185,6 +185,9 @@ export interface OverviewData {
   validationStatus: string;
   currency: string;
   clientName: string;
+  timezone?: string;
+  generatedAt?: string;
+  definitionVersion?: string;
 }
 
 export interface RootCauseData {
@@ -929,6 +932,17 @@ export async function fetchOffernetJson<T>(url: string, forceRefresh = false, si
       }
       const json = await response.json();
       const result = json.data as T;
+      if (result && typeof result === 'object' && json.metadata) {
+        if (!('generatedAt' in (result as any)) && json.metadata.generatedAt) {
+          (result as any).generatedAt = json.metadata.generatedAt;
+        }
+        if (!('timezone' in (result as any)) && json.metadata.timezone) {
+          (result as any).timezone = json.metadata.timezone;
+        }
+        if (!('metadata' in (result as any))) {
+          (result as any).metadata = json.metadata;
+        }
+      }
       memoryCache.set(url, { data: result, timestamp: Date.now() });
       pruneOffernetCache();
       return result;
