@@ -11,6 +11,7 @@ import type { Application, Request, Response, NextFunction } from 'express';
 export async function mountApi(app: Application) {
   const { createReportingRouter } = await import('./reporting/router');
   const { analyticsRouter } = await import('./api');
+  const { createBlcRouter } = await import('./blc/router');
   const { authenticate } = await import('./security');
   const { apiErrorHandler } = await import('./apiErrors');
   const { analyticalConcurrency, apiAuditLog, requestContext, sameOriginRequests, securityHeaders } = await import('./httpGuards');
@@ -49,7 +50,7 @@ export async function mountApi(app: Application) {
   app.use('/api/analytics', concurrency, (_req, res, next) => {
     res.setHeader('X-Analytics-Status', 'UNVERIFIED');
     next();
-  }, analyticsRouter);
+  }, analyticsRouter, createBlcRouter());
 
   app.use('/api/bq', (_req, res) => res.status(410).json({
     success: false,
