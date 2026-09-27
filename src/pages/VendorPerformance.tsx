@@ -334,10 +334,10 @@ export default function VendorPerformance() {
                     }}
                   />
                   <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                  <Bar dataKey="delivered" name="Delivered" fill="#315BCB" radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="called" name="Called" fill="#0284C7" radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="sales" name="Sales" fill="#059669" radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="activations" name="Activations" fill="#7C3AED" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="delivered" name="Delivered" fill="var(--cx-data-delivered, #0E7490)" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="called" name="Called" fill="var(--cx-data-dialled, #7153A3)" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="sales" name="Sales" fill="var(--cx-data-sales, #426D80)" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="activations" name="Activations" fill="var(--cx-data-activation, #566273)" radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}

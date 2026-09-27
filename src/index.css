@@ -7,6 +7,13 @@
   --font-mono: "JetBrains Mono", SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   
   /* Precision Tech & Data Canvas: Linked directly to canonical tokens.css */
+  --color-action: var(--cx-action);
+  --color-action-hover: var(--cx-action-hover);
+  --color-action-soft: var(--cx-selected-bg);
+  --color-selected-bg: var(--cx-selected-bg);
+  --color-brand-primary: var(--cx-action);
+  --color-brand-soft: var(--cx-selected-bg);
+
   --color-primary-blue: var(--cx-action);
   --color-primary-blue-dark: var(--cx-action-hover);
   --color-primary-blue-soft: var(--cx-selected-bg);
@@ -21,15 +28,20 @@
   --color-navy-surface: #1E293B;
   
   --color-app-bg: var(--cx-canvas);
+  --color-canvas: var(--cx-canvas);
   --color-surface: var(--cx-surface);
   --color-surface-sec: var(--cx-surface-subtle);
+  --color-surface-subtle: var(--cx-surface-subtle);
   
   --color-text-main: var(--cx-ink);
   --color-text-sec: var(--cx-text-secondary);
   --color-text-mute: var(--cx-text-muted);
+  --color-text-muted: var(--cx-text-muted);
   
+  --color-border: var(--cx-border);
   --color-border-subtle: var(--cx-border);
   --color-border-strong: var(--cx-border-strong);
+  --color-control-border: var(--cx-control-border);
 
   /* Quantitative Data Semantics */
   --color-semantic-pos: var(--cx-favourable);
@@ -42,6 +54,14 @@
   --color-semantic-info-bg: var(--cx-selected-bg);
   --color-semantic-purple: var(--cx-data-sales);
   --color-semantic-purple-bg: #F5F3FF;
+
+  /* Lifecycle Data Series */
+  --color-data-fetched: var(--cx-data-fetched);
+  --color-data-delivered: var(--cx-data-delivered);
+  --color-data-dialled: var(--cx-data-dialled);
+  --color-data-rpc: var(--cx-data-rpc);
+  --color-data-sales: var(--cx-data-sales);
+  --color-data-activation: var(--cx-data-activation);
 }
 
 @layer base {

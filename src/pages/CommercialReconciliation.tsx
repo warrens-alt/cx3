@@ -348,8 +348,8 @@ export default function CommercialReconciliation() {
                     }}
                   />
                   <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                  <Bar dataKey="invoiced" name="Invoiced Value" fill="#315BCB" radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="collected" name="Collected Value" fill="#059669" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="invoiced" name="Invoiced Value" fill="var(--cx-action, #315BCB)" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="collected" name="Collected Value" fill="var(--cx-favourable, #17744A)" radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}

@@ -15,6 +15,7 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
   const { isAdmin } = useAuth();
   const [moreOpen, setMoreOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   const activeArea = getAreaForPath(location.pathname);
   const currentPath = location.pathname;
@@ -23,16 +24,26 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
   const primaryTabs = activeArea.primaryTabs.filter(tab => !tab.adminOnly || isAdmin);
   const moreViews = activeArea.moreViews.filter(view => !view.adminOnly || isAdmin);
 
-  // Close dropdown on click outside
+  // Close dropdown on click outside or Escape
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setMoreOpen(false);
       }
     }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape' && moreOpen) {
+        setMoreOpen(false);
+        buttonRef.current?.focus();
+      }
+    }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [moreOpen]);
 
   // Do not render if the area only has 1 tab and no more views
   if (primaryTabs.length <= 1 && moreViews.length === 0) {
@@ -58,29 +69,33 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
       className={`cx-area-nav ${className}`}
       aria-label={`${activeArea.name} navigation`}
     >
-      <div className="flex items-center gap-1 overflow-x-auto py-1">
-        {primaryTabs.map(tab => {
-          const active = isCurrent(tab.path);
-          return (
-            <Link
-              key={tab.path}
-              to={scoped(tab.path)}
-              aria-current={active ? 'page' : undefined}
-              className={`cx-area-nav-item ${active ? 'active' : ''}`}
-              title={tab.description}
-            >
-              <span>{tab.name}</span>
-            </Link>
-          );
-        })}
+      <div className="flex items-center justify-between gap-1.5 py-1 w-full min-w-0">
+        <div className="flex items-center gap-1 overflow-x-auto min-w-0 flex-1">
+          {primaryTabs.map(tab => {
+            const active = isCurrent(tab.path);
+            return (
+              <Link
+                key={tab.path}
+                to={scoped(tab.path)}
+                aria-current={active ? 'page' : undefined}
+                className={`cx-area-nav-item ${active ? 'active' : ''}`}
+                title={tab.description}
+              >
+                <span>{tab.name}</span>
+              </Link>
+            );
+          })}
+        </div>
 
         {moreViews.length > 0 && (
-          <div className="relative inline-block" ref={dropdownRef}>
+          <div className="relative inline-block shrink-0" ref={dropdownRef}>
             <button
+              ref={buttonRef}
               type="button"
               onClick={() => setMoreOpen(prev => !prev)}
               aria-expanded={moreOpen}
               aria-haspopup="true"
+              aria-controls="area-more-menu"
               className={`cx-area-nav-item flex items-center gap-1 cursor-pointer ${
                 isMoreViewActive ? 'active' : ''
               }`}
@@ -91,7 +106,8 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
 
             {moreOpen && (
               <div
-                className="absolute left-0 mt-1 w-56 rounded-md shadow-lg bg-surface border border-border-subtle py-1 z-50 text-xs"
+                id="area-more-menu"
+                className="absolute right-0 sm:left-0 mt-1 w-56 rounded-md shadow-lg bg-surface border border-border-subtle py-1 z-50 text-xs"
                 role="menu"
               >
                 {moreViews.map(view => {
@@ -109,7 +125,7 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
                       title={view.description}
                     >
                       <div className="font-medium">{view.name}</div>
-                      <div className="text-[11px] text-text-mute truncate">{view.description}</div>
+                      <div className="text-xs text-text-mute truncate">{view.description}</div>
                     </Link>
                   );
                 })}

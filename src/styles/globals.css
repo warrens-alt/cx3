@@ -43,7 +43,7 @@ th[data-numeric="true"],
 
 /* Compact Workspace Header */
 .cx-workspace-header {
-  height: 52px;
+  height: var(--cx-header-height, 56px);
   background-color: var(--cx-surface);
   border-bottom: 1px solid var(--cx-border-subtle);
   display: flex;

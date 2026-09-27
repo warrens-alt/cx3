@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
 import {
@@ -8,6 +8,7 @@ import {
   PanelLeftOpen,
   AlertCircle,
   Columns3,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { BRAND, PAGE_TITLES } from '../../../contracts/naming';
 import { useClient } from '../../lib/ClientContext';
@@ -46,6 +47,9 @@ export default function AppShell({ children }: AppShellProps) {
   const [mobile, setMobile] = useState(false);
   const [sidebar, setSidebar] = useState(true);
   const [command, setCommand] = useState(false);
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const preferencesRef = useRef<HTMLDivElement>(null);
+  const preferencesButtonRef = useRef<HTMLButtonElement>(null);
   const { density, toggleDensity } = useTableDensity();
 
   const currentArea = getAreaForPath(location.pathname);
@@ -66,6 +70,7 @@ export default function AppShell({ children }: AppShellProps) {
   useEffect(() => {
     setMobile(false);
     setCommand(false);
+    setPreferencesOpen(false);
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     const main = document.getElementById('main-content');
     main?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -74,6 +79,28 @@ export default function AppShell({ children }: AppShellProps) {
     });
     return () => window.cancelAnimationFrame(frame);
   }, [location.pathname]);
+
+  // Outside click & Escape listener for preferences popover
+  useEffect(() => {
+    if (!preferencesOpen) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (preferencesRef.current && !preferencesRef.current.contains(e.target as Node)) {
+        setPreferencesOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPreferencesOpen(false);
+        preferencesButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [preferencesOpen]);
 
   // Command shortcut ⌘K listener
   useEffect(() => {
@@ -188,7 +215,7 @@ export default function AppShell({ children }: AppShellProps) {
             <strong title={pageTitle}>{pageTitle}</strong>
           </div>
 
-          <div className="cx-topbar-actions">
+          <div className="cx-topbar-actions flex items-center gap-2">
             {/* Search trigger */}
             <button
               type="button"
@@ -204,33 +231,12 @@ export default function AppShell({ children }: AppShellProps) {
               <kbd aria-hidden="true">{searchShortcut}</kbd>
             </button>
 
-            {/* Density toggle */}
-            <button
-              type="button"
-              className="cx-icon-button cx-density-toggle hidden sm:inline-flex"
-              aria-label={
-                density === 'comfortable'
-                  ? 'Use compact table spacing'
-                  : 'Use comfortable table spacing'
-              }
-              title={`Table spacing: ${density}. Switch to ${
-                density === 'comfortable' ? 'compact' : 'comfortable'
-              }.`}
-              aria-pressed={density === 'compact'}
-              onClick={toggleDensity}
-            >
-              <Columns3 size={18} aria-hidden="true" />
-              <span>Spacing: {density === 'comfortable' ? 'Comfortable' : 'Compact'}</span>
-            </button>
-
-            {/* Theme toggle */}
-            <ThemeToggle />
-
-            {/* Workspace Client Switcher */}
-            <label className="cx-workspace-select">
-              <span className="hidden sm:inline">Client</span>
+            {/* Workspace Client Switcher - Prominent */}
+            <div className="cx-workspace-select flex items-center gap-1.5 pl-1">
+              <span className="text-xs font-semibold text-text-sec hidden md:inline">Workspace:</span>
               <select
                 aria-label="Active client"
+                className="bg-surface text-text-main border border-control-border rounded-md px-2.5 py-1.5 text-xs font-medium max-w-[200px] sm:max-w-[260px] truncate cursor-pointer shadow-xs focus:ring-2 focus:ring-action focus:outline-hidden"
                 value={selectedClient}
                 onChange={event => setSelectedClient(event.target.value)}
                 disabled={clientLoading || !clients.length}
@@ -246,7 +252,67 @@ export default function AppShell({ children }: AppShellProps) {
                   </option>
                 ))}
               </select>
-            </label>
+            </div>
+
+            {/* Display Preferences Popover (Density & Theme) */}
+            <div className="relative inline-block" ref={preferencesRef}>
+              <button
+                ref={preferencesButtonRef}
+                type="button"
+                className="cx-icon-button"
+                aria-label="Display preferences"
+                title="Display preferences: table spacing and theme"
+                aria-expanded={preferencesOpen}
+                aria-haspopup="true"
+                aria-controls="display-preferences-dialog"
+                onClick={() => setPreferencesOpen(prev => !prev)}
+              >
+                <SlidersHorizontal size={17} aria-hidden="true" />
+              </button>
+
+              {preferencesOpen && (
+                <div
+                  id="display-preferences-dialog"
+                  className="absolute right-0 mt-2 w-64 rounded-lg shadow-xl bg-surface border border-border p-3 z-50 text-xs space-y-3"
+                  role="menu"
+                >
+                  <div>
+                    <div className="font-semibold text-text-main mb-1.5 flex items-center justify-between">
+                      <span>Table spacing</span>
+                      <span className="text-[11px] text-text-mute capitalize font-mono">{density}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5 bg-surface-subtle p-1 rounded-md border border-border-subtle" role="radiogroup" aria-label="Table density">
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={density === 'comfortable'}
+                        onClick={() => { if (density !== 'comfortable') toggleDensity(); }}
+                        className={`py-1 px-2 rounded font-medium text-xs text-center transition-colors cursor-pointer ${
+                          density === 'comfortable' ? 'bg-surface text-text-main shadow-2xs font-semibold' : 'text-text-sec hover:text-text-main'
+                        }`}
+                      >
+                        Comfortable
+                      </button>
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={density === 'compact'}
+                        onClick={() => { if (density !== 'compact') toggleDensity(); }}
+                        className={`py-1 px-2 rounded font-medium text-xs text-center transition-colors cursor-pointer ${
+                          density === 'compact' ? 'bg-surface text-text-main shadow-2xs font-semibold' : 'text-text-sec hover:text-text-main'
+                        }`}
+                      >
+                        Compact
+                      </button>
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-border-subtle">
+                    <div className="font-semibold text-text-main mb-1.5">Theme</div>
+                    <ThemeToggle variant="segmented" className="w-full justify-between" />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

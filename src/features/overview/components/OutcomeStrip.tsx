@@ -170,23 +170,23 @@ export default function OutcomeStrip({
   ];
 
   return (
-    <section aria-label="Principal operational outcomes" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+    <section aria-label="Principal operational outcomes" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {outcomes.map(item => (
         <article
           key={item.id}
-          className="cx-card p-4 flex flex-col justify-between hover:border-brand-primary/40 transition-colors group"
+          className="enterprise-card bg-surface border border-border p-4 rounded-lg flex flex-col justify-between hover:border-action/40 transition-colors shadow-xs group"
         >
           <div className="flex items-start justify-between">
-            <span className="text-xs font-semibold text-text-sec">
+            <span className="text-xs font-semibold text-text-sec uppercase tracking-wider">
               {item.label}
             </span>
           </div>
 
-          <div className="my-2">
+          <div className="my-2.5">
             {isAdmin ? (
               <Link
                 to={scoped(`/lead-explorer?drill=funnel-stage&drillValue=${item.recordDrillValue}`)}
-                className="text-2xl lg:text-3xl font-extrabold cx-tabular text-text-main block hover:text-brand-primary transition-colors"
+                className="text-3xl lg:text-[32px] font-bold cx-tabular text-text-main block hover:text-action transition-colors font-mono tracking-tight"
                 title={`Inspect ${item.label} records in Lead Explorer`}
               >
                 {item.value}
@@ -194,24 +194,24 @@ export default function OutcomeStrip({
             ) : (
               <Link
                 to={scoped(item.reportPath)}
-                className="text-2xl lg:text-3xl font-extrabold cx-tabular text-text-main block hover:text-brand-primary transition-colors"
+                className="text-3xl lg:text-[32px] font-bold cx-tabular text-text-main block hover:text-action transition-colors font-mono tracking-tight"
                 title={`Open ${item.label} report`}
               >
                 {item.value}
               </Link>
             )}
 
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs text-text-mute">{item.subnote}</span>
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              <span className="text-xs text-text-sec font-medium">{item.subnote}</span>
               <DeltaBadge delta={item.delta} unit={item.deltaUnit} />
             </div>
           </div>
 
-          <div className="pt-2 border-t border-border-subtle flex items-center justify-between text-xs">
+          <div className="pt-2 border-t border-border-subtle flex items-center justify-between text-xs text-text-mute">
             <button
               type="button"
               onClick={() => onInspect(item.inspectContent)}
-              className="inline-flex items-center gap-1 text-brand-primary font-medium hover:underline cursor-pointer"
+              className="inline-flex items-center gap-1 font-medium hover:text-action transition-colors cursor-pointer"
             >
               <span>Inspect definition</span>
               <ArrowUpRight size={12} />
@@ -221,10 +221,10 @@ export default function OutcomeStrip({
               <button
                 type="button"
                 onClick={() => onWhyChanged(item.rootMetric)}
-                className="inline-flex items-center gap-1 text-text-sec hover:text-brand-primary font-medium cursor-pointer"
+                className="inline-flex items-center gap-1 hover:text-action font-medium transition-colors cursor-pointer"
                 title={`Investigate why ${item.label.toLowerCase()} changed`}
               >
-                <span>Why?</span>
+                <span>Why changed?</span>
                 <Search size={11} />
               </button>
             )}

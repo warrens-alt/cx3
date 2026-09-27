@@ -71,7 +71,7 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
   const metricConfigs: Record<SelectableTrendMetric, { label: string; color: string }> = {
     leads: { label: 'Fetched leads', color: 'var(--cx-data-fetched, var(--cx-action, #315BCB))' },
     delivered: { label: 'Delivered leads', color: 'var(--cx-data-delivered, #0E7490)' },
-    sales: { label: 'Recorded sales', color: 'var(--cx-data-sales, #7C3AED)' },
+    sales: { label: 'Recorded sales', color: 'var(--cx-data-sales, #426D80)' },
   };
 
   const chartData = useMemo(() => adaptDailyTrends(data), [data]);
@@ -94,7 +94,7 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
   };
 
   return (
-    <section className="cx-card p-5 flex flex-col justify-between" aria-label="Performance trend">
+    <section className="enterprise-card bg-surface border border-border p-5 rounded-lg flex flex-col justify-between shadow-xs" aria-label="Performance trend">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
           <h2 className="text-base font-bold text-text-main">Performance trend</h2>
@@ -104,15 +104,21 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
         </div>
 
         {/* Metric Selector Tabs */}
-        <div className="flex items-center gap-1 bg-surface-subtle p-1 rounded-lg border border-border-subtle text-xs">
+        <div
+          role="tablist"
+          aria-label="Select metric to plot"
+          className="flex items-center gap-1 bg-surface-subtle p-1 rounded-lg border border-border-subtle text-xs"
+        >
           {(Object.keys(metricConfigs) as SelectableTrendMetric[]).map(key => (
             <button
               key={key}
               type="button"
+              role="tab"
+              aria-selected={activeMetric === key}
               onClick={() => setActiveMetric(key)}
               className={`px-3 py-1.5 rounded-md font-medium transition-colors cursor-pointer whitespace-nowrap ${
                 activeMetric === key
-                  ? 'bg-surface text-text-main shadow-xs font-semibold'
+                  ? 'bg-surface text-text-main shadow-2xs font-semibold'
                   : 'text-text-mute hover:text-text-main'
               }`}
             >
@@ -130,12 +136,12 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border-subtle)" />
               <XAxis
                 dataKey="date"
-                tick={{ fill: 'var(--cx-text-muted)', fontSize: 11 }}
+                tick={{ fill: 'var(--cx-text-muted)', fontSize: 12 }}
                 tickLine={false}
                 axisLine={{ stroke: 'var(--cx-border-subtle)' }}
               />
               <YAxis
-                tick={{ fill: 'var(--cx-text-muted)', fontSize: 11 }}
+                tick={{ fill: 'var(--cx-text-muted)', fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
                 width={42}
@@ -147,7 +153,7 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
                 dataKey={activeMetric}
                 stroke={currentConfig.color}
                 strokeWidth={2.5}
-                dot={{ r: 2, fill: currentConfig.color }}
+                dot={{ r: 2.5, fill: currentConfig.color }}
                 activeDot={{ r: 5, strokeWidth: 0 }}
                 isAnimationActive={false}
               />
@@ -156,7 +162,7 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-xs text-text-mute bg-surface-subtle/50 rounded-lg border border-dashed border-border-subtle p-4">
             <span className="font-medium text-text-sec">No daily trend data available in this scope.</span>
-            <span className="text-[11px] text-text-mute mt-0.5">Select a broader date range or adjust tenant filters.</span>
+            <span className="text-xs text-text-mute mt-0.5">Select a broader date range or adjust tenant filters.</span>
           </div>
         )}
       </div>
@@ -166,8 +172,8 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
         <Clock3 size={13} aria-hidden="true" />
         <span>
           {comparisonWindow
-            ? `Compared against preceding matched window (${comparisonWindow.startDate} – ${comparisonWindow.endDate}).`
-            : 'Select explicit dates in the scope bar to enable matched-period comparison.'}
+            ? `Plotting ${currentConfig.label}. Preceding matched comparison window (${comparisonWindow.startDate} – ${comparisonWindow.endDate}) provides page-level delta context.`
+            : `Plotting ${currentConfig.label}. Select explicit dates in the scope bar to enable matched-period comparison.`}
         </span>
       </div>
     </section>

@@ -101,37 +101,43 @@ export default function OverviewPage() {
   }, [data?.comparison]);
 
   return (
-    <div className="space-y-6">
+    <div className="cx-command-page" aria-label="Overview workspace">
       {/* Scope Bar */}
       <ReportingScopeBar
         onRefresh={refreshAll}
         onExportCsv={data ? handleExportOverviewCsv : undefined}
       />
 
-      {/* Page Header */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-1 border-b border-border-subtle pb-4">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-text-main">
-            {data?.clientName || 'Overview'}
-          </h1>
-          <p className="text-sm text-text-sec mt-1">
-            Follow acquired demand through intake, delivery, contact, sales, and activations.
-          </p>
-        </div>
+      <div className="cx-command-content space-y-6">
+        {/* Page Header */}
+        <header className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-2 border-b border-border-subtle">
+          <div>
+            <div className="flex items-center gap-1.5 text-xs text-text-sec">
+              <span className="font-semibold text-action uppercase tracking-wider">Outcomes</span>
+              <span className="text-text-muted" aria-hidden="true">·</span>
+              <span className="font-medium text-text-muted">{data?.clientName || 'Workspace'}</span>
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-text-main mt-1">
+              Overview
+            </h1>
+            <p className="text-xs text-text-sec mt-1 max-w-2xl leading-relaxed">
+              Follow acquired demand through intake, delivery, contact, sales, and activations across the selected reporting cohort.
+            </p>
+          </div>
 
-        <Link
-          to={scoped('/reports')}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border-subtle bg-surface hover:bg-surface-subtle transition-colors text-xs text-text-sec shadow-xs shrink-0"
-          title="Inspect evidence and verification status"
-        >
-          <Info size={14} className="text-brand-primary" aria-hidden="true" />
-          <span>
-            <strong>{statusLabel(data?.validationStatus || 'NOT_VERIFIED')}</strong>
-            <span className="text-text-mute ml-1">· Evidence status</span>
-          </span>
-          <ArrowRight size={13} className="text-text-mute" />
-        </Link>
-      </header>
+          <Link
+            to={scoped('/reports')}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border-subtle bg-surface hover:bg-surface-subtle transition-colors text-xs text-text-sec shadow-xs shrink-0 self-start"
+            title="Inspect evidence and verification status"
+          >
+            <Info size={14} className="text-action" aria-hidden="true" />
+            <span>
+              <strong>{statusLabel(data?.validationStatus || 'NOT_VERIFIED')}</strong>
+              <span className="text-text-mute ml-1">· Evidence status</span>
+            </span>
+            <ArrowRight size={13} className="text-text-mute" />
+          </Link>
+        </header>
 
       {/* Error state */}
       {error && (
@@ -437,6 +443,7 @@ export default function OverviewPage() {
         metric={rootMetric}
         onClose={() => setRootMetric(null)}
       />
+      </div>
     </div>
   );
 }

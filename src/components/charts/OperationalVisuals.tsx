@@ -16,26 +16,26 @@ import { formatChartAxis, formatPercent, formatTableNumber } from '../../lib/for
 import { ChartToolbar } from './ChartToolbar';
 
 export const ANALYTICS_COLORS = {
-  volume: '#315BCB',
-  secondary: '#64748B',
-  rpc: '#0F766E',
-  sale: '#7C3AED',
-  activation: '#15803D',
-  warning: '#B7791F',
-  critical: '#B42318',
-  neutral: '#94A3B8',
+  volume: '#4F5FB7',
+  secondary: '#475569',
+  rpc: '#985B86',
+  sale: '#426D80',
+  activation: '#566273',
+  warning: '#8A5A00',
+  critical: '#B42336',
+  neutral: '#475569',
 } as const;
 
 export function EmptyChartState({ message = 'No observations recorded for the active filters.' }: { message?: string }) {
   return (
     <div className="h-44 w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
       <span className="font-medium text-slate-600 mb-1">{message}</span>
-      <span className="text-[11px] text-slate-400">Try adjusting dates, vendor scope, or filters to display data.</span>
+      <span className="text-xs text-slate-400">Try adjusting dates, vendor scope, or filters to display data.</span>
     </div>
   );
 }
 
-const CHART_LEGEND_STYLE = { fontSize: 11, paddingTop: 10 };
+const CHART_LEGEND_STYLE = { fontSize: 12, paddingTop: 10 };
 const CHART_TOOLTIP_STYLE = {
   borderRadius: 9,
   border: '1px solid #DCE4ED',
@@ -101,12 +101,12 @@ export function VolumeRateComboChart({
     <div className="enterprise-card cx-analytics-card">
       <ChartToolbar visualData={data} title={title} subtitle={subtitle} />
       <div style={{ height, width: '100%' }}>
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
           <ComposedChart data={data} margin={{ top: 16, right: 16, left: -10, bottom: 10 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EEF2F6" />
-            <XAxis dataKey={xKey} tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} interval={0} angle={data.length > 8 ? -24 : 0} textAnchor={data.length > 8 ? 'end' : 'middle'} height={data.length > 8 ? 56 : 34} />
-            <YAxis yAxisId="volume" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={formatChartAxis} />
-            <YAxis yAxisId="rate" orientation="right" domain={[0, 'auto']} tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={value => `${formatChartAxis(value)}%`} />
+            <XAxis dataKey={xKey} tick={{ fontSize: 12, fill: '#475569' }} axisLine={false} tickLine={false} interval={0} angle={data.length > 8 ? -24 : 0} textAnchor={data.length > 8 ? 'end' : 'middle'} height={data.length > 8 ? 56 : 34} />
+            <YAxis yAxisId="volume" tick={{ fontSize: 12, fill: '#475569' }} axisLine={false} tickLine={false} tickFormatter={formatChartAxis} />
+            <YAxis yAxisId="rate" orientation="right" domain={[0, 'auto']} tick={{ fontSize: 12, fill: '#475569' }} axisLine={false} tickLine={false} tickFormatter={value => `${formatChartAxis(value)}%`} />
             <Tooltip content={tooltip} />
             <Legend wrapperStyle={CHART_LEGEND_STYLE} />
             <Bar
@@ -198,11 +198,11 @@ export function RankedMetricChart({
     <div className="enterprise-card cx-analytics-card">
       <ChartToolbar visualData={rows} title={title} subtitle={subtitle} />
       <div style={{ height: Math.max(height, rows.length * 34 + 60), width: '100%' }}>
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
           <BarChart data={rows} layout="vertical" margin={{ top: 8, right: 24, left: 8, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#EEF2F6" />
-            <XAxis type="number" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={value => `${valuePrefix}${formatChartAxis(value)}${valueSuffix}`} />
-            <YAxis type="category" dataKey={categoryKey} width={138} tick={{ fontSize: 11, fill: '#334155' }} axisLine={false} tickLine={false} />
+            <XAxis type="number" tick={{ fontSize: 12, fill: '#475569' }} axisLine={false} tickLine={false} tickFormatter={value => `${valuePrefix}${formatChartAxis(value)}${valueSuffix}`} />
+            <YAxis type="category" dataKey={categoryKey} width={138} tick={{ fontSize: 12, fill: '#152238' }} axisLine={false} tickLine={false} />
             <Tooltip formatter={(value: any) => [formatValue(value), valueLabel]} cursor={{ fill: '#F8FAFC' }} contentStyle={CHART_TOOLTIP_STYLE} />
             <Bar
               dataKey={valueKey}
@@ -247,11 +247,11 @@ export function GroupedOutcomeChart({ title, subtitle, data, xKey, series, heigh
     <div className="enterprise-card cx-analytics-card">
       <ChartToolbar visualData={data} title={title} subtitle={subtitle} />
       <div style={{ height, width: '100%' }}>
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
           <BarChart data={data} margin={{ top: 14, right: 18, left: -6, bottom: data.length > 8 ? 48 : 12 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EEF2F6" />
-            <XAxis dataKey={xKey} tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} interval={0} angle={data.length > 8 ? -24 : 0} textAnchor={data.length > 8 ? 'end' : 'middle'} />
-            <YAxis tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={formatChartAxis} />
+            <XAxis dataKey={xKey} tick={{ fontSize: 12, fill: '#475569' }} axisLine={false} tickLine={false} interval={0} angle={data.length > 8 ? -24 : 0} textAnchor={data.length > 8 ? 'end' : 'middle'} />
+            <YAxis tick={{ fontSize: 12, fill: '#475569' }} axisLine={false} tickLine={false} tickFormatter={formatChartAxis} />
             <Tooltip formatter={(value: any) => formatTableNumber(value)} cursor={{ fill: '#F8FAFC' }} contentStyle={CHART_TOOLTIP_STYLE} />
             <Legend wrapperStyle={CHART_LEGEND_STYLE} />
             {series.map((item, index) => (
@@ -265,7 +265,7 @@ export function GroupedOutcomeChart({ title, subtitle, data, xKey, series, heigh
 }
 
 
-const SERIES_PALETTE = ['#315BCB','#0F766E','#7C3AED','#15803D','#B7791F','#64748B','#0E7490','#BE185D'];
+const SERIES_PALETTE = ['#4F5FB7', '#0E7490', '#7153A3', '#985B86', '#426D80', '#566273', '#315BCB', '#8A5A00'];
 
 interface MultiSeriesTrendChartProps {
   title: string;
@@ -299,11 +299,11 @@ export function MultiSeriesTrendChart({
     <div className="enterprise-card cx-analytics-card">
       <ChartToolbar visualData={data} title={title} subtitle={subtitle} />
       <div style={{ height, width: '100%' }}>
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
           <LineChart data={data} margin={{ top: 16, right: 16, left: -4, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EEF2F6" />
-            <XAxis dataKey={xKey} tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={value => `${formatChartAxis(value)}${valueSuffix}`} />
+            <XAxis dataKey={xKey} tick={{ fontSize: 12, fill: '#475569' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 12, fill: '#475569' }} axisLine={false} tickLine={false} tickFormatter={value => `${formatChartAxis(value)}${valueSuffix}`} />
             <Tooltip formatter={(value: any, name: any) => [value == null ? '—' : `${Number(value).toFixed(1)}${valueSuffix}`, name]} contentStyle={CHART_TOOLTIP_STYLE} />
             <Legend wrapperStyle={CHART_LEGEND_STYLE} />
             {series.slice(0, 8).map((item, index) => (
@@ -356,11 +356,11 @@ export function StackedCompositionChart({
     <div className="enterprise-card cx-analytics-card">
       <ChartToolbar visualData={data} title={title} subtitle={subtitle} />
       <div style={{ height: Math.max(height, data.length * 34 + 80), width: '100%' }}>
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
           <BarChart data={data} layout="vertical" margin={{ top: 8, right: 22, left: 8, bottom: 10 }}>
             <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#EEF2F6" />
-            <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={value => `${value}%`} />
-            <YAxis type="category" dataKey={categoryKey} width={138} tick={{ fontSize: 11, fill: '#334155' }} axisLine={false} tickLine={false} />
+            <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12, fill: '#475569' }} axisLine={false} tickLine={false} tickFormatter={value => `${value}%`} />
+            <YAxis type="category" dataKey={categoryKey} width={138} tick={{ fontSize: 12, fill: '#152238' }} axisLine={false} tickLine={false} />
             <Tooltip formatter={(value: any, name: any) => [`${Number(value).toFixed(1)}%`, name]} contentStyle={CHART_TOOLTIP_STYLE} />
             <Legend wrapperStyle={CHART_LEGEND_STYLE} />
             {series.slice(0, 8).map((item, index) => (
@@ -416,14 +416,14 @@ export function HorizontalStackedOutcomeChart({
   return (
     <div className="w-full">
       <div style={{ height: Math.max(height, data.length * 38 + 70), width: '100%' }}>
-        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
           <BarChart data={data} layout="vertical" margin={{ top: 10, right: 28, left: 10, bottom: 16 }}>
             <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#EEF2F6" />
             <XAxis
               type="number"
               domain={isPercent ? [0, 100] : [0, 'auto']}
               tickFormatter={(v) => (isPercent ? `${v}%` : formatTableNumber(v))}
-              tick={{ fontSize: 11, fill: '#64748B' }}
+              tick={{ fontSize: 12, fill: '#475569' }}
               axisLine={false}
               tickLine={false}
             />
@@ -431,7 +431,7 @@ export function HorizontalStackedOutcomeChart({
               type="category"
               dataKey={categoryKey}
               width={110}
-              tick={{ fontSize: 11, fill: '#334155', fontWeight: 500 }}
+              tick={{ fontSize: 12, fill: '#152238', fontWeight: 500 }}
               axisLine={false}
               tickLine={false}
             />

@@ -41,14 +41,24 @@ export default function PrimaryNavigation({
 
   const currentArea = getAreaForPath(location.pathname);
 
-  const businessNavItems = [
-    { id: 'overview', name: 'Overview', path: '/overview', icon: LayoutDashboard, desc: 'Decide where to look' },
-    { id: 'journey', name: 'Lead journey', path: '/funnel', icon: GitFork, desc: 'Progression & acquisition' },
-    { id: 'contact', name: 'Contact centre', path: '/contact-strategy', icon: PhoneCall, desc: 'Calls & vendor outcomes' },
-    { id: 'sales', name: 'Sales & activation', path: '/sales-activation', icon: BadgeCheck, desc: 'Sales, conversion & ageing' },
-    { id: 'commercial', name: 'Commercial', path: '/commercial', icon: CircleDollarSign, desc: 'Spend, revenue & attribution' },
-    { id: 'investigate', name: 'Investigate', path: '/exceptions', icon: AlertTriangle, desc: 'Exceptions, records & data quality' },
-  ];
+  const businessNavItems = BUSINESS_AREAS.slice(0, 6).map(area => ({
+    id: area.id,
+    name: area.name,
+    path: area.landingPath,
+    icon: area.icon,
+    desc:
+      area.id === 'overview'
+        ? 'Decide where to look'
+        : area.id === 'journey'
+        ? 'Progression & acquisition'
+        : area.id === 'contact'
+        ? 'Calls & vendor outcomes'
+        : area.id === 'sales'
+        ? 'Sales, conversion & ageing'
+        : area.id === 'commercial'
+        ? 'Spend, revenue & attribution'
+        : 'Exceptions, records & data quality',
+  }));
 
   return (
     <aside className="cx-sidebar">

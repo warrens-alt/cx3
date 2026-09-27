@@ -1,6 +1,6 @@
 /* Shell styles consume the shared light-theme tokens. */
-.cx-app .cx-topbar { height: var(--cx-header-height, 64px); min-height: var(--cx-header-height, 64px); padding-inline: 24px; gap: 12px; border-bottom-color: var(--cx-border); }
-.cx-sidebar .cx-brand { height: var(--cx-header-height, 64px); min-height: var(--cx-header-height, 64px); padding: 12px 16px; }
+.cx-app .cx-topbar { height: var(--cx-header-height, 56px); min-height: var(--cx-header-height, 56px); padding-inline: 20px; gap: 12px; border-bottom-color: var(--cx-border); }
+.cx-sidebar .cx-brand { height: var(--cx-header-height, 56px); min-height: var(--cx-header-height, 56px); padding: 10px 16px; }
 .cx-brand-link { min-width: 0; }
 .cx-brand-icon { flex-shrink: 0; }
 .cx-brand-copy { min-width: 0; }

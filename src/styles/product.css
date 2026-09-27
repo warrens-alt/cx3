@@ -2,9 +2,9 @@
 :root {
   --cx-canvas: var(--cx-bg); --cx-ink: var(--cx-text); --cx-muted: var(--cx-text-secondary);
   --cx-line: var(--cx-border); --cx-accent: var(--cx-primary); --cx-focus: var(--cx-primary);
-  --cx-radius: var(--cx-radius-card); --cx-control-radius: var(--cx-radius-control); --cx-control-height: 40px;
+  --cx-radius: var(--cx-radius-card); --cx-control-radius: var(--cx-radius-control); --cx-control-height: var(--cx-control-height, 38px);
   --cx-type-body: 14px; --cx-type-control: 13px; --cx-type-note: 12px;
-  --cx-space-1: 4px; --cx-space-2: 8px; --cx-space-3: 12px; --cx-space-4: 16px; --cx-space-6: 24px; --cx-space-8: 32px; --cx-header-height: 64px;
+  --cx-space-1: 4px; --cx-space-2: 8px; --cx-space-3: 12px; --cx-space-4: 16px; --cx-space-6: 24px; --cx-space-8: 32px; --cx-header-height: var(--cx-header-height, 56px);
   --cx-row-padding: 12px; --cx-motion: 150ms; --cx-layer-dialog: 50;
 }
 .cx-app { overflow:visible; background:var(--cx-canvas); }
@@ -27,7 +27,7 @@
 .enterprise-table thead th { font-size:13px; }
 .enterprise-table td,.enterprise-table tbody th { padding-top:var(--cx-row-padding); padding-bottom:var(--cx-row-padding); }
 [data-density=compact] { --cx-row-padding:8px; }
-.cx-topbar { height:58px; min-height:58px; padding-inline:20px; padding-block:0; display:flex; align-items:center; }
+.cx-topbar { height:var(--cx-header-height, 56px); min-height:var(--cx-header-height, 56px); padding-inline:20px; padding-block:0; display:flex; align-items:center; }
 .cx-workspace-select { display:flex; align-items:center; gap:8px; min-width:0; max-width:260px; font-size:12px; color:var(--cx-muted); }
 .cx-workspace-select select { width:100%; min-width:0; max-width:100%; background:white; color:var(--cx-ink); border:1px solid var(--cx-line); border-radius:7px; min-height:36px; padding:4px 10px; font-size:12.5px; font-weight:500; }
 .cx-applied-scope { flex-basis:100%; display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:2px; }

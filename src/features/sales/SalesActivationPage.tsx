@@ -105,7 +105,7 @@ export default function SalesActivationPage() {
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-1.5">
               <span className="font-semibold text-text-sec">Date basis:</span>
-              <span className="text-text-main bg-surface border border-border px-2 py-0.5 rounded font-mono text-[11px]">
+              <span className="text-text-main font-mono text-[11px]">
                 Operational intake cohort (lead intake date)
               </span>
             </div>

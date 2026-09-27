@@ -125,9 +125,11 @@ export default function BlcReportingPanel() {
                   ? 'Query succeeded · no dated rows'
                   : report.status.replaceAll('_', ' ')}
               </span>
-              <span className="px-2 py-0.5 rounded text-xs border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 font-medium">
-                Not reconciled · freshness not verified
+              <span className="text-text-muted" aria-hidden="true">·</span>
+              <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">
+                Not reconciled (freshness unverified)
               </span>
+              <span className="text-text-muted" aria-hidden="true">·</span>
               <span className="text-text-sec text-xs">Checked: {report.checkedAt}</span>
             </div>
             {report.message && (
