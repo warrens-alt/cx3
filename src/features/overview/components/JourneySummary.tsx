@@ -148,7 +148,7 @@ export default function JourneySummary({
                       title={`Inspect ${stageLabel(stage.name)} → ${stageLabel(stages[index + 1]?.name)} dropoff records`}
                     >
                       <ArrowRight size={14} />
-                      <span className="text-[10px] font-semibold text-semantic-neg cx-tabular">
+                      <span className="text-[11px] font-semibold text-semantic-neg cx-tabular">
                         −{fmt(nextLoss)}
                       </span>
                     </Link>
@@ -167,7 +167,7 @@ export default function JourneySummary({
                       title={`Inspect ${stageLabel(stage.name)} → ${stageLabel(stages[index + 1]?.name)} dropoff`}
                     >
                       <ArrowRight size={14} />
-                      <span className="text-[10px] font-semibold text-semantic-neg cx-tabular">
+                      <span className="text-[11px] font-semibold text-semantic-neg cx-tabular">
                         −{fmt(nextLoss)}
                       </span>
                     </button>
@@ -175,7 +175,7 @@ export default function JourneySummary({
                     <>
                       <ArrowRight size={14} />
                       {nextLoss != null && (
-                        <span className="text-[10px] font-semibold text-semantic-neg cx-tabular">
+                        <span className="text-[11px] font-semibold text-semantic-neg cx-tabular">
                           −{fmt(nextLoss)}
                         </span>
                       )}

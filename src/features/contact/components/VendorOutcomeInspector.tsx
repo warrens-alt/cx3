@@ -278,7 +278,7 @@ export default function VendorOutcomeInspector({
           {readinessStatus === 'ready' && vendorSummary && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
               <div className="p-2.5 bg-surface rounded border border-border-subtle">
-                <span className="text-[10px] uppercase font-semibold text-text-mute block">
+                <span className="text-[11px] uppercase font-semibold text-text-mute block">
                   {totalPopulationLabel}
                 </span>
                 <span className="text-lg font-bold text-text-main cx-tabular mt-0.5 block">
@@ -287,7 +287,7 @@ export default function VendorOutcomeInspector({
               </div>
 
               <div className="p-2.5 bg-surface rounded border border-border-subtle">
-                <span className="text-[10px] uppercase font-semibold text-text-mute block">
+                <span className="text-[11px] uppercase font-semibold text-text-mute block">
                   {dialledBaseLabel}
                 </span>
                 <span className="text-lg font-bold text-text-main cx-tabular mt-0.5 block">
@@ -296,7 +296,7 @@ export default function VendorOutcomeInspector({
               </div>
 
               <div className="p-2.5 bg-surface rounded border border-border-subtle">
-                <span className="text-[10px] uppercase font-semibold text-text-mute block">
+                <span className="text-[11px] uppercase font-semibold text-text-mute block">
                   Disposition Coverage
                 </span>
                 <span className="text-lg font-bold text-text-main cx-tabular mt-0.5 block">
@@ -305,7 +305,7 @@ export default function VendorOutcomeInspector({
               </div>
 
               <div className="p-2.5 bg-surface rounded border border-border-subtle">
-                <span className="text-[10px] uppercase font-semibold text-text-mute block">
+                <span className="text-[11px] uppercase font-semibold text-text-mute block">
                   Mapping Coverage
                 </span>
                 <span className="text-lg font-bold text-emerald-700 dark:text-emerald-400 cx-tabular mt-0.5 block">
@@ -348,7 +348,7 @@ export default function VendorOutcomeInspector({
           {/* Coverage Limitations - rendered in ready state when present */}
           {readinessStatus === 'ready' && vendorSummary?.coverageLimitations && vendorSummary.coverageLimitations.length > 0 && (
             <div className="mt-2.5 pt-2 border-t border-border-subtle text-[11px] text-text-mute space-y-0.5">
-              <span className="font-semibold text-text-sec text-[10px] uppercase tracking-wider block">Coverage Limitations:</span>
+              <span className="font-semibold text-text-sec text-[11px] uppercase tracking-wider block">Coverage Limitations:</span>
               {vendorSummary.coverageLimitations.map((lim, idx) => (
                 <p key={idx} className="leading-relaxed">• {lim}</p>
               ))}

@@ -214,7 +214,7 @@ export default function SegmentComparison({
                         <div className="flex items-center gap-1.5">
                           <span>{item.name}</span>
                           {item.coveragePct != null && (
-                            <span className="text-[10px] text-text-mute font-normal">
+                            <span className="text-[11px] text-text-mute font-normal">
                               ({formatPercent(item.coveragePct)})
                             </span>
                           )}

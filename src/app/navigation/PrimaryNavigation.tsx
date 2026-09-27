@@ -80,11 +80,11 @@ export default function PrimaryNavigation({
         )}
       </div>
 
-      {/* Global Command / Search */}
+      {/* Global Command / Search - single visible trigger per viewport: topbar on desktop, sidebar drawer on mobile */}
       <button
         type="button"
         onClick={onSearch}
-        className="cx-sidebar-search"
+        className="cx-sidebar-search lg:hidden"
         aria-haspopup="dialog"
         aria-keyshortcuts="Control+K Meta+K"
       >

@@ -186,6 +186,7 @@ export function DiminishingReturnsChart({
             )}
           </ComposedChart>
         </ResponsiveContainer>
+        )}
       </div>
     </div>
   );

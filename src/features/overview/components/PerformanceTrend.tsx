@@ -69,9 +69,9 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
   const [activeMetric, setActiveMetric] = useState<SelectableTrendMetric>('leads');
 
   const metricConfigs: Record<SelectableTrendMetric, { label: string; color: string }> = {
-    leads: { label: 'Fetched leads', color: '#315BCB' },
-    delivered: { label: 'Delivered leads', color: '#0E7490' },
-    sales: { label: 'Recorded sales', color: '#7C3AED' },
+    leads: { label: 'Fetched leads', color: 'var(--cx-data-fetched, var(--cx-action, #315BCB))' },
+    delivered: { label: 'Delivered leads', color: 'var(--cx-data-delivered, #0E7490)' },
+    sales: { label: 'Recorded sales', color: 'var(--cx-data-sales, #7C3AED)' },
   };
 
   const chartData = useMemo(() => adaptDailyTrends(data), [data]);
@@ -125,7 +125,7 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
       {/* Chart Canvas */}
       <div className="h-64 w-full">
         {chartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
             <LineChart data={chartData} margin={{ top: 8, right: 12, left: -2, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border-subtle)" />
               <XAxis

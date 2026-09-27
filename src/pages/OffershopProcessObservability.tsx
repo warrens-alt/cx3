@@ -770,7 +770,7 @@ export default function OffershopProcessObservability() {
                         onChange={e => setSimDuplicateHours(Number(e.target.value))}
                         className="w-full"
                       />
-                      <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
+                      <div className="flex justify-between text-[11px] text-slate-500 mt-1 font-mono">
                         <span>12h</span>
                         <span>48h (2d)</span>
                         <span>168h (7d)</span>

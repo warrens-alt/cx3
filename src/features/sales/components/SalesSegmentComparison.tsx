@@ -238,7 +238,7 @@ export default function SalesSegmentComparison({
                           <span>Source revenue:</span>
                           <b className="font-mono tabular-nums">{formatWorkspaceCurrency(r.revenue, currency)}</b>
                         </div>
-                        <div className="text-[10px] text-blue-600 dark:text-blue-400 font-medium pt-1 font-sans">
+                        <div className="text-[11px] text-blue-600 dark:text-blue-400 font-medium pt-1 font-sans">
                           Click row below to inspect segment evidence
                         </div>
                       </div>

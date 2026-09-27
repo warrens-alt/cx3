@@ -130,9 +130,9 @@ export default function LeadLedger() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <BookOpen size={20} className="text-[#315BCB]" />
+              <BookOpen size={20} className="text-[var(--cx-action)]" />
               <h1 className="text-xl font-bold text-slate-900 tracking-tight">Lead Ledger</h1>
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-[#315BCB] border border-blue-200">
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-[var(--cx-action)] border border-blue-200">
                 Operational Ledger
               </span>
             </div>
@@ -150,14 +150,6 @@ export default function LeadLedger() {
             >
               <Download size={13} />
               <span>Export Page CSV</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => loadData(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors shadow-xs"
-            >
-              <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-              <span>Refresh</span>
             </button>
           </div>
         </div>
@@ -188,7 +180,7 @@ export default function LeadLedger() {
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
                 placeholder="Search lead ID, consumer ID, vendor, source…"
-                className="w-full pl-8 pr-8 py-1.5 text-xs border border-slate-300 rounded-md focus:outline-hidden focus:ring-1 focus:ring-[#315BCB] focus:border-[#315BCB] bg-slate-50/50"
+                className="w-full pl-8 pr-8 py-1.5 text-xs border border-slate-300 rounded-md focus:outline-hidden focus:ring-1 focus:ring-[var(--cx-action)] focus:border-[var(--cx-action)] bg-slate-50/50"
               />
               {searchInput && (
                 <button
@@ -203,7 +195,7 @@ export default function LeadLedger() {
             </div>
             <button
               type="submit"
-              className="px-3 py-1.5 text-xs font-semibold text-white bg-[#315BCB] hover:bg-blue-700 rounded-md transition-colors shadow-xs"
+              className="px-3 py-1.5 text-xs font-semibold text-white bg-[var(--cx-action)] hover:bg-[var(--cx-action-hover)] rounded-md transition-colors shadow-xs"
             >
               Search
             </button>
@@ -278,8 +270,8 @@ export default function LeadLedger() {
         {/* Main Table Container */}
         <div className="rounded-lg border border-slate-200 bg-white overflow-hidden shadow-xs">
           <div className="overflow-x-auto max-h-[680px]">
-            <table className="w-full text-xs text-left border-collapse enterprise-table">
-              <thead className="sticky top-0 bg-slate-50/95 border-b border-slate-200 text-[11px] font-semibold text-slate-600 tracking-normal z-10">
+            <table className="w-full text-left border-collapse enterprise-table">
+              <thead className="sticky top-0 bg-slate-50/95 border-b border-slate-200 text-xs font-semibold text-slate-700 tracking-normal z-10">
                 <tr>
                   <th className="py-2.5 px-3 font-semibold text-slate-700">Lead ID</th>
                   <th className="py-2.5 px-3 font-semibold text-slate-700">Consumer ID</th>
@@ -300,12 +292,12 @@ export default function LeadLedger() {
                   <th className="py-2.5 px-3 font-semibold text-slate-700 text-center">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+              <tbody className="divide-y divide-slate-100 text-[13px] leading-[1.45]">
                 {loading && !currentRows.length ? (
                   <tr>
                     <td colSpan={17} className="px-4 py-16 text-center text-slate-500 font-sans">
                       <div className="flex flex-col items-center justify-center gap-2">
-                        <RefreshCw size={18} className="animate-spin text-[#315BCB]" />
+                        <RefreshCw size={18} className="animate-spin text-[var(--cx-action)]" />
                         <span>Loading verified lead records…</span>
                       </div>
                     </td>
@@ -339,7 +331,7 @@ export default function LeadLedger() {
                             <button
                               type="button"
                               onClick={() => setSelectedLeadId(leadId)}
-                              className="text-[#315BCB] hover:underline font-mono text-left cursor-pointer"
+                              className="text-[var(--cx-action)] hover:underline font-mono text-left cursor-pointer"
                               title="Inspect lead timeline"
                             >
                               {leadId || '—'}
@@ -358,12 +350,12 @@ export default function LeadLedger() {
                         </td>
 
                         {/* Consumer ID */}
-                        <td className="py-2 px-3 text-slate-700 whitespace-nowrap">
+                        <td className="py-2 px-3 text-slate-700 whitespace-nowrap font-mono">
                           {row.consumer_id ?? '—'}
                         </td>
 
                         {/* Fetched */}
-                        <td className="py-2 px-3 text-slate-600 whitespace-nowrap">
+                        <td className="py-2 px-3 text-slate-600 whitespace-nowrap font-mono text-xs">
                           {row.fetched ? String(row.fetched).replace('T', ' ').replace('Z', '') : '—'}
                         </td>
 
@@ -386,7 +378,7 @@ export default function LeadLedger() {
 
                         {/* Vetting */}
                         <td className="py-2 px-3 whitespace-nowrap">
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${vettingBadgeClass}`}>
+                          <span className={`px-1.5 py-0.5 rounded text-[11px] font-medium border ${vettingBadgeClass}`}>
                             {row.vetting || row.offershop_color_vetting || 'Unvetted'}
                           </span>
                         </td>
@@ -448,7 +440,7 @@ export default function LeadLedger() {
                         {/* Sale */}
                         <td className="py-2 px-3 text-center whitespace-nowrap">
                           {row.sale ? (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            <span className="px-1.5 py-0.5 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
                               Sale
                             </span>
                           ) : (
@@ -459,7 +451,7 @@ export default function LeadLedger() {
                         {/* Activated */}
                         <td className="py-2 px-3 text-center whitespace-nowrap">
                           {row.activated ? (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                            <span className="px-1.5 py-0.5 rounded text-[11px] font-semibold bg-blue-100 text-blue-800 border border-blue-200">
                               Active
                             </span>
                           ) : (
@@ -477,7 +469,7 @@ export default function LeadLedger() {
                           <button
                             type="button"
                             onClick={() => setSelectedLeadId(leadId)}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium text-slate-700 bg-slate-100 hover:bg-[#315BCB] hover:text-white transition-colors"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium text-slate-700 bg-slate-100 hover:bg-[var(--cx-action)] hover:text-white transition-colors"
                             title="Inspect Lead Timeline"
                           >
                             <Eye size={11} />

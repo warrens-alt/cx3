@@ -1,120 +1,47 @@
 @import "tailwindcss";
+@import "./styles/tokens.css";
 
 @theme {
   --font-display: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-sans: "Public Sans", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   
-  /* Precision Tech & Data Canvas: Restrained Professional Palette */
-  --color-primary-blue: #315BCB;
-  --color-primary-blue-dark: #2447AD;
-  --color-primary-blue-soft: #EAF0FF;
+  /* Precision Tech & Data Canvas: Linked directly to canonical tokens.css */
+  --color-primary-blue: var(--cx-action);
+  --color-primary-blue-dark: var(--cx-action-hover);
+  --color-primary-blue-soft: var(--cx-selected-bg);
   --color-primary-blue-hover: #DEE9FF;
 
-  --color-teal: #315BCB;
-  --color-teal-dark: #2447AD;
-  --color-teal-light: #EAF0FF;
+  --color-teal: #0E7490;
+  --color-teal-dark: #155E75;
+  --color-teal-light: #ECFEFF;
   
   --color-navy: #152238;
   --color-navy-dark: #090E1A;
   --color-navy-surface: #1E293B;
   
-  --color-app-bg: #F4F6FA;
-  --color-surface: #FFFFFF;
-  --color-surface-sec: #F8FAFC;
+  --color-app-bg: var(--cx-canvas);
+  --color-surface: var(--cx-surface);
+  --color-surface-sec: var(--cx-surface-subtle);
   
-  --color-text-main: #152238;
-  --color-text-sec: #475569;
-  --color-text-mute: #5D6B80;
+  --color-text-main: var(--cx-ink);
+  --color-text-sec: var(--cx-text-secondary);
+  --color-text-mute: var(--cx-text-muted);
   
-  --color-border-subtle: #D7DFEA;
-  --color-border-strong: #7B8BA1;
+  --color-border-subtle: var(--cx-border);
+  --color-border-strong: var(--cx-border-strong);
 
   /* Quantitative Data Semantics */
-  --color-semantic-pos: #059669;
-  --color-semantic-pos-bg: #ECFDF5;
-  --color-semantic-neg: #E11D48;
-  --color-semantic-neg-bg: #FFF1F2;
-  --color-semantic-warn: #D97706;
-  --color-semantic-warn-bg: #FFFBEB;
-  --color-semantic-info: #315BCB;
-  --color-semantic-info-bg: #EAF0FF;
-  --color-semantic-purple: #7C3AED;
+  --color-semantic-pos: var(--cx-favourable);
+  --color-semantic-pos-bg: var(--cx-favourable-bg);
+  --color-semantic-neg: var(--cx-unfavourable);
+  --color-semantic-neg-bg: var(--cx-unfavourable-bg);
+  --color-semantic-warn: var(--cx-warning);
+  --color-semantic-warn-bg: var(--cx-warning-bg);
+  --color-semantic-info: var(--cx-action);
+  --color-semantic-info-bg: var(--cx-selected-bg);
+  --color-semantic-purple: var(--cx-data-sales);
   --color-semantic-purple-bg: #F5F3FF;
-}
-
-:root {
-  /* Canonical light-theme presentation tokens */
-  color-scheme: light;
-  --cx-bg: #F4F6FA;
-  --cx-canvas: #F4F6FA;
-  --cx-surface: #FFFFFF;
-  --cx-surface-subtle: #F8FAFC;
-  --cx-border: #D7DFEA;
-  --cx-border-subtle: #E2E8F0;
-  --cx-border-strong: #7B8BA1;
-  --cx-control-border: #7B8BA1;
-  --cx-line: #D7DFEA;
-  --cx-ink: #152238;
-  --cx-text: #152238;
-  --cx-text-secondary: #475569;
-  --cx-text-muted: #5D6B80;
-  --cx-text-disabled: #94A3B8;
-  --cx-muted: #5D6B80;
-
-  --cx-action: #315BCB;
-  --cx-action-hover: #2447AD;
-  --cx-selected-bg: #EAF0FF;
-  --cx-focus: #315BCB;
-  --cx-accent: #315BCB;
-
-  --cx-primary: #315BCB;
-  --cx-primary-hover: #2447AD;
-  --cx-primary-soft: #EAF0FF;
-  --cx-primary-soft-hover: #DEE9FF;
-  --cx-brand-primary: #315BCB;
-  --cx-brand-hover: #2447AD;
-  --cx-brand-soft: #EAF0FF;
-  --cx-brand-soft-hover: #DEE9FF;
-
-  --cx-data-fetched: #4F5FB7;
-  --cx-data-delivered: #0E7490;
-  --cx-data-rpc: #2563EB;
-  --cx-data-sales: #7C3AED;
-  --cx-data-activation: #15803D;
-
-  --cx-favourable: #059669;
-  --cx-favourable-bg: #ECFDF5;
-  --cx-positive: #059669;
-  --cx-positive-bg: #ECFDF5;
-  --cx-unfavourable: #E11D48;
-  --cx-unfavourable-bg: #FFF1F2;
-  --cx-negative: #E11D48;
-  --cx-negative-bg: #FFF1F2;
-  --cx-warning: #D97706;
-  --cx-warning-bg: #FFFBEB;
-
-  /* Semantic status tokens */
-  --cx-status-favorable-bg: #ECFDF5;
-  --cx-status-favorable-text: #047857;
-  --cx-status-favorable-border: #A7F3D0;
-  --cx-status-unfavorable-bg: #FEF2F2;
-  --cx-status-unfavorable-text: #B91C1C;
-  --cx-status-unfavorable-border: #FECACA;
-  --cx-status-warning-bg: #FFFBEB;
-  --cx-status-warning-text: #B45309;
-  --cx-status-warning-border: #FDE68A;
-  --cx-status-neutral-bg: #F1F5F9;
-  --cx-status-neutral-text: #334155;
-  --cx-status-neutral-border: #CBD5E1;
-
-  --cx-radius-card: 10px;
-  --cx-radius-control: 7px;
-  --cx-shadow-card: 0 1px 3px 0 rgba(21, 34, 56, 0.04), 0 1px 2px -1px rgba(21, 34, 56, 0.02);
-  --cx-shadow-elevated: 0 10px 15px -3px rgba(21, 34, 56, 0.06), 0 4px 6px -4px rgba(21, 34, 56, 0.03);
-
-  --cx-radius: var(--cx-radius-card);
-  --cx-shadow: var(--cx-shadow-card);
 }
 
 @layer base {

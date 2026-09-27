@@ -61,7 +61,7 @@ export default function SalesTimingAndCoverage({
               <div className="text-[11px] text-text-sec mt-1 flex items-center justify-between">
                 <span>Median: <strong>{timing.medianTimeToSale}</strong></span>
               </div>
-              <div className="text-[10px] text-text-muted mt-1">
+              <div className="text-[11px] text-text-muted mt-1">
                 Start: Lead intake • End: Sale timestamp
               </div>
             </div>
@@ -78,7 +78,7 @@ export default function SalesTimingAndCoverage({
               <div className="text-[11px] text-text-sec mt-1 flex items-center justify-between">
                 <span>Median: <strong>{timing.medianTimeToActivation}</strong></span>
               </div>
-              <div className="text-[10px] text-text-muted mt-1">
+              <div className="text-[11px] text-text-muted mt-1">
                 Start: Sale timestamp • End: Activation timestamp
               </div>
             </div>

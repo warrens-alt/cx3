@@ -25,8 +25,8 @@ import {
   UserCheck,
   UserX,
 } from 'lucide-react';
-import type { OffershopProcessOverview, StageObservabilityData } from '../../server/analytics/process/offershopProcess';
-import type { OffershopProcessFamily } from '../../contracts/offershopProcess';
+import type { StageObservabilityData } from '../../../server/analytics/process/offershopProcess';
+import type { OffershopProcessFamily } from '../../../contracts/offershopProcess';
 import { formatTableNumber } from '../../lib/formatters';
 
 interface Props {
@@ -40,34 +40,34 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
     switch (readiness) {
       case 'MAPPED':
         return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <CheckCircle2 size={10} />
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <CheckCircle2 size={12} />
             <span>Mapped</span>
           </span>
         );
       case 'DEPENDENCY_BLOCKED':
         return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
-            <ShieldAlert size={10} />
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+            <ShieldAlert size={12} />
             <span>Blocked</span>
           </span>
         );
       case 'PARTIAL':
         return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-[#315BCB] border border-blue-200">
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-[var(--cx-action)] border border-blue-200">
             <span>Partial</span>
           </span>
         );
       case 'MAPPING_REQUIRED':
         return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
             <span>Needs Map</span>
           </span>
         );
       case 'NOT_INSTRUMENTED':
       default:
         return (
-          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
             <span>Not Inst.</span>
           </span>
         );
@@ -81,7 +81,7 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
       {/* Legend & Pipeline Meta */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white rounded-lg border border-slate-200 text-xs text-slate-600 shadow-2xs">
         <div className="flex items-center gap-2 font-medium">
-          <GitBranch size={16} className="text-[#315BCB]" />
+          <GitBranch size={16} className="text-[var(--cx-action)]" />
           <span className="font-semibold text-slate-800">Connected Process Logic Graph:</span>
           <span>Click any stage node to inspect its architectural invariants, rules, and mapped tables.</span>
         </div>
@@ -94,17 +94,24 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
       </div>
 
       {/* Main Directed Process Flow Canvas */}
-      <div className="p-6 bg-slate-50/70 rounded-xl border border-slate-200 overflow-x-auto">
-        <div className="min-w-[980px] space-y-8">
+      <div 
+        tabIndex={0}
+        role="region"
+        aria-label="Offershop process flow canvas"
+        className="p-4 sm:p-6 bg-slate-50/70 rounded-xl border border-slate-200 overflow-x-auto focus-visible:outline-2 focus-visible:outline-[var(--cx-action)]"
+      >
+        <div className="min-w-[760px] lg:min-w-[920px] space-y-8">
 
           {/* Row 1: Intake & Ingestion */}
           <div className="grid grid-cols-12 gap-4 items-center">
             {/* Stage 1: Acquisition */}
-            <div
+            <button
+              type="button"
               onClick={() => onSelectStage('acquisition')}
-              className={`col-span-5 p-4 rounded-xl border cursor-pointer transition-all ${
+              aria-pressed={isSel('acquisition')}
+              className={`col-span-5 p-4 rounded-xl border text-left cursor-pointer transition-all ${
                 isSel('acquisition')
-                  ? 'bg-white border-[#315BCB] shadow-md ring-2 ring-[#315BCB]/20'
+                  ? 'bg-white border-[var(--cx-action)] shadow-md ring-2 ring-[var(--cx-action)]/20'
                   : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-xs'
               }`}
             >
@@ -126,26 +133,28 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
                     : '—'}
                 </span>
               </div>
-            </div>
+            </button>
 
             {/* Directed Connector: Acquisition -> Ingestion */}
             <div className="col-span-2 flex flex-col items-center justify-center">
-              <span className="text-[10px] font-semibold font-mono text-slate-500 uppercase tracking-wider mb-1">
+              <span className="text-[11px] font-semibold font-mono text-slate-500 uppercase tracking-wider mb-1">
                 HTTP Submit
               </span>
               <div className="w-full flex items-center justify-center">
                 <div className="h-0.5 w-full bg-slate-300"></div>
                 <ArrowRight size={18} className="text-slate-400 shrink-0 -ml-1" />
               </div>
-              <span className="text-[10px] text-slate-400 mt-1">offer_shop_lead_submit</span>
+              <span className="text-[11px] text-slate-400 mt-1">offer_shop_lead_submit</span>
             </div>
 
             {/* Stage 2: Pipeline Ingestion */}
-            <div
+            <button
+              type="button"
               onClick={() => onSelectStage('ingestion')}
-              className={`col-span-5 p-4 rounded-xl border cursor-pointer transition-all ${
+              aria-pressed={isSel('ingestion')}
+              className={`col-span-5 p-4 rounded-xl border text-left cursor-pointer transition-all ${
                 isSel('ingestion')
-                  ? 'bg-white border-[#315BCB] shadow-md ring-2 ring-[#315BCB]/20'
+                  ? 'bg-white border-[var(--cx-action)] shadow-md ring-2 ring-[var(--cx-action)]/20'
                   : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-xs'
               }`}
             >
@@ -167,7 +176,7 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
                     : '—'}
                 </span>
               </div>
-            </div>
+            </button>
           </div>
 
           {/* Vertical Transition to Validation */}
@@ -175,18 +184,20 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
             <div className="flex flex-col items-center">
               <div className="w-0.5 h-6 bg-slate-300"></div>
               <ArrowDown size={18} className="text-slate-400 -mt-1" />
-              <span className="text-[10px] font-mono text-slate-500 mt-0.5">Validation Gate</span>
+              <span className="text-[11px] font-mono text-slate-500 mt-0.5">Validation Gate</span>
             </div>
           </div>
 
           {/* Row 2: Validation Gate with Decision Fork */}
           <div className="grid grid-cols-12 gap-4 items-start">
             {/* Stage 3: Preparation & Validation */}
-            <div
+            <button
+              type="button"
               onClick={() => onSelectStage('preparation_validation')}
-              className={`col-span-5 p-4 rounded-xl border cursor-pointer transition-all ${
+              aria-pressed={isSel('preparation_validation')}
+              className={`col-span-5 p-4 rounded-xl border text-left cursor-pointer transition-all ${
                 isSel('preparation_validation')
-                  ? 'bg-white border-[#315BCB] shadow-md ring-2 ring-[#315BCB]/20'
+                  ? 'bg-white border-[var(--cx-action)] shadow-md ring-2 ring-[var(--cx-action)]/20'
                   : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-xs'
               }`}
             >
@@ -202,7 +213,7 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
               </p>
               <div className="mt-3 pt-2.5 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs font-mono">
                 <div>
-                  <span className="text-slate-500 block text-[10px]">ID Valid (1):</span>
+                  <span className="text-slate-500 block text-[11px]">ID Valid (1):</span>
                   <span className="font-semibold text-emerald-700">
                     {stages.preparation_validation?.observedMetrics?.idValidationValidCode1 != null
                       ? formatTableNumber(Number(stages.preparation_validation.observedMetrics.idValidationValidCode1))
@@ -210,7 +221,7 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block text-[10px]">ID Invalid (2):</span>
+                  <span className="text-slate-500 block text-[11px]">ID Invalid (2):</span>
                   <span className="font-semibold text-amber-800">
                     {stages.preparation_validation?.observedMetrics?.idValidationInvalidCode2 != null
                       ? formatTableNumber(Number(stages.preparation_validation.observedMetrics.idValidationInvalidCode2))
@@ -218,26 +229,28 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
                   </span>
                 </div>
               </div>
-            </div>
+            </button>
 
             {/* Decision Fork Connectors */}
             <div className="col-span-2 flex flex-col items-center justify-center space-y-4 pt-4">
-              <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+              <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                 <span>Code 1 (Valid)</span>
                 <ArrowRight size={12} />
               </div>
-              <div className="flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+              <div className="flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                 <span>Code 2 (Invalid)</span>
                 <ArrowDown size={12} />
               </div>
             </div>
 
             {/* Stage 4: Consumer Hospital Recovery (Fork Branch) */}
-            <div
+            <button
+              type="button"
               onClick={() => onSelectStage('consumer_hospital')}
-              className={`col-span-5 p-4 rounded-xl border cursor-pointer transition-all ${
+              aria-pressed={isSel('consumer_hospital')}
+              className={`col-span-5 p-4 rounded-xl border text-left cursor-pointer transition-all ${
                 isSel('consumer_hospital')
-                  ? 'bg-white border-[#315BCB] shadow-md ring-2 ring-[#315BCB]/20'
+                  ? 'bg-white border-[var(--cx-action)] shadow-md ring-2 ring-[var(--cx-action)]/20'
                   : 'bg-white border-amber-200 bg-amber-50/20 hover:border-amber-300 hover:shadow-xs'
               }`}
             >
@@ -253,7 +266,7 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
               </p>
               <div className="mt-3 pt-2.5 border-t border-amber-100 flex items-center justify-between text-xs font-mono">
                 <div>
-                  <span className="text-slate-500 block text-[10px]">Hospital Entries:</span>
+                  <span className="text-slate-500 block text-[11px]">Hospital Entries:</span>
                   <span className="font-semibold text-amber-900">
                     {stages.consumer_hospital?.observedMetrics?.hospitalEntries != null
                       ? formatTableNumber(Number(stages.consumer_hospital.observedMetrics.hospitalEntries))
@@ -261,7 +274,7 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block text-[10px]">Recovered (Revet):</span>
+                  <span className="text-slate-500 block text-[11px]">Recovered (Revet):</span>
                   <span className="font-semibold text-emerald-700">
                     {stages.consumer_hospital?.observedMetrics?.recoveredIdentities != null
                       ? formatTableNumber(Number(stages.consumer_hospital.observedMetrics.recoveredIdentities))
@@ -269,7 +282,7 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
                   </span>
                 </div>
               </div>
-            </div>
+            </button>
           </div>
 
           {/* Recovery Loop-back note */}
@@ -278,7 +291,7 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
               <RotateCcw size={14} className="text-amber-700" />
               <span><strong>Hospital Re-entry:</strong> Successfully revetted identities re-enter partner qualification; unresolved records terminate in mortuary/morgue.</span>
             </div>
-            <span className="font-mono text-[10px] text-amber-800">Tags: EXACT · SMALL_DIFF · DIFFERENT</span>
+            <span className="font-mono text-[11px] text-amber-800">Tags: EXACT · SMALL_DIFF · DIFFERENT</span>
           </div>
 
           {/* Vertical Transition to Partner Qualification */}
@@ -286,18 +299,20 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
             <div className="flex flex-col items-center">
               <div className="w-0.5 h-6 bg-slate-300"></div>
               <ArrowDown size={18} className="text-slate-400 -mt-1" />
-              <span className="text-[10px] font-mono text-slate-500 mt-0.5">ROR Qualification</span>
+              <span className="text-[11px] font-mono text-slate-500 mt-0.5">ROR Qualification</span>
             </div>
           </div>
 
           {/* Row 3: Partner ROR Qualification & HLC Delivery */}
           <div className="grid grid-cols-12 gap-4 items-center">
             {/* Stage 5: Partner Qualification */}
-            <div
+            <button
+              type="button"
               onClick={() => onSelectStage('partner_qualification')}
-              className={`col-span-5 p-4 rounded-xl border cursor-pointer transition-all ${
+              aria-pressed={isSel('partner_qualification')}
+              className={`col-span-5 p-4 rounded-xl border text-left cursor-pointer transition-all ${
                 isSel('partner_qualification')
-                  ? 'bg-white border-[#315BCB] shadow-md ring-2 ring-[#315BCB]/20'
+                  ? 'bg-white border-[var(--cx-action)] shadow-md ring-2 ring-[var(--cx-action)]/20'
                   : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-xs'
               }`}
             >
@@ -315,26 +330,28 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
                 <span className="text-slate-500">7 Partner Branches:</span>
                 <span className="font-semibold text-slate-800">48h – 10d Duplicate Windows</span>
               </div>
-            </div>
+            </button>
 
             {/* Directed Connector: Qualification -> Delivery */}
             <div className="col-span-2 flex flex-col items-center justify-center">
-              <span className="text-[10px] font-semibold font-mono text-slate-500 uppercase tracking-wider mb-1">
+              <span className="text-[11px] font-semibold font-mono text-slate-500 uppercase tracking-wider mb-1">
                 Queue & Dispatch
               </span>
               <div className="w-full flex items-center justify-center">
                 <div className="h-0.5 w-full bg-slate-300"></div>
                 <ArrowRight size={18} className="text-slate-400 shrink-0 -ml-1" />
               </div>
-              <span className="text-[10px] text-slate-400 mt-1">Deduplication Guard</span>
+              <span className="text-[11px] text-slate-400 mt-1">Deduplication Guard</span>
             </div>
 
             {/* Stage 6: HLC Delivery */}
-            <div
+            <button
+              type="button"
               onClick={() => onSelectStage('hlc_delivery')}
-              className={`col-span-5 p-4 rounded-xl border cursor-pointer transition-all ${
+              aria-pressed={isSel('hlc_delivery')}
+              className={`col-span-5 p-4 rounded-xl border text-left cursor-pointer transition-all ${
                 isSel('hlc_delivery')
-                  ? 'bg-white border-[#315BCB] shadow-md ring-2 ring-[#315BCB]/20'
+                  ? 'bg-white border-[var(--cx-action)] shadow-md ring-2 ring-[var(--cx-action)]/20'
                   : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-xs'
               }`}
             >
@@ -356,7 +373,7 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
                     : '—'}
                 </span>
               </div>
-            </div>
+            </button>
           </div>
 
           {/* Vertical Transition to Dialler & Commercial */}
@@ -364,18 +381,20 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
             <div className="flex flex-col items-center">
               <div className="w-0.5 h-6 bg-slate-300"></div>
               <ArrowDown size={18} className="text-slate-400 -mt-1" />
-              <span className="text-[10px] font-mono text-slate-500 mt-0.5">Dialler & Commercial</span>
+              <span className="text-[11px] font-mono text-slate-500 mt-0.5">Dialler & Commercial</span>
             </div>
           </div>
 
           {/* Row 4: Dialler Activity & Commercial Outcomes */}
           <div className="grid grid-cols-12 gap-4 items-center">
             {/* Stage 7: Dialler Activity */}
-            <div
+            <button
+              type="button"
               onClick={() => onSelectStage('dialler_activity')}
-              className={`col-span-5 p-4 rounded-xl border cursor-pointer transition-all ${
+              aria-pressed={isSel('dialler_activity')}
+              className={`col-span-5 p-4 rounded-xl border text-left cursor-pointer transition-all ${
                 isSel('dialler_activity')
-                  ? 'bg-white border-[#315BCB] shadow-md ring-2 ring-[#315BCB]/20'
+                  ? 'bg-white border-[var(--cx-action)] shadow-md ring-2 ring-[var(--cx-action)]/20'
                   : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-xs'
               }`}
             >
@@ -391,7 +410,7 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
               </p>
               <div className="mt-3 pt-2.5 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs font-mono">
                 <div>
-                  <span className="text-slate-500 block text-[10px]">Dialled Leads:</span>
+                  <span className="text-slate-500 block text-[11px]">Dialled Leads:</span>
                   <span className="font-semibold text-slate-900">
                     {stages.dialler_activity?.observedMetrics?.leadsDialled != null
                       ? formatTableNumber(Number(stages.dialler_activity.observedMetrics.leadsDialled))
@@ -399,7 +418,7 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block text-[10px]">Right-Party Contact:</span>
+                  <span className="text-slate-500 block text-[11px]">Right-Party Contact:</span>
                   <span className="font-semibold text-emerald-700">
                     {stages.dialler_activity?.observedMetrics?.rightPartyContacts != null
                       ? formatTableNumber(Number(stages.dialler_activity.observedMetrics.rightPartyContacts))
@@ -407,26 +426,28 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
                   </span>
                 </div>
               </div>
-            </div>
+            </button>
 
             {/* Directed Connector: Dialler -> Commercial */}
             <div className="col-span-2 flex flex-col items-center justify-center">
-              <span className="text-[10px] font-semibold font-mono text-slate-500 uppercase tracking-wider mb-1">
+              <span className="text-[11px] font-semibold font-mono text-slate-500 uppercase tracking-wider mb-1">
                 Conversion
               </span>
               <div className="w-full flex items-center justify-center">
                 <div className="h-0.5 w-full bg-slate-300"></div>
                 <ArrowRight size={18} className="text-slate-400 shrink-0 -ml-1" />
               </div>
-              <span className="text-[10px] text-slate-400 mt-1">Sale & Activation</span>
+              <span className="text-[11px] text-slate-400 mt-1">Sale & Activation</span>
             </div>
 
             {/* Stage 8: Commercial Sales & Activations */}
-            <div
+            <button
+              type="button"
               onClick={() => onSelectStage('commercial_activation')}
-              className={`col-span-5 p-4 rounded-xl border cursor-pointer transition-all ${
+              aria-pressed={isSel('commercial_activation')}
+              className={`col-span-5 p-4 rounded-xl border text-left cursor-pointer transition-all ${
                 isSel('commercial_activation')
-                  ? 'bg-white border-[#315BCB] shadow-md ring-2 ring-[#315BCB]/20'
+                  ? 'bg-white border-[var(--cx-action)] shadow-md ring-2 ring-[var(--cx-action)]/20'
                   : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-xs'
               }`}
             >
@@ -442,7 +463,7 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
               </p>
               <div className="mt-3 pt-2.5 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs font-mono">
                 <div>
-                  <span className="text-slate-500 block text-[10px]">Reported Sales:</span>
+                  <span className="text-slate-500 block text-[11px]">Reported Sales:</span>
                   <span className="font-semibold text-purple-700">
                     {stages.commercial_activation?.observedMetrics?.reportedSales != null
                       ? formatTableNumber(Number(stages.commercial_activation.observedMetrics.reportedSales))
@@ -450,7 +471,7 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block text-[10px]">Verified Active:</span>
+                  <span className="text-slate-500 block text-[11px]">Verified Active:</span>
                   <span className="font-semibold text-emerald-700">
                     {stages.commercial_activation?.observedMetrics?.verifiedActivations != null
                       ? formatTableNumber(Number(stages.commercial_activation.observedMetrics.verifiedActivations))
@@ -458,17 +479,19 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
                   </span>
                 </div>
               </div>
-            </div>
+            </button>
           </div>
 
           {/* Row 5: Reconciliation & External Feeds */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
             {/* Stage 9: TEDI Feedback */}
-            <div
+            <button
+              type="button"
               onClick={() => onSelectStage('tedi_feedback')}
-              className={`p-4 rounded-xl border cursor-pointer transition-all ${
+              aria-pressed={isSel('tedi_feedback')}
+              className={`p-4 rounded-xl border text-left cursor-pointer transition-all ${
                 isSel('tedi_feedback')
-                  ? 'bg-white border-[#315BCB] shadow-md ring-2 ring-[#315BCB]/20'
+                  ? 'bg-white border-[var(--cx-action)] shadow-md ring-2 ring-[var(--cx-action)]/20'
                   : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-xs'
               }`}
             >
@@ -486,14 +509,16 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
                 <span>Reference Schedules:</span>
                 <span className="font-semibold text-slate-800">MTN · Mondo · Real Promotions</span>
               </div>
-            </div>
+            </button>
 
             {/* Stage 10: Advertising Feedback (Separate Process) */}
-            <div
+            <button
+              type="button"
               onClick={() => onSelectStage('advertising_feedback')}
-              className={`p-4 rounded-xl border cursor-pointer transition-all ${
+              aria-pressed={isSel('advertising_feedback')}
+              className={`p-4 rounded-xl border text-left cursor-pointer transition-all ${
                 isSel('advertising_feedback')
-                  ? 'bg-white border-[#315BCB] shadow-md ring-2 ring-[#315BCB]/20'
+                  ? 'bg-white border-[var(--cx-action)] shadow-md ring-2 ring-[var(--cx-action)]/20'
                   : 'bg-slate-50/50 border-slate-200 hover:border-slate-300 hover:shadow-xs'
               }`}
             >
@@ -511,7 +536,7 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
                 <span>Conflation with Dialler:</span>
                 <span className="font-semibold text-emerald-700">Strictly Separated (False)</span>
               </div>
-            </div>
+            </button>
           </div>
 
         </div>

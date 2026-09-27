@@ -36,37 +36,42 @@
   --cx-primary-soft-hover: #DEE9FF;
 
   /* Quantitative Semantics */
-  --cx-favourable: #059669;
-  --cx-favourable-bg: #ECFDF5;
-  --cx-positive: #059669;
-  --cx-positive-bg: #ECFDF5;
-  --cx-unfavourable: #E11D48;
-  --cx-unfavourable-bg: #FFF1F2;
-  --cx-negative: #E11D48;
-  --cx-negative-bg: #FFF1F2;
-  --cx-warning: #D97706;
-  --cx-warning-bg: #FFFBEB;
+  --cx-favourable: #17744A;
+  --cx-favourable-bg: #EFFAF3;
+  --cx-positive: #17744A;
+  --cx-positive-bg: #EFFAF3;
+  --cx-unfavourable: #B42336;
+  --cx-unfavourable-bg: #FFF1F3;
+  --cx-negative: #B42336;
+  --cx-negative-bg: #FFF1F3;
+  --cx-critical: #B42336;
+  --cx-critical-bg: #FFF1F3;
+  --cx-warning: #8A5A00;
+  --cx-warning-bg: #FFF7E6;
+  --cx-neutral: #475569;
+  --cx-neutral-bg: #F1F5F9;
 
   /* Semantic Status Tokens (Light) */
-  --cx-status-favorable-bg: #ECFDF5;
-  --cx-status-favorable-text: #047857;
+  --cx-status-favorable-bg: #EFFAF3;
+  --cx-status-favorable-text: #17744A;
   --cx-status-favorable-border: #A7F3D0;
-  --cx-status-unfavorable-bg: #FEF2F2;
-  --cx-status-unfavorable-text: #B91C1C;
+  --cx-status-unfavorable-bg: #FFF1F3;
+  --cx-status-unfavorable-text: #B42336;
   --cx-status-unfavorable-border: #FECACA;
-  --cx-status-warning-bg: #FFFBEB;
-  --cx-status-warning-text: #B45309;
+  --cx-status-warning-bg: #FFF7E6;
+  --cx-status-warning-text: #8A5A00;
   --cx-status-warning-border: #FDE68A;
   --cx-status-neutral-bg: #F1F5F9;
-  --cx-status-neutral-text: #334155;
+  --cx-status-neutral-text: #475569;
   --cx-status-neutral-border: #CBD5E1;
 
   /* Chart & Analytics Data Series */
   --cx-data-fetched: #4F5FB7;
   --cx-data-delivered: #0E7490;
-  --cx-data-rpc: #2563EB;
-  --cx-data-sales: #7C3AED;
-  --cx-data-activation: #15803D;
+  --cx-data-dialled: #7153A3;
+  --cx-data-rpc: #985B86;
+  --cx-data-sales: #426D80;
+  --cx-data-activation: #566273;
 
   /* Hairlines, Separators & Input Boundaries */
   --cx-border: #D7DFEA;

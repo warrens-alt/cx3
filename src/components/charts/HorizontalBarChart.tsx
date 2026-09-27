@@ -112,6 +112,7 @@ export function HorizontalBarChart({
             </Bar>
           </BarChart>
         </ResponsiveContainer>
+        )}
       </div>
     </div>
   );

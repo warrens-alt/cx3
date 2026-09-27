@@ -187,6 +187,7 @@ export function TrendChart({
             )}
           </AreaChart>
         </ResponsiveContainer>
+        )}
       </div>
     </div>
   );
