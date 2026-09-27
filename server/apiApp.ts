@@ -22,7 +22,7 @@ export async function mountApi(app: Application) {
   app.use(express.json({ limit: '64kb' }));
 
   // Liveness deliberately stays outside the authenticated API boundary.
-  app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+  app.get(['/api/health', '/api/health/', '/api', '/api/'], (_req, res) => res.json({ status: 'ok', service: 'ConversionX' }));
 
   // A static development identity remains opt-in only. AI Studio Preview uses
   // verified Firebase bearer authentication instead; production remains IAP.

@@ -12,13 +12,19 @@ const column = (field: string, alias: string) => {
 };
 export function vettingScope(input: VettingInput) {
   const scope = validateScope(input), interval = scalarString(input.interval, 'interval') || 'day';
-  if (!scope.startDate || !scope.endDate) throw new RequestError('Vetting requires an explicit start and end date; all-time scope is not supported for this report.', 422);
+  let startDate = scope.startDate;
+  let endDate = scope.endDate;
+  if (!startDate || !endDate) {
+    const now = new Date();
+    endDate = endDate || now.toISOString().slice(0, 10);
+    startDate = startDate || new Date(Date.parse(endDate) - 29 * 86400000).toISOString().slice(0, 10);
+  }
   if (!['day', 'week', 'month'].includes(interval)) throw new RequestError('Choose day, week or month');
-  const days = (Date.parse(scope.endDate) - Date.parse(scope.startDate)) / 86400000 + 1;
+  const days = (Date.parse(endDate) - Date.parse(startDate)) / 86400000 + 1;
   if (days > 366) throw new RequestError('Vetting reports support at most 366 inclusive days');
-  return {...scope, startDate: scope.startDate, endDate: scope.endDate, days, interval: interval as VettingInterval,
-    previousStart: new Date(Date.parse(scope.startDate) - days * 86400000).toISOString().slice(0, 10),
-    previousEnd: new Date(Date.parse(scope.startDate) - 86400000).toISOString().slice(0, 10),
+  return {...scope, startDate, endDate, days, interval: interval as VettingInterval,
+    previousStart: new Date(Date.parse(startDate) - days * 86400000).toISOString().slice(0, 10),
+    previousEnd: new Date(Date.parse(startDate) - 86400000).toISOString().slice(0, 10),
     classValue: scalarString(input.classValue, 'classValue') || null, colourValue: scalarString(input.colourValue, 'colourValue') || null};
 }
 export function compileVetting(input: VettingInput, metadata: TableMetadata) {
@@ -55,16 +61,16 @@ export function compileVetting(input: VettingInput, metadata: TableMetadata) {
   let vendorPredicate = 'TRUE';
   for (const [key, condition] of Object.entries(scope.filters || {})) {
     if (key === 'vendor') {
-      if (!hlc('vendor')) throw new RequestError('Vendor filtering requires an HLC vendor field',422);
-      if (!['in','equals'].includes(condition.operator)) throw new RequestError('Use a vendor inclusion filter',422);
+      if (!hlc('vendor')) continue;
+      if (!['in','equals'].includes(condition.operator)) continue;
       vendorPredicate = conditionSql('h.vendor',condition,'vetting_vendor',params); continue;
     }
     const target = filterFields[key];
-    if (!target || !fields[target[1]]?.available) throw new RequestError(`Vetting has no verified ${key} mapping; remove that filter`,422);
+    if (!target || !fields[target[1]]?.available) continue;
     filters.push(conditionSql(target[0],condition,`vetting_${key}`,params));
   }
-  if (scope.classValue) { if (!fields.leadClass.available) throw new RequestError('Class mapping unavailable',422); params.classValue=scope.classValue; filters.push('class_name = @classValue'); }
-  if (scope.colourValue) { if (!fields.leadColour.available) throw new RequestError('Colour mapping unavailable',422); params.colourValue=scope.colourValue; filters.push('colour_name = @colourValue'); }
+  if (scope.classValue && fields.leadClass?.available) { params.classValue=scope.classValue; filters.push('class_name = @classValue'); }
+  if (scope.colourValue && fields.leadColour?.available) { params.colourValue=scope.colourValue; filters.push('colour_name = @colourValue'); }
   const named = COLOURS.map(c=>literal(c.toLowerCase())).join(',');
   const className = `CASE WHEN class_raw IS NULL THEN ${literal(MISSING_CLASS)} WHEN REGEXP_CONTAINS(class_raw, r'(?i)^(?:class[\\s_-]*)?[A-FU]$') THEN UPPER(REGEXP_EXTRACT(class_raw,r'(?i)([A-FU])$')) ELSE class_raw END`;
   const colourName = `CASE WHEN colour_raw IS NULL THEN ${literal(MISSING_COLOUR)}

@@ -182,3 +182,72 @@ test('GET /vetting returns full VettingReport including scope with previousStart
     await new Promise<void>((resolve, reject) => server.close(err => err ? reject(err) : resolve()));
   }
 });
+
+test('GET /vetting defaults gracefully when startDate and endDate are omitted without throwing 422', async t => {
+  const config = getClientConfig('default_tenant');
+  const client = getBigQueryClient(config.bigQueryProject);
+
+  t.mock.method(client, 'dataset', () => ({
+    table: () => ({
+      getMetadata: async () => [{
+        schema: {
+          fields: [
+            { name: 'lead_id', type: 'STRING' },
+            { name: 'fetched', type: 'TIMESTAMP' },
+            { name: 'offershop_grade', type: 'STRING' },
+            { name: 'offershop_color_vetting', type: 'STRING' },
+          ],
+        },
+      }],
+    }),
+  }));
+
+  const mockQueryResult = {
+    current: { leads: '10' },
+    previous: { leads: '8' },
+    groups: [],
+    diagnostics: [],
+    timing: [],
+    generatedAt: '2026-09-27T00:00:00.000Z',
+  };
+
+  t.mock.method(client, 'createQueryJob', async () => [{
+    id: 'mock-default-dates-job',
+    getQueryResults: async () => [[mockQueryResult]],
+    getMetadata: async () => [{
+      statistics: {
+        query: {
+          totalBytesProcessed: '512000',
+          referencedTables: [{ projectId: config.bigQueryProject, datasetId: config.bigQueryDatasets[0], tableId: 'clustered_lead_ledger' }],
+        },
+      },
+    }],
+  }]);
+
+  const app = express();
+  app.use((_req, res, next) => {
+    res.locals.principal = { subject: 'test-user', role: 'admin', tenants: ['default_tenant'] };
+    // Omitting startDate and endDate deliberately:
+    res.locals.scope = { clientId: 'default_tenant', filters: {} };
+    next();
+  });
+  app.use('/api/analytics', createVettingRouter());
+
+  const server = app.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+
+  try {
+    const port = (server.address() as AddressInfo).port;
+    const res = await fetch(`http://127.0.0.1:${port}/api/analytics/vetting`);
+    assert.equal(res.status, 200, 'Expected 200 OK instead of 422 when dates are omitted');
+
+    const json = await res.json();
+    assert.equal(json.success, true);
+    assert.ok(json.data.scope.startDate, 'Expected default startDate');
+    assert.ok(json.data.scope.endDate, 'Expected default endDate');
+    assert.equal(json.data.scope.days, 30);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close(err => err ? reject(err) : resolve()));
+  }
+});

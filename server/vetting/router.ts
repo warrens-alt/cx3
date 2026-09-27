@@ -12,6 +12,8 @@ export function createVettingRouter() {
     try {
       const scope = {
         ...res.locals.scope,
+        startDate: (req.query.startDate as string) || res.locals.scope?.startDate,
+        endDate: (req.query.endDate as string) || res.locals.scope?.endDate,
         interval: req.query.interval,
         classValue: req.query.classValue,
         colourValue: req.query.colourValue,

@@ -3,9 +3,27 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig } from 'vite';
 
+function previewApiPlugin() {
+  return {
+    name: 'conversionx-preview-api',
+    configureServer(server: any) {
+      server.middlewares.use(async (req: any, res: any, next: any) => {
+        if (req.url?.startsWith('/api')) {
+          const express = (await import('express')).default;
+          const { mountApi } = await import('./server/apiApp');
+          const app = express();
+          await mountApi(app);
+          return app(req, res, next);
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), previewApiPlugin()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

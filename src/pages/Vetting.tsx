@@ -6,7 +6,7 @@ import { DataState } from '../components/DataState';
 import VettingChart from '../components/visuals/VettingChart';
 import { VisualTable } from '../components/visuals/DataVisual';
 import { useAnalyticsData } from '../lib/useAnalyticsData';
-import { useFilters } from '../lib/FilterContext';
+import { useFilters, defaultDateRange } from '../lib/FilterContext';
 import { useClient } from '../lib/ClientContext';
 import { exactLabel } from '../lib/visuals/model';
 import { compareExactDecimal } from '../lib/breakdown';
@@ -142,8 +142,37 @@ function Matrix({report,measure,onSelect}:{report:VettingReport;measure:string;o
 export default function Vetting(){
   const [tab,setTab]=useState<typeof tabs[number][0]>('overview'),[interval,setInterval]=useState('day'),[classValue,setClassValue]=useState(''),[colourValue,setColourValue]=useState('');
   const [measure,setMeasure]=useState('leads'),[sourceAxis,setSourceAxis]=useState<'source'|'vendor'>('source');
-  const {startDate,endDate}=useFilters(),{selectedClient}=useClient();
-  const result=useAnalyticsData<VettingReport>('vetting',{interval,classValue:classValue||undefined,colourValue:colourValue||undefined});
+  const {startDate,endDate,filters}=useFilters(),{selectedClient}=useClient();
+  const defaultDates = useMemo(() => defaultDateRange(), []);
+  const activeStart = startDate || defaultDates.start;
+  const activeEnd = endDate || defaultDates.end;
+
+  const allowedFilterKeys = useMemo(() => new Set([
+    'source', 'medium', 'vendor', 'grade', 'vetting',
+    'lead_id', 'valid_lead', 'valid_idno', 'phone_valid',
+    'delivered', 'has_delivery', 'called', 'has_call',
+    'rpc', 'has_rpc', 'sale', 'sales', 'has_sale',
+    'activated', 'activation', 'has_activation'
+  ]), []);
+
+  const vettingFilters = useMemo(() => {
+    const vf: Record<string, any> = {};
+    for (const [k, v] of Object.entries(filters || {})) {
+      if (allowedFilterKeys.has(k)) {
+        vf[k] = v;
+      }
+    }
+    return vf;
+  }, [filters, allowedFilterKeys]);
+
+  const result=useAnalyticsData<VettingReport>('vetting',{
+    startDate: activeStart,
+    endDate: activeEnd,
+    filters: vettingFilters,
+    interval,
+    classValue:classValue||undefined,
+    colourValue:colourValue||undefined
+  });
   const data=result.data,classes=data?selectedGroups(data,'class'):[],colours=data?selectedGroups(data,'colour'):[];
   const currentClassOptions=[...new Set(['A','B','C','D','E','F','U',MISSING_CLASS,...classes.map(r=>r.key),classValue])].filter(Boolean);
   const currentColourOptions=[...new Set([...COLOURS,MISSING_COLOUR,UNMAPPED_COLOUR,MULTIPLE_COLOURS,...colours.map(r=>r.key),colourValue])].filter(Boolean);
