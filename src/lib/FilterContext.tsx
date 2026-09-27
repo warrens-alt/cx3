@@ -74,6 +74,7 @@ interface FilterContextType {
   filterError: string | null; 
   setFilter: (key: string, condition: FilterCondition | null) => void; 
   clearFilters: () => void;
+  clearDimensionFilters: () => void;
   resetScope: () => void;
   source: string; 
   vendor: string; 
@@ -129,6 +130,12 @@ export function FilterProvider({ children }: { children: React.ReactNode }) {
     return next;
   }, { replace: true });
 
+  const clearDimensionFilters = () => setParams(previous => {
+    const next = new URLSearchParams(previous);
+    for (const key of ['filters', ...SUPPORTED_STANDALONE_KEYS]) next.delete(key);
+    return next;
+  }, { replace: true });
+
   const clearFilters = () => setParams(previous => { 
     const next = new URLSearchParams(previous); 
     next.delete('startDate');
@@ -136,6 +143,8 @@ export function FilterProvider({ children }: { children: React.ReactNode }) {
     for (const key of ['filters', ...SUPPORTED_STANDALONE_KEYS]) next.delete(key); 
     return next; 
   }, { replace: true });
+
+  const resetScope = () => clearFilters();
 
   const get = (key: string) => {
     const cond = parsed.filters[key];
@@ -191,7 +200,8 @@ export function FilterProvider({ children }: { children: React.ReactNode }) {
       ...parsed, 
       setFilter, 
       clearFilters, 
-      resetScope: clearFilters, 
+      clearDimensionFilters,
+      resetScope, 
       source: get('source'), 
       vendor: get('vendor'), 
       medium: get('medium'), 

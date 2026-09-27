@@ -2,14 +2,14 @@ import fs from 'node:fs';
 
 const read = (path: string) => fs.readFileSync(path, 'utf8');
 
-const appSource = read('src/App.tsx');
+const appSource = fs.existsSync('src/app/AppRouter.tsx') ? read('src/app/AppRouter.tsx') : read('src/App.tsx');
 const apiSource = read('server/api.ts');
 const vettingSource = read('server/vetting/router.ts');
 const sourceRouterSource = read('server/bigquery/sourceRouter.ts');
 const reportingSource = read('server/reporting/router.ts');
 
 function routeTarget(element: string) {
-  const nav = element.match(/<Navigate\s+to="([^"]+)"/);
+  const nav = element.match(/<(?:Navigate|ScopePreservingRedirect)\s+to="([^"]+)"/);
   if (nav) return `redirect → ${nav[1]}`;
   if (/cx-route-error/.test(element)) return 'inline 404';
   const component = element.match(/<([A-Z][A-Za-z0-9_]*)\b/);

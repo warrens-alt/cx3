@@ -43,7 +43,7 @@ test('date presets use the browser local calendar rather than UTC ISO truncation
 
 test('mobile navigation exposes the four primary operator goals before More', () => {
   const mobile = read('src/components/MobileBottomNav.tsx');
-  for (const label of ['Overview', 'Funnel', 'Contact', 'Performance', 'More']) {
+  for (const label of ['Overview', 'Journey', 'Contact', 'Investigate', 'More']) {
     assert.ok(mobile.includes(`<span>${label}</span>`), `missing mobile destination: ${label}`);
   }
   assert.doesNotMatch(mobile, /<span>Exceptions<\/span>/);
@@ -111,7 +111,8 @@ test('agent UI does not render an unapproved performance tier', () => {
 });
 
 test('duplicate legacy routes redirect to maintained product surfaces', () => {
-  const app = read('src/App.tsx');
+  const routerPath = fs.existsSync('src/app/AppRouter.tsx') ? 'src/app/AppRouter.tsx' : 'src/App.tsx';
+  const app = read(routerPath);
   const redirects = [
     ['/insights', '/overview'],
     ['/explore', '/lead-explorer'],
@@ -182,7 +183,8 @@ test('login and access-state screens do not claim unverified live infrastructure
 });
 
 test('route changes reset overlays, scroll to top and move focus to main content', () => {
-  const app = read('src/App.tsx');
+  const shellPath = fs.existsSync('src/app/layouts/AppShell.tsx') ? 'src/app/layouts/AppShell.tsx' : 'src/App.tsx';
+  const app = read(shellPath);
   assert.match(app, /setMobile\(false\)/);
   assert.match(app, /setCommand\(false\)/);
   assert.match(app, /window\.scrollTo/);
@@ -192,7 +194,8 @@ test('route changes reset overlays, scroll to top and move focus to main content
 });
 
 test('evidence reports and Firebase are split from the main application bundle', () => {
-  const app = read('src/App.tsx');
+  const routerPath = fs.existsSync('src/app/AppRouter.tsx') ? 'src/app/AppRouter.tsx' : 'src/App.tsx';
+  const app = read(routerPath);
   const vite = read('vite.config.ts');
   assert.match(app, /const VersionedReports = React\.lazy/);
   assert.doesNotMatch(app, /import VersionedReports from/);
@@ -205,8 +208,8 @@ test('mobile and in-page operational navigation preserve reporting scope', () =>
   const mobile = read('src/components/MobileBottomNav.tsx');
   assert.match(mobile, /navigationTarget\('\/overview', location\.pathname, location\.search\)/);
   assert.match(mobile, /navigationTarget\('\/funnel', location\.pathname, location\.search\)/);
-  assert.match(mobile, /navigationTarget\('\/speed-to-lead', location\.pathname, location\.search\)/);
-  assert.match(mobile, /navigationTarget\('\/vendor-quality', location\.pathname, location\.search\)/);
+  assert.match(mobile, /navigationTarget\('\/contact-strategy', location\.pathname, location\.search\)/);
+  assert.match(mobile, /navigationTarget\('\/exceptions', location\.pathname, location\.search\)/);
 
   for (const path of [
     'src/pages/ExecutiveOverview.tsx',

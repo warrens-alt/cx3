@@ -22,7 +22,6 @@ import {
   ChartNoAxesCombined,
   Shield,
   Eye,
-  SlidersHorizontal,
   Bot,
   Layers,
   type LucideIcon,
@@ -40,7 +39,20 @@ export type BusinessAreaId =
 
 export type ScopePolicy = 'operational' | 'release' | 'diagnostics' | 'settings' | 'none';
 
+export type LegacyNavigationSection =
+  | 'overview'
+  | 'funnel'
+  | 'contact'
+  | 'performance'
+  | 'sales'
+  | 'commercial'
+  | 'exceptions'
+  | 'evidence'
+  | 'explore'
+  | 'settings';
+
 export interface RouteItem {
+  id: string;
   name: string;
   path: string;
   description: string;
@@ -50,7 +62,9 @@ export interface RouteItem {
   adminOnly?: boolean;
   isPrimaryTab?: boolean;
   isMoreView?: boolean;
-  aliases?: string[];
+  searchTerms: string[];
+  urlAliases?: string[];
+  legacySection: LegacyNavigationSection;
 }
 
 export interface BusinessArea {
@@ -66,6 +80,7 @@ export interface BusinessArea {
 export const ROUTE_MANIFEST: RouteItem[] = [
   // --- OVERVIEW ---
   {
+    id: 'overview',
     name: 'Overview',
     path: '/overview',
     description: 'Decide where to look: principal outcomes, primary trend, attention queue, and lifecycle journey.',
@@ -73,11 +88,14 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: LayoutDashboard,
     scopePolicy: 'operational',
     isPrimaryTab: true,
-    aliases: ['workspace', 'dashboard', 'weekly review', 'why is conversion down', '/'],
+    searchTerms: ['workspace', 'dashboard', 'weekly review', 'why is conversion down'],
+    urlAliases: ['/'],
+    legacySection: 'overview',
   },
 
   // --- LEAD JOURNEY ---
   {
+    id: 'funnel',
     name: 'Progression',
     path: '/funnel',
     description: 'Lead progression and transition losses across lifecycle stages.',
@@ -85,9 +103,12 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: GitFork,
     scopePolicy: 'operational',
     isPrimaryTab: true,
-    aliases: ['funnel', 'journey', 'conversion', 'leakage', 'lead funnel'],
+    searchTerms: ['funnel', 'journey', 'conversion', 'leakage', 'lead funnel'],
+    urlAliases: ['/lead-performance'],
+    legacySection: 'funnel',
   },
   {
+    id: 'campaigns',
     name: 'Acquisition',
     path: '/campaigns',
     description: 'Media channels, campaign traffic, outbound CTR, and lead capture.',
@@ -95,9 +116,12 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: Megaphone,
     scopePolicy: 'operational',
     isPrimaryTab: true,
-    aliases: ['marketing', 'advertising', 'campaigns spend', 'budget', 'cpl', 'acquisition'],
+    searchTerms: ['marketing', 'advertising', 'campaigns spend', 'budget', 'cpl', 'acquisition', 'media spend'],
+    urlAliases: ['/acquisition', '/platform-insights'],
+    legacySection: 'funnel',
   },
   {
+    id: 'vetting',
     name: 'Qualification',
     path: '/vetting',
     description: 'Lead validation, eligibility, deduplication, and reason breakdowns.',
@@ -105,9 +129,12 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: ListChecks,
     scopePolicy: 'operational',
     isPrimaryTab: true,
-    aliases: ['vetting', 'deduplication', 'colour', 'validation'],
+    searchTerms: ['vetting', 'deduplication', 'colour', 'validation', 'qualification'],
+    urlAliases: ['/revetting'],
+    legacySection: 'funnel',
   },
   {
+    id: 'routing',
     name: 'Routing',
     path: '/routing',
     description: 'Handoffs, recipient distribution, and product routing depth.',
@@ -115,9 +142,11 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: RouteIcon,
     scopePolicy: 'operational',
     isPrimaryTab: true,
-    aliases: ['handoffs', 'assignment', 'product routing'],
+    searchTerms: ['handoffs', 'assignment', 'product routing'],
+    legacySection: 'funnel',
   },
   {
+    id: 'offershop-flow',
     name: 'Process flow',
     path: '/offershop-flow',
     description: 'Offershop process observability: acquisition, hospital, partner ROR, and HLC delivery.',
@@ -125,9 +154,12 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: RouteIcon,
     scopePolicy: 'operational',
     isMoreView: true,
-    aliases: ['deal flow', 'offershop', 'process flow', 'pipeline', 'hospital', 'hlc'],
+    searchTerms: ['deal flow', 'offershop', 'process flow', 'pipeline', 'hospital', 'hlc'],
+    urlAliases: ['/deal-flow', '/process-flow'],
+    legacySection: 'funnel',
   },
   {
+    id: 'vendor-quality',
     name: 'Vendor quality',
     path: '/vendor-quality',
     description: 'Vendor volume, grade mix, and downstream performance comparison.',
@@ -135,9 +167,12 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: BarChart3,
     scopePolicy: 'operational',
     isMoreView: true,
-    aliases: ['quality', 'partners', 'source performance', 'grade mix', 'vendor performance'],
+    searchTerms: ['quality', 'partners', 'source performance', 'grade mix', 'vendor performance'],
+    urlAliases: ['/sources', '/quality'],
+    legacySection: 'performance',
   },
   {
+    id: 'cohorts',
     name: 'Cohort maturation',
     path: '/cohorts',
     description: 'Cohort maturation curves and follow-up outcome maturation.',
@@ -145,11 +180,13 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: ChartNoAxesCombined,
     scopePolicy: 'operational',
     isMoreView: true,
-    aliases: ['cohort', 'age', 'maturation'],
+    searchTerms: ['cohort', 'age', 'maturation'],
+    legacySection: 'funnel',
   },
 
   // --- CONTACT CENTRE ---
   {
+    id: 'contact-strategy',
     name: 'Contact effort',
     path: '/contact-strategy',
     description: 'Call-count distributions, attempt saturation, and vendor dispositions.',
@@ -157,9 +194,12 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: PhoneCall,
     scopePolicy: 'operational',
     isPrimaryTab: true,
-    aliases: ['dispositions', 'vendor dispositions', 'attempts', 'retry', 'redial', 'recycling', 'one call', 'contact performance', '/vendor-dispositions'],
+    searchTerms: ['dispositions', 'vendor dispositions', 'attempts', 'retry', 'redial', 'recycling', 'one call', 'contact performance'],
+    urlAliases: ['/calls', '/call-performance'],
+    legacySection: 'contact',
   },
   {
+    id: 'speed-to-lead',
     name: 'Response speed',
     path: '/speed-to-lead',
     description: 'Delivery to first-dial latency, response SLA compliance, and backlog.',
@@ -167,9 +207,11 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: Timer,
     scopePolicy: 'operational',
     isPrimaryTab: true,
-    aliases: ['response', 'first call', 'sla', 'undialled', 'speed to lead'],
+    searchTerms: ['response', 'first call', 'sla', 'undialled', 'speed to lead'],
+    legacySection: 'contact',
   },
   {
+    id: 'cli-performance',
     name: 'Caller ID',
     path: '/cli-performance',
     description: 'Caller ID number performance, live trends, and call outcomes.',
@@ -177,9 +219,11 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: PhoneOutgoing,
     scopePolicy: 'operational',
     isMoreView: true,
-    aliases: ['cli', 'phone', 'dialler', 'caller id'],
+    searchTerms: ['cli', 'phone', 'dialler', 'caller id', 'caller id performance'],
+    legacySection: 'contact',
   },
   {
+    id: 'agent-performance',
     name: 'Agent activity',
     path: '/agent-performance',
     description: 'Agent call activity, contact rates, and temporal engagement.',
@@ -187,9 +231,11 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: Users,
     scopePolicy: 'operational',
     isMoreView: true,
-    aliases: ['agent performance', 'rpc', 'team', 'agents'],
+    searchTerms: ['agent performance', 'rpc', 'team', 'agents'],
+    legacySection: 'contact',
   },
   {
+    id: 'temporal',
     name: 'Time & day',
     path: '/temporal',
     description: 'Capture and dialling window patterns, hourly heatmaps, and weekend rollups.',
@@ -197,11 +243,13 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: CalendarDays,
     scopePolicy: 'operational',
     isMoreView: true,
-    aliases: ['calendar', 'temporal', 'hourly', 'overnight', 'weekend'],
+    searchTerms: ['calendar', 'temporal', 'hourly', 'overnight', 'weekend'],
+    legacySection: 'contact',
   },
 
   // --- SALES & ACTIVATION ---
   {
+    id: 'sales-activation',
     name: 'Sales & activation',
     path: '/sales-activation',
     description: 'Recorded sales, activation conversion, ageing bands, and contract status.',
@@ -209,11 +257,14 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: BadgeCheck,
     scopePolicy: 'operational',
     isPrimaryTab: true,
-    aliases: ['outcomes', 'contracts', 'fulfilment', 'post sale', 'stuck sales', 'sales activation'],
+    searchTerms: ['outcomes', 'contracts', 'fulfilment', 'post sale', 'stuck sales', 'sales activation'],
+    urlAliases: ['/outcomes'],
+    legacySection: 'sales',
   },
 
   // --- COMMERCIAL ---
   {
+    id: 'commercial',
     name: 'Commercial overview',
     path: '/commercial',
     description: 'Evidenced media spend, matched outcome costs, and attribution coverage.',
@@ -221,9 +272,11 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: CircleDollarSign,
     scopePolicy: 'operational',
     isPrimaryTab: true,
-    aliases: ['revenue', 'cost', 'actual spend', 'profit', 'spend & commercial'],
+    searchTerms: ['revenue', 'cost', 'actual spend', 'profit', 'spend & commercial'],
+    legacySection: 'commercial',
   },
   {
+    id: 'reconciliation',
     name: 'Reconciliation',
     path: '/reconciliation',
     description: 'Marketing attribution diagnostics, spend grain validation, and unmatched populations.',
@@ -231,11 +284,13 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: FileCheck2,
     scopePolicy: 'operational',
     isPrimaryTab: true,
-    aliases: ['billing', 'reconcile', 'settlement'],
+    searchTerms: ['billing', 'reconcile', 'settlement'],
+    legacySection: 'commercial',
   },
 
   // --- INVESTIGATE ---
   {
+    id: 'exceptions',
     name: 'Exceptions queue',
     path: '/exceptions',
     description: 'Operational queues needing investigation: backlog, uncontacted, undialled.',
@@ -243,9 +298,11 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: AlertTriangle,
     scopePolicy: 'operational',
     isPrimaryTab: true,
-    aliases: ['backlog', 'attention', 'missing dispositions'],
+    searchTerms: ['backlog', 'attention', 'missing dispositions'],
+    legacySection: 'exceptions',
   },
   {
+    id: 'lead-explorer',
     name: 'Explore leads',
     path: '/lead-explorer',
     description: 'Inspect exact lead records, timeline events, and drill populations.',
@@ -254,9 +311,12 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     scopePolicy: 'operational',
     isPrimaryTab: true,
     adminOnly: true,
-    aliases: ['records', 'consumer', 'timeline', 'lead explorer', 'explore'],
+    searchTerms: ['records', 'consumer', 'timeline', 'lead explorer', 'explore'],
+    urlAliases: ['/explore', '/explorer', '/leads'],
+    legacySection: 'explore',
   },
   {
+    id: 'data-integrity',
     name: 'Data integrity',
     path: '/data-integrity',
     description: 'Source feed status, completeness, mapping health, and freshness.',
@@ -264,9 +324,12 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: Database,
     scopePolicy: 'diagnostics',
     isPrimaryTab: true,
-    aliases: ['trust', 'quality', 'health', 'data missing', 'data integrity'],
+    searchTerms: ['trust', 'quality', 'health', 'data missing', 'data integrity'],
+    urlAliases: ['/data-trust', '/data-quality', '/data-coverage', '/audit'],
+    legacySection: 'evidence',
   },
   {
+    id: 'reports',
     name: 'Evidence reports',
     path: '/reports',
     description: 'Inspect immutable reporting releases, snapshot manifests, and audited metrics.',
@@ -274,9 +337,11 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: ShieldCheck,
     scopePolicy: 'release',
     isMoreView: true,
-    aliases: ['verified', 'releases', 'versioned reports'],
+    searchTerms: ['verified', 'releases', 'versioned reports'],
+    legacySection: 'evidence',
   },
   {
+    id: 'vendors',
     name: 'Vendor evidence',
     path: '/vendors',
     description: 'Reporting evidence catalogued by vendor and partner.',
@@ -284,9 +349,11 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: FileCheck2,
     scopePolicy: 'release',
     isMoreView: true,
-    aliases: ['partners', 'vendor evidence'],
+    searchTerms: ['partners', 'vendor evidence'],
+    legacySection: 'evidence',
   },
   {
+    id: 'lead-ledger',
     name: 'Lead ledger',
     path: '/lead-ledger',
     description: 'Admin-only analytical lead transaction ledger.',
@@ -295,11 +362,13 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     scopePolicy: 'diagnostics',
     isMoreView: true,
     adminOnly: true,
-    aliases: ['ledger', 'lead ledger'],
+    searchTerms: ['ledger', 'lead ledger'],
+    legacySection: 'explore',
   },
 
   // --- SETTINGS & ADMINISTRATION ---
   {
+    id: 'admin',
     name: 'Settings',
     path: '/admin',
     description: 'Workspace configuration, display preferences, and appearance.',
@@ -307,9 +376,12 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: Settings,
     scopePolicy: 'settings',
     isPrimaryTab: true,
-    aliases: ['appearance', 'density', 'spacing', 'system', 'configuration', 'settings', '/settings'],
+    searchTerms: ['appearance', 'density', 'spacing', 'system', 'configuration', 'settings'],
+    urlAliases: ['/settings'],
+    legacySection: 'settings',
   },
   {
+    id: 'access-control',
     name: 'Access control',
     path: '/access-control',
     description: 'Manage team user roles, approvals, and authorized tenant workspaces.',
@@ -318,9 +390,12 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     scopePolicy: 'settings',
     isPrimaryTab: true,
     adminOnly: true,
-    aliases: ['users', 'admin', 'permissions', 'invite', '/users'],
+    searchTerms: ['users', 'admin', 'permissions', 'invite'],
+    urlAliases: ['/users'],
+    legacySection: 'settings',
   },
   {
+    id: 'warehouse',
     name: 'Cloud warehouse',
     path: '/warehouse',
     description: 'Deep BigQuery dataset inspection, schema definitions, and table catalogues.',
@@ -328,9 +403,12 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: Database,
     scopePolicy: 'diagnostics',
     isMoreView: true,
-    aliases: ['warehouse', 'bigquery', 'datasets', 'tables', 'projects', '/warehouse-analytics'],
+    searchTerms: ['warehouse', 'bigquery', 'datasets', 'tables', 'projects', 'waterfall', 'touchpoints'],
+    urlAliases: ['/warehouse-analytics'],
+    legacySection: 'evidence',
   },
   {
+    id: 'visuals',
     name: 'Visual workspace',
     path: '/visuals',
     description: 'Chart and visual component catalogue.',
@@ -338,9 +416,11 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: Eye,
     scopePolicy: 'none',
     isMoreView: true,
-    aliases: ['visuals', 'charts'],
+    searchTerms: ['visuals', 'charts'],
+    legacySection: 'settings',
   },
   {
+    id: 'consumers',
     name: 'Consumer re-entry',
     path: '/consumers',
     description: 'Repeat consumer identification and cross-campaign re-entry diagnostics.',
@@ -348,9 +428,11 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: Users,
     scopePolicy: 'diagnostics',
     isMoreView: true,
-    aliases: ['consumers', 're-entry'],
+    searchTerms: ['consumers', 're-entry'],
+    legacySection: 'settings',
   },
   {
+    id: 'ai-insights',
     name: 'AI Insights',
     path: '/ai-insights',
     description: 'Deterministic operational pattern extraction and anomaly citations.',
@@ -358,9 +440,11 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: Bot,
     scopePolicy: 'diagnostics',
     isMoreView: true,
-    aliases: ['ai-insights', 'insights'],
+    searchTerms: ['ai-insights', 'insights'],
+    legacySection: 'settings',
   },
   {
+    id: 'validation',
     name: 'Validation suite',
     path: '/validation',
     description: 'System audit and verification checklist.',
@@ -368,7 +452,8 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     icon: ShieldCheck,
     scopePolicy: 'diagnostics',
     isMoreView: true,
-    aliases: ['validation', 'admin validation'],
+    searchTerms: ['validation', 'admin validation'],
+    legacySection: 'settings',
   },
 ];
 
@@ -440,7 +525,7 @@ export const BUSINESS_AREAS: BusinessArea[] = [
 
 export function getAreaForPath(pathname: string): BusinessArea {
   const cleanPath = pathname === '/' ? '/overview' : pathname.split('?')[0];
-  const item = ROUTE_MANIFEST.find(r => r.path === cleanPath || r.aliases?.includes(cleanPath));
+  const item = ROUTE_MANIFEST.find(r => r.path === cleanPath || r.urlAliases?.includes(cleanPath));
   if (item) {
     const area = BUSINESS_AREAS.find(a => a.id === item.area);
     if (area) return area;
@@ -450,7 +535,7 @@ export function getAreaForPath(pathname: string): BusinessArea {
 
 export function getRouteItem(pathname: string): RouteItem | undefined {
   const cleanPath = pathname === '/' ? '/overview' : pathname.split('?')[0];
-  return ROUTE_MANIFEST.find(r => r.path === cleanPath || r.aliases?.includes(cleanPath));
+  return ROUTE_MANIFEST.find(r => r.path === cleanPath || r.urlAliases?.includes(cleanPath));
 }
 
 export function getScopePolicy(pathname: string): ScopePolicy {

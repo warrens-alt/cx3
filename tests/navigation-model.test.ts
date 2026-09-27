@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import fs, { readFileSync } from 'node:fs';
 import { NAV_GROUPS, NAVIGATION_PAGES, navigationPage, primarySection, relatedPages, searchNavigation } from '../src/lib/navigation';
 
 test('plain-language questions and legacy acronyms find the intended page', () => {
@@ -34,7 +34,10 @@ test('six business destinations replace competing primary dashboards without ret
   assert.equal(primarySection('evidence'), 'exceptions');
   assert.ok(relatedPages('funnel', false).some(page => page.path === '/vendor-quality'));
   assert.ok(!relatedPages('contact', false).some(page => page.path === '/commercial'));
-  const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
+  const routerFile = fs.existsSync(new URL('../src/app/AppRouter.tsx', import.meta.url))
+    ? '../src/app/AppRouter.tsx'
+    : '../src/App.tsx';
+  const app = readFileSync(new URL(routerFile, import.meta.url), 'utf8');
   const paths = new Set(Array.from(app.matchAll(/<Route path="([^"]+)"/g), match => match[1]));
   assert.equal(new Set(NAVIGATION_PAGES.map(page => page.path)).size, NAVIGATION_PAGES.length);
   for (const page of NAVIGATION_PAGES) assert.ok(paths.has(page.path), `${page.path} must be an existing route`);

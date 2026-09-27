@@ -11,7 +11,6 @@
 | `/funnel` | FunnelIntelligence |
 | `/speed-to-lead` | SpeedToLeadIntelligence |
 | `/contact-strategy` | ContactStrategyIntelligence |
-| `/vendor-dispositions` | redirect → /contact-strategy?tab=vendor_dispositions |
 | `/cli-performance` | CliPerformance |
 | `/vendor-quality` | VendorLeadQuality |
 | `/temporal` | TemporalIntelligence |
@@ -30,14 +29,20 @@
 | `/reconciliation` | CommercialReconciliation |
 | `/vetting` | Vetting |
 | `/visuals` | VisualWorkspace |
-| `/insights` | redirect → /overview |
-| `/explore` | redirect → /lead-explorer |
 | `/routing` | RoutingIntelligence |
 | `/consumers` | ConsumerReentry |
+| `/cohorts` | Cohorts |
+| `/access-control` | UserManagement |
+| `/users` | UserManagement |
+| `/lead-ledger` | LeadLedger |
+| `/offershop-flow` | OffershopProcessObservability |
+| `/admin` | SettingsPage |
+| `/validation` | AdminValidation |
+| `/insights` | redirect → /overview |
+| `/explore` | redirect → /lead-explorer |
 | `/acquisition` | redirect → /campaigns |
 | `/lead-performance` | redirect → /funnel |
 | `/call-performance` | redirect → /contact-strategy |
-| `/cohorts` | Cohorts |
 | `/outcomes` | redirect → /sales-activation |
 | `/sources` | redirect → /vendor-quality |
 | `/quality` | redirect → /vendor-quality |
@@ -46,20 +51,13 @@
 | `/data-quality` | redirect → /data-integrity |
 | `/data-coverage` | redirect → /data-integrity |
 | `/audit` | redirect → /data-integrity |
-| `/access-control` | UserManagement |
-| `/users` | UserManagement |
 | `/explorer` | redirect → /lead-explorer |
-| `/admin` | SettingsPage |
 | `/settings` | redirect → /admin |
 | `/calls` | redirect → /contact-strategy |
 | `/leads` | redirect → /lead-explorer |
-| `/lead-ledger` | LeadLedger |
-| `/offershop-flow` | OffershopProcessObservability |
 | `/deal-flow` | redirect → /offershop-flow |
 | `/process-flow` | redirect → /offershop-flow |
 | `/platform-insights` | redirect → /campaigns |
-| `/validation` | AdminValidation |
-| `*` | inline 404 |
 
 ## API routes
 
