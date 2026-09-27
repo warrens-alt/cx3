@@ -1,4 +1,4 @@
-import { validateDate, type FilterCondition } from '../../server/bigquery/filters';
+import { validateDate, type FilterCondition } from '../../contracts/filters';
 
 export interface DateRangeDraft {
   start: string;

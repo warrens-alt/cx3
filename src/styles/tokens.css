@@ -1,0 +1,96 @@
+/* ==========================================================================
+   CX3 Design Tokens
+   Calm, data-led professional workspace tokens.
+   ========================================================================== */
+
+:root {
+  /* Canvas & Surfaces (Light) */
+  --cx-canvas: #F5F7FA;
+  --cx-surface: #FFFFFF;
+  --cx-surface-subtle: #F8FAFC;
+  --cx-surface-elevated: #FFFFFF;
+  --cx-surface-active: #EDF5FC;
+
+  /* Typography & Ink (Light) */
+  --cx-ink: #142033;
+  --cx-text-secondary: #4A5568;
+  --cx-text-muted: #718096;
+  --cx-text-disabled: #A0AEC0;
+
+  /* Restrained Brand Blue */
+  --cx-brand-primary: #3562B3;
+  --cx-brand-hover: #2A4E90;
+  --cx-brand-soft: #EDF5FC;
+  --cx-brand-soft-hover: #E2EFF9;
+
+  /* Quantitative Semantics */
+  --cx-favourable: #059669;
+  --cx-favourable-bg: #ECFDF5;
+  --cx-unfavourable: #E11D48;
+  --cx-unfavourable-bg: #FFF1F2;
+  --cx-warning: #D97706;
+  --cx-warning-bg: #FFFBEB;
+
+  /* Hairlines & Boundaries */
+  --cx-border-subtle: rgba(20, 32, 51, 0.08);
+  --cx-border-default: rgba(20, 32, 51, 0.14);
+  --cx-border-strong: rgba(20, 32, 51, 0.22);
+  --cx-border-focus: #3562B3;
+
+  /* Radii scale */
+  --cx-radius-sm: 6px;
+  --cx-radius-md: 8px;
+  --cx-radius-lg: 10px;
+  --cx-radius-xl: 12px;
+
+  /* Elevation */
+  --cx-shadow-sm: 0 1px 2px 0 rgba(20, 32, 51, 0.05);
+  --cx-shadow-md: 0 4px 6px -1px rgba(20, 32, 51, 0.06), 0 2px 4px -2px rgba(20, 32, 51, 0.04);
+  --cx-shadow-drawer: -4px 0 24px -4px rgba(20, 32, 51, 0.16);
+
+  /* Touch & Controls */
+  --cx-control-height: 40px;
+  --cx-touch-target: 44px;
+}
+
+[data-theme="dark"],
+:root.dark,
+:root[data-theme="dark"] {
+  /* Canvas & Surfaces (Dark) */
+  --cx-canvas: #090E1A;
+  --cx-surface: #101828;
+  --cx-surface-subtle: #162035;
+  --cx-surface-elevated: #18233C;
+  --cx-surface-active: #1A2E50;
+
+  /* Typography & Ink (Dark) */
+  --cx-ink: #F8FAFC;
+  --cx-text-secondary: #94A3B8;
+  --cx-text-muted: #64748B;
+  --cx-text-disabled: #475569;
+
+  /* Brand Blue (Dark) */
+  --cx-brand-primary: #3B82F6;
+  --cx-brand-hover: #60A5FA;
+  --cx-brand-soft: rgba(59, 130, 246, 0.14);
+  --cx-brand-soft-hover: rgba(59, 130, 246, 0.24);
+
+  /* Quantitative Semantics (Dark) */
+  --cx-favourable: #10B981;
+  --cx-favourable-bg: rgba(16, 185, 129, 0.14);
+  --cx-unfavourable: #F43F5E;
+  --cx-unfavourable-bg: rgba(244, 63, 94, 0.14);
+  --cx-warning: #F59E0B;
+  --cx-warning-bg: rgba(245, 158, 11, 0.14);
+
+  /* Hairlines & Boundaries (Dark) */
+  --cx-border-subtle: #1E2B45;
+  --cx-border-default: #2D3D5E;
+  --cx-border-strong: #3E517A;
+  --cx-border-focus: #3B82F6;
+
+  /* Elevation (Dark) */
+  --cx-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.45);
+  --cx-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  --cx-shadow-drawer: -4px 0 24px -4px rgba(0, 0, 0, 0.6);
+}

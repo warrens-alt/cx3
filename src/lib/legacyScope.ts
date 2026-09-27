@@ -1,5 +1,5 @@
-import type { FilterCondition, Filters } from '../../server/bigquery/filters';
-import { validateFilters } from '../../server/bigquery/filters';
+import type { FilterCondition, Filters } from '../../contracts/filters';
+import { validateFilters } from '../../contracts/filters';
 import { privateScopeKeys } from './scopePresentation';
 
 const FIELD_TYPES: Record<string, 'string' | 'number' | 'boolean'> = {

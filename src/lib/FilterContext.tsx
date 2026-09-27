@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { validateFilters, type FilterCondition, type Filters } from '../../server/bigquery/filters';
+import { validateFilters, type FilterCondition, type Filters } from '../../contracts/filters';
 export type { FilterCondition };
 export type UniversalFilters = Filters;
 

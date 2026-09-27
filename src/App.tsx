@@ -1,3 +1,6 @@
+import './styles/tokens.css';
+import './styles/globals.css';
+import './styles/charts.css';
 import './styles/reportBrowsing.css';
 import './styles/operations.css';
 import './styles/navigation.css';
@@ -23,6 +26,8 @@ import AuthGate from './components/AuthGate';
 import { ThemeProvider } from './lib/ThemeContext';
 import ThemeToggle from './components/ThemeToggle';
 import { isChunkLoadError, attemptChunkRecovery } from './lib/chunkRecovery';
+import AreaNavigation from './app/navigation/AreaNavigation';
+import { getAreaForPath } from './app/routeManifest';
 
 function safeImport<T>(loader: () => Promise<T>): Promise<T> {
   return loader().catch((error: any) => {
@@ -110,22 +115,27 @@ function Shell() {
       <header className="cx-topbar">
         <button type="button" className="cx-icon-button cx-mobile-menu" aria-label="Open navigation" aria-haspopup="dialog" aria-expanded={mobile} aria-controls={mobile ? 'mobile-navigation-dialog' : undefined} onClick={()=>setMobile(true)}><Menu size={20} aria-hidden="true"/></button>
         <button type="button" className="cx-icon-button cx-desktop-toggle" aria-label={sidebar?'Collapse navigation':'Expand navigation'} title={sidebar?'Collapse navigation':'Expand navigation'} aria-controls="desktop-navigation" aria-expanded={sidebar} onClick={()=>setSidebar(old=>!old)}>{sidebar?<PanelLeftClose size={18} aria-hidden="true"/>:<PanelLeftOpen size={18} aria-hidden="true"/>}</button>
-        <div className="cx-breadcrumb" aria-label="Current page"><span>{BRAND.name}</span><span aria-hidden="true">/</span><strong title={pageTitle}>{pageTitle}</strong></div>
+        <div className="cx-breadcrumb" aria-label="Current page">
+          <span>{BRAND.name}</span>
+          <span aria-hidden="true">/</span>
+          <span className="text-slate-500 hidden sm:inline">{getAreaForPath(location.pathname).name}</span>
+          <span aria-hidden="true" className="hidden sm:inline">/</span>
+          <strong title={pageTitle}>{pageTitle}</strong>
+        </div>
         <div className="cx-topbar-actions">
           <button type="button" className="cx-search-trigger" aria-label="Search pages" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title={`Find a page (${searchShortcut})`} onClick={openSearch}><Search size={16} aria-hidden="true"/><span>Find a page</span><kbd aria-hidden="true">{searchShortcut}</kbd></button>
           <button type="button" className="cx-icon-button cx-density-toggle hidden sm:inline-flex" aria-label={density==='comfortable'?'Use compact table spacing':'Use comfortable table spacing'} title={`Table spacing: ${density}. Switch to ${density==='comfortable'?'compact':'comfortable'}.`} aria-pressed={density==='compact'} onClick={toggleDensity}><Columns3 size={18} aria-hidden="true"/><span>Spacing: {density==='comfortable'?'Comfortable':'Compact'}</span></button>
           <ThemeToggle />
-          {!isOperationalPage && (
-            <label className="cx-workspace-select">
-              <span className="hidden sm:inline">Client</span>
-              <select aria-label="Active client" value={selectedClient} onChange={event=>setSelectedClient(event.target.value)} disabled={clientLoading || !clients.length}>
-                {!selectedClient&&<option value="" disabled>Select client</option>}
-                {clients.map(client=><option key={client.id} value={client.id}>{client.name}</option>)}
-              </select>
-            </label>
-          )}
+          <label className="cx-workspace-select">
+            <span className="hidden sm:inline">Client</span>
+            <select aria-label="Active client" value={selectedClient} onChange={event=>setSelectedClient(event.target.value)} disabled={clientLoading || !clients.length}>
+              {!selectedClient&&<option value="" disabled>Select client</option>}
+              {clients.map(client=><option key={client.id} value={client.id}>{client.name}</option>)}
+            </select>
+          </label>
         </div>
       </header>
+      <AreaNavigation />
       <main id="main-content" tabIndex={-1} className="cx-main pb-16 lg:pb-0">
         {clientError && <section className="cx-scope-error" role="alert"><AlertCircle size={22}/><div><h1>Workspace access is unavailable</h1><p>{clientError}</p><p>No fallback tenant or substitute analytical data is being displayed.</p><div className="flex flex-wrap gap-3"><button type="button" className="cx-button-primary" onClick={retryClient}>Retry workspace access</button><a className="cx-button-secondary" href={DEMO_ENTRY_URL}>View demo data</a></div><p>The demo is a separate, synthetic workspace. It does not access your live data.</p></div></section>}
         {clientLoading && <p className="cx-filter-loading" role="status">Loading your workspace access…</p>}

@@ -1,0 +1,71 @@
+/* ==========================================================================
+   CX3 Chart Styles
+   Standard data visualization styling for Recharts and custom metrics.
+   ========================================================================== */
+
+@import "./tokens.css";
+
+.cx-chart-container {
+  width: 100%;
+  position: relative;
+}
+
+/* Custom Tooltip Frame */
+.cx-chart-tooltip {
+  background: var(--cx-surface);
+  border: 1px solid var(--cx-border-default);
+  border-radius: var(--cx-radius-md);
+  box-shadow: var(--cx-shadow-md);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.8125rem;
+  color: var(--cx-ink);
+  pointer-events: none;
+  z-index: 50;
+  max-width: 280px;
+}
+
+.cx-chart-tooltip-title {
+  font-weight: 600;
+  font-size: 0.8125rem;
+  margin-bottom: 0.375rem;
+  color: var(--cx-ink);
+  border-bottom: 1px solid var(--cx-border-subtle);
+  padding-bottom: 0.25rem;
+}
+
+.cx-chart-tooltip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.125rem 0;
+}
+
+.cx-chart-tooltip-label {
+  color: var(--cx-text-secondary);
+}
+
+.cx-chart-tooltip-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--cx-ink);
+}
+
+/* Axis and Gridlines */
+.recharts-cartesian-grid line {
+  stroke: var(--cx-border-subtle);
+  stroke-dasharray: 3 3;
+}
+
+.recharts-cartesian-axis text {
+  fill: var(--cx-text-muted);
+  font-size: 0.75rem;
+}
+
+.recharts-cartesian-axis-line {
+  stroke: var(--cx-border-subtle);
+}
+
+.recharts-cartesian-axis-tick-line {
+  stroke: var(--cx-border-subtle);
+}

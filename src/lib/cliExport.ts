@@ -1,4 +1,4 @@
-import type { Filters } from '../../server/bigquery/filters';
+import type { Filters } from '../../contracts/filters';
 import { analyticsUrl } from './analyticsRequest';
 
 export function cliExportUrl(scope: { clientId: string; startDate: string; endDate: string; filters: Filters }, local: { campaign: string; vendor: string; search: string }) {

@@ -2,7 +2,7 @@ import { useClient } from './ClientContext';
 import { useQuery } from '@tanstack/react-query';
 import { useFilters } from './FilterContext';
 import { analyticsUrl, fetchAnalyticsJson } from './analyticsRequest';
-import type { Filters } from '../../server/bigquery/filters';
+import type { Filters } from '../../contracts/filters';
 
 export { fetchAnalyticsJson } from './analyticsRequest';
 
