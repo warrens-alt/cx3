@@ -1,0 +1,38 @@
+name: CX3 isolated design baseline
+on:
+  push:
+    branches: [feat/visual-dealflow-workspace]
+    paths: [.github/workflows/design-baseline.yml]
+permissions:
+  contents: read
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit
+      - name: Capture baseline verification
+        continue-on-error: true
+        run: npm run verify > /tmp/cx3-baseline-checks.log 2>&1
+      - name: Package source and locked tooling for isolated visual verification
+        if: always()
+        run: |
+          mkdir -p /tmp/cx3-design-baseline
+          git archive HEAD | gzip > /tmp/cx3-design-baseline/source.tar.gz
+          cp /tmp/cx3-baseline-checks.log /tmp/cx3-design-baseline/ 2>/dev/null || true
+          if [ -d node_modules ]; then tar -czf /tmp/cx3-design-baseline/dependencies.tar.gz node_modules; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cx3-isolated-design-baseline
+          path: /tmp/cx3-design-baseline/
+          retention-days: 3
+          compression-level: 0
