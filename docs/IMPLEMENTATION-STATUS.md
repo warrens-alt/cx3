@@ -172,6 +172,7 @@ CX3 Phase 1.1 establishes an end-to-end trace from measured metric definitions t
 
 | Requirement | Implementation Artifacts | Verification Method |
 | :--- | :--- | :--- |
+| **Phase 1 Milestone Status** | `server/analytics/investigation/records.ts`, `src/lib/analysisExport.ts`, `src/pages/LeadExplorerIntelligence.tsx`, `tests/phase-1-1-metric-workflow.test.ts` | **IMPLEMENTATION ADVANCED / ACCEPTANCE DEFERRED**. Full pipeline, CTE deduplication, strict metadata contracts, and byte-level CSV verified across 408 tests. Rendered browser execution and live warehouse acceptance deferred. |
 | **Authoritative Registry Endpoint** | `server/api.ts`, `contracts/metricRegistry.ts`, `server/analytics/index.ts` | `tests/authoritative-metrics.test.ts` (15 declared metrics, denominators, 401 unauthenticated check) |
 | **Runtime-Validated Registry Client** | `src/lib/offernetClient.ts` (`fetchAuthoritativeMetrics`) | `tests/phase-1-1-metric-workflow.test.ts` (strict envelope validation, rejection of malformed payloads, cancellation) |
 | **Deduplicated Evidence Counting** | `server/analytics/investigation/records.ts` (`qualified_evidence`, `evidence_stats`), `src/lib/offernet/types.ts` | `tests/phase-1-1-metric-workflow.test.ts` (CTE deduplication before count, multi-HLC handling, out-of-range offset totalCount) |
@@ -179,6 +180,66 @@ CX3 Phase 1.1 establishes an end-to-end trace from measured metric definitions t
 | **Overview Metric Lineage & About Action** | `src/pages/ExecutiveOverview.tsx`, `src/components/MetricLineageDrawer.tsx` | `tests/phase-1-1-metric-workflow.test.ts` (About metric action, numerator/denominator inspection, concrete timezone and timestamps) |
 | **Pure Production Export Builder & Fixture Oracle** | `src/pages/LeadExplorerIntelligence.tsx` (`handleExportCsv`), `src/lib/analysisExport.ts` (`buildLeadEvidenceExport`) | `tests/phase-1-1-metric-workflow.test.ts` (10-lead and 55-lead complete fixture oracles, exact ID sets, tie-break ordering, complete/partial population labelling, result context audit headers) |
 | **Preserve Applied Filters & Enforce Export Contract** | `server/offernetScope.ts`, `server/api.ts`, `server/analytics/investigation/records.ts`, `src/lib/analysisExport.ts` | `tests/phase-1-1-metric-workflow.test.ts` (truthful applied-filter metadata across endpoint/service/CSV, alias normalization, conflict rejection, strict export contract without fabricated context) |
+| **Phase 2.1: Vendor Dispositions & Contact Outcomes** | `contracts/vendorDispositions.ts`, `server/analytics/contact/dispositions.ts`, `src/pages/ContactStrategyIntelligence.tsx`, `src/lib/analysisExport.ts` | `tests/analytics/vendor-dispositions.test.ts` (11 tests: lead-status pair grain, multi-vendor isolation, activity states, status conflict resolution, call mode tenant ownership, URL synchronization, and breakdown export) |
+
+## CX3 Phase 2.1 — Vendor dispositions and contact outcomes
+
+Phase 2.1 transforms Contact centre / Vendor dispositions into an operational, auditable report answering vendor outcome distribution, missing/unmapped feedback, raw telemetry codes, and supporting record evidence:
+
+1. **Direct Navigation & Shareable URL Routing**:
+   - `/vendor-dispositions` is directly reachable and synchronized via URL query parameters (`tab=vendor_dispositions`, `mode`, `vendor`, `group`).
+   - Deep-linking preserves active tab, reporting mode, selected vendor filter, and outcome group without altering defaults for existing bookmarks.
+
+2. **Reporting Header & Methodology Drawer**:
+   - Title: *Vendor dispositions.* Subtitle clearly communicates mode semantics in one plain sentence.
+   - Reuses global client, date, vendor, and source filters.
+   - Context strip explicitly displays concrete timezone (`Africa/Johannesburg`), date basis (`lead_capture_cohort` vs `call_start_date`), counting unit (`lead_vendor_pairs` vs `dialler_records`), taxonomy version (`cx.dispositions.1.1.0`), and genuine evaluation timestamp.
+   - Comprehensive "About this report" drawer encapsulates methodology (counting grains, multi-vendor pairs, recency rules, activity states, and commercial flag independence) instead of overwhelming the view with warnings.
+
+3. **Strict Reporting Modes & Safe Gating**:
+   - **Recorded lead status (`lead_status`)**: Current recorded status of the selected intake cohort, counted by lead–vendor pair after deterministic HLC reconciliation.
+   - **Call outcomes (`call_records`)**: Outcomes on recorded calls during the call-date period, counted by verified call events or explicitly labelled dialler records.
+   - Changes in denominator and date basis are explicitly disclosed. When tenant call table configuration is absent, the mode is safely gated with `unavailableReason` without unsafe synthetic fallbacks.
+
+4. **Summary Strip with Inspectable Ratios**:
+   - Five mode-appropriate operational measures: Reporting population, Observed call activity, Disposition coverage %, Missing dispositions, and Unmapped dispositions.
+   - Each rate includes inspectable numerator and denominator counts. Real zero remains zero; unavailable remains unavailable.
+   - Commercial measures (RPC, Reported Sales, Callbacks) are displayed as distinct, non-exclusive indicators.
+
+5. **Outcome Comparison Horizontal Stacked Bar Chart**:
+   - Aggregates one cell per vendor and approved outcome group before charting (multiple raw codes in the same group are added, not overwritten).
+   - Dual view modes: Percentage view (% of dialled base) and Count view (volume) using the same population.
+   - Manageable default (top 8 vendors by volume) with an explicit "Show all vendors" toggle that never truncates totals or exports.
+   - Consistent, legible group colours from `APPROVED_DISPOSITION_GROUPS`. Raw counts and percentages in tooltips.
+   - Clicking any bar or group triggers a real drill-down into the selected vendor and outcome group.
+
+6. **Feedback Coverage & Integrity**:
+   - Compact visual comparison bar and metric cards distinguishing recorded mapped feedback, recorded unmapped feedback, missing feedback, and unresolved conflicts (`CONFLICTING_EVIDENCE`).
+   - Unmapped codes are classified as part of recorded feedback and not double-counted.
+   - Activity states (explicit zero-call pairs and unrecorded activity) are segregated outside the dialled population.
+
+7. **Sortable Vendor Governance Table**:
+   - Sortable columns: Vendor, Population & Counting Unit, Observed Call Activity, Disposition Coverage %, Missing Count, Unmapped Count, Reported Sales, and Callbacks.
+   - Deep inspection button per row opening the Selected-Vendor Drawer.
+
+8. **Selected-Vendor Detail Drawer**:
+   - Accessible slide-over drawer (`useDialogAccessibility`) with keyboard focus management and Esc dismiss.
+   - Displays vendor summary statistics, grouped outcome pills (clickable for instant filtering), and an exact raw-code breakdown table with search, group filter, and mapping status badges (`APPROVED`, `UNMAPPED`, `MISSING`, `CONFLICTING`).
+   - Authorised record evidence action: Administrator users can inspect matching records directly in Lead Explorer (`/lead-explorer?vendor=...`) preserving period and workspace scope; non-admin users and call mode display honest boundary caveats.
+   - Dedicated "Export raw codes (CSV)" action for the selected vendor.
+
+9. **Export Traceability & CSV Safety**:
+   - Export actions on summary table, outcome comparison, and vendor breakdown via `downloadDispositionExportCsv`.
+   - Every export carries full audit columns: Scope client, Period start/end, Reporting mode, Date basis, Counting grain, Total population, Denominator definition, Applied filters, Truncation indicator, Taxonomy version, User identity/role context, and Timestamp.
+   - Uses `serializeCsv` to sanitize formula injection characters (`=`, `+`, `-`, `@`) and RFC 4180 quote escaping.
+
+## Phase 1 Deferred Acceptance & Environment Limitations
+
+The user has prioritized Phase 2.1 implementation. Phase 1 remains marked **IMPLEMENTATION ADVANCED / ACCEPTANCE DEFERRED**:
+
+1. **Rendered Browser Acceptance**: Automated end-to-end browser execution (Playwright / Chromium / Puppeteer) is deferred because headless browser binaries and packages are not installed in the local container environment.
+2. **Actual Browser Download Verification**: File saving/download trigger verified through byte-level serialization and in-memory Blob generation; OS file system download verification remains deferred to environment with browser runtime.
+3. **Live BigQuery Source Certification**: SQL compilation, query parametrization, CTE deduplication, and mock boundaries are verified. Live Cloud BigQuery execution remains `NOT RUN` pending authorized cloud access.
 
 ## Verification
 

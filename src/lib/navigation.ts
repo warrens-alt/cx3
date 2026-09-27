@@ -60,6 +60,7 @@ export const SECONDARY_DESTINATIONS = NAVIGATION_PAGES.filter(page => !primaryPa
 export const OPERATIONAL_ROUTES: string[] = [
   '/',
   ...NAVIGATION_PAGES.map(p => p.path),
+  '/vendor-dispositions',
   '/ai-insights',
   '/warehouse-analytics',
   '/visuals',

@@ -167,6 +167,7 @@ function Shell() {
               <Route path="/funnel" element={<FunnelIntelligence key={selectedClient} />} />
               <Route path="/speed-to-lead" element={<SpeedToLeadIntelligence key={selectedClient} />} />
               <Route path="/contact-strategy" element={<ContactStrategyIntelligence key={selectedClient} />} />
+              <Route path="/vendor-dispositions" element={<Navigate to="/contact-strategy?tab=vendor_dispositions" replace />} />
               <Route path="/cli-performance" element={<CliPerformance key={selectedClient} />} />
               <Route path="/vendor-quality" element={<VendorLeadQuality key={selectedClient} />} />
               <Route path="/temporal" element={<TemporalIntelligence key={selectedClient} />} />

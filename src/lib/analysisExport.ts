@@ -485,3 +485,73 @@ export function scopedAnalysisRows(rows: AnalysisCell[][], scope: AnalysisExport
 export function downloadAnalysisCsv(filename: string, rows: AnalysisCell[][], scope: AnalysisExportScope) {
   downloadCsv(filename, scopedAnalysisRows(rows, scope));
 }
+
+export interface DispositionExportMetadata {
+  clientId: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  filters?: Record<string, any>;
+  mode: 'lead_status' | 'call_records';
+  dateBasis: string;
+  countingGrain: string;
+  totalPopulation: number;
+  denominatorDefinition: string;
+  isTruncated: boolean;
+  taxonomyVersion: string;
+  userRole?: string;
+  userEmail?: string;
+  generatedAt?: string;
+}
+
+export function buildDispositionExportRows(
+  dataRows: AnalysisCell[][],
+  meta: DispositionExportMetadata
+): AnalysisCell[][] {
+  if (!dataRows.length) return [];
+  const headers = [
+    ...dataRows[0],
+    'Scope client',
+    'Period start',
+    'Period end',
+    'Reporting mode',
+    'Date basis',
+    'Counting grain',
+    'Total population',
+    'Denominator definition',
+    'Applied filters',
+    'Population truncated',
+    'Taxonomy version',
+    'User role',
+    'User identity',
+    'Generated at',
+  ];
+  const auditValues: AnalysisCell[] = [
+    meta.clientId,
+    meta.startDate || null,
+    meta.endDate || null,
+    meta.mode,
+    meta.dateBasis,
+    meta.countingGrain,
+    meta.totalPopulation,
+    meta.denominatorDefinition,
+    JSON.stringify(meta.filters || {}),
+    meta.isTruncated,
+    meta.taxonomyVersion,
+    meta.userRole || 'authenticated',
+    meta.userEmail || 'system',
+    meta.generatedAt || new Date().toISOString(),
+  ];
+  return [
+    headers,
+    ...dataRows.slice(1).map(r => [...r, ...auditValues]),
+  ];
+}
+
+export function downloadDispositionExportCsv(
+  filename: string,
+  dataRows: AnalysisCell[][],
+  meta: DispositionExportMetadata
+): void {
+  const finalRows = buildDispositionExportRows(dataRows, meta);
+  downloadCsv(filename, finalRows);
+}

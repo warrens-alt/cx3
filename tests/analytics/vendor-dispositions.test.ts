@@ -12,6 +12,7 @@ import {
   getFallbackDispositions,
   getContactDispositionsAnalytics,
 } from '../../server/analytics/contact/dispositions';
+import { buildDispositionExportRows, serializeCsv } from '../../src/lib/analysisExport';
 
 test('vendor-dispositions: version and taxonomy integrity', () => {
   assert.equal(DISPOSITION_REPORT_VERSION, 'cx.dispositions.1.1.0');
@@ -165,14 +166,118 @@ test('vendor-dispositions: query failure throws an explicit error and does not r
   });
 });
 
-test('vendor-dispositions: fallback generator produces deterministic datasets for both modes', () => {
-  const leadFallback = getFallbackDispositions({ clientId: 'demo' }, 'lead_status');
-  assert.equal(leadFallback.mode, 'lead_status');
-  assert.ok(leadFallback.vendorSummaries.length > 0);
-  assert.ok(leadFallback.breakdown.length > 0);
+test('vendor-dispositions: multi-vendor lead isolation preserves distinct vendor pairs and prevents cross-vendor count inflation', () => {
+  // 1 lead sent to both VendorA and VendorB
+  // VendorA recorded SALE, VendorB recorded NO_ANSWER
+  const multiVendorRows = [
+    { vendor: 'VendorA', current_status: 'SALE', is_dialled: true, total_calls: 2, is_rpc: true, is_sale: true, pair_count: 1 },
+    { vendor: 'VendorB', current_status: 'NA', is_dialled: true, total_calls: 1, is_rpc: false, is_sale: false, pair_count: 1 },
+  ];
 
-  const callFallback = getFallbackDispositions({ clientId: 'demo' }, 'call_records');
-  assert.equal(callFallback.mode, 'call_records');
-  assert.ok(callFallback.vendorSummaries.length > 0);
-  assert.ok(callFallback.breakdown.length > 0);
+  const result = buildLeadStatusResult(multiVendorRows, { clientId: 'test' });
+  // Total pairs = 2 (exceeds distinct lead count of 1)
+  assert.equal(result.summary.totalEntities, 2);
+  assert.equal(result.summary.dialledEntities, 2);
+
+  const vendorA = result.vendorSummaries.find((v) => v.vendor === 'VendorA')!;
+  const vendorB = result.vendorSummaries.find((v) => v.vendor === 'VendorB')!;
+
+  assert.equal(vendorA.totalPopulation, 1);
+  assert.equal(vendorA.saleCount, 1);
+  assert.equal(vendorA.rpcCount, 1);
+
+  assert.equal(vendorB.totalPopulation, 1);
+  assert.equal(vendorB.saleCount, 0);
+  assert.equal(vendorB.rpcCount, 0);
+
+  // Vendor outcomes are isolated
+  const breakdownA = result.breakdown.filter((r) => r.vendor === 'VendorA');
+  const breakdownB = result.breakdown.filter((r) => r.vendor === 'VendorB');
+  assert.equal(breakdownA[0].approvedGroup, 'REPORTED_SALE');
+  assert.equal(breakdownB[0].approvedGroup, 'NO_ANSWER');
+});
+
+test('vendor-dispositions: status ambiguity resolves to explicit CONFLICTING_EVIDENCE category without favorable bias', () => {
+  const conflictRows = [
+    {
+      vendor: 'VendorA',
+      current_status: 'CONFLICTING_EVIDENCE',
+      is_dialled: true,
+      total_calls: 3,
+      is_rpc: true,
+      is_sale: false,
+      pair_count: 15,
+    },
+  ];
+
+  const result = buildLeadStatusResult(conflictRows, { clientId: 'test' });
+  assert.equal(result.summary.conflictingEntities, 15);
+
+  const vendorA = result.vendorSummaries.find((v) => v.vendor === 'VendorA')!;
+  assert.equal(vendorA.conflictingCount, 15);
+
+  const breakdownRow = result.breakdown.find((r) => r.vendor === 'VendorA' && r.rawDisposition === 'CONFLICTING_EVIDENCE')!;
+  assert.ok(breakdownRow);
+  assert.equal(breakdownRow.approvedGroup, 'CONFLICTING_EVIDENCE');
+  assert.equal(breakdownRow.isUnmapped, false);
+  assert.equal(breakdownRow.mappingStatus, 'CONFLICTING');
+});
+
+test('vendor-dispositions: call outcomes mode rejects unsupported operational dimension filters with 422', async () => {
+  // Passing 'grade' or 'source' to call outcomes must be rejected before querying
+  await assert.rejects(
+    async () => {
+      await getContactDispositionsAnalytics({ clientId: 'default_tenant', mode: 'call_records', grade: 'A' } as any);
+    },
+    (err: any) => {
+      assert.equal(err.status, 422);
+      assert.ok(err.message.includes('Call dispositions mode supports date, tenant, and vendor filters only'));
+      return true;
+    }
+  );
+});
+
+test('vendor-dispositions: export metadata and serialization preserves complete scope, denominators and taxonomy version', () => {
+  const meta = {
+    clientId: 'default_tenant',
+    startDate: '2026-09-01',
+    endDate: '2026-09-30',
+    filters: { vendor: 'BLC' },
+    mode: 'lead_status' as const,
+    dateBasis: 'lead_capture_cohort',
+    countingGrain: 'lead_vendor_pairs',
+    totalPopulation: 2500,
+    denominatorDefinition: 'Dialled lead–vendor pairs (reconciled HLC records)',
+    isTruncated: false,
+    taxonomyVersion: DISPOSITION_REPORT_VERSION,
+    userRole: 'administrator',
+    userEmail: 'admin@conversionx.test',
+    generatedAt: '2026-09-27T12:00:00Z',
+  };
+
+  const sampleDataRows = [
+    ['Vendor', 'Total Population', 'Dialled Count', 'Recorded Dispositions'],
+    ['BLC', 2500, 2100, 1950],
+  ];
+
+  const exportRows = buildDispositionExportRows(sampleDataRows, meta);
+  assert.equal(exportRows.length, 2);
+
+  const header = exportRows[0];
+  assert.ok(header.includes('Scope client'));
+  assert.ok(header.includes('Reporting mode'));
+  assert.ok(header.includes('Denominator definition'));
+  assert.ok(header.includes('Taxonomy version'));
+
+  const row = exportRows[1];
+  assert.equal(row[0], 'BLC');
+  assert.equal(row[4], 'default_tenant'); // Scope client
+  assert.equal(row[7], 'lead_status'); // Reporting mode
+  assert.equal(row[10], 2500); // Total population
+  assert.equal(row[14], DISPOSITION_REPORT_VERSION); // Taxonomy version
+
+  const csv = serializeCsv(exportRows);
+  assert.ok(csv.startsWith('\uFEFF')); // BOM
+  assert.ok(csv.includes('"BLC"'));
+  assert.ok(csv.includes('"cx.dispositions.1.1.0"'));
 });

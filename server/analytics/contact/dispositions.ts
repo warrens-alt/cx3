@@ -12,7 +12,9 @@
  */
 
 import { getBigQueryClient } from '../../bigquery/client';
-import { getClientConfig } from '../../bigquery/config';
+import { getClientConfig, tenantVendorScopeValues } from '../../bigquery/config';
+import { RequestError } from '../../bigquery/filters';
+import { validTimestampSql } from '../../bigquery/integrity';
 import type { OffernetQueryParams } from '../common/types';
 import { buildFilterClause } from '../common/scope';
 import { metricPercent } from '../common/leadMetrics';
@@ -36,8 +38,8 @@ export async function getContactDispositionsAnalytics(
   const mode: DispositionReportingMode = params.mode === 'call_records' ? 'call_records' : 'lead_status';
   const client = getClientConfig(params.clientId || 'default_tenant');
 
-  // Explicit fixture boundary for test / synthetic environments only
-  if (params.demo || process.env.USE_DISPOSITION_FIXTURES === 'true') {
+  // Explicit fixture boundary for test / synthetic environments only (NEVER from user input)
+  if (process.env.USE_DISPOSITION_FIXTURES === 'true') {
     return getFallbackDispositions(params, mode);
   }
 
@@ -45,6 +47,53 @@ export async function getContactDispositionsAnalytics(
   if (mode === 'lead_status') {
     return await queryLeadStatusDispositions(bq, params, client);
   } else {
+    // Mode B requires configured calls table
+    const callTable = client.semanticMappings?.tables?.calls;
+    if (!callTable) {
+      return {
+        reportVersion: DISPOSITION_REPORT_VERSION,
+        mode: 'call_records',
+        modeHeading: 'Outcomes recorded on calls made during the selected period',
+        modeDescription: 'Outcomes recorded on discrete dialler events made during the selected date window. Uses call-start date semantics.',
+        dateBasis: 'call_start_date',
+        countingGrain: 'dialler_records',
+        clientId: client.id,
+        timezone: client.timezone,
+        unavailableReason: `Call outcomes mode is unavailable for client "${client.id}": No configured dialler calls table exists for this tenant.`,
+        summary: {
+          totalEntities: 0,
+          dialledEntities: 0,
+          zeroCallEntities: 0,
+          unrecordedActivityEntities: 0,
+          conflictingEntities: 0,
+          recordedDispositions: 0,
+          missingDispositions: 0,
+          unmappedDispositions: 0,
+          dispositionCoveragePct: null,
+          mappingCoveragePct: null,
+          rpcCount: 0,
+          saleCount: 0,
+          callbackCount: 0,
+        },
+        vendorSummaries: [],
+        breakdown: [],
+        matrix: [],
+        trends: [],
+        comparableGroups: Object.values(APPROVED_DISPOSITION_GROUPS).map(g => ({
+          code: g.code,
+          label: g.label,
+          color: g.color,
+        })),
+        capabilities: {
+          leadStatusSupported: true,
+          callRecordsSupported: false,
+          supportedFilters: ['vendor', 'dateRange'],
+          unsupportedFilters: ['source', 'medium', 'grade', 'campaign', 'agent', 'cli'],
+        },
+        methodology: 'Call outcomes mode requires an approved tenant dialler calls table.',
+        evaluatedAt: new Date().toISOString(),
+      };
+    }
     return await queryCallRecordsDispositions(bq, params, client);
   }
 }
@@ -66,14 +115,23 @@ async function queryLeadStatusDispositions(
       SELECT
         l.lead_id,
         COALESCE(NULLIF(TRIM(hlc.vendor), ''), 'Unknown') AS vendor,
-        SAFE_CAST(hlc.first_call_date AS TIMESTAMP) AS first_call_ts,
-        SAFE_CAST(hlc.delivered AS TIMESTAMP) AS delivered_ts,
-        SAFE_CAST(hlc.attempted_to_deliver AS TIMESTAMP) AS attempted_ts,
-        SAFE_CAST(l.fetched AS TIMESTAMP) AS fetched_ts,
+        ${validTimestampSql('hlc.first_call_date')} AS first_call_ts,
+        ${validTimestampSql('hlc.delivered')} AS delivered_ts,
+        ${validTimestampSql('hlc.attempted_to_deliver')} AS attempted_ts,
+        ${validTimestampSql('l.fetched')} AS fetched_ts,
         hlc.transaction_id,
         SAFE_CAST(hlc.total_calls AS INT64) AS total_calls,
-        SAFE_CAST(hlc.rpc AS INT64) > 0 AS is_rpc,
-        SAFE_CAST(hlc.sale AS INT64) > 0 OR hlc.sale IS NOT NULL AS is_sale,
+        CASE
+          WHEN LOWER(TRIM(CAST(hlc.rpc AS STRING))) IN ('0', 'false', '') THEN FALSE
+          WHEN SAFE_CAST(hlc.rpc AS INT64) > 0 OR LOWER(TRIM(CAST(hlc.rpc AS STRING))) = 'true' THEN TRUE
+          ELSE NULL
+        END AS is_rpc,
+        CASE
+          WHEN LOWER(TRIM(CAST(hlc.sale AS STRING))) IN ('0', 'false', '') THEN FALSE
+          WHEN ${validTimestampSql('hlc.sale')} IS NOT NULL THEN TRUE
+          WHEN SAFE_CAST(hlc.sale AS INT64) > 0 THEN TRUE
+          ELSE FALSE
+        END AS is_sale,
         NULLIF(TRIM(hlc.last_dialer_status), '') AS last_dialer_status
       FROM ${table} l
       LEFT JOIN UNNEST(l.hlc_details) hlc
@@ -83,11 +141,17 @@ async function queryLeadStatusDispositions(
       SELECT
         lead_id,
         vendor,
-        ARRAY_AGG(last_dialer_status IGNORE NULLS ORDER BY IF(first_call_ts IS NULL, 1, 0), first_call_ts DESC, delivered_ts DESC, fetched_ts DESC, transaction_id DESC LIMIT 1)[SAFE_OFFSET(0)] AS current_status,
+        CASE
+          WHEN COUNT(DISTINCT NULLIF(TRIM(last_dialer_status), '')) > 1
+            AND MAX(first_call_ts) IS NOT DISTINCT FROM MIN(first_call_ts)
+            THEN 'CONFLICTING_EVIDENCE'
+          ELSE ARRAY_AGG(last_dialer_status IGNORE NULLS ORDER BY IF(first_call_ts IS NULL, 1, 0), first_call_ts DESC, delivered_ts DESC, fetched_ts DESC, transaction_id DESC LIMIT 1)[SAFE_OFFSET(0)]
+        END AS current_status,
         MAX(total_calls) AS total_calls,
-        COUNTIF(first_call_ts IS NOT NULL) > 0 AS is_dialled,
-        LOGICAL_OR(is_rpc) AS is_rpc,
-        LOGICAL_OR(is_sale) AS is_sale
+        COUNTIF(first_call_ts IS NOT NULL OR total_calls > 0) > 0 AS is_dialled,
+        COUNTIF(total_calls = 0) > 0 AND COUNTIF(total_calls > 0 OR first_call_ts IS NOT NULL) = 0 AS is_explicit_zero_calls,
+        LOGICAL_OR(is_rpc IS TRUE) AS is_rpc,
+        LOGICAL_OR(is_sale IS TRUE) AS is_sale
       FROM raw_lead_vendor
       WHERE lead_id IS NOT NULL
       GROUP BY lead_id, vendor
@@ -96,12 +160,13 @@ async function queryLeadStatusDispositions(
       vendor,
       current_status,
       is_dialled,
+      is_explicit_zero_calls,
       total_calls,
       is_rpc,
       is_sale,
       COUNT(1) AS pair_count
     FROM reconciled_lead_vendor
-    GROUP BY vendor, current_status, is_dialled, total_calls, is_rpc, is_sale
+    GROUP BY vendor, current_status, is_dialled, is_explicit_zero_calls, total_calls, is_rpc, is_sale
     ORDER BY vendor, pair_count DESC
   `;
 
@@ -118,13 +183,44 @@ async function queryCallRecordsDispositions(
   params: OffernetQueryParams,
   client: any
 ): Promise<ContactDispositionsData> {
-  const table = '`dashboards-422710.lead_ledger.lead_ledger_all_vicidial_insights`';
-  const { whereSql, queryParams } = buildFilterClause(params);
+  if (params.source || params.medium || params.grade || params.campaign || params.cli || params.channel || params.adset) {
+    throw new RequestError('Call dispositions mode supports date, tenant, and vendor filters only; lead source and grade dimensions are not mapped to call records.', 422);
+  }
+
+  const table = configuredSourceTable(params.clientId, 'calls');
+  const conditions: string[] = ['1=1'];
+  const queryParams: Record<string, any> = { agentTimezone: client.timezone || 'Africa/Johannesburg' };
+
+  if (params.startDate) {
+    conditions.push(`DATE(${validTimestampSql('call_start_date')}, @agentTimezone) >= @startDate`);
+    queryParams.startDate = params.startDate;
+  }
+  if (params.endDate) {
+    conditions.push(`DATE(${validTimestampSql('call_start_date')}, @agentTimezone) <= @endDate`);
+    queryParams.endDate = params.endDate;
+  }
+
+  if (client.id !== 'default_tenant' && client.id !== 'offernet_master') {
+    const tenantVendors = tenantVendorScopeValues(client);
+    if (!tenantVendors.length) {
+      throw new RequestError('No approved call-vendor mapping exists for this tenant', 422);
+    }
+    conditions.push('LOWER(vendor) IN UNNEST(@tenantVendors)');
+    queryParams.tenantVendors = tenantVendors;
+  }
+
+  const cleanVendor = params.vendor && !['all', 'all vendors', 'undefined', 'null'].includes(params.vendor.trim().toLowerCase())
+    ? params.vendor.trim()
+    : undefined;
+  if (cleanVendor) {
+    conditions.push('LOWER(vendor) = LOWER(@vendor)');
+    queryParams.vendor = cleanVendor;
+  }
 
   const sql = `
     SELECT
       COALESCE(NULLIF(TRIM(vendor), ''), 'Unknown') AS vendor,
-      COALESCE(NULLIF(TRIM(status), ''), 'UNKNOWN') AS raw_code,
+      COALESCE(NULLIF(TRIM(status), ''), '') AS raw_code,
       status_name,
       COUNT(1) AS call_count,
       COUNT(DISTINCT dialer_lead_id) AS distinct_leads,
@@ -135,10 +231,7 @@ async function queryCallRecordsDispositions(
       COUNTIF(length_in_sec >= 0 AND length_in_sec <= 7200) AS valid_duration_count,
       MAX(call_start_date) AS latest_observation
     FROM ${table}
-    WHERE 1=1
-    ${params.startDate ? `AND DATE(SAFE_CAST(call_start_date AS TIMESTAMP)) >= @startDate` : ''}
-    ${params.endDate ? `AND DATE(SAFE_CAST(call_start_date AS TIMESTAMP)) <= @endDate` : ''}
-    ${params.vendor ? `AND LOWER(vendor) = LOWER(@vendor)` : ''}
+    WHERE ${conditions.join(' AND ')}
     GROUP BY vendor, raw_code, status_name
     ORDER BY vendor, call_count DESC
   `;
@@ -156,6 +249,7 @@ export function buildLeadStatusResult(rows: any[], params: OffernetQueryParams):
     dialled: number;
     zeroCalls: number;
     unrecorded: number;
+    conflicting: number;
     recordedDisp: number;
     missingDisp: number;
     unmappedDisp: number;
@@ -173,6 +267,7 @@ export function buildLeadStatusResult(rows: any[], params: OffernetQueryParams):
         dialled: 0,
         zeroCalls: 0,
         unrecorded: 0,
+        conflicting: 0,
         recordedDisp: 0,
         missingDisp: 0,
         unmappedDisp: 0,
@@ -201,6 +296,7 @@ export function buildLeadStatusResult(rows: any[], params: OffernetQueryParams):
         entry.recordedDisp += count;
         const mapped = resolveApprovedGroup(v, clean);
         if (mapped.isUnmapped) entry.unmappedDisp += count;
+        if (mapped.group === 'CONFLICTING_EVIDENCE') entry.conflicting += count;
 
         const currentItem = entry.items.get(clean) || { raw: clean, count: 0, rpc: 0, sale: 0 };
         currentItem.count += count;
@@ -228,6 +324,9 @@ export function buildLeadStatusResult(rows: any[], params: OffernetQueryParams):
 
   let grandTotal = 0;
   let grandDialled = 0;
+  let grandZeroCalls = 0;
+  let grandUnrecorded = 0;
+  let grandConflicting = 0;
   let grandRecordedDisp = 0;
   let grandMissingDisp = 0;
   let grandUnmappedDisp = 0;
@@ -238,6 +337,9 @@ export function buildLeadStatusResult(rows: any[], params: OffernetQueryParams):
   for (const [vendor, vData] of vendorMap.entries()) {
     grandTotal += vData.total;
     grandDialled += vData.dialled;
+    grandZeroCalls += vData.zeroCalls;
+    grandUnrecorded += vData.unrecorded;
+    grandConflicting += vData.conflicting;
     grandRecordedDisp += vData.recordedDisp;
     grandMissingDisp += vData.missingDisp;
     grandUnmappedDisp += vData.unmappedDisp;
@@ -254,6 +356,7 @@ export function buildLeadStatusResult(rows: any[], params: OffernetQueryParams):
       dialledCount: vData.dialled,
       zeroCallCount: vData.zeroCalls,
       unrecordedActivityCount: vData.unrecorded,
+      conflictingCount: vData.conflicting,
       recordedDispositionCount: vData.recordedDisp,
       missingDispositionCount: vData.missingDisp,
       unmappedDispositionCount: vData.unmappedDisp,
@@ -275,6 +378,14 @@ export function buildLeadStatusResult(rows: any[], params: OffernetQueryParams):
     for (const [rawKey, item] of vData.items.entries()) {
       const resolved = resolveApprovedGroup(vendor, item.raw === 'MISSING_DISPOSITION' ? null : item.raw);
       const pctOfBase = vData.dialled > 0 ? metricPercent(item.count, vData.dialled, 2) : null;
+      const mappingStatus: 'APPROVED' | 'UNMAPPED' | 'MISSING' | 'CONFLICTING' =
+        resolved.group === 'MISSING_DISPOSITION'
+          ? 'MISSING'
+          : resolved.group === 'CONFLICTING_EVIDENCE'
+          ? 'CONFLICTING'
+          : resolved.isUnmapped
+          ? 'UNMAPPED'
+          : 'APPROVED';
 
       breakdownRows.push({
         vendor,
@@ -291,6 +402,8 @@ export function buildLeadStatusResult(rows: any[], params: OffernetQueryParams):
         avgDurationSec: null,
         validDurationCount: null,
         latestObservation: null,
+        isUnmapped: resolved.isUnmapped,
+        mappingStatus,
       });
 
       matrixCells.push({
@@ -316,10 +429,14 @@ export function buildLeadStatusResult(rows: any[], params: OffernetQueryParams):
     summary: {
       totalEntities: grandTotal,
       dialledEntities: grandDialled,
+      zeroCallEntities: grandZeroCalls,
+      unrecordedActivityEntities: grandUnrecorded,
+      conflictingEntities: grandConflicting,
       recordedDispositions: grandRecordedDisp,
       missingDispositions: grandMissingDisp,
       unmappedDispositions: grandUnmappedDisp,
       dispositionCoveragePct: grandDialled > 0 ? metricPercent(grandRecordedDisp, grandDialled, 1) : null,
+      mappingCoveragePct: grandRecordedDisp > 0 ? metricPercent(grandRecordedDisp - grandUnmappedDisp, grandRecordedDisp, 1) : null,
       rpcCount: grandRpc,
       saleCount: grandSale,
       callbackCount: grandCallback,
@@ -407,6 +524,15 @@ export function buildCallRecordsResult(rows: any[], params: OffernetQueryParams)
       if (resolved.isUnmapped) vEntry.unmappedDisp += count;
     }
 
+    const mappingStatus: 'APPROVED' | 'UNMAPPED' | 'MISSING' | 'CONFLICTING' =
+      resolved.group === 'MISSING_DISPOSITION'
+        ? 'MISSING'
+        : resolved.group === 'CONFLICTING_EVIDENCE'
+        ? 'CONFLICTING'
+        : resolved.isUnmapped
+        ? 'UNMAPPED'
+        : 'APPROVED';
+
     breakdownRows.push({
       vendor: v,
       rawDisposition: raw,
@@ -422,6 +548,8 @@ export function buildCallRecordsResult(rows: any[], params: OffernetQueryParams)
       avgDurationSec: avgDuration,
       validDurationCount,
       latestObservation: r.latest_observation || null,
+      isUnmapped: resolved.isUnmapped,
+      mappingStatus,
     });
   }
 

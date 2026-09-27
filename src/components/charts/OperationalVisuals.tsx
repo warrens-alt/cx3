@@ -335,3 +335,119 @@ export function StackedCompositionChart({
     </div>
   );
 }
+
+export interface HorizontalStackedOutcomeChartProps {
+  title?: string;
+  subtitle?: string;
+  data: Array<Record<string, any>>;
+  categoryKey: string;
+  series: Array<{ key: string; label: string; color?: string }>;
+  isPercent?: boolean;
+  height?: number;
+  onSelect?: (category: string, key?: string) => void;
+  tooltipBaseLabel?: string;
+}
+
+export function HorizontalStackedOutcomeChart({
+  title,
+  subtitle,
+  data,
+  categoryKey,
+  series,
+  isPercent = true,
+  height = 340,
+  onSelect,
+  tooltipBaseLabel = 'base',
+}: HorizontalStackedOutcomeChartProps) {
+  if (!data.length || !series.length) return null;
+
+  return (
+    <div className="w-full">
+      <div style={{ height: Math.max(height, data.length * 38 + 70), width: '100%' }}>
+        <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+          <BarChart data={data} layout="vertical" margin={{ top: 10, right: 28, left: 10, bottom: 16 }}>
+            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#EEF2F6" />
+            <XAxis
+              type="number"
+              domain={isPercent ? [0, 100] : [0, 'auto']}
+              tickFormatter={(v) => (isPercent ? `${v}%` : formatTableNumber(v))}
+              tick={{ fontSize: 11, fill: '#64748B' }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              type="category"
+              dataKey={categoryKey}
+              width={110}
+              tick={{ fontSize: 11, fill: '#334155', fontWeight: 500 }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <Tooltip
+              content={({ active, payload, label }) => {
+                if (!active || !payload?.length) return null;
+                const row = payload[0]?.payload;
+                const base = row?.base || 0;
+                return (
+                  <div className="bg-white p-3 rounded-lg shadow-xl border border-slate-200 text-xs min-w-[220px]">
+                    <div className="font-bold text-slate-900 border-b border-slate-100 pb-1.5 mb-2">
+                      {label} · Base: {formatTableNumber(base)} {tooltipBaseLabel}
+                    </div>
+                    <div className="space-y-1.5">
+                      {payload
+                        .filter((p: any) => p.value > 0)
+                        .map((p: any) => {
+                          const rawCount = isPercent ? row?.[`${p.dataKey}_count`] ?? 0 : p.value;
+                          const pct = base > 0 ? ((rawCount / base) * 100).toFixed(1) : '0';
+                          return (
+                            <div key={p.dataKey} className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-1.5">
+                                <span className="w-2.5 h-2.5 rounded-xs shrink-0" style={{ backgroundColor: p.color }} />
+                                <span className="text-slate-700">{p.name}</span>
+                              </div>
+                              <span className="font-mono text-slate-900 font-medium">
+                                {formatTableNumber(rawCount)} ({pct}%)
+                              </span>
+                            </div>
+                          );
+                        })}
+                    </div>
+                    {onSelect && (
+                      <div className="mt-2.5 pt-1.5 border-t border-slate-100 text-[11px] text-sky-700 font-medium">
+                        Click to drill down into raw codes
+                      </div>
+                    )}
+                  </div>
+                );
+              }}
+            />
+            <Legend
+              wrapperStyle={{ fontSize: 11, paddingTop: 12 }}
+              formatter={(value) => <span className="text-slate-700 text-xs">{value}</span>}
+            />
+            {series.map((item) => (
+              <Bar
+                key={item.key}
+                dataKey={item.key}
+                name={item.label}
+                stackId="outcomes"
+                fill={item.color || '#94a3b8'}
+                className={onSelect ? 'cursor-pointer' : undefined}
+                isAnimationActive={false}
+                onClick={
+                  onSelect
+                    ? (entry: any) => {
+                        const cat = entry?.[categoryKey] || entry?.payload?.[categoryKey];
+                        if (cat) onSelect(cat, item.key);
+                      }
+                    : undefined
+                }
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+

@@ -11,6 +11,7 @@
 | `/funnel` | FunnelIntelligence |
 | `/speed-to-lead` | SpeedToLeadIntelligence |
 | `/contact-strategy` | ContactStrategyIntelligence |
+| `/vendor-dispositions` | redirect → /contact-strategy?tab=vendor_dispositions |
 | `/cli-performance` | CliPerformance |
 | `/vendor-quality` | VendorLeadQuality |
 | `/temporal` | TemporalIntelligence |

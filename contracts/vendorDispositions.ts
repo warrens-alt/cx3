@@ -254,6 +254,29 @@ export function resolveApprovedGroup(
   const cleanRaw = rawStatus.trim().toUpperCase();
   const cleanVendor = vendor.trim();
 
+  // Synthetic/activity states handled explicitly
+  if (cleanRaw === 'CONFLICTING_EVIDENCE') {
+    return {
+      group: 'CONFLICTING_EVIDENCE',
+      description: 'Conflicting contradictory status records without recency ordering',
+      isUnmapped: false,
+    };
+  }
+  if (cleanRaw === 'ZERO_CALLS') {
+    return {
+      group: 'ZERO_CALLS',
+      description: 'Explicitly recorded 0 calls on ledger',
+      isUnmapped: false,
+    };
+  }
+  if (cleanRaw === 'UNRECORDED_ACTIVITY') {
+    return {
+      group: 'UNRECORDED_ACTIVITY',
+      description: 'Call activity unrecorded or indeterminate',
+      isUnmapped: false,
+    };
+  }
+
   // 1. Direct vendor match
   const exact = KNOWN_DISPOSITION_MAPPINGS.find(
     m => m.vendor.toLowerCase() === cleanVendor.toLowerCase() && m.rawCode.toUpperCase() === cleanRaw
@@ -276,21 +299,10 @@ export function resolveApprovedGroup(
     };
   }
 
-  // 3. Fallback based on well-known standard keywords if present in description
-  if (/^SALE\b/i.test(cleanRaw)) return { group: 'REPORTED_SALE', description: cleanRaw, isUnmapped: false };
-  if (/^CALLBK\b|^CALLBACK/i.test(cleanRaw)) return { group: 'CALLBACK_REQUESTED', description: cleanRaw, isUnmapped: false };
-  if (/^NA\b|^NO.?ANS/i.test(cleanRaw)) return { group: 'NO_ANSWER', description: cleanRaw, isUnmapped: false };
-  if (/^BUSY\b|^B\b/i.test(cleanRaw)) return { group: 'BUSY', description: cleanRaw, isUnmapped: false };
-  if (/^VM\b|^VOICEMAIL\b|^ANS/i.test(cleanRaw)) return { group: 'VOICEMAIL', description: cleanRaw, isUnmapped: false };
-  if (/^DNC\b|^DO.?NOT/i.test(cleanRaw)) return { group: 'DO_NOT_CONTACT', description: cleanRaw, isUnmapped: false };
-  if (/^NI\b|^NOT.?INT/i.test(cleanRaw)) return { group: 'NOT_INTERESTED', description: cleanRaw, isUnmapped: false };
-  if (/^WN\b|^WRONG\b|^INV/i.test(cleanRaw)) return { group: 'INVALID_WRONG_NUMBER', description: cleanRaw, isUnmapped: false };
-  if (/^DROP\b|^CONG/i.test(cleanRaw)) return { group: 'TECHNICAL_FAILURE', description: cleanRaw, isUnmapped: false };
-
-  // 4. Truly unmapped nonblank code
+  // 3. Truly unmapped nonblank code (literal UNKNOWN or other unclassified vendor codes)
   return {
     group: 'UNMAPPED',
-    description: `Raw code '${rawStatus}' not yet classified`,
+    description: `Raw code '${rawStatus}' not yet classified in approved mapping`,
     isUnmapped: true,
   };
 }
@@ -301,6 +313,7 @@ export interface VendorDispositionSummaryItem {
   dialledCount: number;
   zeroCallCount?: number;
   unrecordedActivityCount?: number;
+  conflictingCount?: number;
   recordedDispositionCount: number;
   missingDispositionCount: number;
   unmappedDispositionCount: number;
@@ -330,6 +343,8 @@ export interface DetailedDispositionRow {
   avgDurationSec: number | null;
   validDurationCount: number | null;
   latestObservation: string | null;
+  isUnmapped?: boolean;
+  mappingStatus?: 'APPROVED' | 'UNMAPPED' | 'MISSING' | 'CONFLICTING';
 }
 
 export interface DispositionMatrixCell {
@@ -354,13 +369,20 @@ export interface ContactDispositionsData {
   modeDescription: string;
   dateBasis: string;
   countingGrain: string;
+  clientId?: string;
+  timezone?: string;
+  unavailableReason?: string;
   summary: {
     totalEntities: number;
     dialledEntities: number;
+    zeroCallEntities?: number;
+    unrecordedActivityEntities?: number;
+    conflictingEntities?: number;
     recordedDispositions: number;
     missingDispositions: number;
     unmappedDispositions: number;
     dispositionCoveragePct: number | null;
+    mappingCoveragePct?: number | null;
     rpcCount: number;
     saleCount: number;
     callbackCount: number;
