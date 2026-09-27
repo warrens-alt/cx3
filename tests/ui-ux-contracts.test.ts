@@ -721,5 +721,53 @@ test('R2 targeted fixes: InspectorHost binds dialogRef to useDialogAccessibility
   assert.match(inspector, /onMouseDown=\{event\s*=>\s*\{\s*if\s*\(event\.target\s*===\s*event\.currentTarget\)\s*onClose\(\);\s*\}\}/);
 });
 
+test('R3: AppRouter mounts JourneyPage on /funnel, ContactPage on /contact-strategy, and SpeedPage on /speed-to-lead', () => {
+  const router = read('src/app/AppRouter.tsx');
+  assert.match(router, /import\('\.\.\/features\/journey\/JourneyPage'\)/);
+  assert.match(router, /import\('\.\.\/features\/contact\/ContactPage'\)/);
+  assert.match(router, /import\('\.\.\/features\/contact\/SpeedPage'\)/);
+  assert.match(router, /path="\/funnel" element={<JourneyPage key=\{selectedClient\} \/>}/);
+  assert.match(router, /path="\/speed-to-lead" element={<SpeedPage key=\{selectedClient\} \/>}/);
+  assert.match(router, /path="\/contact-strategy" element={<ContactPage key=\{selectedClient\} \/>}/);
+  assert.match(router, /path="\/vendor-dispositions"\s+element={<ScopePreservingRedirect to="\/contact-strategy\?tab=vendor_dispositions" replace \/>}/);
+});
+
+test('R3: JourneyPage connects progression, segments, timing, and evidence inspection with attached scope', () => {
+  const journey = read('src/features/journey/JourneyPage.tsx');
+  const model = read('src/features/journey/model/useJourneyModel.ts');
+  assert.match(journey, /JourneyProgression/);
+  assert.match(journey, /JourneySegments/);
+  assert.match(journey, /JourneyTiming/);
+  assert.match(journey, /InspectorHost/);
+  assert.match(journey, /drill:\s*'funnel-stage'/);
+  assert.match(journey, /drill:\s*'funnel-loss'/);
+  assert.match(journey, /drill:\s*'lifecycle-segment'/);
+  assert.match(model, /useEffect\(\(\)\s*=>\s*\{\s*setInspectorContent\(null\);\s*\},\s*\[selectedClient,\s*startDate,\s*endDate,\s*filters\]\)/);
+  assert.match(model, /downloadAnalysisCsv/);
+});
+
+test('R3: ContactPage connects call effort and vendor outcomes with focus-managed raw outcome inspector', () => {
+  const contact = read('src/features/contact/ContactPage.tsx');
+  const inspector = read('src/features/contact/components/VendorOutcomeInspector.tsx');
+  const model = read('src/features/contact/model/useContactModel.ts');
+  assert.match(contact, /CallEffortReport/);
+  assert.match(contact, /VendorDispositionReport/);
+  assert.match(contact, /VendorOutcomeInspector/);
+  assert.match(contact, /InspectorHost/);
+  assert.match(inspector, /useDialogAccessibility/);
+  assert.match(inspector, /role="dialog"/);
+  assert.match(inspector, /aria-modal="true"/);
+  assert.match(model, /downloadDispositionExportCsv/);
+});
+
+test('R3: SpeedPage provides latency distributions, undialled backlog counters, and combo charts', () => {
+  const speed = read('src/features/contact/SpeedPage.tsx');
+  assert.match(speed, /VolumeRateComboChart/);
+  assert.match(speed, /Delivery → First Dial/);
+  assert.match(speed, /Awaiting First Dial/);
+  assert.match(speed, /CaptureTurnaroundPanel/);
+});
+
+
 
 

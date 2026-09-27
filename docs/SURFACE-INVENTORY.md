@@ -8,9 +8,9 @@
 | --- | --- |
 | `/` | OverviewPage |
 | `/overview` | OverviewPage |
-| `/funnel` | FunnelIntelligence |
-| `/speed-to-lead` | SpeedToLeadIntelligence |
-| `/contact-strategy` | ContactStrategyIntelligence |
+| `/funnel` | JourneyPage |
+| `/speed-to-lead` | SpeedPage |
+| `/contact-strategy` | ContactPage |
 | `/cli-performance` | CliPerformance |
 | `/vendor-quality` | VendorLeadQuality |
 | `/temporal` | TemporalIntelligence |

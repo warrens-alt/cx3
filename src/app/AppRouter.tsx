@@ -22,6 +22,9 @@ function safeImport<T>(loader: () => Promise<T>): Promise<T> {
 export const VersionedReports = React.lazy(() => safeImport(() => import('../pages/VersionedReports')));
 export const UserManagement = React.lazy(() => safeImport(() => import('../pages/UserManagement')));
 export const OverviewPage = React.lazy(() => safeImport(() => import('../features/overview/OverviewPage')));
+export const JourneyPage = React.lazy(() => safeImport(() => import('../features/journey/JourneyPage')));
+export const ContactPage = React.lazy(() => safeImport(() => import('../features/contact/ContactPage')));
+export const SpeedPage = React.lazy(() => safeImport(() => import('../features/contact/SpeedPage')));
 export const ExecutiveOverview = React.lazy(() => safeImport(() => import('../pages/ExecutiveOverview')));
 export const FunnelIntelligence = React.lazy(() => safeImport(() => import('../pages/FunnelIntelligence')));
 export const SpeedToLeadIntelligence = React.lazy(() => safeImport(() => import('../pages/SpeedToLeadIntelligence')));
@@ -111,9 +114,9 @@ export default function AppRouter() {
           {/* PRIMARY OFFERNET OPERATIONAL INTELLIGENCE PLATFORM ROUTES */}
           <Route path="/" element={<OverviewPage key={selectedClient} />} />
           <Route path="/overview" element={<OverviewPage key={selectedClient} />} />
-          <Route path="/funnel" element={<FunnelIntelligence key={selectedClient} />} />
-          <Route path="/speed-to-lead" element={<SpeedToLeadIntelligence key={selectedClient} />} />
-          <Route path="/contact-strategy" element={<ContactStrategyIntelligence key={selectedClient} />} />
+          <Route path="/funnel" element={<JourneyPage key={selectedClient} />} />
+          <Route path="/speed-to-lead" element={<SpeedPage key={selectedClient} />} />
+          <Route path="/contact-strategy" element={<ContactPage key={selectedClient} />} />
           <Route
             path="/vendor-dispositions"
             element={<ScopePreservingRedirect to="/contact-strategy?tab=vendor_dispositions" replace />}
