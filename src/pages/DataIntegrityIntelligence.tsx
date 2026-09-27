@@ -11,9 +11,12 @@ import { formatTableNumber } from '../lib/formatters';
 import '../styles/tableReadability.css';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import { RankedMetricChart } from '../components/charts/OperationalVisuals';
+import { DataIntakePanel } from '../components/DataIntakePanel';
+import { useAuth } from '../lib/AuthContext';
 
 export default function DataIntegrityIntelligence() {
   const { selectedClient } = useClient();
+  const { isAdmin } = useAuth();
   const controls = useOperatingControls();
   const { startDate, endDate, filters } = useFilters();
 
@@ -137,6 +140,8 @@ export default function DataIntegrityIntelligence() {
             <section className="cx-command-panel">
               <header><div><span className="cx-command-section-kicker">Trust boundary</span><h2>Current validation state</h2><p>Source freshness and discrepancy counts are operational observations, not financial or evidence-release certification.</p></div><ShieldCheck size={16} className="text-slate-400"/></header>
             </section>
+
+            <DataIntakePanel clientId={selectedClient} isAdmin={isAdmin} />
           </>
         )}
       </div>

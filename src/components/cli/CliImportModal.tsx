@@ -50,7 +50,8 @@ export const CliImportModal: React.FC<CliImportModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600"
+            aria-label="Close dialog"
+            className="text-slate-400 hover:text-slate-600 focus:outline-hidden focus:ring-2 focus:ring-[#3562B3] rounded-sm"
           >
             <X size={18} />
           </button>

@@ -87,7 +87,7 @@ export default function Exceptions() {
         </header>
 
         {(error || queue.error) && <div className="cx-command-error"><AlertTriangle size={17} />{error || queue.error}</div>}
-        {(!data && loading) && (!queue.data && queue.loading) ? (
+        {(!data && !queue.data && (loading || queue.loading)) ? (
           <div className="cx-command-loading"><div className="cx-command-spinner" />Loading exception populations…</div>
         ) : (
           <>
@@ -100,7 +100,7 @@ export default function Exceptions() {
               <article>
                 <span>Awaiting first dial</span>
                 <strong>{loading && !data ? '…' : fmt(data?.backlog?.awaitingFirstDial)}</strong>
-                <small>{loading && !data ? 'Loading backlog…' : `${fmt(data?.backlog?.over60Minutes)} waiting longer than 60 minutes`}</small>
+                <small>{loading && !data ? 'Loading backlog…' : data?.backlog ? `${fmt(data.backlog.over60Minutes)} waiting longer than 60 minutes` : 'Backlog data unavailable'}</small>
               </article>
               <article>
                 <span>15-minute SLA</span>

@@ -46,7 +46,8 @@ export const TenantScopeModal: React.FC<TenantScopeModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600"
+            aria-label="Close dialog"
+            className="text-slate-400 hover:text-slate-600 focus:outline-hidden focus:ring-2 focus:ring-blue-500 rounded-sm"
           >
             <X className="w-4 h-4" />
           </button>

@@ -86,5 +86,83 @@ export function createSourceRouter(accessProvider?: () => SourceAccess) {
     }
   }));
 
+  router.get('/sources/inventory', analyticalRoute(async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const clientId = getClientConfig(String(res.locals.scope?.clientId || req.query.clientId || 'default_tenant')).id;
+      checkAuth(req, res, clientId);
+      const { ALL_WAREHOUSE_OBJECTS } = await import('./warehouseRegistry');
+      const { CANDIDATE_SPEND_SOURCES, RAW_JSON_SOURCES } = await import('../../contracts/warehouseDictionary');
+
+      const datasets = {
+        'dashboards-422710.lead_ledger': ALL_WAREHOUSE_OBJECTS.filter(o => o.project === 'dashboards-422710' && o.dataset === 'lead_ledger').length,
+        'dashboards-422710.watfall_report': ALL_WAREHOUSE_OBJECTS.filter(o => o.project === 'dashboards-422710' && o.dataset === 'watfall_report').length,
+        'dashboards-422710.vibe_coding_data': ALL_WAREHOUSE_OBJECTS.filter(o => o.project === 'dashboards-422710' && o.dataset === 'vibe_coding_data').length,
+        'vibe-code-warren-stear.analytics_warehouse': ALL_WAREHOUSE_OBJECTS.filter(o => o.project === 'vibe-code-warren-stear' && o.dataset === 'analytics_warehouse').length,
+      };
+
+      const tableTypes = {
+        TABLE: ALL_WAREHOUSE_OBJECTS.filter(o => o.tableType === 'TABLE').length,
+        VIEW: ALL_WAREHOUSE_OBJECTS.filter(o => o.tableType === 'VIEW').length,
+      };
+
+      res.json({
+        success: true,
+        data: {
+          totalObjects: ALL_WAREHOUSE_OBJECTS.length,
+          datasetCounts: datasets,
+          tableTypeCounts: tableTypes,
+          rawJsonSources: RAW_JSON_SOURCES,
+          candidateSpendSources: CANDIDATE_SPEND_SOURCES,
+          objects: ALL_WAREHOUSE_OBJECTS,
+        },
+      });
+    } catch (err) {
+      next(err);
+    }
+  }));
+
+  router.post('/sources/profile', analyticalRoute(async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const clientId = getClientConfig(String(res.locals.scope?.clientId || req.query.clientId || req.body?.clientId || 'default_tenant')).id;
+      checkAuth(req, res, clientId);
+      if (res.locals.principal?.role !== 'admin') {
+        throw new RequestError('Admin access required for source profiling', 403);
+      }
+      const { sourceId, limit, redactDynamicKeys } = req.body || {};
+      if (!sourceId || typeof sourceId !== 'string') {
+        throw new RequestError('sourceId is required', 400);
+      }
+      const { profileRawJsonSource } = await import('../analytics/integrity/rawProfiler');
+      const profile = await profileRawJsonSource(sourceId, { limit, redactDynamicKeys });
+      res.json({ success: true, data: profile });
+    } catch (err) {
+      next(err);
+    }
+  }));
+
+  router.get('/sources/mappings', analyticalRoute(async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const clientId = getClientConfig(String(res.locals.scope?.clientId || req.query.clientId || 'default_tenant')).id;
+      checkAuth(req, res, clientId);
+      const { ONTACT_MAPPING_V1, ONVEST_MAPPING_V1 } = await import('../analytics/integrity/rawAdapters');
+      const { CANDIDATE_SPEND_SOURCES } = await import('../../contracts/warehouseDictionary');
+
+      res.json({
+        success: true,
+        data: {
+          activeMappings: [ONTACT_MAPPING_V1, ONVEST_MAPPING_V1],
+          candidateSpendSources: CANDIDATE_SPEND_SOURCES,
+          quarantinePolicy: {
+            unresolvedTenantAction: 'QUARANTINE',
+            sensitiveFieldPolicy: 'EXCLUDE_OR_REDACT',
+            allowCrossTenantAggregation: false,
+          },
+        },
+      });
+    } catch (err) {
+      next(err);
+    }
+  }));
+
   return router;
 }

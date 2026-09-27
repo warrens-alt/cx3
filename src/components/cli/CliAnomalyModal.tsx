@@ -39,7 +39,8 @@ export const CliAnomalyModal: React.FC<CliAnomalyModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600"
+            aria-label="Close dialog"
+            className="text-slate-400 hover:text-slate-600 focus:outline-hidden focus:ring-2 focus:ring-rose-500 rounded-sm"
           >
             <X size={18} />
           </button>

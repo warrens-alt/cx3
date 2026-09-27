@@ -19,22 +19,12 @@ import { PageSkeleton } from './components/Skeleton';
 import { useDevice } from './hooks/useDevice';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import AuthGate from './components/AuthGate';
+import { isChunkLoadError, attemptChunkRecovery } from './lib/chunkRecovery';
 
 function safeImport<T>(loader: () => Promise<T>): Promise<T> {
   return loader().catch((error: any) => {
-    const isChunkError =
-      error?.message?.includes('dynamically imported module') ||
-      error?.message?.includes('Failed to fetch') ||
-      error?.message?.includes('Loading chunk') ||
-      error?.name === 'ChunkLoadError';
-    if (isChunkError && typeof window !== 'undefined') {
-      const reloadKey = 'cx_chunk_reload';
-      const lastReload = Number(sessionStorage.getItem(reloadKey) || 0);
-      if (Date.now() - lastReload > 8000) {
-        sessionStorage.setItem(reloadKey, String(Date.now()));
-        window.location.reload();
-        return new Promise<T>(() => {});
-      }
+    if (isChunkLoadError(error) && attemptChunkRecovery()) {
+      return new Promise<T>(() => {});
     }
     throw error;
   });
