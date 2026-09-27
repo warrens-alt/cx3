@@ -278,6 +278,16 @@ analyticsRouter.get('/offernet/contact-strategy', cacheResponse(60), asyncRoute(
   res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
+analyticsRouter.get('/offernet/contact-dispositions', cacheResponse(60), asyncRoute(async (req, res) => {
+  const params = buildOffernetQueryParams(req, res);
+  const rawMode = req.query.mode;
+  const mode = rawMode === 'call_records' ? 'call_records' : 'lead_status';
+  const data = await singleFlight(res, `offernet-contact-dispositions-${mode}`, { ...params, mode }, () =>
+    offernetAnalytics.getContactDispositionsAnalytics({ ...params, mode })
+  );
+  res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, 'contact-dispositions') });
+}));
+
 analyticsRouter.get('/offernet/vendor-quality', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-vendor-quality', params, () => offernetAnalytics.getVendorQualityAnalytics(params));

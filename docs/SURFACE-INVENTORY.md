@@ -99,6 +99,7 @@
 | GET | `/api/analytics/offernet/campaigns` | `server/api.ts` |
 | GET | `/api/analytics/offernet/client-config` | `server/api.ts` |
 | GET | `/api/analytics/offernet/commercial` | `server/api.ts` |
+| GET | `/api/analytics/offernet/contact-dispositions` | `server/api.ts` |
 | GET | `/api/analytics/offernet/contact-strategy` | `server/api.ts` |
 | GET | `/api/analytics/offernet/data-integrity` | `server/api.ts` |
 | GET | `/api/analytics/offernet/exceptions` | `server/api.ts` |

@@ -24,6 +24,7 @@ import { fetchOffernetJson, buildQueryString } from './cache';
 import type { ExceptionAnalyticsData } from '../../../contracts/exceptionAnalytics';
 import type { OffershopProcessOverview } from '../../../server/analytics/process/offershopProcess';
 import type { ReadOnlyRuleSimulationRequest, ReadOnlyRuleSimulationResult } from '../../../contracts/offershopProcess';
+import type { ContactDispositionsData } from '../../../contracts/vendorDispositions';
 
 export async function fetchExceptions(params: Record<string, any> = {}, forceRefresh = false, signal?: AbortSignal): Promise<ExceptionAnalyticsData> {
   return fetchOffernetJson<ExceptionAnalyticsData>(`/api/analytics/offernet/exceptions${buildQueryString(params)}`, forceRefresh, signal);
@@ -51,6 +52,10 @@ export async function fetchSpeedToLead(params: Record<string, any> = {}, forceRe
 
 export async function fetchContactStrategy(params: Record<string, any> = {}, forceRefresh = false, signal?: AbortSignal): Promise<ContactStrategyData> {
   return fetchOffernetJson<ContactStrategyData>(`/api/analytics/offernet/contact-strategy${buildQueryString(params)}`, forceRefresh, signal);
+}
+
+export async function fetchContactDispositions(params: Record<string, any> = {}, forceRefresh = false, signal?: AbortSignal): Promise<ContactDispositionsData> {
+  return fetchOffernetJson<ContactDispositionsData>(`/api/analytics/offernet/contact-dispositions${buildQueryString(params)}`, forceRefresh, signal);
 }
 
 export async function fetchVendorQuality(params: Record<string, any> = {}, forceRefresh = false, signal?: AbortSignal): Promise<VendorQualityData> {
