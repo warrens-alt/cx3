@@ -1,0 +1,31 @@
+name: Cloudflare Worker validation
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cloudflare-validation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  local-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit
+      - name: Bundle Worker without deploying or using cloud credentials
+        run: npx --yes wrangler@4.142.0 deploy --dry-run --config wrangler.cloudflare.example.jsonc
+      - name: Verify local Worker boot and authentication boundary
+        run: node scripts/check-cloudflare-local.mjs

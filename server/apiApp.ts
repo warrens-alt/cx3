@@ -1,14 +1,20 @@
 import express from 'express';
 import compression from 'compression';
 import type { Application, Request, Response, NextFunction } from 'express';
+import type { CliArchiveBackend } from './cliImports/archive';
+
+export interface ApiMountOptions {
+  /** Runtime-owned archive binding; defaults to the existing GCS configuration on Node. */
+  cliArchiveBackend?: () => CliArchiveBackend | null;
+}
 
 /**
  * Mount the complete ConversionX API stack on an Express application.
  *
  * This is intentionally independent from static/Vite serving so Google AI Studio's
- * Vite preview runtime can mount the same API implementation used by Cloud Run.
+ * Vite preview runtime and Cloudflare Workers can mount the same API implementation.
  */
-export async function mountApi(app: Application) {
+export async function mountApi(app: Application, options: ApiMountOptions = {}) {
   const { createReportingRouter } = await import('./reporting/router');
   const { analyticsRouter } = await import('./api');
   const { createBlcRouter } = await import('./blc/router');
@@ -53,7 +59,7 @@ export async function mountApi(app: Application) {
   app.use('/api/analytics', concurrency, (_req, res, next) => {
     res.setHeader('X-Analytics-Status', 'UNVERIFIED');
     next();
-  }, createCliImportRouter(), analyticsRouter, createBlcRouter());
+  }, createCliImportRouter(options.cliArchiveBackend), analyticsRouter, createBlcRouter());
 
   app.use('/api/bq', (_req, res) => res.status(410).json({
     success: false,

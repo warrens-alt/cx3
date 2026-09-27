@@ -1,0 +1,25 @@
+{
+  // Explicit opt-in deployment configuration. Confirm the existing account/Worker before deploying.
+  "name": "cx3",
+  "main": "server/cloudflare/worker.ts",
+  "compatibility_date": "2026-09-28",
+  "keep_vars": true,
+  "define": { "process.env.NODE_ENV": "\"production\"" },
+  "build": { "command": "npm run build" },
+  "assets": {
+    // Only client assets. Never publish dist/server, repository files or uploaded reports.
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true
+  },
+  "r2_buckets": [{ "binding": "CLI_REPORTS", "bucket_name": "cx3-cli-reports" }],
+  "vars": {
+    "CX_AUTH_MODE": "firebase",
+    "CX_ALLOW_DEV_AUTH": "false",
+    "ENABLE_CLI_SAMPLE_DATA": "false",
+    "CX_CLI_STORAGE_PROVIDER": "r2",
+    // Owner must check the bucket's public URL/domain settings before enabling uploads.
+    "CX_CLI_R2_PRIVATE_CONFIRMED": "false"
+  }
+}
