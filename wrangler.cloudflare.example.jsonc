@@ -2,7 +2,7 @@
   // Explicit opt-in deployment configuration. Confirm the existing account/Worker before deploying.
   "name": "cx3",
   "main": "server/cloudflare/worker.ts",
-  "compatibility_date": "2026-09-28",
+  "compatibility_date": "2026-09-26",
   "keep_vars": true,
   "define": { "process.env.NODE_ENV": "\"production\"" },
   "build": { "command": "npm run build" },
