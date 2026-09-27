@@ -28,3 +28,4 @@ export { getExceptionAnalytics } from './investigation/exceptions';
 export { getWarehouseCrossDatasetAnalytics, searchWarehouseTables } from './warehouse/warehouseAnalytics';
 export { getOffershopProcessFlow, getOffershopStageDetails, getOffershopSimulation } from './process/offershopProcess';
 export { getContactDispositionsAnalytics } from './contact/dispositions';
+export * from './common/metricRegistry';

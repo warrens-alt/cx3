@@ -93,6 +93,8 @@
 | POST | `/api/analytics/insights` | `server/api.ts dynamic analytics` |
 | GET | `/api/analytics/lead-timeline/:leadId` | `server/api.ts` |
 | GET | `/api/analytics/leads` | `server/api.ts` |
+| GET | `/api/analytics/metrics/authoritative` | `server/api.ts` |
+| GET | `/api/analytics/metrics/registry` | `server/api.ts` |
 | GET | `/api/analytics/multi-vendor` | `server/api.ts reports registry` |
 | GET | `/api/analytics/offernet/agent-performance` | `server/api.ts` |
 | GET | `/api/analytics/offernet/ai-insights` | `server/api.ts` |

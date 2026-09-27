@@ -23,6 +23,7 @@ import { operationalMetadata } from './analytics/common/lineage';
 import { redactReportRecords } from './analytics/common/reportAccess';
 import { analyticsRequestTenant } from './requestTenant';
 import { checkGeminiHealth, askGeminiAnalytics } from './gemini/client';
+import { AUTHORITATIVE_METRICS, METRIC_REGISTRY_VERSION } from '../contracts/metricRegistry';
 import fs from 'node:fs';
 import {
   getCliPerformance,
@@ -96,6 +97,22 @@ analyticsRouter.get('/health', asyncRoute(async (_req, res) => {
 analyticsRouter.get('/discovery', requireAdmin, asyncRoute(async (_req, res) => res.json({ success: true, data: await discoverData(getClientConfig(res.locals.scope.clientId)) })));
 analyticsRouter.get('/validation', requireAdmin, (_req, res) => res.json({ success: true, metadata: metadata(res, 'not_verified'), data: validationUnavailable() }));
 analyticsRouter.get('/parameter-coverage', requireAdmin, asyncRoute(async (_req, res) => res.json({success:true,data:await parameterCoverage(res.locals.scope.clientId)})));
+analyticsRouter.get('/metrics/registry', cacheResponse(120), asyncRoute(async (_req, res) => {
+  res.json({
+    success: true,
+    version: METRIC_REGISTRY_VERSION,
+    totalMetrics: Object.keys(AUTHORITATIVE_METRICS).length,
+    data: AUTHORITATIVE_METRICS,
+  });
+}));
+analyticsRouter.get('/metrics/authoritative', cacheResponse(120), asyncRoute(async (_req, res) => {
+  res.json({
+    success: true,
+    version: METRIC_REGISTRY_VERSION,
+    totalMetrics: Object.keys(AUTHORITATIVE_METRICS).length,
+    data: AUTHORITATIVE_METRICS,
+  });
+}));
 analyticsRouter.use(createVettingRouter());
 analyticsRouter.use(createSourceRouter());
 const reports: [string[], (scope: QueryScope) => Promise<unknown>, boolean][] = [

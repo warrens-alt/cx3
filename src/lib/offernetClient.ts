@@ -1108,4 +1108,16 @@ export async function clearCliImport(clientId: string): Promise<{ success: boole
 
 export { fetchOffershopFlow, fetchOffershopStage, simulateOffershopRule, fetchContactDispositions } from './offernet/client';
 export type { ContactDispositionsData } from '../../contracts/vendorDispositions';
+export type { AuthoritativeMetricDefinition } from '../../contracts/metricRegistry';
+
+export async function fetchAuthoritativeMetrics(
+  forceRefresh = false,
+  signal?: AbortSignal
+): Promise<{ success: boolean; version: string; totalMetrics: number; data: Record<string, import('../../contracts/metricRegistry').AuthoritativeMetricDefinition> }> {
+  return fetchOffernetJson<{ success: boolean; version: string; totalMetrics: number; data: Record<string, import('../../contracts/metricRegistry').AuthoritativeMetricDefinition> }>(
+    '/api/analytics/metrics/registry',
+    forceRefresh,
+    signal
+  );
+}
 
