@@ -9,9 +9,9 @@
   },
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --packages=external --format=cjs --outfile=dist/server.cjs && node scripts/build.mjs",
+    "build": "node scripts/build.mjs",
     "gcp-build": "npm run build",
-    "start": "node server.ts",
+    "start": "node dist/server/server.mjs",
     "clean": "rm -rf dist build",
     "lint": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts tests/analytics/*.test.ts",
