@@ -33,8 +33,19 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --ignore-scripts --no-audit
 
-      - name: Verify types, contracts, tests and production build
-        run: npm run verify
+      # Keep the same order and fail-fast behavior as npm run verify, while
+      # exposing the failing stage even when the full job log is unavailable.
+      - name: Verify TypeScript types
+        run: npm run lint
+
+      - name: Verify contracts and regression tests
+        run: npm test
+
+      - name: Verify surface inventory
+        run: npm run docs:surfaces:check
+
+      - name: Build production application
+        run: npm run build
 
       - name: Set up Java for Firestore rules tests
         uses: actions/setup-java@v4
