@@ -5,6 +5,7 @@ import { safeWarehouseColumn } from '../common/warehouse';
 import { buildFilterClause } from '../common/scope';
 import { marketingTenantFilter } from '../common/marketing';
 import { safeSourceError } from '../../bigquery/sourceAccess';
+import { activationSourceIsOwned } from '../../bigquery/sourceTenantScope';
 import { getBlcLifecycleDiagnostics, blcLifecycleSourceCards } from '../../blc/lifecycleDiagnostics';
 import type { LifecycleSourceCard } from '../../../contracts/blcLifecycle';
 import { validTimestampSql } from '../../bigquery/integrity';
@@ -148,8 +149,16 @@ export async function getSourceObservability(params: Pick<OffernetQueryParams, '
     );
   }
 
-  // Source and lifecycle cards share one metadata check and aggregate read.
-  const activationCards = blcLifecycleSourceCards(await getBlcLifecycleDiagnostics(params.clientId));
+  // Configuration alone does not establish ownership. Do not inspect an unowned
+  // activation source or expose its identifier, and retain the actionable status.
+  // Approved source and lifecycle cards still share one metadata check and read.
+  const activationCards: LifecycleSourceCard[] = !activationSourceIsOwned(clientConfig.id) && clientConfig.semanticMappings.tables.activations
+    ? [{
+      key: 'activations', label: 'Activation source', status: 'MAPPING_REQUIRED', table: null,
+      latestRecordAt: null, ageHours: null, rowCount: null,
+      detail: 'Approved activation-source ownership mapping is required for this tenant before it can inspect the configured source.',
+    }]
+    : blcLifecycleSourceCards(await getBlcLifecycleDiagnostics(params.clientId));
   sources.push(activationCards[0]);
 
   sources.push({
