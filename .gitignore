@@ -14,3 +14,8 @@ coverage/
 .wrangler/
 .dev.vars*
 wrangler.cloudflare.local.jsonc
+
+# npm/package-lock.json is the deployment and CI dependency source of truth.
+# A root Bun lockfile makes Cloudflare auto-select a different installer.
+/bun.lock
+/bun.lockb
