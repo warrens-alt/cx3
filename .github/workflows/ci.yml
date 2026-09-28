@@ -33,32 +33,34 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --ignore-scripts --no-audit
 
-      # Keep the same order and fail-fast behavior as npm run verify, while
-      # exposing the failing stage even when the full job log is unavailable.
+      # Keep the verify chain in the same fail-fast order, but expose each
+      # stage independently and retain evidence when job-log access fails.
       - name: Verify TypeScript types
         run: npm run lint
 
       - name: Verify contracts and regression tests
-        id: regression
         shell: bash
         run: |
           set -o pipefail
           npm test 2>&1 | tee "$RUNNER_TEMP/cx-test-output.log"
 
-      - name: Preserve failed regression output
-        if: ${{ failure() && steps.regression.outcome == 'failure' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: regression-output-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/cx-test-output.log
-          retention-days: 7
-          if-no-files-found: error
-
       - name: Verify surface inventory
-        run: npm run docs:surfaces:check
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run docs:surfaces:check 2>&1 | tee "$RUNNER_TEMP/cx-surfaces-output.log"
 
       - name: Build production application
-        run: npm run build
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee "$RUNNER_TEMP/cx-build-output.log"
+
+      - name: Verify compiled production servers over HTTP
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/smoke-production.mjs 2>&1 | tee "$RUNNER_TEMP/cx-runtime-output.log"
 
       - name: Set up Java for Firestore rules tests
         uses: actions/setup-java@v4
@@ -67,7 +69,22 @@ jobs:
           java-version: '21'
 
       - name: Verify Firestore access lifecycle in the local emulator
-        run: npm run test:rules
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:rules 2>&1 | tee "$RUNNER_TEMP/cx-rules-output.log"
 
       - name: Audit production dependency graph
-        run: npm audit --audit-level=high
+        shell: bash
+        run: |
+          set -o pipefail
+          npm audit --audit-level=high 2>&1 | tee "$RUNNER_TEMP/cx-audit-output.log"
+
+      - name: Preserve verification output
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-output-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/cx-*-output.log
+          retention-days: 7
+          if-no-files-found: warn
