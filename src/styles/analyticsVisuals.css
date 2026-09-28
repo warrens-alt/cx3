@@ -10,8 +10,10 @@
   padding:20px;
   min-width:0;
   overflow:hidden;
-  border:1px solid #DFE6EE;
-  box-shadow:0 1px 2px rgba(15,23,42,.035);
+  background: var(--cx-surface);
+  border:1px solid var(--cx-border);
+  border-radius: var(--cx-radius-card);
+  box-shadow: var(--cx-shadow-card);
 }
 .cx-analytics-tooltip {
   min-width:180px;
@@ -57,7 +59,7 @@
 .cx-chart-toolbar-copy p { overflow-wrap:anywhere; }
 .cx-chart-toolbar-actions { flex-shrink:0; }
 .cx-analytics-card .recharts-wrapper,
-.cx-analytics-card .recharts-surface { max-width:100%; }
+.cx-analytics-card .recharts-surface { overflow: visible; }
 .cx-analytics-card .recharts-legend-wrapper { line-height:1.45; }
 .cx-chart-clickable { cursor:pointer; }
 .cx-chart-clickable:focus { outline:none; }

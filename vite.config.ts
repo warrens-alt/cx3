@@ -25,9 +25,27 @@ export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss(), previewApiPlugin()],
     resolve: {
+      dedupe: ['react', 'react-dom', 'react-router', 'react-router-dom'],
       alias: {
         '@': path.resolve(__dirname, '.'),
+        'react': path.resolve(__dirname, 'node_modules/react'),
+        'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
       },
+    },
+    optimizeDeps: {
+      include: [
+        'react',
+        'react/jsx-runtime',
+        'react/jsx-dev-runtime',
+        'react-dom',
+        'react-dom/client',
+        'react-router',
+        'react-router-dom',
+        '@tanstack/react-query',
+        'react-error-boundary',
+        'recharts',
+        'lucide-react',
+      ],
     },
     build: {
       outDir: 'dist',

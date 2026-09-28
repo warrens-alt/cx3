@@ -80,7 +80,7 @@ export function DistributionBar({
         ) : (
           <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={50}>
             <BarChart data={safeData} margin={{ top: 20, right: 10, left: 0, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border, #f1f5f9)" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8EDF3" />
               <XAxis 
                 dataKey={bucketKey}
                 axisLine={false} 
@@ -95,7 +95,7 @@ export function DistributionBar({
                 tickFormatter={(val) => formatChartAxis(val)}
               />
               <RechartsTooltip content={<CustomTooltip />} />
-              <Bar dataKey={valueKey} radius={[4, 4, 0, 0]} isAnimationActive={false} maxBarSize={44}>
+              <Bar dataKey={valueKey} fill={color} radius={[4, 4, 0, 0]} isAnimationActive={false} maxBarSize={44}>
                 {safeData.map((_, index) => (
                   <Cell key={`cell-${index}`} fill={color} />
                 ))}

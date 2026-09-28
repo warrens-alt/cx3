@@ -91,7 +91,7 @@ export function HorizontalBarChart({
         ) : (
           <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={50}>
             <BarChart data={safeData} layout="vertical" margin={{ top: 4, right: 20, left: 0, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--cx-border, #f1f5f9)" />
+            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E8EDF3" />
             <XAxis 
               type="number"
               axisLine={false} 
@@ -108,7 +108,7 @@ export function HorizontalBarChart({
               width={140}
             />
             <RechartsTooltip content={<CustomTooltip />} />
-            <Bar dataKey={valueKey} radius={[0, 4, 4, 0]} barSize={20} isAnimationActive={false}>
+            <Bar dataKey={valueKey} fill={color} radius={[0, 4, 4, 0]} barSize={20} isAnimationActive={false}>
               {safeData.map((_, index) => (
                 <Cell key={`cell-${index}`} fill={color} />
               ))}

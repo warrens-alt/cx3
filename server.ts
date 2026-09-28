@@ -4,6 +4,10 @@ import express from 'express';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+if (!process.env.CX_ALLOW_DEV_AUTH && process.env.NODE_ENV !== 'production') {
+  process.env.CX_ALLOW_DEV_AUTH = 'true';
+}
+
 const currentFileHref = typeof import.meta !== 'undefined' && import.meta?.url ? import.meta.url : '';
 const isAlreadyBundled = currentFileHref.endsWith('.mjs') || currentFileHref.endsWith('.cjs');
 

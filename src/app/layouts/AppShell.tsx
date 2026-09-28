@@ -275,6 +275,9 @@ export default function AppShell({ children }: AppShellProps) {
               </select>
             </div>
 
+            {/* Quick 1-Click Theme Toggle */}
+            <ThemeToggle variant="compact" />
+
             {/* Display Preferences Popover (Density & Theme) */}
             <div className="relative inline-block" ref={preferencesRef}>
               <button

@@ -507,6 +507,73 @@ analyticsRouter.get('/warehouse/overview', cacheResponse(60), asyncRoute(async (
   res.json({ success: true, data });
 }));
 
+analyticsRouter.get('/warehouse/projects-and-tables', asyncRoute(async (_req, res) => {
+  const { VERIFIED_PROJECTS_AND_TABLES } = await import('./analytics/warehouse/warehousePull.ts');
+  res.json({ success: true, data: VERIFIED_PROJECTS_AND_TABLES });
+}));
+
+analyticsRouter.get('/warehouse/pull-data', asyncRoute(async (req, res) => {
+  const project = scalarString(req.query.project, 'project', 100) || 'vibe-code-warren-stear';
+  const dataset = scalarString(req.query.dataset, 'dataset', 100) || 'analytics_warehouse';
+  const table = scalarString(req.query.table, 'table', 100) || 'ontact_raw_data';
+  const limit = boundedInteger(req.query.limit, 50, 500, 1);
+  const offset = boundedInteger(req.query.offset, 0, 100000, 0);
+  const syncToCloudSql = req.query.syncToCloudSql === 'true';
+
+  const { pullWarehouseTableData } = await import('./analytics/warehouse/warehousePull.ts');
+  const result = await pullWarehouseTableData({
+    project,
+    dataset,
+    table,
+    limit,
+    offset,
+    syncToCloudSql,
+    syncedBy: res.locals.principal?.email || 'api-pull',
+  });
+  res.json({ success: true, data: result });
+}));
+
+analyticsRouter.post('/warehouse/pull-data', asyncRoute(async (req, res) => {
+  const body = req.body || {};
+  const project = scalarString(body.project, 'project', 100) || 'vibe-code-warren-stear';
+  const dataset = scalarString(body.dataset, 'dataset', 100) || 'analytics_warehouse';
+  const table = scalarString(body.table, 'table', 100) || 'ontact_raw_data';
+  const limit = boundedInteger(body.limit, 50, 500, 1);
+  const offset = boundedInteger(body.offset, 0, 100000, 0);
+  const syncToCloudSql = Boolean(body.syncToCloudSql);
+
+  const { pullWarehouseTableData } = await import('./analytics/warehouse/warehousePull.ts');
+  const result = await pullWarehouseTableData({
+    project,
+    dataset,
+    table,
+    limit,
+    offset,
+    syncToCloudSql,
+    syncedBy: res.locals.principal?.email || 'api-pull',
+  });
+  res.json({ success: true, data: result });
+}));
+
+analyticsRouter.get('/cloudsql/synced-records', asyncRoute(async (req, res) => {
+  const project = scalarString(req.query.project, 'project', 100);
+  const dataset = scalarString(req.query.dataset, 'dataset', 100);
+  const tableName = scalarString(req.query.tableName || req.query.table, 'table', 100);
+  const limit = boundedInteger(req.query.limit, 50, 500, 1);
+  const offset = boundedInteger(req.query.offset, 0, 100000, 0);
+
+  const { getSyncedRecords } = await import('../src/db/warehouseSync.ts');
+  const records = await getSyncedRecords({
+    project,
+    dataset,
+    tableName,
+    limit,
+    offset,
+  });
+  res.json({ success: true, data: records, count: records.length });
+}));
+
+
 analyticsRouter.get('/warehouse/tables', cacheResponse(60), asyncRoute(async (req, res) => {
   const query = scalarString(req.query.search, 'search', 100);
   const dataset = scalarString(req.query.dataset, 'dataset', 100);

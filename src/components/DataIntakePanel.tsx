@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Database, Play, AlertCircle, CheckCircle, Shield, Lock, Activity,
   XCircle, Clock, RefreshCw, BarChart2, Check, AlertTriangle, Layers
@@ -156,6 +157,15 @@ export const DataIntakePanel: React.FC<DataIntakePanelProps> = ({ clientId, isAd
           <p className="text-xs text-slate-600 mt-0.5">
             Bounded profiling, schema discovery, dependency health, and typed mappings for 65 warehouse objects.
           </p>
+          <div className="mt-2">
+            <Link
+              to="/warehouse"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-blue-200 bg-blue-50/70 text-blue-700 text-[11px] font-medium hover:bg-blue-100 transition-colors shadow-2xs"
+            >
+              <Play size={10} />
+              <span>Open Cloud Warehouse &amp; Live Data Puller →</span>
+            </Link>
+          </div>
         </div>
         <div className="flex flex-wrap rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs">
           <button
@@ -404,10 +414,19 @@ export const DataIntakePanel: React.FC<DataIntakePanelProps> = ({ clientId, isAd
                 className="text-xs font-mono bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               >
                 <option value="vibe-code-warren-stear.analytics_warehouse.ontact_raw_data">
-                  vibe-code-warren-stear.analytics_warehouse.ontact_raw_data (JSON)
+                  vibe-code-warren-stear.analytics_warehouse.ontact_raw_data (JSON - 39k)
                 </option>
                 <option value="vibe-code-warren-stear.analytics_warehouse.onvest_raw_data">
-                  vibe-code-warren-stear.analytics_warehouse.onvest_raw_data (JSON)
+                  vibe-code-warren-stear.analytics_warehouse.onvest_raw_data (JSON - 1.5k)
+                </option>
+                <option value="dashboards-422710.vibe_coding_data.tbl_vibe_code_warren_stear_ontact_analytics_api">
+                  dashboards-422710.vibe_coding_data.tbl_vibe_code_warren_stear_ontact_analytics_api (TABLE - 71k)
+                </option>
+                <option value="dashboards-422710.vibe_coding_data.tbl_offershop_lead_ledger">
+                  dashboards-422710.vibe_coding_data.tbl_offershop_lead_ledger (TABLE - 62k)
+                </option>
+                <option value="dashboards-422710.vibe_coding_data.tbl_vibe_code_warren_stear_ontact_ofline_data">
+                  dashboards-422710.vibe_coding_data.tbl_vibe_code_warren_stear_ontact_ofline_data (TABLE - 3.9k)
                 </option>
               </select>
             </div>

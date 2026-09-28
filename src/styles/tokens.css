@@ -112,6 +112,7 @@
 :root[data-theme="dark"] {
   /* Canvas & Surfaces (Dark) */
   --cx-canvas: #090E1A;
+  --cx-bg: #090E1A;
   --cx-surface: #101828;
   --cx-surface-subtle: #162035;
   --cx-surface-elevated: #18233C;
@@ -119,23 +120,56 @@
 
   /* Typography & Ink (Dark) */
   --cx-ink: #F8FAFC;
+  --cx-text: #F8FAFC;
   --cx-text-secondary: #94A3B8;
   --cx-text-muted: #64748B;
   --cx-text-disabled: #475569;
+
+  /* Action & Focus (Dark) */
+  --cx-action: #3B82F6;
+  --cx-action-hover: #60A5FA;
+  --cx-selected-bg: rgba(59, 130, 246, 0.14);
+  --cx-focus: #3B82F6;
 
   /* Brand Blue (Dark) */
   --cx-brand-primary: #3B82F6;
   --cx-brand-hover: #60A5FA;
   --cx-brand-soft: rgba(59, 130, 246, 0.14);
   --cx-brand-soft-hover: rgba(59, 130, 246, 0.24);
+  --cx-primary: #3B82F6;
+  --cx-primary-hover: #60A5FA;
+  --cx-primary-soft: rgba(59, 130, 246, 0.14);
+  --cx-primary-soft-hover: rgba(59, 130, 246, 0.24);
 
   /* Quantitative Semantics (Dark) */
   --cx-favourable: #10B981;
   --cx-favourable-bg: rgba(16, 185, 129, 0.14);
+  --cx-positive: #10B981;
+  --cx-positive-bg: rgba(16, 185, 129, 0.14);
   --cx-unfavourable: #F43F5E;
   --cx-unfavourable-bg: rgba(244, 63, 94, 0.14);
+  --cx-negative: #F43F5E;
+  --cx-negative-bg: rgba(244, 63, 94, 0.14);
+  --cx-critical: #F43F5E;
+  --cx-critical-bg: rgba(244, 63, 94, 0.14);
   --cx-warning: #F59E0B;
   --cx-warning-bg: rgba(245, 158, 11, 0.14);
+  --cx-neutral: #94A3B8;
+  --cx-neutral-bg: rgba(148, 163, 184, 0.12);
+
+  /* Semantic Status Tokens (Dark) */
+  --cx-status-favorable-bg: rgba(16, 185, 129, 0.14);
+  --cx-status-favorable-text: #34D399;
+  --cx-status-favorable-border: #065F46;
+  --cx-status-unfavorable-bg: rgba(244, 63, 94, 0.14);
+  --cx-status-unfavorable-text: #FB7185;
+  --cx-status-unfavorable-border: #881337;
+  --cx-status-warning-bg: rgba(245, 158, 11, 0.14);
+  --cx-status-warning-text: #FBBF24;
+  --cx-status-warning-border: #78350F;
+  --cx-status-neutral-bg: rgba(100, 116, 139, 0.14);
+  --cx-status-neutral-text: #94A3B8;
+  --cx-status-neutral-border: #334155;
 
   /* Same category identities with sufficient contrast on dark chart surfaces. */
   --cx-data-fetched: #93A4EC;
@@ -146,15 +180,22 @@
   --cx-data-activation: #B7C4D7;
 
   /* Hairlines & Boundaries (Dark) */
+  --cx-border: #1E2B45;
   --cx-border-subtle: #1E2B45;
   --cx-border-default: #2D3D5E;
   --cx-border-strong: #3E517A;
+  --cx-control-border: #3E517A;
   --cx-border-focus: #3B82F6;
+  --cx-line: #1E2B45;
+  --cx-muted: #64748B;
+  --cx-accent: #3B82F6;
 
   /* Elevation (Dark) */
   --cx-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.45);
   --cx-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
   --cx-shadow-drawer: -4px 0 24px -4px rgba(0, 0, 0, 0.6);
+  --cx-shadow-card: var(--cx-shadow-sm);
+  --cx-shadow-elevated: var(--cx-shadow-md);
 }
 
 /* Existing JSX uses these utilities; --cx-* alone does not register them with

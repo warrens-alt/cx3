@@ -3,7 +3,7 @@ import { useOperationalData } from '../lib/useOperationalData';
 import {
   AlertTriangle,
   ShieldCheck,
-  Sparkles,
+  Lightbulb,
   Send,
   MessageSquare,
   Cpu,
@@ -15,7 +15,6 @@ import {
   Filter,
   BarChart3,
   HelpCircle,
-  Lightbulb,
 } from 'lucide-react';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
@@ -91,7 +90,7 @@ export default function AiOperationalInsights() {
           <div>
             <div className="flex items-center gap-2 mb-1 text-xs">
               <span className="cx-command-eyebrow flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-semibold">
-                <Sparkles size={14} className="text-blue-500 animate-pulse" />
+                <Cpu size={14} className="text-blue-600 dark:text-blue-400" />
                 Google Cloud AI · Operational Synthesis
               </span>
               <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">·</span>
@@ -116,10 +115,7 @@ export default function AiOperationalInsights() {
             <div className="text-left">
               <div className="text-[10.5px] font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                 <span>Google Gemini Engine</span>
-                <span className="relative flex h-2 w-2" title="Operational">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                </span>
+                <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" title="Operational" />
               </div>
               <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
                 {data?.model || 'gemini-3.8-flash'} · Server-Side
@@ -156,7 +152,7 @@ export default function AiOperationalInsights() {
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2.5">
                   <div className="w-7 h-7 rounded-md bg-blue-50 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                    <Sparkles size={16} />
+                    <Lightbulb size={16} />
                   </div>
                   <div>
                     <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
@@ -287,7 +283,7 @@ export default function AiOperationalInsights() {
                 <div className="p-4 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/40 dark:bg-blue-950/20 space-y-3 animate-in fade-in duration-200">
                   <div className="flex items-center justify-between text-xs font-semibold text-blue-950 dark:text-blue-200">
                     <div className="flex items-center gap-2">
-                      <Sparkles size={14} className="text-blue-600 dark:text-blue-400" />
+                      <Lightbulb size={14} className="text-blue-600 dark:text-blue-400" />
                       <span>Gemini Synthesis Response</span>
                     </div>
                     <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">

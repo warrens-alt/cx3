@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Database,
   Layers,
@@ -15,6 +16,8 @@ import {
   GitFork,
   Radio,
   FileSpreadsheet,
+  Play,
+  HardDrive,
 } from 'lucide-react';
 import { useClient } from '../lib/ClientContext';
 import {
@@ -25,23 +28,47 @@ import {
 } from '../lib/warehouseClient';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import BuildWarehouseExportModal from '../components/warehouse/BuildWarehouseExportModal';
+import WarehouseDataPuller from '../components/warehouse/WarehouseDataPuller';
 import { HorizontalBarChart } from '../components/charts/HorizontalBarChart';
 import { MetricCompositionDonut } from '../components/charts/MetricCompositionDonut';
 import { FunnelWaterfall } from '../components/charts/FunnelWaterfall';
 import { ComboChart } from '../components/charts/ComboChart';
 import { DistributionBar } from '../components/charts/DistributionBar';
 
-type ActiveTab = 'overview' | 'waterfall' | 'touchpoints' | 'telemetry' | 'tables';
+type ActiveTab = 'overview' | 'pull' | 'waterfall' | 'touchpoints' | 'telemetry' | 'tables';
 
 export default function WarehouseAnalytics() {
   const { selectedClient } = useClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTabParam = searchParams.get('tab') as ActiveTab | null;
+  const validTabs: ActiveTab[] = ['overview', 'pull', 'waterfall', 'touchpoints', 'telemetry', 'tables'];
+  const [activeTab, setActiveTab] = useState<ActiveTab>(
+    initialTabParam && validTabs.includes(initialTabParam) ? initialTabParam : 'overview'
+  );
+
   const [data, setData] = useState<WarehouseAnalyticsOverview | null>(null);
   const [tables, setTables] = useState<DictionaryObject[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
+  const [pullTarget, setPullTarget] = useState<{ project?: string; dataset?: string; table?: string }>({
+    project: searchParams.get('project') || undefined,
+    dataset: searchParams.get('dataset') || undefined,
+    table: searchParams.get('table') || undefined,
+  });
+
+  // Sync tab changes with URL search params
+  const handleTabChange = (newTab: ActiveTab) => {
+    setActiveTab(newTab);
+    const updated = new URLSearchParams(searchParams);
+    if (newTab === 'overview') {
+      updated.delete('tab');
+    } else {
+      updated.set('tab', newTab);
+    }
+    setSearchParams(updated, { replace: true });
+  };
 
   // Search & Filters for tables tab
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -112,21 +139,34 @@ export default function WarehouseAnalytics() {
 
   // Funnel Waterfall steps for Waterfall tab
   const waterfallFunnelSteps = useMemo(() => {
-    if (!data?.waterfallSummary?.timelines) return [];
-    const totalVolume = data.waterfallSummary.timelines.reduce((acc, t) => acc + t.estimatedVolume, 0) || 42500;
+    if (!data?.waterfallSummary?.timelines || data.waterfallSummary.timelines.length === 0) return [];
+
+    // Check if measured ONvest touchpoints telemetry is available
+    const onvest = data.rawTelemetrySummary?.onvestTouchpoints;
+    if (onvest && onvest.fetchedLeadsTotal > 0) {
+      return [
+        { label: 'Inbound Leads Ingested', value: onvest.fetchedLeadsTotal, metric: 'Raw Inbound Rows' },
+        { label: 'Valid Phone Verified', value: onvest.validPhoneIdTotal, metric: 'Contact Verification', dropoff: Math.max(0, onvest.fetchedLeadsTotal - onvest.validPhoneIdTotal) },
+        { label: 'Schema Qualified Gate', value: onvest.qualifiedLeadsTotal, metric: 'Eligibility Gate', dropoff: Math.max(0, onvest.validPhoneIdTotal - onvest.qualifiedLeadsTotal) },
+        { label: 'Accepted Conversion', value: onvest.acceptedLeadsTotal, metric: 'Client Delivery', isTerminal: true, dropoff: Math.max(0, onvest.qualifiedLeadsTotal - onvest.acceptedLeadsTotal) },
+      ];
+    }
+
+    const totalVolume = data.waterfallSummary.timelines.reduce((acc, t) => acc + t.estimatedVolume, 0);
+    const retentionRate = (data.waterfallSummary.averageStageRetentionPct || 65) / 100;
+    const finalConversionRate = (data.waterfallSummary.timelines[0]?.conversionRateEstimatePct || 35) / 100;
+
     const s1 = totalVolume;
-    const s2 = Math.round(s1 * 0.90);
-    const s3 = Math.round(s2 * 0.65);
-    const s4 = Math.round(s3 * 0.57);
-    const s5 = Math.round(s4 * 0.40);
+    const s2 = Math.round(s1 * retentionRate);
+    const s3 = Math.round(s2 * retentionRate);
+    const s4 = Math.round(s1 * finalConversionRate);
     return [
       { label: 'Inbound Leads Ingested', value: s1, metric: 'Inbound Volume' },
-      { label: 'Schema Validated', value: s2, metric: 'Schema Integrity', dropoff: s1 - s2 },
-      { label: 'Disposition Captured', value: s3, metric: 'Dialler / Contact', dropoff: s2 - s3 },
-      { label: 'Handover Ready', value: s4, metric: 'Qualified Gate', dropoff: s3 - s4 },
-      { label: 'Client Dispatched', value: s5, metric: 'Completed Conversion', isTerminal: true, dropoff: s4 - s5 },
+      { label: 'Stage Retention Gate', value: s2, metric: `${(retentionRate * 100).toFixed(0)}% Retention`, dropoff: Math.max(0, s1 - s2) },
+      { label: 'Qualified Delivery', value: s3, metric: 'Active Pipeline', dropoff: Math.max(0, s2 - s3) },
+      { label: 'Completed Conversion', value: s4, metric: `${(finalConversionRate * 100).toFixed(1)}% Conversion`, isTerminal: true, dropoff: Math.max(0, s3 - s4) },
     ];
-  }, [data?.waterfallSummary]);
+  }, [data?.waterfallSummary, data?.rawTelemetrySummary]);
 
   // Touchpoint Combo chart data for Touchpoints tab
   const touchpointChartData = useMemo(() => {
@@ -301,6 +341,7 @@ export default function WarehouseAnalytics() {
         <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 pb-px overflow-x-auto">
           {[
             { id: 'overview', label: 'Multi-Project Overview', icon: Layers },
+            { id: 'pull', label: 'Pull Live Data (Google Cloud API)', icon: Play },
             { id: 'waterfall', label: 'Waterfall Timelines (18)', icon: GitFork },
             { id: 'touchpoints', label: 'Touchpoints & Media Feeds (10)', icon: Megaphone },
             { id: 'telemetry', label: 'Raw Event Telemetry (2)', icon: Radio },
@@ -312,7 +353,7 @@ export default function WarehouseAnalytics() {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id as ActiveTab)}
+                onClick={() => handleTabChange(tab.id as ActiveTab)}
                 className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors ${
                   isActive
                     ? 'border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400'
@@ -325,6 +366,15 @@ export default function WarehouseAnalytics() {
             );
           })}
         </div>
+
+        {/* Tab: Pull Live Data */}
+        {activeTab === 'pull' && (
+          <WarehouseDataPuller
+            initialProject={pullTarget.project}
+            initialDataset={pullTarget.dataset}
+            initialTable={pullTarget.table}
+          />
+        )}
 
         {/* Tab 1: Overview */}
         {activeTab === 'overview' && data && (
@@ -852,7 +902,18 @@ export default function WarehouseAnalytics() {
                       <td className="py-2.5 px-3 text-slate-500 max-w-xs truncate" title={t.analyticalGrain}>
                         {t.analyticalGrain}
                       </td>
-                      <td className="py-2.5 px-3 text-center">
+                      <td className="py-2.5 px-3 text-center space-x-1.5 whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPullTarget({ project: t.project, dataset: t.dataset, table: t.tableName });
+                            handleTabChange('pull');
+                          }}
+                          className="px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-medium transition-colors inline-flex items-center gap-1 shadow-2xs"
+                        >
+                          <Play size={10} />
+                          <span>Pull Data</span>
+                        </button>
                         <button
                           type="button"
                           onClick={() => setSelectedTable(t)}
@@ -892,13 +953,27 @@ export default function WarehouseAnalytics() {
                     {selectedTable.tableName}
                   </h3>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedTable(null)}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                >
-                  Close
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPullTarget({ project: selectedTable.project, dataset: selectedTable.dataset, table: selectedTable.tableName });
+                      setSelectedTable(null);
+                      handleTabChange('pull');
+                    }}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors inline-flex items-center gap-1 shadow-2xs"
+                  >
+                    <Play size={12} />
+                    <span>Pull Live Data</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTable(null)}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
 
               <div className="p-5 overflow-y-auto space-y-4 text-xs">

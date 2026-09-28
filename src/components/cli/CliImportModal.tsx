@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Upload, X, CheckCircle2, FileSpreadsheet, Sparkles, Database, History } from 'lucide-react';
+import { Upload, X, CheckCircle2, FileSpreadsheet, FileText, Database, History } from 'lucide-react';
 import { useDialogAccessibility } from '../../hooks/useDialogAccessibility';
 import { useClient } from '../../lib/ClientContext';
 
@@ -122,7 +122,7 @@ export const CliImportModal: React.FC<CliImportModalProps> = ({
         </section> : null}
         {(import.meta as any).env?.DEV === true && status?.configured === false ? <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 flex items-center justify-between gap-3">
           <div><strong className="text-xs text-slate-900">Synthetic development dataset</strong><p className="text-[11px] text-slate-500">Never written to the private archive or treated as production evidence.</p></div>
-          <button type="button" onClick={onLoadSample} disabled={uploading} className="cx-button-secondary text-xs py-1.5 px-3 whitespace-nowrap flex items-center gap-1.5"><Sparkles size={13} /><span>Load sample</span></button>
+          <button type="button" onClick={onLoadSample} disabled={uploading} className="cx-button-secondary text-xs py-1.5 px-3 whitespace-nowrap flex items-center gap-1.5"><FileText size={13} /><span>Load sample</span></button>
         </div> : null}
         <div className="flex justify-end pt-2"><button type="button" onClick={onClose} className="cx-button-secondary text-xs py-1.5 px-4">Close</button></div>
       </div>

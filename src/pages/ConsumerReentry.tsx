@@ -251,9 +251,9 @@ export default function ConsumerReentry() {
                       }}
                     />
                     <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                    <Bar dataKey="consumer_count" name="Consumers" fill="var(--cx-brand-primary, #315BCB)" radius={[3, 3, 0, 0]} />
-                    <Bar dataKey="total_leads" name="Total Leads" fill="var(--cx-data-fetched, #4F5FB7)" radius={[3, 3, 0, 0]} />
-                    <Bar dataKey="consumers_with_sale" name="Consumers with Sale" fill="var(--cx-data-sales, #426D80)" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="consumer_count" name="Consumers" fill="#315BCB" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                    <Bar dataKey="total_leads" name="Total Leads" fill="#4F5FB7" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                    <Bar dataKey="consumers_with_sale" name="Consumers with Sale" fill="#426D80" radius={[3, 3, 0, 0]} isAnimationActive={false} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -517,8 +517,8 @@ export default function ConsumerReentry() {
                       }}
                     />
                     <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                    <Bar dataKey="total_revenue" name="Recorded Revenue" fill="var(--cx-favourable, #17744A)" radius={[3, 3, 0, 0]} />
-                    <Bar dataKey="lead_count" name="Recorded Leads" fill="var(--cx-data-fetched, #4F5FB7)" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="total_revenue" name="Recorded Revenue" fill="#17744A" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                    <Bar dataKey="lead_count" name="Recorded Leads" fill="#4F5FB7" radius={[3, 3, 0, 0]} isAnimationActive={false} />
                   </BarChart>
                 </ResponsiveContainer>
               )}

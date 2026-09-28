@@ -119,7 +119,7 @@ export const CliChartsSection: React.FC<CliChartsSectionProps> = ({
                     );
                   }}
                 />
-                <Bar dataKey="value" fill="#315BCB" radius={[0, 4, 4, 0]}>
+                <Bar dataKey="value" fill="#315BCB" radius={[0, 4, 4, 0]} isAnimationActive={false}>
                   {rankingChartData.map((_entry, index) => (
                     <Cell key={`cell-${index}`} fill={index === 0 ? '#1E3A8A' : index < 3 ? '#2563EB' : '#3B82F6'} />
                   ))}
@@ -247,8 +247,8 @@ export const CliChartsSection: React.FC<CliChartsSectionProps> = ({
                     );
                   }}
                 />
-                <Bar dataKey="contactRatePct" name="RPC Rate %" fill="#315BCB" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="salePerCallRatePct" name="Sale / Call Rate %" fill="#059669" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="contactRatePct" name="RPC Rate %" fill="#315BCB" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="salePerCallRatePct" name="Sale / Call Rate %" fill="#059669" radius={[4, 4, 0, 0]} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -327,6 +327,7 @@ export const CliChartsSection: React.FC<CliChartsSectionProps> = ({
                   fillOpacity={1}
                   fill="url(#cliTrendColor)"
                   connectNulls={true}
+                  isAnimationActive={false}
                 />
               </AreaChart>
             </ResponsiveContainer>

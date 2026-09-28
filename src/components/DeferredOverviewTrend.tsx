@@ -9,7 +9,7 @@ const OverviewTrendChart = lazy(() => import('./OverviewTrendChart'));
 
 export default function DeferredOverviewTrend({ data }: { data: OverviewData['dailyTrends'] }) {
   const container = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(true);
   useEffect(() => {
     if (!container.current || visible || !data.length) return;
     if (!('IntersectionObserver' in window)) { setVisible(true); return; }

@@ -136,10 +136,10 @@ function Scorecard({title,rows,report}:{title:string;rows:VettingGroup[];report:
                   }}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                <Bar dataKey="leads" name="Included Leads" fill="var(--cx-data-fetched, #4F5FB7)" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="delivered" name="Delivered" fill="var(--cx-data-delivered, #0E7490)" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="called" name="Dialled" fill="var(--cx-data-dialled, #7153A3)" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="sales" name="Sales" fill="var(--cx-data-sales, #426D80)" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="leads" name="Included Leads" fill="#4F5FB7" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="delivered" name="Delivered" fill="#0E7490" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="called" name="Dialled" fill="#7153A3" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="sales" name="Sales" fill="#426D80" radius={[3, 3, 0, 0]} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           )}

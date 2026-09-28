@@ -97,7 +97,7 @@ export function DiminishingReturnsChart({
         ) : (
           <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={50}>
             <ComposedChart data={safeData} margin={{ top: 20, right: 25, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border, #f1f5f9)" />
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8EDF3" />
             
             <XAxis 
               dataKey="bucket" 

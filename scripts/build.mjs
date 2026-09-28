@@ -79,10 +79,21 @@ for (const filename of ['server.mjs', 'server.cjs']) {
     throw new Error(`[build] Empty server bundle: ${filename}`);
   }
 }
+console.log('[build] Compiling warehouse export artifacts...');
+const tsxBin = path.join(rootDir, 'node_modules', 'tsx', 'dist', 'cli.mjs');
+if (fs.existsSync(tsxBin)) {
+  execFileSync(process.execPath, [tsxBin, path.join(rootDir, 'scripts', 'build-warehouse-export.ts')], { cwd: rootDir, stdio: 'inherit' });
+}
+
 console.log('[build] Verification passed:');
 console.log(` - dist/index.html (${htmlSize} bytes)`);
 console.log(` - dist/assets/ (${assetCount} assets)`);
 console.log(' - dist/client/ and build/ (populated with index.html and assets)');
 console.log(' - dist/server/server.mjs and dist/server/server.cjs');
 console.log(' - dist/server.mjs and dist/server.cjs (compatibility copies)');
+const whDir = path.join(distDir, 'warehouse-export');
+if (fs.existsSync(whDir)) {
+  const whFiles = fs.readdirSync(whDir);
+  console.log(` - dist/warehouse-export/ (${whFiles.length} artifacts generated)`);
+}
 console.log('[build] Build completed successfully with valid non-empty artifacts.');

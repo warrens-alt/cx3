@@ -115,6 +115,7 @@ export function ComboChart({
                 yAxisId="left" 
                 dataKey={barKey} 
                 name={barName || barKey} 
+                fill={barColor}
                 radius={[4, 4, 0, 0]} 
                 isAnimationActive={false}
                 maxBarSize={48}

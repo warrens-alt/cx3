@@ -250,7 +250,7 @@ export default function SalesSegmentComparison({
                   yAxisId="volume"
                   dataKey="sales"
                   name="Recorded sales"
-                  fill="var(--cx-data-sales, #426D80)"
+                  fill="#426D80"
                   radius={[3, 3, 0, 0]}
                   maxBarSize={32}
                   isAnimationActive={false}
@@ -259,7 +259,7 @@ export default function SalesSegmentComparison({
                   yAxisId="volume"
                   dataKey="activations"
                   name="Recorded activations"
-                  fill="var(--cx-data-activation, #566273)"
+                  fill="#566273"
                   radius={[3, 3, 0, 0]}
                   maxBarSize={32}
                   isAnimationActive={false}
@@ -269,7 +269,7 @@ export default function SalesSegmentComparison({
                   type="monotone"
                   dataKey="activationRatio"
                   name="Activation / sale ratio (%)"
-                  stroke="var(--cx-action, #315BCB)"
+                  stroke="#315BCB"
                   strokeWidth={2}
                   dot={{ r: 3, fill: '#fff', strokeWidth: 2 }}
                   connectNulls={true}

@@ -73,16 +73,30 @@
 /* Global Recharts Container Resiliency */
 .recharts-responsive-container {
   min-width: 0 !important;
-  min-height: 0 !important;
   width: 100% !important;
+  height: 100% !important;
 }
 
 .recharts-wrapper {
-  max-width: 100% !important;
+  overflow: visible;
 }
 
 .recharts-surface {
   overflow: visible;
+}
+
+/* Ensure bars, lines, curves, areas, and dots are always visible and crisply rendered */
+.recharts-bar-rectangle path,
+.recharts-bar-rectangle rect,
+.recharts-rectangle,
+.recharts-curve,
+.recharts-line-curve,
+.recharts-area-area,
+.recharts-area-curve,
+.recharts-dot,
+.recharts-line-dot {
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 /* Default Recharts Tooltip styling for light and dark themes */

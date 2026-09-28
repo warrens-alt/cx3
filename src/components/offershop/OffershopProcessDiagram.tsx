@@ -20,7 +20,6 @@ import {
   ShieldAlert,
   ShieldCheck,
   Smartphone,
-  Sparkles,
   TrendingUp,
   UserCheck,
   UserX,

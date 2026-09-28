@@ -138,7 +138,7 @@ export function TrendChart({
                 <stop offset="95%" stopColor="#315BCB" stopOpacity={0.01}/>
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border, #f1f5f9)" />
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8EDF3" />
             <XAxis 
               dataKey={xAxisKey} 
               axisLine={false} 

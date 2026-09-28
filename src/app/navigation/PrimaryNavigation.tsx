@@ -22,6 +22,7 @@ import { getAreaForPath, BUSINESS_AREAS } from '../routeManifest';
 import { useClient } from '../../lib/ClientContext';
 import { useAuth } from '../../lib/AuthContext';
 import ReviewLauncher from '../../components/ReviewLauncher';
+import ThemeToggle from '../../components/ThemeToggle';
 import '../../styles/guidedAnalytics.css';
 
 interface PrimaryNavigationProps {
@@ -156,6 +157,20 @@ export default function PrimaryNavigation({
                 </Link>
               </div>
             </li>
+            <li>
+              <div className="cx-nav-goal-row">
+                <Link
+                  to={navigationTarget('/warehouse', location.pathname, location.search)}
+                  aria-current={location.pathname === '/warehouse' || location.pathname === '/warehouse-analytics' ? 'page' : undefined}
+                  onClick={onClose}
+                  className="cx-nav-link"
+                  title="Google Cloud BigQuery warehouse tables, live API puller & schemas"
+                >
+                  <Database size={16} aria-hidden="true" />
+                  <span>Cloud warehouse</span>
+                </Link>
+              </div>
+            </li>
             {isAdmin && (
               <li>
                 <div className="cx-nav-goal-row">
@@ -216,14 +231,17 @@ export default function PrimaryNavigation({
               <small>{profile?.role || 'authenticated'}</small>
             </span>
           </div>
-          <button
-            type="button"
-            onClick={() => signOut()}
-            aria-label="Sign out"
-            title="Sign out"
-          >
-            <LogOut size={15} />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <ThemeToggle variant="compact" />
+            <button
+              type="button"
+              onClick={() => signOut()}
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <LogOut size={15} />
+            </button>
+          </div>
         </div>
       </div>
     </aside>
