@@ -10,13 +10,20 @@ const rootDir = path.resolve(__dirname, '..');
 
 console.log('[build] Starting production build...');
 
-// 1. Compile client assets with Vite
-console.log('[build] Compiling client assets with Vite...');
-execSync('npx vite build', { cwd: rootDir, stdio: 'inherit' });
-
+// 1. Compile client assets with Vite if needed
 const distDir = path.join(rootDir, 'dist');
 const distHtml = path.join(distDir, 'index.html');
 const distAssets = path.join(distDir, 'assets');
+
+if (!fs.existsSync(distHtml) || fs.statSync(distHtml).size === 0) {
+  console.log('[build] Compiling client assets with Vite...');
+  const viteBin = path.join(rootDir, 'node_modules', '.bin', 'vite');
+  if (fs.existsSync(viteBin)) {
+    execSync(`"${viteBin}" build`, { cwd: rootDir, stdio: 'inherit' });
+  } else {
+    execSync('npx vite build', { cwd: rootDir, stdio: 'inherit' });
+  }
+}
 
 if (!fs.existsSync(distHtml) || fs.statSync(distHtml).size === 0) {
   throw new Error('[build] Vite build failed to produce valid dist/index.html');
@@ -60,6 +67,37 @@ fs.copyFileSync(path.join(distServerDir, 'server.mjs'), path.join(distDir, 'serv
 if (fs.existsSync(path.join(distServerDir, 'server.mjs.map'))) {
   fs.copyFileSync(path.join(distServerDir, 'server.mjs.map'), path.join(distDir, 'server.mjs.map'));
 }
+
+// Bundle CJS format as well for runtimes expecting CommonJS server bundles
+await esbuild.build({
+  entryPoints: [path.join(rootDir, 'server.ts')],
+  bundle: true,
+  platform: 'node',
+  format: 'cjs',
+  packages: 'external',
+  sourcemap: true,
+  outfile: path.join(distDir, 'server.cjs'),
+});
+fs.copyFileSync(path.join(distDir, 'server.cjs'), path.join(distServerDir, 'server.cjs'));
+
+// 5. Provide root server.js entry delegating to production bundle
+const serverJsContent = `// Production entry delegating to compiled server bundle
+import { pathToFileURL } from 'node:url';
+import path from 'node:path';
+import fs from 'node:fs';
+
+const bundled = path.join(process.cwd(), 'dist', 'server', 'server.mjs');
+if (fs.existsSync(bundled)) {
+  const mod = await import(pathToFileURL(bundled).href);
+  if (mod.startServer) {
+    mod.startServer().catch(err => {
+      console.error('Server startup failed:', err);
+      process.exitCode = 1;
+    });
+  }
+}
+`;
+fs.writeFileSync(path.join(rootDir, 'server.js'), serverJsContent);
 
 // 5. Verification & Summary
 const assetCount = fs.readdirSync(distAssets).length;

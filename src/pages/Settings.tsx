@@ -204,12 +204,15 @@ export default function Settings() {
                     <Database size={15} className="text-blue-600" />
                     <span>Google BigQuery</span>
                   </div>
-                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold ${
-                    googleStatus?.bigquery.status === 'Connected' || status?.health?.status === 'Connected'
-                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                      : 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
-                  }`}>
-                    {googleStatus?.bigquery.status || status?.health?.status || 'Connected'}
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium">
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      googleStatus?.bigquery.status === 'Connected' || status?.health?.status === 'Connected'
+                        ? 'bg-emerald-500'
+                        : 'bg-amber-500'
+                    }`} aria-hidden="true" />
+                    <span className="font-mono text-[11px] text-text-sec">
+                      {googleStatus?.bigquery.status || status?.health?.status || 'Connected'}
+                    </span>
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
@@ -226,12 +229,15 @@ export default function Settings() {
                     <Cpu size={15} className="text-blue-600" />
                     <span>Google Gemini AI</span>
                   </div>
-                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold ${
-                    googleStatus?.gemini.status === 'Connected' || googleStatus?.gemini.hasKey
-                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                      : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
-                  }`}>
-                    {googleStatus?.gemini.hasKey ? 'Active' : 'Deterministic Ready'}
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium">
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      googleStatus?.gemini.status === 'Connected' || googleStatus?.gemini.hasKey
+                        ? 'bg-emerald-500'
+                        : 'bg-blue-500'
+                    }`} aria-hidden="true" />
+                    <span className="font-mono text-[11px] text-text-sec">
+                      {googleStatus?.gemini.hasKey ? 'Active' : 'Deterministic Ready'}
+                    </span>
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
@@ -248,8 +254,11 @@ export default function Settings() {
                     <Key size={15} className="text-blue-600" />
                     <span>Google Identity & Auth</span>
                   </div>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                    Active
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+                    <span className="font-mono text-[11px] text-text-sec">
+                      Active
+                    </span>
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-600 dark:text-slate-400 space-y-1">

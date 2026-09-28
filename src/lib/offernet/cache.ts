@@ -1,3 +1,5 @@
+import { getAnalyticalSessionGeneration } from '../analyticalSession';
+
 export function buildQueryString(params: Record<string, any>): string {
   const q = new URLSearchParams();
   // Stable ordering lets equivalent scopes share one pending request and one cache entry.
@@ -47,7 +49,7 @@ export function invalidateOffernetCache() {
 function abortError() { return new DOMException('The request was cancelled.', 'AbortError'); }
 
 /** Cancellation belongs to each consumer; shared fetches stop only after the last one leaves. */
-function subscribe<T>(url: string, request: SharedRequest, signal?: AbortSignal): Promise<T> {
+function subscribe<T>(url: string, request: SharedRequest, signal?: AbortSignal, expectedSessionGen = getAnalyticalSessionGeneration()): Promise<T> {
   request.consumers++;
   return new Promise<T>((resolve, reject) => {
     let finished = false;
@@ -71,7 +73,13 @@ function subscribe<T>(url: string, request: SharedRequest, signal?: AbortSignal)
     };
     signal?.addEventListener('abort', cancel, { once: true });
     request.promise.then(
-      value => { if (finish()) resolve(value); },
+      value => {
+        if (expectedSessionGen !== getAnalyticalSessionGeneration()) {
+          if (finish()) reject(abortError());
+        } else {
+          if (finish()) resolve(value);
+        }
+      },
       error => { if (finish()) reject(error); },
     );
     if (signal?.aborted) cancel();
@@ -80,10 +88,11 @@ function subscribe<T>(url: string, request: SharedRequest, signal?: AbortSignal)
 
 export async function fetchOffernetJson<T>(url: string, forceRefresh = false, signal?: AbortSignal): Promise<T> {
   if (signal?.aborted) throw abortError();
+  const sessionGen = getAnalyticalSessionGeneration();
   pruneOffernetCache();
   const pending = requests.get(url);
   // Refresh bypasses resolved data, not an identical request that is already running.
-  if (pending) return subscribe<T>(url, pending, signal);
+  if (pending) return subscribe<T>(url, pending, signal, sessionGen);
   if (!forceRefresh && memoryCache.has(url)) return memoryCache.get(url)!.data as T;
 
   if (forceRefresh) memoryCache.delete(url);
@@ -97,11 +106,11 @@ export async function fetchOffernetJson<T>(url: string, forceRefresh = false, si
         throw Object.assign(new Error(body.error || `Server request failed with status ${response.status}`), { status: response.status });
       }
       const json = await response.json();
-      if (request.controller.signal.aborted) throw abortError();
+      if (request.controller.signal.aborted || sessionGen !== getAnalyticalSessionGeneration()) throw abortError();
       if (json.success === false) throw new Error(json.error || 'The analytics request failed.');
       const result = json.data as T;
       // A cancelled or invalidated older fetch can never restore stale data or clear its replacement.
-      if (generation === requestGeneration && requests.get(url) === request) {
+      if (generation === requestGeneration && sessionGen === getAnalyticalSessionGeneration() && requests.get(url) === request) {
         memoryCache.set(url, { data: result, timestamp: Date.now() });
         pruneOffernetCache();
       }
@@ -116,5 +125,5 @@ export async function fetchOffernetJson<T>(url: string, forceRefresh = false, si
   });
   requests.set(url, request);
   inFlightRequests.set(url, request.promise);
-  return subscribe<T>(url, request, signal);
+  return subscribe<T>(url, request, signal, sessionGen);
 }

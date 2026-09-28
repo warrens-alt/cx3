@@ -74,8 +74,8 @@ export function getAllowedParamsForTarget(targetPath: string, targetQuery?: stri
     return SETTINGS_SCOPE_PARAMS;
   }
 
-  // 3. Lead Explorer (inspecting exact lead records and drilldowns)
-  if (targetPath === '/lead-explorer') {
+  // 3. Lead Explorer and Lead Ledger (inspecting exact lead records, ledger, and drilldowns)
+  if (targetPath === '/lead-explorer' || targetPath === '/lead-ledger') {
     return new Set([...UNIVERSAL_SCOPE_PARAMS, ...EXPLORE_REPORT_PARAMS]);
   }
 

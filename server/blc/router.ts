@@ -6,10 +6,12 @@ import { activationSourceIsOwned } from '../bigquery/sourceTenantScope';
 import { sourceAccess, type SourceAccess } from '../bigquery/sourceAccess';
 import { analyticalRoute } from '../analyticalWork';
 import { getBlcReport, validateBlcRequest } from './report';
+import { createRubixPowerBiRouter } from './powerbi/router';
 
 /** Mounted after the existing authenticated analytics scope middleware. GET only. */
 export function createBlcRouter(accessProvider: (clientId: string) => SourceAccess = sourceAccess) {
   const router = Router();
+  router.use('/blc/powerbi', createRubixPowerBiRouter());
   router.use('/blc', (_req, res, next) => {
     try {
       const principal = res.locals.principal;

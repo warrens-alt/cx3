@@ -18,11 +18,25 @@ import { handleFirestoreError, OperationType } from './firestoreErrors';
 import type { UserProfile, UserRole, UserStatus, AccessInvite, PlatformConfig } from '../types/auth';
 import { authAccess, isBootstrapAdmin } from './authAccess';
 import { changeUserAccess, removeUserAccess, saveBootstrapProfile } from './authAdministration';
+import { updateAnalyticalSession } from './analyticalSession';
+
+export type AuthAccessState =
+  | 'INITIAL_LOADING'
+  | 'SIGNED_OUT'
+  | 'ACTIVE'
+  | 'PENDING'
+  | 'SUSPENDED'
+  | 'MISSING_PROFILE'
+  | 'SERVICE_FAILURE'
+  | 'REVOKED';
 
 interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
+  accessState: AuthAccessState;
+  authError: string | null;
+  retryAuth: () => void;
   isAdmin: boolean;
   isAnalyst: boolean;
   isViewer: boolean;
@@ -49,6 +63,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [hasAdminMarker, setHasAdminMarker] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+
+  const retryAuth = React.useCallback(() => {
+    setAuthError(null);
+    setLoading(true);
+    setRetryCount(c => c + 1);
+  }, []);
 
   // Helper to record audit logs
   const logAudit = async (action: string, targetEmail: string, details: string) => {
@@ -156,12 +178,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         subscriptions.push(onSnapshot(userRef, snapshot => {
           if (!isCurrent()) return;
           setProfile(snapshot.exists() ? snapshot.data() as UserProfile : null);
+          setAuthError(null);
           profileReady = true;
           finishLoading();
         }, error => {
           if (!isCurrent()) return;
           console.warn('User profile sync failed:', error);
           setProfile(null);
+          setAuthError('User profile sync failed. Please check network connection or retry.');
           profileReady = true;
           finishLoading();
         }));
@@ -183,6 +207,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('Auth initialization failed:', error);
         setProfile(null);
         setHasAdminMarker(false);
+        setAuthError('Account access initialization failed. Please retry or sign in again.');
         setLoading(false);
       }
     });
@@ -193,7 +218,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       unsubscribeAuth();
       clearSubscriptions();
     };
-  }, []);
+  }, [retryCount]);
 
   const signInWithGoogle = async () => {
     try {
@@ -210,11 +235,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (user?.email) {
       await logAudit('USER_LOGOUT', user.email, 'User logged out of application');
     }
+    updateAnalyticalSession(null);
     await fbSignOut(auth);
+    setUser(null);
     setProfile(null);
+    setHasAdminMarker(false);
+    setAuthError(null);
   };
 
   const { isAdmin, isAnalyst, isViewer, isActive, isPending, isSuspended } = authAccess(user, profile, hasAdminMarker);
+
+  let accessState: AuthAccessState = 'INITIAL_LOADING';
+  if (loading) {
+    accessState = 'INITIAL_LOADING';
+  } else if (!user) {
+    accessState = 'SIGNED_OUT';
+  } else if (authError) {
+    accessState = 'SERVICE_FAILURE';
+  } else if (isSuspended) {
+    accessState = 'SUSPENDED';
+  } else if (isPending) {
+    accessState = 'PENDING';
+  } else if (isActive && profile) {
+    accessState = 'ACTIVE';
+  } else if (!profile) {
+    accessState = 'MISSING_PROFILE';
+  } else {
+    accessState = 'REVOKED';
+  }
+
+  // Coherent analytical session boundary synchronization
+  useEffect(() => {
+    if (loading) return;
+    if (user && isActive && profile) {
+      updateAnalyticalSession({
+        uid: user.uid,
+        role: profile.role,
+        status: profile.status,
+        allowedTenants: profile.allowedTenants || [],
+        isAdmin,
+        isActive,
+      });
+    } else {
+      updateAnalyticalSession(null);
+    }
+  }, [loading, user?.uid, profile?.role, profile?.status, profile?.allowedTenants, isAdmin, isActive]);
 
   const hasClientAccess = (clientId: string): boolean => {
     if (!isActive || !profile) return false;
@@ -316,6 +381,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         profile,
         loading,
+        accessState,
+        authError,
+        retryAuth,
         isAdmin,
         isAnalyst,
         isViewer,

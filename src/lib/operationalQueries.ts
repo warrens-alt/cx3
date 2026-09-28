@@ -1,3 +1,5 @@
+import { getAnalyticalSessionKey } from './analyticalSession';
+
 const VIEW_RESOURCES: Record<string, string> = {
   ExecutiveOverview: 'overview', Overview: 'overview', ManagementReview: 'overview',
   FunnelIntelligence: 'funnel', SpeedToLeadIntelligence: 'speed-to-lead',
@@ -7,9 +9,16 @@ const VIEW_RESOURCES: Record<string, string> = {
   CommercialIntelligence: 'commercial', DataIntegrityIntelligence: 'data-integrity',
   AgentPerformanceIntelligence: 'agent-performance', CampaignIntelligence: 'campaigns',
 };
-export function operationalQueryOptions<T>(name: string, params: Record<string, any>, fetcher: (params: Record<string, any>, forceRefresh?: boolean, signal?: AbortSignal) => Promise<T>, enabled = true) {
+export function operationalQueryOptions<T>(
+  name: string,
+  params: Record<string, any>,
+  fetcher: (params: Record<string, any>, forceRefresh?: boolean, signal?: AbortSignal) => Promise<T>,
+  enabled = true,
+  sessionKey?: string
+) {
+  const activeSessionKey = sessionKey ?? getAnalyticalSessionKey();
   return {
-    queryKey: ['offernet-view', VIEW_RESOURCES[name] || name, params] as const,
+    queryKey: ['offernet-view', activeSessionKey, VIEW_RESOURCES[name] || name, params] as const,
     // React Query owns retention; do not stack a second browser TTL over it.
     queryFn: ({ signal }: { signal: AbortSignal }) => fetcher(params, true, signal),
     enabled: enabled && Boolean(params.clientId),

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ShieldCheck, FileText, CheckCircle2, Clock, Database, AlertCircle, RefreshCw } from 'lucide-react';
 import { useClient } from '../lib/ClientContext';
 import { fetchReportingCatalogue } from '../lib/reportingClient';
+import { getAnalyticalSessionKey } from '../lib/analyticalSession';
 import PageHeader from '../components/PageHeader';
 import { PageSkeleton } from '../components/Skeleton';
 import EvidenceScopeBar from '../components/operations/EvidenceScopeBar';
@@ -10,9 +11,10 @@ import EvidenceScopeBar from '../components/operations/EvidenceScopeBar';
 export default function VersionedReports() {
   const { clientId } = useClient();
   const [selectedRelease, setSelectedRelease] = useState<string | null>(null);
+  const sessionKey = getAnalyticalSessionKey();
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['versioned-reports', clientId],
+    queryKey: ['versioned-reports', sessionKey, clientId],
     queryFn: ({ signal }) => fetchReportingCatalogue(clientId, signal),
     staleTime: 30000,
   });
@@ -24,10 +26,11 @@ export default function VersionedReports() {
     <div className="cx-page space-y-6 p-6">
       <PageHeader
         title="Versioned Reporting Releases"
-        subtitle="Immutable snapshot release registry for evidence reporting. A published release does not certify source completeness, and report execution remains disabled until the v2 executor is implemented."
+        subtitle="Immutable snapshot release registry for evidence reporting. Full report execution and replay remain a separate milestone; executor queries return explicit 501 unavailable responses."
         badges={[
           { label: isAvailable ? 'Release Active' : 'No Active Release', variant: isAvailable ? 'success' : 'neutral' },
           { label: `Tenant: ${clientId}`, variant: 'neutral' },
+          { label: 'Executor: Deferred (501)', variant: 'neutral' },
         ]}
       />
 

@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { selectAuthorizedClient } from './clientSelection';
+import { subscribeToAnalyticalSession, getAnalyticalSessionKey } from './analyticalSession';
 
 export interface ClientConfig {
   id: string;
@@ -86,6 +87,17 @@ export const ClientProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => activeLoad.current?.abort();
   }, [loadConfig]);
 
+  useEffect(() => {
+    return subscribeToAnalyticalSession((_newKey, _oldKey) => {
+      activeLoad.current?.abort();
+      setClients([]);
+      setReady(false);
+      setPreviousClient('');
+      resolvedClientRef.current = null;
+      void loadConfig();
+    });
+  }, [loadConfig]);
+
   const setSelectedClient = useCallback((id: string) => {
     const match = clients.find(client => client.id === id);
     if (!match) return;
@@ -96,6 +108,11 @@ export const ClientProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       next.set('clientId', id);
       next.delete('inspectVendor');
       next.delete('inspectGroup');
+      next.delete('search');
+      next.delete('leadId');
+      next.delete('page');
+      next.delete('drill');
+      next.delete('drillValue');
       return next;
     }, { replace: true });
   }, [clients, setSearchParams]);
@@ -115,6 +132,11 @@ export const ClientProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (isClientTransition) {
         next.delete('inspectVendor');
         next.delete('inspectGroup');
+        next.delete('search');
+        next.delete('leadId');
+        next.delete('page');
+        next.delete('drill');
+        next.delete('drillValue');
       }
       return next;
     }, { replace: true });

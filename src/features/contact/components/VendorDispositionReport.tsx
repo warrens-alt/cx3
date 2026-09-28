@@ -180,11 +180,12 @@ export default function VendorDispositionReport({
       {/* 1. Mode Header & Mode Switcher */}
       <div className="bg-surface rounded-xl border border-border-subtle p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 text-xs">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-brand-primary">
               Reporting Mode
             </span>
-            <span className="text-[11px] px-2 py-0.5 rounded-full bg-surface-sec border border-border-subtle text-text-sec">
+            <span className="text-text-muted" aria-hidden="true">·</span>
+            <span className="text-[11px] text-text-sec font-medium">
               {data.countingGrain} grain · {data.dateBasis}
             </span>
           </div>

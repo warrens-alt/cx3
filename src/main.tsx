@@ -5,6 +5,7 @@ import { ErrorBoundary } from 'react-error-boundary';
 import App from './App.tsx';
 import { isChunkLoadError, attemptChunkRecovery } from './lib/chunkRecovery';
 import { installAuthenticatedApiFetch } from './lib/apiFetch';
+import { registerQueryClientForSessionIsolation } from './lib/analyticalSession';
 import './index.css';
 import './styles/product.css';
 import './styles/analyticsVisuals.css';
@@ -20,6 +21,8 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+registerQueryClientForSessionIsolation(queryClient);
 
 // Route imports own recovery through safeImport. A global preload reload would
 // discard a healthy report when an optional widget chunk fails to load.

@@ -4,16 +4,25 @@ import express from 'express';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-export async function createApp() {
-  const { mountApi } = await import('./server/apiApp.ts').catch(() => import('./server/apiApp'));
-  const app = express();
-  await mountApi(app);
+const currentFileHref = typeof import.meta !== 'undefined' && import.meta?.url ? import.meta.url : '';
+const isAlreadyBundled = currentFileHref.endsWith('.mjs') || currentFileHref.endsWith('.cjs');
 
+export async function createApp() {
   const isTsxDev = Boolean(
     process.env.TSX_ACTIVE ||
     process.env.npm_lifecycle_event === 'dev' ||
     process.execArgv.some(a => a.includes('tsx'))
   );
+  const bundledServer = path.join(process.cwd(), 'dist', 'server', 'server.mjs');
+
+  if (!isAlreadyBundled && !isTsxDev && fs.existsSync(bundledServer)) {
+    const bundled = await import(pathToFileURL(bundledServer).href);
+    return bundled.createApp();
+  }
+
+  const { mountApi } = await import('./server/apiApp.ts').catch(() => import('./server/apiApp'));
+  const app = express();
+  await mountApi(app);
   const isProduction = process.env.NODE_ENV === 'production' || (!isTsxDev && process.env.NODE_ENV !== 'development');
 
   if (isProduction) {
@@ -81,19 +90,42 @@ export async function createApp() {
   return app;
 }
 
-export function resolvePort(): number {
-  const argv = process.argv;
+export function validatePortNumber(raw: unknown, source: string): number {
+  if (raw === undefined || raw === null || String(raw).trim() === '') {
+    throw new Error(`Invalid ${source}: empty port value`);
+  }
+  const str = String(raw).trim();
+  if (!/^\d+$/.test(str)) {
+    throw new Error(`Invalid ${source}: "${raw}" is not a valid integer port`);
+  }
+  const port = Number(str);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(`Invalid ${source}: "${raw}" is out of TCP port range (1-65535)`);
+  }
+  return port;
+}
+
+export function resolvePort(argv: string[] = process.argv, env: NodeJS.ProcessEnv = process.env): number {
+  // Precedence:
+  // 1. Explicit command-line flag: --port <value>
+  // 2. Explicit environment variable: PORT (including PORT=8080)
+  // 3. Fallback: DEFAULT_APP_PORT (if configured) or local development default (3000)
   const portIndex = argv.indexOf('--port');
-  if (portIndex !== -1 && argv[portIndex + 1]) {
-    const p = Number(argv[portIndex + 1]);
-    if (!isNaN(p) && p > 0) return p;
+  if (portIndex !== -1) {
+    if (portIndex + 1 >= argv.length || argv[portIndex + 1].startsWith('-')) {
+      throw new Error('Missing value for --port argument');
+    }
+    return validatePortNumber(argv[portIndex + 1], 'command-line --port');
   }
-  const envPort = Number(process.env.PORT);
-  // Port 8080 is reserved for the Nginx proxy/bridge in AI Studio container environments.
-  // The Node application must listen on port 3000 (proxied by Nginx).
-  if (envPort && envPort !== 8080 && envPort > 0) {
-    return envPort;
+
+  if (env.PORT !== undefined && env.PORT.trim() !== '') {
+    return validatePortNumber(env.PORT, 'PORT environment variable');
   }
+
+  if (env.DEFAULT_APP_PORT !== undefined && env.DEFAULT_APP_PORT.trim() !== '') {
+    return validatePortNumber(env.DEFAULT_APP_PORT, 'DEFAULT_APP_PORT environment variable');
+  }
+
   return 3000;
 }
 
@@ -113,13 +145,28 @@ export async function startServer() {
   });
 }
 
-const currentFileHref = import.meta.url;
 const entryFileHref = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : '';
 const isMain = currentFileHref === entryFileHref;
 
 if (isMain) {
-  startServer().catch((error) => {
-    console.error('Server startup failed:', error);
-    process.exitCode = 1;
-  });
+  const isTsxDev = Boolean(
+    process.env.TSX_ACTIVE ||
+    process.env.npm_lifecycle_event === 'dev' ||
+    process.execArgv.some(a => a.includes('tsx'))
+  );
+  const bundledServer = path.join(process.cwd(), 'dist', 'server', 'server.mjs');
+
+  if (!isAlreadyBundled && !isTsxDev && fs.existsSync(bundledServer)) {
+    import(pathToFileURL(bundledServer).href)
+      .then(bundled => bundled.startServer())
+      .catch((error) => {
+        console.error('Server startup failed:', error);
+        process.exitCode = 1;
+      });
+  } else {
+    startServer().catch((error) => {
+      console.error('Server startup failed:', error);
+      process.exitCode = 1;
+    });
+  }
 }

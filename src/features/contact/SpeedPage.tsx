@@ -322,11 +322,12 @@ export default function SpeedPage() {
               onToggle={(e) => setControlsExpanded(e.currentTarget.open)}
             >
               <summary className="flex items-center justify-between p-4 cursor-pointer hover:bg-surface-subtle transition-colors list-none select-none">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 text-xs">
                   <span className="text-xs font-bold text-text-main uppercase tracking-wider">
                     Operating Controls & SLA Performance
                   </span>
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-surface-sec text-text-sec border border-border-subtle">
+                  <span className="text-text-muted" aria-hidden="true">·</span>
+                  <span className="text-[11px] text-text-mute font-medium">
                     Response turnaround & operating window adherence
                   </span>
                 </div>

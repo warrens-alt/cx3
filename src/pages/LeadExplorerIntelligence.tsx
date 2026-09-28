@@ -245,27 +245,55 @@ export default function LeadExplorerIntelligence() {
                     <th>Vendor</th>
                     <th>Source</th>
                     <th>Grade</th>
-                    <th>Delivered</th><th>First dial</th><th>Calls</th><th>Disposition</th><th>Revenue</th>
-                    <th>RPC</th>
-                    <th>Sale</th>
-                    <th>Activated</th>
-                    <th />
+                    <th>Delivered</th>
+                    <th>First dial</th>
+                    <th className="text-right">Calls</th>
+                    <th>Disposition</th>
+                    <th className="text-right">Revenue</th>
+                    <th className="text-center">RPC</th>
+                    <th className="text-center">Sale</th>
+                    <th className="text-center">Activated</th>
+                    <th className="w-10 text-center" />
                   </tr>
                 </thead>
                 <tbody>
                   {isCurrentClientData && data?.rows.map((row, index) => (
                     <tr key={`${row.lead_id}-${index}`}>
-                      <th title={row.lead_id}>{row.lead_id}</th>
-                      <td>{row.consumer_id || '—'}</td>
-                      <td>{row.fetched || '—'}</td>
-                      <td>{row.vendor || '—'}</td>
-                      <td>{row.source || '—'}</td>
-                      <td>{row.grade || '—'}</td>
-                      <td>{row.delivered_time || '—'}</td><td>{row.first_call_time || '—'}</td><td>{formatTableNumber(row.total_calls)}</td><td>{row.last_dialer_status || 'Unavailable'}</td><td>{formatCurrency(row.revenue)}</td>
-                      <td>{row.contacted == null ? 'Unavailable' : row.contacted ? 'Yes' : 'No'}</td>
-                      <td>{row.sale ? 'Yes' : 'No'}</td>
-                      <td>{row.activated ? 'Yes' : 'No'}</td>
-                      <td>
+                      <th title={row.lead_id} className="font-mono text-xs">{row.lead_id}</th>
+                      <td className="font-mono text-xs text-text-sec">{row.consumer_id || '—'}</td>
+                      <td className="text-xs whitespace-nowrap">{row.fetched || '—'}</td>
+                      <td className="text-xs font-medium">{row.vendor || '—'}</td>
+                      <td className="text-xs text-text-sec">{row.source || '—'}</td>
+                      <td className="text-xs">{row.grade || '—'}</td>
+                      <td className="text-xs whitespace-nowrap">{row.delivered_time || '—'}</td>
+                      <td className="text-xs whitespace-nowrap">{row.first_call_time || '—'}</td>
+                      <td className="text-right font-mono tabular-nums text-xs">{formatTableNumber(row.total_calls)}</td>
+                      <td className="text-xs max-w-[140px] truncate" title={row.last_dialer_status}>{row.last_dialer_status || 'Unavailable'}</td>
+                      <td className="text-right font-mono tabular-nums font-semibold text-xs text-text-main">{formatCurrency(row.revenue)}</td>
+                      <td className="text-center text-xs">
+                        {row.contacted == null ? (
+                          <span className="text-text-disabled">—</span>
+                        ) : row.contacted ? (
+                          <span className="text-emerald-700 font-semibold">Yes</span>
+                        ) : (
+                          <span className="text-text-muted">No</span>
+                        )}
+                      </td>
+                      <td className="text-center text-xs">
+                        {row.sale ? (
+                          <span className="text-emerald-700 font-semibold">Yes</span>
+                        ) : (
+                          <span className="text-text-muted">No</span>
+                        )}
+                      </td>
+                      <td className="text-center text-xs">
+                        {row.activated ? (
+                          <span className="text-blue-700 font-semibold">Yes</span>
+                        ) : (
+                          <span className="text-text-muted">No</span>
+                        )}
+                      </td>
+                      <td className="text-center">
                         <button type="button" className="cx-record-open" onClick={() => handleOpenTimeline(row.lead_id, row.vendor)} title="Open lead timeline" aria-label={`Open timeline for lead ${row.lead_id}`}>
                           <Eye size={14} aria-hidden="true" />
                         </button>

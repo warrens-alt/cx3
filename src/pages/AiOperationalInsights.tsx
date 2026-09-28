@@ -89,12 +89,13 @@ export default function AiOperationalInsights() {
         {/* Header Lockup */}
         <header className="cx-command-hero flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 text-xs">
               <span className="cx-command-eyebrow flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-semibold">
                 <Sparkles size={14} className="text-blue-500 animate-pulse" />
                 Google Cloud AI · Operational Synthesis
               </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+              <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">·</span>
+              <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
                 Gemini 3.8 Flash
               </span>
             </div>
@@ -115,7 +116,10 @@ export default function AiOperationalInsights() {
             <div className="text-left">
               <div className="text-[10.5px] font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                 <span>Google Gemini Engine</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block" />
+                <span className="relative flex h-2 w-2" title="Operational">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
               </div>
               <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
                 {data?.model || 'gemini-3.8-flash'} · Server-Side
@@ -262,7 +266,7 @@ export default function AiOperationalInsights() {
                         handleAskQuestion(q);
                       }}
                       disabled={asking}
-                      className="text-[11px] px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-100/70 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 dark:hover:bg-blue-950/50 dark:hover:text-blue-300 cursor-pointer transition-colors"
+                      className="text-[11px] px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100/70 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 dark:hover:bg-blue-950/50 dark:hover:text-blue-300 cursor-pointer transition-colors shadow-2xs"
                     >
                       {q}
                     </button>
@@ -369,7 +373,7 @@ export default function AiOperationalInsights() {
                             {item.category}
                           </span>
                           <span
-                            className={`text-[10px] font-mono px-2 py-0.5 rounded-full border font-semibold ${severityStyle}`}
+                            className={`text-[10px] font-mono px-1.5 py-0.5 rounded border font-semibold ${severityStyle}`}
                           >
                             {item.severity}
                           </span>

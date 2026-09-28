@@ -40,34 +40,34 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
     switch (readiness) {
       case 'MAPPED':
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
             <CheckCircle2 size={12} />
             <span>Mapped</span>
           </span>
         );
       case 'DEPENDENCY_BLOCKED':
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200">
             <ShieldAlert size={12} />
             <span>Blocked</span>
           </span>
         );
       case 'PARTIAL':
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-[var(--cx-action)] border border-blue-200">
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-[var(--cx-action)] border border-blue-200">
             <span>Partial</span>
           </span>
         );
       case 'MAPPING_REQUIRED':
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200">
             <span>Needs Map</span>
           </span>
         );
       case 'NOT_INSTRUMENTED':
       default:
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
             <span>Not Inst.</span>
           </span>
         );

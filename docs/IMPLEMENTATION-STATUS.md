@@ -256,6 +256,46 @@ The repository currently does not include the previously referenced Dataform war
 
 Passing repository CI is necessary but is **not** evidence of live BigQuery source completeness, source-owner reconciliation, production acceptance of the selected authentication mode or financial certification.
 
+## CX3 Reliability, Reporting Correctness & Acceptance Testing — 27 September 2026
+
+This release hardens operational reliability, permission isolation, and reporting fidelity end-to-end:
+
+1. **Analytical Session Boundary & Permission Isolation**:
+   - `src/lib/analyticalSession.ts` implements a stable, non-secret access boundary key (`computeAnalyticalSessionKey`) tracking signed-in identity (`uid`), effective role, account status (`active`/`pending`/`suspended`), tenant entitlements (`allowedTenants`), and administrator marker status.
+   - Routine token refresh or last-login updates do not reset the analytical session.
+   - On logout, identity replacement, access revocation, account suspension, or administrator demotion:
+     - All in-flight React Query queries are cancelled (`queryClient.cancelQueries()`).
+     - All retained React Query caches are wiped (`queryClient.clear()`).
+     - OfferNet response cache is cleared (`invalidateOffernetCache()`).
+     - Session generation increments, causing late-resolving responses from obsolete sessions to be discarded without populating the cache.
+   - Every analytical query family (`useOperationalData`, `useOperatingControls`, `useAnalyticsData`, `VersionedReports`, `useEvidenceWorkspace`, `GlobalFilter`) includes `getAnalyticalSessionKey()` in its `queryKey`.
+   - `ClientContext` subscribes to analytical session changes, aborting active workspace queries and reloading the server-authorised client list.
+   - On workspace change, record-selection parameters (`search`, `leadId`, `page`, `drill`, `drillValue`, `inspectVendor`, `inspectGroup`) are purged.
+
+2. **Elimination of Authentication Dead Ends**:
+   - `src/lib/AuthContext.tsx` explicitly tracks `accessState` (`INITIAL_LOADING`, `SIGNED_OUT`, `ACTIVE`, `PENDING`, `SUSPENDED`, `MISSING_PROFILE`, `SERVICE_FAILURE`, `REVOKED`), `authError`, and `retryAuth`.
+   - `src/components/AuthGate.tsx` replaces the indefinite fallback spinner with distinct, accessible UI states (`role="alert"`), each offering actionable `Retry` and `Sign out` controls.
+   - Profile/access service errors display clear, non-secret messages while keeping analytical access strictly blocked.
+   - `retryAuth()` safely re-runs access resolution without leaking snapshot listeners or introducing race conditions.
+   - Ordinary viewers without administrator markers are distinguished from service failures.
+
+3. **Lead Ledger Unknowns Preservation & Audit Exports**:
+   - In `src/pages/LeadLedger.tsx`, `handleExportCsv` no longer converts missing/null values into false/invalid/zero placeholders.
+   - Unknown `valid_idno` and `phone_valid` are exported as `'Unknown'` (preserving `'Valid (1)'` and `'Invalid (2)'` for observed values).
+   - Unknown `dialled`, `contacted`, `sale`, and `activated` are exported as `'UNKNOWN'`.
+   - Missing `total_calls` is preserved as an empty string (not `0`).
+   - Exports use `downloadAnalysisCsv` to attach full audit metadata (`Scope client`, `Period start`, `Period end`, `Filters`, `Validation status`, `Date basis`, `Metric definitions`, `Detail truncated`).
+   - Ledger table UI displays `'—'` for unrecorded calls and status fields.
+
+4. **Scope-Preserving Navigation**:
+   - `src/app/navigation/ScopePreservingRedirect.tsx` now allows exploration and pagination parameters (`search`, `drill`, `drillValue`, `page`, `pageSize`, `leadId`) for `/lead-ledger` as well as `/lead-explorer`.
+
+5. **Versioned Report Executor Presentation**:
+   - `src/pages/VersionedReports.tsx` presents an explicit status badge (`Executor: Deferred (501)`) and header communicating that full versioned report compilation and evidence replay are deferred to Milestone 2, while retaining fail-closed 501 HTTP responses.
+
+6. **Automated Verification**:
+   - Comprehensive test suites in `tests/analytical-session-isolation.test.ts` (9 tests) and `tests/auth-dead-ends.test.ts` (5 tests) verify all required session-isolation transitions, recovery states, and export invariants.
+
 ## Remaining work
 
 1. Complete the versioned report compiler/executor and signed replay flow.

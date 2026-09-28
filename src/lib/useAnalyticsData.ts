@@ -2,6 +2,7 @@ import { useClient } from './ClientContext';
 import { useQuery } from '@tanstack/react-query';
 import { useFilters } from './FilterContext';
 import { analyticsUrl, fetchAnalyticsJson } from './analyticsRequest';
+import { getAnalyticalSessionKey } from './analyticalSession';
 import type { Filters } from '../../contracts/filters';
 
 export { fetchAnalyticsJson } from './analyticsRequest';
@@ -14,8 +15,9 @@ export function useAnalyticsData<T = any>(endpoint: string, extraParams: Record<
   const { selectedClient, ready, loading: workspaceLoading, error: workspaceError, reportAuthenticationFailure } = useClient();
   const scopedFilters = { ...filters, ...options.contextFilters };
   const enabled = ready && !filterError && options.enabled !== false;
+  const sessionKey = getAnalyticalSessionKey();
   const result = useQuery({
-    queryKey: ['analytics', endpoint, selectedClient, startDate, endDate, scopedFilters, extraParams, filterError],
+    queryKey: ['analytics', sessionKey, endpoint, selectedClient, startDate, endDate, scopedFilters, extraParams, filterError],
     enabled,
     queryFn: async ({ signal }) => {
       if (!enabled) throw Object.assign(new Error(filterError || workspaceError || 'Workspace is not ready.'), { status: 400 });

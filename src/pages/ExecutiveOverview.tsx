@@ -78,54 +78,73 @@ function Metric({
   denominatorLabel?: string;
 }) {
   return (
-    <article className="cx-command-metric">
-      <div className="flex items-center justify-between">
-        <span>{label}</span>
-        {onAbout && (
-          <button
-            type="button"
-            className="text-text-mute hover:text-brand-primary p-0.5 rounded transition-colors"
-            onClick={onAbout}
-            title={`About ${label} definition`}
-            aria-label={`About ${label} definition`}
-          >
-            <Info size={13} />
-          </button>
-        )}
-      </div>
-      {to ? (
-        <Link to={to} className="cx-command-metric-link block hover:underline" title={inspectLabel || `Inspect ${label}`}>
-          <strong>{value}</strong>
-        </Link>
-      ) : (
-        <strong>{value}</strong>
-      )}
+    <article className="cx-command-metric flex flex-col justify-between">
       <div>
-        <small>{note}</small>
-        <Change value={change} unit={changeUnit} />
-      </div>
-      <div className="flex flex-wrap items-center gap-2 mt-1">
-        {onAbout && (
-          <button type="button" className="cx-command-why" onClick={onAbout}>
-            About <Info size={11} />
-          </button>
-        )}
-        {onWhyChanged && (
-          <button type="button" className="cx-command-why" onClick={onWhyChanged}>
-            Why changed? <Search size={11} />
-          </button>
-        )}
-        {to && (
-          <Link to={to} className="cx-command-why" title={inspectLabel || `Inspect ${label} records`}>
-            Inspect <ArrowRight size={11} />
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold text-text-sec uppercase tracking-wider">{label}</span>
+          {onAbout && (
+            <button
+              type="button"
+              className="text-text-mute hover:text-brand-primary p-0.5 rounded transition-colors"
+              onClick={onAbout}
+              title={`About ${label} definition`}
+              aria-label={`About ${label} definition`}
+            >
+              <Info size={13} />
+            </button>
+          )}
+        </div>
+        {to ? (
+          <Link to={to} className="cx-command-metric-link block hover:underline hover:text-action transition-colors my-1.5" title={inspectLabel || `Inspect ${label}`}>
+            <strong className="text-2xl lg:text-[28px] font-bold font-mono tracking-tight text-text-main">{value}</strong>
           </Link>
+        ) : (
+          <strong className="text-2xl lg:text-[28px] font-bold font-mono tracking-tight text-text-main block my-1.5">{value}</strong>
         )}
-        {denominatorLink && denominatorLabel && (
-          <Link to={denominatorLink} className="cx-command-why" title="Inspect denominator records">
-            {denominatorLabel} <ArrowRight size={11} />
-          </Link>
-        )}
+        <div className="flex items-center gap-2 flex-wrap text-xs">
+          <small className="text-text-sec font-medium">{note}</small>
+          <Change value={change} unit={changeUnit} />
+        </div>
       </div>
+      {(onWhyChanged || to || (denominatorLink && denominatorLabel)) && (
+        <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-border-subtle text-[11px]">
+          {onWhyChanged && (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 text-action hover:text-action-hover font-medium transition-colors cursor-pointer"
+              onClick={onWhyChanged}
+            >
+              <span>Why changed?</span>
+              <Search size={10} aria-hidden="true" />
+            </button>
+          )}
+          {onWhyChanged && to && (
+            <span className="text-border-strong text-[10px]" aria-hidden="true">·</span>
+          )}
+          {to && (
+            <Link
+              to={to}
+              className="inline-flex items-center gap-1 text-action hover:text-action-hover font-medium transition-colors"
+              title={inspectLabel || `Inspect ${label} records`}
+            >
+              <span>Inspect</span>
+              <ArrowRight size={10} aria-hidden="true" />
+            </Link>
+          )}
+          {denominatorLink && denominatorLabel && (
+            <>
+              <span className="text-border-strong text-[10px]" aria-hidden="true">·</span>
+              <Link
+                to={denominatorLink}
+                className="inline-flex items-center gap-1 text-text-mute hover:text-text-sec font-medium transition-colors"
+                title="Inspect denominator records"
+              >
+                <span>{denominatorLabel}</span>
+              </Link>
+            </>
+          )}
+        </div>
+      )}
     </article>
   );
 }

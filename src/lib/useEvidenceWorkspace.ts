@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useClient } from './ClientContext';
 import { useFilters } from './FilterContext';
 import { createEvidenceReport, fetchReportingCatalogue } from './reportingClient';
+import { getAnalyticalSessionKey } from './analyticalSession';
 import type { ReportRequest, ReportResult } from '../../contracts/reporting';
 
 export interface UseEvidenceWorkspaceOptions {
@@ -58,8 +59,9 @@ export function useEvidenceWorkspace(options: UseEvidenceWorkspaceOptions) {
     };
   }, [clientId, startDate, endDate, clientConfig?.currency, options.metrics, options.grouping, options.dateBasis, filters]);
 
+  const sessionKey = getAnalyticalSessionKey();
   const catalogue = useQuery({
-    queryKey: ['reporting-catalogue', clientId],
+    queryKey: ['reporting-catalogue', sessionKey, clientId],
     queryFn: ({ signal }) => fetchReportingCatalogue(clientId, signal),
     staleTime: 60000,
     retry: false,
@@ -69,7 +71,7 @@ export function useEvidenceWorkspace(options: UseEvidenceWorkspaceOptions) {
   const isAvailable = catalogue.data?.status === 'AVAILABLE' && !!release;
 
   const current = useQuery<ReportResult>({
-    queryKey: ['reporting-report', release?.releaseId, request],
+    queryKey: ['reporting-report', sessionKey, release?.releaseId, request],
     queryFn: ({ signal }) => createEvidenceReport(request, release?.releaseId, signal),
     enabled: isAvailable,
     staleTime: 60000,
