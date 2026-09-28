@@ -33,8 +33,34 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --ignore-scripts --no-audit
 
-      - name: Verify types, contracts, tests and production build
-        run: npm run verify
+      # Keep the verify chain in the same fail-fast order, but expose each
+      # stage independently and retain evidence when job-log access fails.
+      - name: Verify TypeScript types
+        run: npm run lint
+
+      - name: Verify contracts and regression tests
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee "$RUNNER_TEMP/cx-test-output.log"
+
+      - name: Verify surface inventory
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run docs:surfaces:check 2>&1 | tee "$RUNNER_TEMP/cx-surfaces-output.log"
+
+      - name: Build production application
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee "$RUNNER_TEMP/cx-build-output.log"
+
+      - name: Verify compiled production servers over HTTP
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/smoke-production.mjs 2>&1 | tee "$RUNNER_TEMP/cx-runtime-output.log"
 
       - name: Set up Java for Firestore rules tests
         uses: actions/setup-java@v4
@@ -43,7 +69,22 @@ jobs:
           java-version: '21'
 
       - name: Verify Firestore access lifecycle in the local emulator
-        run: npm run test:rules
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:rules 2>&1 | tee "$RUNNER_TEMP/cx-rules-output.log"
 
       - name: Audit production dependency graph
-        run: npm audit --audit-level=high
+        shell: bash
+        run: |
+          set -o pipefail
+          npm audit --audit-level=high 2>&1 | tee "$RUNNER_TEMP/cx-audit-output.log"
+
+      - name: Preserve verification output
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-output-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/cx-*-output.log
+          retention-days: 7
+          if-no-files-found: warn
