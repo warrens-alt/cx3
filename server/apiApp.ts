@@ -17,6 +17,7 @@ export interface ApiMountOptions {
 export async function mountApi(app: Application, options: ApiMountOptions = {}) {
   const { createReportingRouter } = await import('./reporting/router');
   const { analyticsRouter } = await import('./api');
+  const { createLeadLedgerRouter } = await import('./leadLedger/router');
   const { createBlcRouter } = await import('./blc/router');
   const { createCliImportRouter } = await import('./cliImports/router');
   const { authenticate } = await import('./security');
@@ -59,7 +60,7 @@ export async function mountApi(app: Application, options: ApiMountOptions = {}) 
   app.use('/api/analytics', concurrency, (_req, res, next) => {
     res.setHeader('X-Analytics-Status', 'UNVERIFIED');
     next();
-  }, createCliImportRouter(options.cliArchiveBackend), analyticsRouter, createBlcRouter());
+  }, createCliImportRouter(options.cliArchiveBackend), analyticsRouter, createLeadLedgerRouter(), createBlcRouter());
 
   app.use('/api/bq', (_req, res) => res.status(410).json({
     success: false,
