@@ -72,3 +72,28 @@
   .cx-analytics-card { padding-inline:8px; }
   .cx-analytics-tooltip { max-width:240px; }
 }
+
+[data-theme="dark"] .cx-analytics-card {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: var(--cx-surface, #0f172a);
+}
+
+[data-theme="dark"] .cx-analytics-tooltip {
+  background: rgba(15, 23, 42, 0.96);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .cx-analytics-tooltip > strong {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .cx-analytics-tooltip b {
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .cx-analytics-tooltip span {
+  color: #94a3b8;
+}

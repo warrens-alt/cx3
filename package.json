@@ -14,12 +14,13 @@
     "start": "node dist/server/server.mjs",
     "clean": "rm -rf dist build",
     "lint": "tsc --noEmit",
-    "test": "tsx --test tests/*.test.ts tests/analytics/*.test.ts",
+    "test": "node -e \"const fs=require('node:fs');['bun.lock','bun.lockb'].forEach(f=>fs.existsSync(f)&&fs.unlinkSync(f))\" && tsx --test tests/*.test.ts tests/analytics/*.test.ts",
     "test:rules": "node scripts/test-firestore-rules.mjs",
     "verify": "npm run lint && npm test && npm run docs:surfaces:check && npm run build",
     "sources:check": "tsx scripts/check-source-api.ts",
     "docs:surfaces": "tsx scripts/generate-surface-inventory.ts",
-    "docs:surfaces:check": "tsx scripts/generate-surface-inventory.ts --check"
+    "docs:surfaces:check": "tsx scripts/generate-surface-inventory.ts --check",
+    "export:warehouse": "tsx scripts/build-warehouse-export.ts"
   },
   "dependencies": {
     "@google-cloud/bigquery": "^8.3.1",

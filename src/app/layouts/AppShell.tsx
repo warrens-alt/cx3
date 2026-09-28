@@ -15,6 +15,7 @@ import { useClient } from '../../lib/ClientContext';
 import { useFilters } from '../../lib/FilterContext';
 import { useTableDensity } from '../../lib/useTableDensity';
 import { navigationPage, isOperationalRoute } from '../../lib/navigation';
+import { navigationTarget } from '../../lib/presentation';
 import { DEMO_ENTRY_URL } from '../../lib/applicationMode';
 import { useDevice } from '../../hooks/useDevice';
 import PrimaryNavigation from '../navigation/PrimaryNavigation';
@@ -24,7 +25,7 @@ import Modal from '../../components/Modal';
 import ThemeToggle from '../../components/ThemeToggle';
 import { PageSkeleton } from '../../components/Skeleton';
 import CommandPalette from '../../components/CommandPalette';
-import { getAreaForPath } from '../routeManifest';
+import { getAreaForPath, getRouteItem } from '../routeManifest';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -54,8 +55,10 @@ export default function AppShell({ children }: AppShellProps) {
 
   const currentArea = getAreaForPath(location.pathname);
   const pageNav = navigationPage(location.pathname);
+  const routeItem = getRouteItem(location.pathname);
   const pageTitle =
     pageNav?.name ||
+    routeItem?.name ||
     ({ '/visuals': 'Visual Workspace', '/vetting': 'Vetting', '/validation': 'Validation' } as Record<string, string>)[location.pathname] ||
     PAGE_TITLES[location.pathname] ||
     'Operational Platform';
@@ -207,13 +210,31 @@ export default function AppShell({ children }: AppShellProps) {
           </button>
 
           {/* Breadcrumb: Brand / Area / Title */}
-          <div className="cx-breadcrumb" aria-label="Current page">
-            <span>{BRAND.name}</span>
-            <span aria-hidden="true">/</span>
-            <span className="text-text-mute hidden sm:inline">{currentArea.name}</span>
-            <span aria-hidden="true" className="hidden sm:inline">/</span>
-            <strong title={pageTitle}>{pageTitle}</strong>
-          </div>
+          <nav className="cx-breadcrumb" aria-label="Breadcrumb">
+            <Link
+              to={navigationTarget('/overview', location.pathname, location.search)}
+              className="hover:text-text-main transition-colors font-medium text-text-sec"
+              title="Overview"
+            >
+              {BRAND.name}
+            </Link>
+            {currentArea.name.toLowerCase() !== pageTitle.toLowerCase() && (
+              <>
+                <span aria-hidden="true" className="text-text-mute">/</span>
+                <Link
+                  to={navigationTarget(currentArea.landingPath, location.pathname, location.search)}
+                  className="text-text-mute hover:text-text-main transition-colors hidden sm:inline"
+                  title={currentArea.name}
+                >
+                  {currentArea.name}
+                </Link>
+              </>
+            )}
+            <span aria-hidden="true" className="text-text-mute">/</span>
+            <strong title={pageTitle} className="text-text-main font-semibold truncate max-w-[200px] sm:max-w-xs md:max-w-md">
+              {pageTitle}
+            </strong>
+          </nav>
 
           <div className="cx-topbar-actions flex items-center gap-2">
             {/* Search trigger */}

@@ -1,6 +1,5 @@
-import React from 'react';
-import { formatChartAxis, formatPercent, formatTableNumber } from '../../lib/formatters';
-import { useId } from 'react';
+import React, { useId, useMemo } from 'react';
+import { formatChartAxis, formatTableNumber } from '../../lib/formatters';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import { ChartToolbar } from './ChartToolbar';
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
@@ -42,6 +41,8 @@ export function TrendChart({
 }: TrendChartProps) {
   
   const gradientId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const safeData = useMemo(() => data || [], [data]);
+
   const formatValue = (val: number) => {
     return `${valuePrefix}${formatTableNumber(val)}${valueSuffix}`;
   };
@@ -59,10 +60,10 @@ export function TrendChart({
     }
 
     return (
-      <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg p-3 text-xs min-w-[190px] ring-1 ring-black/5 dark:ring-white/5">
+      <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl p-3 text-xs min-w-[200px] ring-1 ring-black/5 dark:ring-white/5 transition-all">
         <div className="font-semibold text-slate-800 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1.5 mb-2 font-mono flex items-center justify-between">
           <span>{label}</span>
-          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-sans font-normal">Daily Observation</span>
+          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-sans font-normal">Observation</span>
         </div>
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-3">
@@ -107,7 +108,7 @@ export function TrendChart({
 
   return (
     <div className="enterprise-card p-5 flex flex-col h-full w-full">
-      <ChartToolbar visualData={data} title={title} subtitle={subtitle} auditTitle={auditTitle} auditContext={auditContext} auditGrain={auditGrain}>
+      <ChartToolbar visualData={safeData} title={title} subtitle={subtitle} auditTitle={auditTitle} auditContext={auditContext} auditGrain={auditGrain}>
         {options && (
           <select 
             aria-label={`${title} measure`}
@@ -122,22 +123,22 @@ export function TrendChart({
         )}
       </ChartToolbar>
       
-      <div style={{ height, width: '100%' }}>
-        {!data || !data.length ? (
-          <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
-            <span className="font-medium text-slate-600 mb-1">No trend observations recorded.</span>
+      <div style={{ height, minHeight: height, width: '100%' }}>
+        {!safeData.length ? (
+          <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 dark:bg-slate-900/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-800 p-4">
+            <span className="font-medium text-slate-600 dark:text-slate-300 mb-1">No trend observations recorded.</span>
             <span className="text-[11px] text-slate-400">Select a wider date range or check data filters.</span>
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
-            <AreaChart data={data} margin={{ top: 12, right: 14, left: 0, bottom: 4 }}>
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={50}>
+            <AreaChart data={safeData} margin={{ top: 12, right: 14, left: 0, bottom: 4 }}>
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#315BCB" stopOpacity={0.22}/>
+                <stop offset="5%" stopColor="#315BCB" stopOpacity={0.24}/>
                 <stop offset="95%" stopColor="#315BCB" stopOpacity={0.01}/>
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border, #f1f5f9)" />
             <XAxis 
               dataKey={xAxisKey} 
               axisLine={false} 
@@ -165,6 +166,7 @@ export function TrendChart({
                 strokeDasharray="4 4"
                 fill="none" 
                 name="Previous Period"
+                connectNulls={true}
               />
             )}
             
@@ -173,11 +175,12 @@ export function TrendChart({
               type="monotone" 
               dataKey={currentKey} 
               stroke="#315BCB" 
-              strokeWidth={2.5}
+              strokeWidth={2.5} 
               activeDot={{ r: 5, fill: '#315BCB', stroke: '#ffffff', strokeWidth: 2 }}
               fillOpacity={1} 
               fill={`url(#${gradientId})`} 
               name="Current Period"
+              connectNulls={true}
             />
             {comparisonKey && (
               <Legend 

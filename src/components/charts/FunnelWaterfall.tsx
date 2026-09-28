@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { formatKpiValue, formatTableNumber } from '../../lib/formatters';
 import { ChartToolbar } from './ChartToolbar';
 import { Layers, BarChart2, TrendingDown, ArrowRight } from 'lucide-react';
@@ -33,6 +33,40 @@ export function FunnelWaterfall({
 }: FunnelWaterfallProps) {
   const [viewMode, setViewMode] = useState<'bars' | 'flow'>('bars');
 
+  const { maxVal, topOfFunnel, bottomOfFunnel, overallConversionPct, maxDropoffStage, maxDropoffVal } = useMemo(() => {
+    if (!steps || !steps.length) {
+      return {
+        maxVal: 1,
+        topOfFunnel: 0,
+        bottomOfFunnel: 0,
+        overallConversionPct: 'Unavailable',
+        maxDropoffStage: '',
+        maxDropoffVal: 0,
+      };
+    }
+    const max = Math.max(...steps.map(s => Number(s.value) || 0), 1);
+    const top = steps[0]?.value ?? 0;
+    const bottom = steps[steps.length - 1]?.value || 0;
+    const overall = top > 0 ? ((bottom / top) * 100).toFixed(1) + '%' : 'Unavailable';
+    let dropStage = '';
+    let dropVal = 0;
+    for (let i = 1; i < steps.length; i++) {
+      const drop = (steps[i - 1]?.value || 0) - (steps[i]?.value || 0);
+      if (drop > dropVal) {
+        dropVal = drop;
+        dropStage = `${steps[i - 1].label} → ${steps[i].label}`;
+      }
+    }
+    return {
+      maxVal: max,
+      topOfFunnel: top,
+      bottomOfFunnel: bottom,
+      overallConversionPct: overall,
+      maxDropoffStage: dropStage,
+      maxDropoffVal: dropVal,
+    };
+  }, [steps]);
+
   if (!steps || steps.length === 0) {
     return (
       <div className="enterprise-card p-5 h-full flex flex-col">
@@ -44,28 +78,12 @@ export function FunnelWaterfall({
           auditContext={auditContext} 
           auditGrain={auditGrain} 
         />
-        <div className="h-48 w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4 my-auto">
-          <span className="font-medium text-slate-600 mb-1">No funnel stages recorded.</span>
+        <div className="h-48 w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 dark:bg-slate-900/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-800 p-4 my-auto">
+          <span className="font-medium text-slate-600 dark:text-slate-300 mb-1">No funnel stages recorded.</span>
           <span className="text-[11px] text-slate-400">Select a wider date range or check data filters.</span>
         </div>
       </div>
     );
-  }
-  
-  const maxVal = Math.max(...steps.map(s => Number(s.value) || 0), 1);
-  const topOfFunnel = steps[0]?.value ?? 0;
-  const bottomOfFunnel = steps[steps.length - 1]?.value || 0;
-  const overallConversionPct = topOfFunnel > 0 ? ((bottomOfFunnel / topOfFunnel) * 100).toFixed(1) + '%' : 'Unavailable';
-
-  // Find the stage with the highest absolute drop-off
-  let maxDropoffStage = '';
-  let maxDropoffVal = 0;
-  for (let i = 1; i < steps.length; i++) {
-    const drop = steps[i - 1].value - steps[i].value;
-    if (drop > maxDropoffVal) {
-      maxDropoffVal = drop;
-      maxDropoffStage = `${steps[i - 1].label} → ${steps[i].label}`;
-    }
   }
 
   return (

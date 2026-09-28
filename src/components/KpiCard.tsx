@@ -57,7 +57,7 @@ export default function KpiCard({
     <>
       <article className="enterprise-card cx-kpi">
         <div className="cx-kpi-heading">
-          <h3 className="text-slate-600 dark:text-slate-400 font-semibold text-[11px] uppercase tracking-wider font-mono">{title}</h3>
+          <h3 className="text-text-sec text-[13px] font-medium">{title}</h3>
           {lineage && (
             <div className="cx-kpi-tools">
               <button
@@ -84,7 +84,7 @@ export default function KpiCard({
 
         <div className="cx-kpi-amount my-2">
           {!missing && prefix && <small className="text-slate-500 dark:text-slate-400 font-medium text-xs mr-1">{prefix}</small>}
-          <strong className="text-2xl sm:text-[26px] font-bold tracking-tight text-slate-900 dark:text-slate-100 font-mono tabular-nums leading-none">
+          <strong className="text-2xl sm:text-[28px] font-bold tracking-tight text-text-main font-mono tabular-nums leading-tight">
             {missing ? 'Unavailable' : typeof value === 'number' ? formatKpiValue(value) : value}
           </strong>
           {!missing && suffix && <small className="text-slate-500 dark:text-slate-400 font-medium text-xs ml-1">{suffix}</small>}

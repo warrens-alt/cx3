@@ -9,7 +9,7 @@
 .cx-nav-modal .cx-sidebar { width: 100%; }
 .cx-sidebar .cx-sidebar-search { min-height: 40px; margin: 12px 12px 8px; padding-inline: 10px; border-radius: var(--cx-control-radius, 8px); border-color: var(--cx-border); color: var(--cx-text-secondary); font-size: 12px; }
 .cx-sidebar-search kbd { color: var(--cx-text-secondary); }
-.cx-sidebar .cx-nav-section-label { padding: 12px 18px 8px; color: var(--cx-text-secondary); font-size: 10px; letter-spacing: .07em; }
+.cx-sidebar .cx-nav-section-label { padding: 12px 18px 6px; color: var(--cx-text-secondary); font-size: 11px; font-weight: 600; letter-spacing: normal; text-transform: none; }
 .cx-sidebar .cx-nav-link { min-height: 40px; padding: 9px 10px; margin: 2px 8px; border-radius: 8px; gap: 10px; font-size: 13px; color: var(--cx-text-secondary); border-left: 0; }
 .cx-sidebar .cx-nav-link:hover { background: var(--cx-surface-subtle); color: var(--cx-text); }
 .cx-sidebar .cx-nav-link[aria-current],

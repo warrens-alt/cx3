@@ -8,6 +8,7 @@ import PerformanceTrend from './components/PerformanceTrend';
 import AttentionList from './components/AttentionList';
 import JourneySummary from './components/JourneySummary';
 import SegmentComparison from './components/SegmentComparison';
+import ChangeContributionPanel from './components/ChangeContributionPanel';
 import InspectorHost from '../../shared/evidence/InspectorHost';
 import ReportingScopeBar from '../../shared/reporting/ReportingScopeBar';
 import { OperationalEmpty, OperationalError, OverviewSkeleton } from '../../components/OperationalState';
@@ -83,12 +84,14 @@ export default function OverviewPage() {
     });
   };
 
-  // Matched-period meaningful changes ranked by absolute significance
+  // Matched-period meaningful changes: volume shift (%) and conversion rate shifts (pp) are kept distinct
   const meaningfulChanges = useMemo(() => {
     if (!data?.comparison) return [];
     const c = data.comparison;
-    return [
-      { label: 'Lead volume', value: c.fetchedDelta, unit: '%', metric: 'fetchedLeads' as RootMetric },
+    const vol = c.fetchedDelta != null && Number.isFinite(c.fetchedDelta)
+      ? [{ label: 'Lead volume', value: c.fetchedDelta, unit: '%', metric: 'fetchedLeads' as RootMetric }]
+      : [];
+    const rates = [
       { label: 'Delivery rate', value: c.deliveryRateDelta, unit: 'pp', metric: 'deliveryRate' as RootMetric },
       { label: 'Dial coverage', value: c.dialRateDelta, unit: 'pp', metric: 'dialRate' as RootMetric },
       { label: 'Right-party contact', value: c.contactRateDelta, unit: 'pp', metric: 'contactRate' as RootMetric },
@@ -96,8 +99,8 @@ export default function OverviewPage() {
       { label: 'Activation / sale', value: c.activationRateDelta, unit: 'pp', metric: 'activationRate' as RootMetric },
     ]
       .filter(item => item.value !== null && Number.isFinite(item.value))
-      .sort((a, b) => Math.abs(Number(b.value)) - Math.abs(Number(a.value)))
-      .slice(0, 4);
+      .sort((a, b) => Math.abs(Number(b.value)) - Math.abs(Number(a.value)));
+    return [...vol, ...rates.slice(0, 3)];
   }, [data?.comparison]);
 
   return (

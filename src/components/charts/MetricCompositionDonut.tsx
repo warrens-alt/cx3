@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { formatChartAxis, formatTableNumber } from '../../lib/formatters';
 import { ChartToolbar } from './ChartToolbar';
@@ -54,9 +54,12 @@ export function MetricCompositionDonut({
   auditGrain
 }: MetricCompositionDonutProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const safeData = data || [];
+  const safeData = useMemo(() => data || [], [data]);
 
-  const total = safeData.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
+  const total = useMemo(
+    () => safeData.reduce((sum, item) => sum + (Number(item.value) || 0), 0),
+    [safeData]
+  );
   const activeItem = activeIndex !== null && safeData[activeIndex] ? safeData[activeIndex] : null;
   const activePct = activeItem && total > 0 ? ((Number(activeItem.value) / total) * 100).toFixed(1) : null;
 
@@ -81,8 +84,8 @@ export function MetricCompositionDonut({
 
       <div className="relative flex-1 flex items-center justify-center" style={{ minHeight: height }}>
         {!safeData.length || total === 0 ? (
-          <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
-            <span className="font-medium text-slate-600 mb-1">No composition slices recorded.</span>
+          <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 dark:bg-slate-900/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-800 p-4">
+            <span className="font-medium text-slate-600 dark:text-slate-300 mb-1">No composition slices recorded.</span>
             <span className="text-[11px] text-slate-400">Total volume is zero or unobserved in this scope.</span>
           </div>
         ) : (
@@ -95,18 +98,18 @@ export function MetricCompositionDonut({
                       const item = payload[0].payload as DonutSlice;
                       const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : '0';
                       return (
-                        <div className="bg-white/95 backdrop-blur-md border border-slate-200 rounded-lg shadow-lg p-3 text-xs ring-1 ring-black/5">
-                          <div className="font-semibold text-slate-900 flex items-center gap-2 mb-1">
+                        <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl p-3 text-xs ring-1 ring-black/5 dark:ring-white/5 transition-all">
+                          <div className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2 mb-1">
                             <span 
                               className="w-2.5 h-2.5 rounded-full inline-block" 
                               style={{ backgroundColor: payload[0].color }} 
                             />
                             {item.name}
                           </div>
-                          <div className="text-slate-700 font-mono text-sm font-bold">
+                          <div className="text-slate-700 dark:text-slate-200 font-mono text-sm font-bold tabular-nums">
                             {valuePrefix}{formatTableNumber(item.value)}{valueSuffix}
                           </div>
-                          <div className="text-[11px] text-blue-700 font-semibold font-mono mt-0.5">
+                          <div className="text-[11px] text-blue-700 dark:text-blue-400 font-semibold font-mono mt-0.5 tabular-nums">
                             {pct}% of {centerLabel || 'total'}
                           </div>
                         </div>
@@ -161,14 +164,14 @@ export function MetricCompositionDonut({
               className="absolute top-[44%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none transition-all duration-150"
               style={{ maxWidth: innerRadius * 1.75 }}
             >
-              <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider truncate px-1">
+              <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate px-1">
                 {displayCenterLabel}
               </div>
-              <div className="text-lg sm:text-xl font-bold font-mono text-slate-900 tracking-tight whitespace-nowrap">
+              <div className="text-lg sm:text-xl font-bold font-mono text-slate-900 dark:text-slate-100 tracking-tight whitespace-nowrap">
                 {displayCenterValue}
               </div>
               {activePct && (
-                <div className="text-[10.5px] font-mono text-blue-700 font-semibold">
+                <div className="text-[10.5px] font-mono text-blue-700 dark:text-blue-400 font-semibold tabular-nums">
                   {activePct}% share
                 </div>
               )}

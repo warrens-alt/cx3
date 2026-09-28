@@ -25,7 +25,18 @@ export { getAiInsightsAnalytics } from './investigation/aiInsights';
 export { getRawLeads } from './investigation/records';
 export { getLeadTimeline } from './investigation/timeline';
 export { getExceptionAnalytics } from './investigation/exceptions';
-export { getWarehouseCrossDatasetAnalytics, searchWarehouseTables } from './warehouse/warehouseAnalytics';
+export {
+  getWarehouseCrossDatasetAnalytics,
+  searchWarehouseTables,
+  buildWarehouseExportBundle,
+  generateWarehouseSchemaCsv,
+  generateWarehouseInventoryCsv,
+  generateWarehouseDataCsv,
+  enrichTableObject,
+  type WarehouseExportBundle,
+  type EnrichedTableExport,
+  type EnrichedColumn,
+} from './warehouse/warehouseAnalytics';
 export { getOffershopProcessFlow, getOffershopStageDetails, getOffershopSimulation } from './process/offershopProcess';
 export { getContactDispositionsAnalytics } from './contact/dispositions';
 export * from './common/metricRegistry';

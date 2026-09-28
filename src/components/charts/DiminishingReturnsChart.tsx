@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 import { formatChartAxis, formatTableNumber } from '../../lib/formatters';
 import { ChartToolbar } from './ChartToolbar';
@@ -34,8 +34,8 @@ interface DiminishingReturnsChartProps {
 const CustomDiminishingTooltip = ({ active, payload, label, volumeName }: any) => {
   if (!active || !payload || !payload.length) return null;
   return (
-    <div className="bg-white/95 backdrop-blur-md border border-slate-200 shadow-lg rounded-lg p-3 text-xs font-mono">
-      <div className="font-sans font-semibold text-slate-800 pb-1.5 border-b border-slate-100 mb-2">
+    <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 shadow-xl rounded-lg p-3 text-xs font-mono ring-1 ring-black/5 dark:ring-white/5 transition-all">
+      <div className="font-sans font-semibold text-slate-800 dark:text-slate-100 pb-1.5 border-b border-slate-100 dark:border-slate-800 mb-2">
         {label}
       </div>
       <div className="space-y-1.5">
@@ -46,11 +46,11 @@ const CustomDiminishingTooltip = ({ active, payload, label, volumeName }: any) =
             : `${Number(entry.value).toFixed(1)}%`;
           return (
             <div key={`item-${index}`} className="flex items-center justify-between gap-4">
-              <span className="flex items-center gap-1.5 font-sans text-slate-600 text-[11px]">
+              <span className="flex items-center gap-1.5 font-sans text-slate-600 dark:text-slate-300 text-[11px]">
                 <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ backgroundColor: entry.color }} />
                 <span>{entry.name}</span>
               </span>
-              <span className="font-bold text-slate-900 tabular-nums">{displayVal}</span>
+              <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">{displayVal}</span>
             </div>
           );
         })}
@@ -76,7 +76,7 @@ export function DiminishingReturnsChart({
   auditContext,
   auditGrain
 }: DiminishingReturnsChartProps) {
-  const safeData = data || [];
+  const safeData = useMemo(() => data || [], [data]);
 
   return (
     <div className="enterprise-card p-5 flex flex-col h-full w-full">
@@ -88,16 +88,16 @@ export function DiminishingReturnsChart({
         auditGrain={auditGrain} 
       />
 
-      <div style={{ height, width: '100%' }}>
+      <div style={{ height, minHeight: height, width: '100%' }}>
         {!safeData.length ? (
-          <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
-            <span className="font-medium text-slate-600 mb-1">No diminishing returns observations recorded.</span>
+          <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 dark:bg-slate-900/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-800 p-4">
+            <span className="font-medium text-slate-600 dark:text-slate-300 mb-1">No diminishing returns observations recorded.</span>
             <span className="text-[11px] text-slate-400">Select a wider date range or check data filters.</span>
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={50}>
             <ComposedChart data={safeData} margin={{ top: 20, right: 25, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border, #f1f5f9)" />
             
             <XAxis 
               dataKey="bucket" 
@@ -167,6 +167,7 @@ export function DiminishingReturnsChart({
               strokeWidth={2.5} 
               dot={{ r: 4, fill: '#0D9488', strokeWidth: 2, stroke: '#ffffff' }} 
               activeDot={{ r: 6 }} 
+              connectNulls={true}
               isAnimationActive={false} 
             />
 
@@ -181,6 +182,7 @@ export function DiminishingReturnsChart({
                 strokeDasharray="4 4"
                 dot={{ r: 3, fill: '#D97706', strokeWidth: 2, stroke: '#ffffff' }} 
                 activeDot={{ r: 5 }} 
+                connectNulls={true}
                 isAnimationActive={false} 
               />
             )}

@@ -24,7 +24,7 @@ export default function MobileBottomNav({ onOpenMenu, menuOpen = false }: Mobile
 
   return (
     <nav
-      className="cx-mobile-bottom-nav fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 lg:hidden shadow-[0_-2px_10px_rgba(0,0,0,0.04)] pb-[env(safe-area-inset-bottom,0px)]"
+      className="cx-mobile-bottom-nav fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/90 dark:border-slate-800 lg:hidden shadow-[0_-2px_10px_rgba(0,0,0,0.04)] pb-[env(safe-area-inset-bottom,0px)]"
       aria-label="Mobile navigation"
     >
       <div className="grid grid-cols-5 h-[58px] max-w-lg mx-auto">

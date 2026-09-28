@@ -722,13 +722,32 @@
   color: #94A3B8 !important;
 }
 
-/* Dark Mode Charts Tooltip */
+/* Dark Mode Charts Tooltip & Cards */
 [data-theme="dark"] .cx-chart-tooltip,
-[data-theme="dark"] .recharts-default-tooltip {
+[data-theme="dark"] .recharts-default-tooltip,
+[data-theme="dark"] .cx-analytics-tooltip {
   background-color: #101828 !important;
   border-color: #1E2B45 !important;
   color: #F8FAFC !important;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6) !important;
+}
+
+[data-theme="dark"] .cx-analytics-tooltip > strong {
+  border-bottom-color: #1E2B45 !important;
+  color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .cx-analytics-tooltip span {
+  color: #94A3B8 !important;
+}
+
+[data-theme="dark"] .cx-analytics-tooltip b {
+  color: #F8FAFC !important;
+}
+
+[data-theme="dark"] .cx-analytics-card {
+  background-color: #0F172A;
+  border-color: #1E2B45;
 }
 
 /* --------------------------------------------------------------------------

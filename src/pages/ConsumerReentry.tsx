@@ -213,7 +213,7 @@ export default function ConsumerReentry() {
               </VisualTable>
             </div>
           ) : (
-            <div className="p-5 h-72 w-full">
+            <div className="p-5 h-72 min-h-[288px] w-full">
               {!tiers.length ? (
                 <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
                   <span className="font-medium text-slate-600 mb-1">No consumer tier observations recorded.</span>
@@ -341,7 +341,7 @@ export default function ConsumerReentry() {
               </VisualTable>
             </div>
           ) : (
-            <div className="p-5 h-72 w-full">
+            <div className="p-5 h-72 min-h-[288px] w-full">
               {!sequenceEconomics.length ? (
                 <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
                   <span className="font-medium text-slate-600 mb-1">No sequential entry observations recorded.</span>
@@ -389,8 +389,8 @@ export default function ConsumerReentry() {
                       }}
                     />
                     <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                    <Area type="monotone" dataKey="rpc_rate_pct" name="RPC Rate %" stroke="#315BCB" strokeWidth={2} fillOpacity={1} fill="url(#colorSeqRpc)" />
-                    <Area type="monotone" dataKey="billable_sale_rate_pct" name="Sale Rate %" stroke="#059669" strokeWidth={2} fillOpacity={1} fill="url(#colorSeqSale)" />
+                    <Area type="monotone" dataKey="rpc_rate_pct" name="RPC Rate %" stroke="#315BCB" strokeWidth={2} fillOpacity={1} fill="url(#colorSeqRpc)" connectNulls={true} isAnimationActive={false} />
+                    <Area type="monotone" dataKey="billable_sale_rate_pct" name="Sale Rate %" stroke="#059669" strokeWidth={2} fillOpacity={1} fill="url(#colorSeqSale)" connectNulls={true} isAnimationActive={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               )}

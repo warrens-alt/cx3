@@ -515,6 +515,51 @@ analyticsRouter.get('/warehouse/tables', cacheResponse(60), asyncRoute(async (re
   res.json({ success: true, data, count: data.length });
 }));
 
+analyticsRouter.get('/warehouse/export', cacheResponse(30), asyncRoute(async (req, res) => {
+  const format = scalarString(req.query.format, 'format', 50) || 'json';
+  const project = scalarString(req.query.project, 'project', 100);
+  const dataset = scalarString(req.query.dataset, 'dataset', 100);
+  const search = scalarString(req.query.search, 'search', 100);
+  const includeSchemas = req.query.includeSchemas !== 'false';
+  const includeData = req.query.includeData !== 'false';
+
+  const bundle = await offernetAnalytics.buildWarehouseExportBundle({
+    clientId: res.locals.scope.clientId,
+    projectFilter: project,
+    datasetFilter: dataset,
+    tableFilter: search,
+    includeSchemas,
+    includeData,
+  });
+
+  if (format === 'schema_csv' || format === 'csv') {
+    const rawTables = offernetAnalytics.searchWarehouseTables(search, dataset);
+    const filteredTables = project && project !== 'all' ? rawTables.filter(t => t.project === project) : rawTables;
+    const csvContent = offernetAnalytics.generateWarehouseSchemaCsv(filteredTables);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="google_warehouse_all_tables_schemas.csv"');
+    return res.send(csvContent);
+  }
+
+  if (format === 'tables_csv' || format === 'inventory_csv') {
+    const rawTables = offernetAnalytics.searchWarehouseTables(search, dataset);
+    const filteredTables = project && project !== 'all' ? rawTables.filter(t => t.project === project) : rawTables;
+    const csvContent = offernetAnalytics.generateWarehouseInventoryCsv(filteredTables);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="google_warehouse_tables_inventory.csv"');
+    return res.send(csvContent);
+  }
+
+  if (format === 'data_csv') {
+    const csvContent = offernetAnalytics.generateWarehouseDataCsv(bundle);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="google_warehouse_data_and_telemetry.csv"');
+    return res.send(csvContent);
+  }
+
+  res.json({ success: true, data: bundle });
+}));
+
 // DEDICATED CLI PERFORMANCE / DIALLER INTELLIGENCE ENDPOINTS
 analyticsRouter.get('/cli-performance', cacheResponse(30), asyncRoute(async (req, res) => {
   const scope = res.locals.scope;

@@ -83,7 +83,7 @@ export default function ExploreChart({
   }
 
   return (
-    <div className="w-full h-80 my-4">
+    <div className="w-full h-80 min-h-[320px] my-4">
       <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
         {chartType === 'line' ? (
           <LineChart data={formatted} margin={{ top: 12, right: 16, left: -10, bottom: 4 }}>
@@ -97,6 +97,8 @@ export default function ExploreChart({
               stroke="#315BCB"
               strokeWidth={2}
               dot={{ r: 3 }}
+              connectNulls={true}
+              isAnimationActive={false}
             />
           </LineChart>
         ) : chartType === 'area' ? (
@@ -111,6 +113,8 @@ export default function ExploreChart({
               stroke="#315BCB"
               fill="#315BCB"
               fillOpacity={0.2}
+              connectNulls={true}
+              isAnimationActive={false}
             />
           </AreaChart>
         ) : chartType === 'donut' ? (

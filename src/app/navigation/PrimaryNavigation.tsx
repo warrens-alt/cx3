@@ -160,7 +160,7 @@ export default function PrimaryNavigation({
               <li>
                 <div className="cx-nav-goal-row">
                   <Link
-                    to="/access-control"
+                    to={navigationTarget('/access-control', location.pathname, location.search)}
                     aria-current={location.pathname === '/access-control' || location.pathname === '/users' ? 'page' : undefined}
                     onClick={onClose}
                     className="cx-nav-link"

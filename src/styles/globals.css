@@ -62,12 +62,10 @@ th[data-numeric="true"],
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  overflow-x: auto;
-  scrollbar-width: none;
+  overflow: visible;
+  position: relative;
+  z-index: 20;
   flex-shrink: 0;
-}
-.cx-area-nav::-webkit-scrollbar {
-  display: none;
 }
 
 .cx-area-nav-item {

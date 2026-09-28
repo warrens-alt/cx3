@@ -305,7 +305,7 @@ export default function CommercialReconciliation() {
             {!filtered.length&&<p role="status" className="cx-ops-empty">No vendors matched the local search. No warehouse request was rerun.</p>}
           </>
         ) : (
-          <div className="p-4 h-72 w-full">
+          <div className="p-4 h-72 min-h-[288px] w-full">
             {!filtered.length ? (
               <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
                 <span className="font-medium text-slate-600 mb-1">No vendors matched the search query.</span>

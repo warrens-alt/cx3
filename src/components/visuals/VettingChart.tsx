@@ -101,7 +101,7 @@ export default function VettingChart({
         </div>
       </div>
 
-      <div className="h-64 w-full">
+      <div className="h-64 min-h-[256px] w-full">
         {!formattedRows.length ? (
           <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
             <span className="font-medium text-slate-600 mb-1">No vetting records available.</span>
@@ -143,6 +143,8 @@ export default function VettingChart({
                     stroke={CHART_PALETTE[idx % CHART_PALETTE.length]}
                     strokeWidth={2}
                     dot={{ r: 3 }}
+                    connectNulls={true}
+                    isAnimationActive={false}
                   />
                 ))}
               </LineChart>

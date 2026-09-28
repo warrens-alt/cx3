@@ -477,3 +477,14 @@ export function searchWarehouseTables(query?: string, datasetFilter?: string, fa
   }
   return objects;
 }
+
+export {
+  buildWarehouseExportBundle,
+  generateWarehouseSchemaCsv,
+  generateWarehouseInventoryCsv,
+  generateWarehouseDataCsv,
+  enrichTableObject,
+  type WarehouseExportBundle,
+  type EnrichedTableExport,
+  type EnrichedColumn,
+} from './warehouseExport';

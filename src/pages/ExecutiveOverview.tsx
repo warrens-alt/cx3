@@ -81,7 +81,7 @@ function Metric({
     <article className="cx-command-metric flex flex-col justify-between">
       <div>
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-text-sec uppercase tracking-wider">{label}</span>
+          <span className="text-[13px] font-semibold text-text-sec">{label}</span>
           {onAbout && (
             <button
               type="button"
@@ -290,6 +290,76 @@ export default function ExecutiveOverview() {
 
             {data.kpis.fetchedLeads === 0 && <OperationalEmpty title="No leads in this selection">Try a different period or remove a filter. Measured counts remain zero; rates without a population are unavailable.</OperationalEmpty>}
 
+            {/* Primary Visual Trend & What Changed Analysis near top */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 my-2">
+              <section className="lg:col-span-8 bg-surface border border-border rounded-lg p-5 shadow-2xs flex flex-col">
+                <header className="flex items-center justify-between gap-3 mb-3">
+                  <div>
+                    <h2 className="text-base font-semibold text-text-main">Daily lead trend</h2>
+                    <p className="text-xs text-text-sec">Fetched leads and recorded sales across the latest available days in scope.</p>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-text-muted shrink-0">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-xs inline-block" style={{ backgroundColor: 'var(--cx-data-fetched, #4F5FB7)' }} />
+                      <span>Fetched leads</span>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-xs inline-block" style={{ backgroundColor: 'var(--cx-data-sales, #426D80)' }} />
+                      <span>Recorded sales</span>
+                    </span>
+                  </div>
+                </header>
+                <div className="h-[290px] min-h-[280px] w-full flex-1">
+                  <DeferredOverviewTrend data={data.dailyTrends} />
+                </div>
+              </section>
+
+              <section className="lg:col-span-4 bg-surface border border-border rounded-lg p-5 shadow-2xs flex flex-col justify-between">
+                <div>
+                  <header className="mb-2">
+                    <h2 className="text-base font-semibold text-text-main">What changed?</h2>
+                    <p className="text-xs text-text-sec mt-1">
+                      {data.comparisonWindow ? `Compared with matched period ${data.comparisonWindow.startDate} → ${data.comparisonWindow.endDate}.` : 'Choose an explicit date period to compare against the immediately preceding matched period.'}
+                    </p>
+                  </header>
+                  {changes.length ? (
+                    <div className="space-y-2 mt-3">
+                      {changes.map(item => (
+                        <div key={item.label} className="flex items-center justify-between p-2.5 rounded-md bg-surface-subtle border border-border-subtle hover:border-action/40 transition-colors text-xs">
+                          <div className="min-w-0 pr-2">
+                            <span className="font-medium text-text-main block truncate">{item.label}</span>
+                            <div className="mt-0.5">
+                              <Change value={item.value} unit={item.unit} />
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => investigate(item.metric)}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-action hover:text-action-hover px-2 py-1 rounded hover:bg-selected-bg transition-colors cursor-pointer shrink-0"
+                            title={`Investigate ${item.label} root cause`}
+                          >
+                            <span>Why?</span>
+                            <ArrowRight size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="cx-command-empty p-4 text-center text-xs text-text-muted bg-surface-subtle rounded-md border border-dashed border-border flex flex-col items-center justify-center gap-1.5 my-auto">
+                      <Clock3 size={17} className="text-text-muted" />
+                      <span>Matched-period changes appear when the selected period has explicit start and end dates.</span>
+                    </div>
+                  )}
+                </div>
+                {hasComparison && (
+                  <p className="text-[11px] text-text-muted mt-3 pt-2 border-t border-border-subtle">
+                    Ranked by absolute rate delta across verified lifecycle milestones.
+                  </p>
+                )}
+              </section>
+            </div>
+
+            {/* Operational Attention Queue & First-Call Response */}
             <div className="cx-command-grid cx-command-grid-attention">
               <section className="cx-command-panel">
                 <header>
@@ -406,31 +476,6 @@ export default function ExecutiveOverview() {
                     ) : <div key={`${vendor.vendor}-${index}`}>{body}</div>;
                   }) : <div className="cx-command-empty">No current vendor backlog.</div>}
                 </div>
-              </section>
-            </div>
-
-            <div className="cx-command-grid cx-command-grid-change">
-              <section className="cx-command-panel">
-                <header>
-                  <div>
-                    <h2>What changed?</h2>
-                    <p>{data.comparisonWindow ? `Compared with the matched period ${data.comparisonWindow.startDate} → ${data.comparisonWindow.endDate}.` : 'Choose an explicit date period to compare against the immediately preceding matched period.'}</p>
-                  </div>
-                </header>
-                {changes.length ? (
-                  <div className="cx-change-list">
-                    {changes.map(item => (
-                      <button key={item.label} type="button" onClick={() => investigate(item.metric)}>
-                        <span>{item.label}</span><Change value={item.value} unit={item.unit} /><span className="cx-change-explain">Why? <ArrowRight size={14} /></span>
-                      </button>
-                    ))}
-                  </div>
-                ) : <div className="cx-command-empty"><Clock3 size={17} />Matched-period changes appear when the selected period has explicit start and end dates.</div>}
-              </section>
-
-              <section className="cx-command-panel">
-                <header><div><h2>Daily lead trend</h2><p>Fetched leads and recorded sales across the latest available days in scope.</p></div></header>
-                <DeferredOverviewTrend data={data.dailyTrends} />
               </section>
             </div>
 

@@ -54,18 +54,18 @@ export const CliChartsSection: React.FC<CliChartsSectionProps> = ({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       {/* Chart 1: CLI Performance Ranking (7 cols) */}
-      <div className="lg:col-span-7 bg-white rounded-lg border border-slate-200 p-4 shadow-sm space-y-3">
+      <div className="lg:col-span-7 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4 shadow-xs space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
-            <h3 className="text-sm font-semibold text-slate-900">CLI Performance Ranking</h3>
-            <p className="text-xs text-slate-500">Compare top outbound caller-IDs by key operational metric</p>
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">CLI Performance Ranking</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Compare top outbound caller-IDs by key operational metric</p>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-500">Metric:</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">Metric:</span>
             <select
               value={rankMetric}
               onChange={e => setRankMetric(e.target.value)}
-              className="text-xs border border-slate-300 rounded px-2 py-1 bg-white font-medium text-slate-700"
+              className="text-xs border border-slate-300 dark:border-slate-700 rounded px-2 py-1 bg-white dark:bg-slate-800 font-medium text-slate-700 dark:text-slate-200"
             >
               <option value="totalCalls">Total Calls</option>
               <option value="contactRate">Right Party Contact (RPC %)</option>
@@ -77,11 +77,11 @@ export const CliChartsSection: React.FC<CliChartsSectionProps> = ({
           </div>
         </div>
 
-        <div className="h-64 w-full">
+        <div className="h-64 min-h-[256px] w-full">
           {!rankingChartData || !rankingChartData.length ? (
-            <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
-              <span className="font-medium text-slate-600 mb-1">No CLI ranking observations recorded.</span>
-              <span className="text-[11px] text-slate-400">Select a wider date range or check campaign filters.</span>
+            <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 dark:bg-slate-800/40 rounded-lg border border-dashed border-slate-200 dark:border-slate-700 p-4">
+              <span className="font-medium text-slate-600 dark:text-slate-300 mb-1">No CLI ranking observations recorded.</span>
+              <span className="text-[11px] text-slate-400 dark:text-slate-500">Select a wider date range or check campaign filters.</span>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
@@ -131,23 +131,23 @@ export const CliChartsSection: React.FC<CliChartsSectionProps> = ({
       </div>
 
       {/* Chart 2: Telephony Conversion Funnel (5 cols) */}
-      <div className="lg:col-span-5 bg-white rounded-lg border border-slate-200 p-4 shadow-sm space-y-3">
+      <div className="lg:col-span-5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4 shadow-xs space-y-3">
         <div>
-          <h3 className="text-sm font-semibold text-slate-900">CLI Dialler Conversion Funnel</h3>
-          <p className="text-xs text-slate-500">Observed drop-off from call attempt to commercial activation</p>
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">CLI Dialler Conversion Funnel</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Observed drop-off from call attempt to commercial activation</p>
         </div>
 
         <div className="space-y-2 pt-1">
           {funnelData.map((stage, idx) => (
             <div key={stage.stage} className="space-y-1">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-medium text-slate-700">{stage.stage}</span>
-                <span className="font-bold text-slate-900">
+                <span className="font-medium text-slate-700 dark:text-slate-300">{stage.stage}</span>
+                <span className="font-bold text-slate-900 dark:text-slate-100">
                   {stage.count.toLocaleString()}{' '}
-                  <span className="font-normal text-slate-500">({stage.pct}%)</span>
+                  <span className="font-normal text-slate-500 dark:text-slate-400">({stage.pct}%)</span>
                 </span>
               </div>
-              <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-3 overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-500"
                   style={{
@@ -157,8 +157,8 @@ export const CliChartsSection: React.FC<CliChartsSectionProps> = ({
                 />
               </div>
               {idx < funnelData.length - 1 && (
-                <div className="text-[10px] text-slate-400 text-right pr-1">
-                  Conversion: {stage.count > 0 ? ((funnelData[idx + 1].count / stage.count) * 100).toFixed(1) : 0}%
+                <div className="text-[10px] text-slate-400 dark:text-slate-500 text-right pr-1">
+                  Conversion: {stage.count > 0 && funnelData[idx + 1] ? ((funnelData[idx + 1].count / stage.count) * 100).toFixed(1) + '%' : '—'}
                 </div>
               )}
             </div>
@@ -167,13 +167,13 @@ export const CliChartsSection: React.FC<CliChartsSectionProps> = ({
       </div>
 
       {/* Chart 3: Conversation Quality (Duration Bands) (6 cols) */}
-      <div className="lg:col-span-6 bg-white rounded-lg border border-slate-200 p-4 shadow-sm space-y-3">
+      <div className="lg:col-span-6 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4 shadow-xs space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-slate-900">Conversation Quality & Duration Bands</h3>
-            <p className="text-xs text-slate-500">Shown only when duration counts are supplied by the source.</p>
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Conversation Quality & Duration Bands</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Shown only when duration counts are supplied by the source.</p>
           </div>
-          <span className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+          <span className="text-xs font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
             Avg: {data.durationBands.avgDurationSeconds ? `${data.durationBands.avgDurationSeconds}s` : 'Unavailable'}
           </span>
         </div>
@@ -187,14 +187,14 @@ export const CliChartsSection: React.FC<CliChartsSectionProps> = ({
                 ['5 – 15 minutes', data.durationBands.fiveTo15mCount, data.durationBands.fiveTo15mPct],
                 ['15+ minutes', data.durationBands.over15mCount, data.durationBands.over15mPct],
               ].map(([label, count, share]) => (
-                <div key={label as string} className="bg-slate-50 p-2.5 rounded border border-slate-200 text-center">
-                  <span className="text-[11px] text-slate-500 block">{label}</span>
-                  <span className="text-sm font-bold text-slate-800">{exactNumber(count as string | null)}</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">{share ?? '—'}{share !== null ? '%' : ''}</span>
+                <div key={label as string} className="bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded border border-slate-200 dark:border-slate-700 text-center">
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block">{label}</span>
+                  <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{exactNumber(count as string | null)}</span>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-0.5">{share ?? '—'}{share !== null ? '%' : ''}</span>
                 </div>
               ))}
             </div>
-            <div className="flex items-center justify-between text-[11px] text-slate-500 pt-2">
+            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-2">
               <span>Total recorded talk time: {data.durationBands.totalDurationSeconds ? (parseInt(data.durationBands.totalDurationSeconds, 10) / 3600).toFixed(1) + ' hrs' : 'Unavailable'}</span>
               <span>Calls ≥5m: {summary?.durationGe5mRate ? `${summary.durationGe5mRate}%` : 'Unavailable'}</span>
             </div>
@@ -205,18 +205,18 @@ export const CliChartsSection: React.FC<CliChartsSectionProps> = ({
       </div>
 
       {/* Chart 4: Lead Age evidence (6 cols) */}
-      <div className="lg:col-span-6 bg-white rounded-lg border border-slate-200 p-4 shadow-sm space-y-3">
+      <div className="lg:col-span-6 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4 shadow-xs space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-slate-900">Lead Age at Dial</h3>
-            <p className="text-xs text-slate-500">CX3 shows only source-observed latency evidence and does not infer a distribution from aggregate averages.</p>
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Lead Age at Dial</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">CX3 shows only source-observed latency evidence and does not infer a distribution from aggregate averages.</p>
           </div>
-          <span className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+          <span className="text-xs font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
             Avg Age: {data.leadAgeBands.avgLeadAgeDays ? `${data.leadAgeBands.avgLeadAgeDays}d` : 'Unavailable'}
           </span>
         </div>
         {data.leadAgeBands.bands.some(band => Number(band.callCount) > 0) ? (
-          <div className="h-48 w-full">
+          <div className="h-48 min-h-[192px] w-full">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
               <BarChart data={data.leadAgeBands.bands} margin={{ top: 8, right: 10, left: -20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
@@ -259,18 +259,18 @@ export const CliChartsSection: React.FC<CliChartsSectionProps> = ({
 
       {/* Chart 5: Daily Performance Trend (12 cols) */}
       {data.trend && data.trend.length > 0 && (
-        <div className="lg:col-span-12 bg-white rounded-lg border border-slate-200 p-4 shadow-sm space-y-3">
+        <div className="lg:col-span-12 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4 shadow-xs space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <h3 className="text-sm font-semibold text-slate-900">CLI Dialler Trend Timeline</h3>
-              <p className="text-xs text-slate-500">Daily trajectory of volume, contact efficiency, and conversions</p>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">CLI Dialler Trend Timeline</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Daily trajectory of volume, contact efficiency, and conversions</p>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs text-slate-500">Trend Focus:</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Trend Focus:</span>
               <select
                 value={trendMetric}
                 onChange={e => setTrendMetric(e.target.value)}
-                className="text-xs border border-slate-300 rounded px-2 py-1 bg-white font-medium text-slate-700"
+                className="text-xs border border-slate-300 dark:border-slate-700 rounded px-2 py-1 bg-white dark:bg-slate-800 font-medium text-slate-700 dark:text-slate-200"
               >
                 <option value="saleRate">Sale / Call Rate (%)</option>
                 <option value="contactRate">Right Party Contact (RPC %)</option>
@@ -280,7 +280,7 @@ export const CliChartsSection: React.FC<CliChartsSectionProps> = ({
             </div>
           </div>
 
-          <div className="h-56 w-full">
+          <div className="h-56 min-h-[224px] w-full">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
               <AreaChart data={data.trend} margin={{ top: 10, right: 20, left: -10, bottom: 5 }}>
                 <defs>
@@ -326,6 +326,7 @@ export const CliChartsSection: React.FC<CliChartsSectionProps> = ({
                   strokeWidth={2}
                   fillOpacity={1}
                   fill="url(#cliTrendColor)"
+                  connectNulls={true}
                 />
               </AreaChart>
             </ResponsiveContainer>

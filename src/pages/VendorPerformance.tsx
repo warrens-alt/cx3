@@ -290,7 +290,7 @@ export default function VendorPerformance() {
             <footer><span>Page {Math.min(page+1,pageCount)} of {pageCount}</span><div><button type="button" className="cx-button-secondary" disabled={page===0} onClick={()=>setPage(old=>old-1)}>Previous</button><button type="button" className="cx-button-secondary" disabled={page+1>=pageCount} onClick={()=>setPage(old=>old+1)}>Next</button></div></footer>
           </>
         ) : (
-          <div className="p-4 h-72 w-full">
+          <div className="p-4 h-72 min-h-[288px] w-full">
             {!matching.length ? (
               <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
                 <span className="font-medium text-slate-600 mb-1">No vendor groups matched the search query.</span>

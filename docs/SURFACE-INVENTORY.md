@@ -145,6 +145,7 @@
 | GET | `/api/analytics/validation` | `server/api.ts` |
 | GET | `/api/analytics/vendor-coverage` | `server/api.ts reports registry` |
 | GET | `/api/analytics/vetting` | `server/vetting/router.ts` |
+| GET | `/api/analytics/warehouse/export` | `server/api.ts` |
 | GET | `/api/analytics/warehouse/overview` | `server/api.ts` |
 | GET | `/api/analytics/warehouse/tables` | `server/api.ts` |
 | GET | `/api/health` | `server.ts` |

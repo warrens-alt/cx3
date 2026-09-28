@@ -182,7 +182,7 @@ export default function SalesSegmentComparison({
         </div>
 
         {chartRows.length > 0 ? (
-          <div style={{ height: Math.max(260, Math.min(420, chartRows.length * 28 + 60)), width: '100%' }}>
+          <div style={{ height: Math.max(260, Math.min(420, chartRows.length * 28 + 60)), minHeight: 260, width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
               <ComposedChart
                 data={chartRows}
@@ -272,7 +272,7 @@ export default function SalesSegmentComparison({
                   stroke="var(--cx-action, #315BCB)"
                   strokeWidth={2}
                   dot={{ r: 3, fill: '#fff', strokeWidth: 2 }}
-                  connectNulls={false}
+                  connectNulls={true}
                   isAnimationActive={false}
                 />
               </ComposedChart>

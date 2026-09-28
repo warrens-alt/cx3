@@ -102,8 +102,8 @@
   --cx-shadow-elevated: var(--cx-shadow-md);
 
   /* Touch & Controls */
-  --cx-control-height: 38px;
-  --cx-touch-target: 40px;
+  --cx-control-height: 40px;
+  --cx-touch-target: 44px;
   --cx-header-height: 56px;
 }
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ResponsiveContainer, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ZAxis, ReferenceLine } from 'recharts';
 import { formatChartAxis, formatTableNumber } from '../../lib/formatters';
 import { ChartToolbar } from './ChartToolbar';
@@ -34,22 +34,25 @@ export function ScatterPlot({
   auditContext,
   auditGrain
 }: ScatterPlotProps) {
-  const safeData = data || [];
+  const safeData = useMemo(() => data || [], [data]);
   
   // Calculate means for quadrant reference lines
-  const avgX = safeData.length > 0 
-    ? safeData.reduce((acc, curr) => acc + (Number(curr[xKey]) || 0), 0) / safeData.length 
-    : 0;
-  const avgY = safeData.length > 0 
-    ? safeData.reduce((acc, curr) => acc + (Number(curr[yKey]) || 0), 0) / safeData.length 
-    : 0;
+  const { avgX, avgY } = useMemo(() => {
+    if (!safeData.length) return { avgX: 0, avgY: 0 };
+    const sumX = safeData.reduce((acc, curr) => acc + (Number(curr[xKey]) || 0), 0);
+    const sumY = safeData.reduce((acc, curr) => acc + (Number(curr[yKey]) || 0), 0);
+    return {
+      avgX: sumX / safeData.length,
+      avgY: sumY / safeData.length,
+    };
+  }, [safeData, xKey, yKey]);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (!active || !payload || !payload.length) return null;
     const pt = payload[0].payload;
 
     return (
-      <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg p-3 text-xs min-w-[200px] ring-1 ring-black/5 dark:ring-white/5">
+      <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl p-3 text-xs min-w-[200px] ring-1 ring-black/5 dark:ring-white/5 transition-all">
         <div className="font-semibold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1 mb-2 font-mono">
           {pt[nameKey] || 'Item'}
         </div>
@@ -88,7 +91,7 @@ export function ScatterPlot({
         auditGrain={auditGrain} 
       />
       
-      <div style={{ height, width: '100%' }}>
+      <div style={{ height, minHeight: height, width: '100%' }}>
         {!safeData.length ? (
           <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
             <span className="font-medium text-slate-600 mb-1">No scatter observations recorded.</span>

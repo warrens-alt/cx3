@@ -69,3 +69,39 @@
 .recharts-cartesian-axis-tick-line {
   stroke: var(--cx-border-subtle);
 }
+
+/* Global Recharts Container Resiliency */
+.recharts-responsive-container {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  width: 100% !important;
+}
+
+.recharts-wrapper {
+  max-width: 100% !important;
+}
+
+.recharts-surface {
+  overflow: visible;
+}
+
+/* Default Recharts Tooltip styling for light and dark themes */
+.recharts-default-tooltip {
+  background: var(--cx-surface, rgba(255, 255, 255, 0.98)) !important;
+  border: 1px solid var(--cx-border-default, #dce4ed) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+  color: var(--cx-ink, #0f172a) !important;
+  padding: 8px 12px !important;
+  font-size: 12px !important;
+}
+
+[data-theme="dark"] .recharts-default-tooltip {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+.recharts-legend-wrapper {
+  max-width: 100% !important;
+}

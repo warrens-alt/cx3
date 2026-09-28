@@ -89,7 +89,7 @@ function Scorecard({title,rows,report}:{title:string;rows:VettingGroup[];report:
       </>
     ) : (
       <div className="p-4 bg-white rounded-lg border border-slate-200 mt-3">
-        <div className="h-[320px] w-full">
+        <div className="h-[320px] min-h-[320px] w-full">
           {!matches.length ? (
             <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
               <span className="font-medium text-slate-600 mb-1">No matching vetting groups to graph.</span>
@@ -105,10 +105,10 @@ function Scorecard({title,rows,report}:{title:string;rows:VettingGroup[];report:
                   called: Number(r.called || 0),
                   sales: Number(r.sales || 0),
                 }))}
-                margin={{ top: 20, right: 30, left: 10, bottom: 40 }}
+                margin={{ top: 20, right: 30, left: 10, bottom: 50 }}
               >
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" angle={-15} textAnchor="end" axisLine={false} tickLine={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" angle={-20} textAnchor="end" height={50} interval={0} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: '#64748b' }} stroke="#cbd5e1" tickFormatter={(v) => Number(v).toLocaleString()} axisLine={false} tickLine={false} />
                 <Tooltip
                   content={({ active, payload, label }) => {

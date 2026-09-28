@@ -129,7 +129,7 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
       </div>
 
       {/* Chart Canvas */}
-      <div className="h-64 w-full">
+      <div className="h-64 min-h-[256px] w-full">
         {chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
             <LineChart data={chartData} margin={{ top: 8, right: 12, left: -2, bottom: 0 }}>
@@ -155,6 +155,7 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
                 strokeWidth={2.5}
                 dot={{ r: 2.5, fill: currentConfig.color }}
                 activeDot={{ r: 5, strokeWidth: 0 }}
+                connectNulls={true}
                 isAnimationActive={false}
               />
             </LineChart>
