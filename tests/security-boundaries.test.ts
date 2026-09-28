@@ -311,11 +311,26 @@ test('marketing contract exposes reach and outbound-click source fields', () => 
   assert.match(analytics, /frequency:/);
 });
 
-test('BLC activation source freshness uses the contracted date_created timestamp', () => {
-  const analytics = readAnalytics();
-  const config = read('server/bigquery/config.ts');
-  assert.match(config, /tenantTables\(CONTRACT_LEAD_VIEWS\.ontact_blc, true\)/);
-  assert.match(analytics, /validTimestampSql\('date_created'\)/);
+test('BLC register diagnostics use the contracted date_created timestamp and sentinel guards', async () => {
+  const { buildBlcLifecycleQuery } = await import('../server/blc/lifecycleDiagnostics');
+  const { BLC_SOURCES } = await import('../contracts/blcReporting');
+  const { getClientConfig } = await import('../server/bigquery/config');
+  const { validTimestampSql } = await import('../server/bigquery/integrity');
+  const source = BLC_SOURCES.activationRegister;
+  assert.equal(getClientConfig('blc').semanticMappings.tables.activations, source.table);
+  const query = buildBlcLifecycleQuery({ type: 'TABLE', schema: {
+    fields: Object.entries(source.fields).map(([name, type]) => ({ name, type })),
+  } });
+  assert.ok(query.includes(validTimestampSql('s.`date_created`')));
+  assert.ok(query.includes(`FROM \`${source.table}\` s`));
+  assert.match(query, /AS latest_register_at/);
+  assert.match(query, /AS missing_timestamp_rows/);
+  assert.doesNotMatch(query, /\b(?:JOIN|WHERE|LIMIT)\b/i);
+  // Missing schema fields must remain unavailable, not become an inferred date.
+  const unavailable = buildBlcLifecycleQuery({ type: 'TABLE', schema: { fields: [] } });
+  assert.match(unavailable, /CAST\(NULL AS STRING\) AS latest_register_at/);
+  assert.match(unavailable, /CAST\(COUNT\(\*\) AS STRING\) AS source_rows/);
+  assert.doesNotMatch(unavailable, /MAX\(/);
 });
 
 
