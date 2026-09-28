@@ -3,7 +3,7 @@ import { LedgerError } from './query';
 
 export interface LedgerQueryJob {
   id?: string;
-  getQueryResults(options: { autoPaginate: false; maxResults: number; pageToken?: string }): Promise<[Record<string, unknown>[], unknown, unknown]>;
+  getQueryResults(options: { autoPaginate: false; maxResults: number; pageToken?: string }): Promise<[Record<string, unknown>[], unknown?, unknown?]>;
   cancel?: () => Promise<unknown>;
 }
 export interface PreparedLedgerExport { expectedRows: number; csv: AsyncGenerator<string>; jobId: string | null }
