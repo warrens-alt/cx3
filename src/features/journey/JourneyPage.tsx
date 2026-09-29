@@ -1,3 +1,4 @@
+import '../../styles/journeyContactVisuals.css';
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -138,13 +139,14 @@ export default function JourneyPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="cx-visual-workspace cx-journey-visual-workspace space-y-6">
       {/* 1. Scope Bar */}
       <ReportingScopeBar
         onRefresh={refreshAll}
         onExportCsv={data ? handleExportCsv : undefined}
       />
 
+      <div className="cx-visual-workspace-body space-y-6">
       {/* 2. Page Header */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-1 border-b border-border-subtle pb-4">
         <div>
@@ -181,6 +183,7 @@ export default function JourneyPage() {
         </div>
       </header>
 
+      <nav className="cx-viz-jump-nav" aria-label="Lead Journey sections"><a href="#journey-progression">Stage progression</a><a href="#journey-segments">Segment comparison</a><a href="#journey-timing">Timing evidence</a></nav>
       {/* Error state */}
       {error && (
         <OperationalError
@@ -199,7 +202,7 @@ export default function JourneyPage() {
       {data && (
         <>
           {/* Outcome Summary KPI Strip: Authoritative Independent Stage Totals & True Rates */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+          <div className="cx-visual-metric-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
             <UnifiedMetricCard
               label="Acquired Demand"
               value={headline.totalVolume !== null ? formatTableNumber(headline.totalVolume) : '—'}
@@ -267,7 +270,7 @@ export default function JourneyPage() {
           </div>
 
           {/* Region A: Progression Rail and Transition Evidence */}
-          <section aria-labelledby="progression-heading">
+          <section id="journey-progression" aria-labelledby="progression-heading">
             <h2 id="progression-heading" className="sr-only">
               Lifecycle Stage Progression
             </h2>
@@ -281,7 +284,7 @@ export default function JourneyPage() {
           </section>
 
           {/* Region B: Segment Comparison */}
-          <section aria-labelledby="segments-heading">
+          <section id="journey-segments" aria-labelledby="segments-heading">
             <h2 id="segments-heading" className="sr-only">
               Lifecycle Breakdown Dimensions
             </h2>
@@ -292,11 +295,11 @@ export default function JourneyPage() {
           </section>
 
           {/* Region C: Operational Timing & Velocity */}
-          <section aria-labelledby="velocity-heading">
+          <section id="journey-timing" aria-labelledby="velocity-heading">
             <h2 id="velocity-heading" className="sr-only">
               Lifecycle Transition Velocity
             </h2>
-            <JourneyTiming velocity={data.velocity} />
+            <JourneyTiming velocity={data.velocity} speedToLeadPath={scoped('/speed-to-lead')} />
           </section>
 
           {/* Region D: Matched Period & Diagnostics Control */}
@@ -386,6 +389,7 @@ export default function JourneyPage() {
         metric={rootMetric}
         onClose={() => setRootMetric(null)}
       />
+      </div>
     </div>
   );
 }

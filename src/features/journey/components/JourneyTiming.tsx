@@ -25,7 +25,7 @@ export default function JourneyTiming({ velocity, speedToLeadPath }: JourneyTimi
   ];
 
   return (
-    <div className="bg-surface rounded-xl border border-border-subtle p-5 space-y-4">
+    <div className="cx-journey-timing bg-surface rounded-xl border border-border-subtle p-5 space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border-subtle">
         <div className="flex items-center gap-2">
           <Clock3 size={16} className="text-brand-primary" />
@@ -48,10 +48,11 @@ export default function JourneyTiming({ velocity, speedToLeadPath }: JourneyTimi
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         {timingStages.map((stage) => {
-          const isUnavailable = String(stage.value).toLowerCase() === 'unavailable' || !stage.value;
+          const isUnavailable = !stage.value || /^(unavailable|not recorded|[—–-])$/i.test(String(stage.value).trim());
           return (
             <div
               key={stage.label}
+              data-evidence={isUnavailable ? 'unavailable' : 'returned'}
               className={`p-3.5 rounded-lg border flex flex-col justify-between ${
                 isUnavailable
                   ? 'bg-surface-subtle/50 border-border-subtle/60 text-text-mute'
@@ -63,7 +64,7 @@ export default function JourneyTiming({ velocity, speedToLeadPath }: JourneyTimi
                   {stage.label}
                 </span>
                 <span className="text-lg font-bold mt-1 block cx-tabular">
-                  {isUnavailable ? 'Unavailable' : stage.value}
+                  {stage.value || 'Unavailable'}
                 </span>
               </div>
               <span className="text-[11px] text-text-sec mt-2 block">

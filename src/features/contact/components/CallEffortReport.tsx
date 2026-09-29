@@ -1,7 +1,9 @@
 import React from 'react';
+import ContactCoverage from './ContactCoverage';
+import CallEffortDistribution from './CallEffortDistribution';
 import { Download, ExternalLink, Info, PhoneCall } from 'lucide-react';
 import { formatPercent, formatTableNumber } from '../../../lib/formatters';
-import { GroupedOutcomeChart, VolumeRateComboChart } from '../../../components/charts/OperationalVisuals';
+import { VolumeRateComboChart } from '../../../components/charts/OperationalVisuals';
 import UnifiedMetricCard from '../../../components/UnifiedMetricCard';
 import type { ContactStrategyData } from '../../../lib/offernetClient';
 
@@ -29,10 +31,11 @@ export default function CallEffortReport({
   const summary = data.summary;
 
   return (
-    <div className="space-y-6">
+    <div className="cx-effort-report space-y-6">
+      {summary && <ContactCoverage summary={summary} onInspectBucket={onInspectBucket} />}
       {/* 1. Summary of Observed Population and Effort */}
       {summary && (
-        <section aria-label="Contact governance summary" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <section aria-label="Contact governance summary" className="cx-visual-metric-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <UnifiedMetricCard
             label="Zero-call leads"
             value={formatTableNumber(summary.zeroCallLeads)}
@@ -93,19 +96,9 @@ export default function CallEffortReport({
       </p>
 
       {/* 2. Visual Outcome Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <GroupedOutcomeChart
-          title="Outcomes by total recorded calls"
-          subtitle="Lead, RPC, sale and activation counts by exclusive recorded call-count bucket."
-          data={data.attemptPerformance}
-          xKey="bucket"
-          series={[
-            { key: 'leads', label: 'Leads' },
-            { key: 'contacted', label: 'RPC' },
-            { key: 'sales', label: 'Sales' },
-            { key: 'activations', label: 'Activations' },
-          ]}
-        />
+      <div className="cx-effort-chart-grid grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <CallEffortDistribution rows={data.attemptPerformance} onInspectBucket={onInspectBucket} />
+        <div className="cx-effort-yield-scroll" role="region" aria-label="Call-count yield chart. Scroll horizontally on narrow screens." tabIndex={0}>
         <VolumeRateComboChart
           title="Observed yield by call-count bucket"
           subtitle="Lead volume is shown as bars; RPC, sale and activation rates remain descriptive associations, not a recommended stop-threshold model."
@@ -113,12 +106,14 @@ export default function CallEffortReport({
           xKey="bucket"
           volumeKey="leads"
           volumeLabel="Leads"
+          onSelect={onInspectBucket ? (bucket, row) => onInspectBucket(bucket, row.leads) : undefined}
           rateSeries={[
-            { key: 'contactRate', label: 'RPC rate' },
-            { key: 'saleRate', label: 'Sale rate' },
-            { key: 'activationRate', label: 'Activation rate' },
+            { key: 'contactRate', label: 'RPC rate', color: 'var(--cx-data-rpc)' },
+            { key: 'saleRate', label: 'Sale rate', color: 'var(--cx-data-sales)' },
+            { key: 'activationRate', label: 'Activation rate', color: 'var(--cx-data-activation)' },
           ]}
         />
+        </div>
       </div>
 
       {/* 3. Supporting Effort Distribution Table */}
@@ -145,19 +140,19 @@ export default function CallEffortReport({
           )}
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+        <div className="cx-viz-table-scroll overflow-x-auto" role="region" aria-label="Call effort evidence table" tabIndex={0}>
+          <table className="cx-viz-table w-full text-left text-xs border-collapse"><caption className="sr-only">Recorded effort performance. Rates are associations within exclusive call-count buckets.</caption>
             <thead>
               <tr className="border-b border-border-subtle bg-surface-subtle/40 text-text-mute font-semibold">
-                <th className="px-4 py-2.5">Call-Count Bucket</th>
-                <th className="px-4 py-2.5 text-right">Leads</th>
-                <th className="px-4 py-2.5 text-right">Share %</th>
-                <th className="px-4 py-2.5 text-right">RPC (Contacted)</th>
-                <th className="px-4 py-2.5 text-right">RPC / Dialled</th>
-                <th className="px-4 py-2.5 text-right">Sales</th>
-                <th className="px-4 py-2.5 text-right">Sale / Lead</th>
-                <th className="px-4 py-2.5 text-right">Activations</th>
-                <th className="px-4 py-2.5 text-right">Action</th>
+                <th scope="col" className="px-4 py-2.5">Call-Count Bucket</th>
+                <th scope="col" className="px-4 py-2.5 text-right">Leads</th>
+                <th scope="col" className="px-4 py-2.5 text-right">Share %</th>
+                <th scope="col" className="px-4 py-2.5 text-right">RPC (Contacted)</th>
+                <th scope="col" className="px-4 py-2.5 text-right">RPC / Dialled</th>
+                <th scope="col" className="px-4 py-2.5 text-right">Sales</th>
+                <th scope="col" className="px-4 py-2.5 text-right">Sale / Lead</th>
+                <th scope="col" className="px-4 py-2.5 text-right">Activations</th>
+                <th scope="col" className="px-4 py-2.5 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle text-text-main">

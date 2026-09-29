@@ -1,4 +1,5 @@
 import React from 'react';
+import EvidenceBars, { evidenceBarWidth } from '../../../shared/visuals/EvidenceBars';
 import { ArrowRight, ChevronRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import type { LifecycleTransition } from '../../../../contracts/lifecycleAnalytics';
 import { formatPercent, formatTableNumber } from '../../../lib/formatters';
@@ -38,57 +39,37 @@ export default function JourneyProgression({
 
   return (
     <div className="space-y-6">
-      {/* 1. Visual Stage Cards Rail */}
-      {stages.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          {stages.map((stage, idx) => {
-            const stepNum = stage.stepNumber || idx + 1;
-
-            return (
-              <button
-                key={stage.key}
-                type="button"
-                onClick={() => onInspectStage?.(stage)}
-                className="group flex flex-col p-4 bg-surface hover:bg-surface-subtle border border-border-subtle rounded-xl text-left transition-all hover:border-brand-primary/40 hover:shadow-xs cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-brand-primary/20"
-              >
-                <div className="flex items-center justify-between gap-1 w-full text-text-mute group-hover:text-brand-primary transition-colors">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider">
-                    Step {stepNum < 10 ? `0${stepNum}` : stepNum}
-                  </span>
-                  <ChevronRight size={13} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-
-                <span className="text-sm font-bold text-text-main mt-1 line-clamp-1">
-                  {stage.name}
-                </span>
-
-                <div className="mt-2">
-                  <span className="text-xl font-extrabold text-text-main cx-tabular">
-                    {stage.volume !== null ? formatTableNumber(stage.volume) : '—'}
-                  </span>
-                  <span className="text-xs text-text-mute ml-1">leads</span>
-                </div>
-
-                {idx > 0 && (
-                  <div className="mt-2 pt-2 border-t border-border-subtle/60 flex items-center justify-between text-[11px]">
-                    <span className="text-text-sec">Conv:</span>
-                    <span className="font-semibold text-text-main cx-tabular">
-                      {stage.conversionRate !== null && stage.conversionRate !== undefined
-                        ? `${stage.conversionRate.toFixed(1)}%`
-                        : '—'}
-                    </span>
-                  </div>
-                )}
-                {idx === 0 && (
-                  <div className="mt-2 pt-2 border-t border-border-subtle/60 text-[11px] text-text-mute">
-                    Cohort intake base
-                  </div>
-                )}
-              </button>
-            );
+      <div className="cx-journey-visual-grid">
+        <EvidenceBars
+          title="Lead lifecycle populations"
+          description="Each stage is an independent observed population. Select a stage to inspect its evidence."
+          centered
+          items={stages.map(stage => ({ key: stage.key, label: stage.name, value: stage.volume,
+            color: `var(--cx-data-${stage.key === 'activated' ? 'activation' : stage.key})` }))}
+          onSelect={onInspectStage ? key => { const stage = stages.find(item => item.key === key); if (stage) onInspectStage(stage); } : undefined}
+          scaleNote="Widths use the same count scale. These populations do not form a guaranteed sequential funnel; a recorded sale does not prove a recorded RPC."
+        />
+        <section className="cx-transition-panel" aria-label="Transition coverage">
+          <header className="cx-viz-panel-heading"><div><h3>Transition coverage</h3><p>Within each prior-stage population: evidence of both events versus no recorded progression.</p></div></header>
+          <div className="cx-viz-legend"><span><i className="cx-legend-converted" />Both events</span><span><i className="cx-legend-gap" />No recorded progression</span></div>
+          {transitions.map(t => {
+            const width = evidenceBarWidth(t.converted, t.population);
+            const valid = width !== null && t.population > 0 && t.converted <= t.population;
+            const lossKey = LOSS_KEYS[`${t.from} → ${t.to}`];
+            return <article className="cx-transition-row" key={`${t.from}-${t.to}`}>
+              <div className="cx-transition-row-heading"><strong>{t.from} <ArrowRight size={12} aria-hidden="true" /> {t.to}</strong><span>{formatPercent(t.conversionRate)}</span></div>
+              <div className="cx-transition-track" aria-hidden="true" data-state={valid ? 'observed' : 'unknown'}>{valid && <span style={{ width: `${width}%` }} />}</div>
+              <div className="cx-transition-row-meta"><span>{formatTableNumber(t.converted)} of {formatTableNumber(t.population)} with both events</span>
+                {t.lost != null && t.lost > 0 && onInspectTransition && lossKey ?
+                  <button type="button" onClick={() => onInspectTransition(t.from, t.to, t.lost!, lossKey)} aria-label={`Inspect ${t.from} to ${t.to}: ${t.lost} without progression`}>{formatTableNumber(t.lost)} without progression <ChevronRight size={12} aria-hidden="true" /></button>
+                  : <span>{formatTableNumber(t.lost)} without progression</span>}
+              </div>
+              {t.status === 'NON_NESTED' && <p className="cx-viz-caution"><AlertCircle size={12} aria-hidden="true" />Non-nested: the next-stage total includes leads outside this prior stage.</p>}
+            </article>;
           })}
-        </div>
-      )}
+          {!transitions.length && <p className="cx-viz-empty">Transition intersections are unavailable.</p>}
+        </section>
+      </div>
 
       {/* 2. Transition Definitions Table */}
       {transitions.length > 0 && (
@@ -104,19 +85,19 @@ export default function JourneyProgression({
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+          <div className="cx-viz-table-scroll overflow-x-auto" role="region" aria-label="Transition evidence table" tabIndex={0}>
+            <table className="cx-viz-table w-full text-left text-xs border-collapse"><caption className="sr-only">Observed transition evidence. Lost leads means no recorded progression, not a confirmed failure.</caption>
               <thead>
                 <tr className="border-b border-border-subtle bg-surface-subtle/40 text-text-mute font-semibold">
-                  <th className="px-4 py-2.5">Transition Stage</th>
-                  <th className="px-4 py-2.5 text-right">Prior Base</th>
-                  <th className="px-4 py-2.5 text-right">With Both Events</th>
-                  <th className="px-4 py-2.5 text-right">Conversion Rate</th>
-                  <th className="px-4 py-2.5 text-right">Lost Leads</th>
-                  <th className="px-4 py-2.5 text-right">Loss Rate</th>
-                  <th className="px-4 py-2.5 text-right">Prior Δ</th>
-                  <th className="px-4 py-2.5">Observation Status</th>
-                  <th className="px-4 py-2.5 text-right">Action</th>
+                  <th scope="col" className="px-4 py-2.5">Transition Stage</th>
+                  <th scope="col" className="px-4 py-2.5 text-right">Prior Base</th>
+                  <th scope="col" className="px-4 py-2.5 text-right">With Both Events</th>
+                  <th scope="col" className="px-4 py-2.5 text-right">Conversion Rate</th>
+                  <th scope="col" className="px-4 py-2.5 text-right">Lost Leads</th>
+                  <th scope="col" className="px-4 py-2.5 text-right">Loss Rate</th>
+                  <th scope="col" className="px-4 py-2.5 text-right">Prior Δ</th>
+                  <th scope="col" className="px-4 py-2.5">Observation Status</th>
+                  <th scope="col" className="px-4 py-2.5 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-subtle text-text-main">

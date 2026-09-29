@@ -1,3 +1,4 @@
+import { evidenceBarWidth } from '../../../shared/visuals/EvidenceBars';
 import React, { useState, useMemo } from 'react';
 import { Search, ChevronDown, ChevronUp, ExternalLink, Filter } from 'lucide-react';
 import type { LifecycleSegment } from '../../../../contracts/lifecycleAnalytics';
@@ -75,7 +76,7 @@ export default function JourneySegments({
   }, [displayedRows, activeSort]);
 
   return (
-    <div className="bg-surface rounded-xl border border-border-subtle overflow-hidden space-y-4">
+    <div className="cx-journey-segments bg-surface rounded-xl border border-border-subtle overflow-hidden space-y-4">
       {/* Header and Controls */}
       <div className="p-5 border-b border-border-subtle bg-surface-sec flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -94,6 +95,7 @@ export default function JourneySegments({
               <button
                 key={dim}
                 type="button"
+                aria-pressed={activeDimension === dim}
                 onClick={() => {
                   setActiveDimension(dim);
                   setShowAll(false);
@@ -145,24 +147,22 @@ export default function JourneySegments({
             const rawVal = row[activeSort];
             const isPct = activeSort !== 'fetched';
             const displayVal = isPct ? formatPercent(rawVal) : formatTableNumber(row.fetched);
-            const barWidth = activeSort === 'fetched'
-              ? Math.max(2, (Number(row.fetched || 0) / maxBarValue) * 100)
-              : Math.max(2, Math.min(100, Number(rawVal || 0)));
+            const barWidth = evidenceBarWidth(rawVal, maxBarValue);
 
             return (
-              <div key={row.key} className="flex items-center gap-3 text-xs">
-                <span className="w-28 sm:w-36 font-semibold text-text-main truncate" title={row.key}>
+              <div key={row.key} className="cx-segment-bar-row flex items-center gap-3 text-xs">
+                <span className="cx-segment-bar-label w-28 sm:w-36 font-semibold text-text-main" title={row.key}>
                   {row.key}
                 </span>
                 <div className="flex-1 h-2 bg-surface-subtle rounded-full overflow-hidden">
                   <div
                     className="h-full bg-brand-primary rounded-full transition-all duration-300"
-                    style={{ width: `${barWidth}%` }}
+                    style={{ width: `${barWidth ?? 0}%` }}
+                    data-state={barWidth === null ? 'unknown' : barWidth === 0 ? 'zero' : 'observed'}
                   />
                 </div>
-                <span className="w-20 text-right font-medium text-text-sec cx-tabular">
-                  {displayVal}
-                </span>
+                <span className="w-20 text-right font-medium text-text-sec cx-tabular">{displayVal}</span>
+                {onInspectSegment && <button type="button" className="cx-segment-inspect" onClick={() => onInspectSegment(row, activeDimension)} aria-label={`Inspect ${row.key}`}><ExternalLink size={14} aria-hidden="true" /></button>}
               </div>
             );
           })}
@@ -170,23 +170,23 @@ export default function JourneySegments({
       </div>
 
       {/* Segment Evidence Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs border-collapse">
+      <div className="cx-viz-table-scroll overflow-x-auto" role="region" aria-label="Segment comparison table" tabIndex={0}>
+        <table className="cx-viz-table w-full text-left text-xs border-collapse">
           <thead>
             <tr className="border-y border-border-subtle bg-surface-subtle/40 text-text-mute font-semibold">
-              <th className="px-4 py-2.5">Segment ({activeDimension})</th>
-              <th className="px-4 py-2.5 text-right">Fetched</th>
-              <th className="px-4 py-2.5 text-right">Delivered</th>
-              <th className="px-4 py-2.5 text-right">Delivery %</th>
-              <th className="px-4 py-2.5 text-right">Dialled</th>
-              <th className="px-4 py-2.5 text-right">Dial / Deliv</th>
-              <th className="px-4 py-2.5 text-right">RPC</th>
-              <th className="px-4 py-2.5 text-right">RPC / Dial</th>
-              <th className="px-4 py-2.5 text-right">Sales</th>
-              <th className="px-4 py-2.5 text-right">Sale / Fetch</th>
-              <th className="px-4 py-2.5 text-right">Activations</th>
-              <th className="px-4 py-2.5 text-right">Activ / Sale</th>
-              <th className="px-4 py-2.5 text-right">Action</th>
+              <th scope="col" className="px-4 py-2.5">Segment ({activeDimension})</th>
+              <th scope="col" className="px-4 py-2.5 text-right">Fetched</th>
+              <th scope="col" className="px-4 py-2.5 text-right">Delivered</th>
+              <th scope="col" className="px-4 py-2.5 text-right">Delivery %</th>
+              <th scope="col" className="px-4 py-2.5 text-right">Dialled</th>
+              <th scope="col" className="px-4 py-2.5 text-right">Dial / Deliv</th>
+              <th scope="col" className="px-4 py-2.5 text-right">RPC</th>
+              <th scope="col" className="px-4 py-2.5 text-right">RPC / Dial</th>
+              <th scope="col" className="px-4 py-2.5 text-right">Sales</th>
+              <th scope="col" className="px-4 py-2.5 text-right">Sale / Fetch</th>
+              <th scope="col" className="px-4 py-2.5 text-right">Activations</th>
+              <th scope="col" className="px-4 py-2.5 text-right">Activ / Sale</th>
+              <th scope="col" className="px-4 py-2.5 text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border-subtle text-text-main">
