@@ -1,0 +1,35 @@
+name: Live data offline review
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  prepare:
+    if: github.head_ref == 'fix/live-data-truthfulness-20260929'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit
+      - name: Package tracked source and locked dependencies for isolated tests
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/cx-offline-review"
+          git archive --format=tar.gz HEAD > "$RUNNER_TEMP/cx-offline-review/source.tar.gz"
+          tar -czf "$RUNNER_TEMP/cx-offline-review/dependencies.tar.gz" node_modules
+          git rev-parse HEAD > "$RUNNER_TEMP/cx-offline-review/commit.txt"
+          sha256sum "$RUNNER_TEMP/cx-offline-review/"*.tar.gz > "$RUNNER_TEMP/cx-offline-review/checksums.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cx-live-data-offline-review
+          path: ${{ runner.temp }}/cx-offline-review
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
