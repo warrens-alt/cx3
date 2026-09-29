@@ -420,8 +420,10 @@ test('primary operational analytics are chart-first while retaining evidence tab
   assert.match(speed, /VolumeRateComboChart/);
   assert.match(sales, /Vendor sales and activation/);
   assert.match(agents, /Agent call volume and RPC rate/);
-  assert.match(integrity, /Observed discrepancy populations/);
-  assert.match(integrity, /Source freshness age/);
+  assert.match(integrity, /<IntegrityCheckComparison/);
+  assert.match(integrity, /<SourceEvidenceMatrix/);
+  assert.match(read('src/features/trust/components/IntegrityCheckComparison.tsx'), /EvidenceBars/);
+  assert.match(read('src/features/trust/components/SourceEvidenceMatrix.tsx'), /source\.ageHours/);
   assert.match(campaigns, /Campaign lead volume and response rate/);
   assert.match(campaigns, /Planning budget only — not observed media spend/);
 });
@@ -450,7 +452,8 @@ test('overview and secondary operational tabs use the shared visual analytics la
   assert.match(temporal, /VolumeRateComboChart/);
   assert.match(contact, /Observed yield by call-count bucket/);
   assert.doesNotMatch(contact, /from 'recharts'/);
-  assert.match(exceptions, /Largest active exception populations/);
+  assert.match(exceptions, /<ExceptionWorkbench/);
+  assert.match(read('src/features/trust/components/ExceptionWorkbench.tsx'), /evidenceBarWidth\(item\.count, maximum\)/);
 });
 
 
@@ -463,7 +466,8 @@ test('vendor, cohort and routing analytics use visual composition and maturation
 
   assert.match(vendor, /Vendor grade composition/);
   assert.match(vendor, /StackedCompositionChart/);
-  assert.match(vendor, /Vendor volume and downstream rates/);
+  assert.match(vendor, /<VendorComparison/);
+  assert.match(read('src/features/vendors/components/VendorComparison.tsx'), /Operational performance matrix/);
   assert.match(cohorts, /maturation curves/);
   assert.match(cohorts, /MultiSeriesTrendChart/);
   assert.match(cohorts, /Cohort volume and observed outcomes/);
@@ -471,7 +475,7 @@ test('vendor, cohort and routing analytics use visual composition and maturation
   assert.match(routing, /Most common route sequences/);
   assert.match(visuals, /onSelect/);
   assert.match(exceptions, /useNavigate/);
-  assert.match(exceptions, /onSelect=/);
+  assert.match(exceptions, /evidenceHref=\{id => isAdmin \? recordLink\(id\) : scoped\('\/data-integrity'\)\}/);
 });
 
 

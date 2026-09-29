@@ -14,9 +14,11 @@ import { formatPercent, formatTableNumber } from '../lib/formatters';
 
 import type { ExceptionAnalyticsData } from '../../contracts/exceptionAnalytics';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
-import { RankedMetricChart } from '../components/charts/OperationalVisuals';
 import UnifiedMetricCard from '../components/UnifiedMetricCard';
 import RootCauseDrawer from '../components/RootCauseDrawer';
+import ExceptionWorkbench from '../features/trust/components/ExceptionWorkbench';
+import '../styles/journeyContactVisuals.css';
+import '../styles/trustQualityVisuals.css';
 
 const fmt = (value: number | string | null | undefined) => formatTableNumber(value);
 
@@ -71,7 +73,7 @@ export default function Exceptions() {
   );
 
   return (
-    <div className="cx-command-page">
+    <div className="cx-command-page cx-trust-workspace" aria-label="Investigate workspace">
       <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), queue.loadData(true), controls.refetch()]); }} />
       <div className="cx-command-content">
         <header className="cx-command-hero">
@@ -89,6 +91,7 @@ export default function Exceptions() {
             <ArrowRight size={14} />
           </Link>
         </header>
+        <nav className="cx-viz-jump-nav" aria-label="Investigation sections"><a href="#exception-workbench">Exception workbench</a><a href="#exception-backlog">Backlog & vendors</a></nav>
 
         {(error || queue.error) && <div className="cx-command-error"><AlertTriangle size={17} />{error || queue.error}</div>}
         {(!data && !queue.data && (loading || queue.loading)) ? (
@@ -105,7 +108,7 @@ export default function Exceptions() {
                   setRootMetricLabel('Active Exception Types');
                 }}
                 onInspect={() => {
-                  const el = document.querySelector('.cx-live-exception-list');
+                  const el = document.getElementById('exception-workbench');
                   el?.scrollIntoView({ behavior: 'smooth' });
                 }}
                 inspectLabel="Inspect queue"
@@ -143,19 +146,11 @@ export default function Exceptions() {
                 Loading exception ranking chart…
               </div>
             ) : ordered.length > 0 ? (
-              <RankedMetricChart
-                title="Largest active exception populations"
-                subtitle="Ranked by affected records. Severity remains visible in the action queue below."
-                data={ordered.map(item => ({ exception: item.title, id: item.id, count: item.count }))}
-                categoryKey="exception"
-                valueKey="count"
-                valueLabel="Affected records"
-                maxItems={10}
-                onSelect={(_, row) => {
-                  const item = ordered.find(candidate => candidate.id === row.id);
-                  if (item) navigate(isAdmin ? recordLink(item.id) : scoped('/data-integrity'));
-                }}
-              />
+              !queue.error && <ExceptionWorkbench key={JSON.stringify([selectedClient, startDate, endDate, filters])}
+                items={ordered} isAdmin={isAdmin} populationNote={queue.data?.populationNote}
+                evidenceHref={id => isAdmin ? recordLink(id) : scoped('/data-integrity')} />
+            ) : queue.data && !queue.error ? (
+              <div className="cx-command-empty" role="status">No configured operational exception currently has an affected population.</div>
             ) : null}
 
             {controls.data && <ContactGovernancePanel
@@ -165,6 +160,7 @@ export default function Exceptions() {
               missingDispositionHref={isAdmin ? recordLink('missing-disposition') : undefined}
             />}
 
+            <details className="cx-trust-disclosure" open={Boolean(queue.error)}><summary>Full exception evidence and export</summary>
             <section className="cx-command-panel">
               <header>
                 <div>
@@ -217,7 +213,8 @@ export default function Exceptions() {
               )}
             </section>
 
-            <div className="cx-command-grid cx-command-grid-backlog">
+            </details>
+            <div id="exception-backlog" className="cx-command-grid cx-command-grid-backlog">
               <section className="cx-command-panel">
                 <header>
                   <div>

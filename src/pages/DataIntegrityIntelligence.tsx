@@ -11,13 +11,16 @@ import { DataCompletenessPanel } from '../components/OfferNetControlPanels';
 import { formatTableNumber } from '../lib/formatters';
 import '../styles/tableReadability.css';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
-import { RankedMetricChart } from '../components/charts/OperationalVisuals';
 import { DataIntakePanel } from '../components/DataIntakePanel';
 import { useAuth } from '../lib/AuthContext';
 import BlcLifecycleCard from '../components/BlcLifecycleCard';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import UnifiedMetricCard from '../components/UnifiedMetricCard';
 import RootCauseDrawer from '../components/RootCauseDrawer';
+import SourceEvidenceMatrix from '../features/trust/components/SourceEvidenceMatrix';
+import IntegrityCheckComparison from '../features/trust/components/IntegrityCheckComparison';
+import '../styles/journeyContactVisuals.css';
+import '../styles/trustQualityVisuals.css';
 
 export default function DataIntegrityIntelligence() {
   const scoped = useScopedNavigationTarget();
@@ -52,7 +55,7 @@ export default function DataIntegrityIntelligence() {
   };
 
   return (
-    <div className="cx-command-page">
+    <div className="cx-command-page cx-trust-workspace" aria-label="Data integrity workspace">
       <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />
       <div className="cx-command-content">
         <header className="cx-command-hero flex flex-wrap items-center justify-between gap-4">
@@ -68,7 +71,9 @@ export default function DataIntegrityIntelligence() {
           </div>
         </header>
 
-        {error && <div className="cx-command-error"><AlertTriangle size={16}/>{error}</div>}
+        <nav className="cx-viz-jump-nav" aria-label="Data integrity sections"><a href="#source-evidence">Source evidence</a><a href="#integrity-comparison">Compare checks</a><a href="#integrity-checks">Checks & export</a></nav>
+
+        {error && <div role="alert" className="cx-command-error"><AlertTriangle size={16}/>{error}</div>}
         {loading && !data && <div className="cx-command-loading"><div className="cx-command-spinner"/>Auditing source state…</div>}
 
         {data && (
@@ -95,7 +100,7 @@ export default function DataIntegrityIntelligence() {
                   setRootMetricLabel('Data Sources Health');
                 }}
                 onInspect={() => {
-                  const el = document.querySelector('.cx-source-grid');
+                  const el = document.getElementById('source-evidence');
                   el?.scrollIntoView({ behavior: 'smooth' });
                 }}
                 inspectLabel="Inspect sources"
@@ -129,6 +134,8 @@ export default function DataIntegrityIntelligence() {
               />
             </section>
 
+            <SourceEvidenceMatrix sources={data.sources} />
+            <details className="cx-trust-disclosure"><summary>Detailed source observations and lifecycle diagnostics</summary>
             <section className="cx-command-panel">
               <header>
                 <div><span className="cx-command-section-kicker">Sources</span><h2>Data source observability</h2><p>Source cards cover all tenant-owned records, independent of the selected capture cohort. Freshness is observed from timestamps; a freshness SLA is not inferred. Missing contracts are surfaced explicitly.</p></div>
@@ -155,30 +162,12 @@ export default function DataIntegrityIntelligence() {
               </div>
             </section>
 
-            <div className="cx-analytics-visual-grid">
-              <RankedMetricChart
-                title="Observed discrepancy populations"
-                subtitle="Largest measured data-quality gaps in the selected operational scope."
-                data={data.checks.filter(check => check.discrepancyCount != null).map(check => ({ check: check.checkName, gaps: check.discrepancyCount }))}
-                categoryKey="check"
-                valueKey="gaps"
-                valueLabel="Observed gaps"
-              />
-              <RankedMetricChart
-                title="Source freshness age"
-                subtitle="Hours since the latest observed source record; no freshness SLA is inferred."
-                data={(data.sources || []).filter(source => source.ageHours != null).map(source => ({ source: source.label, hours: source.ageHours }))}
-                categoryKey="source"
-                valueKey="hours"
-                valueLabel="Age"
-                valueSuffix="h"
-                decimals={1}
-              />
-            </div>
+            </details>
+            <IntegrityCheckComparison key={JSON.stringify([selectedClient, startDate, endDate, filters])} checks={data.checks} />
 
             {controls.data && <DataCompletenessPanel data={controls.data} />}
 
-            <section className="cx-command-panel">
+            <section className="cx-command-panel" id="integrity-checks">
               <div className="p-4"><ExportAnalysisButton filename="data_integrity_checks" rows={[
                 ['Check', 'Category', 'Status', 'Discrepancy count', 'Definition'],
                 ...data.checks.map(check => [check.checkName, check.category, check.status, check.discrepancyCount, check.detail]),
