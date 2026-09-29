@@ -14,6 +14,7 @@ import { useTheme } from '../lib/ThemeContext';
 import { diagnosticLatency, servicePresentation } from '../lib/workspaceReadiness';
 import '../styles/settings.css';
 import '../styles/analyticsReadiness.css';
+import '../styles/evidenceWorkspaces.css';
 
 export async function fetchWorkspaceDiagnostics(params: Record<string, unknown>, _force = false, signal?: AbortSignal): Promise<GoogleApiStatusData> {
   const clientId = typeof params.clientId === 'string' ? params.clientId : '';
@@ -46,8 +47,9 @@ export default function Settings() {
 
   return <PageShell className="cx-settings-page">
     <PageHeader title="Settings & System Diagnostics" description="Display preferences and measured service checks for the selected workspace." />
+    <nav className="cx-admin-section-nav" aria-label="Settings sections"><a href="#settings-appearance">Appearance</a><a href="#settings-density">Table spacing</a><a href="#settings-services">Service diagnostics</a></nav>
     <div className="cx-settings-sections">
-      <section className="cx-settings-card" aria-labelledby="settings-appearance-title">
+      <section id="settings-appearance" className="cx-settings-card" aria-labelledby="settings-appearance-title">
         <header className="cx-settings-card-header">
           <div className="cx-settings-heading"><Palette size={20} aria-hidden="true" /><div><h2 id="settings-appearance-title">Appearance & Theme</h2><p>Display preferences are saved in this browser.</p></div></div>
         </header>
@@ -62,7 +64,7 @@ export default function Settings() {
               <div className="cx-settings-theme-caption"><div><strong><Icon size={14} aria-hidden="true" /> {name}</strong><p>{detail}</p></div>{theme === id && <span className="cx-theme-badge-active">Active</span>}</div>
             </button>)}
           </div></div>
-          <fieldset className="cx-settings-density"><legend>Table spacing</legend><p>Choose how much room each data row uses.</p><div className="cx-settings-density-options">
+          <fieldset id="settings-density" className="cx-settings-density"><legend>Table spacing</legend><p>Choose how much room each data row uses.</p><div className="cx-settings-density-options">
             {(['comfortable', 'compact'] as const).map(value => <label key={value} className={`cx-settings-density-option ${density === value ? 'is-selected' : ''}`}>
               <input type="radio" name="table-density" value={value} checked={density === value} onChange={() => setDensity(value)} />
               <span className="cx-settings-density-copy"><strong>{value === 'comfortable' ? 'Comfortable' : 'Compact'}</strong><span>{value === 'comfortable' ? 'More breathing room.' : 'More rows at a glance.'}</span></span>
@@ -72,7 +74,7 @@ export default function Settings() {
         </div>
       </section>
 
-      <section className="cx-settings-card" aria-labelledby="settings-google-api-title">
+      <section id="settings-services" className="cx-settings-card" aria-labelledby="settings-google-api-title">
         <header className="cx-settings-card-header">
           <div className="cx-settings-heading"><Database size={20} aria-hidden="true" /><div><h2 id="settings-google-api-title">Google Cloud & AI Platform</h2><p>Measured checks for {clientConfig?.name || selectedClient}. Key presence is not proof that a service works.</p></div></div>
           <button type="button" className="cx-button-secondary cx-settings-check" disabled={query.loading || !ready} onClick={refresh}><RefreshCw size={15} aria-hidden="true" />{query.loading ? 'Checking…' : 'Run Google Diagnostics'}</button>
