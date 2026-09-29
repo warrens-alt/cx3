@@ -20,6 +20,7 @@ import RootCauseDrawer from '../../components/RootCauseDrawer';
 import { OperationalError } from '../../components/OperationalState';
 import { useSalesActivationModel } from './model/useSalesActivationModel';
 import SalesOutcomeSummary from './components/SalesOutcomeSummary';
+import SalesOutcomeMap from './components/SalesOutcomeMap';
 import ActivationAgeing from './components/ActivationAgeing';
 import SalesSegmentComparison from './components/SalesSegmentComparison';
 import SalesTimingAndCoverage from './components/SalesTimingAndCoverage';
@@ -73,7 +74,7 @@ export default function SalesActivationPage() {
   };
 
   return (
-    <div className="cx-command-page" aria-label="Sales & activation workspace">
+    <div className="cx-command-page cx-sales-page" aria-label="Sales & activation workspace">
       {/* Shell Reporting Scope Bar */}
       <ReportingScopeBar
         onRefresh={refreshAll}
@@ -178,14 +179,20 @@ export default function SalesActivationPage() {
               onWhyChanged={handleWhyChanged}
             />
 
-            {/* 2. Unified Activation Ageing Region */}
+            {/* 2. Outcome evidence map */}
+            <SalesOutcomeMap
+              model={model}
+              onInspect={handleInspectSummaryMetric}
+            />
+
+            {/* 3. Unified Activation Ageing Region */}
             <ActivationAgeing
               model={model}
               onInspectBucket={handleInspectAgeingBucket}
               onExportAgeing={handleExportAgeing}
             />
 
-            {/* 3. Segment Outcomes (Vendor / Source / Grade) */}
+            {/* 4. Segment Outcomes (Vendor / Source / Grade) */}
             <SalesSegmentComparison
               model={model}
               activeDimension={activeDimension}
@@ -198,7 +205,7 @@ export default function SalesActivationPage() {
               onExportSegment={handleExportActiveSegments}
             />
 
-            {/* 4. Timing, Maturation & Operating Controls */}
+            {/* 5. Timing, Maturation & Operating Controls */}
             <SalesTimingAndCoverage
               model={model}
               operatingControlsExpanded={operatingControlsExpanded}
@@ -208,7 +215,7 @@ export default function SalesActivationPage() {
               controlsError={controls.error ? (controls.error as Error).message : null}
             />
 
-            {/* 5. Connected Navigation Shortcuts */}
+            {/* 6. Connected Navigation Shortcuts */}
             <section className="cx-command-shortcuts grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
               <Link
                 to={scoped('/commercial')}
