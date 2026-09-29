@@ -62,6 +62,9 @@ jobs:
           set -o pipefail
           node scripts/smoke-production.mjs 2>&1 | tee "$RUNNER_TEMP/cx-runtime-output.log"
 
+      - name: Verify Google AI Studio and Cloud Run launch modes
+        run: npm run test:google-runtime
+
       - name: Set up Java for Firestore rules tests
         uses: actions/setup-java@v4
         with:
