@@ -74,7 +74,7 @@ export default function SalesActivationPage() {
   };
 
   return (
-    <div className="cx-command-page" aria-label="Sales & activation workspace">
+    <div className="cx-command-page cx-sales-page" aria-label="Sales & activation workspace">
       {/* Shell Reporting Scope Bar */}
       <ReportingScopeBar
         onRefresh={refreshAll}
