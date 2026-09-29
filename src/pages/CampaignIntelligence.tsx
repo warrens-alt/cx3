@@ -18,10 +18,12 @@ import {
 } from '../lib/offernetClient';
 
 import { formatPercent } from '../lib/formatters';
+import EvidenceBars from '../shared/visuals/EvidenceBars';
 
 const money = (value: number | null) => value == null ? '—' : `R ${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 const num = (value: number | null) => value == null ? '—' : value.toLocaleString();
 type MediaMetric = NonNullable<MarketingRootCauseData['metric']>['id'];
+type CampaignMeasure = 'leads' | 'spend' | 'ctr' | 'cpl';
 
 function Delta({ value, unit = '%' }: { value: number | null | undefined; unit?: string }) {
   if (value == null || !Number.isFinite(value)) return <span className="cx-command-change muted">No comparison</span>;
@@ -80,6 +82,7 @@ export default function CampaignIntelligence() {
   const { startDate, endDate, filters, setFilter } = useFilters();
   const [discovery, setDiscovery] = useState<MarketingDiscoveryData | null>(null);
   const [rootMetric, setRootMetric] = useState<MediaMetric | null>(null);
+  const [campaignMeasure, setCampaignMeasure] = useState<CampaignMeasure>('leads');
 
   const { data, loading, error, loadData } = useOperationalData<CampaignData>('CampaignIntelligence', {
     clientId: selectedClient,
@@ -100,11 +103,30 @@ export default function CampaignIntelligence() {
     return () => { cancelled = true; };
   }, [isAdmin, selectedClient]);
 
+  const campaignComparison = React.useMemo(() => {
+    const rows = [...(data?.campaigns || [])].sort((a, b) => {
+      const av = campaignMeasure === 'leads' ? a.leads : campaignMeasure === 'spend' ? (a.spend ?? -1) : campaignMeasure === 'ctr' ? (a.ctr ?? -1) : (a.cpl ?? -1);
+      const bv = campaignMeasure === 'leads' ? b.leads : campaignMeasure === 'spend' ? (b.spend ?? -1) : campaignMeasure === 'ctr' ? (b.ctr ?? -1) : (b.cpl ?? -1);
+      return Number(bv) - Number(av);
+    }).slice(0, 12);
+    return rows.map((row, index) => {
+      const value = campaignMeasure === 'leads' ? row.leads : campaignMeasure === 'spend' ? row.spend : campaignMeasure === 'ctr' ? row.ctr : row.cpl;
+      const displayValue = campaignMeasure === 'leads' ? num(row.leads) : campaignMeasure === 'spend' || campaignMeasure === 'cpl' ? money(value) : formatPercent(value);
+      return {
+        key: `${row.campaign}-${row.adset}-${index}`,
+        label: row.campaign,
+        detail: row.adset && row.adset !== row.campaign ? row.adset : row.channel,
+        value,
+        displayValue,
+      };
+    });
+  }, [data?.campaigns, campaignMeasure]);
+
   const summary = data?.summary;
   const canCompare = Boolean(startDate && endDate && data?.comparison);
 
   return (
-    <div className="cx-command-page">
+    <div className="cx-command-page cx-campaign-page">
       <OffernetFilterBar
         onRefresh={() => loadData(true)}
         showVendorFilter={false}
@@ -121,12 +143,18 @@ export default function CampaignIntelligence() {
           </div>
         </header>
 
+        <nav className="cx-analysis-jump-nav" aria-label="Campaign analysis sections">
+          <a href="#campaign-evidence">Evidence</a>
+          <a href="#campaign-comparison">Compare campaigns</a>
+          <a href="#campaigns-table">Campaign detail</a>
+        </nav>
+
         {error && <div className="cx-command-error"><AlertTriangle size={17}/>{error}</div>}
         {loading && !data && <div className="cx-command-loading"><div className="cx-command-spinner"/>Loading media performance…</div>}
 
         {data && (
           <>
-            <section className="cx-command-panel cx-spend-status">
+            <section className="cx-command-panel cx-spend-status" id="campaign-evidence">
               <header>
                 <div>
                   <span className="cx-command-section-kicker">Data contract</span>
@@ -246,7 +274,35 @@ export default function CampaignIntelligence() {
             )}
 
 
-            {data.campaigns.length > 0 && <div className="cx-analytics-visual-grid">
+            {data.campaigns.length > 0 && <>
+              <section className="cx-command-panel cx-campaign-comparison" id="campaign-comparison" aria-label="Campaign comparison">
+                <div className="cx-viz-toolbar">
+                  <div>
+                    <span className="cx-command-section-kicker">Compare campaigns</span>
+                    <h2>Campaign performance comparison</h2>
+                    <p>Rank the returned campaign/adset groups by one existing platform measure. Budget remains excluded from performance comparisons.</p>
+                  </div>
+                  <div className="cx-segmented-control" role="group" aria-label="Campaign comparison metric">
+                    <button type="button" data-active={campaignMeasure === 'leads'} onClick={() => setCampaignMeasure('leads')}>Lead events</button>
+                    <button type="button" data-active={campaignMeasure === 'spend'} onClick={() => setCampaignMeasure('spend')}>Spend</button>
+                    <button type="button" data-active={campaignMeasure === 'ctr'} onClick={() => setCampaignMeasure('ctr')}>CTR</button>
+                    <button type="button" data-active={campaignMeasure === 'cpl'} onClick={() => setCampaignMeasure('cpl')}>CPL</button>
+                  </div>
+                </div>
+                <EvidenceBars
+                  title={campaignMeasure === 'leads' ? 'Platform lead events' : campaignMeasure === 'spend' ? 'Recorded media spend' : campaignMeasure === 'ctr' ? 'CTR' : 'Platform CPL'}
+                  description="Top 12 returned campaign/adset groups for the selected measure. Select a row to apply the existing campaign filter."
+                  items={campaignComparison}
+                  maximum={campaignMeasure === 'ctr' ? 100 : undefined}
+                  scaleNote={campaignMeasure === 'ctr' ? 'CTR uses a fixed 0–100% scale. Missing values remain unavailable.' : 'Bars share the largest returned value in this view as their scale.'}
+                  onSelect={key => {
+                    const item = campaignComparison.find(row => row.key === key);
+                    if (item) setFilter('campaign', { operator: 'in', values: [item.label] });
+                  }}
+                />
+              </section>
+
+              <div className="cx-analytics-visual-grid">
               <VolumeRateComboChart
                 title="Campaign lead volume and response rate"
                 subtitle="Platform lead events by campaign/adset with CTR and click → lead overlaid. Select a bar to filter to that campaign."
@@ -286,7 +342,7 @@ export default function CampaignIntelligence() {
                   if (row.campaign) setFilter('campaign', { operator: 'in', values: [String(row.campaign)] });
                 }}
               />
-            </div>}
+            </div></>}
 
             {data.comparison ? (
               <p className="cx-media-comparison-note">
@@ -295,7 +351,7 @@ export default function CampaignIntelligence() {
             ) : null}
             {data.comparisonReason && <div className="cx-command-error"><AlertTriangle size={15}/>{data.comparisonReason}</div>}
 
-            <section className="cx-command-panel">
+            <section className="cx-command-panel" id="campaigns-table">
               <header>
                 <div>
                   <span className="cx-command-section-kicker">Campaign detail</span>
