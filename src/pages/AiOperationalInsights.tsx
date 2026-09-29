@@ -22,6 +22,9 @@ import { useClient } from '../lib/ClientContext';
 import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
 import { fetchAiInsights, askGeminiAnalytics, type AiInsightsData } from '../lib/offernetClient';
 
+import InsightWorkbench from '../features/evidenceWorkspace/InsightWorkbench';
+import '../styles/evidenceWorkspaces.css';
+
 const QUICK_QUESTIONS = [
   'What is driving the change in lead-to-sale rate?',
   'Which exception populations have the highest backlog?',
@@ -76,53 +79,13 @@ export default function AiOperationalInsights() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const filteredInsights = (data?.insights || []).filter(item => {
-    if (severityFilter === 'ALL') return true;
-    return item.severity === severityFilter;
-  });
-
   return (
-    <div className="cx-command-page">
+    <div className="cx-command-page cx-ai-evidence-page">
       <OffernetFilterBar onRefresh={() => loadData(true)} />
       <div className="cx-command-content space-y-6">
-        {/* Header Lockup */}
-        <header className="cx-command-hero flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1 text-xs">
-              <span className="cx-command-eyebrow flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-semibold">
-                <Cpu size={14} className="text-blue-600 dark:text-blue-400" />
-                Google Cloud AI · Operational Synthesis
-              </span>
-              <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">·</span>
-              <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
-                Gemini 3.8 Flash
-              </span>
-            </div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-              AI Operational Intelligence & Synthesis
-            </h1>
-            <p className="text-xs text-slate-600 dark:text-slate-400 max-w-3xl mt-1">
-              Deterministic operational metrics from Google BigQuery synthesized using Google Gemini API.
-              Every observation cites verifiable transactional timestamps, counts and conversion ratios.
-            </p>
-          </div>
-
-          {/* Cloud AI Engine Badge */}
-          <div className="flex items-center gap-3 shrink-0 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 shadow-xs">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-xs">
-              <Cpu size={16} />
-            </div>
-            <div className="text-left">
-              <div className="text-[10.5px] font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <span>Google Gemini Engine</span>
-                <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" title="Operational" />
-              </div>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
-                {data?.model || 'gemini-3.8-flash'} · Server-Side
-              </p>
-            </div>
-          </div>
-        </header>
+        <header className="cx-command-hero"><div><span className="cx-command-eyebrow">Operational analysis</span><h1>AI insights & evidence</h1><p>Review the returned briefing, explore its findings and inspect supplied metric references before acting.</p></div><Cpu size={24} aria-hidden="true" /></header>
+        <dl className="cx-ai-provenance" aria-label="Briefing provenance"><div><dt>Source</dt><dd>{data?.source || 'Not reported'}</dd></div><div><dt>Reported model</dt><dd>{data?.model || 'Not reported'}</dd></div><div><dt>Response status</dt><dd>{data?.status || 'Not reported'}</dd></div><div><dt>Validation</dt><dd>{data?.validationStatus || 'NOT_VERIFIED'}</dd></div></dl>
+        {data && <nav className="cx-admin-section-nav" aria-label="AI insight sections"><a href="#ai-briefing">Briefing</a><a href="#ai-findings">Findings & evidence</a><a href="#ai-question">Ask a question</a></nav>}
 
         {error && (
           <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/40 dark:border-red-900 p-4 text-xs text-red-800 dark:text-red-300 flex items-center justify-between gap-2" role="alert">
@@ -148,7 +111,7 @@ export default function AiOperationalInsights() {
         ) : data ? (
           <>
             {/* Executive Synthesis Card */}
-            <section className="enterprise-card p-6 border-blue-100 dark:border-blue-900/50 bg-gradient-to-br from-white via-slate-50/50 to-blue-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/30">
+            <section id="ai-briefing" className="cx-ai-briefing enterprise-card p-6 border-blue-100 dark:border-blue-900/50 bg-gradient-to-br from-white via-slate-50/50 to-blue-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/30">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2.5">
                   <div className="w-7 h-7 rounded-md bg-blue-50 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center">
@@ -159,7 +122,7 @@ export default function AiOperationalInsights() {
                       Executive Operational Synthesis
                     </h2>
                     <p className="text-[11px] text-slate-500 font-mono">
-                      Workspace: {clientConfig?.name || selectedClient} · {data.source === 'GOOGLE_GEMINI_AI' ? 'Google Gemini 3.8 Flash' : 'Deterministic Rule Engine'}
+                      Workspace: {clientConfig?.name || selectedClient} · {data.source}
                     </p>
                   </div>
                 </div>
@@ -208,8 +171,10 @@ export default function AiOperationalInsights() {
               </div>
             </section>
 
+            <InsightWorkbench key={JSON.stringify([selectedClient, startDate, endDate, filters])} insights={data.insights} severity={severityFilter} onSeverity={setSeverityFilter} />
+
             {/* Interactive "Ask Gemini Analytics" Section */}
-            <section className="enterprise-card p-6 space-y-4 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+            <section id="ai-question" className="cx-ai-question enterprise-card p-6 space-y-4 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
               <div className="flex items-center gap-2">
                 <MessageSquare size={17} className="text-blue-600 dark:text-blue-400" />
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
@@ -225,6 +190,7 @@ export default function AiOperationalInsights() {
                 <div className="relative flex items-center">
                   <input
                     type="text"
+                    aria-label="Question for analytics assistant"
                     value={question}
                     onChange={e => setQuestion(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleAskQuestion()}
@@ -298,7 +264,7 @@ export default function AiOperationalInsights() {
                   {qaResult.citations && qaResult.citations.length > 0 && (
                     <div className="pt-2 border-t border-blue-100 dark:border-blue-900/40 space-y-1">
                       <span className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider block">
-                        Verified Metric Citations
+                        Supplied metric references
                       </span>
                       <ul className="space-y-1">
                         {qaResult.citations.map((cite, i) => (
@@ -314,112 +280,6 @@ export default function AiOperationalInsights() {
               )}
             </section>
 
-            {/* Filter & Findings Section */}
-            <section className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <BarChart3 size={17} className="text-slate-700 dark:text-slate-300" />
-                  <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                    Grounded Findings & Investigation Populations
-                  </h2>
-                  <span className="text-xs text-slate-400 font-mono">
-                    ({filteredInsights.length} observed)
-                  </span>
-                </div>
-
-                {/* Severity Filter Controls */}
-                <div className="flex items-center gap-1.5 p-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs">
-                  <Filter size={13} className="text-slate-400 ml-1.5" />
-                  {(['ALL', 'HIGH', 'MEDIUM', 'LOW'] as const).map(sev => {
-                    const isSelected = severityFilter === sev;
-                    const activeColorClass =
-                      sev === 'HIGH'
-                        ? 'bg-rose-600 text-white shadow-xs font-semibold'
-                        : sev === 'MEDIUM'
-                        ? 'bg-amber-600 text-white shadow-xs font-semibold'
-                        : sev === 'LOW'
-                        ? 'bg-blue-600 text-white shadow-xs font-semibold'
-                        : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-2xs font-semibold';
-                    return (
-                      <button
-                        key={sev}
-                        type="button"
-                        onClick={() => setSeverityFilter(sev)}
-                        className={`px-2.5 py-1 rounded-md text-[11px] transition-all cursor-pointer ${
-                          isSelected
-                            ? activeColorClass
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 font-medium'
-                        }`}
-                      >
-                        {sev === 'ALL' ? 'All Severities' : sev}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Insights Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredInsights.map((item, index) => {
-                  const severityStyle =
-                    item.severity === 'HIGH'
-                      ? 'border-rose-200 bg-rose-50/30 dark:border-rose-900/40 dark:bg-rose-950/10 text-rose-700 dark:text-rose-400'
-                      : item.severity === 'MEDIUM'
-                      ? 'border-amber-200 bg-amber-50/30 dark:border-amber-900/40 dark:bg-amber-950/10 text-amber-700 dark:text-amber-400'
-                      : 'border-blue-200 bg-blue-50/30 dark:border-blue-900/40 dark:bg-blue-950/10 text-blue-700 dark:text-blue-400';
-
-                  return (
-                    <article
-                      key={`${item.category}-${index}`}
-                      className="enterprise-card p-5 space-y-3 flex flex-col justify-between"
-                    >
-                      <div className="space-y-2.5">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                            <Layers size={13} className="text-slate-400" />
-                            {item.category}
-                          </span>
-                          <span
-                            className={`text-[10px] font-mono px-1.5 py-0.5 rounded border font-semibold ${severityStyle}`}
-                          >
-                            {item.severity}
-                          </span>
-                        </div>
-
-                        <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-medium">
-                          {item.finding}
-                        </p>
-
-                        <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-300">
-                          <strong className="block text-[10.5px] uppercase tracking-wider text-slate-400 mb-0.5 font-semibold">
-                            Operational Directive
-                          </strong>
-                          {item.directive}
-                        </div>
-                      </div>
-
-                      {/* Metric Citation Drawer */}
-                      <details className="text-[11px] text-slate-500 pt-2 border-t border-slate-100 dark:border-slate-800 group">
-                        <summary className="cursor-pointer font-medium hover:text-slate-800 dark:hover:text-slate-300 flex items-center justify-between">
-                          <span>Verified metric citation</span>
-                          <ChevronDown size={13} className="transition-transform group-open:rotate-180" />
-                        </summary>
-                        <p className="mt-2 break-all font-mono text-[10.5px] bg-slate-100/70 dark:bg-slate-950 p-2.5 rounded border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
-                          {item.metricReference}
-                        </p>
-                      </details>
-                    </article>
-                  );
-                })}
-              </div>
-
-              {!filteredInsights.length && (
-                <div className="enterprise-card p-10 text-center text-xs text-slate-500 space-y-2">
-                  <ShieldCheck size={28} className="mx-auto text-slate-400" />
-                  <p>No operational insights matching severity filter &quot;{severityFilter}&quot;.</p>
-                </div>
-              )}
-            </section>
           </>
         ) : null}
       </div>
