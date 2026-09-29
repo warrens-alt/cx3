@@ -5,7 +5,7 @@
  * All queries retain the mandatory `company_name Contains 'ONtact'` predicate.
  */
 
-export const RUBIX_POWERBI_VERSION = '2026-09-27.1';
+export const RUBIX_POWERBI_VERSION = '2026-09-29.2';
 
 export const RUBIX_DATASET_ID = '59cef14d-8dd0-4016-a349-c227162a0fee';
 export const RUBIX_REPORT_ID = 'fe973424-23fd-433a-a81f-0f08416228ef';
@@ -62,13 +62,13 @@ export interface RubixReportRow {
 }
 
 export interface RubixReportSummary {
-  totalCount: number;
+  totalCount: number | null;
   rowCount: number;
   minDate: string | null;
   maxDate: string | null;
-  distinctTeams: number;
-  distinctSegments: number;
-  distinctAgents: number;
+  distinctTeams: number | null;
+  distinctSegments: number | null;
+  distinctAgents: number | null;
 }
 
 export interface RubixReportMetadata {
@@ -112,7 +112,7 @@ export interface RubixReportMetadata {
   warnings: string[];
   reconciliationStatus: string;
   staffDetailsMasked?: boolean;
-  provenance?: 'LIVE_POWERBI' | 'OFFLINE_EVIDENCE_REPRESENTATION';
+  provenance?: 'LIVE_POWERBI' | 'UNAVAILABLE';
 }
 
 export interface RubixReportResponse {
@@ -124,7 +124,7 @@ export interface RubixReportResponse {
 export interface RubixStatusResponse {
   enabled: boolean;
   configured: boolean;
-  status: 'ONLINE' | 'OFFLINE_EVIDENCE' | 'DISABLED' | 'UNCONFIGURED' | 'ERROR';
+  status: 'ONLINE' | 'CONFIGURED_NOT_CHECKED' | 'DISABLED' | 'UNCONFIGURED' | 'ERROR';
   checkedAt: string;
   provider: string;
   endpoint: string;
@@ -151,23 +151,23 @@ export interface RubixReconciliationResponse {
   dateRange: { startDate: string; endDate: string };
   warehouseActivations: {
     sourceTable: string;
-    verifiedMandates: number;
-    distinctPolicies: number;
+    verifiedMandates: number | null;
+    distinctPolicies: number | null;
     currency: string;
     status: string;
   };
   powerBiActivations: {
     datasetId: string;
     reportId: string;
-    totalReported: number;
-    distinctTeams: number;
-    distinctAgents: number;
-    provenance: 'LIVE_POWERBI' | 'OFFLINE_EVIDENCE_REPRESENTATION';
+    totalReported: number | null;
+    distinctTeams: number | null;
+    distinctAgents: number | null;
+    provenance: 'LIVE_POWERBI' | 'UNAVAILABLE';
     status: string;
   };
   reconciliationStatus: 'RECONCILED_WITH_CAVEATS' | 'DISAGREEMENT' | 'UNVERIFIED';
   variance: {
-    deltaCount: number;
+    deltaCount: number | null;
     explanation: string;
     reconciliationNotes: string[];
   };

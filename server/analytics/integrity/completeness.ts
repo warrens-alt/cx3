@@ -1,3 +1,4 @@
+import { validationSql } from '../../../contracts/validation';
 import { getBigQueryClient } from '../../bigquery/client';
 import { getClientConfig } from '../../bigquery/config';
 import type { OffernetQueryParams } from '../common/types';
@@ -27,12 +28,12 @@ export async function getDataIntegrityAnalytics(params: OffernetQueryParams) {
         LOGICAL_OR(${validTimestampSql('hlc.delivered')} < ${validTimestampSql('l.fetched')}
           OR ${validTimestampSql('hlc.first_call_date')} < ${validTimestampSql('hlc.delivered')}
           OR ${validTimestampSql('hlc.activated')} < ${validTimestampSql('hlc.sale')}) AS out_of_order_timestamps,
-        LOGICAL_OR(NULLIF(TRIM(l.standardised_idno), '') IS NULL OR LOWER(TRIM(l.valid_idno)) IN ('0', 'false')) AS invalid_id,
-        LOGICAL_OR(NULLIF(TRIM(l.standardised_mobile), '') IS NULL OR LOWER(TRIM(l.phone_valid)) IN ('0', 'false')) AS invalid_phone,
+        LOGICAL_OR(NULLIF(TRIM(l.standardised_idno), '') IS NULL OR (${validationSql('l.valid_idno')}) IS FALSE) AS invalid_id,
+        LOGICAL_OR(NULLIF(TRIM(l.standardised_mobile), '') IS NULL OR (${validationSql('l.phone_valid')}) IS FALSE) AS invalid_phone,
         LOGICAL_OR(l.valid_lead IS FALSE) AS invalid_lead,
         LOGICAL_OR(l.valid_lead IS NULL) AS unrecorded_valid_lead,
-        LOGICAL_OR(l.valid_idno IS NULL OR LOWER(TRIM(l.valid_idno)) NOT IN ('true', 'false', '1', '0')) AS unrecorded_valid_id,
-        LOGICAL_OR(l.phone_valid IS NULL OR LOWER(TRIM(l.phone_valid)) NOT IN ('true', 'false', '1', '0')) AS unrecorded_valid_phone,
+        LOGICAL_OR((${validationSql('l.valid_idno')}) IS NULL) AS unrecorded_valid_id,
+        LOGICAL_OR((${validationSql('l.phone_valid')}) IS NULL) AS unrecorded_valid_phone,
         COUNTIF(NULLIF(TRIM(hlc.vendor), '') IS NOT NULL) = 0 AS unassigned_vendor,
         COUNTIF(${validTimestampSql('hlc.first_call_date')} IS NOT NULL) > 0 AS is_dialled,
         COUNTIF(${validTimestampSql('hlc.first_call_date')} IS NOT NULL AND NULLIF(TRIM(hlc.last_dialer_status), '') IS NOT NULL) > 0 AS has_disposition,

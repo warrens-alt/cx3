@@ -1,3 +1,4 @@
+import { formatTableNumber } from '../../../lib/formatters';
 import React, { useMemo, useState, useEffect } from 'react';
 import {
   ChevronDown,
@@ -716,7 +717,7 @@ export default function BlcReportingPanel() {
                         Total Reported Count
                       </span>
                       <strong className="text-2xl font-bold font-mono text-[var(--cx-action)]">
-                        {powerBiReport.summary.totalCount.toLocaleString()}
+                        {formatTableNumber(powerBiReport.summary.totalCount)}
                       </strong>
                       <span className="text-[10px] text-text-muted block mt-0.5 font-mono">
                         {powerBiReport.summary.rowCount} data rows
@@ -907,7 +908,7 @@ export default function BlcReportingPanel() {
                             Reconciliation Status: {reconciliation.reconciliationStatus.replaceAll('_', ' ')}
                           </h4>
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 font-mono">
-                            Delta: +{reconciliation.variance.deltaCount} Records
+                            {reconciliation.variance.deltaCount == null ? 'Delta unavailable' : `Delta: ${reconciliation.variance.deltaCount} records`}
                           </span>
                         </div>
                         <p className="text-xs text-amber-800 dark:text-amber-300 mt-1 leading-relaxed">
@@ -941,7 +942,7 @@ export default function BlcReportingPanel() {
                         <div className="flex justify-between py-1 border-b border-border-subtle">
                           <span className="text-text-sec">Verified Bank Mandates</span>
                           <strong className="font-mono text-emerald-600 dark:text-emerald-400 text-sm">
-                            {reconciliation.warehouseActivations.verifiedMandates.toLocaleString()}
+                            {formatTableNumber(reconciliation.warehouseActivations.verifiedMandates)}
                           </strong>
                         </div>
                         <div className="flex justify-between py-1 border-b border-border-subtle">
@@ -951,9 +952,9 @@ export default function BlcReportingPanel() {
                           </strong>
                         </div>
                         <div className="flex justify-between py-1">
-                          <span className="text-text-sec">Mandate Currency</span>
+                          <span className="text-text-sec">Configured currency</span>
                           <span className="font-mono font-semibold text-text-main">
-                            {reconciliation.warehouseActivations.currency} (ZAR)
+                            {reconciliation.warehouseActivations.currency}
                           </span>
                         </div>
                       </div>
@@ -981,13 +982,13 @@ export default function BlcReportingPanel() {
                         <div className="flex justify-between py-1 border-b border-border-subtle">
                           <span className="text-text-sec">Total Reported Activations</span>
                           <strong className="font-mono text-indigo-600 dark:text-indigo-400 text-sm">
-                            {reconciliation.powerBiActivations.totalReported.toLocaleString()}
+                            {formatTableNumber(reconciliation.powerBiActivations.totalReported)}
                           </strong>
                         </div>
                         <div className="flex justify-between py-1 border-b border-border-subtle">
                           <span className="text-text-sec">Active Teams / Agents</span>
                           <span className="font-mono text-text-main">
-                            {reconciliation.powerBiActivations.distinctTeams} Teams / {reconciliation.powerBiActivations.distinctAgents} Agents
+                            {formatTableNumber(reconciliation.powerBiActivations.distinctTeams)} teams / {formatTableNumber(reconciliation.powerBiActivations.distinctAgents)} agents
                           </span>
                         </div>
                         <div className="flex justify-between py-1">
@@ -1008,7 +1009,7 @@ export default function BlcReportingPanel() {
                     <ul className="space-y-1.5 text-xs text-text-sec">
                       {reconciliation.variance.reconciliationNotes.map((note, idx) => (
                         <li key={idx} className="flex items-start gap-2">
-                          <CheckCircle2 size={13} className="text-emerald-600 mt-0.5 shrink-0" />
+                          <AlertCircle size={13} className="text-text-sec mt-0.5 shrink-0" />
                           <span>{note}</span>
                         </li>
                       ))}

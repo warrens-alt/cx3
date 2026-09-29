@@ -80,7 +80,8 @@ export function decodePowerBiResponse(
   }
 
   const dsArray = dsr.DS;
-  if (!Array.isArray(dsArray) || dsArray.length === 0) {
+  if (!Array.isArray(dsArray)) throw new Error('SCHEMA_UNSUPPORTED: Missing DS array');
+  if (dsArray.length === 0) {
     // Empty result set
     return {
       rows: [],
@@ -207,13 +208,11 @@ function resolveCellValue(val: unknown, colDef?: SchemaColumn, dicts: Record<str
 }
 
 function parseMeasureCount(val: unknown): { count: number; rawCount: string } {
-  if (val === null || val === undefined) return { count: 0, rawCount: '0' };
-  const rawCount = String(val).trim();
-  const num = Number(rawCount);
-  return {
-    count: isNaN(num) ? 0 : Math.round(num),
-    rawCount,
-  };
+  const rawCount = typeof val === 'number' || typeof val === 'string' ? String(val).trim() : '';
+  if (!/^\d+$/.test(rawCount)) throw new Error('INVALID_MEASURE: Expected an explicit non-negative integer count.');
+  const count = Number(rawCount);
+  if (!Number.isSafeInteger(count)) throw new Error('INVALID_MEASURE: Count exceeds safe numeric precision.');
+  return { count, rawCount };
 }
 
 function isRowSubtotal(values: unknown[], queryType: RubixQueryType): boolean {
@@ -322,6 +321,7 @@ function calculateSummary(rows: RubixReportRow[]): RubixReportSummary {
 
   for (const row of rows) {
     totalCount += row.count;
+    if (!Number.isSafeInteger(totalCount)) throw new Error('INVALID_MEASURE: Total exceeds safe numeric precision.');
     if (row.date) dates.push(row.date);
     if (row.team) teams.add(row.team);
     if (row.segment) segments.add(row.segment);

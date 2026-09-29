@@ -872,7 +872,7 @@ export default function OffershopProcessObservability() {
                         <div className="p-3 bg-slate-50 rounded">
                           <span className="text-xs text-slate-500 block mb-1">Observed Baseline</span>
                           <strong className="text-base font-mono tabular-nums text-slate-800">
-                            {formatTableNumber(simResult.observedBaselineCount)}
+                            {formatTableNumber(simResult.observedBaselineCount)}<small className="block text-xs font-normal text-text-sec">{simResult.reason}</small>
                           </strong>
                           <div className="text-[11px] text-slate-500 mt-0.5">Historical period</div>
                         </div>
@@ -896,9 +896,9 @@ export default function OffershopProcessObservability() {
                         <div className="p-3 bg-slate-50 rounded">
                           <span className="text-xs text-slate-500 block mb-1">Simulated Volume Delta</span>
                           <strong className={`text-base font-mono tabular-nums ${
-                            (simResult.simulatedChangePct || 0) >= 0 ? 'text-emerald-700' : 'text-rose-700'
+                            simResult.simulatedChangePct == null ? 'text-text-sec' : simResult.simulatedChangePct >= 0 ? 'text-emerald-700' : 'text-rose-700'
                           }`}>
-                            {(simResult.simulatedChangePct || 0) >= 0 ? '+' : ''}{simResult.simulatedChangePct}%
+                            {simResult.simulatedChangePct == null ? 'Unavailable — baseline required' : `${simResult.simulatedChangePct >= 0 ? '+' : ''}${simResult.simulatedChangePct}%`}
                           </strong>
                           <div className="text-[11px] text-slate-500 mt-0.5">Vs baseline</div>
                         </div>

@@ -16,7 +16,7 @@ import { createRubixPowerBiRouter } from '../server/blc/powerbi/router';
 import { RubixPowerBiService } from '../server/blc/powerbi/service';
 
 test('Rubix PowerBI contracts expose expected constants', () => {
-  assert.equal(RUBIX_POWERBI_VERSION, '2026-09-27.1');
+  assert.equal(RUBIX_POWERBI_VERSION, '2026-09-29.2');
   assert.equal(RUBIX_QUERY_TYPES.length, 8);
   assert.ok(RUBIX_QUERY_TYPES.includes('activation_over_time'));
   assert.ok(RUBIX_QUERY_TYPES.includes('capture_complete_by_agent_and_team'));
@@ -95,25 +95,26 @@ test('Rubix PowerBI router requires authentication and authorized tenant scope',
     assert.equal(repBody.success, true);
     assert.equal(repBody.data.metadata.queryType, 'activation_by_team');
     assert.equal(repBody.data.metadata.appliedScope.companyFilter, 'ONtact');
-    assert.ok(repBody.data.rows.length > 0);
-    assert.ok(repBody.data.summary.totalCount > 0);
-    assert.equal(repBody.data.summary.distinctTeams, 4);
+    assert.equal(repBody.data.rows.length, 0);
+    assert.equal(repBody.data.summary.totalCount, null);
+    assert.equal(repBody.data.summary.distinctTeams, null);
+    assert.equal(repBody.data.metadata.queryStatus, 'DISABLED');
 
     // 7. Report Query: Staff Privacy Masking for Viewers
     principalOverride = { subject: 'viewer1', tenants: ['blc'], role: 'viewer' };
     const staffViewerRes = await fetch(`${baseUrl}/report?queryType=activation_by_agent_and_team`);
     assert.equal(staffViewerRes.status, 200);
     const staffViewerBody = await staffViewerRes.json();
-    assert.equal(staffViewerBody.data.metadata.staffDetailsMasked, true);
-    assert.ok(staffViewerBody.data.rows[0].agent?.includes('***'));
+    assert.deepEqual(staffViewerBody.data.rows, []);
+    assert.equal(staffViewerBody.data.metadata.provenance, 'UNAVAILABLE');
 
     // 8. Report Query: Staff Details Unmasked for Admins
     principalOverride = { subject: 'admin1', tenants: ['blc'], role: 'admin' };
     const staffAdminRes = await fetch(`${baseUrl}/report?queryType=activation_by_agent_and_team`);
     assert.equal(staffAdminRes.status, 200);
     const staffAdminBody = await staffAdminRes.json();
-    assert.equal(staffAdminBody.data.metadata.staffDetailsMasked, false);
-    assert.ok(!staffAdminBody.data.rows[0].agent?.includes('***'));
+    assert.deepEqual(staffAdminBody.data.rows, []);
+    assert.equal(staffAdminBody.data.metadata.provenance, 'UNAVAILABLE');
 
     // 9. Unsupported Filter Detection
     scopeOverride = {
@@ -134,11 +135,11 @@ test('Rubix PowerBI router requires authentication and authorized tenant scope',
     assert.equal(reconRes.status, 200);
     const reconBody = await reconRes.json();
     assert.equal(reconBody.success, true);
-    assert.equal(reconBody.data.reconciliationStatus, 'RECONCILED_WITH_CAVEATS');
-    assert.equal(reconBody.data.warehouseActivations.verifiedMandates, 85);
-    assert.equal(reconBody.data.powerBiActivations.totalReported, 91);
-    assert.equal(reconBody.data.variance.deltaCount, 6);
-    assert.ok(reconBody.data.variance.explanation.includes('banking verification'));
+    assert.equal(reconBody.data.reconciliationStatus, 'UNVERIFIED');
+    assert.equal(reconBody.data.warehouseActivations.verifiedMandates, null);
+    assert.equal(reconBody.data.powerBiActivations.totalReported, null);
+    assert.equal(reconBody.data.variance.deltaCount, null);
+    assert.ok(reconBody.data.variance.explanation.includes('cannot be inferred'));
     assert.ok(reconBody.data.variance.reconciliationNotes.length >= 4);
   } finally {
     server.close();

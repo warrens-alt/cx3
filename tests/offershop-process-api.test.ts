@@ -1,3 +1,4 @@
+import { getBigQueryClient } from '../server/bigquery/client';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -10,7 +11,8 @@ import {
   OFFERSHOP_PARTNER_CONFIGS,
 } from '../contracts/offershopProcess';
 
-test('getOffershopProcessFlow produces complete multi-stage observability across all 8 stages', async () => {
+test('getOffershopProcessFlow produces complete multi-stage observability across all 8 stages', async context => {
+  context.mock.method(getBigQueryClient('dashboards-422710'), 'query', async () => [[{ total_leads: 3, valid_id: 1, invalid_id: 1, unknown_id: 1, valid_phone: 1, invalid_phone: 1, unknown_phone: 1 }]] as any);
   const result = await getOffershopProcessFlow({
     clientId: 'default_tenant',
     startDate: '2026-09-01',
@@ -46,7 +48,8 @@ test('getOffershopProcessFlow produces complete multi-stage observability across
   // Preparation & validation explicit 1 vs 2 checks
   const prep = result.stages.preparation_validation;
   assert.ok(prep.observedMetrics.idValidationValidCode1 !== undefined);
-  assert.ok(prep.observedMetrics.idValidationInvalidCode2 !== undefined);
+  assert.equal(prep.observedMetrics.idValidationInvalidCode2, 1);
+  assert.equal(prep.observedMetrics.idValidationUnknown, 1);
 
   // Partner summary matches documented duplicate configurations
   for (const [partnerId, cfg] of Object.entries(OFFERSHOP_PARTNER_CONFIGS)) {
@@ -61,7 +64,8 @@ test('getOffershopProcessFlow produces complete multi-stage observability across
   assert.equal(result.advertisingFeedbackSummary.isConflatedWithDialler, false);
 });
 
-test('getOffershopStageDetails retrieves node and stage definitions safely', async () => {
+test('getOffershopStageDetails retrieves node and stage definitions safely', async context => {
+  context.mock.method(getBigQueryClient('dashboards-422710'), 'query', async () => [[{}]] as any);
   const nodeDetail = await getOffershopStageDetails('VAL-01', { clientId: 'default_tenant' });
   assert.ok(nodeDetail.node);
   assert.equal(nodeDetail.node.nodeId, 'VAL-01');
@@ -95,13 +99,15 @@ test('getOffershopSimulation runs read-only simulation with mandatory disclaimer
   );
 
   assert.equal(result.partner, 'mondo');
-  assert.ok(result.simulatedEligibleCount < result.observedBaselineCount);
-  assert.ok(result.simulatedSuppressedCount > 580);
-  assert.ok(result.simulatedChangePct !== null && result.simulatedChangePct < 0);
-  assert.equal(result.observedBaselineCount, 4200); // Baseline preserved
+  assert.equal(result.simulatedEligibleCount, null);
+  assert.equal(result.simulatedSuppressedCount, null);
+  assert.equal(result.simulatedChangePct, null);
+  assert.equal(result.status, 'BASELINE_REQUIRED');
+  assert.equal(result.observedBaselineCount, null); // No invented baseline
 });
 
-test('getOffershopProcessFlow does not manufacture fixed fallbacks (12450, 4920) or synthetic fractions', async () => {
+test('getOffershopProcessFlow does not manufacture fixed fallbacks (12450, 4920) or synthetic fractions', async context => {
+  context.mock.method(getBigQueryClient('dashboards-422710'), 'query', async () => [[{ total_leads: 3, valid_id: 1, invalid_id: 1, unknown_id: 1, valid_phone: 1, invalid_phone: 1, unknown_phone: 1 }]] as any);
   const result = await getOffershopProcessFlow({
     clientId: 'default_tenant',
     startDate: '2026-09-01',

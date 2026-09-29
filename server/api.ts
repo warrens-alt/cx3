@@ -512,66 +512,29 @@ analyticsRouter.get('/warehouse/projects-and-tables', asyncRoute(async (_req, re
   res.json({ success: true, data: VERIFIED_PROJECTS_AND_TABLES });
 }));
 
-analyticsRouter.get('/warehouse/pull-data', asyncRoute(async (req, res) => {
-  const project = scalarString(req.query.project, 'project', 100) || 'vibe-code-warren-stear';
-  const dataset = scalarString(req.query.dataset, 'dataset', 100) || 'analytics_warehouse';
-  const table = scalarString(req.query.table, 'table', 100) || 'ontact_raw_data';
-  const limit = boundedInteger(req.query.limit, 50, 500, 1);
-  const offset = boundedInteger(req.query.offset, 0, 100000, 0);
-  const syncToCloudSql = req.query.syncToCloudSql === 'true';
-
+// Generic raw inspection is restricted to a master administrator, never a vendor fallback.
+const readWarehousePage = async (req: Request, res: Response) => {
+  const input = req.method === 'POST' ? req.body || {} : req.query;
   const { pullWarehouseTableData } = await import('./analytics/warehouse/warehousePull.ts');
+  if (Object.keys(res.locals.scope.filters || {}).length) throw new RequestError('UNSUPPORTED_FILTER: Generic warehouse inspection uses its explicit date field and UTC window, not lead/vendor filters.', 422);
   const result = await pullWarehouseTableData({
-    project,
-    dataset,
-    table,
-    limit,
-    offset,
-    syncToCloudSql,
-    syncedBy: res.locals.principal?.email || 'api-pull',
+    project: scalarString(input.project, 'project', 100) || 'dashboards-422710',
+    dataset: scalarString(input.dataset, 'dataset', 100) || 'lead_ledger',
+    table: scalarString(input.table, 'table', 100) || 'clustered_lead_ledger',
+    limit: boundedInteger(input.limit, 50, 500, 1), offset: boundedInteger(input.offset, 0, 100000, 0),
+    startDate: scalarString(input.startDate, 'startDate', 10), endDate: scalarString(input.endDate, 'endDate', 10),
+    dateField: scalarString(input.dateField, 'dateField', 100),
+    syncToCloudSql: input.syncToCloudSql === true || input.syncToCloudSql === 'true',
+    access: { clientId: res.locals.scope.clientId, role: res.locals.principal.role, tenants: res.locals.principal.tenants },
   });
   res.json({ success: true, data: result });
-}));
+};
+analyticsRouter.get('/warehouse/pull-data', requireAdmin, asyncRoute(readWarehousePage));
+analyticsRouter.post('/warehouse/pull-data', requireAdmin, asyncRoute(readWarehousePage));
 
-analyticsRouter.post('/warehouse/pull-data', asyncRoute(async (req, res) => {
-  const body = req.body || {};
-  const project = scalarString(body.project, 'project', 100) || 'vibe-code-warren-stear';
-  const dataset = scalarString(body.dataset, 'dataset', 100) || 'analytics_warehouse';
-  const table = scalarString(body.table, 'table', 100) || 'ontact_raw_data';
-  const limit = boundedInteger(body.limit, 50, 500, 1);
-  const offset = boundedInteger(body.offset, 0, 100000, 0);
-  const syncToCloudSql = Boolean(body.syncToCloudSql);
-
-  const { pullWarehouseTableData } = await import('./analytics/warehouse/warehousePull.ts');
-  const result = await pullWarehouseTableData({
-    project,
-    dataset,
-    table,
-    limit,
-    offset,
-    syncToCloudSql,
-    syncedBy: res.locals.principal?.email || 'api-pull',
-  });
-  res.json({ success: true, data: result });
-}));
-
-analyticsRouter.get('/cloudsql/synced-records', asyncRoute(async (req, res) => {
-  const project = scalarString(req.query.project, 'project', 100);
-  const dataset = scalarString(req.query.dataset, 'dataset', 100);
-  const tableName = scalarString(req.query.tableName || req.query.table, 'table', 100);
-  const limit = boundedInteger(req.query.limit, 50, 500, 1);
-  const offset = boundedInteger(req.query.offset, 0, 100000, 0);
-
-  const { getSyncedRecords } = await import('../src/db/warehouseSync.ts');
-  const records = await getSyncedRecords({
-    project,
-    dataset,
-    tableName,
-    limit,
-    offset,
-  });
-  res.json({ success: true, data: records, count: records.length });
-}));
+analyticsRouter.get('/cloudsql/synced-records', requireAdmin, (_req, res) => {
+  res.status(410).json({ success: false, error: 'LEGACY_SYNC_QUARANTINED: Previously synced records may include generated evidence. They are not served as current analytics. Existing stored records have not been deleted.' });
+});
 
 
 analyticsRouter.get('/warehouse/tables', cacheResponse(60), asyncRoute(async (req, res) => {

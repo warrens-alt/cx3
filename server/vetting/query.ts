@@ -1,3 +1,4 @@
+import { validationSql } from '../../contracts/validation';
 import { COUNT_KEYS, COLOURS, MISSING_CLASS, MISSING_COLOUR, MULTIPLE_COLOURS, UNMAPPED_COLOUR, type VettingInterval } from '../../contracts/vetting';
 import { getClientConfig, tableIdentifier } from '../bigquery/config';
 import { conditionSql, RequestError, scalarString, validateScope, type QueryScope, type Scalar } from '../bigquery/filters';
@@ -112,7 +113,7 @@ WITH raw AS (
  SELECT ${text('lead_id')} AS lead_id, ${validTimestampSql(column('fetched','s'))} AS capture_ts,
  ${text('offershop_source')} AS source, ${text('offernet_medium')} AS medium,
  ${text(grade)} AS class_raw, ${text(colour)} AS colour_raw, ${text(gradeDate)} AS class_date_raw, ${text(colourDate)} AS colour_date_raw,
- ${bool('valid_lead')} AS valid, ${bool('valid_idno')} AS valid_id, ${bool('phone_valid')} AS valid_phone, ${hArray} AS all_hlc
+ ${bool('valid_lead')} AS valid, ${validationSql(text('valid_idno'))} AS valid_id, ${validationSql(text('phone_valid'))} AS valid_phone, ${hArray} AS all_hlc
  FROM ${tableIdentifier(client.semanticMappings.tables.leads)} s
  WHERE DATE(${validTimestampSql(column('fetched','s'))}) BETWEEN @previousStart AND @endDate
 ), signed AS (

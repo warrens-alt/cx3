@@ -3,7 +3,7 @@ import { getClientConfig } from '../../bigquery/config';
 import type { OffernetQueryParams } from '../common/types';
 import { formatDuration } from '../common/types';
 import { buildFilterClause } from '../common/scope';
-import { operationalLeadCtes, metricPercent } from '../common/leadMetrics';
+import { completeRevenueSumSql, OPERATIONAL_REVENUE_POLICY, operationalLeadCtes, metricPercent } from '../common/leadMetrics';
 
 // 7. SALES & ACTIVATION INTELLIGENCE
 export async function getSalesActivationAnalytics(params: OffernetQueryParams) {
@@ -21,7 +21,7 @@ export async function getSalesActivationAnalytics(params: OffernetQueryParams) {
         COUNT(DISTINCT CASE WHEN is_sale AND revenue = 0 THEN lead_id END) as unbilled_sales,
         COUNTIF(is_sale AND revenue IS NULL) AS unrecorded_revenue_sales,
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) as total_activations,
-        SUM(revenue) as realized_revenue,
+        ${completeRevenueSumSql()} as realized_revenue,
         AVG(CASE WHEN is_sale AND sale_ts >= fetched_ts THEN TIMESTAMP_DIFF(sale_ts, fetched_ts, SECOND) END) as avg_time_to_sale_sec,
         AVG(CASE WHEN is_activated AND activation_ts >= sale_ts THEN TIMESTAMP_DIFF(activation_ts, sale_ts, SECOND) END) as avg_time_to_activation_sec,
         APPROX_QUANTILES(CASE WHEN is_sale AND sale_ts >= fetched_ts THEN TIMESTAMP_DIFF(sale_ts, fetched_ts, SECOND) END, 100)[OFFSET(50)] AS median_time_to_sale_sec,
@@ -31,7 +31,7 @@ export async function getSalesActivationAnalytics(params: OffernetQueryParams) {
     by_segment AS (
       SELECT dimension, segment,
         COUNTIF(is_sale) AS sales, COUNTIF(is_activated) AS activations,
-        ROUND(SUM(revenue), 2) AS revenue,
+        ROUND(${completeRevenueSumSql()}, 2) AS revenue,
         COUNTIF(is_sale AND revenue IS NULL) AS unrecorded_revenue_sales
       FROM sales_data CROSS JOIN UNNEST([
         STRUCT('vendor' AS dimension, COALESCE(NULLIF(vendor, ''), 'Unrecorded') AS segment),
@@ -89,7 +89,7 @@ export function buildSalesActivationResult(data: any) {
     bySource: (data.segments || []).filter((r: any) => r.dimension === 'source'),
     byGrade: (data.segments || []).filter((r: any) => r.dimension === 'grade'),
     activationAgeing: ['0–3d','4–7d','8–14d','15–30d','30d+','Invalid future sale'].map(bucket => ({ bucket, sales: Number((data.activation_ageing || []).find((r: any) => r.bucket === bucket)?.sales || 0) })),
-    revenueEvidence: 'Recorded revenue is the sum of available source values, including real zero. Sales with missing revenue are reported separately; recorded revenue is not a complete revenue estimate.',
+    revenueEvidence: OPERATIONAL_REVENUE_POLICY,
     segmentMethodology: 'One lead per segment. Vendor uses earliest recorded delivery vendor. Revenue per sale is recorded segment revenue / recorded segment sales; null revenue and empty denominators remain unavailable. Campaign requires an approved operational mapping.'
   };
 }

@@ -2,7 +2,7 @@ import { getBigQueryClient } from '../../bigquery/client';
 import { getClientConfig } from '../../bigquery/config';
 import type { OffernetQueryParams } from '../common/types';
 import { buildFilterClause } from '../common/scope';
-import { operationalLeadCtes, metricPercent } from '../common/leadMetrics';
+import { completeRevenueSumSql, OPERATIONAL_REVENUE_POLICY, operationalLeadCtes, metricPercent } from '../common/leadMetrics';
 
 // 4. CONTACT STRATEGY
 export function buildContactStrategyResult(rows: any[]) {
@@ -79,7 +79,7 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
   const query = `
     WITH ${operationalLeadCtes(params)},
     lead_level AS (
-      SELECT * EXCEPT(revenue), max_recorded_revenue AS revenue, recorded_call_count AS call_count FROM operational_leads
+      SELECT *, recorded_call_count AS call_count FROM operational_leads
     ),
     brackets AS (
       SELECT
@@ -108,7 +108,7 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
         COUNTIF(is_rpc) AS contacted,
         COUNTIF(is_sale) AS sales,
         COUNTIF(is_activated) AS activations,
-        ROUND(SUM(revenue), 2) AS revenue
+        ROUND(${completeRevenueSumSql()}, 2) AS revenue
       FROM lead_level
       GROUP BY 1, 2
       ORDER BY bucket_order

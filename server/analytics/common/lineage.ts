@@ -1,3 +1,4 @@
+import { OPERATIONAL_REVENUE_POLICY } from './leadMetrics';
 import { definitionsForDomain } from '../../../contracts/analyticsLineage';
 import { leadSourceEvidence } from '../../../contracts/warehouseSchemaSnapshot';
 import { getClientConfig } from '../../bigquery/config';
@@ -14,6 +15,8 @@ export function operationalMetadata(scope: QueryScope, domain: string) {
     appliedFilters: sourceWide ? {} : scope.filters || {}, validationStatus: 'NOT_VERIFIED',
     dateBasis: sourceWide ? 'all_tenant_owned_source_rows' : domain === 'commercial' ? 'source_specific_see_metric_definitions' : marketing ? 'marketing_reporting_date' : calls ? 'call_event_date' : 'lead_capture_cohort',
     generatedAt: new Date().toISOString(),
+    sourceIngestedAt: null, freshnessStatus: 'NOT_VERIFIED',
+    revenuePolicy: !marketing && !calls && !sourceWide ? OPERATIONAL_REVENUE_POLICY : undefined,
     sourceShape: !marketing && !calls && !sourceWide ? leadSourceEvidence(client.semanticMappings.tables.leads) : undefined,
     metricDefinitions: sourceWide ? [] : definitionsForDomain(domain).map(metric => ({ ...metric,
       sourceTable: metric.source === 'marketing_contract' ? client.marketing?.table ?? null : calls ? client.semanticMappings.tables.calls : client.semanticMappings.tables.leads,

@@ -20,7 +20,8 @@
     "sources:check": "tsx scripts/check-source-api.ts",
     "docs:surfaces": "tsx scripts/generate-surface-inventory.ts",
     "docs:surfaces:check": "tsx scripts/generate-surface-inventory.ts --check",
-    "export:warehouse": "tsx scripts/build-warehouse-export.ts"
+    "export:warehouse": "tsx scripts/build-warehouse-export.ts",
+    "deployment:check": "node scripts/check-deployment.mjs"
   },
   "dependencies": {
     "@google-cloud/bigquery": "^8.3.1",

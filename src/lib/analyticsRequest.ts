@@ -1,12 +1,25 @@
-export async function fetchAnalyticsJson<T = any>(url: string, signal?: AbortSignal): Promise<{ data: T; success: boolean; metadata?: any }> {
-  const res = await fetch(url, { signal });
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    const error: any = new Error(errData.error || `HTTP ${res.status}`);
-    error.status = res.status;
-    throw error;
+import { ApiRequestError } from './apiTransport';
+
+/** Shared GET/POST guard. A frontend HTML shell must never be treated as data. */
+export async function readAnalyticsResponse<T = unknown>(res: Response): Promise<{ data: T; success: boolean; metadata?: any }> {
+  const requestId = res.headers.get('x-request-id');
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.toLowerCase().includes('json')) {
+    throw new ApiRequestError('The API returned a non-JSON page. Verify this deployment routes /api to the backend, not the frontend shell.', res.ok ? 502 : res.status, 'API_INVALID_RESPONSE', requestId);
   }
-  return await res.json();
+  let body: any;
+  try { body = await res.json(); } catch {
+    throw new ApiRequestError('The API returned invalid JSON. No data was substituted.', 502, 'API_INVALID_RESPONSE', requestId);
+  }
+  if (!res.ok) throw new ApiRequestError(typeof body?.error === 'string' ? body.error : `Analytics request failed (${res.status}).`, res.status, 'API_HTTP_ERROR', requestId);
+  if (!body || Array.isArray(body) || body.success !== true || !Object.prototype.hasOwnProperty.call(body, 'data')) {
+    throw new ApiRequestError(typeof body?.error === 'string' ? body.error : 'The API did not return a successful data envelope.', 502, 'API_UNSUCCESSFUL_RESPONSE', requestId);
+  }
+  return body;
+}
+
+export async function fetchAnalyticsJson<T = any>(url: string, signal?: AbortSignal): Promise<{ data: T; success: boolean; metadata?: any }> {
+  return readAnalyticsResponse<T>(await fetch(url, { signal, credentials: 'same-origin', headers: { Accept: 'application/json' } }));
 }
 
 export function analyticsUrl(path: string, ...paramsObjects: (Record<string, any> | undefined)[]): string {

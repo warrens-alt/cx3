@@ -39,7 +39,7 @@ export async function getContactDispositionsAnalytics(
   const client = getClientConfig(params.clientId || 'default_tenant');
 
   // Explicit fixture boundary for test / synthetic environments only (NEVER from user input)
-  if (process.env.USE_DISPOSITION_FIXTURES === 'true') {
+  if (process.env.USE_DISPOSITION_FIXTURES === 'true' && process.env.NODE_ENV !== 'production') {
     return getFallbackDispositions(params, mode);
   }
 

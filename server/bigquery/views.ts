@@ -1,3 +1,4 @@
+import { validationSql } from '../../contracts/validation';
 import type { TenantConfiguration } from './config';
 import { tableIdentifier } from './config';
 import { vendorScope } from '../analyticsContext';
@@ -32,7 +33,7 @@ export function getBaseSemanticLayer(client: TenantConfiguration): string {
       ${ts('l.fetched')} AS capture_timestamp, DATE(${ts('l.fetched')}) AS capture_date,
       ${ts('l.fetched')} IS NULL AS sentinel_capture,
       (LOWER(l.offershop_source) LIKE '%revet%' OR LOWER(l.offershop_source) LIKE '%re-vet%') AS is_revetted,
-      SAFE_CAST(l.valid_idno AS BOOL) AS valid_idno, SAFE_CAST(l.phone_valid AS BOOL) AS phone_valid,
+      ${validationSql('l.valid_idno')} AS valid_idno, ${validationSql('l.phone_valid')} AS phone_valid,
       ${ts('l.standardised_idno')} AS standardised_idno_ts, ${ts('l.standardised_mobile')} AS standardised_mobile_ts,
       l.offershop_grade AS grade, SPLIT(l.offershop_color_vetting, ',')[SAFE_OFFSET(0)] AS vetting,
       ${ts('l.hospital_applied_date')} AS hospital_applied_date, l.hospital_applied,

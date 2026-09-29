@@ -243,7 +243,7 @@ test('vendor, temporal and integrity report correct denominators, nulls and dist
   assert.equal(captureCheck.discrepancyCount, null);
   const integritySql = queries.find(query => query.includes('lead_quality AS ('))!;
   assert.match(integritySql, /GROUP BY l.lead_id/);
-  assert.match(integritySql, /LOWER\(TRIM\(l.valid_idno\)\) IN \('0', 'false'\)/);
+  assert.match(integritySql, /WHEN '2' THEN FALSE/);
   assert.match(integritySql, /l.valid_lead IS FALSE/);
   assert.match(integritySql, /COUNTIF\(is_dialled AND NOT has_disposition\)/);
 });
