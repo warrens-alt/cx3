@@ -152,8 +152,8 @@ export function buildLedgerQuery(source: LedgerSource, scope: LedgerScope, optio
       ARRAY(SELECT AS STRUCT ${currency} AS currency, CAST(IF(COUNTIF(NOT (${noHlc}) AND NULLIF(TRIM(c62), '') IS NULL) > 0, NULL, SUM(SAFE_CAST(c48 AS NUMERIC))) AS STRING) AS amount,
         COUNTIF(NOT (${noHlc}) AND (SAFE_CAST(c48 AS NUMERIC) IS NULL OR NULLIF(TRIM(c62), '') IS NULL)) AS missing_amounts
         FROM selected GROUP BY currency ORDER BY currency) AS revenue,
-      ARRAY(SELECT AS STRUCT COALESCE(NULLIF(c45, ''), 'No vendor record') AS vendor, COUNT(DISTINCT _lead_key) AS leads, COUNT(*) AS rows
-        FROM selected GROUP BY vendor ORDER BY rows DESC, vendor) AS vendors`,
+      ARRAY(SELECT AS STRUCT COALESCE(NULLIF(c45, ''), 'No vendor record') AS vendor, COUNT(DISTINCT _lead_key) AS leads, COUNT(*) AS \`rows\`
+        FROM selected GROUP BY vendor ORDER BY \`rows\` DESC, vendor) AS vendors`,
     params, dates, limit, offset, search,
   };
 }
