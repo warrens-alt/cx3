@@ -14,7 +14,7 @@ import {
 import { ALL_WAREHOUSE_OBJECTS } from '../server/bigquery/warehouseRegistry';
 import { analyticsRouter } from '../server/api';
 
-test('buildWarehouseExportBundle returns complete Google projects, datasets, tables, schemes and data', async () => {
+test('buildWarehouseExportBundle returns a historical schema catalogue without invented business data', async () => {
   const bundle = await buildWarehouseExportBundle({ clientId: 'default_tenant' });
 
   assert.ok(bundle);
@@ -27,7 +27,7 @@ test('buildWarehouseExportBundle returns complete Google projects, datasets, tab
   assert.equal(bundle.exportMetadata.scope, 'all_google_projects_datasets_and_tables');
 
   // Verify Google Cloud Projects
-  assert.equal(bundle.projects.length, 4);
+  assert.equal(bundle.projects.length, 2);
   const dashboards = bundle.projects.find(p => p.projectId === 'dashboards-422710');
   assert.ok(dashboards);
   assert.equal(dashboards.role, 'primary_warehouse');
@@ -89,8 +89,8 @@ test('buildWarehouseExportBundle returns complete Google projects, datasets, tab
   // Verify Operational Data & Telemetry
   assert.ok(bundle.tableDataAndTelemetry.waterfallTimelines.length === 18);
   assert.ok(bundle.tableDataAndTelemetry.touchpointCampaigns.length >= 4);
-  assert.ok(bundle.tableDataAndTelemetry.ontactDiallerTelemetry.totalObservationsSampled > 0);
-  assert.ok(bundle.tableDataAndTelemetry.onvestTouchpointTelemetry.fetchedLeadsTotal > 0);
+  assert.equal(bundle.tableDataAndTelemetry.ontactDiallerTelemetry.totalObservationsSampled, null);
+  assert.equal(bundle.tableDataAndTelemetry.onvestTouchpointTelemetry.fetchedLeadsTotal, null);
   assert.equal(bundle.tableDataAndTelemetry.exportManifestEvidence.totalRowsExported, 981);
 });
 

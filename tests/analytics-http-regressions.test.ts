@@ -8,10 +8,11 @@ import { getBigQueryClient } from '../server/bigquery/client';
 import { getClientConfig } from '../server/bigquery/config';
 import { clearTenantImport, parseAndValidateCliCsv, setTenantImport } from '../server/bigquery/cli_analytics';
 
-async function withApi(work: (url: string) => Promise<void>) {
+async function withApi(work: (url: string) => Promise<void>, principal = { subject: 'http-regression', role: 'admin', tenants: ['default_tenant'] }) {
   const app = express();
+  app.use(express.json());
   app.use((_req, res, next) => {
-    res.locals.principal = { subject: 'http-regression', role: 'admin', tenants: ['default_tenant'] };
+    res.locals.principal = principal;
     next();
   });
   app.use('/api/analytics', analyticsRouter);
@@ -88,4 +89,32 @@ test('HTTP operational requests reject unsupported scope before querying and pre
     assert.equal(queries[0].params.vendor, 'MTN');
     assert.equal(queries[0].params.source, 'Web');
   });
+});
+
+
+test('HTTP warehouse preview preserves master boundaries and quarantines legacy copies', async context => {
+  const client = getBigQueryClient(getClientConfig('default_tenant').bigQueryProject);
+  let warehouseReads = 0;
+  context.mock.method(client, 'dataset', (() => { warehouseReads++; throw new Error('No source read should occur'); }) as any);
+  context.mock.method(client, 'query', async () => { warehouseReads++; throw new Error('No warehouse query should occur'); });
+  context.mock.method(client, 'createQueryJob', async () => { warehouseReads++; throw new Error('No warehouse job should occur'); });
+  const body = { clientId: 'default_tenant', project: 'dashboards-422710', dataset: 'lead_ledger', table: 'clustered_lead_ledger', startDate: '2026-07-01', endDate: '2026-07-31' };
+  const post = (url: string, value: unknown) => fetch(`${url}/warehouse/pull-data`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value) });
+  await withApi(async url => {
+    const response = await post(url, { ...body, syncToCloudSql: true });
+    assert.equal(response.status, 409);
+    assert.match((await response.json()).error, /read-only/);
+    const quarantine = await fetch(`${url}/cloudsql/synced-records?clientId=default_tenant`);
+    assert.equal(quarantine.status, 410);
+    assert.match((await quarantine.json()).error, /LEGACY_SYNC_QUARANTINED/);
+  });
+  await withApi(async url => {
+    assert.equal((await post(url, body)).status, 403, 'A body cannot override effective viewer authority');
+    assert.equal((await fetch(`${url}/cloudsql/synced-records?clientId=default_tenant`)).status, 403);
+  }, { subject: 'viewer-fixture', role: 'viewer', tenants: ['default_tenant'] });
+  await withApi(async url => {
+    assert.equal((await post(url, body)).status, 403, 'A vendor administrator cannot select the master');
+    assert.equal((await post(url, { ...body, clientId: 'mtn' })).status, 403, 'An authorised vendor workspace cannot invoke generic master inspection');
+  }, { subject: 'vendor-admin-fixture', role: 'admin', tenants: ['mtn'] });
+  assert.equal(warehouseReads, 0);
 });

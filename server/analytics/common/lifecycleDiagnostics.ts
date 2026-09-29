@@ -4,7 +4,7 @@ import { currentAnalyticsScope } from '../../analyticsContext';
 import { compareMetric, decomposeRateChange, matchedPeriodWindow } from '../../../contracts/periodComparison';
 import type { LifecycleDiagnostics, LifecycleSegment, LifecycleTransition } from '../../../contracts/lifecycleAnalytics';
 import type { OffernetQueryParams } from './types';
-import { operationalLeadCtes, operationalLeadSelectSql, metricPercent } from './leadMetrics';
+import { completeRevenueSumSql, OPERATIONAL_REVENUE_POLICY, operationalLeadCtes, operationalLeadSelectSql, metricPercent } from './leadMetrics';
 import { buildFilterClause } from './scope';
 
 type Row = Record<string, any>;
@@ -80,7 +80,7 @@ export function compileLifecycleDiagnostics(params: OffernetQueryParams) {
     AVG(IF(first_call_ts >= delivered_ts, TIMESTAMP_DIFF(first_call_ts, delivered_ts, SECOND), NULL)) AS avgDeliveryDialSec,
     AVG(IF(sale_ts >= first_call_ts, TIMESTAMP_DIFF(sale_ts, first_call_ts, SECOND), NULL)) AS avgDialSaleSec,
     AVG(IF(activation_ts >= sale_ts, TIMESTAMP_DIFF(activation_ts, sale_ts, SECOND), NULL)) AS avgSaleActivationSec,
-    SUM(revenue) AS revenue, COUNTIF(revenue IS NULL) AS missingRevenueLeads, COUNTIF(TIMESTAMP_DIFF(first_call_ts, delivered_ts, SECOND) BETWEEN 0 AND 900) AS within15m,
+    ${completeRevenueSumSql()} AS revenue, COUNTIF(revenue IS NULL) AS missingRevenueLeads, COUNTIF(TIMESTAMP_DIFF(first_call_ts, delivered_ts, SECOND) BETWEEN 0 AND 900) AS within15m,
     COUNTIF(is_dialled AND recorded_call_count = 1) AS oneCall, COUNTIF(recorded_call_count >= 5 AND is_rpc IS FALSE) AS fivePlusNoRpc,
     COUNTIF(is_dialled AND has_disposition) AS hasDisposition, COUNTIF(is_invalid) AS invalidLeads,
     COUNTIF(NULLIF(TRIM(source), '') IS NULL) AS missingSource, COUNTIF(NULLIF(TRIM(grade), '') IS NULL) AS missingGrade
@@ -97,7 +97,7 @@ export function compileLifecycleDiagnostics(params: OffernetQueryParams) {
       ? 'current_operational_leads AS (SELECT * FROM operational_leads)'
       : `current_operational_raw AS (
       SELECT * FROM operational_raw${period ? '\n      WHERE DATE(fetched_ts, @lifecycleTimezone) >= DATE(@lifecycleCurrentStart)' : ''}
-    ), current_operational_leads AS (${operationalLeadSelectSql('current_operational_raw', byVendor)})`,
+    ), current_operational_leads AS (${operationalLeadSelectSql('current_operational_raw', byVendor, getClientConfig(params.clientId).currency)})`,
   };
 }
 async function loadLifecycleDiagnostics(params: OffernetQueryParams): Promise<LifecycleDiagnostics> {

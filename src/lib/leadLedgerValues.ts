@@ -1,9 +1,8 @@
+import { validationValue } from '../../contracts/validation';
 /** Read-only presentation of recorded Ledger values; no inference from missing evidence. */
 export function ledgerValidation(value: unknown): 'Valid (1)' | 'Invalid (2)' | 'Unavailable' {
-  // Source validation codes are 1/2. Preserve the legacy explicit Boolean representation.
-  if (value === 1 || value === '1' || value === true) return 'Valid (1)';
-  if (value === 2 || value === '2' || value === false) return 'Invalid (2)';
-  return 'Unavailable';
+  const parsed = validationValue(value);
+  return parsed === null ? 'Unavailable' : parsed ? 'Valid (1)' : 'Invalid (2)';
 }
 
 export function ledgerOutcome(value: unknown): 'TRUE' | 'FALSE' | 'Unavailable' {

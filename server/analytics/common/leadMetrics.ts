@@ -1,3 +1,5 @@
+import { validationSql } from '../../../contracts/validation';
+import { getClientConfig } from '../../bigquery/config';
 import { validTimestampSql } from '../../bigquery/integrity';
 import { configuredSourceTable } from './warehouse';
 import { buildFilterClause } from './scope';
@@ -22,22 +24,28 @@ export function operationalLeadCtes(params: OffernetQueryParams, byVendor = fals
       CASE WHEN SAFE_CAST(hlc.total_calls AS INT64) >= 0 THEN SAFE_CAST(hlc.total_calls AS INT64) END AS total_calls,
       CASE WHEN SAFE_CAST(hlc.rpc AS INT64) >= 0 THEN SAFE_CAST(hlc.rpc AS INT64) > 0 END AS is_rpc,
       NULLIF(TRIM(hlc.last_dialer_status), '') AS last_dialer_status,
-      SAFE_CAST(hlc.revenue_generated AS FLOAT64) AS revenue
+      SAFE_CAST(hlc.revenue_generated AS NUMERIC) AS revenue,
+      NULLIF(TRIM(CAST(hlc.transaction_id AS STRING)), '') AS revenue_transaction_id,
+      NULLIF(TRIM(CAST(hlc.vendor AS STRING)), '') AS revenue_vendor,
+      UPPER(NULLIF(TRIM(CAST(hlc.currency AS STRING)), '')) AS revenue_currency,
+      hlc IS NOT NULL AS has_hlc_record
     FROM ${table} l
     LEFT JOIN UNNEST(l.hlc_details) hlc
     ${whereSql}
   ), operational_leads AS (
-    ${operationalLeadSelectSql('operational_raw', byVendor)}
+    ${operationalLeadSelectSql('operational_raw', byVendor, getClientConfig(params.clientId).currency)}
   )`;
 }
 
 /** Reuse normalization after raw cohort selection; grouping before selection can mix repeated lead IDs across periods. */
-export function operationalLeadSelectSql(rawCteName: 'operational_raw' | 'current_operational_raw', byVendor = false): string {
-  return `    SELECT lead_id,
+export function operationalLeadSelectSql(rawCteName: 'operational_raw' | 'current_operational_raw', byVendor = false, currency = 'ZAR'): string {
+  if (!/^[A-Z]{3}$/.test(currency)) throw new Error('A configured ISO currency is required for operational revenue.');
+  const keys = `lead_id${byVendor ? ', vendor' : ''}`;
+  return `WITH lead_rollup AS (SELECT lead_id,
       MIN(fetched_ts) AS fetched_ts,
       ${byVendor ? 'vendor' : "ARRAY_AGG(vendor ORDER BY IF(delivered_ts IS NULL, 1, 0), delivered_ts, vendor LIMIT 1)[SAFE_OFFSET(0)] AS vendor"},
       ANY_VALUE(source) AS source, ANY_VALUE(grade) AS grade, ANY_VALUE(vetting) AS vetting,
-      LOGICAL_OR(LOWER(TRIM(CAST(valid_idno AS STRING))) IN ('0', 'false') OR LOWER(TRIM(CAST(phone_valid AS STRING))) IN ('0', 'false')) AS is_invalid,
+      LOGICAL_OR((${validationSql('valid_idno')}) IS FALSE OR (${validationSql('phone_valid')}) IS FALSE) AS is_invalid,
       MIN(attempted_ts) AS attempted_ts,
       MIN(delivered_ts) AS delivered_ts,
       MIN(first_call_ts) AS first_call_ts,
@@ -49,12 +57,32 @@ export function operationalLeadSelectSql(rawCteName: 'operational_raw' | 'curren
       COUNTIF(sale_ts IS NOT NULL) > 0 AS is_sale,
       COUNTIF(activation_ts IS NOT NULL) > 0 AS is_activated,
       MAX(total_calls) AS recorded_call_count,
-      COUNTIF(first_call_ts IS NOT NULL AND last_dialer_status IS NOT NULL) > 0 AS has_disposition,
-      SUM(revenue) AS revenue,
-      MAX(revenue) AS max_recorded_revenue
+      COUNTIF(first_call_ts IS NOT NULL AND last_dialer_status IS NOT NULL) > 0 AS has_disposition
     FROM ${rawCteName}
     WHERE lead_id IS NOT NULL
-    GROUP BY lead_id${byVendor ? ', vendor' : ''}`;
+    GROUP BY lead_id${byVendor ? ', vendor' : ''}
+    ), financial_keys AS (
+      SELECT lead_id, vendor, revenue_vendor, revenue_transaction_id,
+        COUNT(*) AS source_rows,
+        COUNT(DISTINCT TO_JSON_STRING(STRUCT(revenue AS amount, revenue_currency AS currency))) AS value_variants,
+        ANY_VALUE(revenue) AS amount, ANY_VALUE(revenue_currency) AS currency
+      FROM ${rawCteName} WHERE lead_id IS NOT NULL AND has_hlc_record
+      GROUP BY lead_id, vendor, revenue_vendor, revenue_transaction_id
+    ), financial_assessed AS (
+      SELECT *, revenue_vendor IS NOT NULL AND revenue_transaction_id IS NOT NULL
+        AND value_variants = 1 AND amount IS NOT NULL AND currency = '${currency}' AS eligible
+      FROM financial_keys
+    ), financial_totals AS (
+      SELECT ${keys},
+        IF(COUNTIF(eligible IS NOT TRUE) > 0, NULL, SUM(amount)) AS revenue,
+        SUM(IF(eligible, amount, NULL)) AS known_revenue_subtotal,
+        COUNTIF(eligible IS NOT TRUE) AS incomplete_revenue_keys,
+        COUNTIF(value_variants > 1) AS conflicting_revenue_keys,
+        SUM(IF(eligible, source_rows - 1, 0)) AS revenue_duplicate_rows_collapsed
+      FROM financial_assessed GROUP BY ${keys}
+    ) SELECT lead_rollup.*, financial_totals.* EXCEPT(${keys})
+      FROM lead_rollup LEFT JOIN financial_totals USING (${keys})`;
+
 }
 
 /** An empty denominator is unavailable, while a measured zero numerator remains zero. */
@@ -63,3 +91,9 @@ export function metricPercent(numerator: number, denominator: number, decimals =
     ? Number(((numerator / denominator) * 100).toFixed(decimals))
     : null;
 }
+
+/** A complete total cannot silently omit an incomplete lead/key. Real zero remains zero. */
+export function completeRevenueSumSql(expression = 'revenue'): string {
+  return `CASE WHEN COUNTIF(${expression} IS NULL) > 0 THEN NULL ELSE SUM(${expression}) END`;
+}
+export const OPERATIONAL_REVENUE_POLICY = '2026-09-29.1: recorded NUMERIC amounts grouped by lead/vendor/transaction; identical amount+currency duplicates collapse once; unresolved keys, conflicting values, missing amounts or currencies withhold the complete total. Separate known subtotal is not cash or verified billability.';

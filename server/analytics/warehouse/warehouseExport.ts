@@ -8,7 +8,7 @@ import {
   type DictionaryObject,
   type DictionaryColumn,
 } from '../../../contracts/warehouseDictionary';
-import { getWarehouseCrossDatasetAnalytics } from './warehouseAnalytics';
+import { getWarehouseCrossDatasetAnalytics, type WarehouseAnalyticsOverview } from './warehouseAnalytics';
 
 export interface EnrichedColumn extends DictionaryColumn {
   isCandidateKey: boolean;
@@ -32,7 +32,7 @@ export interface EnrichedTableExport {
   ownershipField?: string;
   schema: EnrichedColumn[];
   dataEvidence: {
-    status: 'EXPORTED' | 'RESTRICTED' | 'AWAITING_INTERPRETATION' | 'ONLINE';
+    status: 'CATALOGUE_ONLY' | 'HISTORICAL_RESTRICTION';
     historicalExportRows: number | null;
     failingDependency?: string | null;
     errorReason?: string | null;
@@ -80,46 +80,10 @@ export interface WarehouseExportBundle {
   tables: EnrichedTableExport[];
   schemas: Record<string, EnrichedColumn[]>;
   tableDataAndTelemetry: {
-    ontactDiallerTelemetry: {
-      source: string;
-      totalObservationsSampled: number;
-      durationVerificationRatePct: number;
-      averageCallDurationSec: number;
-      topCallResults: Array<{ result: string; count: number }>;
-    };
-    onvestTouchpointTelemetry: {
-      source: string;
-      totalReportRows: number;
-      fetchedLeadsTotal: number;
-      acceptedLeadsTotal: number;
-      qualifiedLeadsTotal: number;
-      validPhoneIdTotal: number;
-      amountSpentRawSum: string;
-    };
-    waterfallTimelines: Array<{
-      tableName: string;
-      title: string;
-      client: string;
-      disposition: string;
-      family: string;
-      columnsCount: number;
-      estimatedVolume: number;
-      conversionRateEstimatePct: number;
-      keyStages: string[];
-      dependencyStatus: 'NATIVE_TABLE' | 'DEPENDENCY_PROTECTED';
-    }>;
-    touchpointCampaigns: Array<{
-      sourceKey: string;
-      label: string;
-      dataset: string;
-      impressions: number;
-      clicks: number;
-      outboundClicks: number;
-      amountSpentEstimate: string;
-      leadsDelivered: number;
-      channels: string[];
-      grain: string;
-    }>;
+    ontactDiallerTelemetry: WarehouseAnalyticsOverview['rawTelemetrySummary']['ontactDialler'];
+    onvestTouchpointTelemetry: WarehouseAnalyticsOverview['rawTelemetrySummary']['onvestTouchpoints'];
+    waterfallTimelines: WarehouseAnalyticsOverview['waterfallSummary']['timelines'];
+    touchpointCampaigns: WarehouseAnalyticsOverview['touchpointsSummary']['sources'];
     exportManifestEvidence: typeof EXPORT_MANIFEST_EVIDENCE;
     observedViewFailures: typeof OBSERVED_EXPORT_FAILURES;
   };
@@ -130,7 +94,8 @@ export interface WarehouseExportBundle {
  */
 export function escapeCsvCell(value: unknown): string {
   if (value === null || value === undefined) return '';
-  const str = String(value);
+  const raw = String(value);
+  const str = typeof value === 'string' && /^[\s]*[=+@-]/.test(raw) ? `'${raw}` : raw;
   if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
     return `"${str.replace(/"/g, '""')}"`;
   }
@@ -144,17 +109,8 @@ export function enrichTableObject(obj: DictionaryObject): EnrichedTableExport {
   const fullTableId = `${obj.project}.${obj.dataset}.${obj.tableName}`;
   const failure = OBSERVED_EXPORT_FAILURES[fullTableId];
 
-  let status: 'EXPORTED' | 'RESTRICTED' | 'AWAITING_INTERPRETATION' | 'ONLINE' = 'ONLINE';
-  let historicalExportRows: number | null = 50;
-
-  if (failure) {
-    status = 'RESTRICTED';
-    historicalExportRows = null;
-  } else if (obj.disposition === 'raw_awaiting_interpretation') {
-    status = 'AWAITING_INTERPRETATION';
-  } else if (obj.tableType === 'TABLE') {
-    status = 'EXPORTED';
-  }
+  const status = failure ? 'HISTORICAL_RESTRICTION' as const : 'CATALOGUE_ONLY' as const;
+  const historicalExportRows = null; // No per-table count is established by the catalogue.
 
   const schema: EnrichedColumn[] = obj.columns.map(col => ({
     ...col,
@@ -226,11 +182,11 @@ export async function buildWarehouseExportBundle(options: {
   return {
     exportMetadata: {
       generatedAt: new Date().toISOString(),
-      environment: 'production_federation',
+      environment: 'schema_catalogue_only_not_live_data',
       scope: 'all_google_projects_datasets_and_tables',
       warehouseSnapshotDate: WAREHOUSE_SNAPSHOT_DATE,
-      totalProjects: analytics.kpis.totalProjects,
-      totalDatasets: analytics.kpis.totalDatasets,
+      totalProjects: new Set(tables.map(t => t.project)).size,
+      totalDatasets: new Set(tables.map(t => `${t.project}.${t.dataset}`)).size,
       totalObjects: tables.length,
       totalTables: tables.filter(t => t.tableType === 'TABLE').length,
       totalViews: tables.filter(t => t.tableType === 'VIEW').length,
@@ -238,8 +194,8 @@ export async function buildWarehouseExportBundle(options: {
       registeredSchemaColumns,
       totalExportEvidenceRows: EXPORT_MANIFEST_EVIDENCE.totalRowsExported,
     },
-    projects: analytics.projects,
-    datasets: analytics.datasets.map(d => ({
+    projects: analytics.projects.filter(p => tables.some(t => t.project === p.projectId)),
+    datasets: analytics.datasets.filter(d => tables.some(t => t.project === d.project && t.dataset === d.dataset)).map(d => ({
       ...d,
       fullDatasetId: `${d.project}.${d.dataset}`,
     })),
@@ -248,8 +204,8 @@ export async function buildWarehouseExportBundle(options: {
     tableDataAndTelemetry: {
       ontactDiallerTelemetry: analytics.rawTelemetrySummary.ontactDialler,
       onvestTouchpointTelemetry: analytics.rawTelemetrySummary.onvestTouchpoints,
-      waterfallTimelines: analytics.waterfallSummary.timelines,
-      touchpointCampaigns: analytics.touchpointsSummary.sources,
+      waterfallTimelines: options.includeData === false ? [] : analytics.waterfallSummary.timelines.filter(t => tables.some(o => o.tableName === t.tableName && o.dataset === 'watfall_report')),
+      touchpointCampaigns: options.includeData === false ? [] : analytics.touchpointsSummary.sources.filter(t => tables.some(o => o.fullTableId === t.sourceKey)),
       exportManifestEvidence: EXPORT_MANIFEST_EVIDENCE,
       observedViewFailures: OBSERVED_EXPORT_FAILURES,
     },
@@ -353,7 +309,7 @@ export function generateWarehouseInventoryCsv(tables: DictionaryObject[] = ALL_W
  * Generates an operational data and telemetry summary CSV.
  */
 export function generateWarehouseDataCsv(bundle: WarehouseExportBundle): string {
-  const rows: string[] = [];
+  const rows: string[] = ['CATALOGUE ONLY — business metrics are unavailable; blank values are not zero.'];
 
   // Section 1: Waterfall Timelines
   rows.push('--- WATERFALL CONVERSION TIMELINES ---');

@@ -118,13 +118,13 @@ export function createRubixPowerBiRouter(service: RubixPowerBiService = defaultR
           reconciliationStatus: 'UNSUPPORTED_FILTER',
         },
         summary: {
-          totalCount: 0,
+          totalCount: null,
           rowCount: 0,
           minDate: null,
           maxDate: null,
-          distinctTeams: 0,
-          distinctSegments: 0,
-          distinctAgents: 0,
+          distinctTeams: null,
+          distinctSegments: null,
+          distinctAgents: null,
         },
         rows: [],
       };

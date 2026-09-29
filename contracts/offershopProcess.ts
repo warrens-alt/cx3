@@ -1127,10 +1127,12 @@ export interface ReadOnlyRuleSimulationResult {
   readOnlyDisclaimer: 'THIS IS A READ-ONLY RULE SIMULATION. RESULTS DO NOT REPRESENT OBSERVED PRODUCTION TRAFFIC AND ARE EXCLUDED FROM ACTUAL REPORTED METRICS.';
   partner: OffershopPartner;
   parametersApplied: Record<string, unknown>;
-  simulatedEligibleCount: number;
-  simulatedSuppressedCount: number;
+  simulatedEligibleCount: number | null;
+  simulatedSuppressedCount: number | null;
   simulatedChangePct: number | null;
-  observedBaselineCount: number;
+  observedBaselineCount: number | null;
   observedBaselinePeriod: string;
   simulatedAt: string;
+  status: 'BASELINE_REQUIRED';
+  reason: string;
 }

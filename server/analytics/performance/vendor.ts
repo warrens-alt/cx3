@@ -1,3 +1,4 @@
+import { completeRevenueSumSql, OPERATIONAL_REVENUE_POLICY } from '../common/leadMetrics';
 import { getBigQueryClient } from '../../bigquery/client';
 import { getClientConfig } from '../../bigquery/config';
 import type { OffernetQueryParams } from '../common/types';
@@ -31,7 +32,7 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) AS activations,
         COUNT(DISTINCT CASE WHEN is_invalid THEN lead_id END) AS invalid_leads,
         CASE WHEN COUNTIF(total_calls IS NULL) > 0 THEN NULL ELSE SUM(total_calls) END AS total_calls,
-        ROUND(SUM(revenue), 2) AS revenue,
+        ROUND(${completeRevenueSumSql()}, 2) AS revenue,
         APPROX_QUANTILES(CASE WHEN deliv_to_dial_sec >= 0 THEN deliv_to_dial_sec END, 100)[OFFSET(50)] AS med_first_dial_sec
       FROM base
       GROUP BY vendor

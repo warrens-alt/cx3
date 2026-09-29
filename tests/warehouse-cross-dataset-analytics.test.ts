@@ -18,7 +18,7 @@ test('getWarehouseCrossDatasetAnalytics aggregates all 2 projects, 4 datasets, a
   assert.equal(analytics.kpis.totalDeclaredColumns, 1848);
 
   // Projects assertions
-  assert.equal(analytics.projects.length, 4);
+  assert.equal(analytics.projects.length, 2);
   const dashboardsProj = analytics.projects.find(p => p.projectId === 'dashboards-422710');
   assert.ok(dashboardsProj);
   assert.equal(dashboardsProj.role, 'primary_warehouse');
@@ -55,11 +55,15 @@ test('getWarehouseCrossDatasetAnalytics aggregates all 2 projects, 4 datasets, a
 
   // Touchpoints
   assert.ok(analytics.touchpointsSummary.sources.length >= 4);
-  assert.ok(analytics.touchpointsSummary.totalTrackedImpressions > 0);
+  assert.equal(analytics.touchpointsSummary.totalTrackedImpressions, null);
+  assert.equal(analytics.evidence.status, 'CATALOGUE_ONLY');
+  assert.equal(analytics.evidence.liveDataQueried, false);
+  assert.equal(analytics.kpis.totalObservedRecordsEstimate, null);
+  assert.ok(analytics.projects.every(p => p.status === 'NOT_CHECKED'));
 
   // Raw telemetry
-  assert.ok(analytics.rawTelemetrySummary.ontactDialler.totalObservationsSampled > 0);
-  assert.ok(analytics.rawTelemetrySummary.onvestTouchpoints.fetchedLeadsTotal > 0);
+  assert.equal(analytics.rawTelemetrySummary.ontactDialler.totalObservationsSampled, null);
+  assert.equal(analytics.rawTelemetrySummary.onvestTouchpoints.fetchedLeadsTotal, null);
 
   // Table inventory preview
   assert.equal(analytics.tableInventoryPreview.length, 65);
@@ -125,7 +129,7 @@ function createAnalyticsApp() {
   return app;
 }
 
-test('HTTP GET /api/analytics/warehouse/overview returns complete warehouse analytics', async () => {
+test('HTTP GET /api/analytics/warehouse/overview returns explicit catalogue-only evidence', async () => {
   const app = createAnalyticsApp();
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');

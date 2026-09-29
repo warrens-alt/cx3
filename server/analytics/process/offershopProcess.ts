@@ -1,3 +1,5 @@
+import { validTimestampSql } from '../../bigquery/integrity';
+import { validationSql } from '../../../contracts/validation';
 /**
  * Offershop Deal Flow Process Analytics & Observability Engine
  *
@@ -143,6 +145,10 @@ export async function getOffershopProcessFlow(params: OffernetQueryParams): Prom
   let rawTotalLeads: number | null = null;
   let validIdCount: number | null = null;
   let validPhoneCount: number | null = null;
+  let invalidIdCount: number | null = null;
+  let invalidPhoneCount: number | null = null;
+  let unknownIdCount: number | null = null;
+  let unknownPhoneCount: number | null = null;
   let hospitalCount: number | null = null;
   let revetCount: number | null = null;
   let deliveredCount: number | null = null;
@@ -159,19 +165,23 @@ export async function getOffershopProcessFlow(params: OffernetQueryParams): Prom
     const bq = getBigQueryClient(client.bigQueryProject);
     const query = `
       SELECT
-        COUNT(1) as total_leads,
-        COUNTIF(l.valid_idno = 1 OR l.valid_idno = true) as valid_id,
-        COUNTIF(l.phone_valid = 1 OR l.phone_valid = true) as valid_phone,
-        COUNTIF(l.hospital_applied_date IS NOT NULL) as in_hospital,
-        COUNTIF(LOWER(l.offershop_source) LIKE '%revet%' OR LOWER(l.offershop_source) LIKE '%re-vet%') as revetted,
-        COUNTIF(ARRAY_LENGTH(l.hlc_details) > 0) as delivered_leads,
-        COUNTIF(l.offershop_grade IS NOT NULL) as grade_assigned_count,
-        COUNTIF(l.offershop_color_vetting IS NOT NULL) as colour_assigned_count,
-        COUNTIF(EXISTS(SELECT 1 FROM UNNEST(l.hlc_details) h WHERE h.first_call_date IS NOT NULL)) as dialled_leads,
-        COUNTIF(EXISTS(SELECT 1 FROM UNNEST(l.hlc_details) h WHERE SAFE_CAST(h.rpc AS INT64) > 0)) as rpc_leads,
-        COUNTIF(EXISTS(SELECT 1 FROM UNNEST(l.hlc_details) h WHERE h.sale IS NOT NULL)) as sale_leads,
-        COUNTIF(EXISTS(SELECT 1 FROM UNNEST(l.hlc_details) h WHERE h.activated IS NOT NULL)) as activated_leads
-      FROM \`${tableId}\` l
+        COUNT(DISTINCT l.lead_id) as total_leads,
+        COUNT(DISTINCT IF((${validationSql('l.valid_idno')}) IS TRUE, l.lead_id, NULL)) as valid_id,
+        COUNT(DISTINCT IF((${validationSql('l.valid_idno')}) IS FALSE, l.lead_id, NULL)) as invalid_id,
+        COUNT(DISTINCT IF((${validationSql('l.valid_idno')}) IS NULL, l.lead_id, NULL)) as unknown_id,
+        COUNT(DISTINCT IF((${validationSql('l.phone_valid')}) IS TRUE, l.lead_id, NULL)) as valid_phone,
+        COUNT(DISTINCT IF((${validationSql('l.phone_valid')}) IS FALSE, l.lead_id, NULL)) as invalid_phone,
+        COUNT(DISTINCT IF((${validationSql('l.phone_valid')}) IS NULL, l.lead_id, NULL)) as unknown_phone,
+        COUNT(DISTINCT IF(${validTimestampSql('l.hospital_applied_date')} IS NOT NULL, l.lead_id, NULL)) as in_hospital,
+        COUNT(DISTINCT IF(LOWER(l.offershop_source) LIKE '%revet%' OR LOWER(l.offershop_source) LIKE '%re-vet%', l.lead_id, NULL)) as revetted,
+        COUNT(DISTINCT IF(EXISTS(SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validTimestampSql('h.delivered')} IS NOT NULL ${queryParams.vendor ? 'AND LOWER(h.vendor)=LOWER(@vendor)' : ''}), l.lead_id, NULL)) as delivered_leads,
+        COUNT(DISTINCT IF(NULLIF(TRIM(l.offershop_grade), '') IS NOT NULL, l.lead_id, NULL)) as grade_assigned_count,
+        COUNT(DISTINCT IF(NULLIF(TRIM(l.offershop_color_vetting), '') IS NOT NULL, l.lead_id, NULL)) as colour_assigned_count,
+        COUNT(DISTINCT IF(EXISTS(SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validTimestampSql('h.first_call_date')} IS NOT NULL ${queryParams.vendor ? 'AND LOWER(h.vendor)=LOWER(@vendor)' : ''}), l.lead_id, NULL)) as dialled_leads,
+        COUNT(DISTINCT IF(EXISTS(SELECT 1 FROM UNNEST(l.hlc_details) h WHERE SAFE_CAST(h.rpc AS INT64) > 0 ${queryParams.vendor ? 'AND LOWER(h.vendor)=LOWER(@vendor)' : ''}), l.lead_id, NULL)) as rpc_leads,
+        COUNT(DISTINCT IF(EXISTS(SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validTimestampSql('h.sale')} IS NOT NULL ${queryParams.vendor ? 'AND LOWER(h.vendor)=LOWER(@vendor)' : ''}), l.lead_id, NULL)) as sale_leads,
+        COUNT(DISTINCT IF(EXISTS(SELECT 1 FROM UNNEST(l.hlc_details) h WHERE ${validTimestampSql('h.activated')} IS NOT NULL ${queryParams.vendor ? 'AND LOWER(h.vendor)=LOWER(@vendor)' : ''}), l.lead_id, NULL)) as activated_leads
+      FROM ${tableId} l
       ${whereSql}
     `;
 
@@ -181,6 +191,10 @@ export async function getOffershopProcessFlow(params: OffernetQueryParams): Prom
       rawTotalLeads = r.total_leads != null ? Number(r.total_leads) : null;
       validIdCount = r.valid_id != null ? Number(r.valid_id) : null;
       validPhoneCount = r.valid_phone != null ? Number(r.valid_phone) : null;
+      invalidIdCount = r.invalid_id != null ? Number(r.invalid_id) : null;
+      invalidPhoneCount = r.invalid_phone != null ? Number(r.invalid_phone) : null;
+      unknownIdCount = r.unknown_id != null ? Number(r.unknown_id) : null;
+      unknownPhoneCount = r.unknown_phone != null ? Number(r.unknown_phone) : null;
       hospitalCount = r.in_hospital != null ? Number(r.in_hospital) : null;
       revetCount = r.revetted != null ? Number(r.revetted) : null;
       deliveredCount = r.delivered_leads != null ? Number(r.delivered_leads) : null;
@@ -255,10 +269,12 @@ export async function getOffershopProcessFlow(params: OffernetQueryParams): Prom
       observedMetrics: {
         totalEvaluated: rawTotalLeads,
         idValidationValidCode1: validIdCount,
-        idValidationInvalidCode2: rawTotalLeads !== null && validIdCount !== null ? rawTotalLeads - validIdCount : null,
+        idValidationInvalidCode2: invalidIdCount,
+        idValidationUnknown: unknownIdCount,
         idValidationRatePct: rawTotalLeads !== null && validIdCount !== null && rawTotalLeads > 0 ? Number(((validIdCount / rawTotalLeads) * 100).toFixed(2)) : null,
         phoneValidationValidCode1: validPhoneCount,
-        phoneValidationInvalidCode2: rawTotalLeads !== null && validPhoneCount !== null ? rawTotalLeads - validPhoneCount : null,
+        phoneValidationInvalidCode2: invalidPhoneCount,
+        phoneValidationUnknown: unknownPhoneCount,
         phoneValidationRatePct: rawTotalLeads !== null && validPhoneCount !== null && rawTotalLeads > 0 ? Number(((validPhoneCount / rawTotalLeads) * 100).toFixed(2)) : null,
         placeholderEmailDetected: null,
         mondoGradeAssigned: gradeAssignedCount,
@@ -266,7 +282,7 @@ export async function getOffershopProcessFlow(params: OffernetQueryParams): Prom
       },
       notes: [
         'Diagram field encoding: 1 = valid / successful, 2 = invalid / unsuccessful. Preserved explicitly.',
-        'Standardised does not mean valid; format-valid phone does not prove right-party contact.',
+        'Standardised does not mean valid; format-valid phone does not prove right-party contact. Unknown codes are not invalid. Conflicting repeated lead snapshots require separate review.',
         'Mondo grade and BLC colour are modeled independently; no synthetic composite score is generated.',
       ],
     },
@@ -596,43 +612,6 @@ export function getOffershopSimulation(
     throw new Error(`Unknown simulation partner: ${simReq.partner}`);
   }
 
-  const baselineDelivered = 4200;
-  let simulatedEligible = baselineDelivered;
-  let simulatedSuppressed = 580;
-
-  // Evaluate hypothetical duplicate window changes
-  if (simReq.hypotheticalDuplicateWindowHours !== undefined) {
-    const originalHours = partnerConfig.duplicateWindowHours;
-    const diffRatio = simReq.hypotheticalDuplicateWindowHours / originalHours;
-    if (diffRatio > 1) {
-      // Longer window -> more duplicates suppressed -> fewer eligible leads
-      const extraSuppressed = Math.round(580 * (diffRatio - 1) * 0.65);
-      simulatedSuppressed += extraSuppressed;
-      simulatedEligible = Math.max(0, baselineDelivered - extraSuppressed);
-    } else if (diffRatio < 1) {
-      // Shorter window -> fewer duplicates suppressed -> more eligible leads
-      const restored = Math.round(580 * (1 - diffRatio) * 0.7);
-      simulatedSuppressed = Math.max(0, simulatedSuppressed - restored);
-      simulatedEligible = baselineDelivered + restored;
-    }
-  }
-
-  // Evaluate hypothetical colour vetting rules
-  if (simReq.hypotheticalColourRule === 'GreenOnly') {
-    // Only green allowed; amber rejected
-    const amberLoss = Math.round(simulatedEligible * 0.28);
-    simulatedEligible -= amberLoss;
-    simulatedSuppressed += amberLoss;
-  } else if (simReq.hypotheticalColourRule === 'All') {
-    // Red also allowed hypothetically
-    const redGain = Math.round(baselineDelivered * 0.12);
-    simulatedEligible += redGain;
-    simulatedSuppressed = Math.max(0, simulatedSuppressed - redGain);
-  }
-
-  const changePct = baselineDelivered > 0
-    ? Number((((simulatedEligible - baselineDelivered) / baselineDelivered) * 100).toFixed(2))
-    : 0;
 
   return {
     isSimulation: true,
@@ -643,11 +622,13 @@ export function getOffershopSimulation(
       originalPartnerWindow: partnerConfig.duplicateWindowText,
       originalAction: partnerConfig.duplicateAction,
     },
-    simulatedEligibleCount: simulatedEligible,
-    simulatedSuppressedCount: simulatedSuppressed,
-    simulatedChangePct: changePct,
-    observedBaselineCount: baselineDelivered,
-    observedBaselinePeriod: `${params.startDate || '2026-09-01'} to ${params.endDate || '2026-09-27'}`,
+    simulatedEligibleCount: null,
+    simulatedSuppressedCount: null,
+    simulatedChangePct: null,
+    observedBaselineCount: null,
+    observedBaselinePeriod: params.startDate && params.endDate ? `${params.startDate} to ${params.endDate}` : 'No observed baseline selected',
+    status: 'BASELINE_REQUIRED',
+    reason: 'No reconciled record-level baseline or executable duplicate/colour history has been provided. Parameters are a rule preview only; no volume or uplift is estimated.',
     simulatedAt: new Date().toISOString(),
   };
 }

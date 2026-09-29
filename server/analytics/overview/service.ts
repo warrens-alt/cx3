@@ -3,7 +3,7 @@ import { getClientConfig } from '../../bigquery/config';
 import type { OffernetQueryParams } from '../common/types';
 import { formatDuration } from '../common/types';
 import { buildFilterClause } from '../common/scope';
-import { operationalLeadCtes, metricPercent } from '../common/leadMetrics';
+import { completeRevenueSumSql, OPERATIONAL_REVENUE_POLICY, operationalLeadCtes, metricPercent } from '../common/leadMetrics';
 import { assembleLifecycleDiagnostics, compileLifecycleDiagnostics } from '../common/lifecycleDiagnostics';
 import { METRIC_REGISTRY_VERSION } from '../../../contracts/metricRegistry';
 
@@ -119,7 +119,10 @@ export async function getExecutiveOverview(params: OffernetQueryParams, options:
         COUNT(DISTINCT CASE WHEN is_rpc THEN lead_id END) AS contacted_leads,
         COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) AS sale_leads,
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) AS activated_leads,
-        SUM(revenue) AS total_revenue, COUNTIF(revenue IS NULL) AS missing_revenue_leads,
+        ${completeRevenueSumSql()} AS total_revenue, COUNTIF(revenue IS NULL) AS missing_revenue_leads,
+        SUM(known_revenue_subtotal) AS known_revenue_subtotal,
+        SUM(conflicting_revenue_keys) AS conflicting_revenue_keys,
+        SUM(revenue_duplicate_rows_collapsed) AS revenue_duplicate_rows_collapsed,
         CASE WHEN COUNTIF(recorded_call_count IS NULL) > 0 THEN NULL ELSE COALESCE(SUM(recorded_call_count), 0) END AS total_calls_recorded,
         COALESCE(SUM(recorded_call_count), 0) AS recorded_calls_subtotal,
         CASE WHEN COUNTIF(is_dialled AND recorded_call_count IS NULL) > 0 THEN NULL
@@ -138,7 +141,7 @@ export async function getExecutiveOverview(params: OffernetQueryParams, options:
         COUNT(DISTINCT CASE WHEN is_rpc THEN lead_id END) AS contacted,
         COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) AS sales,
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) AS activations,
-        ROUND(SUM(revenue), 2) AS revenue
+        ROUND(${completeRevenueSumSql()}, 2) AS revenue
       FROM lead_records
       WHERE fetched_date IS NOT NULL
       GROUP BY fetched_date
@@ -295,7 +298,7 @@ export async function getExecutiveOverview(params: OffernetQueryParams, options:
 
   return {
     lifecycle,
-    revenueEvidence: { missingLeadValues: Number(data.missing_revenue_leads || 0), basis: 'Sum of available recorded source values; missing revenue is not imputed.' },
+    revenueEvidence: { missingLeadValues: Number(data.missing_revenue_leads || 0), basis: OPERATIONAL_REVENUE_POLICY, knownSubtotal: data.known_revenue_subtotal == null ? null : Number(data.known_revenue_subtotal), conflictingKeys: Number(data.conflicting_revenue_keys || 0), duplicateRowsCollapsed: Number(data.revenue_duplicate_rows_collapsed || 0) },
     contactEvidence: {
       zeroCallLeads: Number(data.zero_call_leads || 0), oneCallLeads: Number(data.one_call_leads || 0),
       oneCallShare: metricPercent(Number(data.one_call_leads || 0), dialled), multiCallShare: metricPercent(Number(data.multi_call_leads || 0), dialled),
@@ -373,7 +376,7 @@ export async function getOperationalCommercialSummary(params: OffernetQueryParam
   const [rows] = await getBigQueryClient(config.bigQueryProject).query({
     query: `WITH ${operationalLeadCtes(params)}
       SELECT COUNT(*) AS fetched_leads, COUNTIF(is_sale) AS sale_leads,
-        COUNTIF(is_activated) AS activated_leads, SUM(revenue) AS total_revenue
+        COUNTIF(is_activated) AS activated_leads, ${completeRevenueSumSql()} AS total_revenue
       FROM operational_leads`,
     params: queryParams,
   });

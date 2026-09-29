@@ -1,3 +1,4 @@
+import { operationalLeadCtes, completeRevenueSumSql, OPERATIONAL_REVENUE_POLICY } from '../common/leadMetrics';
 import { reconcileSpend, commercialRatio, type AttributedEconomics } from '../../../contracts/commercial';
 import { getBigQueryClient } from '../../bigquery/client';
 import { getClientConfig } from '../../bigquery/config';
@@ -46,7 +47,8 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
   if (params.source) { conditions.push(`LOWER(TRIM(CAST(${marketingSource} AS STRING))) = LOWER(@attributionSource)`); queryParams.attributionSource = params.source; }
   if (params.campaign && campaignMapped) { conditions.push(`LOWER(TRIM(CAST(${safeWarehouseColumn(contract.attribution.marketingCampaignField!)} AS STRING))) = LOWER(@attributionCampaign)`); queryParams.attributionCampaign = params.campaign; }
 
-  const operationalScope = buildFilterClause({ ...params, source: undefined, vendor: undefined, medium: undefined, grade: undefined, agent: undefined, campaign: undefined, channel: undefined, adset: undefined, cli: undefined });
+  const operationalParams = { ...params, source: undefined, vendor: undefined, medium: undefined, grade: undefined, agent: undefined, campaign: undefined, channel: undefined, adset: undefined, cli: undefined };
+  const operationalScope = buildFilterClause(operationalParams);
   const operationalConditions = [operationalScope.whereSql];
   if (params.source) operationalConditions.push(`AND LOWER(TRIM(CAST(${leadSource} AS STRING))) = LOWER(@attributionSource)`);
   if (params.campaign && campaignMapped) operationalConditions.push(`AND LOWER(TRIM(CAST(${safeAliasedColumn('l', contract.attribution.leadCampaignField!)} AS STRING))) = LOWER(@attributionCampaign)`);
@@ -61,7 +63,11 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
   const grainExpression = `TO_JSON_STRING(STRUCT(${contract.spendGrainFields.map(safeWarehouseColumn).join(', ')}))`;
   const campaignGroup = [contract.clientNameField, contract.channelField, contract.campaignField, contract.adsetField].map(safeWarehouseColumn).join(', ');
   const query = `
-    WITH scoped_marketing AS (
+    WITH attribution_source AS (
+      SELECT l.*, ${operationsKey} AS _cx_attribution_key
+      FROM ${configuredSourceTable(params.clientId, 'leads')} l
+      ${operationalConditions.join(' ')} AND l.lead_id IS NOT NULL
+    ), ${operationalLeadCtes(operationalParams, false, 'attribution_source')}, scoped_marketing AS (
       SELECT
         * EXCEPT(channel_adset_name),
         COALESCE(NULLIF(TRIM(channel_adset_name), ''), CASE WHEN LOWER(channel) = 'google' THEN '[google_campaign_grain]' ELSE NULL END) AS channel_adset_name
@@ -81,24 +87,20 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
       SELECT ${marketingKey} AS join_key, TRUE AS has_marketing,
         SUM(${spendValue}) AS spend, SUM(SAFE_CAST(${safeWarehouseColumn(contract.leadsField)} AS NUMERIC)) AS platform_leads
       FROM scoped_marketing GROUP BY join_key
+    ), operation_keys AS (
+      SELECT lead_id, ANY_VALUE(_cx_attribution_key) AS join_key,
+        COUNT(DISTINCT TO_JSON_STRING(STRUCT(_cx_attribution_key AS attribution_key))) AS key_count
+      FROM attribution_source GROUP BY lead_id
     ), operation_leads AS (
-      SELECT l.lead_id, ANY_VALUE(${operationsKey}) AS join_key,
-        COUNT(DISTINCT TO_JSON_STRING(STRUCT(${operationsKey} AS attribution_key))) AS key_count,
-        COUNTIF(${validTimestampSql('hlc.delivered')} IS NOT NULL) > 0 AS delivered,
-        COUNTIF(${validTimestampSql('hlc.first_call_date')} IS NOT NULL) > 0 AS dialled,
-        COUNTIF(SAFE_CAST(hlc.rpc AS INT64) > 0) > 0 AS rpc,
-        COUNTIF(${validTimestampSql('hlc.sale')} IS NOT NULL) > 0 AS sale,
-        COUNTIF(${validTimestampSql('hlc.activated')} IS NOT NULL) > 0 AS activation,
-        SUM(SAFE_CAST(hlc.revenue_generated AS NUMERIC)) AS recorded_revenue
-      FROM ${configuredSourceTable(params.clientId, 'leads')} l LEFT JOIN UNNEST(l.hlc_details) hlc
-      ${operationalConditions.join(' ')} AND l.lead_id IS NOT NULL
-        AND (SELECT row_count > 0 AND duplicate_grain_rows = 0 AND missing_grain_rows = 0
-          AND missing_spend_rows = 0 AND raw_observed_spend IS NOT NULL FROM marketing_audit)
-      GROUP BY l.lead_id
+      SELECT k.*, o.is_delivered AS delivered, o.is_dialled AS dialled, o.is_rpc AS rpc,
+        o.is_sale AS sale, o.is_activated AS activation, o.revenue AS recorded_revenue
+      FROM operational_leads o JOIN operation_keys k USING (lead_id)
+      WHERE TRUE AND (SELECT row_count > 0 AND duplicate_grain_rows = 0 AND missing_grain_rows = 0
+        AND missing_spend_rows = 0 AND raw_observed_spend IS NOT NULL FROM marketing_audit)
     ), operations AS (
       SELECT join_key, TRUE AS has_operations, COUNT(*) AS fetched,
         COUNTIF(delivered) AS delivered, COUNTIF(dialled) AS dialled, COUNTIF(rpc) AS rpc,
-        COUNTIF(sale) AS sales, COUNTIF(activation) AS activations, SUM(recorded_revenue) AS recorded_revenue
+        COUNTIF(sale) AS sales, COUNTIF(activation) AS activations, ${completeRevenueSumSql('recorded_revenue')} AS recorded_revenue
       FROM operation_leads GROUP BY join_key
     ), joined AS (
       SELECT COALESCE(marketing.join_key, operations.join_key) AS join_key,
@@ -123,7 +125,7 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
       SUM(IF(has_marketing AND has_operations, rpc, 0)) AS matched_rpc,
       SUM(IF(has_marketing AND has_operations, sales, 0)) AS matched_sales,
       SUM(IF(has_marketing AND has_operations, activations, 0)) AS matched_activations,
-      SUM(IF(has_marketing AND has_operations, recorded_revenue, NULL)) AS matched_recorded_revenue,
+      CASE WHEN COUNTIF(has_marketing AND has_operations AND recorded_revenue IS NULL) > 0 THEN NULL ELSE SUM(IF(has_marketing AND has_operations, recorded_revenue, NULL)) END AS matched_recorded_revenue,
       ARRAY_AGG(STRUCT(join_key, has_marketing, has_operations, spend, platform_leads, fetched, delivered, dialled, rpc, sales, activations, recorded_revenue)
         ORDER BY spend DESC, join_key LIMIT 250) AS detail_rows
     FROM joined
@@ -159,7 +161,7 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
   const matchedRevenue = totals.matched_recorded_revenue == null ? null : Number(totals.matched_recorded_revenue);
   const matchedKeys = n('matched_keys');
   const economics: AttributedEconomics = matchedKeys > 0 ? {
-    status: 'AVAILABLE', reason: 'Uses only approved matching keys on both independently aggregated populations. Capture-cohort outcomes and marketing reporting dates remain distinct date bases; this is an observed association, not causal attribution.',
+    status: 'AVAILABLE', reason: `Uses only approved matching keys. Capture-cohort outcomes and marketing reporting dates remain distinct; association is not causation. ${OPERATIONAL_REVENUE_POLICY}`,
     matchedSpend, fetched: n('matched_fetched'), delivered: n('matched_delivered'), dialled: n('matched_dialled'), rpc: n('matched_rpc'), sales: n('matched_sales'), activations: n('matched_activations'), recordedRevenue: matchedRevenue,
     spendPerFetchedLead: commercialRatio(matchedSpend, n('matched_fetched')), spendPerDeliveredLead: commercialRatio(matchedSpend, n('matched_delivered')),
     spendPerDialledLead: commercialRatio(matchedSpend, n('matched_dialled')), spendPerRpc: commercialRatio(matchedSpend, n('matched_rpc')),
