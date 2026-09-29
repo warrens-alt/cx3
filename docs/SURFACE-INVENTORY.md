@@ -38,6 +38,7 @@
 | `/offershop-flow` | OffershopProcessObservability |
 | `/admin` | SettingsPage |
 | `/validation` | AdminValidation |
+| `/lead-engine` | LeadEngineLayout |
 | `/insights` | redirect → /overview |
 | `/explore` | redirect → /lead-explorer |
 | `/acquisition` | redirect → /campaigns |

@@ -1,0 +1,36 @@
+name: Frontend readiness fixture
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit
+      - name: Build isolated synthetic fixture with actual frontend components
+        run: node scripts/build-readiness-browser-fixture.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: readiness-browser-fixture
+          path: /tmp/cx3-readiness-browser-fixture
+          retention-days: 3
+          if-no-files-found: error
+      - name: Generate surface inventory for independent comparison
+        run: npm run docs:surfaces
+      - uses: actions/upload-artifact@v4
+        with:
+          name: generated-surface-inventory
+          path: docs/SURFACE-INVENTORY.md
+          retention-days: 3
+          if-no-files-found: error
