@@ -8,6 +8,7 @@ import { PageSkeleton } from '../components/Skeleton';
 import { navigationPage } from '../lib/navigation';
 import { PAGE_TITLES } from '../../contracts/naming';
 import ScopePreservingRedirect from './navigation/ScopePreservingRedirect';
+import AnalyticsReadinessPanel from '../shared/reporting/AnalyticsReadinessPanel';
 
 function safeImport<T>(loader: () => Promise<T>): Promise<T> {
   return loader().catch((error: any) => {
@@ -112,6 +113,7 @@ export default function AppRouter() {
           </div>
         }
       >
+        <AnalyticsReadinessPanel />
         <Routes>
           {/* PRIMARY OFFERNET OPERATIONAL INTELLIGENCE PLATFORM ROUTES */}
           <Route path="/" element={<OverviewPage key={selectedClient} />} />
