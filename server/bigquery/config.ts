@@ -460,20 +460,23 @@ export function getClientConfig(clientId: string): TenantConfiguration {
   const baseTenant = Object.hasOwn(TENANTS, key) ? TENANTS[key] : undefined;
   if (!baseTenant || !baseTenant.active) throw new RequestError('Unknown or inactive tenant', 404);
 
-  const selectedLeadTable = baseTenant.id === 'default_tenant'
-    ? masterOperationalLeadTable()
-    : baseTenant.semanticMappings.tables.leads;
-  // Preserve the exact historical tenant object when the gate is disabled so
-  // configuration identity and pending-work isolation semantics remain unchanged.
-  const tenant = selectedLeadTable === baseTenant.semanticMappings.tables.leads
-    ? baseTenant
-    : {
+  let tenant = baseTenant;
+  if (baseTenant.id === 'default_tenant') {
+    const rawOperationalGate = process.env.CX_OPERATIONAL_RICH_VIEW_APPROVED;
+    const selectedLeadTable = masterOperationalLeadTable(rawOperationalGate);
+    const enabled = String(rawOperationalGate || '').trim().toLowerCase() === 'true';
+    // When disabled, return the historical tenant object untouched. This preserves
+    // runtime/test configuration overrides and existing pending-work isolation.
+    if (enabled) {
+      tenant = {
         ...baseTenant,
         semanticMappings: {
           ...baseTenant.semanticMappings,
           tables: { ...baseTenant.semanticMappings.tables, leads: selectedLeadTable },
         },
       };
+    }
+  }
 
   const configuredNames = configuredMarketingClientNames(tenant.id);
   const configuredAttribution = configuredMarketingAttribution(tenant.id);
