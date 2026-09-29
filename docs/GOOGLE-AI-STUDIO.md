@@ -68,8 +68,23 @@ this runtime repair grants no IAM roles or upstream access.
 
 `GEMINI_API_KEY` enables the optional model service, not BigQuery. AI Studio may
 provision it automatically. Exact source/table selection remains in CX3's server
-contracts. Optional mapping and richer-view approval settings retain their
-existing gates. Do not enable them merely to populate an empty report.
+contracts.
+
+### Current master lead source gate
+
+`default_tenant` continues to use `dashboards-422710.lead_ledger.clustered_lead_ledger`
+when `CX_OPERATIONAL_RICH_VIEW_APPROVED` is absent or `false`. Setting the server-only
+variable to the exact literal `true` selects
+`dashboards-422710.lead_ledger.view_lead_ledger_using_open_leadger` for master
+operational analytics only. Tenant-specific lead views and the source-compatible
+LeadLedger export keep their own contracts.
+
+This is deliberately not enabled by source freshness alone. The 29 Sep 2026 read-only
+reconciliation found the richer view current through 2026-09-29, but its overlapping
+1–26 Aug population differed materially from the historical clustered source. Enable
+the gate only as an explicit reporting decision, then reconcile the selected cohort
+across source, API and frontend before treating changed counts as business movement.
+Invalid flag values fail closed. Do not put this variable in `VITE_*` configuration.
 
 ## Acceptance on the actual Google origin
 
