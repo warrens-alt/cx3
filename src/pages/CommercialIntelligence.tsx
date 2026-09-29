@@ -12,6 +12,7 @@ import { fetchCommercial } from '../lib/offernetClient';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { formatPercent, formatTableCurrency, formatTableNumber } from '../lib/formatters';
 import { GroupedOutcomeChart, RankedMetricChart } from '../components/charts/OperationalVisuals';
+import CommercialEvidenceMap, { type CommercialEvidenceItem } from '../features/commercial/CommercialEvidenceMap';
 
 export default function CommercialIntelligence() {
   // Only these two displayed metrics have a matching, supported media decomposition.
@@ -29,6 +30,39 @@ export default function CommercialIntelligence() {
   const money = (value: number | string | null | undefined) => formatTableCurrency(value, currency || 'Currency unknown');
   const mediaScope = !['source', 'vendor', 'medium', 'grade', 'agent', 'cli'].some(key => filters[key]);
   const canCompareMedia = Boolean(startDate && endDate && mediaScope && data?.mediaComparison && !loading && !error);
+
+  const commercialEvidence: CommercialEvidenceItem[] = data && baseline ? [
+    {
+      label: 'Marketing activity',
+      state: data.media.platformLeads != null || data.media.platformClicks != null ? 'available' : 'unavailable',
+      detail: data.media.platformLeads != null ? `${formatTableNumber(data.media.platformLeads)} platform lead events · ${formatTableNumber(data.media.platformClicks)} clicks` : 'No measured marketing activity returned for this scope.',
+    },
+    {
+      label: 'Observed media spend',
+      state: baseline.mediaSpend != null ? 'available' : 'unavailable',
+      detail: baseline.mediaSpend != null ? 'Approved incurred-spend evidence is available for the selected scope.' : (data.media.reason || 'No approved observed-spend field is available; budget is never substituted.'),
+    },
+    {
+      label: 'Recorded operational revenue',
+      state: baseline.revenue != null ? 'available' : (data.revenueReason ? 'incomplete' : 'unavailable'),
+      detail: baseline.revenue != null ? 'Source-recorded operational value is available; this is not invoice or cash settlement evidence.' : (data.revenueReason || 'Recorded revenue evidence is unavailable for this scope.'),
+    },
+    {
+      label: 'Cross-source attribution',
+      state: attribution?.status === 'AVAILABLE' ? 'available' : 'unavailable',
+      detail: attribution?.reason || 'No approved marketing-to-operational attribution evidence is available.',
+    },
+    {
+      label: 'Profitability / P&L',
+      state: 'unavailable',
+      detail: 'Rate-card costs, fixed overhead, contribution, margin and break-even remain withheld without approved evidence.',
+    },
+    {
+      label: 'Currency context',
+      state: currency ? 'available' : 'unavailable',
+      detail: currency ? `${currency}; no currency conversion is applied.` : 'Workspace currency has not been established.',
+    },
+  ] : [];
 
   const metrics = baseline ? [
     { label: 'Recorded media spend', value: money(baseline.mediaSpend), note: 'Approved incurred-spend field; never budget.', path: '/campaigns', metric: 'spend' as const, available: baseline.mediaSpend != null },
@@ -55,6 +89,7 @@ export default function CommercialIntelligence() {
             <div><span>Invoices, cash & clawbacks</span><strong>Unavailable</strong><small>Source-recorded revenue is not settlement evidence.</small></div>
           </div>
         </section>
+        <CommercialEvidenceMap items={commercialEvidence} />
         <SpendReconciliationPanel reconciliation={data.reconciliation} grain={data.grainDiagnostics} />
         <section className="cx-command-metrics cx-commercial-metrics" aria-label="Commercial summary metrics">
           {metrics.map(item => <article key={item.label} className="cx-command-metric">
