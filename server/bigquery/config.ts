@@ -460,15 +460,20 @@ export function getClientConfig(clientId: string): TenantConfiguration {
   const baseTenant = Object.hasOwn(TENANTS, key) ? TENANTS[key] : undefined;
   if (!baseTenant || !baseTenant.active) throw new RequestError('Unknown or inactive tenant', 404);
 
-  const tenant = baseTenant.id === 'default_tenant'
-    ? {
+  const selectedLeadTable = baseTenant.id === 'default_tenant'
+    ? masterOperationalLeadTable()
+    : baseTenant.semanticMappings.tables.leads;
+  // Preserve the exact historical tenant object when the gate is disabled so
+  // configuration identity and pending-work isolation semantics remain unchanged.
+  const tenant = selectedLeadTable === baseTenant.semanticMappings.tables.leads
+    ? baseTenant
+    : {
         ...baseTenant,
         semanticMappings: {
           ...baseTenant.semanticMappings,
-          tables: { ...baseTenant.semanticMappings.tables, leads: masterOperationalLeadTable() },
+          tables: { ...baseTenant.semanticMappings.tables, leads: selectedLeadTable },
         },
-      }
-    : baseTenant;
+      };
 
   const configuredNames = configuredMarketingClientNames(tenant.id);
   const configuredAttribution = configuredMarketingAttribution(tenant.id);
