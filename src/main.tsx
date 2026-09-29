@@ -10,6 +10,7 @@ import './index.css';
 import './styles/product.css';
 import './styles/analyticsVisuals.css';
 import './styles/visualRefinement.css';
+import './styles/salesCommercialVisuals.css';
 
 installAuthenticatedApiFetch();
 
