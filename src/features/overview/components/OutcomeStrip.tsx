@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, TrendingUp, TrendingDown, ArrowRight, Search } from 'lucide-react';
+import { ArrowUpRight, TrendingUp, TrendingDown, ArrowRight, Search, Inbox, Send, BadgeCheck, Zap } from 'lucide-react';
 import { formatPercent, formatTableNumber } from '../../../lib/formatters';
 import type { OverviewData } from '../../../lib/offernetClient';
 import type { InspectorContent } from '../../../shared/evidence/InspectorHost';
@@ -15,6 +15,14 @@ interface OutcomeStripProps {
   isAdmin: boolean;
   hasComparison?: boolean;
 }
+
+// Presentation only: keep each outcome aligned with the established chart series.
+const outcomePresentation = {
+  fetched_leads: { icon: Inbox, series: 'fetched' },
+  delivered_leads: { icon: Send, series: 'delivered' },
+  recorded_sales: { icon: BadgeCheck, series: 'sales' },
+  activations: { icon: Zap, series: 'activation' },
+} as const;
 
 const fmt = (v: number | string | null | undefined) => formatTableNumber(v);
 
@@ -174,23 +182,28 @@ export default function OutcomeStrip({
   ];
 
   return (
-    <section aria-label="Principal operational outcomes" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {outcomes.map(item => (
+    <section aria-label="Principal operational outcomes" className="cx-outcome-strip grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {outcomes.map(item => {
+        const presentation = outcomePresentation[item.id as keyof typeof outcomePresentation];
+        const Icon = presentation.icon;
+        return (
         <article
           key={item.id}
-          className="enterprise-card bg-surface border border-border hover:border-action/50 rounded-xl p-5 shadow-xs hover:shadow-sm transition-all duration-200 flex flex-col justify-between group"
+          data-series={presentation.series}
+          className="cx-outcome-card enterprise-card bg-surface border border-border hover:border-action/50 rounded-xl p-5 shadow-xs hover:shadow-sm transition-all duration-200 flex flex-col justify-between group"
         >
-          <div className="flex items-start justify-between">
+          <div className="cx-outcome-heading flex items-start justify-between">
             <span className="text-[11px] font-bold text-text-sec uppercase tracking-wider">
               {item.label}
             </span>
+            <span className="cx-outcome-icon" aria-hidden="true"><Icon size={16} strokeWidth={1.8} /></span>
           </div>
 
           <div className="my-3">
             {isAdmin ? (
               <Link
                 to={scoped(`/lead-explorer?drill=funnel-stage&drillValue=${item.recordDrillValue}`)}
-                className="text-3xl lg:text-[34px] font-bold cx-tabular text-text-main block hover:text-action transition-colors font-mono tracking-tight leading-tight"
+                className="cx-outcome-value text-3xl lg:text-[34px] font-bold cx-tabular text-text-main block hover:text-action transition-colors font-mono tracking-tight leading-tight"
                 title={`Inspect ${item.label} records in Lead Explorer`}
               >
                 {item.value}
@@ -198,7 +211,7 @@ export default function OutcomeStrip({
             ) : (
               <Link
                 to={scoped(item.reportPath)}
-                className="text-3xl lg:text-[34px] font-bold cx-tabular text-text-main block hover:text-action transition-colors font-mono tracking-tight leading-tight"
+                className="cx-outcome-value text-3xl lg:text-[34px] font-bold cx-tabular text-text-main block hover:text-action transition-colors font-mono tracking-tight leading-tight"
                 title={`Open ${item.label} report`}
               >
                 {item.value}
@@ -211,7 +224,7 @@ export default function OutcomeStrip({
             </div>
           </div>
 
-          <div className="pt-3 border-t border-border-subtle flex items-center justify-between text-xs text-text-mute">
+          <div className="cx-outcome-actions pt-3 border-t border-border-subtle flex items-center justify-between text-xs text-text-mute">
             <button
               type="button"
               onClick={() => onInspect(item.inspectContent)}
@@ -234,7 +247,8 @@ export default function OutcomeStrip({
             )}
           </div>
         </article>
-      ))}
+        );
+      })}
     </section>
   );
 }
