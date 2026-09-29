@@ -1,0 +1,47 @@
+name: CX3 deployed API acceptance
+on:
+  push:
+    branches: [chore/production-api-acceptance-20260929]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  deployed-api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 48ee9a482a4540c7b6d241ddaa46d3a3e6ea97de
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fetch production alias and immutable deployment APIs
+        env:
+          OUTPUT: ${{ runner.temp }}/cx3-deployment-acceptance.json
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          import { checkDeployment } from './scripts/check-deployment.mjs';
+          import { writeFile, appendFile } from 'node:fs/promises';
+          const origins = ['https://cx3-76x.pages.dev', 'https://93c9b70a.cx3-76x.pages.dev'];
+          const results = [];
+          for (const origin of origins) {
+            try { results.push(await checkDeployment(origin)); }
+            catch (error) { results.push({ origin, passed: false, warehouseVerified: false, error: error.message, cause: error.cause?.code || null }); }
+          }
+          const report = { checkedAt: new Date().toISOString(), sourceCommit: '48ee9a482a4540c7b6d241ddaa46d3a3e6ea97de', requestMode: 'unauthenticated GET; Accept application/json; no navigation header; no redirects; no customer data', passed: results.every(item => item.passed), results };
+          await writeFile(process.env.OUTPUT, JSON.stringify(report, null, 2));
+          console.log(JSON.stringify(report, null, 2));
+          await appendFile(process.env.GITHUB_STEP_SUMMARY, '# Deployed API acceptance\n\n```json\n' + JSON.stringify(report, null, 2) + '\n```\n\nThis checks routing and anonymous-access rejection, not warehouse freshness, IAM or financial reconciliation.\n');
+          if (!report.passed) process.exitCode = 1;
+          JS
+      - name: Preserve non-sensitive acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cx3-deployment-acceptance
+          path: ${{ runner.temp }}/cx3-deployment-acceptance.json
+          retention-days: 7
+          if-no-files-found: error
