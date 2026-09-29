@@ -90,7 +90,7 @@ export default function TemporalIntelligence() {
   }, [activeHeatmap, metricView]);
 
   return (
-    <div className="cx-command-page">
+    <div className="cx-command-page cx-temporal-page">
       <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} onExportCsv={handleExportCsv} />
       <div className="cx-command-content">
         <OperationalPageHeader
@@ -106,6 +106,13 @@ export default function TemporalIntelligence() {
             </div>
           }
         />
+
+        <nav className="cx-analysis-jump-nav" aria-label="Time analysis sections">
+          <a href="#temporal-matrix">Day × hour matrix</a>
+          <a href="#temporal-hour">By hour</a>
+          <a href="#temporal-day">By day</a>
+          <a href="#temporal-peaks">Observed peaks</a>
+        </nav>
 
         {error && <div className="cx-command-error"><AlertTriangle size={17}/>{error}</div>}
         {loading && !data && <div className="cx-command-loading"><div className="cx-command-spinner"/>Building day/hour matrix…</div>}
@@ -165,7 +172,7 @@ export default function TemporalIntelligence() {
             )}
 
             <div className="cx-control-note"><label>Event time <select aria-label="Temporal event basis" value={timeBasis} onChange={e => setTimeBasis(e.target.value)}>{(data.timeBases || []).map(b => <option key={b.basis}>{b.basis}</option>)}</select></label> · {formatTableNumber(selectedBasis?.missingTimestampLeads)} leads without this event timestamp. {data.methodology}</div>
-            <section className="cx-command-panel">
+            <section className="cx-command-panel" id="temporal-matrix">
               <header>
                 <div>
                   <span className="cx-command-section-kicker">Observed pattern</span>
@@ -213,7 +220,7 @@ export default function TemporalIntelligence() {
               </div>
             </section>
 
-            {selectedBasis && <div className="cx-analytics-visual-grid">
+            {selectedBasis && <div className="cx-analytics-visual-grid" id="temporal-hour">
               <VolumeRateComboChart
                 title={`${timeBasis} outcomes by hour`}
                 subtitle="Volume is shown as bars; RPC, sale and activation rates are overlaid."
@@ -241,11 +248,11 @@ export default function TemporalIntelligence() {
               />
             </div>}
 
-            {selectedBasis && ([['Hour',selectedBasis.byHour],['Day',selectedBasis.byDay],['Week',selectedBasis.weekType]] as const).map(([title,rows]) => <section className="cx-command-panel" key={title}><header><div><h2>{timeBasis} by {title.toLowerCase()}</h2><p>RPC / dialled · sales / leads · activations / sales.</p></div></header><div className="cx-performance-table-wrap"><table className="cx-performance-table"><thead><tr><th>{title}</th><th>Leads</th><th>RPC</th><th>RPC rate</th><th>Sales</th><th>Sale rate</th><th>Activations</th><th>Activation rate</th></tr></thead><tbody>{rows.map(r => <tr key={r.label}><th>{r.label}</th><td>{formatTableNumber(r.volume)}</td><td>{formatTableNumber(r.rpc)}</td><td>{formatPercent(r.contactRate)}</td><td>{formatTableNumber(r.sales)}</td><td>{formatPercent(r.saleRate)}</td><td>{formatTableNumber(r.activations)}</td><td>{formatPercent(r.activationRate)}</td></tr>)}</tbody></table></div></section>)}
+            {selectedBasis && ([['Hour',selectedBasis.byHour],['Day',selectedBasis.byDay],['Week',selectedBasis.weekType]] as const).map(([title,rows]) => <section className="cx-command-panel" id={title === 'Day' ? 'temporal-day' : undefined} key={title}><header><div><h2>{timeBasis} by {title.toLowerCase()}</h2><p>RPC / dialled · sales / leads · activations / sales.</p></div></header><div className="cx-performance-table-wrap"><table className="cx-performance-table"><thead><tr><th>{title}</th><th>Leads</th><th>RPC</th><th>RPC rate</th><th>Sales</th><th>Sale rate</th><th>Activations</th><th>Activation rate</th></tr></thead><tbody>{rows.map(r => <tr key={r.label}><th>{r.label}</th><td>{formatTableNumber(r.volume)}</td><td>{formatTableNumber(r.rpc)}</td><td>{formatPercent(r.contactRate)}</td><td>{formatTableNumber(r.sales)}</td><td>{formatPercent(r.saleRate)}</td><td>{formatTableNumber(r.activations)}</td><td>{formatPercent(r.activationRate)}</td></tr>)}</tbody></table></div></section>)}
             {controls.data && <OperatingWindowPanel data={controls.data} />}
             {controls.data && <CaptureTurnaroundPanel data={controls.data} />}
 
-            <section className="cx-command-panel">
+            <section className="cx-command-panel" id="temporal-peaks">
               <header>
                 <div>
                   <span className="cx-command-section-kicker">Observed peaks</span>

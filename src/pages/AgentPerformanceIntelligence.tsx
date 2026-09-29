@@ -14,7 +14,9 @@ import { downloadCsv, formatPercent, formatRatioPercent, formatTableNumber } fro
 import { downloadAnalysisCsv } from '../lib/analysisExport';
 import { sumRecordedValues } from '../lib/metricPresentation';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
+import EvidenceBars from '../shared/visuals/EvidenceBars';
 
+type AgentMetric = 'calls' | 'contactRate' | 'saleRate';
 type AgentActivityData = AgentPerformanceData & {
   breakdowns?: { day: Array<AgentPerformanceData['agents'][number] & { bucket: string }>; hour: Array<AgentPerformanceData['agents'][number] & { bucket: string }> };
   scope?: { timezone: string; truncated: boolean; campaignReason: string };
@@ -25,6 +27,7 @@ export default function AgentPerformanceIntelligence() {
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
   const [search, setSearch] = useState('');
+  const [agentMetric, setAgentMetric] = useState<AgentMetric>('calls');
   const [rootMetric, setRootMetric] = useState<string | null>(null);
   const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
 
@@ -55,6 +58,25 @@ export default function AgentPerformanceIntelligence() {
     );
   }, [data?.agents, search]);
 
+  const agentComparison = useMemo(() => {
+    const rows = [...filtered].sort((a, b) => {
+      const av = agentMetric === 'calls' ? a.totalCalls : agentMetric === 'contactRate' ? (a.contactRate ?? -1) : (a.saleRate ?? -1);
+      const bv = agentMetric === 'calls' ? b.totalCalls : agentMetric === 'contactRate' ? (b.contactRate ?? -1) : (b.saleRate ?? -1);
+      return Number(bv) - Number(av);
+    }).slice(0, 12);
+    return rows.map((row, index) => {
+      const value = agentMetric === 'calls' ? row.totalCalls : agentMetric === 'contactRate' ? row.contactRate : row.saleRate;
+      const displayValue = agentMetric === 'calls' ? formatTableNumber(value) : formatPercent(value, 2);
+      return {
+        key: `${row.agentId}-${row.vendor}-${index}`,
+        label: row.agentId,
+        detail: row.vendor || 'Vendor unavailable',
+        value,
+        displayValue,
+      };
+    });
+  }, [filtered, agentMetric]);
+
   const totals = useMemo(() => {
     const agents = data?.agents || [];
     return {
@@ -67,7 +89,7 @@ export default function AgentPerformanceIntelligence() {
   }, [data?.agents]);
 
   return (
-    <div className="cx-command-page">
+    <div className="cx-command-page cx-agent-page">
       <OffernetFilterBar
         onRefresh={() => loadData(true)}
         onExportCsv={handleExportCsv}
@@ -141,6 +163,32 @@ export default function AgentPerformanceIntelligence() {
                 }}
                 to={scoped('/sales-activation')}
                 inspectLabel="Inspect sales"
+              />
+            </section>
+
+            <section className="cx-command-panel cx-agent-comparison" aria-label="Agent comparison">
+              <div className="cx-viz-toolbar">
+                <div>
+                  <span className="cx-command-section-kicker">Compare roster</span>
+                  <h2>Agent activity comparison</h2>
+                  <p>Rank the displayed roster by one observed measure at a time. This is descriptive evidence, not a performance score.</p>
+                </div>
+                <div className="cx-segmented-control" role="group" aria-label="Agent comparison metric">
+                  <button type="button" data-active={agentMetric === 'calls'} onClick={() => setAgentMetric('calls')}>Calls</button>
+                  <button type="button" data-active={agentMetric === 'contactRate'} onClick={() => setAgentMetric('contactRate')}>RPC rate</button>
+                  <button type="button" data-active={agentMetric === 'saleRate'} onClick={() => setAgentMetric('saleRate')}>Sold RPC / RPC</button>
+                </div>
+              </div>
+              <EvidenceBars
+                title={agentMetric === 'calls' ? 'Recorded calls by agent' : agentMetric === 'contactRate' ? 'RPC / calls by agent' : 'Sold RPC / RPC by agent'}
+                description="Top 12 displayed agent/vendor rows for the selected metric. Select a row to focus the roster search on that agent."
+                items={agentComparison}
+                maximum={agentMetric === 'calls' ? undefined : 100}
+                scaleNote={agentMetric === 'calls' ? 'Bars share the largest returned call count as their scale.' : 'Rates use a fixed 0–100% scale; unavailable values remain unavailable.'}
+                onSelect={key => {
+                  const item = agentComparison.find(row => row.key === key);
+                  if (item) setSearch(item.label);
+                }}
               />
             </section>
 

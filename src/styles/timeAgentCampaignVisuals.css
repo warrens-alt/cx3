@@ -1,0 +1,72 @@
+/* Phase 5: timing, agent and campaign visual refinement. Frontend-only. */
+
+.cx-analysis-jump-nav{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:2px 0 4px}
+.cx-analysis-jump-nav a{display:inline-flex;align-items:center;min-height:32px;padding:6px 10px;border:1px solid var(--cx-border-subtle);border-radius:6px;background:var(--cx-surface);font-size:11px;font-weight:650;color:var(--cx-text-secondary);text-decoration:none}
+.cx-analysis-jump-nav a:hover{border-color:color-mix(in srgb,var(--cx-action) 35%,var(--cx-border));color:var(--cx-action)}
+
+.cx-viz-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:0 0 12px}
+.cx-viz-toolbar h2{font-size:16px;font-weight:680;letter-spacing:-.015em;color:var(--cx-text);margin-top:2px}
+.cx-viz-toolbar p{font-size:12px;line-height:1.5;color:var(--cx-text-secondary);margin-top:3px;max-width:700px}
+
+.cx-speed-page .cx-command-metrics .cx-command-metric{border-top:2px solid var(--cx-data-delivered)}
+.cx-speed-page .cx-speed-latency-visual{padding:16px}
+.cx-speed-page .cx-speed-latency-visual .cx-evidence-bars{border:0;padding:0}
+.cx-speed-page .cx-contact-cohorts article{border-color:var(--cx-border-subtle);border-radius:8px;background:var(--cx-surface)}
+.cx-speed-page .cx-contact-cohort-volume{height:7px;border-radius:999px;overflow:hidden;background:var(--cx-surface-subtle)}
+.cx-speed-page .cx-contact-cohort-volume i{display:block;height:100%;background:var(--cx-action);border-radius:inherit}
+.cx-speed-page .cx-performance-table-wrap{overflow:auto}
+.cx-speed-page .cx-performance-table thead th{position:sticky;top:0;z-index:2;background:var(--cx-surface-subtle);font-size:10px;text-transform:uppercase;letter-spacing:.035em}
+.cx-speed-page .cx-performance-table :is(td,th){font-variant-numeric:tabular-nums}
+
+.cx-temporal-page .cx-temporal-scroll{border:1px solid var(--cx-border-subtle);border-radius:8px;background:var(--cx-surface);overflow:auto;max-width:100%}
+.cx-temporal-page .cx-temporal-grid{min-width:980px}
+.cx-temporal-page .cx-temporal-corner,.cx-temporal-page .cx-temporal-day{position:sticky;left:0;z-index:2;background:var(--cx-surface)}
+.cx-temporal-page .cx-temporal-corner{z-index:3}
+.cx-temporal-page .cx-temporal-hour{font-size:10px;font-weight:650;color:var(--cx-text-muted)}
+.cx-temporal-page .cx-temporal-cell{min-width:35px;min-height:34px;border-radius:3px;font-size:10px;font-variant-numeric:tabular-nums;display:grid;place-items:center}
+.cx-temporal-page .cx-window-grid article{border-color:var(--cx-border-subtle);border-radius:8px;background:var(--cx-surface)}
+.cx-temporal-page .cx-performance-table-wrap{overflow:auto}
+.cx-temporal-page .cx-performance-table thead th{position:sticky;top:0;z-index:2;background:var(--cx-surface-subtle);font-size:10px;text-transform:uppercase;letter-spacing:.035em}
+.cx-temporal-page .cx-performance-table th:first-child,.cx-temporal-page .cx-performance-table td:first-child{position:sticky;left:0;background:var(--cx-surface);z-index:1}
+.cx-temporal-page .cx-performance-table thead th:first-child{z-index:3;background:var(--cx-surface-subtle)}
+
+.cx-agent-page .cx-agent-comparison{padding:16px}
+.cx-agent-page .cx-agent-comparison .cx-evidence-bars{border:0;padding:0}
+.cx-agent-page .cx-performance-table-wrap{overflow:auto}
+.cx-agent-page .cx-performance-table thead th{position:sticky;top:0;z-index:2;background:var(--cx-surface-subtle);font-size:10px;text-transform:uppercase;letter-spacing:.035em}
+.cx-agent-page .cx-agent-table :is(th,td):first-child{position:sticky;left:0;z-index:1;background:var(--cx-surface)}
+.cx-agent-page .cx-agent-table thead th:first-child{z-index:3;background:var(--cx-surface-subtle)}
+.cx-agent-page .cx-agent-table tbody tr:hover,.cx-agent-page .cx-performance-table tbody tr:hover{background:var(--cx-selected-bg)}
+.cx-agent-page .cx-agent-table tbody tr:hover :is(th,td):first-child{background:var(--cx-selected-bg)}
+.cx-agent-page .cx-performance-table :is(th,td){font-variant-numeric:tabular-nums}
+
+.cx-campaign-page .cx-campaign-comparison{padding:16px}
+.cx-campaign-page .cx-campaign-comparison .cx-evidence-bars{border:0;padding:0}
+.cx-campaign-page .cx-media-metrics{grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.cx-campaign-page .cx-media-metrics .cx-command-metric{min-width:0;border-radius:9px;border-color:var(--cx-border-subtle);box-shadow:var(--cx-shadow-sm)}
+.cx-campaign-page .cx-spend-status,.cx-campaign-page .cx-command-panel{border-color:var(--cx-border-subtle);border-radius:10px;box-shadow:var(--cx-shadow-sm)}
+.cx-campaign-page .cx-performance-table-wrap{overflow:auto;border:1px solid var(--cx-border-subtle);border-radius:8px}
+.cx-campaign-page .cx-campaign-table thead th{position:sticky;top:0;z-index:2;background:var(--cx-surface-subtle);font-size:10px;text-transform:uppercase;letter-spacing:.035em}
+.cx-campaign-page .cx-campaign-table :is(th,td):first-child{position:sticky;left:0;z-index:1;background:var(--cx-surface)}
+.cx-campaign-page .cx-campaign-table thead th:first-child{z-index:3;background:var(--cx-surface-subtle)}
+.cx-campaign-page .cx-campaign-table tbody tr:hover{background:var(--cx-selected-bg)}
+.cx-campaign-page .cx-campaign-table tbody tr:hover :is(th,td):first-child{background:var(--cx-selected-bg)}
+.cx-campaign-page .cx-campaign-table :is(th,td){font-variant-numeric:tabular-nums;white-space:nowrap}
+
+@media(max-width:1180px){
+  .cx-campaign-page .cx-media-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:700px){
+  .cx-viz-toolbar{display:grid;gap:10px}
+  .cx-viz-toolbar .cx-segmented-control{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
+  .cx-viz-toolbar .cx-segmented-control button{min-height:40px;white-space:normal}
+  .cx-analysis-jump-nav{overflow-x:auto;flex-wrap:nowrap;padding-bottom:6px}
+  .cx-analysis-jump-nav a{white-space:nowrap}
+  .cx-campaign-page .cx-media-metrics{grid-template-columns:1fr 1fr}
+}
+@media(max-width:420px){
+  .cx-campaign-page .cx-media-metrics{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){
+  .cx-analysis-jump-nav a{transition:none}
+}
