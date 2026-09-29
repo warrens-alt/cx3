@@ -32,7 +32,7 @@ jobs:
           root = pathlib.Path.cwd()
           encoded = ''.join((root / f'.github/cx3-reviewed-update/part{i}.b64').read_text().strip() for i in range(4))
           # Correct four transport transcription differences before the pinned digest check.
-          for old, new in [('GbHnH9HUp','GbH9HUp'), ('H94YLH2xf3mQT','H94YLH6xf3mQT'), ('Y2/XISl0BeCmvY','Y2/XISl0zCmvY'), ('MrnnWprWpr0eCK','MrnnWpr0eCK')]:
+          for old, new in [('GbHnH9HUp','GbH9HUp'), ('H94YLH2xf3mQT','H94YLH6xf3mQT'), ('XISl0BeCmvY','XISl0zCmvY'), ('MrnnWprWpr0eCK','MrnnWpr0eCK')]:
               encoded = encoded.replace(old, new)
           raw = gzip.decompress(base64.b64decode(encoded, validate=True))
           assert hashlib.sha256(raw).hexdigest() == '991a2cd1ad0d9a33203f0677224031b63e585e018420afd5e5d7f7d3e0c4f4dc', 'Reviewed payload checksum mismatch'
