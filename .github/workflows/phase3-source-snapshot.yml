@@ -1,0 +1,25 @@
+name: Phase 3 source snapshot
+on:
+  push:
+    branches: [style/sales-commercial-visuals-20260929]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Archive source
+        run: |
+          mkdir -p "$RUNNER_TEMP/phase3-source"
+          git archive --format=tar.gz HEAD > "$RUNNER_TEMP/phase3-source/source.tar.gz"
+          git rev-parse HEAD > "$RUNNER_TEMP/phase3-source/commit.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phase3-source
+          path: ${{ runner.temp }}/phase3-source
+          retention-days: 1
+          if-no-files-found: error
