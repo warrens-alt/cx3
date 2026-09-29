@@ -1,3 +1,4 @@
+import '../../styles/journeyContactVisuals.css';
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -113,10 +114,11 @@ export default function ContactPage() {
       : undefined;
 
   return (
-    <div className="space-y-6">
+    <div className="cx-visual-workspace cx-contact-visual-workspace space-y-6">
       {/* 1. Scope Bar */}
       <ReportingScopeBar onRefresh={refreshAll} onExportCsv={handleExportCsv} />
 
+      <div className="cx-visual-workspace-body space-y-6">
       {/* 2. Page Header */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-1 border-b border-border-subtle pb-4">
         <div>
@@ -138,6 +140,7 @@ export default function ContactPage() {
             <button
               type="button"
               onClick={() => handleTabChange('call_counts')}
+              aria-pressed={activeTab === 'call_counts'}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
                 activeTab === 'call_counts'
                   ? 'bg-brand-primary text-white shadow-2xs font-semibold'
@@ -150,6 +153,7 @@ export default function ContactPage() {
             <button
               type="button"
               onClick={() => handleTabChange('vendor_dispositions')}
+              aria-pressed={activeTab === 'vendor_dispositions'}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
                 activeTab === 'vendor_dispositions'
                   ? 'bg-brand-primary text-white shadow-2xs font-semibold'
@@ -331,6 +335,7 @@ export default function ContactPage() {
         metric={rootMetric}
         onClose={() => setRootMetric(null)}
       />
+      </div>
     </div>
   );
 }
