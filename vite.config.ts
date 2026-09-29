@@ -2,25 +2,9 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import fs from 'node:fs';
 import path from 'path';
-import { defineConfig } from 'vite';
-
-function previewApiPlugin() {
-  return {
-    name: 'conversionx-preview-api',
-    configureServer(server: any) {
-      server.middlewares.use(async (req: any, res: any, next: any) => {
-        if (req.url?.startsWith('/api')) {
-          const express = (await import('express')).default;
-          const { mountApi } = await import('./server/apiApp');
-          const app = express();
-          await mountApi(app);
-          return app(req, res, next);
-        }
-        next();
-      });
-    },
-  };
-}
+import { defineConfig, loadEnv } from 'vite';
+import { previewApiPlugin } from './server/viteApiBridge';
+import { applyServerEnvironment } from './server/viteEnvironment';
 
 function artifactMirrorPlugin() {
   return {
@@ -52,7 +36,8 @@ function artifactMirrorPlugin() {
   };
 }
 
-export default defineConfig(() => {
+export default defineConfig(({ mode }) => {
+  applyServerEnvironment(loadEnv(mode, process.cwd(), ''));
   return {
     plugins: [react(), tailwindcss(), previewApiPlugin(), artifactMirrorPlugin()],
     resolve: {

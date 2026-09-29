@@ -20,22 +20,27 @@ export async function createApp() {
     return bundled.createApp();
   }
 
-  const { mountApi } = await import('./server/apiApp.ts').catch(() => import('./server/apiApp'));
-  const app = express();
-  await mountApi(app);
   const isProduction =
     isAlreadyBundled ||
     process.env.NODE_ENV === 'production' ||
     process.env.npm_lifecycle_event === 'start' ||
     (!isTsxDev && process.env.NODE_ENV !== 'development');
 
+  // Establish production guards BEFORE importing/mounting the API. A generated
+  // bundle must not honour a development identity or an inherited .env dev mode.
+  if (isProduction) process.env.NODE_ENV = 'production';
+
+  const { mountApi } = await import('./server/apiApp.ts').catch(() => import('./server/apiApp'));
+  const app = express();
+  await mountApi(app);
+
   if (isProduction) {
     const configuredClientDir = process.env.CLIENT_DIR
       ? path.resolve(process.env.CLIENT_DIR)
-      : fs.existsSync(path.join(process.cwd(), 'dist', 'index.html'))
-      ? path.join(process.cwd(), 'dist')
       : fs.existsSync(path.join(process.cwd(), 'dist', 'client', 'index.html'))
       ? path.join(process.cwd(), 'dist', 'client')
+      : fs.existsSync(path.join(process.cwd(), 'dist', 'index.html'))
+      ? path.join(process.cwd(), 'dist')
       : path.join(process.cwd(), 'build');
     const hasClientBuild = fs.existsSync(path.join(configuredClientDir, 'index.html'));
 

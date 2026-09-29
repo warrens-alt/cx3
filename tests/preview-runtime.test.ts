@@ -20,9 +20,12 @@ test('AI Studio Preview has a Vite API bridge instead of returning the SPA for /
   const vite = fs.readFileSync('vite.config.ts', 'utf8');
   const main = fs.readFileSync('src/main.tsx', 'utf8');
   const transport = fs.readFileSync('src/lib/apiFetch.ts', 'utf8');
-  assert.match(vite, /conversionx-preview-api/);
-  assert.match(vite, /req\.url\?\.startsWith\('\/api'\)/);
-  assert.match(vite, /mountApi/);
+  const bridge = fs.readFileSync('server/viteApiBridge.ts', 'utf8');
+  assert.match(vite, /previewApiPlugin/);
+  assert.match(bridge, /conversionx-preview-api/);
+  assert.match(bridge, /configureServer/);
+  assert.match(bridge, /configurePreviewServer/);
+  assert.match(bridge, /mountApi/);
   assert.match(main, /installAuthenticatedApiFetch\(\)/);
   assert.match(transport, /Authorization/);
   assert.match(transport, /getIdToken/);
@@ -177,4 +180,3 @@ test('Firebase principal cache caps authority by token exp and bounds cache rete
 
   _resetPrincipalCacheForTesting();
 });
-

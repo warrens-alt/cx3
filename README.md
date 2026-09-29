@@ -2,6 +2,10 @@
 
 React + Express analytics application backed by configured Google BigQuery sources.
 
+## Primary host: Google AI Studio
+
+CX3 is hosted through Google AI Studio. Use [the Google AI Studio runtime guide](docs/GOOGLE-AI-STUDIO.md) for preview startup, GitHub synchronisation, server secrets and Cloud Run publishing. Cloudflare instructions below are an optional alternative; a Pages check does not diagnose the Google-hosted app. A GitHub merge does not establish that the AI Studio working copy or its published revision has updated.
+
 ## Current trust boundary — 26 September 2026
 
 The application intentionally separates **operational analytics** from **versioned evidence reporting**.
@@ -16,7 +20,7 @@ Production analytical access is fail-closed and the identity provider is explici
 
 - Production defaults to `CX_AUTH_MODE=iap` when no mode is configured.
 - IAP mode requires a signed Google IAP assertion, `IAP_AUDIENCE`, and `CX_ACCESS_POLICY_JSON`.
-- `CX_AUTH_MODE=firebase` is supported for deployments such as Cloudflare. The API requires a Firebase bearer token, an active matching Firestore user profile, and the administrator marker for admin authority.
+- `CX_AUTH_MODE=firebase` is supported for Google AI Studio / Cloud Run publishing and optional Cloudflare hosting. The API requires a Firebase bearer token, an active matching Firestore user profile, and the administrator marker for admin authority.
 - Firebase mode does not trust decoded JWT claims by themselves: Firestore validates the bearer token and applies the deployed security rules before the analytical principal is created.
 - A local development identity is available only when `CX_ALLOW_DEV_AUTH=true` and `NODE_ENV` is not `production`.
 - Arbitrary BigQuery project/dataset/table browsing is disabled.

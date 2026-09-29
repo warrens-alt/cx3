@@ -11,7 +11,7 @@
     "dev": "tsx server.ts",
     "build": "node scripts/build.mjs",
     "gcp-build": "npm run build",
-    "start": "node server.ts",
+    "start": "node dist/server/server.mjs",
     "clean": "rm -rf dist build out",
     "lint": "tsc --noEmit",
     "test": "node -e \"const fs=require('node:fs');['bun.lock','bun.lockb'].forEach(f=>fs.existsSync(f)&&fs.unlinkSync(f))\" && tsx --test tests/*.test.ts tests/analytics/*.test.ts",
@@ -21,7 +21,9 @@
     "docs:surfaces": "tsx scripts/generate-surface-inventory.ts",
     "docs:surfaces:check": "tsx scripts/generate-surface-inventory.ts --check",
     "export:warehouse": "tsx scripts/build-warehouse-export.ts",
-    "deployment:check": "node scripts/check-deployment.mjs"
+    "deployment:check": "node scripts/check-deployment.mjs",
+    "preview": "vite preview",
+    "test:google-runtime": "node scripts/smoke-google-runtime.mjs"
   },
   "dependencies": {
     "@google-cloud/bigquery": "^8.3.1",
