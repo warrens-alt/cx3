@@ -115,8 +115,23 @@ const DEFAULT_OPERATIONAL_CONFIG: ClientOperationalConfig = {
   ],
 };
 
+export const MASTER_CLUSTERED_LEAD_TABLE = 'dashboards-422710.lead_ledger.clustered_lead_ledger';
+export const MASTER_RICH_LEAD_VIEW = 'dashboards-422710.lead_ledger.view_lead_ledger_using_open_leadger';
+
+/**
+ * The richer master view is deliberately opt-in because the August overlap
+ * reconciliation showed material population differences versus the clustered
+ * ledger. Only the exact literal `true` activates it; invalid values fail closed.
+ */
+export function masterOperationalLeadTable(raw = process.env.CX_OPERATIONAL_RICH_VIEW_APPROVED): string {
+  const value = String(raw || '').trim().toLowerCase();
+  if (!value || value === 'false') return MASTER_CLUSTERED_LEAD_TABLE;
+  if (value === 'true') return MASTER_RICH_LEAD_VIEW;
+  throw new Error('CX_OPERATIONAL_RICH_VIEW_APPROVED must be true or false');
+}
+
 const BASE_TABLES = {
-  leads: 'dashboards-422710.lead_ledger.clustered_lead_ledger',
+  leads: MASTER_CLUSTERED_LEAD_TABLE,
   marketing: OFFERNET_SOURCE_TABLES.marketing,
   calls: OFFERNET_SOURCE_TABLES.calls,
   timeToDial: OFFERNET_SOURCE_TABLES.timeToDial,
@@ -442,8 +457,26 @@ const TENANT_ALIASES: Record<string, string> = {
 
 export function getClientConfig(clientId: string): TenantConfiguration {
   const key = TENANT_ALIASES[clientId] || clientId;
-  const tenant = Object.hasOwn(TENANTS, key) ? TENANTS[key] : undefined;
-  if (!tenant || !tenant.active) throw new RequestError('Unknown or inactive tenant', 404);
+  const baseTenant = Object.hasOwn(TENANTS, key) ? TENANTS[key] : undefined;
+  if (!baseTenant || !baseTenant.active) throw new RequestError('Unknown or inactive tenant', 404);
+
+  let tenant = baseTenant;
+  if (baseTenant.id === 'default_tenant') {
+    const rawOperationalGate = process.env.CX_OPERATIONAL_RICH_VIEW_APPROVED;
+    const selectedLeadTable = masterOperationalLeadTable(rawOperationalGate);
+    const enabled = String(rawOperationalGate || '').trim().toLowerCase() === 'true';
+    // When disabled, return the historical tenant object untouched. This preserves
+    // runtime/test configuration overrides and existing pending-work isolation.
+    if (enabled) {
+      tenant = {
+        ...baseTenant,
+        semanticMappings: {
+          ...baseTenant.semanticMappings,
+          tables: { ...baseTenant.semanticMappings.tables, leads: selectedLeadTable },
+        },
+      };
+    }
+  }
 
   const configuredNames = configuredMarketingClientNames(tenant.id);
   const configuredAttribution = configuredMarketingAttribution(tenant.id);

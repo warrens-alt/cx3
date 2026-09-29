@@ -8,7 +8,13 @@ import {
   TIME_TO_DIAL_SOURCE_FIELDS,
 } from '../contracts/physicalSources';
 import { SOURCE_DEFINITIONS } from '../contracts/sourceCoverage';
-import { getAllClients, getClientConfig } from '../server/bigquery/config';
+import {
+  getAllClients,
+  getClientConfig,
+  masterOperationalLeadTable,
+  MASTER_CLUSTERED_LEAD_TABLE,
+  MASTER_RICH_LEAD_VIEW,
+} from '../server/bigquery/config';
 import { findCliColumn } from '../server/bigquery/cli_analytics';
 
 test('the three shared BigQuery tables are locked to the approved physical source contract', () => {
@@ -78,4 +84,13 @@ test('supplied marketing schema distinguishes budget from observed spend', () =>
   assert.equal(MARKETING_SOURCE_FIELDS.budget, 'budget');
   assert.equal(MARKETING_SOURCE_FIELDS.observedSpendField, null);
   assert.ok(!MARKETING_SOURCE_FIELDS.spendGrain.includes(MARKETING_SOURCE_FIELDS.budget as any));
+});
+
+
+test('master operational richer view is an explicit fail-closed deployment gate', () => {
+  assert.equal(masterOperationalLeadTable(undefined), MASTER_CLUSTERED_LEAD_TABLE);
+  assert.equal(masterOperationalLeadTable(''), MASTER_CLUSTERED_LEAD_TABLE);
+  assert.equal(masterOperationalLeadTable('false'), MASTER_CLUSTERED_LEAD_TABLE);
+  assert.equal(masterOperationalLeadTable('TRUE'), MASTER_RICH_LEAD_VIEW);
+  assert.throws(() => masterOperationalLeadTable('yes'), /must be true or false/);
 });
