@@ -72,7 +72,7 @@ export default function CommercialIntelligence() {
     { label: 'Revenue / media spend', value: baseline.revenueToMediaSpendRatio == null ? '—' : `${baseline.revenueToMediaSpendRatio.toFixed(2)}×`, note: 'Matched recorded value / spend; not profit or cash return.', path: '/reconciliation', metric: null, available: baseline.revenueToMediaSpendRatio != null },
   ] : [];
 
-  return <div className="cx-command-page">
+  return <div className="cx-command-page cx-commercial-page">
     <OffernetFilterBar onRefresh={() => loadData(true)} />
     <div className="cx-command-content">
       <header className="cx-command-hero"><div><span className="cx-command-eyebrow">Commercial</span><h1>Spend, revenue & efficiency</h1><p>Interpret recorded value, observed media cost and matched operational outcomes separately. Missing financial evidence stays unavailable.</p></div><Link to={scoped('/campaigns')} className="cx-trust-pill"><DollarSign size={15} /><span><strong>MEDIA DETAIL</strong><small>Campaign spend & efficiency</small></span><ArrowRight size={14} /></Link></header>
