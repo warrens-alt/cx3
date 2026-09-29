@@ -25,6 +25,9 @@ import { VendorControlsPanel } from '../components/OfferNetControlPanels';
 import { StackedCompositionChart, VolumeRateComboChart } from '../components/charts/OperationalVisuals';
 import UnifiedMetricCard from '../components/UnifiedMetricCard';
 import RootCauseDrawer from '../components/RootCauseDrawer';
+import VendorComparison from '../features/vendors/components/VendorComparison';
+import '../styles/journeyContactVisuals.css';
+import '../styles/trustQualityVisuals.css';
 
 import { formatPercent, formatTableNumber } from '../lib/formatters';
 
@@ -125,7 +128,7 @@ export default function VendorLeadQuality() {
   );
 
   return (
-    <div className="cx-command-page">
+    <div className="cx-command-page cx-trust-workspace" aria-label="Vendor quality workspace">
       <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />
       <div className="cx-command-content">
         <header className="cx-command-hero">
@@ -145,6 +148,7 @@ export default function VendorLeadQuality() {
           </div>
         </header>
 
+        <nav className="cx-viz-jump-nav" aria-label="Vendor quality sections"><a href="#vendor-comparison">Compare vendors</a><a href="#vendor-speed">Speed & contact</a><a href="#source-performance">Source performance</a><a href="#quality-signals">Grade & vetting</a></nav>
         {error && <div className="cx-command-error"><AlertTriangle size={17} />{error}</div>}
         {loading && !data && <div className="cx-command-loading"><div className="cx-command-spinner" />Loading performance analysis…</div>}
 
@@ -214,21 +218,9 @@ export default function VendorLeadQuality() {
               </section>
             )}
 
+            <VendorComparison key={JSON.stringify([selectedClient, startDate, endDate, filters])} vendors={data.vendors}
+              onSelectVendor={vendor => setFilter('vendor', { operator: 'in', values: [vendor] })} />
             <div className="cx-analytics-visual-grid">
-              <VolumeRateComboChart
-                title="Vendor volume and downstream rates"
-                subtitle="Lead volume is shown as bars; RPC, sale and activation rates remain separate observed measures. Select a bar to filter this page to that vendor."
-                data={vendorOutcomeVisual}
-                xKey="vendor"
-                volumeKey="leads"
-                volumeLabel="Fetched leads"
-                rateSeries={[
-                  { key: 'contactRate', label: 'RPC rate' },
-                  { key: 'saleRate', label: 'Sale rate' },
-                  { key: 'activationRate', label: 'Activation rate' },
-                ]}
-                onSelect={(selectedVendor) => setFilter('vendor', { operator: 'in', values: [selectedVendor] })}
-              />
               {vendorGradeVisual.data.length > 0 && <StackedCompositionChart
                 title="Vendor grade composition"
                 subtitle="100% composition of recorded grades within each vendor's observed lead population."
@@ -241,7 +233,7 @@ export default function VendorLeadQuality() {
             {data.lifecycle && <LifecycleSegmentsPanel data={data.lifecycle} />}
             {data.vendorGrades && <section className="cx-command-panel"><header><div><h2>Vendor grade distribution</h2><p>{data.qualityEvidence}</p></div><ExportAnalysisButton filename="vendor_grade_distribution" rows={[["Vendor","Grade","Leads"], ...data.vendorGrades.map(r=>[r.vendor,r.grade,r.leads])]} definitions={[data.qualityEvidence || 'Lead/vendor grain']} /></header><div className="cx-performance-table-wrap"><table className="cx-performance-table"><thead><tr><th>Vendor</th><th>Grade</th><th>Leads</th></tr></thead><tbody>{data.vendorGrades.map(r => <tr key={`${r.vendor}-${r.grade}`}><th>{r.vendor}</th><td>{r.grade}</td><td>{fmt(r.leads)}</td></tr>)}</tbody></table></div></section>}
 
-            <section className="cx-command-panel">
+            <section className="cx-command-panel" id="vendor-speed">
               <header>
                 <div>
                   <span className="cx-command-section-kicker">Diagnose</span>
@@ -254,22 +246,22 @@ export default function VendorLeadQuality() {
                 <div className="cx-performance-scatter">
                   <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
                     <ScatterChart margin={{ top: 18, right: 28, bottom: 32, left: 8 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E8EDF3" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--cx-border-subtle)" />
                       <XAxis
                         type="number"
                         dataKey="firstDialMinutes"
                         name="Median first dial"
                         unit="m"
-                        tick={{ fontSize: 10, fill: '#64748B' }}
-                        label={{ value: 'Median delivery → first dial (minutes)', position: 'insideBottom', offset: -20, fontSize: 10, fill: '#64748B' }}
+                        tick={{ fontSize: 10, fill: 'var(--cx-text-muted)' }}
+                        label={{ value: 'Median delivery → first dial (minutes)', position: 'insideBottom', offset: -20, fontSize: 10, fill: 'var(--cx-text-muted)' }}
                       />
                       <YAxis
                         type="number"
                         dataKey="rpcRate"
                         name="RPC rate"
                         unit="%"
-                        tick={{ fontSize: 10, fill: '#64748B' }}
-                        label={{ value: 'RPC / dialled (%)', angle: -90, position: 'insideLeft', fontSize: 10, fill: '#64748B' }}
+                        tick={{ fontSize: 10, fill: 'var(--cx-text-muted)' }}
+                        label={{ value: 'RPC / dialled (%)', angle: -90, position: 'insideLeft', fontSize: 10, fill: 'var(--cx-text-muted)' }}
                       />
                       <ZAxis type="number" dataKey="volume" range={[70, 600]} name="Lead volume" />
                       <Tooltip
@@ -288,60 +280,16 @@ export default function VendorLeadQuality() {
                           );
                         }}
                       />
-                      <Scatter data={scatter} fill="#315BCB" />
+                      <Scatter data={scatter} fill="var(--cx-action)" />
                     </ScatterChart>
                   </ResponsiveContainer>
                 </div>
               ) : <div className="cx-command-empty">Measured first-dial latency and RPC rate are both required for this chart.</div>}
             </section>
 
-            <section className="cx-command-panel">
-              <header>
-                <div>
-                  <span className="cx-command-section-kicker">Vendor detail</span>
-                  <h2>Operational performance</h2>
-                  <p>Stage rates remain separate so a slow vendor is not automatically interpreted as a low-quality vendor. A dash means the metric is unavailable for this scope.</p>
-                </div>
-              </header>
-              <div className="cx-performance-table-wrap" role="region" aria-label="Vendor operational performance" tabIndex={0}>
-                <table className="cx-performance-table">
-                  <thead>
-                    <tr>
-                      <th>Vendor</th>
-                      <th>Leads</th>
-                      <th>Delivery</th>
-                      <th>Dial / delivered</th>
-                      <th>RPC / dialled</th>
-                      <th>Sale / RPC</th>
-                      <th>Activation / sale</th>
-                      <th>Median first dial</th>
-                      <th>Calls / lead</th>
-                      <th>Invalid</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.vendors.map((vendor, index) => (
-                      <tr key={`${vendor.vendor}-${index}`}>
-                        <th>{vendor.vendor}</th>
-                        <td>{fmt(vendor.leads)}</td>
-                        <td>{formatPercent(vendor.deliveryRate)}</td>
-                        <td>{formatPercent(vendor.dialRate)}</td>
-                        <td>{formatPercent(vendor.contactRate)}</td>
-                        <td>{formatPercent(vendor.saleRate)}</td>
-                        <td>{formatPercent(vendor.activationRate)}</td>
-                        <td>{vendor.medianFirstDial}</td>
-                        <td>{fmt(vendor.callsPerLead)}</td>
-                        <td>{formatPercent(vendor.invalidRate)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-
             {controls.data && <VendorControlsPanel data={controls.data} />}
 
-            <section className="cx-command-panel">
+            <section className="cx-command-panel" id="source-performance">
               <header>
                 <div>
                   <span className="cx-command-section-kicker">Acquisition quality</span>
@@ -381,7 +329,7 @@ export default function VendorLeadQuality() {
               </div>
             </section>
 
-            <div className="cx-command-grid cx-quality-grid">
+            <div className="cx-command-grid cx-quality-grid" id="quality-signals">
               <QualityOutcome
                 title="Grade → outcome"
                 description="Do higher lead grades actually produce better contact and sale outcomes?"
