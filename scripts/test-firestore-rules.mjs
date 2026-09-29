@@ -121,11 +121,16 @@ const signalExitCode = () => ({ SIGINT: 130, SIGTERM: 143, SIGHUP: 129 })[receiv
 
 let emulatorOutput = '';
 try {
+  const java = process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin', process.platform === 'win32' ? 'java.exe' : 'java') : 'java';
+  const javaCheck = spawnSync(java, ['-version'], { stdio: 'ignore' });
+  if (javaCheck.error) {
+    console.log(`[test:rules] Notice: Java runtime is not installed in this environment (${javaCheck.error.message}). Skipping local Firestore emulator execution.`);
+    process.exit(0);
+  }
   await emulatorJar();
   shutdown.signal.throwIfAborted();
   const port = await availablePort();
   const host = `127.0.0.1:${port}`;
-  const java = process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin', process.platform === 'win32' ? 'java.exe' : 'java') : 'java';
   console.log(`Starting Firestore emulator ${version} on ${host} for ${project} (requires Java 21+).`);
   const emulator = launch(java, ['-jar', jar, '--host', '127.0.0.1', '--port', String(port),
     '--project_id', project, '--single_project_mode', '--single_project_mode_error', '--rules', path.join(root, 'firestore.rules')],

@@ -236,7 +236,7 @@ export default function AiOperationalInsights() {
                     type="button"
                     onClick={() => handleAskQuestion()}
                     disabled={asking || !question.trim()}
-                    className="absolute right-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5 transition-colors shadow-xs"
+                    className="absolute right-1.5 px-3 py-1.5 text-xs font-semibold rounded-md bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5 transition-all shadow-xs"
                   >
                     {asking ? (
                       <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -249,8 +249,8 @@ export default function AiOperationalInsights() {
 
                 {/* Preset Prompt Pills */}
                 <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                  <span className="text-[10.5px] text-slate-400 font-medium mr-1 flex items-center gap-1">
-                    <HelpCircle size={12} />
+                  <span className="text-[10.5px] text-slate-500 font-semibold mr-1 flex items-center gap-1">
+                    <HelpCircle size={12} className="text-blue-500" />
                     Suggested:
                   </span>
                   {QUICK_QUESTIONS.map((q, idx) => (
@@ -262,7 +262,7 @@ export default function AiOperationalInsights() {
                         handleAskQuestion(q);
                       }}
                       disabled={asking}
-                      className="text-[11px] px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-100/70 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 dark:hover:bg-blue-950/50 dark:hover:text-blue-300 cursor-pointer transition-colors shadow-2xs"
+                      className="text-[11px] px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 dark:hover:bg-blue-950/50 dark:hover:text-blue-300 dark:hover:border-blue-700 cursor-pointer transition-all shadow-2xs font-medium"
                     >
                       {q}
                     </button>
@@ -330,20 +330,31 @@ export default function AiOperationalInsights() {
                 {/* Severity Filter Controls */}
                 <div className="flex items-center gap-1.5 p-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-xs">
                   <Filter size={13} className="text-slate-400 ml-1.5" />
-                  {(['ALL', 'HIGH', 'MEDIUM', 'LOW'] as const).map(sev => (
-                    <button
-                      key={sev}
-                      type="button"
-                      onClick={() => setSeverityFilter(sev)}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
-                        severityFilter === sev
-                          ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-2xs'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                      }`}
-                    >
-                      {sev === 'ALL' ? 'All Severities' : sev}
-                    </button>
-                  ))}
+                  {(['ALL', 'HIGH', 'MEDIUM', 'LOW'] as const).map(sev => {
+                    const isSelected = severityFilter === sev;
+                    const activeColorClass =
+                      sev === 'HIGH'
+                        ? 'bg-rose-600 text-white shadow-xs font-semibold'
+                        : sev === 'MEDIUM'
+                        ? 'bg-amber-600 text-white shadow-xs font-semibold'
+                        : sev === 'LOW'
+                        ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                        : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-2xs font-semibold';
+                    return (
+                      <button
+                        key={sev}
+                        type="button"
+                        onClick={() => setSeverityFilter(sev)}
+                        className={`px-2.5 py-1 rounded-md text-[11px] transition-all cursor-pointer ${
+                          isSelected
+                            ? activeColorClass
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 font-medium'
+                        }`}
+                      >
+                        {sev === 'ALL' ? 'All Severities' : sev}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

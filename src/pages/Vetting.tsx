@@ -1,10 +1,12 @@
 import React, { useDeferredValue, useMemo, useState } from 'react';
-import { ShieldCheck, Layers3, Palette, ArrowUpRight, ArrowDownRight, Minus, Download, Filter, Clock3, X, Table as TableIcon, BarChart2 } from 'lucide-react';
+import { ShieldCheck, Layers3, Palette, ArrowUpRight, ArrowDownRight, Minus, Download, Filter, Clock3, X, Table as TableIcon, BarChart2, Search, ArrowRight } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 import { PageShell } from '../components/PageShell';
 import { DataState } from '../components/DataState';
 import VettingChart from '../components/visuals/VettingChart';
 import { VisualTable } from '../components/visuals/DataVisual';
+import RootCauseDrawer from '../components/RootCauseDrawer';
+import UnifiedMetricCard from '../components/UnifiedMetricCard';
 import { useAnalyticsData } from '../lib/useAnalyticsData';
 import { useFilters, defaultDateRange } from '../lib/FilterContext';
 import { useClient } from '../lib/ClientContext';
@@ -170,6 +172,8 @@ function Matrix({report,measure,onSelect}:{report:VettingReport;measure:string;o
 export default function Vetting(){
   const [tab,setTab]=useState<typeof tabs[number][0]>('overview'),[interval,setInterval]=useState('day'),[classValue,setClassValue]=useState(''),[colourValue,setColourValue]=useState('');
   const [measure,setMeasure]=useState('leads'),[sourceAxis,setSourceAxis]=useState<'source'|'vendor'>('source');
+  const [rootMetric, setRootMetric] = useState<string | null>(null);
+  const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
   const {startDate,endDate,filters}=useFilters(),{selectedClient}=useClient();
   const defaultDates = useMemo(() => defaultDateRange(), []);
   const activeStart = startDate || defaultDates.start;
@@ -226,9 +230,39 @@ export default function Vetting(){
       <p className="vetting-response-scope"><strong>Included leads: {exactLabel(data?.current?.leads)}</strong><span>Selected class: {classValue||'All'} · Selected colour: {colourValue||'All'} · Current vs {data?.scope?.previousStart || '—'}–{data?.scope?.previousEnd || '—'}</span></p>
       {(!data?.fields?.leadClass?.available||!data?.fields?.leadColour?.available)&&<div className="vetting-warning" role="status">{!data?.fields?.leadClass?.available?'Class field unavailable. ':''}{!data?.fields?.leadColour?.available?'Colour field unavailable. ':''}Result coverage remains unavailable; missing mappings are not measured failed leads.</div>}
       {tab==='overview'&&<>
-        <div className="vetting-kpis">{([['leads','Included Leads'],['classRecorded','Class Result Recorded'],['namedColour','Recognised Colour'],['bothRecorded','Class + Named Colour']] as [VettingMetric,string][]).map(([key,label])=>{
-          const change=periodChange(data?.current?.[key],data?.previous?.[key]);return <article key={key} className="enterprise-card"><span>{label}</span><strong>{exactLabel(data?.current?.[key])}</strong><small>{key==='leads'?`${data?.scope?.days ?? 0} capture days`: `${pct(countRatio(data?.current?.[key],data?.current?.leads))} of included leads`}</small><p>{change.delta?.startsWith('-')?<ArrowDownRight size={13}/>:change.delta==='0'?<Minus size={13}/>:<ArrowUpRight size={13}/>}{change.percent===null?'No comparable prior denominator':`${change.percent}% vs previous window`}</p></article>;
-        })}</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 my-3">
+          {([
+            ['leads', 'Included Leads', 'fetchedLeads', 'classes'],
+            ['classRecorded', 'Class Result Recorded', 'fetchedLeads', 'classes'],
+            ['namedColour', 'Recognised Colour', 'deliveryRate', 'colours'],
+            ['bothRecorded', 'Class + Named Colour', 'contactRate', 'matrix'],
+          ] as [VettingMetric, string, string, string][]).map(([key, label, metricKey, targetTab]) => {
+            const currentVal = data?.current?.[key];
+            const prevVal = data?.previous?.[key];
+            const change = periodChange(currentVal, prevVal);
+            const numChange = change.percent !== null ? parseFloat(change.percent) : null;
+            const noteText = key === 'leads'
+              ? `${data?.scope?.days ?? 0} capture days`
+              : `${pct(countRatio(currentVal, data?.current?.leads))} of included leads`;
+
+            return (
+              <UnifiedMetricCard
+                key={key}
+                label={label}
+                value={exactLabel(currentVal)}
+                note={noteText}
+                change={numChange}
+                changeUnit="%"
+                onWhyChanged={() => {
+                  setRootMetric(metricKey);
+                  setRootMetricLabel(label);
+                }}
+                onInspect={() => setTab(targetTab as any)}
+                inspectLabel={`Inspect ${targetTab}`}
+              />
+            );
+          })}
+        </div>
         <div className="vetting-two"><VettingChart title="Class lead distribution" description="Distinct included leads by recorded class. U is retained as a class code, not re-labelled missing or qualified." rows={chartRows(classes)} series={[{key:'leads',label:'Included Leads'}]} disjoint initial="pie" onSelect={setClassValue}/>
           <VettingChart title="Colour lead distribution" description="Named colours, absent results and unmapped outcomes are separate, mutually exclusive groups." rows={chartRows(colours)} series={[{key:'leads',label:'Included Leads'}]} disjoint initial="donut" onSelect={setColourValue}/></div>
         <VettingChart title="Capture and vetting coverage trend" description="Capture-dated included leads and their currently recorded classifications. This is not the count of vetting events performed on those dates." rows={trend} series={[{key:'leads',label:'Included Leads'},{key:'classRecorded',label:'Class Result Recorded'},{key:'namedColour',label:'Recognised Colour'}]} ordered initial="line"/>
@@ -258,5 +292,14 @@ export default function Vetting(){
       </>}
       <details className="vetting-evidence enterprise-card"><summary>Definitions, source fields and query evidence</summary><p><strong>Previous window:</strong> {data?.scope?.previousStart || '—'} to {data?.scope?.previousEnd || '—'}. <strong>Source:</strong> {data?.evidence?.table || 'Unavailable'}. <strong>Query job:</strong> {data?.evidence?.jobId||'Unavailable'}. <strong>Read at:</strong> {data?.evidence?.generatedAt || 'Unavailable'}.</p><p>No snapshot is pinned. The same filters and period definitions apply throughout this response.</p><ul>{(data?.notes || []).map(n=><li key={n}>{n}</li>)}</ul><dl>{Object.entries(data?.fields || {}).map(([key,f])=><div key={key}><dt>{f.sourceField}</dt><dd>{f.available?'Column available':'Mapping unavailable'}</dd></div>)}</dl></details>
     </div>}
+    <RootCauseDrawer
+      open={Boolean(rootMetric)}
+      metric={rootMetric}
+      metricLabel={rootMetricLabel}
+      onClose={() => {
+        setRootMetric(null);
+        setRootMetricLabel(undefined);
+      }}
+    />
   </div></PageShell>;
 }

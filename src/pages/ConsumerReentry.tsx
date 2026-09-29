@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { PageShell } from '../components/PageShell';
 import PageHeader from '../components/PageHeader';
 import KpiCard from '../components/KpiCard';
+import RootCauseDrawer from '../components/RootCauseDrawer';
 import { TableSkeleton } from '../components/Skeleton';
 import { useAnalyticsData } from '../lib/useAnalyticsData';
 import { useAuth } from '../lib/AuthContext';
@@ -20,6 +21,8 @@ export default function ConsumerReentry() {
   const [tiersView, setTiersView] = useState<'table' | 'graph'>('table');
   const [sequenceView, setSequenceView] = useState<'table' | 'graph'>('table');
   const [sampleView, setSampleView] = useState<'table' | 'graph'>('table');
+  const [rootMetric, setRootMetric] = useState<string | null>(null);
+  const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
 
   if (error) return <PageShell><PageHeader title="Consumer Re-entry"/><DataState error={error} retry={refetch}/></PageShell>;
 
@@ -65,39 +68,74 @@ export default function ConsumerReentry() {
           title="Total Consumers"
           value={overview.total_consumers || 0}
           subtitle={`${Number(overview.avg_leads_per_consumer || 0).toFixed(2)} leads / consumer`}
+          onWhyChanged={() => {
+            setRootMetric('fetchedLeads');
+            setRootMetricLabel('Total Consumers');
+          }}
+          onAnalyse={() => setActiveTab('tiers')}
         />
         <KpiCard
           title="Repeat Consumers"
           value={overview.repeat_consumers || 0}
           subtitle={`${Number(overview.repeat_consumer_share_pct || 0).toFixed(1)}% re-entry rate`}
+          onWhyChanged={() => {
+            setRootMetric('fetchedLeads');
+            setRootMetricLabel('Repeat Consumers');
+          }}
+          onAnalyse={() => setActiveTab('tiers')}
         />
         <KpiCard
           title="Revenue-Matched Sale Share (Single-Lead Consumers)"
           value={`${Number(overview.single_billable_sale_rate_pct || 0).toFixed(1)}%`}
           subtitle="Consumers with a revenue-matched sale / single-lead consumers"
+          onWhyChanged={() => {
+            setRootMetric('leadToSaleRate');
+            setRootMetricLabel('Single-Lead Sale Conversion');
+          }}
+          onAnalyse={() => setActiveTab('sequence')}
         />
         <KpiCard
           title="Revenue-Matched Sale Share (Repeat Consumers)"
           value={`${Number(overview.repeat_billable_sale_rate_pct || 0).toFixed(1)}%`}
           subtitle="Consumers with a revenue-matched sale / repeat consumers"
+          onWhyChanged={() => {
+            setRootMetric('leadToSaleRate');
+            setRootMetricLabel('Repeat Consumer Sale Conversion');
+          }}
+          onAnalyse={() => setActiveTab('sequence')}
         />
         <KpiCard
           title="Recorded Revenue (Single-Lead Consumers)"
           value={Math.round(overview.single_consumer_revenue || 0)}
           prefix={currencyPrefix}
           subtitle={`${currencyPrefix}${Number(overview.rev_per_single_consumer || 0).toFixed(2)} / consumer`}
+          onWhyChanged={() => {
+            setRootMetric('leadToSaleRate');
+            setRootMetricLabel('Single-Lead Consumer Revenue');
+          }}
+          onAnalyse={() => setActiveTab('sequence')}
         />
         <KpiCard
           title="Recorded Revenue (Repeat Consumers)"
           value={Math.round(overview.repeat_consumer_revenue || 0)}
           prefix={currencyPrefix}
           subtitle={`${currencyPrefix}${Number(overview.rev_per_repeat_consumer || 0).toFixed(2)} / consumer`}
+          onWhyChanged={() => {
+            setRootMetric('leadToSaleRate');
+            setRootMetricLabel('Repeat Consumer Revenue');
+          }}
+          onAnalyse={() => setActiveTab('sequence')}
         />
         <KpiCard
           title="Recorded Revenue (All Consumers)"
           value={Math.round(overview.total_revenue || 0)}
           prefix={currencyPrefix}
           subtitle="Revenue summed by recorded consumer ID; not verified lifetime value"
+          onWhyChanged={() => {
+            setRootMetric('leadToSaleRate');
+            setRootMetricLabel('Total Consumer Revenue');
+          }}
+          onAnalyse={() => setActiveTab('sequence')}
         />
       </div>
 
@@ -526,6 +564,15 @@ export default function ConsumerReentry() {
           )}
         </div>
       )}
+      <RootCauseDrawer
+        open={Boolean(rootMetric)}
+        metric={rootMetric}
+        metricLabel={rootMetricLabel}
+        onClose={() => {
+          setRootMetric(null);
+          setRootMetricLabel(undefined);
+        }}
+      />
     </PageShell>
   );
 }

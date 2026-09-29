@@ -2,6 +2,7 @@ import React from 'react';
 import { Download, ExternalLink, Info, PhoneCall } from 'lucide-react';
 import { formatPercent, formatTableNumber } from '../../../lib/formatters';
 import { GroupedOutcomeChart, VolumeRateComboChart } from '../../../components/charts/OperationalVisuals';
+import UnifiedMetricCard from '../../../components/UnifiedMetricCard';
 import type { ContactStrategyData } from '../../../lib/offernetClient';
 
 interface CallEffortReportProps {
@@ -13,12 +14,14 @@ interface CallEffortReportProps {
     effortEvidence?: { reason: string };
   };
   onInspectBucket?: (bucket: string, leads: number) => void;
+  onWhyChanged?: (metricId: string) => void;
   onExportCsv?: () => void;
 }
 
 export default function CallEffortReport({
   data,
   onInspectBucket,
+  onWhyChanged,
   onExportCsv,
 }: CallEffortReportProps) {
   if (!data) return null;
@@ -29,54 +32,49 @@ export default function CallEffortReport({
     <div className="space-y-6">
       {/* 1. Summary of Observed Population and Effort */}
       {summary && (
-        <section aria-label="Contact governance summary" className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="p-4 bg-surface rounded-xl border border-border-subtle shadow-2xs">
-            <span className="text-[11px] font-semibold text-text-mute uppercase tracking-wider block">
-              Zero-call leads
-            </span>
-            <span className="text-2xl font-extrabold text-text-main cx-tabular mt-1 block">
-              {formatTableNumber(summary.zeroCallLeads)}
-            </span>
-            <span className="text-[11px] text-text-sec mt-1 block">
-              Explicitly recorded zero calls
-            </span>
-          </div>
+        <section aria-label="Contact governance summary" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <UnifiedMetricCard
+            label="Zero-call leads"
+            value={formatTableNumber(summary.zeroCallLeads)}
+            note="Explicitly recorded zero calls"
+            onWhyChanged={() => onWhyChanged?.('dialRate')}
+            onInspect={onInspectBucket ? () => onInspectBucket('0 calls', summary.zeroCallLeads) : undefined}
+            inspectLabel="Inspect bucket"
+            onAbout={onInspectBucket ? () => onInspectBucket('0 calls', summary.zeroCallLeads) : undefined}
+          />
 
-          <div className="p-4 bg-surface rounded-xl border border-border-subtle shadow-2xs">
-            <span className="text-[11px] font-semibold text-text-mute uppercase tracking-wider block">
-              One-call share
-            </span>
-            <span className="text-2xl font-extrabold text-text-main cx-tabular mt-1 block">
-              {formatPercent(summary.singleAttemptSharePct)}
-            </span>
-            <span className="text-[11px] text-text-sec mt-1 block">
-              {formatTableNumber(summary.oneCallLeads)} leads · share of dialled
-            </span>
-          </div>
+          <UnifiedMetricCard
+            label="One-call share"
+            value={formatPercent(summary.singleAttemptSharePct)}
+            note={`${formatTableNumber(summary.oneCallLeads)} leads · share of dialled`}
+            denominatorLabel="Dialled leads"
+            onWhyChanged={() => onWhyChanged?.('dialRate')}
+            onInspect={onInspectBucket ? () => onInspectBucket('1 call', summary.oneCallLeads) : undefined}
+            inspectLabel="Inspect bucket"
+            onAbout={onInspectBucket ? () => onInspectBucket('1 call', summary.oneCallLeads) : undefined}
+          />
 
-          <div className="p-4 bg-surface rounded-xl border border-border-subtle shadow-2xs">
-            <span className="text-[11px] font-semibold text-text-mute uppercase tracking-wider block">
-              Multi-call share
-            </span>
-            <span className="text-2xl font-extrabold text-text-main cx-tabular mt-1 block">
-              {formatPercent(summary.multiAttemptSharePct)}
-            </span>
-            <span className="text-[11px] text-text-sec mt-1 block">
-              {formatTableNumber(summary.multiAttemptLeads)} leads · 2+ calls
-            </span>
-          </div>
+          <UnifiedMetricCard
+            label="Multi-call share"
+            value={formatPercent(summary.multiAttemptSharePct)}
+            note={`${formatTableNumber(summary.multiAttemptLeads)} leads · 2+ calls`}
+            denominatorLabel="Dialled leads"
+            onWhyChanged={() => onWhyChanged?.('contactRate')}
+            onInspect={onInspectBucket ? () => onInspectBucket('2-4 calls', summary.multiAttemptLeads) : undefined}
+            inspectLabel="Inspect bucket"
+            onAbout={onInspectBucket ? () => onInspectBucket('2-4 calls', summary.multiAttemptLeads) : undefined}
+          />
 
-          <div className="p-4 bg-surface rounded-xl border border-border-subtle shadow-2xs">
-            <span className="text-[11px] font-semibold text-text-mute uppercase tracking-wider block">
-              5+ calls, no RPC
-            </span>
-            <span className="text-2xl font-extrabold text-amber-700 dark:text-amber-400 cx-tabular mt-1 block">
-              {formatTableNumber(summary.fivePlusNoRpcLeads)}
-            </span>
-            <span className="text-[11px] text-text-sec mt-1 block">
-              High effort without contact
-            </span>
-          </div>
+          <UnifiedMetricCard
+            label="5+ calls, no RPC"
+            value={formatTableNumber(summary.fivePlusNoRpcLeads)}
+            note="High effort without contact"
+            denominatorLabel="Dialled outreach"
+            onWhyChanged={() => onWhyChanged?.('contactRate')}
+            onInspect={onInspectBucket ? () => onInspectBucket('5+ calls', summary.fivePlusNoRpcLeads) : undefined}
+            inspectLabel="Inspect bucket"
+            onAbout={onInspectBucket ? () => onInspectBucket('5+ calls', summary.fivePlusNoRpcLeads) : undefined}
+          />
         </section>
       )}
 

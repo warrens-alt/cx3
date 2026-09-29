@@ -112,6 +112,7 @@ export interface RubixReportMetadata {
   warnings: string[];
   reconciliationStatus: string;
   staffDetailsMasked?: boolean;
+  provenance?: 'LIVE_POWERBI' | 'OFFLINE_EVIDENCE_REPRESENTATION';
 }
 
 export interface RubixReportResponse {
@@ -123,11 +124,16 @@ export interface RubixReportResponse {
 export interface RubixStatusResponse {
   enabled: boolean;
   configured: boolean;
-  status: 'ONLINE' | 'DISABLED' | 'UNCONFIGURED' | 'ERROR';
+  status: 'ONLINE' | 'OFFLINE_EVIDENCE' | 'DISABLED' | 'UNCONFIGURED' | 'ERROR';
   checkedAt: string;
   provider: string;
   endpoint: string;
   note: string;
+  datasetId?: string;
+  reportId?: string;
+  modelId?: number;
+  entity?: string;
+  mandatoryPredicate?: string;
 }
 
 export interface RubixCapabilitiesResponse {
@@ -136,4 +142,33 @@ export interface RubixCapabilitiesResponse {
   capabilities: RubixCapabilityDefinition[];
   supportedFilters: readonly string[];
   unsupportedFilters: readonly string[];
+}
+
+export interface RubixReconciliationResponse {
+  version: string;
+  reconciledAt: string;
+  clientId: string;
+  dateRange: { startDate: string; endDate: string };
+  warehouseActivations: {
+    sourceTable: string;
+    verifiedMandates: number;
+    distinctPolicies: number;
+    currency: string;
+    status: string;
+  };
+  powerBiActivations: {
+    datasetId: string;
+    reportId: string;
+    totalReported: number;
+    distinctTeams: number;
+    distinctAgents: number;
+    provenance: 'LIVE_POWERBI' | 'OFFLINE_EVIDENCE_REPRESENTATION';
+    status: string;
+  };
+  reconciliationStatus: 'RECONCILED_WITH_CAVEATS' | 'DISAGREEMENT' | 'UNVERIFIED';
+  variance: {
+    deltaCount: number;
+    explanation: string;
+    reconciliationNotes: string[];
+  };
 }

@@ -43,26 +43,26 @@ export default function OverviewTrendChart({ data }: { data: OverviewData['daily
       <AreaChart data={safeData} accessibilityLayer margin={{ top: 8, right: 12, left: 0, bottom: 4 }}>
         <defs>
           <linearGradient id="commandLeads" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#4F5FB7" stopOpacity={0.22} />
-            <stop offset="95%" stopColor="#4F5FB7" stopOpacity={0.02} />
+            <stop offset="5%" stopColor="#2563EB" stopOpacity={0.28} />
+            <stop offset="95%" stopColor="#2563EB" stopOpacity={0.02} />
           </linearGradient>
           <linearGradient id="commandSales" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#426D80" stopOpacity={0.18} />
-            <stop offset="95%" stopColor="#426D80" stopOpacity={0.01} />
+            <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.25} />
+            <stop offset="95%" stopColor="#F59E0B" stopOpacity={0.02} />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8EDF3" />
+        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border-subtle, #E2E8F0)" />
         <XAxis
           dataKey="date"
           tickFormatter={value => String(value).slice(5)}
           minTickGap={26}
-          tick={{ fontSize: 11, fill: '#64748B' }}
+          tick={{ fontSize: 11, fill: 'var(--cx-text-muted, #64748B)' }}
           tickLine={false}
           axisLine={false}
         />
         <YAxis
           tickFormatter={formatChartAxis}
-          tick={{ fontSize: 11, fill: '#64748B' }}
+          tick={{ fontSize: 11, fill: 'var(--cx-text-muted, #64748B)' }}
           tickLine={false}
           axisLine={false}
           width={46}
@@ -72,7 +72,7 @@ export default function OverviewTrendChart({ data }: { data: OverviewData['daily
           type="monotone"
           dataKey="leads"
           name="Fetched leads"
-          stroke="#4F5FB7"
+          stroke="#2563EB"
           strokeWidth={2.5}
           fill="url(#commandLeads)"
           connectNulls={true}
@@ -82,7 +82,7 @@ export default function OverviewTrendChart({ data }: { data: OverviewData['daily
           type="monotone"
           dataKey="sales"
           name="Recorded sales"
-          stroke="#426D80"
+          stroke="#F59E0B"
           strokeWidth={2.5}
           fill="url(#commandSales)"
           fillOpacity={1}

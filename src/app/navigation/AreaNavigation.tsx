@@ -69,11 +69,11 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
 
   return (
     <nav
-      className={`cx-area-nav ${className}`}
+      className={`cx-area-nav bg-surface border-b border-border z-20 ${className}`}
       aria-label={`${activeArea.name} navigation`}
     >
-      <div className="flex items-center justify-between gap-1.5 py-1 w-full min-w-0">
-        <div className="flex items-center gap-1 overflow-x-auto min-w-0 flex-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden py-0.5">
+      <div className="cx-area-nav-inner max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-2 w-full min-w-0">
+        <div className="flex items-center gap-1 overflow-x-auto min-w-0 flex-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pt-1">
           {primaryTabs.map(tab => {
             const active = isCurrent(tab.path);
             return (
@@ -81,7 +81,11 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
                 key={tab.path}
                 to={scoped(tab.path)}
                 aria-current={active ? 'page' : undefined}
-                className={`cx-area-nav-item ${active ? 'active' : ''}`}
+                className={`cx-area-nav-item inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs whitespace-nowrap transition-all border-b-2 rounded-t-md ${
+                  active
+                    ? 'border-blue-600 dark:border-blue-400 text-blue-700 dark:text-blue-300 font-bold bg-blue-50/80 dark:bg-blue-950/40 -mb-[1px]'
+                    : 'border-transparent text-text-sec hover:text-blue-600 dark:hover:text-blue-400 hover:bg-surface-subtle/80 font-medium'
+                }`}
                 title={tab.description}
               >
                 <span>{tab.name}</span>
@@ -91,7 +95,7 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
         </div>
 
         {moreViews.length > 0 && (
-          <div className="relative inline-block shrink-0" ref={dropdownRef}>
+          <div className="relative inline-block shrink-0 py-1" ref={dropdownRef}>
             <button
               ref={buttonRef}
               type="button"
@@ -99,18 +103,20 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
               aria-expanded={moreOpen}
               aria-haspopup="true"
               aria-controls="area-more-menu"
-              className={`cx-area-nav-item flex items-center gap-1 cursor-pointer ${
-                isMoreViewActive ? 'active' : ''
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
+                isMoreViewActive
+                  ? 'border-action/40 bg-action/5 text-action font-semibold'
+                  : 'border-border bg-surface hover:bg-surface-subtle text-text-sec hover:text-text-main'
               }`}
             >
               <span>More views</span>
-              <ChevronDown size={14} aria-hidden="true" className={`transition-transform duration-150 ${moreOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown size={13} aria-hidden="true" className={`transition-transform duration-150 ${moreOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {moreOpen && (
               <div
                 id="area-more-menu"
-                className="absolute right-0 mt-1.5 w-60 rounded-lg shadow-xl bg-surface dark:bg-slate-900 border border-border dark:border-slate-800 py-1.5 z-50 text-xs"
+                className="absolute right-0 mt-1.5 w-64 rounded-xl shadow-lg bg-surface border border-border py-1.5 z-50 text-xs animate-in fade-in zoom-in-95 duration-100"
                 role="menu"
               >
                 {moreViews.map(view => {
@@ -122,13 +128,16 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
                       role="menuitem"
                       aria-current={active ? 'page' : undefined}
                       onClick={() => setMoreOpen(false)}
-                      className={`block px-3.5 py-2 hover:bg-surface-subtle dark:hover:bg-slate-800 transition-colors ${
-                        active ? 'text-brand-primary font-semibold bg-brand-soft dark:bg-blue-950/40' : 'text-text-main dark:text-slate-200'
+                      className={`block px-3.5 py-2.5 hover:bg-surface-subtle transition-colors ${
+                        active ? 'text-action font-semibold bg-action/10' : 'text-text-main'
                       }`}
                       title={view.description}
                     >
-                      <div className="font-medium text-xs">{view.name}</div>
-                      <div className="text-[11px] text-text-mute dark:text-slate-400 truncate mt-0.5">{view.description}</div>
+                      <div className="font-semibold text-xs flex items-center justify-between">
+                        <span>{view.name}</span>
+                        {active && <span className="w-1.5 h-1.5 rounded-full bg-action" />}
+                      </div>
+                      <div className="text-[11px] text-text-mute truncate mt-0.5">{view.description}</div>
                     </Link>
                   );
                 })}

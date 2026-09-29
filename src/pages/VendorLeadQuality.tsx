@@ -2,7 +2,7 @@ import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import type { LifecycleExtension } from '../../contracts/lifecycleAnalytics';
 import { LifecycleSegmentsPanel } from '../components/LifecycleDiagnostics';
 import { useOperationalData } from '../lib/useOperationalData';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { AlertTriangle, ArrowRight, BarChart3, ShieldCheck } from 'lucide-react';
 import {
   CartesianGrid,
@@ -23,6 +23,8 @@ import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { VendorControlsPanel } from '../components/OfferNetControlPanels';
 import { StackedCompositionChart, VolumeRateComboChart } from '../components/charts/OperationalVisuals';
+import UnifiedMetricCard from '../components/UnifiedMetricCard';
+import RootCauseDrawer from '../components/RootCauseDrawer';
 
 import { formatPercent, formatTableNumber } from '../lib/formatters';
 
@@ -33,6 +35,8 @@ export default function VendorLeadQuality() {
   const controls = useOperatingControls();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters, setFilter } = useFilters();
+  const [rootMetric, setRootMetric] = useState<string | null>(null);
+  const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
 
   const { data, loading, error, loadData } = useOperationalData<VendorQualityData & LifecycleExtension & { vendorGrades?: Array<{vendor:string;grade:string;leads:number}>; qualityEvidence?:string }>('VendorLeadQuality', {
     clientId: selectedClient,
@@ -40,6 +44,29 @@ export default function VendorLeadQuality() {
     endDate: endDate || undefined,
     ...extractOffernetFilters(filters),
   }, fetchVendorQuality);
+
+  const vendorSummary = useMemo(() => {
+    const list = data?.vendors || [];
+    if (!list.length) return null;
+    const totalLeads = list.reduce((sum, v) => sum + (v.leads || 0), 0);
+    const totalWeightedContact = list.reduce((sum, v) => sum + (v.leads || 0) * (v.contactRate || 0), 0);
+    const totalWeightedSale = list.reduce((sum, v) => sum + (v.leads || 0) * (v.saleRate || 0), 0);
+    const totalWeightedActivation = list.reduce((sum, v) => sum + (v.leads || 0) * (v.activationRate || 0), 0);
+    const avgContactRate = totalLeads > 0 ? totalWeightedContact / totalLeads : null;
+    const avgSaleRate = totalLeads > 0 ? totalWeightedSale / totalLeads : null;
+    const avgActivationRate = totalLeads > 0 ? totalWeightedActivation / totalLeads : null;
+    const medians = list.map(v => v.medianFirstDialSec).filter((s): s is number => s != null && s > 0);
+    medians.sort((a, b) => a - b);
+    const medianFirstDialMin = medians.length > 0 ? (medians[Math.floor(medians.length / 2)] / 60).toFixed(1) : null;
+    return {
+      totalLeads,
+      avgContactRate,
+      avgSaleRate,
+      avgActivationRate,
+      medianFirstDialMin,
+      vendorCount: list.length,
+    };
+  }, [data?.vendors]);
 
   const vendorGradeVisual = useMemo(() => {
     const rows = data?.vendorGrades || [];
@@ -123,6 +150,70 @@ export default function VendorLeadQuality() {
 
         {data && (
           <>
+            {vendorSummary && (
+              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-6" aria-label="Vendor performance summary">
+                <UnifiedMetricCard
+                  label="Captured Demand"
+                  value={formatTableNumber(vendorSummary.totalLeads)}
+                  note={`${vendorSummary.vendorCount} active vendors`}
+                  onWhyChanged={() => {
+                    setRootMetric('fetchedLeads');
+                    setRootMetricLabel('Vendor Lead Volume');
+                  }}
+                  to={scoped('/funnel')}
+                  inspectLabel="Inspect funnel"
+                />
+
+                <UnifiedMetricCard
+                  label="Median First Dial"
+                  value={vendorSummary.medianFirstDialMin ? `${vendorSummary.medianFirstDialMin}m` : '—'}
+                  note="Delivery to dial latency"
+                  onWhyChanged={() => {
+                    setRootMetric('dialRate');
+                    setRootMetricLabel('Speed to First Dial');
+                  }}
+                  to={scoped('/speed-to-lead')}
+                  inspectLabel="Inspect speed"
+                />
+
+                <UnifiedMetricCard
+                  label="Contact Rate (RPC)"
+                  value={vendorSummary.avgContactRate != null ? formatPercent(vendorSummary.avgContactRate) : '—'}
+                  note="Volume-weighted RPC"
+                  onWhyChanged={() => {
+                    setRootMetric('contactRate');
+                    setRootMetricLabel('Vendor Contact Rate');
+                  }}
+                  to={scoped('/contact-strategy')}
+                  inspectLabel="Inspect contact"
+                />
+
+                <UnifiedMetricCard
+                  label="Lead → Sale Rate"
+                  value={vendorSummary.avgSaleRate != null ? formatPercent(vendorSummary.avgSaleRate) : '—'}
+                  note="Downstream sales / leads"
+                  onWhyChanged={() => {
+                    setRootMetric('leadToSaleRate');
+                    setRootMetricLabel('Vendor Sale Rate');
+                  }}
+                  to={scoped('/sales-activation')}
+                  inspectLabel="Inspect sales"
+                />
+
+                <UnifiedMetricCard
+                  label="Activation Rate"
+                  value={vendorSummary.avgActivationRate != null ? formatPercent(vendorSummary.avgActivationRate) : '—'}
+                  note="Fulfilled / recorded sales"
+                  onWhyChanged={() => {
+                    setRootMetric('activationRate');
+                    setRootMetricLabel('Vendor Activation Rate');
+                  }}
+                  to={scoped('/sales-activation')}
+                  inspectLabel="Inspect activations"
+                />
+              </section>
+            )}
+
             <div className="cx-analytics-visual-grid">
               <VolumeRateComboChart
                 title="Vendor volume and downstream rates"
@@ -305,6 +396,16 @@ export default function VendorLeadQuality() {
           </>
         )}
       </div>
+
+      <RootCauseDrawer
+        open={Boolean(rootMetric)}
+        metric={rootMetric}
+        metricLabel={rootMetricLabel}
+        onClose={() => {
+          setRootMetric(null);
+          setRootMetricLabel(undefined);
+        }}
+      />
     </div>
   );
 }

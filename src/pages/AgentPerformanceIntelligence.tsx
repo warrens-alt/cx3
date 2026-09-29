@@ -8,6 +8,8 @@ import { fetchAgentPerformance, type AgentPerformanceData } from '../lib/offerne
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import { VolumeRateComboChart } from '../components/charts/OperationalVisuals';
+import UnifiedMetricCard from '../components/UnifiedMetricCard';
+import RootCauseDrawer from '../components/RootCauseDrawer';
 import { downloadCsv, formatPercent, formatRatioPercent, formatTableNumber } from '../lib/formatters';
 import { downloadAnalysisCsv } from '../lib/analysisExport';
 import { sumRecordedValues } from '../lib/metricPresentation';
@@ -23,6 +25,8 @@ export default function AgentPerformanceIntelligence() {
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
   const [search, setSearch] = useState('');
+  const [rootMetric, setRootMetric] = useState<string | null>(null);
+  const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
 
   const { data, loading, error, loadData } = useOperationalData<AgentActivityData>('AgentPerformanceIntelligence', {
     clientId: selectedClient,
@@ -84,11 +88,60 @@ export default function AgentPerformanceIntelligence() {
 
         {data && (
           <>
-            <section className="cx-command-metrics cx-agent-metrics">
-              <article className="cx-command-metric"><span>Agents observed</span><strong>{totals.agents.toLocaleString()}</strong><div><small>Distinct agent/vendor rows</small></div></article>
-              <article className="cx-command-metric"><span>Total calls</span><strong>{formatTableNumber(totals.calls)}</strong><div><small>Recorded calls in the displayed roster</small></div></article>
-              <article className="cx-command-metric"><span>RPC</span><strong>{formatTableNumber(totals.contacts)}</strong><div><small>{formatRatioPercent(totals.contacts, totals.calls)} of calls</small></div></article>
-              <article className="cx-command-metric"><span>Sales</span><strong>{formatTableNumber(totals.sales)}</strong><div><small>{formatRatioPercent(totals.rpcSales, totals.contacts)} of RPC calls sold</small></div></article>
+            <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6" aria-label="Agent performance metrics">
+              <UnifiedMetricCard
+                label="Agents Observed"
+                value={totals.agents.toLocaleString()}
+                note="Distinct agent/vendor rows"
+                onWhyChanged={() => {
+                  setRootMetric('dialRate');
+                  setRootMetricLabel('Agents Observed');
+                }}
+                onInspect={() => {
+                  const el = document.querySelector('.cx-agent-table');
+                  el?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                inspectLabel="Inspect roster"
+              />
+
+              <UnifiedMetricCard
+                label="Total Calls"
+                value={formatTableNumber(totals.calls)}
+                note="Recorded calls in roster"
+                onWhyChanged={() => {
+                  setRootMetric('dialRate');
+                  setRootMetricLabel('Total Calls');
+                }}
+                onInspect={() => {
+                  const el = document.querySelector('.cx-agent-table');
+                  el?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                inspectLabel="Inspect roster"
+              />
+
+              <UnifiedMetricCard
+                label="Contacted (RPC)"
+                value={formatTableNumber(totals.contacts)}
+                note={`${formatRatioPercent(totals.contacts, totals.calls)} of calls`}
+                onWhyChanged={() => {
+                  setRootMetric('contactRate');
+                  setRootMetricLabel('Agent Right-Party Contact');
+                }}
+                to={scoped('/contact-strategy')}
+                inspectLabel="Inspect contact"
+              />
+
+              <UnifiedMetricCard
+                label="Sales Recorded"
+                value={formatTableNumber(totals.sales)}
+                note={`${formatRatioPercent(totals.rpcSales, totals.contacts)} of RPC calls sold`}
+                onWhyChanged={() => {
+                  setRootMetric('leadToSaleRate');
+                  setRootMetricLabel('Agent Sales Conversion');
+                }}
+                to={scoped('/sales-activation')}
+                inspectLabel="Inspect sales"
+              />
             </section>
 
             <VolumeRateComboChart
@@ -179,6 +232,16 @@ export default function AgentPerformanceIntelligence() {
           </>
         )}
       </div>
+
+      <RootCauseDrawer
+        open={Boolean(rootMetric)}
+        metric={rootMetric}
+        metricLabel={rootMetricLabel}
+        onClose={() => {
+          setRootMetric(null);
+          setRootMetricLabel(undefined);
+        }}
+      />
     </div>
   );
 }

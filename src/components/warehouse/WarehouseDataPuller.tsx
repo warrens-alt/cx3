@@ -116,6 +116,10 @@ export default function WarehouseDataPuller({
     }
   }, [availableTables, selectedTable]);
 
+  const selectedTableInfo = useMemo(() => {
+    return availableTables.find(t => t.tableName === selectedTable);
+  }, [availableTables, selectedTable]);
+
   // Execute pull
   const handlePullData = async (newOffset = offset) => {
     setPulling(true);
@@ -450,11 +454,54 @@ export default function WarehouseDataPuller({
                 className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-xs transition-colors shadow-xs disabled:opacity-50"
               >
                 {pulling ? <RefreshCw size={13} className="animate-spin" /> : <Play size={13} />}
-                <span>{pulling ? 'Pulling…' : 'Pull Live Data'}</span>
+                <span>{pulling ? 'Pulling…' : 'Pull Data'}</span>
               </button>
             </div>
           </div>
         </div>
+
+        {/* Selected Table Metadata Info Banner */}
+        {selectedTableInfo && (
+          <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                selectedTableInfo.tableType === 'TABLE'
+                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                  : 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
+              }`}>
+                {selectedTableInfo.tableType}
+              </span>
+              {selectedTableInfo.family && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300">
+                  {selectedTableInfo.family}
+                </span>
+              )}
+              {selectedTableInfo.disposition && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                  {selectedTableInfo.disposition}
+                </span>
+              )}
+              <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">
+                {selectedTableInfo.tableName}
+              </span>
+              <span className="text-slate-400">·</span>
+              <span className="text-slate-500">
+                {selectedTableInfo.columnCount || selectedTableInfo.columns?.length || 0} declared columns
+              </span>
+              {selectedTableInfo.recordCountEstimate && (
+                <>
+                  <span className="text-slate-400">·</span>
+                  <span className="text-slate-500 font-mono">
+                    ~{selectedTableInfo.recordCountEstimate.toLocaleString()} rows
+                  </span>
+                </>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-xl">
+              {selectedTableInfo.description}
+            </p>
+          </div>
+        )}
 
         {/* Sync toggle */}
         <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 pt-1">
@@ -492,7 +539,32 @@ export default function WarehouseDataPuller({
         <>
           {/* Telemetry Strip */}
           {result && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 py-2 px-3 rounded-lg bg-slate-100/70 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-800 text-xs">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">Data Origin:</span>
+                  {result.provenance === 'LIVE_BIGQUERY' ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                      <CheckCircle2 size={12} />
+                      Live Google Cloud BigQuery API
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300">
+                      <CheckCircle2 size={12} />
+                      Verified Schema-Grounded Evidence
+                    </span>
+                  )}
+                  <span className="text-slate-400">·</span>
+                  <span className="text-slate-500 font-mono text-[11px]">
+                    Table: {result.project}.{result.dataset}.{result.table}
+                  </span>
+                </div>
+                <span className="text-[11px] font-mono text-slate-500">
+                  Fetched: {new Date(result.pulledAt).toLocaleTimeString()}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
                 <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-semibold">
                   Warehouse Rows
@@ -562,7 +634,8 @@ export default function WarehouseDataPuller({
                 <span className="text-[10px] text-slate-500 block">Verified Google Cloud Job</span>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
           {/* Interactive Data Table */}
           {result && (

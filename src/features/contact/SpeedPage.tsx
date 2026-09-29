@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Timer,
@@ -15,6 +15,9 @@ import ReportingScopeBar from '../../shared/reporting/ReportingScopeBar';
 import { OperationalError } from '../../components/OperationalState';
 import { formatPercent, formatTableNumber } from '../../lib/formatters';
 import { VolumeRateComboChart } from '../../components/charts/OperationalVisuals';
+import UnifiedMetricCard from '../../components/UnifiedMetricCard';
+import RootCauseDrawer from '../../components/RootCauseDrawer';
+import type { RootCauseData } from '../../lib/offernetClient';
 import {
   CaptureTurnaroundPanel,
   SlaBandsPanel,
@@ -34,6 +37,8 @@ export default function SpeedPage() {
     setControlsExpanded,
     handleExportCsv,
   } = useSpeedModel();
+
+  const [rootMetric, setRootMetric] = useState<RootCauseData['metric']['id'] | null>(null);
 
   const cohortMax = useMemo(
     () => Math.max(1, ...(data?.cohorts || []).map((row) => row.leads)),
@@ -114,74 +119,66 @@ export default function SpeedPage() {
       {data && (
         <>
           {/* KPI Strip */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <div className="p-4 bg-surface rounded-xl border border-border-subtle shadow-2xs">
-              <span className="text-[11px] font-semibold text-text-mute uppercase tracking-wider block">
-                Median First Dial
-              </span>
-              <span className="text-2xl font-extrabold text-text-main cx-tabular mt-1 block">
-                {primaryStage?.median || '—'}
-              </span>
-              <span className="text-[11px] text-text-sec mt-1 block">
-                {primaryStage?.stage || 'Delivery → First Dial'}
-              </span>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+            <UnifiedMetricCard
+              label="Median First Dial"
+              value={primaryStage?.median || '—'}
+              note={primaryStage?.stage || 'Delivery → First Dial'}
+              onWhyChanged={() => setRootMetric('dialRate')}
+              to={scoped('/lead-explorer?drill=delivery-to-first-dial')}
+              inspectLabel="Inspect speed"
+            />
 
-            <div className="p-4 bg-surface rounded-xl border border-border-subtle shadow-2xs">
-              <span className="text-[11px] font-semibold text-text-mute uppercase tracking-wider block">
-                P75 First Dial
-              </span>
-              <span className="text-2xl font-extrabold text-text-main cx-tabular mt-1 block">
-                {primaryStage?.p75 || '—'}
-              </span>
-              <span className="text-[11px] text-text-sec mt-1 block">
-                75% within this latency
-              </span>
-            </div>
+            <UnifiedMetricCard
+              label="P75 First Dial"
+              value={primaryStage?.p75 || '—'}
+              note="75% within this latency"
+              onWhyChanged={() => setRootMetric('dialRate')}
+              to={scoped('/lead-explorer?drill=delivery-to-first-dial')}
+              inspectLabel="Inspect speed"
+            />
 
-            <div className="p-4 bg-surface rounded-xl border border-border-subtle shadow-2xs">
-              <span className="text-[11px] font-semibold text-text-mute uppercase tracking-wider block">
-                P90 First Dial
-              </span>
-              <span className="text-2xl font-extrabold text-text-main cx-tabular mt-1 block">
-                {primaryStage?.p90 || '—'}
-              </span>
-              <span className="text-[11px] text-text-sec mt-1 block">Tail latency</span>
-            </div>
+            <UnifiedMetricCard
+              label="P90 First Dial"
+              value={primaryStage?.p90 || '—'}
+              note="Tail latency threshold"
+              onWhyChanged={() => setRootMetric('dialRate')}
+              to={scoped('/lead-explorer?drill=delivery-to-first-dial')}
+              inspectLabel="Inspect speed"
+            />
 
-            <div className="p-4 bg-surface rounded-xl border border-border-subtle shadow-2xs">
-              <span className="text-[11px] font-semibold text-text-mute uppercase tracking-wider block">
-                Awaiting First Dial
-              </span>
-              <span className="text-2xl font-extrabold text-text-main cx-tabular mt-1 block">
-                {data.backlog?.awaitingFirstDial !== undefined
-                  ? formatTableNumber(data.backlog.awaitingFirstDial)
-                  : '—'}
-              </span>
-              <span className="text-[11px] text-text-sec mt-1 block">Undialled backlog</span>
-            </div>
+            <UnifiedMetricCard
+              label="Awaiting First Dial"
+              value={data.backlog?.awaitingFirstDial !== undefined
+                ? formatTableNumber(data.backlog.awaitingFirstDial)
+                : '—'}
+              note="Undialled backlog"
+              onWhyChanged={() => setRootMetric('deliveryRate')}
+              to={scoped('/lead-explorer?drill=undialled-backlog')}
+              inspectLabel="Inspect backlog"
+            />
 
-            <div className="p-4 bg-surface rounded-xl border border-border-subtle shadow-2xs">
-              <span className="text-[11px] font-semibold text-text-mute uppercase tracking-wider block">
-                Current 15m Breaches
-              </span>
-              <span className="text-2xl font-extrabold text-amber-700 dark:text-amber-400 cx-tabular mt-1 block">
-                {data.backlog?.currentSlaBreaches !== undefined
-                  ? formatTableNumber(data.backlog.currentSlaBreaches)
-                  : '—'}
-              </span>
-              <span className="text-[11px] text-text-sec mt-1 block">Waiting &gt; 15 min</span>
-            </div>
+            <UnifiedMetricCard
+              label="Current 15m Breaches"
+              value={data.backlog?.currentSlaBreaches !== undefined
+                ? formatTableNumber(data.backlog.currentSlaBreaches)
+                : '—'}
+              note="Waiting > 15 minutes"
+              isPositiveGood={false}
+              onWhyChanged={() => setRootMetric('dialRate')}
+              to={scoped('/lead-explorer?drill=delivery-to-first-dial')}
+              inspectLabel="Inspect breaches"
+            />
 
-            <div className="p-4 bg-surface rounded-xl border border-border-subtle shadow-2xs">
-              <span className="text-[11px] font-semibold text-text-mute uppercase tracking-wider block">
-                Oldest Undialled
-              </span>
-              <span className="text-2xl font-extrabold text-text-main cx-tabular mt-1 block truncate">
-                {data.backlog?.oldestUndialled || '—'}
-              </span>
-              <span className="text-[11px] text-text-sec mt-1 block">Age since delivery</span>
-            </div>
+            <UnifiedMetricCard
+              label="Oldest Undialled"
+              value={data.backlog?.oldestUndialled || '—'}
+              note="Age since delivery"
+              isPositiveGood={false}
+              onWhyChanged={() => setRootMetric('deliveryRate')}
+              to={scoped('/lead-explorer?drill=undialled-backlog')}
+              inspectLabel="Inspect oldest"
+            />
           </div>
 
           {data.methodology && (

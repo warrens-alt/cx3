@@ -8,6 +8,8 @@ import { useClient } from '../lib/ClientContext';
 import { fetchTemporal, type TemporalData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
+import UnifiedMetricCard from '../components/UnifiedMetricCard';
+import RootCauseDrawer from '../components/RootCauseDrawer';
 import { formatPercent, formatTableNumber } from '../lib/formatters';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
@@ -26,6 +28,8 @@ export default function TemporalIntelligence() {
   const { startDate, endDate, filters } = useFilters();
   const [timeBasis, setTimeBasis] = useState('Capture');
   const [metricView, setMetricView] = useState<MetricView>('contactRate');
+  const [rootMetric, setRootMetric] = useState<string | null>(null);
+  const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
 
   const { data, loading, error, loadData } = useOperationalData<TemporalData & { timeBases?: TimeBasis[]; methodology?:string }>('TemporalIntelligence', {
     clientId: selectedClient,
@@ -36,6 +40,39 @@ export default function TemporalIntelligence() {
 
   const selectedBasis = data?.timeBases?.find(b => b.basis === timeBasis);
   const activeHeatmap = selectedBasis?.heatmap || data?.heatmap || [];
+
+  const temporalSummary = useMemo(() => {
+    if (!activeHeatmap.length) return null;
+    const totalVolume = activeHeatmap.reduce((sum, r) => sum + (r.volume || 0), 0);
+    const totalWeightedContact = activeHeatmap.reduce((sum, r) => sum + (r.volume || 0) * (r.contactRate || 0), 0);
+    const totalWeightedSale = activeHeatmap.reduce((sum, r) => sum + (r.volume || 0) * (r.saleRate || 0), 0);
+    const totalWeightedActivation = activeHeatmap.reduce((sum, r) => sum + (r.volume || 0) * (r.activationRate || 0), 0);
+    const avgContactRate = totalVolume > 0 ? totalWeightedContact / totalVolume : null;
+    const avgSaleRate = totalVolume > 0 ? totalWeightedSale / totalVolume : null;
+    const avgActivationRate = totalVolume > 0 ? totalWeightedActivation / totalVolume : null;
+
+    const hourTotals = new Map<number, number>();
+    for (const r of activeHeatmap) {
+      hourTotals.set(r.hour, (hourTotals.get(r.hour) || 0) + (r.volume || 0));
+    }
+    let peakHour = 0;
+    let peakVol = 0;
+    for (const [h, v] of hourTotals.entries()) {
+      if (v > peakVol) {
+        peakVol = v;
+        peakHour = h;
+      }
+    }
+    const peakHourLabel = `${String(peakHour).padStart(2, '0')}:00 – ${String((peakHour + 1) % 24).padStart(2, '0')}:00`;
+
+    return {
+      totalVolume,
+      avgContactRate,
+      avgSaleRate,
+      avgActivationRate,
+      peakHourLabel,
+    };
+  }, [activeHeatmap]);
   const handleExportCsv = () => {
     if (!data) return;
     const rows = [
@@ -75,6 +112,58 @@ export default function TemporalIntelligence() {
 
         {data && (
           <>
+            {temporalSummary && (
+              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6" aria-label="Temporal performance summary">
+                <UnifiedMetricCard
+                  label="Period Volume"
+                  value={formatTableNumber(temporalSummary.totalVolume)}
+                  note={`${timeBasis} event distribution`}
+                  onWhyChanged={() => {
+                    setRootMetric('fetchedLeads');
+                    setRootMetricLabel('Temporal Lead Volume');
+                  }}
+                  to={scoped('/funnel')}
+                  inspectLabel="Inspect funnel"
+                />
+
+                <UnifiedMetricCard
+                  label="Peak Activity Window"
+                  value={temporalSummary.peakHourLabel || '—'}
+                  note="Highest event concentration"
+                  onWhyChanged={() => {
+                    setRootMetric('dialRate');
+                    setRootMetricLabel('Peak Activity Window');
+                  }}
+                  onInspect={() => setMetricView('volume')}
+                  inspectLabel="View volume map"
+                />
+
+                <UnifiedMetricCard
+                  label="Contact Rate (RPC)"
+                  value={temporalSummary.avgContactRate != null ? formatPercent(temporalSummary.avgContactRate) : '—'}
+                  note="Volume-weighted RPC"
+                  onWhyChanged={() => {
+                    setRootMetric('contactRate');
+                    setRootMetricLabel('Temporal Contact Rate');
+                  }}
+                  to={scoped('/contact-strategy')}
+                  inspectLabel="Inspect contact"
+                />
+
+                <UnifiedMetricCard
+                  label="Lead → Sale Rate"
+                  value={temporalSummary.avgSaleRate != null ? formatPercent(temporalSummary.avgSaleRate) : '—'}
+                  note="Observed sale conversion"
+                  onWhyChanged={() => {
+                    setRootMetric('leadToSaleRate');
+                    setRootMetricLabel('Temporal Sale Rate');
+                  }}
+                  to={scoped('/sales-activation')}
+                  inspectLabel="Inspect sales"
+                />
+              </section>
+            )}
+
             <div className="cx-control-note"><label>Event time <select aria-label="Temporal event basis" value={timeBasis} onChange={e => setTimeBasis(e.target.value)}>{(data.timeBases || []).map(b => <option key={b.basis}>{b.basis}</option>)}</select></label> · {formatTableNumber(selectedBasis?.missingTimestampLeads)} leads without this event timestamp. {data.methodology}</div>
             <section className="cx-command-panel">
               <header>
@@ -189,6 +278,16 @@ export default function TemporalIntelligence() {
           </>
         )}
       </div>
+
+      <RootCauseDrawer
+        open={Boolean(rootMetric)}
+        metric={rootMetric}
+        metricLabel={rootMetricLabel}
+        onClose={() => {
+          setRootMetric(null);
+          setRootMetricLabel(undefined);
+        }}
+      />
     </div>
   );
 }

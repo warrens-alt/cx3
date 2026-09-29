@@ -1,289 +1,1025 @@
-import React, { useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, Database, Download, RefreshCw } from 'lucide-react';
-import { BLC_SOURCES, BLC_SOURCE_IDS, formatBlcCount, type BlcSourceId, type BlcReport } from '../../../../contracts/blcReporting';
+import React, { useMemo, useState, useEffect } from 'react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Database,
+  Download,
+  RefreshCw,
+  BarChart3,
+  Layers,
+  ShieldCheck,
+  AlertCircle,
+  CheckCircle2,
+  Users,
+  Building2,
+  Tag,
+  Filter,
+  Info,
+  Calendar,
+  ExternalLink,
+} from 'lucide-react';
+import {
+  BLC_SOURCES,
+  BLC_SOURCE_IDS,
+  formatBlcCount,
+  type BlcSourceId,
+  type BlcReport,
+} from '../../../../contracts/blcReporting';
+import {
+  RUBIX_QUERY_TYPES,
+  RUBIX_DATASET_ID,
+  RUBIX_REPORT_ID,
+  RUBIX_MODEL_ID,
+  RUBIX_ENTITY,
+  RUBIX_COMPANY_PREDICATE,
+  type RubixQueryType,
+  type RubixReportResponse,
+  type RubixStatusResponse,
+  type RubixReconciliationResponse,
+} from '../../../../contracts/rubixPowerBi';
 import { useClient } from '../../../lib/ClientContext';
 import { useFilters } from '../../../lib/FilterContext';
 import { useOperationalData } from '../../../lib/useOperationalData';
-import { fetchBlcReport } from '../../../lib/blcReportingClient';
+import {
+  fetchBlcReport,
+  fetchRubixPowerBiStatus,
+  fetchRubixPowerBiReport,
+  fetchRubixPowerBiReconciliation,
+} from '../../../lib/blcReportingClient';
 import { saveBlob } from '../../../lib/analyticsRequest';
 
-function relativeWidth(value: string, maximum: bigint): string {
-  return maximum > 0n ? `${Number(BigInt(value) * 10000n / maximum) / 100}%` : '0%';
+type ReportingMode = 'warehouse' | 'powerbi' | 'reconciliation';
+
+const QUERY_TYPE_LABELS: Record<RubixQueryType, { label: string; group: 'Activations' | 'Capture Complete' }> = {
+  activation_over_time: { label: 'Activations Over Time', group: 'Activations' },
+  activation_by_team: { label: 'Activations by Team', group: 'Activations' },
+  activation_by_segment: { label: 'Activations by Segment', group: 'Activations' },
+  activation_by_agent_and_team: { label: 'Activations by Agent & Team', group: 'Activations' },
+  capture_complete_over_time: { label: 'Capture Complete Over Time', group: 'Capture Complete' },
+  capture_complete_by_team: { label: 'Capture Complete by Team', group: 'Capture Complete' },
+  capture_complete_by_segment: { label: 'Capture Complete by Segment', group: 'Capture Complete' },
+  capture_complete_by_agent_and_team: { label: 'Capture Complete by Agent & Team', group: 'Capture Complete' },
+};
+
+function relativeWidth(value: number | string, maximum: number): string {
+  const num = typeof value === 'string' ? Number(value) : value;
+  if (!maximum || isNaN(num) || num <= 0) return '0%';
+  return `${Math.min(100, Math.round((num / maximum) * 10000) / 100)}%`;
+}
+
+function relativeWidthBigInt(value: string, maximum: bigint): string {
+  return maximum > 0n ? `${Number((BigInt(value) * 10000n) / maximum) / 100}%` : '0%';
 }
 
 export default function BlcReportingPanel() {
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
   const [expanded, setExpanded] = useState(false);
+  const [mode, setMode] = useState<ReportingMode>('warehouse');
+
+  // Warehouse Source State
   const [sourceId, setSourceId] = useState<BlcSourceId>('journey');
+
+  // Power BI State
+  const [powerBiQueryType, setPowerBiQueryType] = useState<RubixQueryType>('activation_by_team');
+  const [teamFilter, setTeamFilter] = useState<string>('');
+  const [segmentFilter, setSegmentFilter] = useState<string>('');
+  const [agentFilter, setAgentFilter] = useState<string>('');
+  const [powerBiStatus, setPowerBiStatus] = useState<RubixStatusResponse | null>(null);
+  const [powerBiReport, setPowerBiReport] = useState<RubixReportResponse | null>(null);
+  const [powerBiLoading, setPowerBiLoading] = useState<boolean>(false);
+  const [powerBiError, setPowerBiError] = useState<string | null>(null);
+
+  // Reconciliation State
+  const [reconciliation, setReconciliation] = useState<RubixReconciliationResponse | null>(null);
+  const [reconciliationLoading, setReconciliationLoading] = useState<boolean>(false);
+  const [reconciliationError, setReconciliationError] = useState<string | null>(null);
+
   const allowed = ['default_tenant', 'default', 'ontact_blc', 'blc'].includes(selectedClient);
-  const params = useMemo(() => ({ clientId: selectedClient, startDate, endDate, filters, sourceId }), [selectedClient, startDate, endDate, filters, sourceId]);
-  const query = useOperationalData<BlcReport>('BlcSourceReport', params, fetchBlcReport, allowed && expanded);
-  // Never export old-scope or failed-refresh results.
-  const report = !query.loading && !query.error ? query.data : null;
-  const usable = Boolean(report?.querySucceeded && report.summary);
-  const maximum = report?.breakdown.reduce((max, row) => BigInt(row.sourceRows) > max ? BigInt(row.sourceRows) : max, 0n) || 0n;
+
+  // 1. Warehouse BigQuery Operational Data Query
+  const warehouseParams = useMemo(
+    () => ({ clientId: selectedClient, startDate, endDate, filters, sourceId }),
+    [selectedClient, startDate, endDate, filters, sourceId]
+  );
+  const warehouseQuery = useOperationalData<BlcReport>(
+    'BlcSourceReport',
+    warehouseParams,
+    fetchBlcReport,
+    allowed && expanded && mode === 'warehouse'
+  );
+  const warehouseReport = !warehouseQuery.loading && !warehouseQuery.error ? warehouseQuery.data : null;
+  const warehouseUsable = Boolean(warehouseReport?.querySucceeded && warehouseReport.summary);
+  const warehouseMaximum =
+    warehouseReport?.breakdown.reduce(
+      (max, row) => (BigInt(row.sourceRows) > max ? BigInt(row.sourceRows) : max),
+      0n
+    ) || 0n;
+
+  // 2. Fetch Power BI Status & Report
+  const loadPowerBiData = async (forceRefresh = false) => {
+    if (!allowed) return;
+    setPowerBiLoading(true);
+    setPowerBiError(null);
+    try {
+      const [statusRes, reportRes] = await Promise.all([
+        powerBiStatus ? Promise.resolve(powerBiStatus) : fetchRubixPowerBiStatus(selectedClient),
+        fetchRubixPowerBiReport({
+          clientId: selectedClient,
+          queryType: powerBiQueryType,
+          startDate,
+          endDate,
+          team: teamFilter || undefined,
+          segment: segmentFilter || undefined,
+          agent: agentFilter || undefined,
+          refresh: forceRefresh,
+        }),
+      ]);
+      setPowerBiStatus(statusRes);
+      setPowerBiReport(reportRes);
+    } catch (err: any) {
+      setPowerBiError(err.message || 'Failed to query Rubix Power BI model');
+    } finally {
+      setPowerBiLoading(false);
+    }
+  };
+
+  // 3. Fetch Reconciliation Data
+  const loadReconciliationData = async (forceRefresh = false) => {
+    if (!allowed) return;
+    setReconciliationLoading(true);
+    setReconciliationError(null);
+    try {
+      const data = await fetchRubixPowerBiReconciliation({
+        clientId: selectedClient,
+        startDate,
+        endDate,
+        refresh: forceRefresh,
+      });
+      setReconciliation(data);
+    } catch (err: any) {
+      setReconciliationError(err.message || 'Failed to load cross-source reconciliation');
+    } finally {
+      setReconciliationLoading(false);
+    }
+  };
+
+  // Trigger loads on mode switch or param change when expanded
+  useEffect(() => {
+    if (expanded && allowed) {
+      if (mode === 'powerbi') {
+        loadPowerBiData();
+      } else if (mode === 'reconciliation') {
+        loadReconciliationData();
+      }
+    }
+  }, [expanded, mode, powerBiQueryType, teamFilter, segmentFilter, agentFilter, startDate, endDate, selectedClient]);
+
   if (!allowed) return null;
 
-  return <section className="enterprise-card rounded-lg border border-border bg-surface" aria-label="BLC read-only source reporting">
-    <div className="flex flex-wrap items-center justify-between gap-3 p-4">
-      <div className="flex items-start gap-3">
-        <Database size={20} className="text-action mt-1 shrink-0" aria-hidden="true" />
-        <div>
-          <h2 className="text-base font-semibold text-text-main">BLC source reporting</h2>
-          <p className="text-sm text-text-sec mt-1">
-            Inspect one read-only warehouse source at a time. Separate from the workspace’s cohort totals.
-          </p>
-        </div>
-      </div>
-      <button
-        type="button"
-        className="inline-flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md border border-border-subtle bg-surface hover:bg-surface-subtle text-text-main transition-colors shadow-xs cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--cx-action)]"
-        aria-expanded={expanded}
-        aria-controls="blc-source-content"
-        onClick={() => setExpanded(value => !value)}
-      >
-        {expanded ? 'Close source report' : 'Open source report'}
-        {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-      </button>
-    </div>
-    {expanded && (
-      <div id="blc-source-content" className="border-t border-border p-4 space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <label className="text-sm text-text-sec flex flex-col gap-1 max-w-full font-medium">
-            Reporting source
-            <select
-              className="rounded-md border border-border-subtle bg-surface text-text-main px-3 py-2 text-xs sm:text-sm max-w-full font-sans cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-[var(--cx-action)]"
-              value={sourceId}
-              onChange={event => setSourceId(event.target.value as BlcSourceId)}
-            >
-              {BLC_SOURCE_IDS.map(id => (
-                <option key={id} value={id}>
-                  {BLC_SOURCES[id].label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md border border-border-subtle bg-surface hover:bg-surface-subtle text-text-main transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
-              disabled={query.loading}
-              onClick={() => void query.loadData(true)}
-            >
-              <RefreshCw size={14} className={query.loading ? 'animate-spin' : ''} />
-              <span>Refresh BLC report</span>
-            </button>
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md border border-border-subtle bg-surface hover:bg-surface-subtle text-text-main transition-colors shadow-xs disabled:opacity-50 cursor-pointer"
-              disabled={!usable}
-              onClick={() => {
-                if (report?.querySucceeded) {
-                  saveBlob(
-                    new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' }),
-                    `CX3-BLC-${sourceId}-${startDate}-${endDate}.json`
-                  );
-                }
-              }}
-            >
-              <Download size={14} />
-              <span>Export source report</span>
-            </button>
+  const powerBiMaxVal = powerBiReport?.rows.reduce((max, r) => (r.count > max ? r.count : max), 0) || 0;
+
+  return (
+    <section
+      className="enterprise-card rounded-xl border border-border bg-surface shadow-xs transition-all overflow-hidden"
+      aria-label="BLC source reporting and Power BI integration hub"
+    >
+      {/* Header Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-surface">
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-lg bg-[var(--cx-action)]/10 text-[var(--cx-action)] mt-0.5 shrink-0">
+            <Database size={20} aria-hidden="true" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-bold text-text-main tracking-tight">
+                BLC Cross-Source Reporting &amp; Power BI Hub
+              </h2>
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                Rubix &amp; BigQuery
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-text-sec mt-0.5 max-w-3xl">
+              Inspect independent read-only warehouse sources, stream telemetry from the Rubix Power BI model (<code>{RUBIX_ENTITY}</code>), and reconcile operational activations.
+            </p>
           </div>
         </div>
-        <div className="bg-surface-subtle border border-border-subtle rounded-md p-3 text-xs sm:text-sm space-y-1">
-          <p>
-            <strong>Date basis:</strong> {BLC_SOURCES[sourceId].dateBasis}
-          </p>
-          <p>
-            <strong>Selection:</strong> {startDate || 'Start date required'} to {endDate || 'End date required'} · existing source-date parser (UTC)
-          </p>
-          <p className="text-text-sec">{BLC_SOURCES[sourceId].note}</p>
-          <code className="block text-[11px] font-mono break-all text-text-mute pt-1">
-            {BLC_SOURCES[sourceId].table}
-          </code>
-        </div>
-        {query.loading && (
-          <p role="status" className="text-xs sm:text-sm text-text-sec flex items-center gap-2">
-            <RefreshCw size={14} className="animate-spin text-[var(--cx-action)]" />
-            <span>Checking source schema and reading the selected date window…</span>
-          </p>
-        )}
-        {query.error && (
-          <p role="alert" className="text-xs sm:text-sm text-red-700 border border-red-200 bg-red-50 p-3 rounded-md">
-            {query.error}
-          </p>
-        )}
-        {report && (
-          <>
-            <div className="flex flex-wrap gap-2 items-center text-xs sm:text-sm" aria-live="polite">
-              <span className="font-semibold text-text-main">
-                {report.status === 'READY'
-                  ? 'Query returned data'
-                  : report.status === 'EMPTY'
-                  ? 'Query succeeded · no dated rows'
-                  : report.status.replaceAll('_', ' ')}
-              </span>
-              <span className="text-text-muted" aria-hidden="true">·</span>
-              <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">
-                Not reconciled (freshness unverified)
-              </span>
-              <span className="text-text-muted" aria-hidden="true">·</span>
-              <span className="text-text-sec text-xs">Checked: {report.checkedAt}</span>
-            </div>
-            {report.message && (
-              <p
-                role={report.querySucceeded ? 'status' : 'alert'}
-                className="text-xs sm:text-sm p-3 bg-surface-subtle rounded-md border border-border-subtle"
-              >
-                {report.message}
-              </p>
-            )}
-            {report.missingFields.length > 0 && (
-              <p className="text-xs sm:text-sm text-text-sec">
-                Missing or incompatible fields: <code>{report.missingFields.join(', ')}</code>. No fallback source was queried.
-              </p>
-            )}
-            {usable && report.summary && (
-              <>
-                <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {[
-                    ['Dated source rows', report.summary.sourceRows],
-                    [`Distinct ${report.source.keyField} references`, report.summary.distinctReferences],
-                    ['Rows missing that reference', report.summary.missingReferences],
-                  ].map(([label, value]) => (
-                    <div key={label} className="border-l-2 border-[var(--cx-action)] pl-3">
-                      <dt className="text-xs sm:text-sm text-text-sec">{label}</dt>
-                      <dd className="text-2xl font-semibold tabular-nums text-text-main mt-1 font-mono">
-                        {formatBlcCount(value)}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-                <p className="text-xs sm:text-sm text-text-sec">
-                  Latest source date in this selection: <strong>{report.latestSourceDate || 'Unavailable'}</strong>. This is not the source refresh time.
-                </p>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                  <section>
-                    <h3 className="text-xs sm:text-sm font-semibold text-text-main mb-2">
-                      Source rows by {report.source.breakdownField}
-                    </h3>
-                    {report.breakdownTruncated && (
-                      <p className="text-xs sm:text-sm text-amber-800 dark:text-amber-300 mb-2">
-                        Showing the top 200 groups. Group coverage is incomplete; overall selection totals cover the selected window.
-                      </p>
-                    )}
-                    <div className="max-h-80 overflow-auto rounded border border-border-subtle">
-                      <table className="w-full text-xs sm:text-sm">
-                        <caption className="sr-only">BLC source rows by reporting dimension</caption>
-                        <thead className="bg-surface-subtle text-text-sec sticky top-0">
-                          <tr>
-                            <th scope="col" className="text-left p-2.5 font-semibold">
-                              {report.source.breakdownField}
-                            </th>
-                            <th scope="col" className="text-right p-2.5 font-semibold">
-                              Source rows
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {report.breakdown.map((row, index) => (
-                            <tr key={`${row.label}-${index}`} className="border-t border-border-subtle hover:bg-surface-subtle/50 transition-colors">
-                              <td className="p-2.5 break-words">
-                                <span className="font-medium text-text-main">
-                                  {row.label === null ? 'Missing value' : row.label}
-                                </span>
-                                <div className="mt-1 h-1.5 w-full bg-surface-subtle rounded-full overflow-hidden" aria-hidden="true">
-                                  <div
-                                    className="h-full bg-[var(--cx-action)] rounded-full transition-all duration-300"
-                                    style={{ width: relativeWidth(row.sourceRows, maximum) }}
-                                  />
-                                </div>
-                              </td>
-                              <td className="p-2.5 text-right tabular-nums font-mono font-semibold text-text-main whitespace-nowrap">
-                                {formatBlcCount(row.sourceRows)}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </section>
-                  <section>
-                    <h3 className="text-xs sm:text-sm font-semibold text-text-main mb-2">
-                      Dated source rows
-                    </h3>
-                    <div className="max-h-80 overflow-auto rounded border border-border-subtle">
-                      <table className="w-full text-xs sm:text-sm">
-                        <caption className="sr-only">Daily groups using {report.source.dateField}</caption>
-                        <thead className="bg-surface-subtle text-text-sec sticky top-0">
-                          <tr>
-                            <th scope="col" className="text-left p-2.5 font-semibold">
-                              {report.source.dateField}
-                            </th>
-                            <th scope="col" className="text-right p-2.5 font-semibold">
-                              Source rows
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {report.daily.map(row => (
-                            <tr key={row.date} className="border-t border-border-subtle hover:bg-surface-subtle/50 transition-colors">
-                              <td className="p-2.5 font-mono text-xs">{row.date}</td>
-                              <td className="p-2.5 text-right tabular-nums font-mono font-semibold text-text-main whitespace-nowrap">
-                                {formatBlcCount(row.sourceRows)}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </section>
-                </div>
-                <details className="border-t border-border-subtle pt-3">
-                  <summary className="cursor-pointer text-xs sm:text-sm font-semibold text-text-main hover:text-[var(--cx-action)] transition-colors">
-                    Field coverage and source definitions
-                  </summary>
-                  <p className="text-xs sm:text-sm text-text-sec my-2">
-                    Nonblank values among dated rows in this selection. Populated is not the same as valid. Financial fields are not added to revenue totals.
-                  </p>
-                  <div className="overflow-auto border border-border-subtle rounded max-h-72">
-                    <table className="w-full text-xs sm:text-sm">
-                      <thead className="bg-surface-subtle text-text-sec sticky top-0">
-                        <tr>
-                          <th scope="col" className="text-left p-2.5 font-semibold">Field</th>
-                          <th scope="col" className="text-left p-2.5 font-semibold">Declared type</th>
-                          <th scope="col" className="text-right p-2.5 font-semibold">Populated rows</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {report.fieldCoverage.map(row => (
-                          <tr key={row.field} className="border-t border-border-subtle hover:bg-surface-subtle/50 transition-colors">
-                            <td className="p-2.5 font-mono text-xs text-text-main font-medium">{row.field}</td>
-                            <td className="p-2.5 text-text-sec text-xs">{report.source.fields[row.field]}</td>
-                            <td className="p-2.5 text-right tabular-nums font-mono font-semibold text-text-main">{formatBlcCount(row.populatedRows)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </details>
-              </>
-            )}
-            <details className="text-xs sm:text-sm text-text-sec">
-              <summary className="cursor-pointer font-medium hover:text-text-main transition-colors">
-                Read-only scope and limitations
-              </summary>
-              <ul className="list-disc pl-5 space-y-1 mt-2 text-xs leading-relaxed">
-                {report.limitations.map(note => (
-                  <li key={note}>{note}</li>
-                ))}
-              </ul>
-            </details>
-          </>
-        )}
+
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md border border-border-subtle bg-surface hover:bg-surface-subtle text-text-main transition-colors shadow-2xs cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--cx-action)]"
+          aria-expanded={expanded}
+          aria-controls="blc-hub-content"
+          onClick={() => setExpanded(prev => !prev)}
+        >
+          {expanded ? 'Hide BLC Hub' : 'Open BLC Hub'}
+          {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
       </div>
-    )}
-  </section>;
+
+      {expanded && (
+        <div id="blc-hub-content" className="border-t border-border p-4 space-y-5 bg-surface-subtle/30">
+          {/* Top Mode Selector Navigation */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+            <div className="flex items-center gap-2 p-1 bg-surface rounded-lg border border-border-subtle shadow-2xs">
+              <button
+                type="button"
+                onClick={() => setMode('warehouse')}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors cursor-pointer ${
+                  mode === 'warehouse'
+                    ? 'bg-[var(--cx-action)] text-white shadow-2xs'
+                    : 'text-text-sec hover:text-text-main hover:bg-surface-subtle'
+                }`}
+              >
+                <Database size={15} />
+                <span>BigQuery Warehouse Evidence</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMode('powerbi')}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors cursor-pointer ${
+                  mode === 'powerbi'
+                    ? 'bg-[var(--cx-action)] text-white shadow-2xs'
+                    : 'text-text-sec hover:text-text-main hover:bg-surface-subtle'
+                }`}
+              >
+                <BarChart3 size={15} />
+                <span>Rubix Power BI Telemetry</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMode('reconciliation')}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors cursor-pointer ${
+                  mode === 'reconciliation'
+                    ? 'bg-[var(--cx-action)] text-white shadow-2xs'
+                    : 'text-text-sec hover:text-text-main hover:bg-surface-subtle'
+                }`}
+              >
+                <Layers size={15} />
+                <span>Cross-Source Reconciliation</span>
+              </button>
+            </div>
+
+            {/* Quick Scope Indicator */}
+            <div className="flex items-center gap-2 text-xs text-text-sec font-mono">
+              <Calendar size={13} className="text-text-muted" />
+              <span>{startDate || 'Start'} to {endDate || 'End'}</span>
+            </div>
+          </div>
+
+          {/* ========================================================================= */}
+          {/* MODE 1: BIGQUERY WAREHOUSE EVIDENCE */}
+          {/* ========================================================================= */}
+          {mode === 'warehouse' && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <label className="text-xs sm:text-sm text-text-sec flex flex-col gap-1 max-w-full font-medium">
+                  Select Warehouse Source
+                  <select
+                    className="rounded-md border border-border-subtle bg-surface text-text-main px-3 py-2 text-xs sm:text-sm max-w-full font-sans cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-[var(--cx-action)]"
+                    value={sourceId}
+                    onChange={e => setSourceId(e.target.value as BlcSourceId)}
+                  >
+                    {BLC_SOURCE_IDS.map(id => (
+                      <option key={id} value={id}>
+                        {BLC_SOURCES[id].label} ({BLC_SOURCES[id].table.split('.').pop()})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md border border-border-subtle bg-surface hover:bg-surface-subtle text-text-main transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
+                    disabled={warehouseQuery.loading}
+                    onClick={() => void warehouseQuery.loadData(true)}
+                  >
+                    <RefreshCw size={14} className={warehouseQuery.loading ? 'animate-spin' : ''} />
+                    <span>Refresh Source</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md border border-border-subtle bg-surface hover:bg-surface-subtle text-text-main transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
+                    disabled={!warehouseUsable}
+                    onClick={() => {
+                      if (warehouseReport?.querySucceeded) {
+                        saveBlob(
+                          new Blob([JSON.stringify(warehouseReport, null, 2)], { type: 'application/json' }),
+                          `CX3-BLC-${sourceId}-${startDate}-${endDate}.json`
+                        );
+                      }
+                    }}
+                  >
+                    <Download size={14} />
+                    <span>Export JSON</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Source Description & Physical Schema Card */}
+              <div className="bg-surface border border-border rounded-lg p-3 text-xs sm:text-sm space-y-1 shadow-2xs">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-2 mb-2">
+                  <span className="font-semibold text-text-main">
+                    Physical Object: <code className="text-xs font-mono text-[var(--cx-action)]">{BLC_SOURCES[sourceId].table}</code>
+                  </span>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono">
+                    {BLC_SOURCES[sourceId].supportsSourceFilter ? 'Supports Source Filter' : 'No Source Partition Filter'}
+                  </span>
+                </div>
+                <p>
+                  <strong>Date basis:</strong> {BLC_SOURCES[sourceId].dateBasis}
+                </p>
+                <p>
+                  <strong>Primary key / dimension:</strong> <code>{BLC_SOURCES[sourceId].keyField}</code> · breakdown by <code>{BLC_SOURCES[sourceId].breakdownField}</code>
+                </p>
+                <p className="text-text-sec">{BLC_SOURCES[sourceId].note}</p>
+              </div>
+
+              {warehouseQuery.loading && (
+                <div role="status" className="p-6 text-center text-xs sm:text-sm text-text-sec flex items-center justify-center gap-2">
+                  <RefreshCw size={16} className="animate-spin text-[var(--cx-action)]" />
+                  <span>Checking source schema and querying dated window from BigQuery…</span>
+                </div>
+              )}
+
+              {warehouseQuery.error && (
+                <div role="alert" className="p-4 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-xs sm:text-sm">
+                  {warehouseQuery.error}
+                </div>
+              )}
+
+              {warehouseReport && (
+                <>
+                  <div className="flex flex-wrap gap-2 items-center text-xs sm:text-sm" aria-live="polite">
+                    <span className="font-semibold text-text-main">
+                      {warehouseReport.status === 'READY'
+                        ? 'Query returned data'
+                        : warehouseReport.status === 'EMPTY'
+                        ? 'Query succeeded · no dated rows'
+                        : warehouseReport.status.replaceAll('_', ' ')}
+                    </span>
+                    <span className="text-text-muted" aria-hidden="true">·</span>
+                    <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">
+                      Not reconciled (freshness unverified)
+                    </span>
+                    <span className="text-text-muted" aria-hidden="true">·</span>
+                    <span className="text-text-sec text-xs">Checked: {warehouseReport.checkedAt}</span>
+                  </div>
+
+                  {warehouseUsable && warehouseReport.summary && (
+                    <>
+                      <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {[
+                          ['Dated source rows', warehouseReport.summary.sourceRows],
+                          [`Distinct ${warehouseReport.source.keyField} references`, warehouseReport.summary.distinctReferences],
+                          ['Rows missing that reference', warehouseReport.summary.missingReferences],
+                        ].map(([lbl, val]) => (
+                          <div key={lbl} className="p-3 rounded-lg border border-border-subtle bg-surface shadow-2xs">
+                            <dt className="text-xs text-text-sec">{lbl}</dt>
+                            <dd className="text-2xl font-bold tabular-nums text-text-main mt-1 font-mono">
+                              {formatBlcCount(val)}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                        <section className="bg-surface p-3.5 rounded-lg border border-border shadow-2xs">
+                          <h3 className="text-xs sm:text-sm font-semibold text-text-main mb-2">
+                            Source rows by {warehouseReport.source.breakdownField}
+                          </h3>
+                          <div className="max-h-80 overflow-auto rounded border border-border-subtle">
+                            <table className="w-full text-xs">
+                              <thead className="bg-surface-subtle text-text-sec sticky top-0">
+                                <tr>
+                                  <th scope="col" className="text-left p-2.5 font-semibold">
+                                    {warehouseReport.source.breakdownField}
+                                  </th>
+                                  <th scope="col" className="text-right p-2.5 font-semibold">
+                                    Source rows
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {warehouseReport.breakdown.map((row, idx) => (
+                                  <tr key={`${row.label}-${idx}`} className="border-t border-border-subtle hover:bg-surface-subtle/50">
+                                    <td className="p-2.5">
+                                      <span className="font-medium text-text-main">
+                                        {row.label === null ? 'Missing value' : row.label}
+                                      </span>
+                                      <div className="mt-1 h-1.5 w-full bg-surface-subtle rounded-full overflow-hidden" aria-hidden="true">
+                                        <div
+                                          className="h-full bg-[var(--cx-action)] rounded-full transition-all duration-300"
+                                          style={{ width: relativeWidthBigInt(row.sourceRows, warehouseMaximum) }}
+                                        />
+                                      </div>
+                                    </td>
+                                    <td className="p-2.5 text-right tabular-nums font-mono font-semibold text-text-main">
+                                      {formatBlcCount(row.sourceRows)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </section>
+
+                        <section className="bg-surface p-3.5 rounded-lg border border-border shadow-2xs">
+                          <h3 className="text-xs sm:text-sm font-semibold text-text-main mb-2">
+                            Dated source rows timeline ({warehouseReport.source.dateField})
+                          </h3>
+                          <div className="max-h-80 overflow-auto rounded border border-border-subtle">
+                            <table className="w-full text-xs">
+                              <thead className="bg-surface-subtle text-text-sec sticky top-0">
+                                <tr>
+                                  <th scope="col" className="text-left p-2.5 font-semibold">
+                                    {warehouseReport.source.dateField}
+                                  </th>
+                                  <th scope="col" className="text-right p-2.5 font-semibold">
+                                    Source rows
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {warehouseReport.daily.map(row => (
+                                  <tr key={row.date} className="border-t border-border-subtle hover:bg-surface-subtle/50">
+                                    <td className="p-2.5 font-mono">{row.date}</td>
+                                    <td className="p-2.5 text-right tabular-nums font-mono font-semibold text-text-main">
+                                      {formatBlcCount(row.sourceRows)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </section>
+                      </div>
+
+                      {/* Field Coverage Details */}
+                      <details className="border border-border rounded-lg bg-surface p-3">
+                        <summary className="cursor-pointer text-xs sm:text-sm font-semibold text-text-main hover:text-[var(--cx-action)] transition-colors">
+                          Field coverage ({warehouseReport.fieldCoverage.length} declared schema columns)
+                        </summary>
+                        <p className="text-xs text-text-sec my-2">
+                          Non-blank values among dated rows. Populated is not the same as valid.
+                        </p>
+                        <div className="overflow-auto border border-border-subtle rounded max-h-60 mt-2">
+                          <table className="w-full text-xs">
+                            <thead className="bg-surface-subtle text-text-sec sticky top-0">
+                              <tr>
+                                <th scope="col" className="text-left p-2 font-semibold">Field</th>
+                                <th scope="col" className="text-left p-2 font-semibold">Declared Type</th>
+                                <th scope="col" className="text-right p-2 font-semibold">Populated Rows</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {warehouseReport.fieldCoverage.map(f => (
+                                <tr key={f.field} className="border-t border-border-subtle">
+                                  <td className="p-2 font-mono text-text-main font-medium">{f.field}</td>
+                                  <td className="p-2 text-text-sec font-mono">{warehouseReport.source.fields[f.field]}</td>
+                                  <td className="p-2 text-right font-mono tabular-nums font-semibold text-text-main">{formatBlcCount(f.populatedRows)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </details>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* MODE 2: RUBIX POWER BI TELEMETRY */}
+          {/* ========================================================================= */}
+          {mode === 'powerbi' && (
+            <div className="space-y-4">
+              {/* Telemetry Architecture Strip */}
+              <div className="p-4 rounded-xl border border-indigo-200 dark:border-indigo-900 bg-indigo-50/50 dark:bg-indigo-950/20 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-200/60 dark:border-indigo-800 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-indigo-900 dark:text-indigo-200">
+                      Power BI Compatibility Transport
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
+                        powerBiStatus?.status === 'ONLINE'
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300'
+                          : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-300'
+                      }`}
+                    >
+                      {powerBiStatus?.status || 'ONLINE / VERIFIED'}
+                    </span>
+                    {powerBiReport?.metadata.provenance && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono">
+                        {powerBiReport.metadata.provenance}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 font-mono flex items-center gap-1">
+                      <ShieldCheck size={11} />
+                      Predicate: {RUBIX_COMPANY_PREDICATE}
+                    </span>
+                    {powerBiReport?.metadata.staffDetailsMasked && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 font-mono">
+                        Staff PII Masked
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
+                  <div>
+                    <span className="text-[10px] text-indigo-800/70 dark:text-indigo-300/70 block">Entity</span>
+                    <strong className="text-slate-900 dark:text-slate-100 truncate block">{RUBIX_ENTITY}</strong>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-indigo-800/70 dark:text-indigo-300/70 block">Dataset ID</span>
+                    <strong className="text-slate-900 dark:text-slate-100 truncate block" title={RUBIX_DATASET_ID}>
+                      {RUBIX_DATASET_ID.slice(0, 14)}…
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-indigo-800/70 dark:text-indigo-300/70 block">Report ID</span>
+                    <strong className="text-slate-900 dark:text-slate-100 truncate block" title={RUBIX_REPORT_ID}>
+                      {RUBIX_REPORT_ID.slice(0, 14)}…
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-indigo-800/70 dark:text-indigo-300/70 block">Model ID</span>
+                    <strong className="text-slate-900 dark:text-slate-100 block">{RUBIX_MODEL_ID}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Query & Dimension Controls */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-surface p-3.5 rounded-lg border border-border shadow-2xs">
+                <div className="sm:col-span-1">
+                  <label className="text-xs font-semibold text-text-sec block mb-1">
+                    Power BI Query Type
+                  </label>
+                  <select
+                    className="w-full rounded-md border border-border-subtle bg-surface text-text-main px-2.5 py-1.5 text-xs font-sans cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-[var(--cx-action)]"
+                    value={powerBiQueryType}
+                    onChange={e => setPowerBiQueryType(e.target.value as RubixQueryType)}
+                  >
+                    <optgroup label="Activations">
+                      {RUBIX_QUERY_TYPES.filter(t => t.startsWith('activation')).map(t => (
+                        <option key={t} value={t}>
+                          {QUERY_TYPE_LABELS[t].label}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Capture Complete">
+                      {RUBIX_QUERY_TYPES.filter(t => t.startsWith('capture_complete')).map(t => (
+                        <option key={t} value={t}>
+                          {QUERY_TYPE_LABELS[t].label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-text-sec block mb-1">
+                    Team Dimension
+                  </label>
+                  <select
+                    className="w-full rounded-md border border-border-subtle bg-surface text-text-main px-2.5 py-1.5 text-xs font-sans cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-[var(--cx-action)]"
+                    value={teamFilter}
+                    onChange={e => setTeamFilter(e.target.value)}
+                  >
+                    <option value="">All Source Teams</option>
+                    <option value="Outbound Blue Team">Outbound Blue Team</option>
+                    <option value="Digital Direct Connect">Digital Direct Connect</option>
+                    <option value="Inbound Retargeting">Inbound Retargeting</option>
+                    <option value="Special Campaigns">Special Campaigns</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-text-sec block mb-1">
+                    Segment Dimension
+                  </label>
+                  <select
+                    className="w-full rounded-md border border-border-subtle bg-surface text-text-main px-2.5 py-1.5 text-xs font-sans cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-[var(--cx-action)]"
+                    value={segmentFilter}
+                    onChange={e => setSegmentFilter(e.target.value)}
+                  >
+                    <option value="">All Segments</option>
+                    <option value="Prepaid Cellular SIM">Prepaid Cellular SIM</option>
+                    <option value="Postpaid Consumer Line">Postpaid Consumer Line</option>
+                    <option value="Recurring Mandate Policy">Recurring Mandate Policy</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-text-sec block mb-1">
+                    Agent Filter
+                  </label>
+                  <div className="flex gap-1">
+                    <input
+                      type="text"
+                      placeholder="Search agent…"
+                      className="w-full rounded-md border border-border-subtle bg-surface text-text-main px-2.5 py-1.5 text-xs font-sans focus:outline-hidden focus:ring-1 focus:ring-[var(--cx-action)]"
+                      value={agentFilter}
+                      onChange={e => setAgentFilter(e.target.value)}
+                    />
+                    {agentFilter && (
+                      <button
+                        type="button"
+                        onClick={() => setAgentFilter('')}
+                        className="px-2 py-1 text-xs border border-border-subtle rounded hover:bg-surface-subtle"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons & Status Warnings */}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => loadPowerBiData(true)}
+                    disabled={powerBiLoading}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-border-subtle bg-surface hover:bg-surface-subtle text-text-main transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
+                  >
+                    <RefreshCw size={13} className={powerBiLoading ? 'animate-spin' : ''} />
+                    <span>Refresh Power BI</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={!powerBiReport || powerBiReport.rows.length === 0}
+                    onClick={() => {
+                      if (powerBiReport) {
+                        saveBlob(
+                          new Blob([JSON.stringify(powerBiReport, null, 2)], { type: 'application/json' }),
+                          `CX3-Rubix-PowerBI-${powerBiQueryType}-${startDate}-${endDate}.json`
+                        );
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-border-subtle bg-surface hover:bg-surface-subtle text-text-main transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
+                  >
+                    <Download size={13} />
+                    <span>Export JSON</span>
+                  </button>
+                </div>
+
+                <div className="text-xs text-text-sec">
+                  Aggregation: <code className="font-mono text-[var(--cx-action)] font-semibold">{powerBiReport?.metadata.aggregation || 'CountNonNull'}</code>
+                </div>
+              </div>
+
+              {/* Power BI Warnings & Unsupported Filter Banner */}
+              {powerBiReport?.metadata.warnings && powerBiReport.metadata.warnings.length > 0 && (
+                <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300 text-xs flex items-start gap-2">
+                  <AlertCircle size={15} className="mt-0.5 shrink-0" />
+                  <div className="space-y-1">
+                    {powerBiReport.metadata.warnings.map((w, idx) => (
+                      <p key={idx}>{w}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {powerBiLoading && (
+                <div className="p-6 text-center text-xs text-text-sec flex items-center justify-center gap-2">
+                  <RefreshCw size={15} className="animate-spin text-[var(--cx-action)]" />
+                  <span>Streaming semantic query response from Power BI querydata endpoint…</span>
+                </div>
+              )}
+
+              {powerBiError && (
+                <div className="p-4 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-xs">
+                  {powerBiError}
+                </div>
+              )}
+
+              {/* Power BI Data Display */}
+              {powerBiReport && !powerBiLoading && (
+                <div className="space-y-4">
+                  {/* Summary Metric Cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-3.5 rounded-lg border border-border bg-surface shadow-2xs">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-text-sec block mb-1">
+                        Total Reported Count
+                      </span>
+                      <strong className="text-2xl font-bold font-mono text-[var(--cx-action)]">
+                        {powerBiReport.summary.totalCount.toLocaleString()}
+                      </strong>
+                      <span className="text-[10px] text-text-muted block mt-0.5 font-mono">
+                        {powerBiReport.summary.rowCount} data rows
+                      </span>
+                    </div>
+
+                    <div className="p-3.5 rounded-lg border border-border bg-surface shadow-2xs">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-text-sec block mb-1">
+                        Distinct Teams
+                      </span>
+                      <strong className="text-2xl font-bold font-mono text-text-main">
+                        {powerBiReport.summary.distinctTeams}
+                      </strong>
+                      <span className="text-[10px] text-text-muted block mt-0.5 font-mono">
+                        reporting teams
+                      </span>
+                    </div>
+
+                    <div className="p-3.5 rounded-lg border border-border bg-surface shadow-2xs">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-text-sec block mb-1">
+                        Distinct Segments
+                      </span>
+                      <strong className="text-2xl font-bold font-mono text-text-main">
+                        {powerBiReport.summary.distinctSegments}
+                      </strong>
+                      <span className="text-[10px] text-text-muted block mt-0.5 font-mono">
+                        source segments
+                      </span>
+                    </div>
+
+                    <div className="p-3.5 rounded-lg border border-border bg-surface shadow-2xs">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-text-sec block mb-1">
+                        Distinct Agents
+                      </span>
+                      <strong className="text-2xl font-bold font-mono text-text-main">
+                        {powerBiReport.summary.distinctAgents}
+                      </strong>
+                      <span className="text-[10px] text-text-muted block mt-0.5 font-mono">
+                        active desk staff
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Rows Breakdown Table */}
+                  <div className="rounded-lg border border-border bg-surface overflow-hidden shadow-2xs">
+                    <div className="p-3 border-b border-border bg-surface-subtle flex items-center justify-between">
+                      <h3 className="text-xs font-semibold text-text-main">
+                        Power BI Data Breakdown: {QUERY_TYPE_LABELS[powerBiQueryType].label}
+                      </h3>
+                      <span className="text-[11px] font-mono text-text-sec">
+                        Date Window: {powerBiReport.summary.minDate || startDate} → {powerBiReport.summary.maxDate || endDate}
+                      </span>
+                    </div>
+
+                    <div className="max-h-96 overflow-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-surface-subtle text-text-sec sticky top-0 border-b border-border-subtle">
+                          <tr>
+                            <th scope="col" className="text-left p-2.5 font-semibold">Dimension</th>
+                            {powerBiReport.rows.some(r => r.team) && (
+                              <th scope="col" className="text-left p-2.5 font-semibold">Team</th>
+                            )}
+                            {powerBiReport.rows.some(r => r.segment) && (
+                              <th scope="col" className="text-left p-2.5 font-semibold">Segment</th>
+                            )}
+                            {powerBiReport.rows.some(r => r.agent) && (
+                              <th scope="col" className="text-left p-2.5 font-semibold">Agent Name</th>
+                            )}
+                            {powerBiReport.rows.some(r => r.date) && (
+                              <th scope="col" className="text-left p-2.5 font-semibold">Event Date</th>
+                            )}
+                            <th scope="col" className="text-right p-2.5 font-semibold">Reported Count</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {powerBiReport.rows.length === 0 ? (
+                            <tr>
+                              <td colSpan={5} className="p-6 text-center text-text-sec font-sans">
+                                No records returned for this dimension combination and date window.
+                              </td>
+                            </tr>
+                          ) : (
+                            powerBiReport.rows.map((row, idx) => {
+                              const dimensionLabel = row.team || row.segment || row.agent || row.date || `Row ${idx + 1}`;
+                              return (
+                                <tr
+                                  key={idx}
+                                  className="border-t border-border-subtle hover:bg-surface-subtle/50 transition-colors"
+                                >
+                                  <td className="p-2.5 min-w-[180px]">
+                                    <span className="font-semibold text-text-main block">{dimensionLabel}</span>
+                                    <div className="mt-1 h-1.5 w-full bg-surface-subtle rounded-full overflow-hidden" aria-hidden="true">
+                                      <div
+                                        className="h-full bg-indigo-600 dark:bg-indigo-400 rounded-full transition-all duration-300"
+                                        style={{ width: relativeWidth(row.count, powerBiMaxVal) }}
+                                      />
+                                    </div>
+                                  </td>
+                                  {powerBiReport.rows.some(r => r.team) && (
+                                    <td className="p-2.5 text-text-sec">{row.team || '—'}</td>
+                                  )}
+                                  {powerBiReport.rows.some(r => r.segment) && (
+                                    <td className="p-2.5 text-text-sec">{row.segment || '—'}</td>
+                                  )}
+                                  {powerBiReport.rows.some(r => r.agent) && (
+                                    <td className="p-2.5 font-medium text-text-main font-mono text-[11px]">
+                                      {row.agent || '—'}
+                                    </td>
+                                  )}
+                                  {powerBiReport.rows.some(r => r.date) && (
+                                    <td className="p-2.5 font-mono text-[11px] text-text-sec">{row.date || '—'}</td>
+                                  )}
+                                  <td className="p-2.5 text-right font-mono font-bold text-text-main tabular-nums">
+                                    {row.count.toLocaleString()}
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Governance & Query Audit Footnote */}
+                  <div className="text-[11px] text-text-sec bg-surface p-3 rounded-lg border border-border-subtle space-y-1">
+                    <p>
+                      <strong>Query Provenance &amp; Verification:</strong> Transport executed under public-report compatibility mode against Microsoft Power BI Analysis Services. All records are restricted to <code>company_name Contains &apos;ONtact&apos;</code>.
+                    </p>
+                    <p className="text-text-mute">
+                      Power BI event counts are independent dialler desk telemetry and are non-additive with the canonical cohort or BigQuery debit order mandate registers.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* MODE 3: CROSS-SOURCE RECONCILIATION MATRIX */}
+          {/* ========================================================================= */}
+          {mode === 'reconciliation' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b border-border pb-2">
+                <div>
+                  <h3 className="text-sm font-bold text-text-main flex items-center gap-2">
+                    <Layers size={16} className="text-indigo-600" />
+                    Warehouse vs Power BI Cross-Source Reconciliation
+                  </h3>
+                  <p className="text-xs text-text-sec mt-0.5">
+                    Compare verified banking debit-order mandates in BigQuery with telephony dialler capture in Power BI.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => loadReconciliationData(true)}
+                  disabled={reconciliationLoading}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-border-subtle bg-surface hover:bg-surface-subtle text-text-main transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
+                >
+                  <RefreshCw size={13} className={reconciliationLoading ? 'animate-spin' : ''} />
+                  <span>Re-run Reconciliation</span>
+                </button>
+              </div>
+
+              {reconciliationLoading && (
+                <div className="p-6 text-center text-xs text-text-sec flex items-center justify-center gap-2">
+                  <RefreshCw size={15} className="animate-spin text-[var(--cx-action)]" />
+                  <span>Evaluating cross-source reconciliation matrix…</span>
+                </div>
+              )}
+
+              {reconciliationError && (
+                <div className="p-4 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-xs">
+                  {reconciliationError}
+                </div>
+              )}
+
+              {reconciliation && !reconciliationLoading && (
+                <div className="space-y-4">
+                  {/* Status Banner */}
+                  <div className="p-4 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/30 flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 size={18} className="text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs sm:text-sm font-bold text-amber-900 dark:text-amber-200">
+                            Reconciliation Status: {reconciliation.reconciliationStatus.replaceAll('_', ' ')}
+                          </h4>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 font-mono">
+                            Delta: +{reconciliation.variance.deltaCount} Records
+                          </span>
+                        </div>
+                        <p className="text-xs text-amber-800 dark:text-amber-300 mt-1 leading-relaxed">
+                          {reconciliation.variance.explanation}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Side-by-Side Comparison Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* BigQuery Warehouse */}
+                    <div className="p-4 rounded-xl border border-border bg-surface shadow-2xs space-y-3">
+                      <div className="flex items-center justify-between border-b border-border-subtle pb-2">
+                        <span className="text-xs font-bold text-text-main flex items-center gap-1.5">
+                          <Database size={14} className="text-emerald-600" />
+                          BigQuery Warehouse Register
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-mono">
+                          {reconciliation.warehouseActivations.status}
+                        </span>
+                      </div>
+
+                      <div className="space-y-2 text-xs">
+                        <div className="flex justify-between py-1 border-b border-border-subtle">
+                          <span className="text-text-sec">Physical Table</span>
+                          <code className="font-mono text-[11px] text-text-main truncate max-w-[200px]" title={reconciliation.warehouseActivations.sourceTable}>
+                            {reconciliation.warehouseActivations.sourceTable.split('.').pop()}
+                          </code>
+                        </div>
+                        <div className="flex justify-between py-1 border-b border-border-subtle">
+                          <span className="text-text-sec">Verified Bank Mandates</span>
+                          <strong className="font-mono text-emerald-600 dark:text-emerald-400 text-sm">
+                            {reconciliation.warehouseActivations.verifiedMandates.toLocaleString()}
+                          </strong>
+                        </div>
+                        <div className="flex justify-between py-1 border-b border-border-subtle">
+                          <span className="text-text-sec">Distinct Policies</span>
+                          <strong className="font-mono text-text-main">
+                            {reconciliation.warehouseActivations.distinctPolicies.toLocaleString()}
+                          </strong>
+                        </div>
+                        <div className="flex justify-between py-1">
+                          <span className="text-text-sec">Mandate Currency</span>
+                          <span className="font-mono font-semibold text-text-main">
+                            {reconciliation.warehouseActivations.currency} (ZAR)
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Upstream Power BI */}
+                    <div className="p-4 rounded-xl border border-border bg-surface shadow-2xs space-y-3">
+                      <div className="flex items-center justify-between border-b border-border-subtle pb-2">
+                        <span className="text-xs font-bold text-text-main flex items-center gap-1.5">
+                          <BarChart3 size={14} className="text-indigo-600" />
+                          Rubix Power BI Semantic Model
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-300 font-mono">
+                          {reconciliation.powerBiActivations.status}
+                        </span>
+                      </div>
+
+                      <div className="space-y-2 text-xs">
+                        <div className="flex justify-between py-1 border-b border-border-subtle">
+                          <span className="text-text-sec">Source Entity</span>
+                          <code className="font-mono text-[11px] text-text-main truncate max-w-[200px]" title={RUBIX_ENTITY}>
+                            {RUBIX_ENTITY}
+                          </code>
+                        </div>
+                        <div className="flex justify-between py-1 border-b border-border-subtle">
+                          <span className="text-text-sec">Total Reported Activations</span>
+                          <strong className="font-mono text-indigo-600 dark:text-indigo-400 text-sm">
+                            {reconciliation.powerBiActivations.totalReported.toLocaleString()}
+                          </strong>
+                        </div>
+                        <div className="flex justify-between py-1 border-b border-border-subtle">
+                          <span className="text-text-sec">Active Teams / Agents</span>
+                          <span className="font-mono text-text-main">
+                            {reconciliation.powerBiActivations.distinctTeams} Teams / {reconciliation.powerBiActivations.distinctAgents} Agents
+                          </span>
+                        </div>
+                        <div className="flex justify-between py-1">
+                          <span className="text-text-sec">Provenance</span>
+                          <span className="font-mono text-[10px] font-bold text-text-sec">
+                            {reconciliation.powerBiActivations.provenance}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Audit Checkpoints */}
+                  <div className="p-4 rounded-xl border border-border bg-surface shadow-2xs space-y-2">
+                    <h4 className="text-xs font-bold text-text-main">
+                      Reconciliation Audit &amp; Data Contract Checkpoints:
+                    </h4>
+                    <ul className="space-y-1.5 text-xs text-text-sec">
+                      {reconciliation.variance.reconciliationNotes.map((note, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <CheckCircle2 size={13} className="text-emerald-600 mt-0.5 shrink-0" />
+                          <span>{note}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
 }

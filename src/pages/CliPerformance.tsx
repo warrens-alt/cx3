@@ -28,6 +28,7 @@ import { CliChartsSection } from '../components/cli/CliChartsSection';
 import { CliRecordsTable } from '../components/cli/CliRecordsTable';
 import { CliImportModal } from '../components/cli/CliImportModal';
 import { CliAnomalyModal } from '../components/cli/CliAnomalyModal';
+import RootCauseDrawer from '../components/RootCauseDrawer';
 
 /**
  * Scoped CLI contract and presentation truth:
@@ -48,6 +49,8 @@ export default function CliPerformance() {
 
   const [actionLoading, setLoading] = useState(false);
   const [actionError, setError] = useState<string | null>(null);
+  const [rootMetric, setRootMetric] = useState<string | null>(null);
+  const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
 
   // Table filtering and sorting state
   const [searchCli, setSearchCli] = useState('');
@@ -430,6 +433,14 @@ export default function CliPerformance() {
             activeInfoMetric={activeInfoMetric}
             setActiveInfoMetric={setActiveInfoMetric}
             currency={currency}
+            onWhyChanged={(m, label) => {
+              setRootMetric(m);
+              setRootMetricLabel(label);
+            }}
+            onInspect={(id) => {
+              const table = document.querySelector('.cx-performance-table');
+              table?.scrollIntoView({ behavior: 'smooth' });
+            }}
           />
         )}
 
@@ -514,6 +525,16 @@ export default function CliPerformance() {
           anomalies={data?.anomalies}
         />
       </div>
+
+      <RootCauseDrawer
+        open={Boolean(rootMetric)}
+        metric={rootMetric}
+        metricLabel={rootMetricLabel}
+        onClose={() => {
+          setRootMetric(null);
+          setRootMetricLabel(undefined);
+        }}
+      />
     </div>
   );
 }

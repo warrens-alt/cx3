@@ -2,7 +2,7 @@ import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import SpendReconciliationPanel from '../components/SpendReconciliationPanel';
 import { useOperationalData } from '../lib/useOperationalData';
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, Search, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, Search, ShieldCheck } from 'lucide-react';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import MarketingRootCauseDrawer from '../components/MarketingRootCauseDrawer';
 import { RankedMetricChart, VolumeRateComboChart } from '../components/charts/OperationalVisuals';
@@ -45,13 +45,31 @@ function MediaMetricCard({
   onInvestigate: (metric: MediaMetric) => void;
 }) {
   return (
-    <article className="cx-command-metric">
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <div><small>{note}</small><Delta value={delta}/></div>
-      <button type="button" className="cx-command-why" onClick={() => onInvestigate(metric)}>
-        Why changed? <Search size={11}/>
-      </button>
+    <article className="cx-command-metric flex flex-col justify-between">
+      <div>
+        <span>{label}</span>
+        <strong>{value}</strong>
+        <div><small>{note}</small><Delta value={delta}/></div>
+      </div>
+      <div className="flex items-center justify-between text-[11px] pt-2.5 mt-2.5 border-t border-border-subtle">
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 text-action hover:text-action-hover font-medium transition-colors cursor-pointer"
+          onClick={() => onInvestigate(metric)}
+          title={`Investigate why ${label.toLowerCase()} changed`}
+        >
+          <span>Why changed?</span>
+          <Search size={10} aria-hidden="true" />
+        </button>
+        <a
+          href="#campaigns-table"
+          className="inline-flex items-center gap-1 text-text-sec hover:text-action font-medium transition-colors"
+          title="Inspect campaign breakdown"
+        >
+          <span>Inspect</span>
+          <ArrowRight size={10} aria-hidden="true" />
+        </a>
+      </div>
     </article>
   );
 }
@@ -165,11 +183,11 @@ export default function CampaignIntelligence() {
             {data.denominatorDiagnostics?.some(item => item.missingRows > 0) && <div className="cx-control-note" role="status">Platform metrics with missing or invalid observations are unavailable: {data.denominatorDiagnostics.filter(item => item.missingRows > 0).map(item => `${item.metric}: ${item.missingRows} of ${item.rows} rows`).join('; ')}. Their derived ratios are withheld.</div>}
             {summary && (
               <section className="cx-command-metrics cx-media-metrics" aria-label="Media performance summary">
-                <MediaMetricCard label="Recorded media spend" value={money(summary.spend)} note="Approved API-table spend" delta={data.comparison?.spendDeltaPct} metric="spend" onInvestigate={metric => canCompare && setRootMetric(metric)} />
-                <MediaMetricCard label="Platform CPL" value={money(summary.cpl)} note="Spend / platform lead events" delta={data.comparison?.cplDeltaPct} metric="cpl" onInvestigate={metric => canCompare && setRootMetric(metric)} />
-                <MediaMetricCard label="CPC" value={money(summary.cpc)} note="Spend / clicks" delta={data.comparison?.cpcDeltaPct} metric="cpc" onInvestigate={metric => canCompare && setRootMetric(metric)} />
-                <MediaMetricCard label="CPM" value={money(summary.cpm)} note="Spend / 1,000 impressions" delta={data.comparison?.cpmDeltaPct} metric="cpm" onInvestigate={metric => canCompare && setRootMetric(metric)} />
-                <MediaMetricCard label="Platform lead events" value={num(summary.leads)} note={`${formatPercent(summary.ctr)} CTR · ${num(summary.clicks)} clicks`} delta={data.comparison?.leadsDeltaPct} metric="leads" onInvestigate={metric => canCompare && setRootMetric(metric)} />
+                <MediaMetricCard label="Recorded media spend" value={money(summary.spend)} note="Approved API-table spend" delta={data.comparison?.spendDeltaPct} metric="spend" onInvestigate={metric => setRootMetric(metric)} />
+                <MediaMetricCard label="Platform CPL" value={money(summary.cpl)} note="Spend / platform lead events" delta={data.comparison?.cplDeltaPct} metric="cpl" onInvestigate={metric => setRootMetric(metric)} />
+                <MediaMetricCard label="CPC" value={money(summary.cpc)} note="Spend / clicks" delta={data.comparison?.cpcDeltaPct} metric="cpc" onInvestigate={metric => setRootMetric(metric)} />
+                <MediaMetricCard label="CPM" value={money(summary.cpm)} note="Spend / 1,000 impressions" delta={data.comparison?.cpmDeltaPct} metric="cpm" onInvestigate={metric => setRootMetric(metric)} />
+                <MediaMetricCard label="Platform lead events" value={num(summary.leads)} note={`${formatPercent(summary.ctr)} CTR · ${num(summary.clicks)} clicks`} delta={data.comparison?.leadsDeltaPct} metric="leads" onInvestigate={metric => setRootMetric(metric)} />
               </section>
             )}
 
@@ -183,11 +201,46 @@ export default function CampaignIntelligence() {
                   </div>
                 </header>
                 <div className="cx-commercial-ratios">
-                  <div><span>Reported reach sum</span><strong>{summary.reach == null ? '—' : num(summary.reach)}</strong><small>{data.reachDefinition || 'Reported row-level reach; audience overlap is not deduplicated'}</small></div>
-                  <div><span>Frequency</span><strong>{summary.frequency == null ? '—' : summary.frequency.toFixed(2)}</strong><small>Impressions / reach</small></div>
-                  <div><span>Outbound clicks</span><strong>{summary.outboundClicks == null ? '—' : num(summary.outboundClicks)}</strong><small>Clicks leaving the platform</small></div>
-                  <div><span>Outbound CTR</span><strong>{summary.outboundCtr == null ? '—' : `${summary.outboundCtr.toFixed(2)}%`}</strong><small>Outbound clicks / impressions</small></div>
-                  <div><span>Click → lead</span><strong>{summary.clickToLeadRate == null ? '—' : `${summary.clickToLeadRate.toFixed(2)}%`}</strong><small>Platform lead events / {data.summary?.outboundClicks != null ? 'outbound clicks' : 'clicks'}</small></div>
+                  <div>
+                    <span>Reported reach sum</span>
+                    <strong>{summary.reach == null ? '—' : num(summary.reach)}</strong>
+                    <div className="flex items-center justify-between gap-1 mt-1">
+                      <small>{data.reachDefinition || 'Reported reach'}</small>
+                      <button type="button" onClick={() => setRootMetric('cpm')} className="text-[11px] text-action hover:underline inline-flex items-center gap-0.5 cursor-pointer">Why? <Search size={10} /></button>
+                    </div>
+                  </div>
+                  <div>
+                    <span>Frequency</span>
+                    <strong>{summary.frequency == null ? '—' : summary.frequency.toFixed(2)}</strong>
+                    <div className="flex items-center justify-between gap-1 mt-1">
+                      <small>Impressions / reach</small>
+                      <button type="button" onClick={() => setRootMetric('cpm')} className="text-[11px] text-action hover:underline inline-flex items-center gap-0.5 cursor-pointer">Why? <Search size={10} /></button>
+                    </div>
+                  </div>
+                  <div>
+                    <span>Outbound clicks</span>
+                    <strong>{summary.outboundClicks == null ? '—' : num(summary.outboundClicks)}</strong>
+                    <div className="flex items-center justify-between gap-1 mt-1">
+                      <small>Clicks leaving platform</small>
+                      <button type="button" onClick={() => setRootMetric('cpc')} className="text-[11px] text-action hover:underline inline-flex items-center gap-0.5 cursor-pointer">Why? <Search size={10} /></button>
+                    </div>
+                  </div>
+                  <div>
+                    <span>Outbound CTR</span>
+                    <strong>{summary.outboundCtr == null ? '—' : `${summary.outboundCtr.toFixed(2)}%`}</strong>
+                    <div className="flex items-center justify-between gap-1 mt-1">
+                      <small>Outbound / impressions</small>
+                      <button type="button" onClick={() => setRootMetric('ctr')} className="text-[11px] text-action hover:underline inline-flex items-center gap-0.5 cursor-pointer">Why? <Search size={10} /></button>
+                    </div>
+                  </div>
+                  <div>
+                    <span>Click → lead</span>
+                    <strong>{summary.clickToLeadRate == null ? '—' : `${summary.clickToLeadRate.toFixed(2)}%`}</strong>
+                    <div className="flex items-center justify-between gap-1 mt-1">
+                      <small>Events / clicks</small>
+                      <button type="button" onClick={() => setRootMetric('leads')} className="text-[11px] text-action hover:underline inline-flex items-center gap-0.5 cursor-pointer">Why? <Search size={10} /></button>
+                    </div>
+                  </div>
                 </div>
               </section>
             )}

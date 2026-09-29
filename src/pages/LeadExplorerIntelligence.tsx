@@ -18,6 +18,7 @@ import { buildLeadEvidenceExport } from '../lib/analysisExport';
 import { downloadCsv } from '../lib/formatters';
 import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 import { useOperationalData } from '../lib/useOperationalData';
+import RootCauseDrawer from '../components/RootCauseDrawer';
 
 const DRILL_LABELS: Record<string, string> = {
   'awaiting-first-dial': 'Delivered leads awaiting first dial',
@@ -66,6 +67,8 @@ export default function LeadExplorerIntelligence() {
   const appliedSearch = params.get('search') || '';
   const [search, setSearch] = useState(appliedSearch);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [rootMetric, setRootMetric] = useState<string | null>(null);
+  const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
   const scopeKey = JSON.stringify([selectedClient, startDate, endDate, filters, drill, drillValue, appliedSearch]);
   const [pagination, setPagination] = useState({ scopeKey, page: 0 });
   const page = pagination.scopeKey === scopeKey ? pagination.page : 0;
@@ -201,7 +204,43 @@ export default function LeadExplorerIntelligence() {
               <strong>{investigation}</strong>
               <small>The records below are constrained by the selected client, dates and global filters.</small>
             </div>
-            <button type="button" onClick={clearInvestigation}><ArrowLeft size={13} />Clear investigation</button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white border border-border text-action hover:bg-surface-subtle text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                onClick={() => {
+                  let mapped = 'fetchedLeads';
+                  if (drill === 'funnel-stage') {
+                    if (drillValue === 'sales') mapped = 'leadToSaleRate';
+                    else if (drillValue === 'activated') mapped = 'activationRate';
+                    else if (drillValue === 'rpc') mapped = 'contactRate';
+                    else if (drillValue === 'dialled') mapped = 'dialRate';
+                    else if (drillValue === 'delivered') mapped = 'deliveryRate';
+                  } else if (drill === 'funnel-loss') {
+                    if (drillValue === 'sales-to-activated') mapped = 'activationRate';
+                    else if (drillValue === 'rpc-to-sales') mapped = 'leadToSaleRate';
+                    else if (drillValue === 'dialled-to-rpc') mapped = 'contactRate';
+                    else if (drillValue === 'delivered-to-dialled') mapped = 'dialRate';
+                    else if (drillValue === 'fetched-to-delivered') mapped = 'deliveryRate';
+                  } else if (drill === 'awaiting-first-dial' || drill === 'sla-breach' || drill === 'backlog-age' || drill === 'lead-age' || drill === 'delivery-age') {
+                    mapped = 'dialRate';
+                  } else if (drill === 'unactivated-sales' || drill === 'sales-awaiting-activation') {
+                    mapped = 'activationRate';
+                  } else if (drill === 'high-attempt-no-rpc') {
+                    mapped = 'contactRate';
+                  } else if (drill === 'zero-call-leads' || drill === 'one-call-only' || drill === 'call-effort') {
+                    mapped = 'dialRate';
+                  }
+                  setRootMetric(mapped);
+                  setRootMetricLabel(investigation);
+                }}
+                title={`Investigate why ${investigation} changed`}
+              >
+                <span>Why changed?</span>
+                <Search size={11} aria-hidden="true" />
+              </button>
+              <button type="button" onClick={clearInvestigation}><ArrowLeft size={13} />Clear investigation</button>
+            </div>
           </section>
         )}
 
@@ -372,6 +411,16 @@ export default function LeadExplorerIntelligence() {
           </aside>
         </div>
       )}
+
+      <RootCauseDrawer
+        open={Boolean(rootMetric)}
+        metric={rootMetric}
+        metricLabel={rootMetricLabel}
+        onClose={() => {
+          setRootMetric(null);
+          setRootMetricLabel(undefined);
+        }}
+      />
     </div>
   );
 }

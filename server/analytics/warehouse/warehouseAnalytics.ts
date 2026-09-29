@@ -6,7 +6,7 @@ import {
   CANDIDATE_SPEND_SOURCES,
   type DictionaryObject,
 } from '../../../contracts/warehouseDictionary';
-import { getBigQueryClient } from '../../bigquery/client';
+import { getBigQueryClient, hasBigQueryCredentials } from '../../bigquery/client';
 import { getClientConfig } from '../../bigquery/config';
 import { extractOnvestAggregate, validateOntactTiming } from '../integrity/rawAdapters';
 import { addExactDecimals } from '../../../contracts/exactDecimal';
@@ -332,51 +332,53 @@ export async function getWarehouseCrossDatasetAnalytics(clientId: string): Promi
   let onvestValidPhoneTotal = 1346;
   let onvestSpendExact = '26835.1799';
 
-  try {
-    const client = getBigQueryClient('vibe-code-warren-stear');
-    const [ontactRows] = await client.query({
-      query: `SELECT unique_id, source, raw_data FROM \`vibe-code-warren-stear.analytics_warehouse.ontact_raw_data\` WHERE raw_data IS NOT NULL LIMIT 50`,
-    });
-    if (ontactRows && ontactRows.length > 0) {
-      ontactObservations = ontactRows.length;
-      let verified = 0;
-      let durSum = 0;
-      for (const row of ontactRows) {
-        const payload = typeof row.raw_data === 'string' ? JSON.parse(row.raw_data) : (row.raw_data || {});
-        const v = validateOntactTiming(payload);
-        if (v.durationMatchesEpochs) verified++;
-        durSum += v.reportedDurationSec || 0;
+  if (hasBigQueryCredentials()) {
+    try {
+      const client = getBigQueryClient('vibe-code-warren-stear');
+      const [ontactRows] = await client.query({
+        query: `SELECT unique_id, source, raw_data FROM \`vibe-code-warren-stear.analytics_warehouse.ontact_raw_data\` WHERE raw_data IS NOT NULL LIMIT 50`,
+      });
+      if (ontactRows && ontactRows.length > 0) {
+        ontactObservations = ontactRows.length;
+        let verified = 0;
+        let durSum = 0;
+        for (const row of ontactRows) {
+          const payload = typeof row.raw_data === 'string' ? JSON.parse(row.raw_data) : (row.raw_data || {});
+          const v = validateOntactTiming(payload);
+          if (v.durationMatchesEpochs) verified++;
+          durSum += v.reportedDurationSec || 0;
+        }
+        durationVerifiedCount = verified;
+        totalDurSec = durSum;
       }
-      durationVerifiedCount = verified;
-      totalDurSec = durSum;
-    }
 
-    const [onvestRows] = await client.query({
-      query: `SELECT unique_id, raw_data FROM \`vibe-code-warren-stear.analytics_warehouse.onvest_raw_data\` WHERE raw_data IS NOT NULL LIMIT 50`,
-    });
-    if (onvestRows && onvestRows.length > 0) {
-      let fetched = 0;
-      let accepted = 0;
-      let qualified = 0;
-      let validPhone = 0;
-      let exactSpend = '0';
-      for (const row of onvestRows) {
-        const payload = typeof row.raw_data === 'string' ? JSON.parse(row.raw_data) : (row.raw_data || {});
-        const ext = extractOnvestAggregate(payload, clientId);
-        if (ext.amountSpent) exactSpend = addExactDecimals(exactSpend, ext.amountSpent);
-        fetched += ext.stageCounts.fetchedLeads || 0;
-        accepted += ext.stageCounts.acceptedLeads || 0;
-        qualified += ext.stageCounts.qualifiedLeads || 0;
-        validPhone += ext.stageCounts.validPhoneId || 0;
+      const [onvestRows] = await client.query({
+        query: `SELECT unique_id, raw_data FROM \`vibe-code-warren-stear.analytics_warehouse.onvest_raw_data\` WHERE raw_data IS NOT NULL LIMIT 50`,
+      });
+      if (onvestRows && onvestRows.length > 0) {
+        let fetched = 0;
+        let accepted = 0;
+        let qualified = 0;
+        let validPhone = 0;
+        let exactSpend = '0';
+        for (const row of onvestRows) {
+          const payload = typeof row.raw_data === 'string' ? JSON.parse(row.raw_data) : (row.raw_data || {});
+          const ext = extractOnvestAggregate(payload, clientId);
+          if (ext.amountSpent) exactSpend = addExactDecimals(exactSpend, ext.amountSpent);
+          fetched += ext.stageCounts.fetchedLeads || 0;
+          accepted += ext.stageCounts.acceptedLeads || 0;
+          qualified += ext.stageCounts.qualifiedLeads || 0;
+          validPhone += ext.stageCounts.validPhoneId || 0;
+        }
+        onvestFetchedTotal = fetched;
+        onvestAcceptedTotal = accepted;
+        onvestQualifiedTotal = qualified;
+        onvestValidPhoneTotal = validPhone;
+        onvestSpendExact = exactSpend;
       }
-      onvestFetchedTotal = fetched;
-      onvestAcceptedTotal = accepted;
-      onvestQualifiedTotal = qualified;
-      onvestValidPhoneTotal = validPhone;
-      onvestSpendExact = exactSpend;
+    } catch {
+      // Handover evidence samples accurately represent the 50 exported rows per object
     }
-  } catch {
-    // Handover evidence samples accurately represent the 50 exported rows per object
   }
 
   // 6. Table Inventory Preview (all 65 objects)

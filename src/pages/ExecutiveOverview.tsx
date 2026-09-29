@@ -35,6 +35,7 @@ import { statusLabel } from '../lib/statusPresentation';
 import { OperationalEmpty, OperationalError, OverviewSkeleton } from '../components/OperationalState';
 import DeferredOverviewTrend from '../components/DeferredOverviewTrend';
 import { FunnelWaterfall } from '../components/charts/FunnelWaterfall';
+import ExecutiveAnalyticsConsole from '../components/analytics/ExecutiveAnalyticsConsole';
 
 const fmt = (value: number | string | null | undefined) => formatTableNumber(value);
 const stageLabel = (name: string) => name === 'RPC' ? 'Contacted' : name;
@@ -78,10 +79,10 @@ function Metric({
   denominatorLabel?: string;
 }) {
   return (
-    <article className="cx-command-metric flex flex-col justify-between">
+    <article className="cx-command-metric flex flex-col justify-between h-full p-4 sm:p-5 transition-all duration-150 hover:bg-surface-subtle/50">
       <div>
         <div className="flex items-center justify-between">
-          <span className="text-[13px] font-semibold text-text-sec">{label}</span>
+          <span className="text-xs sm:text-[13px] font-semibold text-text-sec uppercase tracking-wider">{label}</span>
           {onAbout && (
             <button
               type="button"
@@ -106,12 +107,12 @@ function Metric({
           <Change value={change} unit={changeUnit} />
         </div>
       </div>
-      {(onWhyChanged || to || (denominatorLink && denominatorLabel)) && (
-        <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-border-subtle text-[11px]">
+      {(onWhyChanged || to || (denominatorLink && denominatorLabel)) ? (
+        <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-border-subtle text-[11px] min-h-[29px] flex-wrap">
           {onWhyChanged && (
             <button
               type="button"
-              className="inline-flex items-center gap-1 text-action hover:text-action-hover font-medium transition-colors cursor-pointer"
+              className="cx-why-btn"
               onClick={onWhyChanged}
             >
               <span>Why changed?</span>
@@ -124,7 +125,7 @@ function Metric({
           {to && (
             <Link
               to={to}
-              className="inline-flex items-center gap-1 text-action hover:text-action-hover font-medium transition-colors"
+              className="cx-inspect-btn"
               title={inspectLabel || `Inspect ${label} records`}
             >
               <span>Inspect</span>
@@ -144,6 +145,8 @@ function Metric({
             </>
           )}
         </div>
+      ) : (
+        <div className="mt-3 pt-2.5 border-t border-transparent min-h-[29px]" aria-hidden="true" />
       )}
     </article>
   );
@@ -170,7 +173,7 @@ export default function ExecutiveOverview() {
   const commercial = useOperationalData('commercial', scope, fetchCommercial);
 
   const hasComparison = Boolean(startDate && endDate && data?.comparisonWindow);
-  const investigate = (metric: RootMetric) => hasComparison && setRootMetric(metric);
+  const investigate = (metric: RootMetric) => setRootMetric(metric);
 
   const recordLink = (drill: string, drillValue?: string, extra?: Record<string, string>) => {
     const next = new URLSearchParams(searchParams);
@@ -232,7 +235,7 @@ export default function ExecutiveOverview() {
                   value={fmt(data.kpis.fetchedLeads)}
                   note="Incoming leads"
                   change={data.comparison?.fetchedDelta}
-                  onWhyChanged={hasComparison ? () => investigate('fetchedLeads') : undefined}
+                  onWhyChanged={() => investigate('fetchedLeads')}
                   onAbout={() => setAboutMetricId('fetched_leads')}
                   to={isAdmin ? recordLink('funnel-stage', 'fetched') : scoped('/funnel')}
                   inspectLabel={isAdmin ? 'Inspect fetched lead records in evidence surface' : 'View funnel breakdown'}
@@ -243,7 +246,7 @@ export default function ExecutiveOverview() {
                   note={`${fmt(data.kpis.deliveredLeads)} delivered`}
                   change={data.comparison?.deliveryRateDelta}
                   changeUnit="pp"
-                  onWhyChanged={hasComparison ? () => investigate('deliveryRate') : undefined}
+                  onWhyChanged={() => investigate('deliveryRate')}
                   onAbout={() => setAboutMetricId('delivery_rate')}
                   to={isAdmin ? recordLink('funnel-stage', 'delivered') : scoped('/funnel')}
                   inspectLabel={isAdmin ? 'Inspect delivered lead records (numerator) in evidence surface' : 'View delivery breakdown'}
@@ -256,7 +259,7 @@ export default function ExecutiveOverview() {
                   note={`${fmt(data.kpis.dialledLeads)} dialled`}
                   change={data.comparison?.dialRateDelta}
                   changeUnit="pp"
-                  onWhyChanged={hasComparison ? () => investigate('dialRate') : undefined}
+                  onWhyChanged={() => investigate('dialRate')}
                   onAbout={() => setAboutMetricId('dial_rate')}
                   to={isAdmin ? recordLink('funnel-stage', 'dialled') : scoped('/speed-to-lead')}
                   inspectLabel={isAdmin ? 'Inspect dialled lead records in evidence surface' : 'View response times'}
@@ -267,7 +270,7 @@ export default function ExecutiveOverview() {
                   note={`${fmt(data.kpis.contactedLeads)} contacted`}
                   change={data.comparison?.contactRateDelta}
                   changeUnit="pp"
-                  onWhyChanged={hasComparison ? () => investigate('contactRate') : undefined}
+                  onWhyChanged={() => investigate('contactRate')}
                   onAbout={() => setAboutMetricId('rpc_rate')}
                   to={isAdmin ? recordLink('funnel-stage', 'rpc') : scoped('/contact-strategy')}
                   inspectLabel={isAdmin ? 'Inspect contacted (RPC) lead records in evidence surface' : 'View contact strategy'}
@@ -278,7 +281,7 @@ export default function ExecutiveOverview() {
                   note={`${fmt(data.kpis.saleLeads)} recorded sales`}
                   change={data.comparison?.saleRateDelta}
                   changeUnit="pp"
-                  onWhyChanged={hasComparison ? () => investigate('leadToSaleRate') : undefined}
+                  onWhyChanged={() => investigate('leadToSaleRate')}
                   onAbout={() => setAboutMetricId('sales_per_fetched_rate')}
                   to={isAdmin ? recordLink('funnel-stage', 'sales') : scoped('/sales-activation')}
                   inspectLabel={isAdmin ? 'Inspect recorded sales in evidence surface' : 'View sales activation'}
@@ -300,11 +303,11 @@ export default function ExecutiveOverview() {
                   </div>
                   <div className="flex items-center gap-3 text-xs text-text-muted shrink-0">
                     <span className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-xs inline-block" style={{ backgroundColor: 'var(--cx-data-fetched, #4F5FB7)' }} />
+                      <span className="w-2.5 h-2.5 rounded-xs inline-block" style={{ backgroundColor: 'var(--cx-data-fetched, #2563EB)' }} />
                       <span>Fetched leads</span>
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-xs inline-block" style={{ backgroundColor: 'var(--cx-data-sales, #426D80)' }} />
+                      <span className="w-2.5 h-2.5 rounded-xs inline-block" style={{ backgroundColor: 'var(--cx-data-sales, #F59E0B)' }} />
                       <span>Recorded sales</span>
                     </span>
                   </div>
@@ -335,11 +338,11 @@ export default function ExecutiveOverview() {
                           <button
                             type="button"
                             onClick={() => investigate(item.metric)}
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-action hover:text-action-hover px-2 py-1 rounded hover:bg-selected-bg transition-colors cursor-pointer shrink-0"
+                            className="cx-why-btn shrink-0"
                             title={`Investigate ${item.label} root cause`}
                           >
+                            <Search size={11} aria-hidden="true" />
                             <span>Why?</span>
-                            <ArrowRight size={12} />
                           </button>
                         </div>
                       ))}
@@ -394,6 +397,16 @@ export default function ExecutiveOverview() {
                 </dl>
               </section>
             </div>
+
+            {/* Comprehensive Operational Analysis & Root Cause Console */}
+            <ExecutiveAnalyticsConsole
+              overviewData={data}
+              controlsData={controls.data}
+              isAdmin={isAdmin}
+              onInvestigate={investigate}
+              recordLink={recordLink}
+              scoped={scoped}
+            />
 
             <details className="cx-overview-controls">
               <summary><Settings2 size={20} aria-hidden="true" /><div><strong>Operating controls</strong><small>Call effort, coverage and activation backlog</small></div><ChevronDown size={18} aria-hidden="true" /></summary>

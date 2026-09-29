@@ -78,6 +78,10 @@ export class AnalyticsBigQueryClient {
   }
 }
 
+export function hasBigQueryCredentials(): boolean {
+  return Boolean(process.env.BIGQUERY_CREDENTIALS || process.env.GOOGLE_APPLICATION_CREDENTIALS);
+}
+
 export function getBigQueryClient(projectId: string): AnalyticsBigQueryClient {
   if (!clients.has(projectId)) {
     let credentials;

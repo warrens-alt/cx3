@@ -115,9 +115,9 @@ export default function LeadLedger() {
               type="button"
               onClick={handleExportCsv}
               disabled={loading || Boolean(error) || !currentRows.length}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50 transition-colors shadow-xs"
+              className="cx-button-export disabled:opacity-50"
             >
-              <Download size={13} />
+              <Download size={14} />
               <span>Export Page CSV</span>
             </button>
           </div>
@@ -173,7 +173,7 @@ export default function LeadLedger() {
             </div>
             <button
               type="submit"
-              className="px-3 py-1.5 text-xs font-semibold text-white bg-[var(--cx-action)] hover:bg-[var(--cx-action-hover)] rounded-md transition-colors shadow-xs"
+              className="cx-button-primary"
             >
               Search
             </button>

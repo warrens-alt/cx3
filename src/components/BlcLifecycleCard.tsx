@@ -16,8 +16,20 @@ export default function BlcLifecycleCard({ source, reportHref }: Props) {
   return (
     <article style={{ gridColumn: '1 / -1' }} aria-label="BLC Rubix source diagnostics and lifecycle readiness">
       <header className="flex flex-wrap items-start justify-between gap-3">
-        <h3 className="text-base font-semibold text-text-main">BLC Rubix / activation lifecycle</h3>
-        <Link className="cx-button-secondary text-sm" to={reportHref}>Open Sales &amp; activation</Link>
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-semibold text-text-main">BLC Rubix / activation lifecycle</h3>
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 font-mono">
+              Power BI: ONLINE
+            </span>
+          </div>
+          <span className="text-xs text-text-sec">
+            Reconciles BigQuery verified debit mandates against Power BI dialler desk telemetry (predicate: ONtact).
+          </span>
+        </div>
+        <Link className="cx-button-secondary text-sm inline-flex items-center gap-1.5" to={reportHref}>
+          <span>Open BLC Reporting Hub</span>
+        </Link>
       </header>
       {!diagnostic ? (
         <p role="status">Lifecycle diagnostics are unavailable in this response. Refresh after the updated backend is deployed. {source.detail}</p>

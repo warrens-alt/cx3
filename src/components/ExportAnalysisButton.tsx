@@ -12,7 +12,7 @@ export default function ExportAnalysisButton({ rows, rowCount, filename, label =
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
   const hasRows = typeof rows === 'function' ? rowCount > 0 : rows.length > 1;
-  return <button type="button" className="cx-button-secondary" disabled={!hasRows}
+  return <button type="button" className="cx-button-export" disabled={!hasRows}
     onClick={() => downloadAnalysisCsv(filename, typeof rows === 'function' ? rows() : rows, { clientId: selectedClient, startDate, endDate,
       filters, definitions, validationStatus, dateBasis, truncated })}>
     <Download size={14} aria-hidden="true" /> {label}

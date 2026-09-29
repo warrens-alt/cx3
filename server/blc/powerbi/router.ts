@@ -152,6 +152,22 @@ export function createRubixPowerBiRouter(service: RubixPowerBiService = defaultR
     res.json({ success: true, data });
   }));
 
+  // GET /reconciliation
+  router.get('/reconciliation', analyticalRoute(async (req: Request, res: Response) => {
+    const scope = res.locals.scope as QueryScope;
+    const principal = res.locals.principal;
+    const startDate = (req.query.startDate as string) || scope.startDate;
+    const endDate = (req.query.endDate as string) || scope.endDate;
+    const isAdmin = principal?.role === 'admin';
+
+    const data = await service.getReconciliation(
+      { startDate, endDate },
+      { clientId: scope.clientId, isAdmin, subject: principal?.subject }
+    );
+
+    res.json({ success: true, data });
+  }));
+
   return router;
 }
 

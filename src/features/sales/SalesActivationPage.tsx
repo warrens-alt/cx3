@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -16,6 +16,7 @@ import {
 import ReportingScopeBar from '../../shared/reporting/ReportingScopeBar';
 import InspectorHost from '../../shared/evidence/InspectorHost';
 import Modal from '../../components/Modal';
+import RootCauseDrawer from '../../components/RootCauseDrawer';
 import { OperationalError } from '../../components/OperationalState';
 import { useSalesActivationModel } from './model/useSalesActivationModel';
 import SalesOutcomeSummary from './components/SalesOutcomeSummary';
@@ -25,6 +26,7 @@ import SalesTimingAndCoverage from './components/SalesTimingAndCoverage';
 import BlcReportingPanel from './components/BlcReportingPanel';
 
 export default function SalesActivationPage() {
+  const [rootMetric, setRootMetric] = useState<string | null>(null);
   const {
     model,
     loading,
@@ -52,6 +54,23 @@ export default function SalesActivationPage() {
     handleExportAgeing,
     handleExportCompleteWorkbook,
   } = useSalesActivationModel();
+
+  const handleWhyChanged = (key: 'sales' | 'activations' | 'unactivated' | 'revenue') => {
+    switch (key) {
+      case 'sales':
+        setRootMetric('leadToSaleRate');
+        break;
+      case 'activations':
+      case 'unactivated':
+        setRootMetric('activationRate');
+        break;
+      case 'revenue':
+        setRootMetric('leadToSaleRate');
+        break;
+      default:
+        setRootMetric('leadToSaleRate');
+    }
+  };
 
   return (
     <div className="cx-command-page" aria-label="Sales & activation workspace">
@@ -156,6 +175,7 @@ export default function SalesActivationPage() {
             <SalesOutcomeSummary
               model={model}
               onInspect={handleInspectSummaryMetric}
+              onWhyChanged={handleWhyChanged}
             />
 
             {/* 2. Unified Activation Ageing Region */}
@@ -315,6 +335,12 @@ export default function SalesActivationPage() {
           </div>
         </div>
       </Modal>
+
+      <RootCauseDrawer
+        open={Boolean(rootMetric)}
+        metric={rootMetric}
+        onClose={() => setRootMetric(null)}
+      />
     </div>
   );
 }

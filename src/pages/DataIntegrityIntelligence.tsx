@@ -1,5 +1,5 @@
 import { useOperationalData } from '../lib/useOperationalData';
-import React from 'react';
+import React, { useState } from 'react';
 import { AlertTriangle, Clock3, Database, ShieldCheck, GitFork } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
@@ -16,6 +16,8 @@ import { DataIntakePanel } from '../components/DataIntakePanel';
 import { useAuth } from '../lib/AuthContext';
 import BlcLifecycleCard from '../components/BlcLifecycleCard';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
+import UnifiedMetricCard from '../components/UnifiedMetricCard';
+import RootCauseDrawer from '../components/RootCauseDrawer';
 
 export default function DataIntegrityIntelligence() {
   const scoped = useScopedNavigationTarget();
@@ -23,6 +25,8 @@ export default function DataIntegrityIntelligence() {
   const { isAdmin } = useAuth();
   const controls = useOperatingControls();
   const { startDate, endDate, filters } = useFilters();
+  const [rootMetric, setRootMetric] = useState<string | null>(null);
+  const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
 
   const { data, loading, error, loadData } = useOperationalData<DataIntegrityData>('DataIntegrityIntelligence', {
     clientId: selectedClient,
@@ -69,6 +73,62 @@ export default function DataIntegrityIntelligence() {
 
         {data && (
           <>
+            <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6" aria-label="Data integrity summary metrics">
+              <UnifiedMetricCard
+                label="Audited Lead Population"
+                value={formatTableNumber(data.totalRecordsAudited)}
+                note="Selected operational scope"
+                onWhyChanged={() => {
+                  setRootMetric('fetchedLeads');
+                  setRootMetricLabel('Audited Lead Population');
+                }}
+                to={scoped('/funnel')}
+                inspectLabel="Inspect funnel"
+              />
+
+              <UnifiedMetricCard
+                label="Observed Data Sources"
+                value={data.sources?.length || 0}
+                note={`${data.sources?.filter(s => ['OK', 'HEALTHY', 'OBSERVED'].includes(s.status)).length || 0} healthy sources`}
+                onWhyChanged={() => {
+                  setRootMetric('deliveryRate');
+                  setRootMetricLabel('Data Sources Health');
+                }}
+                onInspect={() => {
+                  const el = document.querySelector('.cx-source-grid');
+                  el?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                inspectLabel="Inspect sources"
+              />
+
+              <UnifiedMetricCard
+                label="Discrepancy Checks"
+                value={data.checks.length}
+                note={`${data.checks.filter(c => (c.discrepancyCount || 0) > 0).length} with measured gaps`}
+                onWhyChanged={() => {
+                  setRootMetric('deliveryRate');
+                  setRootMetricLabel('Discrepancy Checks');
+                }}
+                onInspect={() => {
+                  const el = document.querySelector('.cx-integrity-table');
+                  el?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                inspectLabel="Inspect checks"
+              />
+
+              <UnifiedMetricCard
+                label="Validation Status"
+                value={data.validationStatus || data.healthGrade || 'OBSERVED'}
+                note="Operational rules status"
+                onWhyChanged={() => {
+                  setRootMetric('deliveryRate');
+                  setRootMetricLabel('Validation Rules');
+                }}
+                to={scoped('/reports')}
+                inspectLabel="Evidence reports"
+              />
+            </section>
+
             <section className="cx-command-panel">
               <header>
                 <div><span className="cx-command-section-kicker">Sources</span><h2>Data source observability</h2><p>Source cards cover all tenant-owned records, independent of the selected capture cohort. Freshness is observed from timestamps; a freshness SLA is not inferred. Missing contracts are surfaced explicitly.</p></div>
@@ -118,12 +178,6 @@ export default function DataIntegrityIntelligence() {
 
             {controls.data && <DataCompletenessPanel data={controls.data} />}
 
-            <section className="cx-exception-summary">
-              <article><span>Distinct leads audited</span><strong>{formatTableNumber(data.totalRecordsAudited)}</strong><small>Selected operational scope</small></article>
-              <article><span>Validation status</span><strong className="text-base">{data.validationStatus || data.healthGrade}</strong><small>No synthetic score is assigned</small></article>
-              <article><span>Observed checks</span><strong>{data.checks.length}</strong><small>Concrete discrepancy populations</small></article>
-            </section>
-
             <section className="cx-command-panel">
               <div className="p-4"><ExportAnalysisButton filename="data_integrity_checks" rows={[
                 ['Check', 'Category', 'Status', 'Discrepancy count', 'Definition'],
@@ -157,6 +211,16 @@ export default function DataIntegrityIntelligence() {
         {/* Source Intake & Diagnostic Recovery Console - always accessible to authorized workspace users */}
         <DataIntakePanel clientId={selectedClient} isAdmin={isAdmin} />
       </div>
+
+      <RootCauseDrawer
+        open={Boolean(rootMetric)}
+        metric={rootMetric}
+        metricLabel={rootMetricLabel}
+        onClose={() => {
+          setRootMetric(null);
+          setRootMetricLabel(undefined);
+        }}
+      />
     </div>
   );
 }

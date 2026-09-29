@@ -1,5 +1,5 @@
 import { useOperationalData } from '../lib/useOperationalData';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, Database, ShieldCheck } from 'lucide-react';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
@@ -15,6 +15,8 @@ import { formatPercent, formatTableNumber } from '../lib/formatters';
 import type { ExceptionAnalyticsData } from '../../contracts/exceptionAnalytics';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import { RankedMetricChart } from '../components/charts/OperationalVisuals';
+import UnifiedMetricCard from '../components/UnifiedMetricCard';
+import RootCauseDrawer from '../components/RootCauseDrawer';
 
 const fmt = (value: number | string | null | undefined) => formatTableNumber(value);
 
@@ -26,6 +28,8 @@ export default function Exceptions() {
   const { startDate, endDate, filters } = useFilters();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const [rootMetric, setRootMetric] = useState<string | null>(null);
+  const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
 
   const { data, loading, error, loadData } = useOperationalData<OverviewData>('Exceptions', {
     clientId: selectedClient,
@@ -91,22 +95,46 @@ export default function Exceptions() {
           <div className="cx-command-loading"><div className="cx-command-spinner" />Loading exception populations…</div>
         ) : (
           <>
-            <section className="cx-exception-summary">
-              <article>
-                <span>Active exception types</span>
-                <strong>{queue.loading && !queue.data ? '…' : ordered.length}</strong>
-                <small>Configured operational checks with affected records</small>
-              </article>
-              <article>
-                <span>Awaiting first dial</span>
-                <strong>{loading && !data ? '…' : fmt(data?.backlog?.awaitingFirstDial)}</strong>
-                <small>{loading && !data ? 'Loading backlog…' : data?.backlog ? `${fmt(data.backlog.over60Minutes)} waiting longer than 60 minutes` : 'Backlog data unavailable'}</small>
-              </article>
-              <article>
-                <span>15-minute SLA</span>
-                <strong>{loading && !data ? '…' : formatPercent(data?.sla?.complianceRate)}</strong>
-                <small>Delivered leads dialled within target</small>
-              </article>
+            <section className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6" aria-label="Exceptions summary metrics">
+              <UnifiedMetricCard
+                label="Active Exception Types"
+                value={queue.loading && !queue.data ? '…' : ordered.length}
+                note="Configured checks with affected records"
+                onWhyChanged={() => {
+                  setRootMetric('deliveryRate');
+                  setRootMetricLabel('Active Exception Types');
+                }}
+                onInspect={() => {
+                  const el = document.querySelector('.cx-live-exception-list');
+                  el?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                inspectLabel="Inspect queue"
+              />
+
+              <UnifiedMetricCard
+                label="Awaiting First Dial"
+                value={loading && !data ? '…' : fmt(data?.backlog?.awaitingFirstDial)}
+                note={loading && !data ? 'Loading backlog…' : data?.backlog ? `${fmt(data.backlog.over60Minutes)} waiting > 60m` : 'Backlog data unavailable'}
+                isPositiveGood={false}
+                onWhyChanged={() => {
+                  setRootMetric('dialRate');
+                  setRootMetricLabel('Awaiting First Dial');
+                }}
+                to={scoped('/speed-to-lead')}
+                inspectLabel="Inspect speed"
+              />
+
+              <UnifiedMetricCard
+                label="15-Minute Response SLA"
+                value={loading && !data ? '…' : formatPercent(data?.sla?.complianceRate)}
+                note="Delivered leads dialled within target"
+                onWhyChanged={() => {
+                  setRootMetric('dialRate');
+                  setRootMetricLabel('Response SLA Compliance');
+                }}
+                to={scoped('/speed-to-lead')}
+                inspectLabel="Inspect speed"
+              />
             </section>
 
             {queue.loading && !queue.data ? (
@@ -239,6 +267,15 @@ export default function Exceptions() {
           </>
         )}
       </div>
+      <RootCauseDrawer
+        open={Boolean(rootMetric)}
+        metric={rootMetric}
+        metricLabel={rootMetricLabel}
+        onClose={() => {
+          setRootMetric(null);
+          setRootMetricLabel(undefined);
+        }}
+      />
     </div>
   );
 }

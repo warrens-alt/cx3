@@ -16,6 +16,7 @@ import WorkspaceState from '../components/operations/WorkspaceState';
 import MetricRail from '../components/operations/MetricRail';
 import ExactBarChart from '../components/operations/ExactBarChart';
 import EvidenceInspector, { type EvidenceSelection } from '../components/operations/EvidenceInspector';
+import RootCauseDrawer from '../components/RootCauseDrawer';
 import { VisualTable } from '../components/visuals/DataVisual';
 
 const METRICS = ['delivered_episodes','called_episodes','call_attempts','call_coverage','sale_events','activation_events','sale_activation_rate','expected_value','approved_value','invoiced_value','collected_value'];
@@ -64,6 +65,8 @@ export default function VendorPerformance() {
   const [vendorTableView, setVendorTableView] = useState<'table' | 'graph'>('table');
   const [visible,setVisible]=useState(()=>new Set(TABLE_COLUMNS));
   const [inspection,setInspection]=useState<EvidenceSelection|null>(null);
+  const [rootMetric, setRootMetric] = useState<string | null>(null);
+  const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
   const deferredSearch=useDeferredValue(search.trim().toLowerCase());
   const rows=useMemo(()=>pivotReportGroups(report),[report]);
   const previousRows=useMemo(()=>pivotReportGroups(previous),[previous]);
@@ -84,7 +87,33 @@ export default function VendorPerformance() {
   const sourceReport=useQuery<ReportResult>({queryKey:['vendor-source-breakdown',workspace.release?.releaseId,sourceRequest],queryFn:({signal})=>createEvidenceReport(sourceRequest!,workspace.release!.releaseId,signal),enabled:!!sourceRequest&&!!workspace.release&&!workspace.scopeError,retry:false,staleTime:Infinity});
   const format=(metric:MetricResult|null|undefined)=>metric?formatReportValue(metric,currency):'Unavailable';
   const total=(id:string)=>metricValue(report,id), previousTotal=(id:string)=>metricValue(previous,id);
-  const kpi=(id:string,note:string)=>{const currentMetric=id==='fetched_leads'?metricValue(leadTotals.current.data,id):total(id),previousMetric=id==='fetched_leads'?metricValue(leadTotals.previous.data,id):previousTotal(id);return {id,label:METRIC_BY_ID[id].label,value:format(currentMetric),change:exactMovement(availableValue(currentMetric),availableValue(previousMetric)),comparison:`vs ${workspace.previousPeriod.startDate} — ${workspace.previousPeriod.endDate}`,note,status:currentMetric?.calculationStatus};};
+
+  const kpiMap: Record<string, string> = {
+    fetched_leads: 'fetchedLeads',
+    delivered_episodes: 'deliveryRate',
+    call_coverage: 'dialRate',
+    sale_activation_rate: 'activationRate',
+    collected_value: 'leadToSaleRate',
+  };
+
+  const kpi=(id:string,note:string)=>{
+    const currentMetric=id==='fetched_leads'?metricValue(leadTotals.current.data,id):total(id);
+    const previousMetric=id==='fetched_leads'?metricValue(leadTotals.previous.data,id):previousTotal(id);
+    return {
+      id,
+      label:METRIC_BY_ID[id].label,
+      value:format(currentMetric),
+      change:exactMovement(availableValue(currentMetric),availableValue(previousMetric)),
+      comparison:`vs ${workspace.previousPeriod.startDate} — ${workspace.previousPeriod.endDate}`,
+      note,
+      status:currentMetric?.calculationStatus,
+      onWhyChanged: () => {
+        setRootMetric(kpiMap[id] || 'fetchedLeads');
+        setRootMetricLabel(METRIC_BY_ID[id].label);
+      },
+      onInspect: () => setChartMetric(id),
+    };
+  };
   const chartRows=matching.slice(0,12).map(row=>({id:row.key,label:row.group,value:availableValue(row.metrics[chartMetric]),formatted:format(row.metrics[chartMetric]),secondary:availableValue(previousRows.find(item=>item.key===row.key)?.metrics[chartMetric]),secondaryFormatted:`Previous: ${format(previousRows.find(item=>item.key===row.key)?.metrics[chartMetric])}`}));
   const driverIds=[['delivered_episodes','Volume'],['call_coverage','Calling coverage'],['sale_events','Sales events'],['activation_events','Activation events'],['collected_value','Collected amount']] as const;
   const pageRows=matching.slice(page*pageSize,page*pageSize+pageSize), pageCount=Math.max(1,Math.ceil(matching.length/pageSize));
@@ -346,5 +375,14 @@ export default function VendorPerformance() {
       </section>
       <EvidenceInspector report={report} selection={inspection} onClose={()=>setInspection(null)}/>
     </>}
+    <RootCauseDrawer
+      open={Boolean(rootMetric)}
+      metric={rootMetric}
+      metricLabel={rootMetricLabel}
+      onClose={() => {
+        setRootMetric(null);
+        setRootMetricLabel(undefined);
+      }}
+    />
   </div>;
 }

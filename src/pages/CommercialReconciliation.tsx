@@ -16,6 +16,7 @@ import MetricRail from '../components/operations/MetricRail';
 import ExactBarChart from '../components/operations/ExactBarChart';
 import EvidenceInspector, { type EvidenceSelection } from '../components/operations/EvidenceInspector';
 import { VisualTable } from '../components/visuals/DataVisual';
+import RootCauseDrawer from '../components/RootCauseDrawer';
 
 const METRICS = ['sale_events','activation_events','expected_value','approved_value','invoiced_value','collected_value'];
 const STAGES = ['expected_value','approved_value','invoiced_value','collected_value'];
@@ -39,6 +40,8 @@ export default function CommercialReconciliation() {
   const [sort,setSort]=useState('collected_value'), [sortAsc,setSortAsc]=useState(false);
   const [selectedVendor,setSelectedVendor]=useState<string|null>(null), [inspection,setInspection]=useState<EvidenceSelection|null>(null);
   const [vendorView, setVendorView] = useState<'table' | 'graph'>('table');
+  const [rootMetric, setRootMetric] = useState<string | null>(null);
+  const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
 
   const filtered=useMemo(() => {
     const list = rows.filter(row => !deferredSearch || row.group.toLowerCase().includes(deferredSearch));
@@ -74,7 +77,21 @@ export default function CommercialReconciliation() {
 
   const format=(metric:MetricResult|null|undefined)=>metric?formatReportValue(metric,currency):'Unavailable';
   const total=(id:string)=>metricValue(report,id), prior=(id:string)=>metricValue(previous,id);
-  const kpis=STAGES.map(id=>({id,label:METRIC_BY_ID[id].label,value:format(total(id)),change:exactMovement(available(total(id)),available(prior(id))),comparison:'vs previous comparable period',note:id==='collected_value'?'Signed collection changes only.':`${METRIC_BY_ID[id].definition}`,status:total(id)?.calculationStatus}));
+  const kpis=STAGES.map(id=>({
+    id,
+    label:METRIC_BY_ID[id].label,
+    value:format(total(id)),
+    change:exactMovement(available(total(id)),available(prior(id))),
+    comparison:'vs previous comparable period',
+    note:id==='collected_value'?'Signed collection changes only.':`${METRIC_BY_ID[id].definition}`,
+    status:total(id)?.calculationStatus,
+    onWhyChanged: () => {
+      setRootMetric('leadToSaleRate');
+      setRootMetricLabel(METRIC_BY_ID[id].label);
+    },
+    onInspect: () => setInspection({metricId:id,group:null,label:METRIC_BY_ID[id].label}),
+    inspectLabel: 'Inspect',
+  }));
   const gap=(left:string,right:string)=>{const a=available(total(left)),b=available(total(right));return a===null||b===null?'Unavailable':`${currency} ${exactNumber(subtractExactDecimals(a,b),2)}`;};
   const stageChart=STAGES.map(id=>({label:METRIC_BY_ID[id].label,value:available(total(id)),formatted:format(total(id))}));
   const selected=rows.find(row=>row.key===selectedVendor)??filtered[0];
@@ -366,5 +383,14 @@ export default function CommercialReconciliation() {
       </section>
       <EvidenceInspector report={report} selection={inspection} onClose={()=>setInspection(null)}/>
     </>}
+    <RootCauseDrawer
+      open={Boolean(rootMetric)}
+      metric={rootMetric}
+      metricLabel={rootMetricLabel}
+      onClose={() => {
+        setRootMetric(null);
+        setRootMetricLabel(undefined);
+      }}
+    />
   </div>;
 }

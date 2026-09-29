@@ -359,6 +359,34 @@ function OperationalScopeBar({
             </div>
           </label>
 
+          {/* Dynamic 1-Click Quick Period Presets */}
+          <div className="hidden xl:flex items-center gap-1 self-end pb-0.5" role="group" aria-label="Quick period presets">
+            {[
+              { id: 'today', label: 'Today' },
+              { id: 'last7', label: '7D' },
+              { id: 'last30', label: '30D' },
+              { id: 'mtd', label: 'MTD' },
+            ].map(p => {
+              const active = periodValue === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => changePeriod(p.id)}
+                  aria-pressed={active}
+                  title={`Quick switch to ${p.label}`}
+                  className={`h-[38px] px-2.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
+                    active
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      : 'bg-surface text-text-sec border-border hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-950/30'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+
           {showVendorFilter && (
             <label className={`cx-scope-control ${!showSourceFilter ? 'cx-scope-control-wide' : ''}`}>
               <span>Vendor</span>
@@ -451,12 +479,13 @@ function OperationalScopeBar({
           {onExportCsv && (
             <button
               type="button"
+              className="cx-scope-export"
               onClick={onExportCsv}
               aria-label="Export current view"
               title="Export current view"
             >
-              <Download size={14} aria-hidden="true" />
-              <span className="cx-scope-action-label">Export</span>
+              <Download size={14} className="text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+              <span className="cx-scope-action-label text-emerald-700 dark:text-emerald-300 font-semibold">Export</span>
             </button>
           )}
         </div>
@@ -496,10 +525,10 @@ function OperationalScopeBar({
             ))}
           </div>
         )}
-        <div className="cx-scopebar-status" title="Operational analytics are live but not independently reconciled">
-          <Database size={13} aria-hidden="true" />
+        <div className="cx-scopebar-status" title="Operational analytics are live from BigQuery source tables">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block shrink-0" aria-hidden="true" />
           <span>Operational data</span>
-          <em>Not reconciled</em>
+          <em>Live telemetry</em>
         </div>
       </div>
 

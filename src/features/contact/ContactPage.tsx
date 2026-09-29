@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   PhoneCall,
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import ReportingScopeBar from '../../shared/reporting/ReportingScopeBar';
 import InspectorHost from '../../shared/evidence/InspectorHost';
+import RootCauseDrawer from '../../components/RootCauseDrawer';
 import { OperationalError } from '../../components/OperationalState';
 import { formatTableNumber } from '../../lib/formatters';
 import { useScopedNavigationTarget } from '../../hooks/useScopedNavigationTarget';
@@ -16,6 +17,7 @@ import { useContactModel } from './model/useContactModel';
 import CallEffortReport from './components/CallEffortReport';
 import VendorDispositionReport from './components/VendorDispositionReport';
 import VendorOutcomeInspector from './components/VendorOutcomeInspector';
+import type { RootCauseData } from '../../lib/offernetClient';
 
 export default function ContactPage() {
   const scoped = useScopedNavigationTarget();
@@ -49,6 +51,8 @@ export default function ContactPage() {
     handleExportVendorRawBreakdown,
     handleExportVendorSelectedBreakdown,
   } = useContactModel();
+
+  const [rootMetric, setRootMetric] = useState<RootCauseData['metric']['id'] | null>(null);
 
   const handleInspectBucket = (bucket: string, leads: number) => {
     // Only allowlisted buckets produced by contact service strategy.ts
@@ -199,6 +203,7 @@ export default function ContactPage() {
         <CallEffortReport
           data={callCountData}
           onInspectBucket={handleInspectBucket}
+          onWhyChanged={(m) => setRootMetric(m as any)}
           onExportCsv={handleExportCallCountsCsv}
         />
       )}
@@ -210,6 +215,7 @@ export default function ContactPage() {
           onModeChange={handleModeChange}
           onSelectVendor={handleSelectVendor}
           onFilterReportByVendor={handleFilterReportByVendor}
+          onWhyChanged={(m) => setRootMetric(m as any)}
           onExportSummaryTable={handleExportVendorSummaryTable}
           exportError={summaryExportError}
           onClearExportError={clearSummaryExportError}
@@ -317,6 +323,13 @@ export default function ContactPage() {
         open={Boolean(inspectorContent)}
         onClose={() => setInspectorContent(null)}
         content={inspectorContent}
+      />
+
+      {/* Root-Cause Why Changed Drawer */}
+      <RootCauseDrawer
+        open={rootMetric !== null}
+        metric={rootMetric}
+        onClose={() => setRootMetric(null)}
       />
     </div>
   );

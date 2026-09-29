@@ -5,6 +5,9 @@ import { useClient } from '../lib/ClientContext';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import OperationalPageHeader from '../components/OperationalPageHeader';
+import UnifiedMetricCard from '../components/UnifiedMetricCard';
+import RootCauseDrawer from '../components/RootCauseDrawer';
+import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { formatTableNumber, formatPercent, formatTableCurrency } from '../lib/formatters';
 import { heatmapColors } from '../lib/heatmapColors';
 import { MultiSeriesTrendChart, VolumeRateComboChart } from '../components/charts/OperationalVisuals';
@@ -13,11 +16,32 @@ type CohortMetric = 'call_coverage' | 'sale' | 'activation';
 type CohortGrain = 'daily' | 'weekly' | 'monthly';
 
 export default function Cohorts() {
+  const scoped = useScopedNavigationTarget();
   const [cohortType, setCohortType] = useState<CohortGrain>('weekly');
   const [metricType, setMetricType] = useState<CohortMetric>('sale');
+  const [rootMetric, setRootMetric] = useState<string | null>(null);
+  const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
   const { clientConfig } = useClient();
   const currencyPrefix = clientConfig?.currency === 'GBP' ? '£' : clientConfig?.currency === 'USD' ? '$' : 'R ';
   const { data: cohorts, loading, error, refetch } = useAnalyticsData('cohorts', { cohortType, metricType });
+
+  const cohortSummary = useMemo(() => {
+    if (!cohorts || !cohorts.length) return null;
+    const totalLeads = cohorts.reduce((sum: number, c: any) => sum + (c.size || 0), 0);
+    const totalWeightedDial = cohorts.reduce((sum: number, c: any) => sum + (c.size || 0) * (c.callCoverage ?? c.callRate ?? 0), 0);
+    const totalWeightedSale = cohorts.reduce((sum: number, c: any) => sum + (c.size || 0) * (c.saleRate || 0), 0);
+    const totalWeightedActivation = cohorts.reduce((sum: number, c: any) => sum + (c.size || 0) * (c.activationRate || 0), 0);
+    const avgDialCoverage = totalLeads > 0 ? totalWeightedDial / totalLeads : null;
+    const avgSaleRate = totalLeads > 0 ? totalWeightedSale / totalLeads : null;
+    const avgActivationRate = totalLeads > 0 ? totalWeightedActivation / totalLeads : null;
+    return {
+      totalLeads,
+      avgDialCoverage,
+      avgSaleRate,
+      avgActivationRate,
+      cohortCount: cohorts.length,
+    };
+  }, [cohorts]);
 
   const metricLabel: Record<CohortMetric, string> = {
     call_coverage: 'Dialled / fetched',
@@ -101,6 +125,58 @@ export default function Cohorts() {
 
         {cohorts && cohorts.length > 0 && (
           <>
+            {cohortSummary && (
+              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6" aria-label="Cohort maturation summary">
+                <UnifiedMetricCard
+                  label="Total Cohort Leads"
+                  value={formatTableNumber(cohortSummary.totalLeads)}
+                  note={`${cohortSummary.cohortCount} observed cohorts`}
+                  onWhyChanged={() => {
+                    setRootMetric('fetchedLeads');
+                    setRootMetricLabel('Cohort Population');
+                  }}
+                  to={scoped('/funnel')}
+                  inspectLabel="Inspect funnel"
+                />
+
+                <UnifiedMetricCard
+                  label="Dial Coverage"
+                  value={cohortSummary.avgDialCoverage != null ? formatPercent(cohortSummary.avgDialCoverage) : '—'}
+                  note="Average dialled share"
+                  onWhyChanged={() => {
+                    setRootMetric('dialRate');
+                    setRootMetricLabel('Cohort Dial Coverage');
+                  }}
+                  to={scoped('/contact-strategy')}
+                  inspectLabel="Inspect contact"
+                />
+
+                <UnifiedMetricCard
+                  label="Lead → Sale Rate"
+                  value={cohortSummary.avgSaleRate != null ? formatPercent(cohortSummary.avgSaleRate) : '—'}
+                  note="Cohort conversion rate"
+                  onWhyChanged={() => {
+                    setRootMetric('leadToSaleRate');
+                    setRootMetricLabel('Cohort Lead-to-Sale');
+                  }}
+                  to={scoped('/sales-activation')}
+                  inspectLabel="Inspect sales"
+                />
+
+                <UnifiedMetricCard
+                  label="Activation Rate"
+                  value={cohortSummary.avgActivationRate != null ? formatPercent(cohortSummary.avgActivationRate) : '—'}
+                  note="Fulfilled / recorded sales"
+                  onWhyChanged={() => {
+                    setRootMetric('activationRate');
+                    setRootMetricLabel('Cohort Activation Rate');
+                  }}
+                  to={scoped('/sales-activation')}
+                  inspectLabel="Inspect activations"
+                />
+              </section>
+            )}
+
             <section className="cx-command-panel">
               <header>
                 <div>
@@ -205,6 +281,16 @@ export default function Cohorts() {
           </>
         )}
       </div>
+
+      <RootCauseDrawer
+        open={Boolean(rootMetric)}
+        metric={rootMetric}
+        metricLabel={rootMetricLabel}
+        onClose={() => {
+          setRootMetric(null);
+          setRootMetricLabel(undefined);
+        }}
+      />
     </div>
   );
 }

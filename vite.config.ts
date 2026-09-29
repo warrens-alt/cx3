@@ -1,5 +1,6 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import fs from 'node:fs';
 import path from 'path';
 import { defineConfig } from 'vite';
 
@@ -21,9 +22,39 @@ function previewApiPlugin() {
   };
 }
 
+function artifactMirrorPlugin() {
+  return {
+    name: 'conversionx-artifact-mirror',
+    closeBundle() {
+      const rootDir = process.cwd();
+      const distDir = path.join(rootDir, 'dist');
+      const distHtml = path.join(distDir, 'index.html');
+      const distAssets = path.join(distDir, 'assets');
+
+      if (!fs.existsSync(distHtml)) return;
+
+      const targets = [
+        path.join(distDir, 'client'),
+        path.join(rootDir, 'build'),
+        path.join(rootDir, 'out'),
+      ];
+
+      for (const targetDir of targets) {
+        fs.mkdirSync(targetDir, { recursive: true });
+        fs.copyFileSync(distHtml, path.join(targetDir, 'index.html'));
+        if (fs.existsSync(distAssets)) {
+          const targetAssets = path.join(targetDir, 'assets');
+          fs.rmSync(targetAssets, { recursive: true, force: true });
+          fs.cpSync(distAssets, targetAssets, { recursive: true, force: true });
+        }
+      }
+    },
+  };
+}
+
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss(), previewApiPlugin()],
+    plugins: [react(), tailwindcss(), previewApiPlugin(), artifactMirrorPlugin()],
     resolve: {
       dedupe: ['react', 'react-dom', 'react-router', 'react-router-dom'],
       alias: {

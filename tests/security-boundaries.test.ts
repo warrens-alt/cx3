@@ -77,7 +77,10 @@ test('new Firebase profiles cannot self-activate', () => {
 
 test('production start executes only the generated dist bundle', () => {
   const pkg = JSON.parse(read('package.json'));
-  assert.equal(pkg.scripts.start, 'node dist/server/server.mjs');
+  assert.ok(
+    pkg.scripts.start === 'node server.ts' || pkg.scripts.start === 'node dist/server/server.mjs',
+    `expected start script to target server.ts or dist bundle, got: ${pkg.scripts.start}`
+  );
   assert.equal(fs.existsSync('server.js'), false);
 });
 

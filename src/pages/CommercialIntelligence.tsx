@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import SpendReconciliationPanel from '../components/SpendReconciliationPanel';
+import RootCauseDrawer from '../components/RootCauseDrawer';
 import { useOperationalData } from '../lib/useOperationalData';
-import { AlertTriangle, ArrowRight, Database, DollarSign, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Database, DollarSign, Search, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import { useClient } from '../lib/ClientContext';
@@ -17,6 +18,7 @@ import { GroupedOutcomeChart, RankedMetricChart } from '../components/charts/Ope
 const money = (value: number | null | undefined) => formatTableCurrency(value, 'R');
 
 export default function CommercialIntelligence() {
+  const [rootMetric, setRootMetric] = useState<string | null>(null);
   const scoped = useScopedNavigationTarget();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
@@ -71,21 +73,195 @@ export default function CommercialIntelligence() {
 
             <SpendReconciliationPanel reconciliation={data.reconciliation} grain={data.grainDiagnostics} />
             <section className="cx-command-metrics cx-commercial-metrics">
-              <article className="cx-command-metric"><span>Recorded media spend</span><strong>{money(baseline.mediaSpend)}</strong><div><small>Approved marketing source only</small></div></article>
-              <article className="cx-command-metric"><span>Platform CPL</span><strong>{money(baseline.cpl)}</strong><div><small>Spend / platform lead events</small></div></article>
-              <article className="cx-command-metric"><span>Recorded revenue</span><strong>{money(baseline.revenue)}</strong><div><small>Lead-ledger revenue field</small></div></article>
-              <article className="cx-command-metric"><span>Attributed spend / sale</span><strong>{money(baseline.blendedCostPerSale)}</strong><div><small>Matched spend / matched sales</small></div></article>
-              <article className="cx-command-metric"><span>Revenue / media spend</span><strong>{baseline.revenueToMediaSpendRatio == null ? '—' : `${baseline.revenueToMediaSpendRatio.toFixed(2)}×`}</strong><div><small>Matched revenue / matched spend</small></div></article>
+              <article className="cx-command-metric flex flex-col justify-between">
+                <div>
+                  <span>Recorded media spend</span>
+                  <strong>{money(baseline.mediaSpend)}</strong>
+                  <div><small>Approved marketing source only</small></div>
+                </div>
+                <div className="flex items-center justify-between text-[11px] pt-2.5 mt-2.5 border-t border-border-subtle">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 text-action hover:text-action-hover font-medium transition-colors cursor-pointer"
+                    onClick={() => setRootMetric('spend')}
+                    title="Investigate why media spend changed"
+                  >
+                    <span>Why changed?</span>
+                    <Search size={10} aria-hidden="true" />
+                  </button>
+                  <Link to={scoped('/campaigns')} className="inline-flex items-center gap-1 text-text-sec hover:text-action font-medium transition-colors">
+                    <span>Inspect</span>
+                    <ArrowRight size={10} aria-hidden="true" />
+                  </Link>
+                </div>
+              </article>
+
+              <article className="cx-command-metric flex flex-col justify-between">
+                <div>
+                  <span>Platform CPL</span>
+                  <strong>{money(baseline.cpl)}</strong>
+                  <div><small>Spend / platform lead events</small></div>
+                </div>
+                <div className="flex items-center justify-between text-[11px] pt-2.5 mt-2.5 border-t border-border-subtle">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 text-action hover:text-action-hover font-medium transition-colors cursor-pointer"
+                    onClick={() => setRootMetric('cpl')}
+                    title="Investigate why platform CPL changed"
+                  >
+                    <span>Why changed?</span>
+                    <Search size={10} aria-hidden="true" />
+                  </button>
+                  <Link to={scoped('/campaigns')} className="inline-flex items-center gap-1 text-text-sec hover:text-action font-medium transition-colors">
+                    <span>Inspect</span>
+                    <ArrowRight size={10} aria-hidden="true" />
+                  </Link>
+                </div>
+              </article>
+
+              <article className="cx-command-metric flex flex-col justify-between">
+                <div>
+                  <span>Recorded revenue</span>
+                  <strong>{money(baseline.revenue)}</strong>
+                  <div><small>Lead-ledger revenue field</small></div>
+                </div>
+                <div className="flex items-center justify-between text-[11px] pt-2.5 mt-2.5 border-t border-border-subtle">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 text-action hover:text-action-hover font-medium transition-colors cursor-pointer"
+                    onClick={() => setRootMetric('leadToSaleRate')}
+                    title="Investigate why recorded revenue changed"
+                  >
+                    <span>Why changed?</span>
+                    <Search size={10} aria-hidden="true" />
+                  </button>
+                  <Link to={scoped('/sales-activation')} className="inline-flex items-center gap-1 text-text-sec hover:text-action font-medium transition-colors">
+                    <span>Inspect</span>
+                    <ArrowRight size={10} aria-hidden="true" />
+                  </Link>
+                </div>
+              </article>
+
+              <article className="cx-command-metric flex flex-col justify-between">
+                <div>
+                  <span>Attributed spend / sale</span>
+                  <strong>{money(baseline.blendedCostPerSale)}</strong>
+                  <div><small>Matched spend / matched sales</small></div>
+                </div>
+                <div className="flex items-center justify-between text-[11px] pt-2.5 mt-2.5 border-t border-border-subtle">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 text-action hover:text-action-hover font-medium transition-colors cursor-pointer"
+                    onClick={() => setRootMetric('leadToSaleRate')}
+                    title="Investigate why cost per sale changed"
+                  >
+                    <span>Why changed?</span>
+                    <Search size={10} aria-hidden="true" />
+                  </button>
+                  <Link to={scoped('/reconciliation')} className="inline-flex items-center gap-1 text-text-sec hover:text-action font-medium transition-colors">
+                    <span>Inspect</span>
+                    <ArrowRight size={10} aria-hidden="true" />
+                  </Link>
+                </div>
+              </article>
+
+              <article className="cx-command-metric flex flex-col justify-between">
+                <div>
+                  <span>Revenue / media spend</span>
+                  <strong>{baseline.revenueToMediaSpendRatio == null ? '—' : `${baseline.revenueToMediaSpendRatio.toFixed(2)}×`}</strong>
+                  <div><small>Matched revenue / matched spend</small></div>
+                </div>
+                <div className="flex items-center justify-between text-[11px] pt-2.5 mt-2.5 border-t border-border-subtle">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 text-action hover:text-action-hover font-medium transition-colors cursor-pointer"
+                    onClick={() => setRootMetric('spend')}
+                    title="Investigate revenue / spend ratio"
+                  >
+                    <span>Why changed?</span>
+                    <Search size={10} aria-hidden="true" />
+                  </button>
+                  <Link to={scoped('/reconciliation')} className="inline-flex items-center gap-1 text-text-sec hover:text-action font-medium transition-colors">
+                    <span>Inspect</span>
+                    <ArrowRight size={10} aria-hidden="true" />
+                  </Link>
+                </div>
+              </article>
             </section>
 
             <section className="cx-command-panel" aria-label="Commercial matched-period changes">
               <header><div><span className="cx-command-section-kicker">Matched prior period</span><h2>Commercial changes</h2><p>{data.attributionComparison?.reason}</p></div></header>
               <div className="cx-commercial-ratios">
-                <div><span>Spend change</span><strong>{money(data.mediaComparison?.spendDelta ?? data.attributionComparison?.spend.absoluteChange)}</strong><small>{formatPercent(data.mediaComparison?.spendDeltaPct ?? data.attributionComparison?.spend.percentageChange)} change</small></div>
-                <div><span>Platform CPL change</span><strong>{formatPercent(data.mediaComparison?.cplDeltaPct)}</strong><small>Marketing population only</small></div>
-                <div><span>Attributed CPS change</span><strong>{money(data.attributionComparison?.costPerSale.absoluteChange)}</strong><small>{formatPercent(data.attributionComparison?.costPerSale.percentageChange)} change</small></div>
-                <div><span>Matched fetched change</span><strong>{formatTableNumber(data.attributionComparison?.fetched.absoluteChange)}</strong><small>Warehouse fetched leads</small></div>
-                <div><span>Matched sales change</span><strong>{formatTableNumber(data.attributionComparison?.sales.absoluteChange)}</strong><small>Approved matched population</small></div>
+                <div>
+                  <span>Spend change</span>
+                  <strong>{money(data.mediaComparison?.spendDelta ?? data.attributionComparison?.spend.absoluteChange)}</strong>
+                  <div className="flex items-center justify-between gap-1 mt-1">
+                    <small>{formatPercent(data.mediaComparison?.spendDeltaPct ?? data.attributionComparison?.spend.percentageChange)} change</small>
+                    <button
+                      type="button"
+                      onClick={() => setRootMetric('spend')}
+                      className="text-[11px] text-action hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                    >
+                      Why? <Search size={10} />
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <span>Platform CPL change</span>
+                  <strong>{formatPercent(data.mediaComparison?.cplDeltaPct)}</strong>
+                  <div className="flex items-center justify-between gap-1 mt-1">
+                    <small>Marketing population only</small>
+                    <button
+                      type="button"
+                      onClick={() => setRootMetric('cpl')}
+                      className="text-[11px] text-action hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                    >
+                      Why? <Search size={10} />
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <span>Attributed CPS change</span>
+                  <strong>{money(data.attributionComparison?.costPerSale.absoluteChange)}</strong>
+                  <div className="flex items-center justify-between gap-1 mt-1">
+                    <small>{formatPercent(data.attributionComparison?.costPerSale.percentageChange)} change</small>
+                    <button
+                      type="button"
+                      onClick={() => setRootMetric('leadToSaleRate')}
+                      className="text-[11px] text-action hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                    >
+                      Why? <Search size={10} />
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <span>Matched fetched change</span>
+                  <strong>{formatTableNumber(data.attributionComparison?.fetched.absoluteChange)}</strong>
+                  <div className="flex items-center justify-between gap-1 mt-1">
+                    <small>Warehouse fetched leads</small>
+                    <button
+                      type="button"
+                      onClick={() => setRootMetric('fetchedLeads')}
+                      className="text-[11px] text-action hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                    >
+                      Why? <Search size={10} />
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <span>Matched sales change</span>
+                  <strong>{formatTableNumber(data.attributionComparison?.sales.absoluteChange)}</strong>
+                  <div className="flex items-center justify-between gap-1 mt-1">
+                    <small>Approved matched population</small>
+                    <button
+                      type="button"
+                      onClick={() => setRootMetric('leadToSaleRate')}
+                      className="text-[11px] text-action hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                    >
+                      Why? <Search size={10} />
+                    </button>
+                  </div>
+                </div>
               </div>
             </section>
 
@@ -234,6 +410,12 @@ export default function CommercialIntelligence() {
           </>
         )}
       </div>
+
+      <RootCauseDrawer
+        open={Boolean(rootMetric)}
+        metric={rootMetric}
+        onClose={() => setRootMetric(null)}
+      />
     </div>
   );
 }

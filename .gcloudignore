@@ -5,6 +5,8 @@ node_modules/
 !dist/**
 !build/
 !build/**
+!out/
+!out/**
 !server.js
 !server.ts
 !server.mjs

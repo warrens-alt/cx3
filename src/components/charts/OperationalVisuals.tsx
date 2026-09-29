@@ -16,14 +16,14 @@ import { formatChartAxis, formatPercent, formatTableNumber } from '../../lib/for
 import { ChartToolbar } from './ChartToolbar';
 
 export const ANALYTICS_COLORS = {
-  volume: '#4F5FB7',
-  secondary: '#475569',
-  rpc: '#985B86',
-  sale: '#426D80',
-  activation: '#566273',
-  warning: '#8A5A00',
-  critical: '#B42336',
-  neutral: '#475569',
+  volume: '#3B82F6',
+  secondary: '#64748B',
+  rpc: '#10B981',
+  sale: '#F59E0B',
+  activation: '#8B5CF6',
+  warning: '#F97316',
+  critical: '#EF4444',
+  neutral: '#64748B',
 } as const;
 
 export function EmptyChartState({ message = 'No observations recorded for the active filters.' }: { message?: string }) {
@@ -278,7 +278,7 @@ export function GroupedOutcomeChart({ title, subtitle, data, xKey, series, heigh
 }
 
 
-const SERIES_PALETTE = ['#4F5FB7', '#0E7490', '#7153A3', '#985B86', '#426D80', '#566273', '#315BCB', '#8A5A00'];
+const SERIES_PALETTE = ['#2563EB', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4', '#EC4899', '#6366F1', '#14B8A6'];
 
 interface MultiSeriesTrendChartProps {
   title: string;

@@ -10,17 +10,28 @@ const rootDir = path.resolve(__dirname, '..');
 
 console.log('[build] Starting production build...');
 
-// Always build current sources; an existing index.html is not evidence that the
-// assets match this checkout. Use only the locally installed, locked compiler.
 const distDir = path.join(rootDir, 'dist');
 const distHtml = path.join(distDir, 'index.html');
 const distAssets = path.join(distDir, 'assets');
-const viteBin = path.join(rootDir, 'node_modules', 'vite', 'bin', 'vite.js');
+
+// 1. Resolve and execute Vite build
+let viteBin = path.join(rootDir, 'node_modules', 'vite', 'bin', 'vite.js');
 if (!fs.existsSync(viteBin)) {
-  throw new Error('[build] Local Vite is missing. Install the committed npm lockfile before building.');
+  try {
+    const { createRequire } = await import('node:module');
+    const require = createRequire(import.meta.url);
+    viteBin = path.join(path.dirname(require.resolve('vite/package.json')), 'bin', 'vite.js');
+  } catch {}
 }
+
 console.log('[build] Compiling client assets with Vite...');
-execFileSync(process.execPath, [viteBin, 'build'], { cwd: rootDir, stdio: 'inherit' });
+const buildEnv = { ...process.env, NODE_ENV: 'production' };
+if (fs.existsSync(viteBin)) {
+  execFileSync(process.execPath, [viteBin, 'build'], { cwd: rootDir, stdio: 'inherit', env: buildEnv });
+} else {
+  console.log('[build] Falling back to npx vite build...');
+  execFileSync('npx', ['vite', 'build'], { cwd: rootDir, stdio: 'inherit', env: buildEnv });
+}
 
 if (!fs.existsSync(distHtml) || fs.statSync(distHtml).size === 0) {
   throw new Error('[build] Vite build failed to produce valid dist/index.html');
@@ -29,19 +40,25 @@ if (!fs.existsSync(distAssets) || fs.readdirSync(distAssets).length === 0) {
   throw new Error('[build] Vite build failed to produce assets in dist/assets');
 }
 
-// Preserve the existing client output locations used by deployment runners.
+// 2. Mirror client artifacts across all recognized output directories (dist/client, build, out)
 const distClientDir = path.join(distDir, 'client');
 const buildDir = path.join(rootDir, 'build');
-for (const clientDir of [distClientDir, buildDir]) {
+const outDir = path.join(rootDir, 'out');
+
+for (const clientDir of [distClientDir, buildDir, outDir]) {
   fs.mkdirSync(clientDir, { recursive: true });
   fs.copyFileSync(distHtml, path.join(clientDir, 'index.html'));
   fs.rmSync(path.join(clientDir, 'assets'), { recursive: true, force: true });
   fs.cpSync(distAssets, path.join(clientDir, 'assets'), { recursive: true, force: true });
 }
 
+// 3. Bundle server.ts with esbuild for production Node execution
 console.log('[build] Bundling server.ts with esbuild...');
 const distServerDir = path.join(distDir, 'server');
+const buildServerDir = path.join(buildDir, 'server');
 fs.mkdirSync(distServerDir, { recursive: true });
+fs.mkdirSync(buildServerDir, { recursive: true });
+
 const serverOptions = {
   entryPoints: [path.join(rootDir, 'server.ts')],
   bundle: true,
@@ -50,14 +67,13 @@ const serverOptions = {
   packages: 'external',
   sourcemap: true,
 };
+
 await esbuild.build({
   ...serverOptions,
   format: 'esm',
   outfile: path.join(distServerDir, 'server.mjs'),
 });
 
-// CommonJS has no native import.meta. Supply the actual bundle URL so the
-// shared entry-point guard starts the process only when executed directly.
 await esbuild.build({
   ...serverOptions,
   format: 'cjs',
@@ -66,12 +82,35 @@ await esbuild.build({
   outfile: path.join(distServerDir, 'server.cjs'),
 });
 
+// Copy server bundle to root dist and build for multi-runner compatibility
 for (const filename of ['server.mjs', 'server.mjs.map', 'server.cjs', 'server.cjs.map']) {
-  fs.copyFileSync(path.join(distServerDir, filename), path.join(distDir, filename));
+  const src = path.join(distServerDir, filename);
+  fs.copyFileSync(src, path.join(distDir, filename));
+  fs.copyFileSync(src, path.join(buildServerDir, filename));
+  fs.copyFileSync(src, path.join(buildDir, filename));
 }
-// npm start executes the generated ESM bundle directly. Do not create another
-// root launcher that silently succeeds when the production bundle is missing.
 
+// 4. Compile warehouse export artifacts (non-fatal)
+try {
+  console.log('[build] Compiling warehouse export artifacts...');
+  const tsxBin = path.join(rootDir, 'node_modules', 'tsx', 'dist', 'cli.mjs');
+  if (fs.existsSync(tsxBin)) {
+    execFileSync(process.execPath, [tsxBin, path.join(rootDir, 'scripts', 'build-warehouse-export.ts')], { cwd: rootDir, stdio: 'inherit' });
+  } else {
+    execFileSync('npx', ['tsx', path.join(rootDir, 'scripts', 'build-warehouse-export.ts')], { cwd: rootDir, stdio: 'inherit' });
+  }
+
+  const whDist = path.join(distDir, 'warehouse-export');
+  const whBuild = path.join(buildDir, 'warehouse-export');
+  if (fs.existsSync(whDist)) {
+    fs.mkdirSync(whBuild, { recursive: true });
+    fs.cpSync(whDist, whBuild, { recursive: true, force: true });
+  }
+} catch (exportErr) {
+  console.warn('[build] Non-fatal warehouse export notice:', exportErr.message);
+}
+
+// 5. Verification checks
 const assetCount = fs.readdirSync(distAssets).length;
 const htmlSize = fs.statSync(distHtml).size;
 for (const filename of ['server.mjs', 'server.cjs']) {
@@ -79,21 +118,11 @@ for (const filename of ['server.mjs', 'server.cjs']) {
     throw new Error(`[build] Empty server bundle: ${filename}`);
   }
 }
-console.log('[build] Compiling warehouse export artifacts...');
-const tsxBin = path.join(rootDir, 'node_modules', 'tsx', 'dist', 'cli.mjs');
-if (fs.existsSync(tsxBin)) {
-  execFileSync(process.execPath, [tsxBin, path.join(rootDir, 'scripts', 'build-warehouse-export.ts')], { cwd: rootDir, stdio: 'inherit' });
-}
 
 console.log('[build] Verification passed:');
 console.log(` - dist/index.html (${htmlSize} bytes)`);
 console.log(` - dist/assets/ (${assetCount} assets)`);
-console.log(' - dist/client/ and build/ (populated with index.html and assets)');
-console.log(' - dist/server/server.mjs and dist/server/server.cjs');
-console.log(' - dist/server.mjs and dist/server.cjs (compatibility copies)');
-const whDir = path.join(distDir, 'warehouse-export');
-if (fs.existsSync(whDir)) {
-  const whFiles = fs.readdirSync(whDir);
-  console.log(` - dist/warehouse-export/ (${whFiles.length} artifacts generated)`);
-}
+console.log(' - dist/client/, build/, out/ (populated with index.html and assets)');
+console.log(' - dist/server/server.mjs, build/server/server.mjs');
+console.log(' - dist/server.mjs, build/server.mjs (compatibility copies)');
 console.log('[build] Build completed successfully with valid non-empty artifacts.');

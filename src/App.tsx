@@ -1,10 +1,16 @@
 import React from 'react';
 import './styles/tokens.css';
 import './styles/globals.css';
-import LeadEngineLayout from './leadEngine/LeadEngineLayout';
+import AppProviders from './app/AppProviders';
+import AppShell from './app/layouts/AppShell';
+import AppRouter from './app/AppRouter';
 
 export default function App() {
-  // Act One: Enterprise Lead Ledger & Commercial Intelligence Platform
-  return <LeadEngineLayout />;
+  return (
+    <AppProviders>
+      <AppShell>
+        <AppRouter />
+      </AppShell>
+    </AppProviders>
+  );
 }
-

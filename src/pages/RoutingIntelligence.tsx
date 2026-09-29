@@ -1,17 +1,19 @@
-import React from 'react';
-import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, GitBranch, GitFork, Route } from 'lucide-react';
+import React, { useState } from 'react';
+import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, GitBranch, GitFork, Route, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAnalyticsData } from '../lib/useAnalyticsData';
 import { useClient } from '../lib/ClientContext';
 import { useAuth } from '../lib/AuthContext';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
+import RootCauseDrawer from '../components/RootCauseDrawer';
 import { formatPercent, formatTableNumber, formatTableCurrency } from '../lib/formatters';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import { RankedMetricChart, VolumeRateComboChart } from '../components/charts/OperationalVisuals';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 
 export default function RoutingIntelligence() {
+  const [rootMetric, setRootMetric] = useState<string | null>(null);
   const scoped = useScopedNavigationTarget();
   const { isAdmin } = useAuth();
   const { clientConfig } = useClient();
@@ -44,11 +46,120 @@ export default function RoutingIntelligence() {
           return (
             <>
               <section className="cx-command-metrics cx-routing-metrics">
-                <article className="cx-command-metric"><span>Routed leads</span><strong>{formatTableNumber(overview.total_routed_leads)}</strong><div><small>{formatPercent(overview.routed_lead_share_pct)} of captured leads</small></div></article>
-                <article className="cx-command-metric"><span>Average route depth</span><strong>{overview.avg_routing_depth == null ? '—' : Number(overview.avg_routing_depth).toFixed(2)}</strong><div><small>Partners per routed lead</small></div></article>
-                <article className="cx-command-metric"><span>Multi-route leads</span><strong>{formatTableNumber(overview.multi_route_leads)}</strong><div><small>Cascaded beyond one route</small></div></article>
-                <article className="cx-command-metric"><span>Matched handoff</span><strong>{formatPercent(overview.handoff_rate_pct)}</strong><div><small>{formatTableNumber(overview.missing_handoff_leads)} unmatched</small></div></article>
-                <article className="cx-command-metric"><span>Recorded route revenue</span><strong>{formatTableCurrency(overview.routed_revenue, currency)}</strong><div><small>Source-recorded value only</small></div></article>
+                <article className="cx-command-metric flex flex-col justify-between">
+                  <div>
+                    <span>Routed leads</span>
+                    <strong>{formatTableNumber(overview.total_routed_leads)}</strong>
+                    <div><small>{formatPercent(overview.routed_lead_share_pct)} of captured leads</small></div>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] pt-2.5 mt-2.5 border-t border-border-subtle">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-action hover:text-action-hover font-medium transition-colors cursor-pointer"
+                      onClick={() => setRootMetric('deliveryRate')}
+                      title="Investigate why routed leads changed"
+                    >
+                      <span>Why changed?</span>
+                      <Search size={10} aria-hidden="true" />
+                    </button>
+                    <Link to={scoped('/lead-explorer')} className="inline-flex items-center gap-1 text-text-sec hover:text-action font-medium transition-colors">
+                      <span>Inspect</span>
+                      <ArrowRight size={10} aria-hidden="true" />
+                    </Link>
+                  </div>
+                </article>
+
+                <article className="cx-command-metric flex flex-col justify-between">
+                  <div>
+                    <span>Average route depth</span>
+                    <strong>{overview.avg_routing_depth == null ? '—' : Number(overview.avg_routing_depth).toFixed(2)}</strong>
+                    <div><small>Partners per routed lead</small></div>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] pt-2.5 mt-2.5 border-t border-border-subtle">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-action hover:text-action-hover font-medium transition-colors cursor-pointer"
+                      onClick={() => setRootMetric('deliveryRate')}
+                      title="Investigate why route depth changed"
+                    >
+                      <span>Why changed?</span>
+                      <Search size={10} aria-hidden="true" />
+                    </button>
+                    <Link to={scoped('/offershop-flow')} className="inline-flex items-center gap-1 text-text-sec hover:text-action font-medium transition-colors">
+                      <span>Inspect</span>
+                      <ArrowRight size={10} aria-hidden="true" />
+                    </Link>
+                  </div>
+                </article>
+
+                <article className="cx-command-metric flex flex-col justify-between">
+                  <div>
+                    <span>Multi-route leads</span>
+                    <strong>{formatTableNumber(overview.multi_route_leads)}</strong>
+                    <div><small>Cascaded beyond one route</small></div>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] pt-2.5 mt-2.5 border-t border-border-subtle">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-action hover:text-action-hover font-medium transition-colors cursor-pointer"
+                      onClick={() => setRootMetric('deliveryRate')}
+                      title="Investigate why multi-route leads changed"
+                    >
+                      <span>Why changed?</span>
+                      <Search size={10} aria-hidden="true" />
+                    </button>
+                    <Link to={scoped('/lead-explorer')} className="inline-flex items-center gap-1 text-text-sec hover:text-action font-medium transition-colors">
+                      <span>Inspect</span>
+                      <ArrowRight size={10} aria-hidden="true" />
+                    </Link>
+                  </div>
+                </article>
+
+                <article className="cx-command-metric flex flex-col justify-between">
+                  <div>
+                    <span>Matched handoff</span>
+                    <strong>{formatPercent(overview.handoff_rate_pct)}</strong>
+                    <div><small>{formatTableNumber(overview.missing_handoff_leads)} unmatched</small></div>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] pt-2.5 mt-2.5 border-t border-border-subtle">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-action hover:text-action-hover font-medium transition-colors cursor-pointer"
+                      onClick={() => setRootMetric('deliveryRate')}
+                      title="Investigate why handoff rate changed"
+                    >
+                      <span>Why changed?</span>
+                      <Search size={10} aria-hidden="true" />
+                    </button>
+                    <Link to={scoped('/lead-explorer')} className="inline-flex items-center gap-1 text-text-sec hover:text-action font-medium transition-colors">
+                      <span>Inspect</span>
+                      <ArrowRight size={10} aria-hidden="true" />
+                    </Link>
+                  </div>
+                </article>
+
+                <article className="cx-command-metric flex flex-col justify-between">
+                  <div>
+                    <span>Recorded route revenue</span>
+                    <strong>{formatTableCurrency(overview.routed_revenue, currency)}</strong>
+                    <div><small>Source-recorded value only</small></div>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] pt-2.5 mt-2.5 border-t border-border-subtle">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-action hover:text-action-hover font-medium transition-colors cursor-pointer"
+                      onClick={() => setRootMetric('leadToSaleRate')}
+                      title="Investigate why route revenue changed"
+                    >
+                      <span>Why changed?</span>
+                      <Search size={10} aria-hidden="true" />
+                    </button>
+                    <Link to={scoped('/commercial')} className="inline-flex items-center gap-1 text-text-sec hover:text-action font-medium transition-colors">
+                      <span>Inspect</span>
+                      <ArrowRight size={10} aria-hidden="true" />
+                    </Link>
+                  </div>
+                </article>
               </section>
 
               <div className="cx-analytics-visual-grid">
@@ -184,6 +295,12 @@ export default function RoutingIntelligence() {
           );
         })()}
       </div>
+
+      <RootCauseDrawer
+        open={Boolean(rootMetric)}
+        metric={rootMetric}
+        onClose={() => setRootMetric(null)}
+      />
     </div>
   );
 }

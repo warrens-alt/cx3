@@ -34,6 +34,8 @@ import { MetricCompositionDonut } from '../components/charts/MetricCompositionDo
 import { FunnelWaterfall } from '../components/charts/FunnelWaterfall';
 import { ComboChart } from '../components/charts/ComboChart';
 import { DistributionBar } from '../components/charts/DistributionBar';
+import UnifiedMetricCard from '../components/UnifiedMetricCard';
+import RootCauseDrawer from '../components/RootCauseDrawer';
 
 type ActiveTab = 'overview' | 'pull' | 'waterfall' | 'touchpoints' | 'telemetry' | 'tables';
 
@@ -57,6 +59,8 @@ export default function WarehouseAnalytics() {
     dataset: searchParams.get('dataset') || undefined,
     table: searchParams.get('table') || undefined,
   });
+  const [rootMetric, setRootMetric] = useState<string | null>(null);
+  const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
 
   // Sync tab changes with URL search params
   const handleTabChange = (newTab: ActiveTab) => {
@@ -74,7 +78,9 @@ export default function WarehouseAnalytics() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [datasetFilter, setDatasetFilter] = useState<string>('all');
   const [familyFilter, setFamilyFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
   const [selectedTable, setSelectedTable] = useState<DictionaryObject | null>(null);
+  const [columnSearchQuery, setColumnSearchQuery] = useState<string>('');
 
   const loadData = async (force = false) => {
     if (force) setRefreshing(true);
@@ -103,6 +109,7 @@ export default function WarehouseAnalytics() {
     return tables.filter(t => {
       if (datasetFilter !== 'all' && t.dataset !== datasetFilter) return false;
       if (familyFilter !== 'all' && t.family !== familyFilter) return false;
+      if (typeFilter !== 'all' && t.tableType !== typeFilter) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         return (
@@ -115,7 +122,16 @@ export default function WarehouseAnalytics() {
       }
       return true;
     });
-  }, [tables, datasetFilter, familyFilter, searchQuery]);
+  }, [tables, datasetFilter, familyFilter, typeFilter, searchQuery]);
+
+  const filteredModalColumns = useMemo(() => {
+    if (!selectedTable) return [];
+    if (!columnSearchQuery.trim()) return selectedTable.columns;
+    const q = columnSearchQuery.toLowerCase().trim();
+    return selectedTable.columns.filter(
+      c => c.name.toLowerCase().includes(q) || c.type.toLowerCase().includes(q)
+    );
+  }, [selectedTable, columnSearchQuery]);
 
   // Charts for Overview tab
   const datasetDistributionData = useMemo(() => {
@@ -238,7 +254,7 @@ export default function WarehouseAnalytics() {
             <button
               type="button"
               onClick={() => setIsExportModalOpen(true)}
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors"
+              className="cx-button-export"
               title="Build and export Google table data, projects, datasets, and schemas"
             >
               <Download size={14} />
@@ -248,7 +264,7 @@ export default function WarehouseAnalytics() {
               type="button"
               onClick={() => loadData(true)}
               disabled={refreshing}
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shadow-sm disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white transition-all shadow-xs disabled:opacity-50 cursor-pointer"
               title="Refresh warehouse data"
             >
               <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
@@ -289,51 +305,73 @@ export default function WarehouseAnalytics() {
 
         {/* Global Warehouse Stat Bar */}
         {data && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg">
-              <span className="text-xs text-slate-500 dark:text-slate-400 block">GCP Projects</span>
-              <strong className="text-2xl font-bold font-mono tabular-nums text-slate-900 dark:text-slate-50">
-                {data.kpis.totalProjects}
-              </strong>
-              <span className="text-[11px] text-slate-400 dark:text-slate-500 block mt-1">2 active · 4 upstream</span>
-            </div>
-            <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg">
-              <span className="text-xs text-slate-500 dark:text-slate-400 block">BigQuery Datasets</span>
-              <strong className="text-2xl font-bold font-mono tabular-nums text-slate-900 dark:text-slate-50">
-                {data.kpis.totalDatasets}
-              </strong>
-              <span className="text-[11px] text-slate-400 dark:text-slate-500 block mt-1">Across 2 project roots</span>
-            </div>
-            <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg">
-              <span className="text-xs text-slate-500 dark:text-slate-400 block">Tables & Views</span>
-              <strong className="text-2xl font-bold font-mono tabular-nums text-slate-900 dark:text-slate-50">
-                {data.kpis.totalWarehouseObjects}
-              </strong>
-              <span className="text-[11px] text-slate-400 dark:text-slate-500 block mt-1">
-                {data.kpis.totalTables} tables · {data.kpis.totalViews} views
-              </span>
-            </div>
-            <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg">
-              <span className="text-xs text-slate-500 dark:text-slate-400 block">Declared Columns</span>
-              <strong className="text-2xl font-bold font-mono tabular-nums text-slate-900 dark:text-slate-50">
-                {data.kpis.totalDeclaredColumns.toLocaleString()}
-              </strong>
-              <span className="text-[11px] text-slate-400 dark:text-slate-500 block mt-1">100% typed attributes</span>
-            </div>
-            <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg">
-              <span className="text-xs text-slate-500 dark:text-slate-400 block">Waterfall Timelines</span>
-              <strong className="text-2xl font-bold font-mono tabular-nums text-slate-900 dark:text-slate-50">
-                {data.waterfallSummary.totalWaterfallObjects}
-              </strong>
-              <span className="text-[11px] text-slate-400 dark:text-slate-500 block mt-1">Multi-client progression</span>
-            </div>
-            <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg">
-              <span className="text-xs text-slate-500 dark:text-slate-400 block">Touchpoint Feeds</span>
-              <strong className="text-2xl font-bold font-mono tabular-nums text-slate-900 dark:text-slate-50">
-                {data.touchpointsSummary.totalTouchpointSources}
-              </strong>
-              <span className="text-[11px] text-slate-400 dark:text-slate-500 block mt-1">Online & offline channels</span>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mb-6" aria-label="Warehouse telemetry summary">
+            <UnifiedMetricCard
+              label="GCP Projects"
+              value={data.kpis.totalProjects}
+              note="2 active · 4 upstream"
+              onWhyChanged={() => {
+                setRootMetric('deliveryRate');
+                setRootMetricLabel('GCP Projects');
+              }}
+              onInspect={() => handleTabChange('overview')}
+              inspectLabel="Inspect projects"
+            />
+            <UnifiedMetricCard
+              label="BigQuery Datasets"
+              value={data.kpis.totalDatasets}
+              note="Across 2 project roots"
+              onWhyChanged={() => {
+                setRootMetric('deliveryRate');
+                setRootMetricLabel('BigQuery Datasets');
+              }}
+              onInspect={() => handleTabChange('tables')}
+              inspectLabel="Inspect datasets"
+            />
+            <UnifiedMetricCard
+              label="Tables & Views"
+              value={data.kpis.totalWarehouseObjects}
+              note={`${data.kpis.totalTables} tables · ${data.kpis.totalViews} views`}
+              onWhyChanged={() => {
+                setRootMetric('deliveryRate');
+                setRootMetricLabel('Tables & Views');
+              }}
+              onInspect={() => handleTabChange('tables')}
+              inspectLabel="Inspect schema"
+            />
+            <UnifiedMetricCard
+              label="Declared Columns"
+              value={data.kpis.totalDeclaredColumns.toLocaleString()}
+              note="100% typed attributes"
+              onWhyChanged={() => {
+                setRootMetric('deliveryRate');
+                setRootMetricLabel('Declared Columns');
+              }}
+              onInspect={() => handleTabChange('tables')}
+              inspectLabel="Inspect columns"
+            />
+            <UnifiedMetricCard
+              label="Waterfall Timelines"
+              value={data.waterfallSummary.totalWaterfallObjects}
+              note="Multi-client progression"
+              onWhyChanged={() => {
+                setRootMetric('fetchedLeads');
+                setRootMetricLabel('Waterfall Timelines');
+              }}
+              onInspect={() => handleTabChange('waterfall')}
+              inspectLabel="Inspect waterfall"
+            />
+            <UnifiedMetricCard
+              label="Touchpoint Feeds"
+              value={data.touchpointsSummary.totalTouchpointSources}
+              note="Online & offline channels"
+              onWhyChanged={() => {
+                setRootMetric('fetchedLeads');
+                setRootMetricLabel('Touchpoint Feeds');
+              }}
+              onInspect={() => handleTabChange('touchpoints')}
+              inspectLabel="Inspect feeds"
+            />
           </div>
         )}
 
@@ -354,13 +392,13 @@ export default function WarehouseAnalytics() {
                 key={tab.id}
                 type="button"
                 onClick={() => handleTabChange(tab.id as ActiveTab)}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors ${
+                className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition-all cursor-pointer rounded-t-md ${
                   isActive
-                    ? 'border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400'
-                    : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    ? 'border-indigo-600 dark:border-indigo-400 text-indigo-700 dark:text-indigo-300 bg-indigo-50/80 dark:bg-indigo-950/40 -mb-[1px]'
+                    : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100/60 dark:hover:bg-slate-800/40'
                 }`}
               >
-                <Icon size={14} />
+                <Icon size={14} className={isActive ? 'text-indigo-600 dark:text-indigo-400' : ''} />
                 <span>{tab.label}</span>
               </button>
             );
@@ -535,13 +573,13 @@ export default function WarehouseAnalytics() {
               lineKey="rate"
               barName="Est. Volume"
               lineName="Conversion Rate (%)"
-              barColor="#315BCB"
-              lineColor="#059669"
+              barColor="#2563EB"
+              lineColor="#10B981"
               height={280}
             />
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
+              <table className="w-full text-left border-collapse text-xs enterprise-table">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider">
                     <th className="py-3 px-4">Timeline Operation</th>
@@ -612,8 +650,8 @@ export default function WarehouseAnalytics() {
               lineKey="ctr"
               barName="Impressions"
               lineName="CTR (%)"
-              barColor="#315BCB"
-              lineColor="#059669"
+              barColor="#2563EB"
+              lineColor="#10B981"
               height={290}
             />
 
@@ -854,6 +892,16 @@ export default function WarehouseAnalytics() {
                   <option value="budgets">budgets</option>
                   <option value="raw_json">raw_json</option>
                 </select>
+
+                <select
+                  value={typeFilter}
+                  onChange={e => setTypeFilter(e.target.value)}
+                  className="px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-50 font-mono"
+                >
+                  <option value="all">All Types (TABLE & VIEW)</option>
+                  <option value="TABLE">TABLE (18)</option>
+                  <option value="VIEW">VIEW (47)</option>
+                </select>
               </div>
             </div>
 
@@ -977,10 +1025,10 @@ export default function WarehouseAnalytics() {
               </div>
 
               <div className="p-5 overflow-y-auto space-y-4 text-xs">
-                <div className="grid grid-cols-2 gap-3 font-mono bg-slate-50 dark:bg-slate-950 p-3 rounded border border-slate-200 dark:border-slate-800">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono bg-slate-50 dark:bg-slate-950 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
                   <div>
                     <span className="text-slate-500 block text-[10px]">Family:</span>
-                    <strong>{selectedTable.family}</strong>
+                    <strong className="text-purple-700 dark:text-purple-300">{selectedTable.family}</strong>
                   </div>
                   <div>
                     <span className="text-slate-500 block text-[10px]">Disposition:</span>
@@ -988,25 +1036,92 @@ export default function WarehouseAnalytics() {
                   </div>
                   <div>
                     <span className="text-slate-500 block text-[10px]">Analytical Grain:</span>
-                    <strong>{selectedTable.analyticalGrain}</strong>
+                    <strong className="truncate block" title={selectedTable.analyticalGrain}>{selectedTable.analyticalGrain}</strong>
                   </div>
                   <div>
                     <span className="text-slate-500 block text-[10px]">Total Columns:</span>
-                    <strong>{selectedTable.columns.length}</strong>
+                    <strong className="text-indigo-600 dark:text-indigo-400">{selectedTable.columns.length}</strong>
                   </div>
                 </div>
 
+                {/* Candidate Keys & Date Fields */}
+                <div className="space-y-2 text-xs">
+                  {selectedTable.candidateKeys && selectedTable.candidateKeys.length > 0 && (
+                    <div>
+                      <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                        Candidate Keys:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5 font-mono">
+                        {selectedTable.candidateKeys.map(k => (
+                          <span key={k} className="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-[10px] border border-blue-200 dark:border-blue-900">
+                            {k}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedTable.dateFields && selectedTable.dateFields.length > 0 && (
+                    <div>
+                      <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                        Partition / Temporal Fields:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5 font-mono">
+                        {selectedTable.dateFields.map(d => (
+                          <span key={d} className="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] border border-emerald-200 dark:border-emerald-900">
+                            {d}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedTable.sensitiveFields && selectedTable.sensitiveFields.length > 0 && (
+                    <div>
+                      <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1 mb-1">
+                        <AlertCircle size={12} />
+                        Sensitive / PII Fields (Masked / Guarded):
+                      </span>
+                      <div className="flex flex-wrap gap-1.5 font-mono">
+                        {selectedTable.sensitiveFields.map(s => (
+                          <span key={s} className="px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[10px] border border-amber-200 dark:border-amber-900">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div>
-                  <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">
-                    Declared Columns ({selectedTable.columns.length})
-                  </h4>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                      Declared Columns ({filteredModalColumns.length} of {selectedTable.columns.length})
+                    </h4>
+                    <div className="relative">
+                      <Search size={12} className="absolute left-2 top-2 text-slate-400" />
+                      <input
+                        type="text"
+                        value={columnSearchQuery}
+                        onChange={e => setColumnSearchQuery(e.target.value)}
+                        placeholder="Filter columns..."
+                        className="pl-6 pr-2 py-1 text-[11px] rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-mono w-40"
+                      />
+                    </div>
+                  </div>
+
                   <div className="max-h-60 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded font-mono divide-y divide-slate-100 dark:divide-slate-800">
-                    {selectedTable.columns.map(col => (
+                    {filteredModalColumns.map(col => (
                       <div key={col.name} className="flex items-center justify-between px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/40">
                         <span className="text-slate-800 dark:text-slate-200 font-medium">{col.name}</span>
-                        <span className="text-indigo-600 dark:text-indigo-400 text-[11px]">{col.type}</span>
+                        <span className="text-indigo-600 dark:text-indigo-400 text-[11px] font-semibold">{col.type}</span>
                       </div>
                     ))}
+                    {filteredModalColumns.length === 0 && (
+                      <div className="p-4 text-center text-slate-500 text-xs">
+                        No columns matching &quot;{columnSearchQuery}&quot;
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1021,6 +1136,16 @@ export default function WarehouseAnalytics() {
           tables={tables}
         />
       </div>
+
+      <RootCauseDrawer
+        open={Boolean(rootMetric)}
+        metric={rootMetric}
+        metricLabel={rootMetricLabel}
+        onClose={() => {
+          setRootMetric(null);
+          setRootMetricLabel(undefined);
+        }}
+      />
     </div>
   );
 }

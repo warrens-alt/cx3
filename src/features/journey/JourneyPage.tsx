@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import ReportingScopeBar from '../../shared/reporting/ReportingScopeBar';
 import InspectorHost from '../../shared/evidence/InspectorHost';
+import RootCauseDrawer from '../../components/RootCauseDrawer';
+import UnifiedMetricCard from '../../components/UnifiedMetricCard';
 import { OperationalError } from '../../components/OperationalState';
 import { formatPercent, formatRatioPercent, formatTableNumber } from '../../lib/formatters';
 import { MatchedPeriodPanel } from '../../components/LifecycleDiagnostics';
@@ -26,6 +28,7 @@ import JourneyProgression, { type StageItem } from './components/JourneyProgress
 import JourneySegments, { type JourneyDimension } from './components/JourneySegments';
 import JourneyTiming from './components/JourneyTiming';
 import type { LifecycleSegment } from '../../../contracts/lifecycleAnalytics';
+import type { RootCauseData } from '../../lib/offernetClient';
 
 export default function JourneyPage() {
   const {
@@ -48,6 +51,7 @@ export default function JourneyPage() {
 
   // Authoritative journey display adapter separating stage totals from transition intersections
   const { headline, stages, transitions } = useMemo(() => adaptJourneyData(data), [data]);
+  const [rootMetric, setRootMetric] = useState<RootCauseData['metric']['id'] | null>(null);
 
   const handleInspectStage = (stage: StageItem) => {
     const isSupported = ['fetched', 'delivered', 'dialled', 'rpc', 'sales', 'activated'].includes(stage.key);
@@ -195,74 +199,71 @@ export default function JourneyPage() {
       {data && (
         <>
           {/* Outcome Summary KPI Strip: Authoritative Independent Stage Totals & True Rates */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <div className="p-4 bg-surface rounded-xl border border-border-subtle shadow-2xs">
-              <span className="text-[11px] font-semibold text-text-mute uppercase tracking-wider block">
-                Acquired Demand
-              </span>
-              <span className="text-2xl font-extrabold text-text-main cx-tabular mt-1 block">
-                {headline.totalVolume !== null ? formatTableNumber(headline.totalVolume) : '—'}
-              </span>
-              <span className="text-[11px] text-text-sec mt-1 block">Intake cohort</span>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+            <UnifiedMetricCard
+              label="Acquired Demand"
+              value={headline.totalVolume !== null ? formatTableNumber(headline.totalVolume) : '—'}
+              note="Intake cohort"
+              onWhyChanged={() => setRootMetric('fetchedLeads')}
+              onAbout={stages[0] ? () => handleInspectStage(stages[0]) : undefined}
+              to={scoped('/lead-explorer?drill=funnel-stage&drillValue=fetched')}
+              inspectLabel="Inspect"
+            />
 
-            <div className="p-4 bg-surface rounded-xl border border-border-subtle shadow-2xs">
-              <span className="text-[11px] font-semibold text-text-mute uppercase tracking-wider block">
-                Delivery Rate
-              </span>
-              <span className="text-2xl font-extrabold text-text-main cx-tabular mt-1 block">
-                {headline.deliveryPct !== null ? `${headline.deliveryPct.toFixed(1)}%` : '—'}
-              </span>
-              <span className="text-[11px] text-text-sec mt-1 block">
-                {headline.deliveredVolume !== null ? `${formatTableNumber(headline.deliveredVolume)} delivered` : 'Delivered'}
-              </span>
-            </div>
+            <UnifiedMetricCard
+              label="Delivery Rate"
+              value={headline.deliveryPct !== null ? `${headline.deliveryPct.toFixed(1)}%` : '—'}
+              note={headline.deliveredVolume !== null ? `${formatTableNumber(headline.deliveredVolume)} delivered` : 'Delivered'}
+              denominatorLabel="Fetched leads"
+              onWhyChanged={() => setRootMetric('deliveryRate')}
+              onAbout={stages[1] ? () => handleInspectStage(stages[1]) : undefined}
+              to={scoped('/lead-explorer?drill=funnel-stage&drillValue=delivered')}
+              inspectLabel="Inspect"
+            />
 
-            <div className="p-4 bg-surface rounded-xl border border-border-subtle shadow-2xs">
-              <span className="text-[11px] font-semibold text-text-mute uppercase tracking-wider block">
-                Dial Coverage
-              </span>
-              <span className="text-2xl font-extrabold text-text-main cx-tabular mt-1 block">
-                {headline.dialPct !== null ? `${headline.dialPct.toFixed(1)}%` : '—'}
-              </span>
-              <span className="text-[11px] text-text-sec mt-1 block">
-                {headline.dialledVolume !== null ? `${formatTableNumber(headline.dialledVolume)} dialled` : 'Dialled'}
-              </span>
-            </div>
+            <UnifiedMetricCard
+              label="Dial Coverage"
+              value={headline.dialPct !== null ? `${headline.dialPct.toFixed(1)}%` : '—'}
+              note={headline.dialledVolume !== null ? `${formatTableNumber(headline.dialledVolume)} dialled` : 'Dialled'}
+              denominatorLabel="Delivered leads"
+              onWhyChanged={() => setRootMetric('dialRate')}
+              onAbout={stages[2] ? () => handleInspectStage(stages[2]) : undefined}
+              to={scoped('/lead-explorer?drill=funnel-stage&drillValue=dialled')}
+              inspectLabel="Inspect"
+            />
 
-            <div className="p-4 bg-surface rounded-xl border border-border-subtle shadow-2xs">
-              <span className="text-[11px] font-semibold text-text-mute uppercase tracking-wider block">
-                Contact Rate (RPC)
-              </span>
-              <span className="text-2xl font-extrabold text-text-main cx-tabular mt-1 block">
-                {headline.rpcPct !== null ? `${headline.rpcPct.toFixed(1)}%` : '—'}
-              </span>
-              <span className="text-[11px] text-text-sec mt-1 block">
-                {headline.rpcVolume !== null ? `${formatTableNumber(headline.rpcVolume)} contacted` : 'Contacted'}
-              </span>
-            </div>
+            <UnifiedMetricCard
+              label="Contact Rate (RPC)"
+              value={headline.rpcPct !== null ? `${headline.rpcPct.toFixed(1)}%` : '—'}
+              note={headline.rpcVolume !== null ? `${formatTableNumber(headline.rpcVolume)} contacted` : 'Contacted'}
+              denominatorLabel="Dialled leads"
+              onWhyChanged={() => setRootMetric('contactRate')}
+              onAbout={stages[3] ? () => handleInspectStage(stages[3]) : undefined}
+              to={scoped('/lead-explorer?drill=funnel-stage&drillValue=rpc')}
+              inspectLabel="Inspect"
+            />
 
-            <div className="p-4 bg-surface rounded-xl border border-border-subtle shadow-2xs">
-              <span className="text-[11px] font-semibold text-text-mute uppercase tracking-wider block">
-                Lead → Sale
-              </span>
-              <span className="text-2xl font-extrabold text-brand-primary cx-tabular mt-1 block">
-                {headline.salePct !== null ? `${headline.salePct.toFixed(2)}%` : '—'}
-              </span>
-              <span className="text-[11px] text-text-sec mt-1 block">
-                {headline.salesVolume !== null ? `${formatTableNumber(headline.salesVolume)} sales` : 'Sales'}
-              </span>
-            </div>
+            <UnifiedMetricCard
+              label="Lead → Sale"
+              value={headline.salePct !== null ? `${headline.salePct.toFixed(2)}%` : '—'}
+              note={headline.salesVolume !== null ? `${formatTableNumber(headline.salesVolume)} sales` : 'Sales'}
+              denominatorLabel="Fetched leads"
+              onWhyChanged={() => setRootMetric('leadToSaleRate')}
+              onAbout={stages[4] ? () => handleInspectStage(stages[4]) : undefined}
+              to={scoped('/lead-explorer?drill=funnel-stage&drillValue=sales')}
+              inspectLabel="Inspect"
+            />
 
-            <div className="p-4 bg-surface rounded-xl border border-border-subtle shadow-2xs">
-              <span className="text-[11px] font-semibold text-text-mute uppercase tracking-wider block">
-                Activations
-              </span>
-              <span className="text-2xl font-extrabold text-text-main cx-tabular mt-1 block">
-                {headline.activationsVolume !== null ? formatTableNumber(headline.activationsVolume) : '—'}
-              </span>
-              <span className="text-[11px] text-text-sec mt-1 block">Fulfilled deals</span>
-            </div>
+            <UnifiedMetricCard
+              label="Activations"
+              value={headline.activationsVolume !== null ? formatTableNumber(headline.activationsVolume) : '—'}
+              note="Fulfilled deals"
+              denominatorLabel="Recorded sales"
+              onWhyChanged={() => setRootMetric('activationRate')}
+              onAbout={stages[5] ? () => handleInspectStage(stages[5]) : undefined}
+              to={scoped('/lead-explorer?drill=funnel-stage&drillValue=activated')}
+              inspectLabel="Inspect"
+            />
           </div>
 
           {/* Region A: Progression Rail and Transition Evidence */}
@@ -377,6 +378,13 @@ export default function JourneyPage() {
         open={Boolean(inspectorContent)}
         onClose={() => setInspectorContent(null)}
         content={inspectorContent}
+      />
+
+      {/* 5. Root-Cause Why Changed Drawer */}
+      <RootCauseDrawer
+        open={rootMetric !== null}
+        metric={rootMetric}
+        onClose={() => setRootMetric(null)}
       />
     </div>
   );

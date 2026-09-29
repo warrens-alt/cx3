@@ -6,6 +6,10 @@ export interface WarehouseTableInfo {
   description: string;
   recordCountEstimate?: number;
   isUserProjectTable?: boolean;
+  family?: string;
+  disposition?: string;
+  columnCount?: number;
+  columns?: Array<{ name: string; type: string }>;
 }
 
 export interface WarehouseDatasetInfo {
@@ -41,6 +45,7 @@ export interface PulledTableDataResult {
   pulledAt: string;
   syncedToCloudSql: boolean;
   syncedCount?: number;
+  provenance?: 'LIVE_BIGQUERY' | 'OFFLINE_EVIDENCE_REPRESENTATION';
 }
 
 export interface CloudSqlSyncedRecord {

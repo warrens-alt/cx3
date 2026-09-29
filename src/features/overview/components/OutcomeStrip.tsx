@@ -25,11 +25,15 @@ function DeltaBadge({ delta, unit = '%' }: { delta?: number | null; unit?: strin
   const Icon = isPositive ? TrendingUp : isZero ? ArrowRight : TrendingDown;
   return (
     <span
-      className={`inline-flex items-center gap-0.5 text-xs font-semibold cx-tabular ${
-        isPositive ? 'text-semantic-pos' : isZero ? 'text-text-mute' : 'text-semantic-neg'
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11.5px] font-semibold cx-tabular leading-none ${
+        isPositive
+          ? 'text-semantic-pos bg-semantic-pos/10'
+          : isZero
+          ? 'text-text-mute bg-surface-subtle border border-border-subtle'
+          : 'text-semantic-neg bg-semantic-neg/10'
       }`}
     >
-      <Icon size={12} aria-hidden="true" />
+      <Icon size={11} aria-hidden="true" />
       <span>
         {isPositive ? '+' : ''}
         {delta}
@@ -174,19 +178,19 @@ export default function OutcomeStrip({
       {outcomes.map(item => (
         <article
           key={item.id}
-          className="enterprise-card bg-surface border border-border p-4 rounded-lg flex flex-col justify-between hover:border-action/40 transition-colors shadow-xs group"
+          className="enterprise-card bg-surface border border-border hover:border-action/50 rounded-xl p-5 shadow-xs hover:shadow-sm transition-all duration-200 flex flex-col justify-between group"
         >
           <div className="flex items-start justify-between">
-            <span className="text-xs font-semibold text-text-sec uppercase tracking-wider">
+            <span className="text-[11px] font-bold text-text-sec uppercase tracking-wider">
               {item.label}
             </span>
           </div>
 
-          <div className="my-2.5">
+          <div className="my-3">
             {isAdmin ? (
               <Link
                 to={scoped(`/lead-explorer?drill=funnel-stage&drillValue=${item.recordDrillValue}`)}
-                className="text-3xl lg:text-[32px] font-bold cx-tabular text-text-main block hover:text-action transition-colors font-mono tracking-tight"
+                className="text-3xl lg:text-[34px] font-bold cx-tabular text-text-main block hover:text-action transition-colors font-mono tracking-tight leading-tight"
                 title={`Inspect ${item.label} records in Lead Explorer`}
               >
                 {item.value}
@@ -194,38 +198,38 @@ export default function OutcomeStrip({
             ) : (
               <Link
                 to={scoped(item.reportPath)}
-                className="text-3xl lg:text-[32px] font-bold cx-tabular text-text-main block hover:text-action transition-colors font-mono tracking-tight"
+                className="text-3xl lg:text-[34px] font-bold cx-tabular text-text-main block hover:text-action transition-colors font-mono tracking-tight leading-tight"
                 title={`Open ${item.label} report`}
               >
                 {item.value}
               </Link>
             )}
 
-            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
               <span className="text-xs text-text-sec font-medium">{item.subnote}</span>
               <DeltaBadge delta={item.delta} unit={item.deltaUnit} />
             </div>
           </div>
 
-          <div className="pt-2 border-t border-border-subtle flex items-center justify-between text-xs text-text-mute">
+          <div className="pt-3 border-t border-border-subtle flex items-center justify-between text-xs text-text-mute">
             <button
               type="button"
               onClick={() => onInspect(item.inspectContent)}
-              className="inline-flex items-center gap-1 font-medium hover:text-action transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 font-semibold text-text-sec hover:text-action transition-colors cursor-pointer"
             >
               <span>Inspect definition</span>
-              <ArrowUpRight size={12} />
+              <ArrowUpRight size={13} />
             </button>
 
-            {hasComparison && onWhyChanged && item.delta != null && (
+            {onWhyChanged && (
               <button
                 type="button"
                 onClick={() => onWhyChanged(item.rootMetric)}
-                className="inline-flex items-center gap-1 hover:text-action font-medium transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 font-semibold hover:text-action transition-colors cursor-pointer"
                 title={`Investigate why ${item.label.toLowerCase()} changed`}
               >
                 <span>Why changed?</span>
-                <Search size={11} />
+                <Search size={12} />
               </button>
             )}
           </div>

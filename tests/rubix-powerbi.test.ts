@@ -6,6 +6,11 @@ import type { AddressInfo } from 'node:net';
 import {
   RUBIX_POWERBI_VERSION,
   RUBIX_QUERY_TYPES,
+  RUBIX_DATASET_ID,
+  RUBIX_REPORT_ID,
+  RUBIX_MODEL_ID,
+  RUBIX_ENTITY,
+  RUBIX_COMPANY_PREDICATE,
 } from '../contracts/rubixPowerBi';
 import { createRubixPowerBiRouter } from '../server/blc/powerbi/router';
 import { RubixPowerBiService } from '../server/blc/powerbi/service';
@@ -15,6 +20,11 @@ test('Rubix PowerBI contracts expose expected constants', () => {
   assert.equal(RUBIX_QUERY_TYPES.length, 8);
   assert.ok(RUBIX_QUERY_TYPES.includes('activation_over_time'));
   assert.ok(RUBIX_QUERY_TYPES.includes('capture_complete_by_agent_and_team'));
+  assert.equal(RUBIX_DATASET_ID, '59cef14d-8dd0-4016-a349-c227162a0fee');
+  assert.equal(RUBIX_REPORT_ID, 'fe973424-23fd-433a-a81f-0f08416228ef');
+  assert.equal(RUBIX_MODEL_ID, 598641);
+  assert.equal(RUBIX_ENTITY, 'blue_label_reporting wow_data');
+  assert.equal(RUBIX_COMPANY_PREDICATE, 'ONtact');
 });
 
 test('Rubix PowerBI router requires authentication and authorized tenant scope', async () => {
@@ -77,6 +87,59 @@ test('Rubix PowerBI router requires authentication and authorized tenant scope',
     assert.equal(capBody.data.capabilities.length, 10);
     assert.ok(capBody.data.supportedFilters.includes('team'));
     assert.ok(capBody.data.unsupportedFilters.includes('vendor'));
+
+    // 6. Report Query: activation_by_team
+    const repRes = await fetch(`${baseUrl}/report?queryType=activation_by_team`);
+    assert.equal(repRes.status, 200);
+    const repBody = await repRes.json();
+    assert.equal(repBody.success, true);
+    assert.equal(repBody.data.metadata.queryType, 'activation_by_team');
+    assert.equal(repBody.data.metadata.appliedScope.companyFilter, 'ONtact');
+    assert.ok(repBody.data.rows.length > 0);
+    assert.ok(repBody.data.summary.totalCount > 0);
+    assert.equal(repBody.data.summary.distinctTeams, 4);
+
+    // 7. Report Query: Staff Privacy Masking for Viewers
+    principalOverride = { subject: 'viewer1', tenants: ['blc'], role: 'viewer' };
+    const staffViewerRes = await fetch(`${baseUrl}/report?queryType=activation_by_agent_and_team`);
+    assert.equal(staffViewerRes.status, 200);
+    const staffViewerBody = await staffViewerRes.json();
+    assert.equal(staffViewerBody.data.metadata.staffDetailsMasked, true);
+    assert.ok(staffViewerBody.data.rows[0].agent?.includes('***'));
+
+    // 8. Report Query: Staff Details Unmasked for Admins
+    principalOverride = { subject: 'admin1', tenants: ['blc'], role: 'admin' };
+    const staffAdminRes = await fetch(`${baseUrl}/report?queryType=activation_by_agent_and_team`);
+    assert.equal(staffAdminRes.status, 200);
+    const staffAdminBody = await staffAdminRes.json();
+    assert.equal(staffAdminBody.data.metadata.staffDetailsMasked, false);
+    assert.ok(!staffAdminBody.data.rows[0].agent?.includes('***'));
+
+    // 9. Unsupported Filter Detection
+    scopeOverride = {
+      clientId: 'blc',
+      startDate: '2026-09-01',
+      endDate: '2026-09-02',
+      filters: { vendor: 'MTN', campaign: 'BlueSpring' },
+    };
+    const unsuppRes = await fetch(`${baseUrl}/report?queryType=activation_by_team`);
+    assert.equal(unsuppRes.status, 200);
+    const unsuppBody = await unsuppRes.json();
+    assert.equal(unsuppBody.data.metadata.queryStatus, 'UNSUPPORTED_FILTER');
+    assert.ok(unsuppBody.data.metadata.warnings[0].includes('vendor'));
+
+    // 10. Cross-Source Reconciliation Endpoint
+    scopeOverride = { clientId: 'blc', startDate: '2026-09-01', endDate: '2026-09-02', filters: {} };
+    const reconRes = await fetch(`${baseUrl}/reconciliation`);
+    assert.equal(reconRes.status, 200);
+    const reconBody = await reconRes.json();
+    assert.equal(reconBody.success, true);
+    assert.equal(reconBody.data.reconciliationStatus, 'RECONCILED_WITH_CAVEATS');
+    assert.equal(reconBody.data.warehouseActivations.verifiedMandates, 85);
+    assert.equal(reconBody.data.powerBiActivations.totalReported, 91);
+    assert.equal(reconBody.data.variance.deltaCount, 6);
+    assert.ok(reconBody.data.variance.explanation.includes('banking verification'));
+    assert.ok(reconBody.data.variance.reconciliationNotes.length >= 4);
   } finally {
     server.close();
   }

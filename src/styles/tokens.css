@@ -51,6 +51,29 @@
   --cx-neutral: #475569;
   --cx-neutral-bg: #F1F5F9;
 
+  /* Button Specific Color Tokens (Light) */
+  --cx-btn-primary-bg: #2563EB;
+  --cx-btn-primary-hover: #1D4ED8;
+  --cx-btn-primary-text: #FFFFFF;
+  --cx-btn-primary-shadow: 0 1px 3px 0 rgba(37, 99, 235, 0.28), 0 1px 2px -1px rgba(37, 99, 235, 0.2);
+
+  --cx-btn-success-bg: #059669;
+  --cx-btn-success-hover: #047857;
+  --cx-btn-success-text: #FFFFFF;
+  --cx-btn-success-shadow: 0 1px 3px 0 rgba(5, 150, 105, 0.25);
+
+  --cx-btn-indigo-bg: #4F46E5;
+  --cx-btn-indigo-hover: #4338CA;
+  --cx-btn-indigo-text: #FFFFFF;
+
+  --cx-btn-amber-bg: #D97706;
+  --cx-btn-amber-hover: #B45309;
+  --cx-btn-amber-text: #FFFFFF;
+
+  --cx-btn-rose-bg: #E11D48;
+  --cx-btn-rose-hover: #BE123C;
+  --cx-btn-rose-text: #FFFFFF;
+
   /* Semantic Status Tokens (Light) */
   --cx-status-favorable-bg: #EFFAF3;
   --cx-status-favorable-text: #17744A;
@@ -66,12 +89,12 @@
   --cx-status-neutral-border: #CBD5E1;
 
   /* Chart & Analytics Data Series */
-  --cx-data-fetched: #4F5FB7;
-  --cx-data-delivered: #0E7490;
-  --cx-data-dialled: #7153A3;
-  --cx-data-rpc: #985B86;
-  --cx-data-sales: #426D80;
-  --cx-data-activation: #566273;
+  --cx-data-fetched: #2563EB;
+  --cx-data-delivered: #0D9488;
+  --cx-data-dialled: #8B5CF6;
+  --cx-data-rpc: #10B981;
+  --cx-data-sales: #F59E0B;
+  --cx-data-activation: #6366F1;
 
   /* Hairlines, Separators & Input Boundaries */
   --cx-border: #D7DFEA;
@@ -101,10 +124,12 @@
   --cx-shadow-card: var(--cx-shadow-sm);
   --cx-shadow-elevated: var(--cx-shadow-md);
 
-  /* Touch & Controls */
-  --cx-control-height: 40px;
+  /* Touch & Controls & Layout Math */
+  --cx-control-height: 36px;
   --cx-touch-target: 44px;
   --cx-header-height: 56px;
+  --cx-page-max-width: 1600px;
+  --cx-page-padding-x: clamp(16px, 2vw, 32px);
 }
 
 [data-theme="dark"],
@@ -171,13 +196,36 @@
   --cx-status-neutral-text: #94A3B8;
   --cx-status-neutral-border: #334155;
 
-  /* Same category identities with sufficient contrast on dark chart surfaces. */
-  --cx-data-fetched: #93A4EC;
-  --cx-data-delivered: #67C9DE;
-  --cx-data-dialled: #B6A0DE;
-  --cx-data-rpc: #D9A4C5;
-  --cx-data-sales: #92BACB;
-  --cx-data-activation: #B7C4D7;
+  /* Button Specific Color Tokens (Dark) */
+  --cx-btn-primary-bg: #3B82F6;
+  --cx-btn-primary-hover: #2563EB;
+  --cx-btn-primary-text: #FFFFFF;
+  --cx-btn-primary-shadow: 0 2px 8px -1px rgba(59, 130, 246, 0.4);
+
+  --cx-btn-success-bg: #10B981;
+  --cx-btn-success-hover: #059669;
+  --cx-btn-success-text: #FFFFFF;
+  --cx-btn-success-shadow: 0 2px 8px -1px rgba(16, 185, 129, 0.4);
+
+  --cx-btn-indigo-bg: #6366F1;
+  --cx-btn-indigo-hover: #4F46E5;
+  --cx-btn-indigo-text: #FFFFFF;
+
+  --cx-btn-amber-bg: #F59E0B;
+  --cx-btn-amber-hover: #D97706;
+  --cx-btn-amber-text: #FFFFFF;
+
+  --cx-btn-rose-bg: #F43F5E;
+  --cx-btn-rose-hover: #E11D48;
+  --cx-btn-rose-text: #FFFFFF;
+
+  /* Same category identities with vibrant contrast on dark chart surfaces. */
+  --cx-data-fetched: #60A5FA;
+  --cx-data-delivered: #2DD4BF;
+  --cx-data-dialled: #A78BFA;
+  --cx-data-rpc: #34D399;
+  --cx-data-sales: #FBBF24;
+  --cx-data-activation: #818CF8;
 
   /* Hairlines & Boundaries (Dark) */
   --cx-border: #1E2B45;
@@ -201,6 +249,41 @@
 /* Existing JSX uses these utilities; --cx-* alone does not register them with
    Tailwind. Inline aliases keep utilities responsive to the element's theme. */
 @theme inline {
-  --color-brand-primary: var(--cx-brand-primary);
+  --color-canvas: var(--cx-canvas);
+  --color-app-bg: var(--cx-canvas);
+  --color-surface: var(--cx-surface);
   --color-surface-subtle: var(--cx-surface-subtle);
+  --color-surface-elevated: var(--cx-surface-elevated);
+  --color-surface-active: var(--cx-surface-active);
+  --color-surface-sec: var(--cx-surface-subtle);
+
+  --color-text-main: var(--cx-ink);
+  --color-text-sec: var(--cx-text-secondary);
+  --color-text-mute: var(--cx-text-muted);
+  --color-text-muted: var(--cx-text-muted);
+
+  --color-action: var(--cx-action);
+  --color-action-hover: var(--cx-action-hover);
+  --color-brand-primary: var(--cx-brand-primary);
+  --color-brand-hover: var(--cx-brand-hover);
+  --color-brand-soft: var(--cx-brand-soft);
+
+  --color-border: var(--cx-border);
+  --color-border-subtle: var(--cx-border-subtle);
+  --color-border-strong: var(--cx-border-strong);
+  --color-control-border: var(--cx-control-border);
+
+  --color-semantic-pos: var(--cx-favourable);
+  --color-semantic-pos-bg: var(--cx-favourable-bg);
+  --color-semantic-neg: var(--cx-unfavourable);
+  --color-semantic-neg-bg: var(--cx-unfavourable-bg);
+  --color-semantic-warn: var(--cx-warning);
+  --color-semantic-warn-bg: var(--cx-warning-bg);
+
+  --color-data-fetched: var(--cx-data-fetched);
+  --color-data-delivered: var(--cx-data-delivered);
+  --color-data-dialled: var(--cx-data-dialled);
+  --color-data-rpc: var(--cx-data-rpc);
+  --color-data-sales: var(--cx-data-sales);
+  --color-data-activation: var(--cx-data-activation);
 }

@@ -4,10 +4,6 @@ import express from 'express';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-if (!process.env.CX_ALLOW_DEV_AUTH && process.env.NODE_ENV !== 'production') {
-  process.env.CX_ALLOW_DEV_AUTH = 'true';
-}
-
 const currentFileHref = typeof import.meta !== 'undefined' && import.meta?.url ? import.meta.url : '';
 const isAlreadyBundled = currentFileHref.endsWith('.mjs') || currentFileHref.endsWith('.cjs');
 
@@ -27,7 +23,11 @@ export async function createApp() {
   const { mountApi } = await import('./server/apiApp.ts').catch(() => import('./server/apiApp'));
   const app = express();
   await mountApi(app);
-  const isProduction = process.env.NODE_ENV === 'production' || (!isTsxDev && process.env.NODE_ENV !== 'development');
+  const isProduction =
+    isAlreadyBundled ||
+    process.env.NODE_ENV === 'production' ||
+    process.env.npm_lifecycle_event === 'start' ||
+    (!isTsxDev && process.env.NODE_ENV !== 'development');
 
   if (isProduction) {
     const configuredClientDir = process.env.CLIENT_DIR

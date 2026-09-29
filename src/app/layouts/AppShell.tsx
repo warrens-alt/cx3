@@ -253,11 +253,11 @@ export default function AppShell({ children }: AppShellProps) {
             </button>
 
             {/* Workspace Client Switcher - Prominent */}
-            <div className="cx-workspace-select flex items-center gap-1.5 pl-1">
-              <span className="text-xs font-semibold text-text-sec hidden md:inline">Workspace:</span>
+            <div className="cx-workspace-select flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-text-sec hidden md:inline shrink-0">Workspace:</span>
               <select
                 aria-label="Active client"
-                className="bg-surface text-text-main border border-control-border rounded-md px-2.5 py-1.5 text-xs font-medium max-w-[200px] sm:max-w-[260px] truncate cursor-pointer shadow-xs focus:ring-2 focus:ring-action focus:outline-hidden"
+                className="bg-surface text-text-main border border-border hover:border-action/40 rounded-lg px-2.5 h-9 text-xs font-semibold max-w-[200px] sm:max-w-[260px] truncate cursor-pointer shadow-2xs focus:ring-2 focus:ring-action/20 focus:border-action focus:outline-hidden transition-all"
                 value={selectedClient}
                 onChange={event => setSelectedClient(event.target.value)}
                 disabled={clientLoading || !clients.length}

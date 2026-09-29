@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ArrowUp, ArrowDown, Minus, Info } from 'lucide-react';
+import { ArrowUp, ArrowDown, Minus, Info, Search, ArrowRight } from 'lucide-react';
+import { Link, type To } from 'react-router-dom';
 
 export interface MetricRailItem {
   id: string;
@@ -13,6 +14,9 @@ export interface MetricRailItem {
   comparison?: string;
   note?: string;
   status?: string;
+  onWhyChanged?: () => void;
+  onInspect?: () => void;
+  to?: To;
 }
 
 export interface MetricRailProps {
@@ -63,11 +67,12 @@ export default function MetricRail({ items }: MetricRailProps) {
         }
 
         const isLastOdd = items.length % 2 !== 0 && index === items.length - 1;
+        const hasFooter = Boolean(item.onWhyChanged || item.onInspect || item.to);
 
         return (
           <div 
             key={item.id} 
-            className={`enterprise-card p-3.5 sm:p-4 flex flex-col justify-between relative group hover:border-slate-300 transition-all ${
+            className={`enterprise-card p-3.5 sm:p-4 flex flex-col justify-between relative group hover:border-action/40 transition-all ${
               isLastOdd ? 'col-span-2 sm:col-span-1' : ''
             }`}
           >
@@ -84,7 +89,7 @@ export default function MetricRail({ items }: MetricRailProps) {
                       onClick={() => setActiveTooltip(old => old === item.id ? null : item.id)}
                       onMouseEnter={() => setActiveTooltip(item.id)}
                       onMouseLeave={() => setActiveTooltip(null)}
-                      className="text-slate-400 hover:text-slate-600 p-0.5 rounded transition-colors"
+                      className="text-slate-400 hover:text-slate-600 p-0.5 rounded transition-colors cursor-pointer"
                     >
                       <Info className="w-3.5 h-3.5" />
                     </button>
@@ -103,13 +108,52 @@ export default function MetricRail({ items }: MetricRailProps) {
             </div>
 
             {(changeContent || item.comparison) && (
-              <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-1 text-[11px]">
+              <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 text-[11px]">
                 {changeContent || <span />}
                 {item.comparison && (
                   <span className="text-slate-400 text-[10px] truncate max-w-[120px] text-right font-medium" title={item.comparison}>
                     {item.comparison}
                   </span>
                 )}
+              </div>
+            )}
+
+            {hasFooter && (
+              <div className="mt-2.5 pt-2 border-t border-border-subtle flex items-center gap-2 text-[11px] flex-wrap">
+                {item.onWhyChanged && (
+                  <button
+                    type="button"
+                    onClick={item.onWhyChanged}
+                    className="cx-why-btn"
+                    title={`Why ${item.label.toLowerCase()} changed`}
+                  >
+                    <span>Why changed?</span>
+                    <Search className="w-2.5 h-2.5" />
+                  </button>
+                )}
+                {item.onWhyChanged && (item.to || item.onInspect) && (
+                  <span className="text-border-strong text-[10px]">·</span>
+                )}
+                {item.to ? (
+                  <Link
+                    to={item.to}
+                    className="cx-inspect-btn"
+                    title={`Inspect ${item.label}`}
+                  >
+                    <span>Inspect</span>
+                    <ArrowRight className="w-2.5 h-2.5" />
+                  </Link>
+                ) : item.onInspect ? (
+                  <button
+                    type="button"
+                    onClick={item.onInspect}
+                    className="cx-inspect-btn"
+                    title={`Inspect ${item.label}`}
+                  >
+                    <span>Inspect</span>
+                    <ArrowRight className="w-2.5 h-2.5" />
+                  </button>
+                ) : null}
               </div>
             )}
           </div>

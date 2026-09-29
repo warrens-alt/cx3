@@ -47,6 +47,29 @@
   --cx-warning: #F59E0B;
   --cx-warning-bg: rgba(245, 158, 11, 0.14);
 
+  /* Button Specific Color Tokens (Dark) */
+  --cx-btn-primary-bg: #3B82F6;
+  --cx-btn-primary-hover: #2563EB;
+  --cx-btn-primary-text: #FFFFFF;
+  --cx-btn-primary-shadow: 0 1px 4px 0 rgba(59, 130, 246, 0.35);
+
+  --cx-btn-success-bg: #10B981;
+  --cx-btn-success-hover: #059669;
+  --cx-btn-success-text: #FFFFFF;
+  --cx-btn-success-shadow: 0 1px 4px 0 rgba(16, 185, 129, 0.3);
+
+  --cx-btn-indigo-bg: #6366F1;
+  --cx-btn-indigo-hover: #4F46E5;
+  --cx-btn-indigo-text: #FFFFFF;
+
+  --cx-btn-amber-bg: #F59E0B;
+  --cx-btn-amber-hover: #D97706;
+  --cx-btn-amber-text: #0F172A;
+
+  --cx-btn-rose-bg: #F43F5E;
+  --cx-btn-rose-hover: #E11D48;
+  --cx-btn-rose-text: #FFFFFF;
+
   /* Shadows */
   --cx-shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.45), 0 1px 2px -1px rgba(0, 0, 0, 0.35);
   --cx-shadow-elevated: 0 10px 25px -5px rgba(0, 0, 0, 0.55), 0 8px 10px -6px rgba(0, 0, 0, 0.45);

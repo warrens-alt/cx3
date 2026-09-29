@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { formatPercent, formatTableNumber } from '../../../lib/formatters';
 import { HorizontalStackedOutcomeChart } from '../../../components/charts/OperationalVisuals';
+import UnifiedMetricCard from '../../../components/UnifiedMetricCard';
 import {
   APPROVED_DISPOSITION_GROUPS,
   type ApprovedDispositionGroup,
@@ -30,6 +31,7 @@ interface VendorDispositionReportProps {
   onModeChange: (mode: DispositionReportingMode) => void;
   onSelectVendor: (vendor: string, group?: string) => void;
   onFilterReportByVendor?: (vendor: string) => void;
+  onWhyChanged?: (metric: string) => void;
   onExportSummaryTable?: () => void;
   onExportOutcomeComparison?: () => void;
   exportError?: string | null;
@@ -59,6 +61,7 @@ export default function VendorDispositionReport({
   onModeChange,
   onSelectVendor,
   onFilterReportByVendor,
+  onWhyChanged,
   onExportSummaryTable,
   onExportOutcomeComparison,
   exportError,
@@ -224,54 +227,42 @@ export default function VendorDispositionReport({
       </div>
 
       {/* 2. Summary KPI Cards */}
-      <section aria-label="Disposition summary statistics" className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-4 bg-surface rounded-xl border border-border-subtle shadow-2xs">
-          <span className="text-[11px] font-semibold text-text-mute uppercase tracking-wider block">
-            {isCallMode ? 'Total Calls' : 'Total Population'}
-          </span>
-          <span className="text-2xl font-extrabold text-text-main cx-tabular mt-1 block">
-            {formatTableNumber(summary.totalEntities)}
-          </span>
-          <span className="text-[11px] text-text-sec mt-1 block">
-            {isCallMode ? 'Verified call events' : 'Delivered cohort leads'}
-          </span>
-        </div>
+      <section aria-label="Disposition summary statistics" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <UnifiedMetricCard
+          label={isCallMode ? 'Total Calls' : 'Total Population'}
+          value={formatTableNumber(summary.totalEntities)}
+          note={isCallMode ? 'Verified call events' : 'Delivered cohort leads'}
+          onWhyChanged={() => onWhyChanged?.('dialRate')}
+          onInspect={() => onSelectVendor('ALL')}
+          inspectLabel="Inspect all"
+        />
 
-        <div className="p-4 bg-surface rounded-xl border border-border-subtle shadow-2xs">
-          <span className="text-[11px] font-semibold text-text-mute uppercase tracking-wider block">
-            {isCallMode ? 'Dialled Calls' : 'Dialled Leads'}
-          </span>
-          <span className="text-2xl font-extrabold text-text-main cx-tabular mt-1 block">
-            {formatTableNumber(summary.dialledEntities)}
-          </span>
-          <span className="text-[11px] text-text-sec mt-1 block">
-            Denominator base
-          </span>
-        </div>
+        <UnifiedMetricCard
+          label={isCallMode ? 'Dialled Calls' : 'Dialled Leads'}
+          value={formatTableNumber(summary.dialledEntities)}
+          note="Denominator base"
+          onWhyChanged={() => onWhyChanged?.('dialRate')}
+          onInspect={() => onSelectVendor('ALL')}
+          inspectLabel="Inspect all"
+        />
 
-        <div className="p-4 bg-surface rounded-xl border border-border-subtle shadow-2xs">
-          <span className="text-[11px] font-semibold text-text-mute uppercase tracking-wider block">
-            Disposition Coverage
-          </span>
-          <span className="text-2xl font-extrabold text-text-main cx-tabular mt-1 block">
-            {formatPercent(summary.dispositionCoveragePct)}
-          </span>
-          <span className="text-[11px] text-text-sec mt-1 block">
-            {formatTableNumber(summary.missingDispositions)} missing
-          </span>
-        </div>
+        <UnifiedMetricCard
+          label="Disposition Coverage"
+          value={formatPercent(summary.dispositionCoveragePct)}
+          note={`${formatTableNumber(summary.missingDispositions)} missing`}
+          onWhyChanged={() => onWhyChanged?.('contactRate')}
+          onInspect={() => onSelectVendor('ALL')}
+          inspectLabel="Inspect all"
+        />
 
-        <div className="p-4 bg-surface rounded-xl border border-border-subtle shadow-2xs">
-          <span className="text-[11px] font-semibold text-text-mute uppercase tracking-wider block">
-            Mapping Coverage
-          </span>
-          <span className="text-2xl font-extrabold text-emerald-700 dark:text-emerald-400 cx-tabular mt-1 block">
-            {formatPercent(summary.mappingCoveragePct)}
-          </span>
-          <span className="text-[11px] text-text-sec mt-1 block">
-            {formatTableNumber(summary.unmappedDispositions)} unmapped
-          </span>
-        </div>
+        <UnifiedMetricCard
+          label="Mapping Coverage"
+          value={formatPercent(summary.mappingCoveragePct)}
+          note={`${formatTableNumber(summary.unmappedDispositions)} unmapped`}
+          onWhyChanged={() => onWhyChanged?.('contactRate')}
+          onInspect={() => onSelectVendor('ALL')}
+          inspectLabel="Inspect all"
+        />
       </section>
 
       {/* 3. Horizontal Stacked Bar Chart */}

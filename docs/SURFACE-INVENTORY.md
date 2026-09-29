@@ -73,6 +73,7 @@
 | POST | `/api/analytics/cli-performance/import` | `server/api.ts` |
 | POST | `/api/analytics/cli-performance/load-sample` | `server/api.ts` |
 | GET | `/api/analytics/clients` | `server/api.ts` |
+| GET | `/api/analytics/cloudsql/synced-records` | `server/api.ts` |
 | GET | `/api/analytics/cohorts` | `server/api.ts` |
 | GET | `/api/analytics/consumers` | `server/api.ts reports registry` |
 | GET | `/api/analytics/data-quality` | `server/api.ts reports registry` |
@@ -147,6 +148,9 @@
 | GET | `/api/analytics/vetting` | `server/vetting/router.ts` |
 | GET | `/api/analytics/warehouse/export` | `server/api.ts` |
 | GET | `/api/analytics/warehouse/overview` | `server/api.ts` |
+| GET | `/api/analytics/warehouse/projects-and-tables` | `server/api.ts` |
+| GET | `/api/analytics/warehouse/pull-data` | `server/api.ts` |
+| POST | `/api/analytics/warehouse/pull-data` | `server/api.ts` |
 | GET | `/api/analytics/warehouse/tables` | `server/api.ts` |
 | GET | `/api/health` | `server.ts` |
 | POST | `/api/reporting/` | `server/reporting/router.ts` |

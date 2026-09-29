@@ -1,5 +1,5 @@
 import React, { Suspense, useState } from 'react';
-import { ArrowUpRight, ArrowDownRight, Minus, ArrowRight, Info, Table as TableIcon } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Minus, ArrowRight, Info, Search, Table as TableIcon } from 'lucide-react';
 import { formatKpiValue } from '../lib/formatters';
 
 const DataAuditDrawer = React.lazy(() => import('./DataAuditDrawer'));
@@ -41,9 +41,10 @@ export default function KpiCard({
 
   if (loading) {
     return (
-      <div className="enterprise-card cx-kpi" role="status" aria-label={`Loading ${title}`}>
-        <div className="animate-pulse h-4 bg-slate-100 rounded mb-4" />
-        <div className="animate-pulse h-9 bg-slate-100 rounded w-1/2" />
+      <div className="enterprise-card cx-kpi p-4 sm:p-5" role="status" aria-label={`Loading ${title}`}>
+        <div className="animate-pulse h-4 bg-surface-subtle border border-border-subtle rounded mb-4" />
+        <div className="animate-pulse h-8 bg-surface-subtle border border-border-subtle rounded w-1/2 mb-2" />
+        <div className="animate-pulse h-3 bg-surface-subtle border border-border-subtle rounded w-1/3" />
       </div>
     );
   }
@@ -55,94 +56,119 @@ export default function KpiCard({
 
   return (
     <>
-      <article className="enterprise-card cx-kpi">
-        <div className="cx-kpi-heading">
-          <h3 className="text-text-sec text-[13px] font-medium">{title}</h3>
-          {lineage && (
-            <div className="cx-kpi-tools">
-              <button
-                type="button"
-                className="cx-kpi-action hover:bg-slate-100 dark:hover:bg-slate-800 rounded p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-                aria-label={`Definition of ${title}`}
-                title="Metric definition"
-                onClick={() => setDrawerOpen(true)}
-              >
-                <Info size={13} />
-              </button>
-              <button
-                type="button"
-                className="cx-kpi-action hover:bg-slate-100 dark:hover:bg-slate-800 rounded p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-                aria-label={`Inspect selected lead population for ${title}`}
-                title="Selected lead population (legacy)"
-                onClick={() => setAuditOpen(true)}
-              >
-                <TableIcon size={13} />
-              </button>
+      <article className="enterprise-card cx-kpi bg-surface border border-border hover:border-action/40 rounded-xl p-4 sm:p-5 flex flex-col justify-between h-full transition-all duration-150 hover:shadow-xs group">
+        <div>
+          <div className="flex items-center justify-between gap-1 mb-1">
+            <h3 className="text-text-sec text-xs sm:text-[12px] font-semibold uppercase tracking-wider line-clamp-1">{title}</h3>
+            <div className="flex items-center gap-0.5">
+              {lineage && (
+                <>
+                  <button
+                    type="button"
+                    className="text-text-mute hover:text-brand-primary p-0.5 rounded transition-colors cursor-pointer"
+                    aria-label={`Definition of ${title}`}
+                    title="Metric definition & lineage"
+                    onClick={() => setDrawerOpen(true)}
+                  >
+                    <Info size={13} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className="text-text-mute hover:text-brand-primary p-0.5 rounded transition-colors cursor-pointer"
+                    aria-label={`Inspect selected lead population for ${title}`}
+                    title="Selected lead population"
+                    onClick={() => setAuditOpen(true)}
+                  >
+                    <TableIcon size={13} aria-hidden="true" />
+                  </button>
+                </>
+              )}
             </div>
-          )}
+          </div>
+
+          <div className="my-1.5">
+            {!missing && prefix && <small className="text-text-sec font-medium text-xs mr-1">{prefix}</small>}
+            <strong className="text-2xl lg:text-[28px] font-bold tracking-tight text-text-main font-mono tabular-nums leading-tight">
+              {missing ? 'Unavailable' : typeof value === 'number' ? formatKpiValue(value) : value}
+            </strong>
+            {!missing && suffix && <small className="text-text-sec font-medium text-xs ml-1">{suffix}</small>}
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap text-xs mt-1">
+            {hasChange ? (
+              <div className="inline-flex flex-wrap items-center gap-1.5 text-xs font-mono">
+                <span className="text-text-sec text-[11px]">{changeLabel}</span>
+                <span
+                  className={`inline-flex items-center gap-0.5 font-semibold text-[11px] px-1.5 py-0.5 rounded tabular-nums ${
+                    change === 0
+                      ? 'text-text-mute bg-surface-subtle border border-border-subtle'
+                      : positive
+                      ? 'text-semantic-pos bg-semantic-pos/10'
+                      : 'text-semantic-neg bg-semantic-neg/10'
+                  }`}
+                >
+                  <Icon size={11} className="shrink-0" aria-hidden="true" />
+                  {change! > 0 ? `+${change!.toFixed(2)}%` : `${change!.toFixed(2)}%`}
+                </span>
+              </div>
+            ) : (
+              <span className="text-text-mute text-xs font-mono text-[11px]">{subtitle || 'Observed operational population'}</span>
+            )}
+          </div>
         </div>
 
-        <div className="cx-kpi-amount my-2">
-          {!missing && prefix && <small className="text-slate-500 dark:text-slate-400 font-medium text-xs mr-1">{prefix}</small>}
-          <strong className="text-2xl sm:text-[28px] font-bold tracking-tight text-text-main font-mono tabular-nums leading-tight">
-            {missing ? 'Unavailable' : typeof value === 'number' ? formatKpiValue(value) : value}
-          </strong>
-          {!missing && suffix && <small className="text-slate-500 dark:text-slate-400 font-medium text-xs ml-1">{suffix}</small>}
-        </div>
-
-        <div className="cx-kpi-note mt-auto pt-2 border-t border-slate-100 dark:border-slate-800">
-          {hasChange ? (
-            <div className="inline-flex flex-wrap items-center gap-1.5 text-xs font-mono">
-              <span className="text-slate-500 dark:text-slate-400 text-[11px]">{changeLabel}</span>
-              <span
-                className={`inline-flex items-center gap-0.5 font-semibold text-[11px] tabular-nums ${
-                  change === 0
-                    ? 'text-slate-500 dark:text-slate-400'
-                    : positive
-                    ? 'text-emerald-700 dark:text-emerald-400'
-                    : 'text-rose-700 dark:text-rose-400'
-                }`}
-              >
-                <Icon size={12} className="shrink-0" />
-                {change! > 0 ? `+${change!.toFixed(2)}%` : `${change!.toFixed(2)}%`}
-              </span>
-            </div>
-          ) : (
-            <span className="text-slate-400 dark:text-slate-500 text-xs font-mono text-[11px]">{subtitle || 'No comparison supplied'}</span>
-          )}
-        </div>
-
-        {(onAnalyse || onWhyChanged) && (
-          <footer className="cx-kpi-footer">
+        {(onAnalyse || onWhyChanged) ? (
+          <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-border-subtle text-[11px] min-h-[29px] flex-wrap">
             {onWhyChanged && (
-              <button type="button" className="cx-link-button" onClick={onWhyChanged}>
-                Why changed?
+              <button
+                type="button"
+                className="cx-why-btn"
+                onClick={onWhyChanged}
+                title={`Investigate why ${title.toLowerCase()} changed`}
+              >
+                <span>Why changed?</span>
+                <Search size={10} aria-hidden="true" />
               </button>
+            )}
+            {onWhyChanged && onAnalyse && (
+              <span className="text-border-strong text-[10px]" aria-hidden="true">·</span>
             )}
             {onAnalyse && (
-              <button type="button" className="cx-link-button ml-auto" onClick={onAnalyse}>
-                Analyse <ArrowRight size={14} />
+              <button
+                type="button"
+                className="cx-inspect-btn"
+                onClick={onAnalyse}
+                title={`Inspect & analyse ${title}`}
+              >
+                <span>Inspect</span>
+                <ArrowRight size={10} aria-hidden="true" />
               </button>
             )}
-          </footer>
+          </div>
+        ) : (
+          <div className="mt-3 pt-2.5 border-t border-transparent min-h-[29px]" aria-hidden="true" />
         )}
       </article>
 
       {lineage && (auditOpen || drawerOpen) && (
         <Suspense fallback={<span role="status" className="sr-only">Loading details…</span>}>
-          {auditOpen&&<DataAuditDrawer
-            isOpen
-            onClose={() => setAuditOpen(false)}
-            title={`Selected Lead Population: ${title}`}
-            contextFilters={{}}
-          />}
-          {drawerOpen&&<MetricLineageDrawer
-            isOpen
-            onClose={() => setDrawerOpen(false)}
-            title={title}
-            lineage={lineage}
-            metadata={metadata}
-          />}
+          {auditOpen && (
+            <DataAuditDrawer
+              isOpen
+              onClose={() => setAuditOpen(false)}
+              title={`Selected Lead Population: ${title}`}
+              contextFilters={{}}
+            />
+          )}
+          {drawerOpen && (
+            <MetricLineageDrawer
+              isOpen
+              onClose={() => setDrawerOpen(false)}
+              title={title}
+              lineage={lineage}
+              metadata={metadata}
+            />
+          )}
         </Suspense>
       )}
     </>
