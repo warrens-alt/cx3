@@ -17,7 +17,7 @@ const mocks = {
 const contents = `
 import React from 'react';
 import {createRoot} from 'react-dom/client';
-import {BrowserRouter, Link, Routes, Route} from 'react-router-dom';
+import {MemoryRouter, Link, Routes, Route} from 'react-router-dom';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
 import AnalyticsReadinessPanel from './src/shared/reporting/AnalyticsReadinessPanel';
 import Settings from './src/pages/Settings';
@@ -27,7 +27,7 @@ window.__fixture={client, fail:false, calls:[],delay:30};
 const clock='2026-09-29T06:00:00.000Z';
 const sources=[{key:'leads',label:'Lead ledger',status:'OBSERVED',rowCount:12,missingTimestampRows:2,latestRecordAt:'2026-09-28T06:00:00Z'},{key:'calls',label:'Call source',status:'EMPTY',rowCount:0,missingTimestampRows:0,latestRecordAt:null},{key:'marketing',label:'Marketing',status:'MAPPING_REQUIRED',rowCount:null,latestRecordAt:null},{key:'diallerRealtime',label:'Live dialler',status:'UNCONFIGURED',rowCount:null,latestRecordAt:null}];
 window.fetch=async (url,options={})=>{
- const u=new URL(String(url),location.origin); const id=u.searchParams.get('clientId');
+ const u=new URL(String(url),'https://synthetic.invalid'); const id=u.searchParams.get('clientId');
  const fail=window.__fixture.fail,delay=window.__fixture.delay;
  window.__fixture.calls.push({url:u.pathname+u.search,clientId:id});
  await new Promise((resolve,reject)=>{const timer=setTimeout(resolve,delay);options.signal?.addEventListener('abort',()=>{clearTimeout(timer);reject(new DOMException('Cancelled','AbortError'))},{once:true});});
@@ -38,7 +38,7 @@ window.fetch=async (url,options={})=>{
 };
 const queryClient=new QueryClient();registerQueryClientForSessionIsolation(queryClient);
 function setSession(){updateAnalyticalSession({uid:'synthetic-user',role:'admin',status:'active',allowedTenants:[client.selectedClient],isAdmin:true,isActive:true});}setSession();
-function Fixture(){const [,render]=React.useReducer(x=>x+1,0);return <QueryClientProvider client={queryClient}><BrowserRouter><header className="fixture-banner"><h1>CX3 synthetic browser fixture</h1><p>Actual readiness and Settings components; synthetic context and network. Not production data or full-app authentication QA.</p><nav><Link to="/overview">Overview fixture</Link><Link to="/admin">Settings fixture</Link><button onClick={()=>{client.selectedClient=client.selectedClient==='synthetic-a'?'synthetic-b':'synthetic-a';client.clientConfig={...client.clientConfig,name:client.selectedClient==='synthetic-a'?'Synthetic workspace A':'Synthetic workspace B'};setSession();render();}}>Switch synthetic workspace</button></nav></header><main><Routes><Route path="/admin" element={<Settings/>}/><Route path="*" element={<AnalyticsReadinessPanel/>}/></Routes></main></BrowserRouter></QueryClientProvider>;}createRoot(document.getElementById('root')).render(<Fixture/>);
+function Fixture(){const [,render]=React.useReducer(x=>x+1,0);return <QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/overview?clientId=synthetic-a&startDate=2026-09-01&endDate=2026-09-28']}><header className="fixture-banner"><h1>CX3 synthetic browser fixture</h1><p>Actual readiness and Settings components; synthetic context and network. Not production data or full-app authentication QA.</p><nav><Link to="/overview">Overview fixture</Link><Link to="/admin">Settings fixture</Link><button onClick={()=>{client.selectedClient=client.selectedClient==='synthetic-a'?'synthetic-b':'synthetic-a';client.clientConfig={...client.clientConfig,name:client.selectedClient==='synthetic-a'?'Synthetic workspace A':'Synthetic workspace B'};setSession();render();}}>Switch synthetic workspace</button></nav></header><main><Routes><Route path="/admin" element={<Settings/>}/><Route path="*" element={<AnalyticsReadinessPanel/>}/></Routes></main></MemoryRouter></QueryClientProvider>;}createRoot(document.getElementById('root')).render(<Fixture/>);
 `;
 await build({stdin:{contents,resolveDir:root,loader:'tsx'},bundle:true,format:'iife',platform:'browser',outfile:path.join(out,'fixture.js'),define:{'process.env.NODE_ENV':'"development"'},plugins:[{name:'isolated-contexts',setup(b){
  b.onResolve({filter:/\/(ClientContext|AuthContext|FilterContext|ThemeContext|useTableDensity)$/}, args=>({path:args.path.split('/').at(-1),namespace:'fixture'}));
