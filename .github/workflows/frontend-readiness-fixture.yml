@@ -26,3 +26,11 @@ jobs:
           path: /tmp/cx3-readiness-browser-fixture
           retention-days: 3
           if-no-files-found: error
+      - name: Generate surface inventory for independent comparison
+        run: npm run docs:surfaces
+      - uses: actions/upload-artifact@v4
+        with:
+          name: generated-surface-inventory
+          path: docs/SURFACE-INVENTORY.md
+          retention-days: 3
+          if-no-files-found: error
