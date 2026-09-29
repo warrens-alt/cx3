@@ -35,7 +35,7 @@ export default function AttentionList({ items = [], isAdmin }: AttentionListProp
   };
 
   return (
-    <section className="cx-card p-5 flex flex-col justify-between" aria-label="Exceptions needing attention">
+    <section className="cx-attention-panel cx-card p-5 flex flex-col justify-between" aria-label="Exceptions needing attention">
       <div>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-1.5">
@@ -65,15 +65,16 @@ export default function AttentionList({ items = [], isAdmin }: AttentionListProp
                       ? scoped(`/lead-explorer?drill=${encodeURIComponent(item.id)}`)
                       : scoped(item.path)
                   }
-                  className="p-2.5 rounded-lg border border-border-subtle bg-surface-subtle hover:bg-surface-sec hover:border-brand-primary/40 transition-colors flex items-center justify-between gap-3 text-xs group"
+                  data-severity={item.severity}
+                  className="cx-attention-row p-2.5 rounded-lg border border-border-subtle bg-surface-subtle hover:bg-surface-sec hover:border-brand-primary/40 transition-colors flex items-center justify-between gap-3 text-xs group"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span className={`w-2 h-2 rounded-full shrink-0 ${severityDot(item.severity)}`} />
                     <div className="min-w-0">
-                      <div className="font-semibold text-text-main truncate group-hover:text-brand-primary">
+                      <div className="cx-attention-title font-semibold text-text-main group-hover:text-brand-primary">
                         {item.title}
                       </div>
-                      <div className="text-[11px] text-text-mute truncate">{item.detail}</div>
+                      <div className="cx-attention-detail text-[11px] text-text-mute">{item.detail}</div>
                     </div>
                   </div>
 

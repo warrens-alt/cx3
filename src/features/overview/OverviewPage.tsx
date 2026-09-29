@@ -104,7 +104,7 @@ export default function OverviewPage() {
   }, [data?.comparison]);
 
   return (
-    <div className="cx-command-page" aria-label="Overview workspace">
+    <div className="cx-command-page cx-overview-page" aria-label="Overview workspace">
       {/* Scope Bar */}
       <ReportingScopeBar
         onRefresh={refreshAll}
@@ -113,7 +113,7 @@ export default function OverviewPage() {
 
       <div className="cx-command-content space-y-6">
         {/* Page Header */}
-        <header className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-2 border-b border-border-subtle">
+        <header className="cx-workspace-heading flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-2 border-b border-border-subtle">
           <div>
             <div className="flex items-center gap-1.5 text-xs text-text-sec">
               <span className="font-semibold text-action uppercase tracking-wider">Outcomes</span>
@@ -192,7 +192,7 @@ export default function OverviewPage() {
           {hasComparison && meaningfulChanges.length > 0 && (
             <section
               aria-label="Meaningful outcome changes"
-              className="p-3.5 rounded-lg bg-surface-subtle border border-border-subtle flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs"
+              className="cx-change-rail p-3.5 rounded-lg bg-surface-subtle border border-border-subtle flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs"
             >
               <div className="flex items-center gap-2 text-text-sec shrink-0">
                 <Clock3 size={15} className="text-brand-primary" />
@@ -235,7 +235,7 @@ export default function OverviewPage() {
           )}
 
           {/* 2. Primary 8/4 Layout: Performance Trend (2/3) + Needs Attention (1/3) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <div className="cx-overview-primary grid grid-cols-1 lg:grid-cols-12 gap-5">
             <div className="lg:col-span-8">
               <PerformanceTrend
                 data={data.dailyTrends}

@@ -52,7 +52,7 @@ export default function UnifiedMetricCard({
   if (loading) {
     return (
       <article
-        className={`enterprise-card bg-surface border border-border rounded-xl p-4 sm:p-5 flex flex-col justify-between animate-pulse ${className}`}
+        className={`cx-unified-metric enterprise-card bg-surface border border-border rounded-xl p-4 sm:p-5 flex flex-col justify-between animate-pulse ${className}`}
         role="status"
         aria-label={`Loading ${label}`}
       >
@@ -85,11 +85,11 @@ export default function UnifiedMetricCard({
 
   return (
     <article
-      className={`enterprise-card bg-surface border border-border hover:border-action/40 rounded-xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-150 hover:shadow-xs group ${className}`}
+      className={`cx-unified-metric enterprise-card bg-surface border border-border hover:border-action/40 rounded-xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-150 hover:shadow-xs group ${className}`}
     >
       <div>
         <div className="flex items-center justify-between gap-1 mb-1">
-          <span className="text-xs sm:text-[12px] font-semibold text-text-sec uppercase tracking-wider line-clamp-1">
+          <span className="text-xs sm:text-[12px] font-semibold text-text-sec uppercase tracking-wider cx-metric-label">
             {label}
           </span>
           {onAbout && (
@@ -111,7 +111,7 @@ export default function UnifiedMetricCard({
             className="block hover:underline hover:text-action transition-colors my-1.5"
             title={inspectLabel ? `${inspectLabel} records for ${label}` : `Inspect ${label}`}
           >
-            <strong className="text-2xl lg:text-[28px] font-bold font-mono tracking-tight text-text-main tabular-nums leading-tight">
+            <strong className="cx-metric-value text-2xl lg:text-[28px] font-bold font-mono tracking-tight text-text-main tabular-nums leading-tight">
               {displayValue}
             </strong>
           </Link>
@@ -122,12 +122,12 @@ export default function UnifiedMetricCard({
             className="block text-left hover:text-action transition-colors my-1.5 cursor-pointer w-full"
             title={inspectLabel ? `${inspectLabel} ${label}` : `Inspect ${label}`}
           >
-            <strong className="text-2xl lg:text-[28px] font-bold font-mono tracking-tight text-text-main tabular-nums leading-tight">
+            <strong className="cx-metric-value text-2xl lg:text-[28px] font-bold font-mono tracking-tight text-text-main tabular-nums leading-tight">
               {displayValue}
             </strong>
           </button>
         ) : (
-          <strong className="text-2xl lg:text-[28px] font-bold font-mono tracking-tight text-text-main block my-1.5 tabular-nums leading-tight">
+          <strong className="cx-metric-value text-2xl lg:text-[28px] font-bold font-mono tracking-tight text-text-main block my-1.5 tabular-nums leading-tight">
             {displayValue}
           </strong>
         )}

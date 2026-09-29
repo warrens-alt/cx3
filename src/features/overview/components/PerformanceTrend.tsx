@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useId } from 'react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -65,37 +65,57 @@ export interface PerformanceTrendProps {
   } | null;
 }
 
+const METRIC_CONFIGS: Record<SelectableTrendMetric, { label: string; color: string }> = {
+  leads: { label: 'Fetched leads', color: 'var(--cx-data-fetched)' },
+  delivered: { label: 'Delivered leads', color: 'var(--cx-data-delivered)' },
+  sales: { label: 'Recorded sales', color: 'var(--cx-data-sales)' },
+};
+
+interface TrendTooltipProps {
+  active?: boolean;
+  payload?: readonly { value?: number | string | null }[];
+  label?: React.ReactNode;
+  metricLabel: string;
+}
+
+// Stable component identity avoids remounting a nested tooltip on every selection.
+function TrendTooltip({ active, payload, label, metricLabel }: TrendTooltipProps) {
+  if (!active || !payload?.length) return null;
+  const value = payload[0]?.value;
+  return (
+    <div className="cx-chart-tooltip">
+      <div className="cx-chart-tooltip-title">{label}</div>
+      <div className="cx-chart-tooltip-row">
+        <span className="cx-chart-tooltip-label">{metricLabel}:</span>
+        <span className="cx-chart-tooltip-value">{value != null ? formatTableNumber(value) : '—'}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function PerformanceTrend({ data = [], comparisonWindow }: PerformanceTrendProps) {
   const [activeMetric, setActiveMetric] = useState<SelectableTrendMetric>('leads');
 
-  const metricConfigs: Record<SelectableTrendMetric, { label: string; color: string }> = {
-    leads: { label: 'Fetched leads', color: '#4F5FB7' },
-    delivered: { label: 'Delivered leads', color: '#0E7490' },
-    sales: { label: 'Recorded sales', color: '#426D80' },
-  };
-
+  const chartId = useId();
   const chartData = useMemo(() => adaptDailyTrends(data), [data]);
-  const currentConfig = metricConfigs[activeMetric];
+  const currentConfig = METRIC_CONFIGS[activeMetric];
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload || !payload.length) return null;
-    const value = payload[0]?.value;
-    return (
-      <div className="cx-chart-tooltip">
-        <div className="cx-chart-tooltip-title">{label}</div>
-        <div className="cx-chart-tooltip-row">
-          <span className="cx-chart-tooltip-label">{currentConfig.label}:</span>
-          <span className="cx-chart-tooltip-value">
-            {value !== undefined && value !== null ? formatTableNumber(value) : '—'}
-          </span>
-        </div>
-      </div>
-    );
+  const handleMetricKey = (event: React.KeyboardEvent<HTMLButtonElement>, key: SelectableTrendMetric) => {
+    const keys = Object.keys(METRIC_CONFIGS) as SelectableTrendMetric[];
+    const index = keys.indexOf(key);
+    const next = event.key === 'ArrowRight' ? (index + 1) % keys.length
+      : event.key === 'ArrowLeft' ? (index - 1 + keys.length) % keys.length
+      : event.key === 'Home' ? 0 : event.key === 'End' ? keys.length - 1 : null;
+    if (next === null) return;
+    event.preventDefault();
+    setActiveMetric(keys[next]);
+    const button = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next];
+    button?.focus();
   };
 
   return (
-    <section className="enterprise-card bg-surface border border-border p-5 rounded-lg flex flex-col justify-between shadow-xs" aria-label="Performance trend">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+    <section className="cx-trend-panel enterprise-card bg-surface border border-border p-5 rounded-lg flex flex-col justify-between shadow-xs" aria-label="Performance trend">
+      <div className="cx-trend-heading flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
           <h2 className="text-base font-bold text-text-main">Performance trend</h2>
           <p className="text-xs text-text-sec mt-0.5">
@@ -107,14 +127,18 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
         <div
           role="tablist"
           aria-label="Select metric to plot"
-          className="flex items-center gap-1 bg-surface-subtle p-1 rounded-lg border border-border-subtle text-xs"
+          className="cx-trend-tabs flex items-center gap-1 bg-surface-subtle p-1 rounded-lg border border-border-subtle text-xs"
         >
-          {(Object.keys(metricConfigs) as SelectableTrendMetric[]).map(key => (
+          {(Object.keys(METRIC_CONFIGS) as SelectableTrendMetric[]).map(key => (
             <button
               key={key}
               type="button"
               role="tab"
+              id={`${chartId}-${key}`}
+              aria-controls={`${chartId}-plot`}
               aria-selected={activeMetric === key}
+              tabIndex={activeMetric === key ? 0 : -1}
+              onKeyDown={event => handleMetricKey(event, key)}
               onClick={() => setActiveMetric(key)}
               className={`px-3 py-1.5 rounded-md font-medium transition-colors cursor-pointer whitespace-nowrap ${
                 activeMetric === key
@@ -122,38 +146,38 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
                   : 'text-text-mute hover:text-text-main'
               }`}
             >
-              {metricConfigs[key].label}
+              {METRIC_CONFIGS[key].label}
             </button>
           ))}
         </div>
       </div>
 
       {/* Chart Canvas */}
-      <div className="h-64 min-h-[256px] w-full">
+      <div className="cx-trend-canvas h-64 min-h-[256px] w-full" id={`${chartId}-plot`} role="tabpanel" aria-labelledby={`${chartId}-${activeMetric}`}>
         {chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
             <LineChart data={chartData} margin={{ top: 8, right: 12, left: -2, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border-subtle)" />
               <XAxis
                 dataKey="date"
-                tick={{ fill: '#64748B', fontSize: 12 }}
+                tick={{ fill: 'var(--cx-text-muted)', fontSize: 12 }}
                 tickLine={false}
-                axisLine={{ stroke: '#E2E8F0' }}
+                axisLine={{ stroke: 'var(--cx-border-subtle)' }}
               />
               <YAxis
-                tick={{ fill: '#64748B', fontSize: 12 }}
+                tick={{ fill: 'var(--cx-text-muted)', fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
                 width={42}
                 tickFormatter={val => (val >= 1000 ? `${(val / 1000).toFixed(0)}k` : String(val))}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<TrendTooltip metricLabel={currentConfig.label} />} />
               <Line
                 type="monotone"
                 dataKey={activeMetric}
                 stroke={currentConfig.color}
                 strokeWidth={2.5}
-                dot={{ r: 2.5, fill: currentConfig.color }}
+                dot={{ r: chartData.length === 1 ? 5 : 3, fill: currentConfig.color, strokeWidth: 2, stroke: 'var(--cx-surface)' }}
                 activeDot={{ r: 5, strokeWidth: 0 }}
                 connectNulls={true}
                 isAnimationActive={false}
