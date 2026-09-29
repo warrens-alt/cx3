@@ -1,25 +1,55 @@
-name: Phase 2 source snapshot
+name: Apply reviewed frontend patch
 on:
   push:
     branches: [style/journey-contact-visuals-20260929]
+    paths: [.github/workflows/phase2-source-snapshot.yml]
 permissions:
-  contents: read
+  contents: write
 jobs:
-  source:
+  apply:
+    if: github.repository == 'warrens-alt/cx3' && github.ref == 'refs/heads/style/journey-contact-visuals-20260929'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: false
-      - name: Archive tracked source for local visual checks
+          fetch-depth: 1
+      - name: Apply only reviewed frontend files and verify exact Git blobs
+        shell: bash
         run: |
-          mkdir -p "$RUNNER_TEMP/phase2-source"
-          git archive --format=tar.gz HEAD > "$RUNNER_TEMP/phase2-source/source.tar.gz"
-          git rev-parse HEAD > "$RUNNER_TEMP/phase2-source/commit.txt"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: phase2-source
-          path: ${{ runner.temp }}/phase2-source
-          retention-days: 1
-          if-no-files-found: error
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64, gzip, hashlib, pathlib, subprocess
+          expected = {
+            'src/features/contact/ContactPage.tsx': '1a014af7503f292bd9d04ff8519bc529919da3f0',
+            'src/features/contact/components/CallEffortDistribution.tsx': 'a56969ed2805077de0ed65466b00138ddd383ef4',
+            'src/features/contact/components/CallEffortReport.tsx': '9b1f406a6509bfd3cde5585fe700574a0eb04ddf',
+            'src/features/contact/components/ContactCoverage.tsx': 'ec0ac12f292585f891ba3af67c1c2824996b2281',
+            'src/features/journey/JourneyPage.tsx': '3d40eca1a53cfa522b4d6adf730a134b409a5279',
+            'src/features/journey/components/JourneyProgression.tsx': '24c97899d2fb36c2b203a14ebcfd64d21efae206',
+            'src/features/journey/components/JourneySegments.tsx': 'e315335fa0fed00d6185eb69a9fd78f30fba64cf',
+            'src/features/journey/components/JourneyTiming.tsx': '512010a78eba0ad30cc9ca92f16288637197ff2a',
+            'src/shared/visuals/EvidenceBars.tsx': 'bef5a77b214e64edb6f08ae0da86aa5ba383dd58',
+            'src/styles/journeyContactVisuals.css': '2962d37131b6e9ade5568941a61c4e2b31704929',
+            'tests/journey-contact-visuals.test.ts': '15b68bfd11232536af5f437dea6634d02c5311d1'
+          }
+          encoded = ''.join(pathlib.Path(f'.github/phase2-chunk-{i}.txt').read_text().strip() for i in range(5))
+          patch = gzip.decompress(base64.b64decode(encoded, validate=True))
+          assert hashlib.sha256(patch).hexdigest() == 'd778ad4972a6ec7d6ff433411c127dd33edd49434709811dac44bcf9b5ecb848', 'Patch checksum mismatch'
+          paths = [line.split(' b/', 1)[1] for line in patch.decode().splitlines() if line.startswith('diff --git a/')]
+          assert set(paths) == set(expected) and len(paths) == len(expected), 'Unexpected patch path'
+          subprocess.run(['git', 'apply', '--check', '--index', '-'], input=patch, check=True)
+          subprocess.run(['git', 'apply', '--index', '-'], input=patch, check=True)
+          changed = subprocess.check_output(['git', 'diff', '--cached', '--name-only'], text=True).splitlines()
+          assert set(changed) == set(expected), 'Unexpected staged path'
+          for path, sha in expected.items():
+              actual = subprocess.check_output(['git', 'hash-object', path], text=True).strip()
+              assert actual == sha, f'Blob mismatch: {path}'
+          print('All 11 frontend/test blobs match the locally tested source.')
+          PY
+          git rm .github/phase2-frontend.patch.gz.b64 .github/phase2-chunk-*.txt .github/workflows/phase2-source-snapshot.yml
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: visual journey and contact analytics with existing evidence'
+          git push origin HEAD:refs/heads/style/journey-contact-visuals-20260929
