@@ -143,7 +143,7 @@ export function VolumeRateComboChart({
                 stroke={series.color || [ANALYTICS_COLORS.rpc, ANALYTICS_COLORS.sale, ANALYTICS_COLORS.activation][index % 3]}
                 strokeWidth={2.25}
                 dot={{ r: 3, fill: '#fff', strokeWidth: 2 }}
-                connectNulls={true}
+                connectNulls={false}
                 isAnimationActive={false}
               />
             ))}
@@ -330,7 +330,7 @@ export function MultiSeriesTrendChart({
                 stroke={item.color || SERIES_PALETTE[index % SERIES_PALETTE.length]}
                 strokeWidth={2.2}
                 dot={{ r: 2.5, fill: '#fff', strokeWidth: 2 }}
-                connectNulls={true}
+                connectNulls={false}
                 isAnimationActive={false}
               />
             ))}

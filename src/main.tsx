@@ -9,6 +9,7 @@ import { registerQueryClientForSessionIsolation } from './lib/analyticalSession'
 import './index.css';
 import './styles/product.css';
 import './styles/analyticsVisuals.css';
+import './styles/journeyContactVisuals.css';
 import './styles/visualRefinement.css';
 import './styles/salesCommercialVisuals.css';
 import './styles/timeAgentCampaignVisuals.css';

@@ -52,21 +52,8 @@ export default function VendorLeadQuality() {
     const list = data?.vendors || [];
     if (!list.length) return null;
     const totalLeads = list.reduce((sum, v) => sum + (v.leads || 0), 0);
-    const totalWeightedContact = list.reduce((sum, v) => sum + (v.leads || 0) * (v.contactRate || 0), 0);
-    const totalWeightedSale = list.reduce((sum, v) => sum + (v.leads || 0) * (v.saleRate || 0), 0);
-    const totalWeightedActivation = list.reduce((sum, v) => sum + (v.leads || 0) * (v.activationRate || 0), 0);
-    const avgContactRate = totalLeads > 0 ? totalWeightedContact / totalLeads : null;
-    const avgSaleRate = totalLeads > 0 ? totalWeightedSale / totalLeads : null;
-    const avgActivationRate = totalLeads > 0 ? totalWeightedActivation / totalLeads : null;
-    const medians = list.map(v => v.medianFirstDialSec).filter((s): s is number => s != null && s > 0);
-    medians.sort((a, b) => a - b);
-    const medianFirstDialMin = medians.length > 0 ? (medians[Math.floor(medians.length / 2)] / 60).toFixed(1) : null;
     return {
       totalLeads,
-      avgContactRate,
-      avgSaleRate,
-      avgActivationRate,
-      medianFirstDialMin,
       vendorCount: list.length,
     };
   }, [data?.vendors]);
@@ -155,7 +142,7 @@ export default function VendorLeadQuality() {
         {data && (
           <>
             {vendorSummary && (
-              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-6" aria-label="Vendor performance summary">
+              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6" aria-label="Vendor performance summary">
                 <UnifiedMetricCard
                   label="Captured Demand"
                   value={formatTableNumber(vendorSummary.totalLeads)}
@@ -168,53 +155,9 @@ export default function VendorLeadQuality() {
                   inspectLabel="Inspect funnel"
                 />
 
-                <UnifiedMetricCard
-                  label="Median First Dial"
-                  value={vendorSummary.medianFirstDialMin ? `${vendorSummary.medianFirstDialMin}m` : '—'}
-                  note="Delivery to dial latency"
-                  onWhyChanged={() => {
-                    setRootMetric('dialRate');
-                    setRootMetricLabel('Speed to First Dial');
-                  }}
-                  to={scoped('/speed-to-lead')}
-                  inspectLabel="Inspect speed"
-                />
-
-                <UnifiedMetricCard
-                  label="Contact Rate (RPC)"
-                  value={vendorSummary.avgContactRate != null ? formatPercent(vendorSummary.avgContactRate) : '—'}
-                  note="Volume-weighted RPC"
-                  onWhyChanged={() => {
-                    setRootMetric('contactRate');
-                    setRootMetricLabel('Vendor Contact Rate');
-                  }}
-                  to={scoped('/contact-strategy')}
-                  inspectLabel="Inspect contact"
-                />
-
-                <UnifiedMetricCard
-                  label="Lead → Sale Rate"
-                  value={vendorSummary.avgSaleRate != null ? formatPercent(vendorSummary.avgSaleRate) : '—'}
-                  note="Downstream sales / leads"
-                  onWhyChanged={() => {
-                    setRootMetric('leadToSaleRate');
-                    setRootMetricLabel('Vendor Sale Rate');
-                  }}
-                  to={scoped('/sales-activation')}
-                  inspectLabel="Inspect sales"
-                />
-
-                <UnifiedMetricCard
-                  label="Activation Rate"
-                  value={vendorSummary.avgActivationRate != null ? formatPercent(vendorSummary.avgActivationRate) : '—'}
-                  note="Fulfilled / recorded sales"
-                  onWhyChanged={() => {
-                    setRootMetric('activationRate');
-                    setRootMetricLabel('Vendor Activation Rate');
-                  }}
-                  to={scoped('/sales-activation')}
-                  inspectLabel="Inspect activations"
-                />
+                <div className="cx-control-note sm:col-span-2">
+                  Combined rates and latency are not supplied for this population. Compare the returned vendor measures below; subgroup rates and medians do not establish a portfolio result.
+                </div>
               </section>
             )}
 
@@ -223,7 +166,7 @@ export default function VendorLeadQuality() {
             <div className="cx-analytics-visual-grid">
               {vendorGradeVisual.data.length > 0 && <StackedCompositionChart
                 title="Vendor grade composition"
-                subtitle="100% composition of recorded grades within each vendor's observed lead population."
+                subtitle="Top 8 grades across the 10 largest vendors. Shares use all recorded grades per vendor; omitted grades can leave a remainder. All returned categories are in the table below."
                 data={vendorGradeVisual.data}
                 categoryKey="vendor"
                 series={vendorGradeVisual.series}

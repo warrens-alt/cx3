@@ -28,17 +28,8 @@ export default function Cohorts() {
   const cohortSummary = useMemo(() => {
     if (!cohorts || !cohorts.length) return null;
     const totalLeads = cohorts.reduce((sum: number, c: any) => sum + (c.size || 0), 0);
-    const totalWeightedDial = cohorts.reduce((sum: number, c: any) => sum + (c.size || 0) * (c.callCoverage ?? c.callRate ?? 0), 0);
-    const totalWeightedSale = cohorts.reduce((sum: number, c: any) => sum + (c.size || 0) * (c.saleRate || 0), 0);
-    const totalWeightedActivation = cohorts.reduce((sum: number, c: any) => sum + (c.size || 0) * (c.activationRate || 0), 0);
-    const avgDialCoverage = totalLeads > 0 ? totalWeightedDial / totalLeads : null;
-    const avgSaleRate = totalLeads > 0 ? totalWeightedSale / totalLeads : null;
-    const avgActivationRate = totalLeads > 0 ? totalWeightedActivation / totalLeads : null;
     return {
       totalLeads,
-      avgDialCoverage,
-      avgSaleRate,
-      avgActivationRate,
       cohortCount: cohorts.length,
     };
   }, [cohorts]);
@@ -126,7 +117,7 @@ export default function Cohorts() {
         {cohorts && cohorts.length > 0 && (
           <>
             {cohortSummary && (
-              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6" aria-label="Cohort maturation summary">
+              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6" aria-label="Cohort maturation summary">
                 <UnifiedMetricCard
                   label="Total Cohort Leads"
                   value={formatTableNumber(cohortSummary.totalLeads)}
@@ -139,41 +130,7 @@ export default function Cohorts() {
                   inspectLabel="Inspect funnel"
                 />
 
-                <UnifiedMetricCard
-                  label="Dial Coverage"
-                  value={cohortSummary.avgDialCoverage != null ? formatPercent(cohortSummary.avgDialCoverage) : '—'}
-                  note="Average dialled share"
-                  onWhyChanged={() => {
-                    setRootMetric('dialRate');
-                    setRootMetricLabel('Cohort Dial Coverage');
-                  }}
-                  to={scoped('/contact-strategy')}
-                  inspectLabel="Inspect contact"
-                />
-
-                <UnifiedMetricCard
-                  label="Lead → Sale Rate"
-                  value={cohortSummary.avgSaleRate != null ? formatPercent(cohortSummary.avgSaleRate) : '—'}
-                  note="Cohort conversion rate"
-                  onWhyChanged={() => {
-                    setRootMetric('leadToSaleRate');
-                    setRootMetricLabel('Cohort Lead-to-Sale');
-                  }}
-                  to={scoped('/sales-activation')}
-                  inspectLabel="Inspect sales"
-                />
-
-                <UnifiedMetricCard
-                  label="Activation Rate"
-                  value={cohortSummary.avgActivationRate != null ? formatPercent(cohortSummary.avgActivationRate) : '—'}
-                  note="Fulfilled / recorded sales"
-                  onWhyChanged={() => {
-                    setRootMetric('activationRate');
-                    setRootMetricLabel('Cohort Activation Rate');
-                  }}
-                  to={scoped('/sales-activation')}
-                  inspectLabel="Inspect activations"
-                />
+                <div className="cx-control-note sm:col-span-2">Summary covers the returned cohort groups. Combined rates are not supplied; inspect each cohort's returned rates below. Missing cohort evidence remains unavailable.</div>
               </section>
             )}
 

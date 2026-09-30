@@ -1,4 +1,5 @@
 import { VisualTable } from '../components/visuals/DataVisual';
+import { formatTableNumber, formatPercent } from '../lib/formatters';
 import React, { useState } from 'react';
 import { PageShell } from '../components/PageShell';
 import PageHeader from '../components/PageHeader';
@@ -11,6 +12,8 @@ import { useClient } from '../lib/ClientContext';
 import { DataState } from '../components/DataState';
 import { Users, Repeat, DollarSign, TrendingDown, Layers, CheckCircle2, ShieldCheck, AlertCircle, Table as TableIcon, BarChart2 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
+
+const fixed = (value: number | string | null | undefined, digits: number) => value == null || value === '' || !Number.isFinite(Number(value)) ? 'Unavailable' : Number(value).toFixed(digits);
 
 export default function ConsumerReentry() {
   const { clientConfig } = useClient();
@@ -41,7 +44,7 @@ export default function ConsumerReentry() {
           <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-slate-800 mb-2">Unable to Load Consumer Re-entry Data</h2>
           <p className="text-slate-600 text-sm mb-4">
-            {error || 'No consumer entities detected in the current filter range.'}
+            {error || 'The response did not include a consumer overview. Population size is unavailable.'}
           </p>
         </div>
       </PageShell>
@@ -66,8 +69,8 @@ export default function ConsumerReentry() {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-7 gap-4 lg:gap-5 mb-6 sm:mb-8">
         <KpiCard
           title="Total Consumers"
-          value={overview.total_consumers || 0}
-          subtitle={`${Number(overview.avg_leads_per_consumer || 0).toFixed(2)} leads / consumer`}
+          value={overview.total_consumers ?? null}
+          subtitle={`${fixed(overview.avg_leads_per_consumer, 2)} leads / consumer`}
           onWhyChanged={() => {
             setRootMetric('fetchedLeads');
             setRootMetricLabel('Total Consumers');
@@ -76,8 +79,8 @@ export default function ConsumerReentry() {
         />
         <KpiCard
           title="Repeat Consumers"
-          value={overview.repeat_consumers || 0}
-          subtitle={`${Number(overview.repeat_consumer_share_pct || 0).toFixed(1)}% re-entry rate`}
+          value={overview.repeat_consumers ?? null}
+          subtitle={`${formatPercent(overview.repeat_consumer_share_pct)} re-entry rate`}
           onWhyChanged={() => {
             setRootMetric('fetchedLeads');
             setRootMetricLabel('Repeat Consumers');
@@ -86,7 +89,7 @@ export default function ConsumerReentry() {
         />
         <KpiCard
           title="Revenue-Matched Sale Share (Single-Lead Consumers)"
-          value={`${Number(overview.single_billable_sale_rate_pct || 0).toFixed(1)}%`}
+          value={`${formatPercent(overview.single_billable_sale_rate_pct)}`}
           subtitle="Consumers with a revenue-matched sale / single-lead consumers"
           onWhyChanged={() => {
             setRootMetric('leadToSaleRate');
@@ -96,7 +99,7 @@ export default function ConsumerReentry() {
         />
         <KpiCard
           title="Revenue-Matched Sale Share (Repeat Consumers)"
-          value={`${Number(overview.repeat_billable_sale_rate_pct || 0).toFixed(1)}%`}
+          value={`${formatPercent(overview.repeat_billable_sale_rate_pct)}`}
           subtitle="Consumers with a revenue-matched sale / repeat consumers"
           onWhyChanged={() => {
             setRootMetric('leadToSaleRate');
@@ -106,9 +109,9 @@ export default function ConsumerReentry() {
         />
         <KpiCard
           title="Recorded Revenue (Single-Lead Consumers)"
-          value={Math.round(overview.single_consumer_revenue || 0)}
+          value={overview.single_consumer_revenue ?? null}
           prefix={currencyPrefix}
-          subtitle={`${currencyPrefix}${Number(overview.rev_per_single_consumer || 0).toFixed(2)} / consumer`}
+          subtitle={`${currencyPrefix}${fixed(overview.rev_per_single_consumer, 2)} / consumer`}
           onWhyChanged={() => {
             setRootMetric('leadToSaleRate');
             setRootMetricLabel('Single-Lead Consumer Revenue');
@@ -117,9 +120,9 @@ export default function ConsumerReentry() {
         />
         <KpiCard
           title="Recorded Revenue (Repeat Consumers)"
-          value={Math.round(overview.repeat_consumer_revenue || 0)}
+          value={overview.repeat_consumer_revenue ?? null}
           prefix={currencyPrefix}
-          subtitle={`${currencyPrefix}${Number(overview.rev_per_repeat_consumer || 0).toFixed(2)} / consumer`}
+          subtitle={`${currencyPrefix}${fixed(overview.rev_per_repeat_consumer, 2)} / consumer`}
           onWhyChanged={() => {
             setRootMetric('leadToSaleRate');
             setRootMetricLabel('Repeat Consumer Revenue');
@@ -128,7 +131,7 @@ export default function ConsumerReentry() {
         />
         <KpiCard
           title="Recorded Revenue (All Consumers)"
-          value={Math.round(overview.total_revenue || 0)}
+          value={overview.total_revenue ?? null}
           prefix={currencyPrefix}
           subtitle="Revenue summed by recorded consumer ID; not verified lifetime value"
           onWhyChanged={() => {
@@ -144,7 +147,7 @@ export default function ConsumerReentry() {
         <button
           type="button"
           onClick={() => setActiveTab('tiers')}
-          data-active={activeTab === 'tiers'}
+          aria-pressed={activeTab === 'tiers'} data-active={activeTab === 'tiers'}
           className="cx-tab-item"
         >
           <Layers className="w-4 h-4" />
@@ -154,7 +157,7 @@ export default function ConsumerReentry() {
         <button
           type="button"
           onClick={() => setActiveTab('sequence')}
-          data-active={activeTab === 'sequence'}
+          aria-pressed={activeTab === 'sequence'} data-active={activeTab === 'sequence'}
           className="cx-tab-item"
         >
           <TrendingDown className="w-4 h-4" />
@@ -165,7 +168,7 @@ export default function ConsumerReentry() {
           type="button"
           onClick={() => setActiveTab('sample')}
           disabled={!isAdmin} title={!isAdmin ? 'Individual consumer records require administrator access' : undefined}
-          data-active={activeTab === 'sample'}
+          aria-pressed={activeTab === 'sample'} data-active={activeTab === 'sample'}
           className="cx-tab-item"
         >
           <Repeat className="w-4 h-4" />
@@ -236,15 +239,15 @@ export default function ConsumerReentry() {
                       <td className="py-3 px-4 font-sans font-medium text-slate-900">
                         {tier.lead_tier}
                       </td>
-                      <td className="py-3 px-4 text-right font-medium text-slate-900">{Number(tier.consumer_count || 0).toLocaleString()}</td>
-                      <td className="py-3 px-4 text-right text-slate-600">{Number(tier.consumer_share_pct || 0).toFixed(1)}%</td>
-                      <td className="py-3 px-4 text-right font-medium text-slate-900">{Number(tier.total_leads || 0).toLocaleString()}</td>
-                      <td className="py-3 px-4 text-right text-slate-600">{Number(tier.consumers_with_sale || 0).toLocaleString()}</td>
-                      <td className="py-3 px-4 text-right text-slate-600">{Number(tier.sale_rate_pct || 0).toFixed(1)}%</td>
-                      <td className="py-3 px-4 text-right font-semibold text-emerald-700">{Number(tier.billable_sale_rate_pct || 0).toFixed(1)}%</td>
-                      <td className="py-3 px-4 text-right font-semibold text-slate-900">{currencyPrefix}{Math.round(tier.total_revenue || 0).toLocaleString()}</td>
-                      <td className="py-3 px-4 text-right font-bold text-[#315EAD]">{currencyPrefix}{Number(tier.rev_per_consumer || 0).toFixed(2)}</td>
-                      <td className="py-3 px-4 text-right font-semibold text-slate-700 bg-slate-50/50">{currencyPrefix}{Number(tier.rev_per_lead || 0).toFixed(2)}</td>
+                      <td className="py-3 px-4 text-right font-medium text-slate-900">{formatTableNumber(tier.consumer_count)}</td>
+                      <td className="py-3 px-4 text-right text-slate-600">{formatPercent(tier.consumer_share_pct)}</td>
+                      <td className="py-3 px-4 text-right font-medium text-slate-900">{formatTableNumber(tier.total_leads)}</td>
+                      <td className="py-3 px-4 text-right text-slate-600">{formatTableNumber(tier.consumers_with_sale)}</td>
+                      <td className="py-3 px-4 text-right text-slate-600">{formatPercent(tier.sale_rate_pct)}</td>
+                      <td className="py-3 px-4 text-right font-semibold text-emerald-700">{formatPercent(tier.billable_sale_rate_pct)}</td>
+                      <td className="py-3 px-4 text-right font-semibold text-slate-900">{currencyPrefix}{formatTableNumber(tier.total_revenue)}</td>
+                      <td className="py-3 px-4 text-right font-bold text-[#315EAD]">{currencyPrefix}{fixed(tier.rev_per_consumer, 2)}</td>
+                      <td className="py-3 px-4 text-right font-semibold text-slate-700 bg-slate-50/50">{currencyPrefix}{fixed(tier.rev_per_lead, 2)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -279,7 +282,7 @@ export default function ConsumerReentry() {
                                     <span>{entry.name}</span>
                                   </span>
                                   <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">
-                                    {Number(entry.value || 0).toLocaleString()}
+                                    {formatTableNumber(entry.value)}
                                   </span>
                                 </div>
                               ))}
@@ -364,14 +367,14 @@ export default function ConsumerReentry() {
                         <td className="py-3.5 px-4 font-sans font-semibold text-slate-900">
                           {seq.entry_stage}
                         </td>
-                        <td className="py-3.5 px-4 text-right font-medium text-slate-900">{Number(seq.leads || 0).toLocaleString()}</td>
-                        <td className="py-3.5 px-4 text-right text-slate-600">{Number(seq.delivery_rate_pct || 0).toFixed(1)}%</td>
-                        <td className="py-3.5 px-4 text-right text-slate-600">{Number(seq.call_rate_pct || 0).toFixed(1)}%</td>
-                        <td className="py-3.5 px-4 text-right text-slate-600">{Number(seq.rpc_rate_pct || 0).toFixed(1)}%</td>
-                        <td className="py-3.5 px-4 text-right text-slate-600">{Number(seq.sale_rate_pct || 0).toFixed(1)}%</td>
-                        <td className="py-3.5 px-4 text-right font-bold text-emerald-700">{Number(seq.billable_sale_rate_pct || 0).toFixed(1)}%</td>
-                        <td className="py-3.5 px-4 text-right font-semibold text-slate-900">{currencyPrefix}{Math.round(seq.total_revenue || 0).toLocaleString()}</td>
-                        <td className="py-3.5 px-4 text-right font-bold text-[#315EAD] bg-[#EDF5FC]/70">{currencyPrefix}{Number(seq.rev_per_lead || 0).toFixed(2)}</td>
+                        <td className="py-3.5 px-4 text-right font-medium text-slate-900">{formatTableNumber(seq.leads)}</td>
+                        <td className="py-3.5 px-4 text-right text-slate-600">{formatPercent(seq.delivery_rate_pct)}</td>
+                        <td className="py-3.5 px-4 text-right text-slate-600">{formatPercent(seq.call_rate_pct)}</td>
+                        <td className="py-3.5 px-4 text-right text-slate-600">{formatPercent(seq.rpc_rate_pct)}</td>
+                        <td className="py-3.5 px-4 text-right text-slate-600">{formatPercent(seq.sale_rate_pct)}</td>
+                        <td className="py-3.5 px-4 text-right font-bold text-emerald-700">{formatPercent(seq.billable_sale_rate_pct)}</td>
+                        <td className="py-3.5 px-4 text-right font-semibold text-slate-900">{currencyPrefix}{formatTableNumber(seq.total_revenue)}</td>
+                        <td className="py-3.5 px-4 text-right font-bold text-[#315EAD] bg-[#EDF5FC]/70">{currencyPrefix}{fixed(seq.rev_per_lead, 2)}</td>
                       </tr>
                     );
                   })}
@@ -417,7 +420,7 @@ export default function ConsumerReentry() {
                                     <span>{entry.name}</span>
                                   </span>
                                   <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">
-                                    {Number(entry.value || 0).toFixed(1)}%
+                                    {formatPercent(entry.value)}
                                   </span>
                                 </div>
                               ))}
@@ -507,7 +510,7 @@ export default function ConsumerReentry() {
                           <span className="px-2.5 py-0.5 rounded text-xs text-slate-400">No</span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-right font-bold text-slate-900">{currencyPrefix}{Number(c.total_revenue || 0).toLocaleString()}</td>
+                      <td className="py-3 px-4 text-right font-bold text-slate-900">{currencyPrefix}{formatTableNumber(c.total_revenue)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -544,7 +547,7 @@ export default function ConsumerReentry() {
                                       <span>{isRev ? 'Recorded Revenue' : 'Recorded Leads'}</span>
                                     </span>
                                     <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">
-                                      {isRev ? `${currencyPrefix}${Number(entry.value || 0).toLocaleString()}` : Number(entry.value || 0).toLocaleString()}
+                                      {isRev ? `${currencyPrefix}${formatTableNumber(entry.value)}` : formatTableNumber(entry.value)}
                                     </span>
                                   </div>
                                 );

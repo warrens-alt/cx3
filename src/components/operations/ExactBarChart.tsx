@@ -31,64 +31,48 @@ export default function ExactBarChart({
   selectedId,
 }: ExactBarChartProps) {
   const chartItems = data || items || [];
-  const numericValues = chartItems
-    .map(i => (typeof i.value === 'number' ? i.value : parseFloat(String(i.value || '0'))))
-    .filter(v => !Number.isNaN(v) && v > 0);
-
-  const max = numericValues.length > 0 ? Math.max(...numericValues) : 1;
+  const numericValue = (value: ExactBarChartItem['value']): number | null => {
+    if (value == null || value === '') return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  };
+  const numericValues = chartItems.map(i => numericValue(i.value)).filter((v): v is number => v !== null);
+  const max = Math.max(1, ...numericValues.map(Math.abs));
+  const signed = numericValues.some(v => v < 0);
 
   return (
-    <div className="enterprise-card p-5 space-y-4">
-      {(title || description) && (
-        <div className="pb-3 border-b border-slate-100">
-          <div className="flex items-center justify-between">
-            {title && <h3 className="font-semibold text-slate-800 text-sm">{title}</h3>}
-            {metricLabel && <span className="text-xs text-slate-500">{metricLabel}</span>}
-          </div>
-          {description && <p className="text-xs text-slate-500 mt-0.5">{description}</p>}
-        </div>
-      )}
-
+    <section className="enterprise-card p-5 space-y-4" aria-label={title || metricLabel || 'Exact values'}>
+      {(title || description) && <header className="pb-3 border-b border-border-subtle">
+        {title && <h3 className="font-semibold text-text-main text-sm">{title}</h3>}
+        {metricLabel && <p className="text-xs text-text-sec">{metricLabel}</p>}
+        {description && <p className="text-xs text-text-sec mt-1">{description}</p>}
+      </header>}
+      {signed && <p className="text-xs text-text-sec">Zero is at the centre. Negative values extend left; positive values extend right. Labels preserve the supplied precision.</p>}
       <div className="space-y-3">
         {chartItems.map((item, idx) => {
           const itemId = item.id || item.label || String(idx);
-          const val = typeof item.value === 'number' ? item.value : parseFloat(String(item.value || '0'));
-          const pct = Math.min(100, Math.max(0, (val / max) * 100));
+          const value = numericValue(item.value);
+          const width = value === null ? 0 : Math.abs(value) / max * (signed ? 50 : 100);
           const isSelected = selectedId === itemId;
-
-          return (
-            <div
-              key={itemId}
-              onClick={() => onSelect && onSelect(itemId)}
-              className={`p-2 rounded-lg transition ${
-                onSelect ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60' : ''
-              } ${isSelected ? 'bg-blue-50 dark:bg-blue-950/40 ring-1 ring-[#315BCB]' : ''}`}
-            >
-              <div className="flex justify-between text-xs mb-1">
-                <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[200px]">{item.label}</span>
-                <span className="font-mono font-semibold text-slate-900 dark:text-slate-100 tabular-nums">{item.formatted}</span>
-              </div>
-              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                <div
-                  className="bg-[#315BCB] dark:bg-[#3B82F6] h-full rounded-full transition-all duration-300"
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-              {item.secondaryFormatted && (
-                <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 text-right font-mono tabular-nums">
-                  {item.secondaryFormatted}
-                </div>
-              )}
+          const Element = onSelect ? 'button' : 'div';
+          return <Element key={itemId} type={onSelect ? 'button' : undefined}
+            onClick={onSelect ? () => onSelect(itemId) : undefined}
+            aria-pressed={onSelect && selectedId !== undefined ? isSelected : undefined}
+            className={`block w-full text-left p-2 rounded-lg ${onSelect ? 'cursor-pointer hover:bg-surface-subtle focus-visible:outline-2 focus-visible:outline-action' : ''} ${isSelected ? 'ring-1 ring-action' : ''}`}>
+            <div className="flex flex-wrap justify-between gap-2 text-xs mb-1">
+              <span className="font-medium text-text-sec break-words min-w-0">{item.label}</span>
+              <span className="font-mono font-semibold text-text-main tabular-nums break-all">{item.formatted}</span>
             </div>
-          );
+            <div className="relative w-full bg-surface-subtle h-2 rounded-full overflow-hidden" aria-hidden="true" data-state={value === null ? 'unknown' : value === 0 ? 'zero' : 'observed'}>
+              {signed && <span className="absolute top-0 bottom-0 left-1/2 border-l border-text-mute" />}
+              <div className="absolute top-0 h-full bg-action rounded-full" style={{width:`${width}%`,left:`${signed ? value !== null && value < 0 ? 50-width : 50 : 0}%`}} />
+            </div>
+            {value === null && <p className="text-xs text-text-mute mt-1">No numeric evidence</p>}
+            {item.secondaryFormatted && <p className="text-xs text-text-sec mt-1 text-right font-mono tabular-nums">{item.secondaryFormatted}</p>}
+          </Element>;
         })}
-
-        {chartItems.length === 0 && (
-          <div className="text-center py-8 text-xs text-slate-400">
-            {empty || 'No chart data available for the current scope.'}
-          </div>
-        )}
+        {chartItems.length === 0 && <p className="text-center py-8 text-xs text-text-sec">{empty || 'No chart data available for the current scope.'}</p>}
       </div>
-    </div>
+    </section>
   );
 }

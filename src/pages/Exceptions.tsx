@@ -1,5 +1,5 @@
 import { useOperationalData } from '../lib/useOperationalData';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, Database, ShieldCheck } from 'lucide-react';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
@@ -15,7 +15,6 @@ import { formatPercent, formatTableNumber } from '../lib/formatters';
 import type { ExceptionAnalyticsData } from '../../contracts/exceptionAnalytics';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import UnifiedMetricCard from '../components/UnifiedMetricCard';
-import RootCauseDrawer from '../components/RootCauseDrawer';
 import ExceptionWorkbench from '../features/trust/components/ExceptionWorkbench';
 import '../styles/journeyContactVisuals.css';
 import '../styles/trustQualityVisuals.css';
@@ -30,8 +29,6 @@ export default function Exceptions() {
   const { startDate, endDate, filters } = useFilters();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [rootMetric, setRootMetric] = useState<string | null>(null);
-  const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
 
   const { data, loading, error, loadData } = useOperationalData<OverviewData>('Exceptions', {
     clientId: selectedClient,
@@ -93,7 +90,7 @@ export default function Exceptions() {
         </header>
         <nav className="cx-viz-jump-nav" aria-label="Investigation sections"><a href="#exception-workbench">Exception workbench</a><a href="#exception-backlog">Backlog & vendors</a></nav>
 
-        {(error || queue.error) && <div className="cx-command-error"><AlertTriangle size={17} />{error || queue.error}</div>}
+        {(error || queue.error) && <div role="alert" className="cx-command-error"><AlertTriangle size={17} />{error || queue.error}</div>}
         {(!data && !queue.data && (loading || queue.loading)) ? (
           <div className="cx-command-loading"><div className="cx-command-spinner" />Loading exception populations…</div>
         ) : (
@@ -101,12 +98,8 @@ export default function Exceptions() {
             <section className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6" aria-label="Exceptions summary metrics">
               <UnifiedMetricCard
                 label="Active Exception Types"
-                value={queue.loading && !queue.data ? '…' : ordered.length}
+                value={queue.loading && !queue.data ? '…' : queue.error || !queue.data ? 'Unavailable' : ordered.length}
                 note="Configured checks with affected records"
-                onWhyChanged={() => {
-                  setRootMetric('deliveryRate');
-                  setRootMetricLabel('Active Exception Types');
-                }}
                 onInspect={() => {
                   const el = document.getElementById('exception-workbench');
                   el?.scrollIntoView({ behavior: 'smooth' });
@@ -119,10 +112,6 @@ export default function Exceptions() {
                 value={loading && !data ? '…' : fmt(data?.backlog?.awaitingFirstDial)}
                 note={loading && !data ? 'Loading backlog…' : data?.backlog ? `${fmt(data.backlog.over60Minutes)} waiting > 60m` : 'Backlog data unavailable'}
                 isPositiveGood={false}
-                onWhyChanged={() => {
-                  setRootMetric('dialRate');
-                  setRootMetricLabel('Awaiting First Dial');
-                }}
                 to={scoped('/speed-to-lead')}
                 inspectLabel="Inspect speed"
               />
@@ -131,10 +120,6 @@ export default function Exceptions() {
                 label="15-Minute Response SLA"
                 value={loading && !data ? '…' : formatPercent(data?.sla?.complianceRate)}
                 note="Delivered leads dialled within target"
-                onWhyChanged={() => {
-                  setRootMetric('dialRate');
-                  setRootMetricLabel('Response SLA Compliance');
-                }}
                 to={scoped('/speed-to-lead')}
                 inspectLabel="Inspect speed"
               />
@@ -226,7 +211,7 @@ export default function Exceptions() {
                 </header>
                 {loading && !data ? (
                   <div className="cx-command-loading">Loading backlog…</div>
-                ) : (
+                ) : error || !data?.backlog ? <div className="cx-command-empty">Backlog evidence unavailable.</div> : (
                   <div className="cx-exception-buckets">
                     {(data?.backlog?.buckets || []).map(bucket => {
                       const content = <><span>{bucket.bucket}</span><strong>{fmt(bucket.count)}</strong></>;
@@ -249,7 +234,7 @@ export default function Exceptions() {
                 </header>
                 {loading && !data ? (
                   <div className="cx-command-loading">Loading vendor backlog…</div>
-                ) : (
+                ) : error || !data?.backlog ? <div className="cx-command-empty">Vendor backlog evidence unavailable.</div> : (
                   <div className="cx-backlog-vendors">
                     {(data?.backlog?.byVendor || []).length ? (data.backlog?.byVendor || []).map((vendor, index) => {
                       const content = <><span>{vendor.vendor}</span><strong>{fmt(vendor.awaiting_first_dial)}</strong><small>{fmt(vendor.over_60m)} &gt;60m</small></>;
@@ -264,15 +249,6 @@ export default function Exceptions() {
           </>
         )}
       </div>
-      <RootCauseDrawer
-        open={Boolean(rootMetric)}
-        metric={rootMetric}
-        metricLabel={rootMetricLabel}
-        onClose={() => {
-          setRootMetric(null);
-          setRootMetricLabel(undefined);
-        }}
-      />
     </div>
   );
 }
