@@ -119,7 +119,7 @@ export default function CommercialReconciliation() {
     setTimeout(() => URL.revokeObjectURL(href), 1000);
   };
 
-  return <div className="cx-page cx-ops-page cx-commercial-page">
+  return <div className="cx-page cx-ops-page cx-commercial-page cx-reconciliation-page">
     <header className="cx-page-header">
       <div>
         <p className="cx-ops-eyebrow">Commercial control</p>
