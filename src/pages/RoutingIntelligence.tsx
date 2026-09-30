@@ -21,7 +21,7 @@ export default function RoutingIntelligence() {
   const { data, loading, error, refetch } = useAnalyticsData('routing');
 
   return (
-    <div className="cx-command-page">
+    <div className="cx-command-page cx-routing-page">
       <OffernetFilterBar onRefresh={() => refetch()} />
       <div className="cx-command-content">
         <OperationalPageHeader

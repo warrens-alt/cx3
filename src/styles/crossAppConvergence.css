@@ -1,0 +1,187 @@
+/* Phase 7: cross-app visual convergence for secondary analytical routes.
+   Presentation/navigation only; analytical values, requests and evidence contracts are unchanged. */
+
+:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page,.cx-reconciliation-page,.vetting-page){
+  --cx-converge-radius:10px;
+  --cx-converge-gap:18px;
+}
+:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page) .cx-command-content{gap:var(--cx-converge-gap)}
+:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page) :is(.cx-command-panel,.enterprise-card){
+  border-color:var(--cx-border-subtle);
+  border-radius:var(--cx-converge-radius);
+  box-shadow:var(--cx-shadow-sm);
+}
+:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page) .cx-command-section-kicker,
+.cx-reconciliation-page .cx-ops-eyebrow,
+.vetting-page .cx-ops-eyebrow{
+  font-size:10px;
+  letter-spacing:.075em;
+  font-weight:750;
+  text-transform:uppercase;
+  color:var(--cx-action);
+}
+
+/* KPI rows: one restrained visual grammar everywhere. */
+:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page) :is(.cx-command-metrics,.cx-ops-metrics){
+  gap:12px;
+}
+:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page) :is(.cx-command-metric,.cx-ops-metric){
+  min-width:0;
+  border-color:var(--cx-border-subtle);
+  border-radius:9px;
+  box-shadow:var(--cx-shadow-sm);
+}
+:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page) :is(.cx-command-metric,.cx-ops-metric)>span{
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.045em;
+  font-weight:700;
+  color:var(--cx-text-secondary);
+}
+:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page) :is(.cx-command-metric,.cx-ops-metric)>strong{
+  letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums;
+  overflow-wrap:anywhere;
+}
+
+/* Secondary route controls align with the primary workspaces. */
+:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page,.cx-reconciliation-page,.vetting-page)
+:is(input,select){
+  border-color:var(--cx-border);
+  border-radius:6px;
+}
+:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page,.cx-reconciliation-page,.vetting-page)
+:is(input,select):focus{
+  outline:none;
+  border-color:var(--cx-action);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--cx-action) 10%,transparent);
+}
+:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page,.cx-reconciliation-page,.vetting-page)
+:is(button,a):focus-visible{
+  outline:2px solid var(--cx-focus);
+  outline-offset:3px;
+}
+
+/* Dense evidence tables get consistent sticky context and numeric scanning. */
+:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page,.cx-reconciliation-page,.vetting-page)
+:is(.cx-performance-table-wrap,.cx-ops-table-scroll,.overflow-x-auto){
+  scrollbar-gutter:stable;
+}
+:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page,.cx-reconciliation-page,.vetting-page)
+table{
+  font-variant-numeric:tabular-nums;
+}
+:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page,.cx-reconciliation-page,.vetting-page)
+table thead th{
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.035em;
+  font-weight:700;
+  color:var(--cx-text-secondary);
+}
+:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page,.cx-reconciliation-page,.vetting-page)
+table tbody tr{transition:background-color .12s}
+:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page,.cx-reconciliation-page,.vetting-page)
+table tbody tr:hover{background:var(--cx-selected-bg)}
+
+/* CLI: reduce card noise and make records the final evidence layer. */
+.cx-cli-page .cx-cli-source-status{border-radius:8px;border-color:var(--cx-border-subtle);box-shadow:none}
+.cx-cli-page .cx-cli-source-status code{overflow-wrap:anywhere}
+.cx-cli-page .cx-cli-table-container{border-color:var(--cx-border-subtle);border-radius:9px;overflow:hidden}
+.cx-cli-page .cx-cli-table-container thead th{position:sticky;top:0;z-index:2;background:var(--cx-surface-subtle)}
+.cx-cli-page .cx-cli-table-container :is(th,td):first-child{position:sticky;left:0;z-index:1;background:var(--cx-surface)}
+.cx-cli-page .cx-cli-table-container thead th:first-child{z-index:3;background:var(--cx-surface-subtle)}
+.cx-cli-page .cx-cli-table-container tbody tr:hover :is(th,td):first-child{background:var(--cx-selected-bg)}
+
+/* Routing: make routing depth, handoffs and failures visually separate evidence regions. */
+.cx-routing-page .cx-routing-grid{gap:16px}
+.cx-routing-page .cx-routing-grid>section{min-width:0}
+.cx-routing-page .cx-routing-table-wrap{overflow:auto;border:1px solid var(--cx-border-subtle);border-radius:8px}
+.cx-routing-page .cx-routing-table-wrap thead th{position:sticky;top:0;z-index:2;background:var(--cx-surface-subtle)}
+
+/* Cohorts: preserve maturity semantics while improving matrix readability. */
+.cx-cohorts-page .cx-cohort-controls{gap:8px}
+.cx-cohorts-page .cx-cohort-controls label{font-size:10px;text-transform:uppercase;letter-spacing:.04em;font-weight:700;color:var(--cx-text-secondary)}
+.cx-cohorts-page .cx-cohort-matrix{overflow:auto;border:1px solid var(--cx-border-subtle);border-radius:8px}
+.cx-cohorts-page .cx-cohort-matrix table{min-width:760px}
+.cx-cohorts-page .cx-cohort-matrix thead th{position:sticky;top:0;z-index:2;background:var(--cx-surface-subtle)}
+.cx-cohorts-page .cx-cohort-matrix :is(th,td):first-child{position:sticky;left:0;z-index:1;background:var(--cx-surface)}
+.cx-cohorts-page .cx-cohort-matrix thead th:first-child{z-index:3;background:var(--cx-surface-subtle)}
+
+/* Process observability: architecture state should read as a map, not a wall of cards. */
+.cx-process-page .cx-process-summary{gap:12px}
+.cx-process-page .cx-process-family-grid{gap:14px}
+.cx-process-page .cx-process-family-grid>article{border-color:var(--cx-border-subtle);border-radius:9px;box-shadow:none}
+.cx-process-page .cx-process-matrix{overflow:auto;border:1px solid var(--cx-border-subtle);border-radius:8px}
+.cx-process-page .cx-process-matrix thead th{position:sticky;top:0;z-index:2;background:var(--cx-surface-subtle)}
+
+/* Reconciliation: strengthen stage flow and ledger hierarchy without implying profit/loss. */
+.cx-reconciliation-page{gap:18px}
+.cx-reconciliation-page .cx-commercial-flow{
+  display:grid;
+  grid-template-columns:repeat(7,minmax(0,1fr));
+  align-items:center;
+  gap:8px;
+  padding:14px;
+  border:1px solid var(--cx-border-subtle);
+  border-radius:10px;
+  background:var(--cx-surface);
+  box-shadow:var(--cx-shadow-sm);
+}
+.cx-reconciliation-page .cx-commercial-flow>button{
+  min-width:0;
+  border:1px solid var(--cx-border-subtle);
+  border-top:2px solid var(--cx-action);
+  border-radius:8px;
+  background:var(--cx-surface);
+  padding:12px;
+  text-align:left;
+}
+.cx-reconciliation-page .cx-commercial-flow>button>span{
+  display:grid;place-items:center;width:22px;height:22px;border-radius:999px;
+  background:var(--cx-selected-bg);color:var(--cx-action);font-size:10px;font-weight:750;margin-bottom:8px
+}
+.cx-reconciliation-page .cx-commercial-flow small{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--cx-text-secondary)}
+.cx-reconciliation-page .cx-commercial-flow strong{display:block;margin-top:5px;font-size:16px;letter-spacing:-.02em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.cx-reconciliation-page .cx-commercial-gaps dl>div,
+.cx-reconciliation-page .cx-commercial-controls>article{
+  border-color:var(--cx-border-subtle);border-radius:8px;background:var(--cx-surface-subtle)
+}
+.cx-reconciliation-page .cx-ops-table-scroll{border:1px solid var(--cx-border-subtle);border-radius:8px;overflow:auto}
+.cx-reconciliation-page .cx-ops-table-scroll thead th{position:sticky;top:0;z-index:2;background:var(--cx-surface-subtle)}
+.cx-reconciliation-page .cx-ops-table-scroll :is(th,td):first-child{position:sticky;left:0;z-index:1;background:var(--cx-surface)}
+.cx-reconciliation-page .cx-ops-table-scroll thead th:first-child{z-index:3;background:var(--cx-surface-subtle)}
+.cx-reconciliation-page .cx-ops-table-scroll tbody tr:hover :is(th,td):first-child{background:var(--cx-selected-bg)}
+
+/* Vetting: converge its existing rich visuals with the shared spacing/table system. */
+.vetting-page{gap:18px}
+.vetting-page .vetting-hero{padding-bottom:12px;border-bottom:1px solid var(--cx-border-subtle)}
+.vetting-page .vetting-selection{border-color:var(--cx-border-subtle);border-radius:9px;box-shadow:var(--cx-shadow-sm)}
+.vetting-page .vetting-tabs{gap:4px;overflow-x:auto;scrollbar-width:thin}
+.vetting-page .vetting-tabs button{white-space:nowrap;min-height:36px}
+.vetting-page .vetting-scorecard{border-color:var(--cx-border-subtle);border-radius:9px}
+.vetting-page .vetting-scorecard table thead th{position:sticky;top:0;z-index:2;background:var(--cx-surface-subtle)}
+.vetting-page .vetting-scorecard table :is(th,td):first-child{position:sticky;left:0;z-index:1;background:var(--cx-surface)}
+.vetting-page .vetting-scorecard table thead th:first-child{z-index:3;background:var(--cx-surface-subtle)}
+
+/* The journey "More views" now contains consumer re-entry, where users expect it. */
+.cx-area-nav,.cx-navigation{scrollbar-width:thin}
+
+@media(max-width:900px){
+  .cx-reconciliation-page .cx-commercial-flow{grid-template-columns:1fr;gap:6px}
+  .cx-reconciliation-page .cx-commercial-flow>svg{transform:rotate(90deg);justify-self:center}
+  :is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page) .cx-command-content{gap:16px}
+}
+@media(max-width:700px){
+  :is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page,.cx-reconciliation-page,.vetting-page)
+  table{min-width:680px}
+  .cx-cohorts-page .cx-cohort-controls{display:grid;grid-template-columns:1fr 1fr;width:100%}
+  .vetting-page .vetting-selection{grid-template-columns:1fr 1fr}
+}
+@media(max-width:420px){
+  .cx-cohorts-page .cx-cohort-controls,.vetting-page .vetting-selection{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){
+  :is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page,.cx-reconciliation-page,.vetting-page)
+  table tbody tr{transition:none}
+}
