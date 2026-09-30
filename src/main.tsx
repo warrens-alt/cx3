@@ -12,6 +12,7 @@ import './styles/analyticsVisuals.css';
 import './styles/visualRefinement.css';
 import './styles/salesCommercialVisuals.css';
 import './styles/timeAgentCampaignVisuals.css';
+import './styles/crossAppConvergence.css';
 
 installAuthenticatedApiFetch();
 
