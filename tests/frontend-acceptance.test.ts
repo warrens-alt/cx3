@@ -25,6 +25,12 @@ async function mount(route:string,options:any={}) {
   Object.assign(w,{Response,Request,Headers,AbortController,TextEncoder,TextDecoder,ReadableStream,ResizeObserver:class {observe(){}unobserve(){}disconnect(){}},__fixture:{initialRoute:route,...options}});
   w.matchMedia=(query:string)=>({matches:false,media:query,addEventListener(){},removeEventListener(){},addListener(){},removeListener(){}});
   w.HTMLElement.prototype.scrollIntoView=()=>{};w.HTMLElement.prototype.scrollTo=()=>{}; w.scrollTo=()=>{};
+  // JSDOM has no layout. Model rendered boxes for focus visibility; real geometry is browser-tested.
+  w.HTMLElement.prototype.getClientRects=function(){
+    if(!this.isConnected||this.closest('[hidden]'))return [];
+    for(let el=this;el;el=el.parentElement)if(w.getComputedStyle(el).display==='none')return [];
+    return [new w.DOMRect(0,0,100,30)];
+  };
   const blobs:any[]=[];
   w.URL.createObjectURL=(blob:any)=>{blobs.push(blob);return 'blob:synthetic';};w.URL.revokeObjectURL=()=>{};
   w.eval(script);
@@ -154,7 +160,7 @@ test('root-cause contribution region preserves record links, scope and keyboard 
     await app.wait(()=>app.find('[aria-label="Vendor contribution evidence"]'));
     const region=app.find('[aria-label="Vendor contribution evidence"]');
     assert.equal(region.getAttribute('tabindex'),'0');
-    region.focus();assert.equal(app.w.document.activeElement,region);
+    region.focus();assert.equal(app.w.document.activeElement===region,true);
     assert.match(region.textContent,/Contribution.*20 leads/);
     const link=region.querySelector('a');assert.ok(link);
     const target=new URL(link.href);
@@ -203,9 +209,11 @@ test('timeline reports missing milestone timestamps and returns keyboard focus',
     assert.match(dialog.textContent,/snapshot milestones/);
     assert.match(dialog.textContent,/total calls not reported/);
     assert.doesNotMatch(dialog.textContent,/undefined total/);
+    await app.wait(()=>dialog.contains(app.w.document.activeElement),'Dialog receives initial focus');
     app.w.document.dispatchEvent(new app.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
     await app.wait(()=>!app.find('[role="dialog"]'));
-    assert.equal(app.w.document.activeElement,trigger);
+    await app.wait(()=>app.w.document.activeElement===trigger,'Focus returns to its trigger');
+    assert.equal(app.w.document.activeElement===trigger,true,'Focus returns to its trigger');
   }finally{app.close();}
 });
 
@@ -338,7 +346,7 @@ test('More views has native links, Escape closes it and returns focus',async()=>
     assert.equal(group.querySelectorAll('[role="menuitem"]').length,0);
     app.w.document.dispatchEvent(new app.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
     await app.wait(()=>!app.find('[role="group"]','More views'));
-    assert.equal(app.w.document.activeElement,trigger);
+    assert.equal(app.w.document.activeElement===trigger,true,'Focus returns to its trigger');
   }finally{app.close();}
 });
 
