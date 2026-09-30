@@ -26,7 +26,7 @@ test('refined outcome cards preserve numbers, complete labels and the four serie
   for (const series of ['fetched', 'delivered', 'sales', 'activation']) assert.ok(html.includes(`data-series="${series}"`));
   assert.equal((html.match(/cx-outcome-icon/g) || []).length, 4);
   assert.match(html, /aria-hidden="true"/);
-  assert.match(html, /class="cx-outcome-value[^>]+>0<\/button>/);
+  assert.match(html, /class="[^"]*cx-outcome-value[^>]+>0<\/button>/);
   assert.ok(!html.includes('NaN'));
 });
 
@@ -35,7 +35,8 @@ test('outcome presentation offers audit-first buttons to administrators and view
     const html = render(React.createElement(OutcomeStrip, { data, isAdmin, onInspect: () => {} }));
     assert.doesNotMatch(html, /href="\/lead-explorer\?/);
     assert.equal((html.match(/aria-label="Inspect evidence:/g) || []).length, 4);
-    assert.equal((html.match(/>Inspect evidence</g) || []).length, 4);
+    assert.equal((html.match(/>Inspect evidence</g) || []).length, 0);
+    assert.equal((html.match(/cx-metric-primary/g) || []).length, 4);
   }
 });
 

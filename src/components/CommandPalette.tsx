@@ -1,7 +1,7 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Search, X, ArrowRight, Sun, Moon, Monitor } from 'lucide-react';
-import { searchNavigation, SECTION_NAMES } from '../lib/navigation';
+import { searchNavigation, SECTION_NAMES, NAV_GROUPS } from '../lib/navigation';
 import { useAuth } from '../lib/AuthContext';
 import { isCurrentPage, navigationTarget } from '../lib/presentation';
 import { useTheme } from '../lib/ThemeContext';
@@ -28,7 +28,7 @@ export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; o
     ];
   }, [query, setTheme]);
 
-  const pageResults = useMemo(() => searchNavigation(query, isAdmin), [query, isAdmin]);
+  const pageResults = useMemo(() => query.trim() ? searchNavigation(query, isAdmin) : NAV_GROUPS[0].items.filter(page => !page.adminOnly || isAdmin), [query, isAdmin]);
 
   const totalResults = useMemo(() => [
     ...themeActions.map(t => ({ ...t, isAction: true as const, path: t.id })),
@@ -66,15 +66,15 @@ export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; o
       <button type="button" className="cx-icon-button" onClick={onClose} aria-label="Close search"><X size={18} aria-hidden="true" /></button>
     </div>
     <div className="cx-command-count" role="status" aria-live="polite" aria-atomic="true">
-      {totalResults.length} {query ? (totalResults.length === 1 ? 'match' : 'matches') : 'sections and analyses'}
+      {totalResults.length} {query ? (totalResults.length === 1 ? 'match' : 'matches') : 'suggested destinations'}
     </div>
     <div className="cx-command-results" role="listbox" aria-label="Matching pages and commands" id={resultsId} ref={list}>
       {totalResults.map((item, optionIndex) => {
         const Icon = item.icon;
         const current = !item.isAction && isCurrentPage(location.pathname, item.path, location.search);
-        const group = item.isAction === true ? 'Display preferences' : SECTION_NAMES[item.section];
+        const group = !query.trim() ? 'Suggested' : item.isAction === true ? 'Display preferences' : SECTION_NAMES[item.section];
         const previous = totalResults[optionIndex - 1];
-        const previousGroup = previous ? (previous.isAction === true ? 'Display preferences' : SECTION_NAMES[previous.section]) : null;
+        const previousGroup = previous ? (!query.trim() ? 'Suggested' : previous.isAction === true ? 'Display preferences' : SECTION_NAMES[previous.section]) : null;
         return <React.Fragment key={item.path}>
           {group !== previousGroup && <div className="cx-command-group-label" role="presentation">{group}</div>}
           <div role="option" aria-selected={optionIndex === index} id={`${id}-option-${optionIndex}`} data-index={optionIndex}

@@ -1,6 +1,8 @@
 import { ReportActions } from '../shared/reporting/ReportPresentation';
 import { useOperationalData } from '../lib/useOperationalData';
-import React from 'react';
+import React, { useState } from 'react';
+import ReportSections from '../shared/reporting/ReportSections';
+import { groupIntegrityChecks } from '../features/trust/integrityAuditPresentation';
 import { AlertTriangle, Clock3, Database, ShieldCheck, GitFork } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
@@ -27,6 +29,7 @@ import '../styles/trustQualityVisuals.css';
 import '../styles/evidenceWorkspaces.css';
 
 export default function DataIntegrityIntelligence() {
+  const [section, setSection] = useState('overview');
   const scoped = useScopedNavigationTarget();
   const location = useLocation();
   const { selectedClient } = useClient();
@@ -44,77 +47,62 @@ export default function DataIntegrityIntelligence() {
   const auditScope = { clientId: selectedClient, startDate, endDate, filters };
   const analysisPath = scopedViewPath(location.pathname, location.search, auditScope);
 
+  const groups = groupIntegrityChecks(data?.checks || []);
+  const gaps = groups.measured.filter(check => check.discrepancyCount != null && check.discrepancyCount > 0);
+  const attention = [...gaps].sort((a, b) => (b.discrepancyCount ?? 0) - (a.discrepancyCount ?? 0));
+
   return (
     <div className="cx-command-page cx-trust-workspace" aria-label="Data integrity workspace">
 
       <div className="cx-command-content">
         <header className="cx-command-hero flex flex-wrap items-center justify-between gap-4">
           <div>
-            <span className="cx-command-eyebrow">Data trust</span>
-            <h1>Source observability & integrity</h1>
-            <p>Freshness, mapping readiness and observed warehouse discrepancies without a synthetic health score.</p>
+            <h1>Data integrity</h1>
+            <p>See which measured discrepancies and source limitations need investigation.</p>
           </div>
           <div>
             <Link to={scoped('/offershop-flow')} className="cx-button-secondary">
               Offershop Deal Flow <GitFork size={13} />
             </Link>
           </div>
-                  <ReportActions />
-</header>
-      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />
-
-        <nav className="cx-viz-jump-nav" aria-label="Data integrity sections"><a href="#measured-discrepancies">Measured discrepancies</a><a href="#evidence-limitations">Evidence limitations</a><a href="#source-evidence">Source observations</a><a href="#integrity-comparison">Compare checks</a><a href="#integrity-checks">Checks & export</a></nav>
+          <ReportActions />
+        </header>
+        <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />
 
         {error && <div role="alert" className="cx-command-error"><AlertTriangle size={16}/>{error}</div>}
         {loading && !data && <div className="cx-command-loading"><div className="cx-command-spinner"/>Auditing source state…</div>}
 
-        {data && (
-          <>
-            <section key={JSON.stringify(auditScope)} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6" aria-label="Data integrity summary metrics">
-              <UnifiedMetricCard
-                label="Audited Lead Population"
-                value={formatTableNumber(data.totalRecordsAudited)}
-                note="Selected operational scope"
-                auditContent={{ type: 'custom', title: 'Audited Lead Population', value: data.totalRecordsAudited, scope: auditScope, provenance: { validationStatus: data.validationStatus }, definition: { meaning: 'The lead population returned by the integrity checks for the selected operational scope.', calculation: 'The integrity response supplies totalRecordsAudited. This display does not recalculate or substitute the funnel population.', limitations: [data.reason] }, detailLimitation: 'The response supplies no affected-record filter for this population and no supported comparison for Why changed.', reportPath: '/funnel' }}
-                to={scoped('/funnel')}
-                inspectLabel="Inspect funnel"
-              />
+        <ReportSections label="Data integrity sections" value={section} onChange={setSection} sections={[
+          { id: 'overview', label: 'Overview', content: data && <><section className="cx-integrity-summary" aria-label="Data integrity overview metrics">
+              <UnifiedMetricCard label="Checks with measured gaps" value={gaps.length} note="Returned checks with a positive gap count" onInspect={() => setSection('issues')} inspectLabel="Inspect issues" />
+              <UnifiedMetricCard label="Evidence limitations" value={groups.limitations.length} note="Checks with unavailable or unverified evidence" onInspect={() => setSection('issues')} inspectLabel="Inspect limitations" />
+              <UnifiedMetricCard label="Observed Data Sources" value={data.sources?.length ?? 'Unavailable'} note="Returned source entries; observation does not establish health" onInspect={() => setSection('sources')} inspectLabel="Inspect sources" />
+            </section>
+            <section className="cx-integrity-attention" aria-label="Integrity needs attention">
+              <h2>Needs attention</h2>
+              <p>{data.reason}</p>
+              {attention.length || groups.limitations.length ? <ul>
+                {attention.slice(0, 5).map((check, index) => <li key={`gap-${index}`}><div><strong>{check.checkName}</strong><p>{check.detail}</p></div><button type="button" className="cx-admin-text-button" onClick={() => setSection('issues')}>{formatTableNumber(check.discrepancyCount)} gaps · Inspect</button></li>)}
+                {groups.limitations.slice(0, 3).map((check, index) => <li key={`limit-${index}`}><div><strong>{check.checkName}</strong><p>{check.detail}</p></div><button type="button" className="cx-admin-text-button" onClick={() => setSection('issues')}>Evidence limited · Inspect</button></li>)}
+              </ul> : <p>{data.checks.length ? 'No measured gaps or evidence limitations were returned. This does not certify the report.' : 'No discrepancy checks were returned. There is no measured conclusion to display.'}</p>}
+              <button type="button" className="cx-admin-text-button" onClick={() => setSection('issues')}>View all {data.checks.length} checks</button>
+            </section></> },
+          { id: 'issues', label: 'Issues', content: data && <>            <IntegrityCheckComparison key={JSON.stringify([selectedClient, startDate, endDate, filters])} checks={data.checks} />
 
-              <UnifiedMetricCard
-                label="Observed Data Sources"
-                value={data.sources?.length ?? 'Unavailable'}
-                note="Returned source statuses; observation alone does not establish freshness or health"
-                auditContent={{ type: 'custom', title: 'Observed Data Sources', value: data.sources?.length ?? null, scope: { clientId: selectedClient }, provenance: { validationStatus: data.validationStatus }, definition: { meaning: 'The number of source observation entries supplied in this response, including unavailable sources.', grain: 'Returned source observation entries.', dateBasis: 'All tenant-owned records, independent of the selected capture cohort.', calculation: 'Count of returned source entries; source row counts are not added together.', nullMeaning: 'Unavailable means the sources field was not supplied. An empty returned list is measured zero.' }, detailLimitation: 'This inventory count has no supporting lead-record drill. Exact supplied source identifiers can be opened in the source observations section.' }}
-                onInspect={() => {
-                  const el = document.getElementById('source-evidence');
-                  el?.scrollIntoView({ behavior: 'auto' });
-                }}
-                inspectLabel="Inspect sources"
-              />
-
-              <UnifiedMetricCard
-                label="Discrepancy Checks"
-                value={data.checks.length}
-                note={`${data.checks.filter(c => (c.discrepancyCount || 0) > 0).length} with measured gaps`}
-                auditContent={{ type: 'custom', title: 'Discrepancy Checks', value: data.checks.length, scope: auditScope, provenance: { validationStatus: data.validationStatus }, definition: { meaning: 'The number of returned integrity checks, including checks whose measurements are unavailable.', grain: 'Returned check entries.', calculation: 'Count of returned checks. This is not a sum of affected records; checks can overlap.' }, detailLimitation: 'Inspect an individual check for its exact count and definition. No affected-record filter is supplied for these checks.' }}
-                onInspect={() => {
-                  const el = document.querySelector('.cx-integrity-table');
-                  el?.scrollIntoView({ behavior: 'auto' });
-                }}
-                inspectLabel="Inspect checks"
-              />
-
-              <UnifiedMetricCard
-                label="Validation Status"
-                value={data.validationStatus || data.healthGrade || 'Not reported'}
-                note="Operational rules status"
-                auditContent={{ type: 'custom', title: 'Validation Status', value: data.validationStatus || data.healthGrade || null, scope: auditScope, provenance: { validationStatus: data.validationStatus || data.healthGrade }, definition: { meaning: data.reason || 'The operational validation state returned with this response.', calculation: 'The supplied status is displayed directly; no health score or certification is calculated.' }, detailLimitation: 'An operational status has no affected-record drill.' }}
-                to={scoped('/reports')}
-                inspectLabel="Evidence reports"
-              />
+            <section className="cx-command-panel" id="integrity-checks">
+              <div className="p-4"><ExportAnalysisButton filename="data_integrity_checks" rows={[
+                ['Check', 'Category', 'Status', 'Discrepancy count', 'Definition'],
+                ...data.checks.map(check => [check.checkName, check.category, check.status, check.discrepancyCount, check.detail]),
+              ]} validationStatus={data.validationStatus} definitions={data.reason} /></div>
+              <header><div><span className="cx-command-section-kicker">Integrity</span><h2>Observed discrepancy checks</h2><p>{data.reason}</p></div><Database size={16} className="text-slate-400"/></header>
+              <IntegrityAuditChecks key={JSON.stringify([selectedClient, startDate, endDate, filters])} data={data} scope={auditScope} />
             </section>
 
-            <SourceEvidenceMatrix sources={data.sources} renderSourceAction={source => {
+            <section className="cx-command-panel">
+              <header><div><span className="cx-command-section-kicker">Trust boundary</span><h2>Current validation state</h2><p>Source freshness and discrepancy counts are operational observations, not financial or evidence-release certification.</p></div><ShieldCheck size={16} className="text-slate-400"/></header>
+            </section>
+</> },
+          { id: 'sources', label: 'Sources', content: data && <>            <SourceEvidenceMatrix sources={data.sources} renderSourceAction={source => {
               const target = warehouseSchemaPath(source.table, selectedClient, analysisPath);
               return target ? <Link className="cx-admin-text-button" to={target}>Inspect source schema</Link> : <small className="cx-trust-source-path">An exact source schema link is unavailable.</small>;
             }} />
@@ -146,27 +134,61 @@ export default function DataIntegrityIntelligence() {
             </section>
 
             </details>
-            <IntegrityCheckComparison key={JSON.stringify([selectedClient, startDate, endDate, filters])} checks={data.checks} />
+</> },
+          { id: 'diagnostics', label: 'Diagnostics', content: <>
+            {data && <><details className="cx-report-disclosure"><summary>Audit context</summary>            <section key={JSON.stringify(auditScope)} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6" aria-label="Data integrity summary metrics">
+              <UnifiedMetricCard
+                label="Audited Lead Population"
+                value={formatTableNumber(data.totalRecordsAudited)}
+                note="Selected operational scope"
+                auditContent={{ type: 'custom', title: 'Audited Lead Population', value: data.totalRecordsAudited, scope: auditScope, provenance: { validationStatus: data.validationStatus }, definition: { meaning: 'The lead population returned by the integrity checks for the selected operational scope.', calculation: 'The integrity response supplies totalRecordsAudited. This display does not recalculate or substitute the funnel population.', limitations: [data.reason] }, detailLimitation: 'The response supplies no affected-record filter for this population and no supported comparison for Why changed.', reportPath: '/funnel' }}
+                to={scoped('/funnel')}
+                inspectLabel="Inspect funnel"
+              />
 
-            {controls.data && <DataCompletenessPanel data={controls.data} />}
+              <UnifiedMetricCard
+                label="Observed Data Sources"
+                value={data.sources?.length ?? 'Unavailable'}
+                note="Returned source statuses; observation alone does not establish freshness or health"
+                auditContent={{ type: 'custom', title: 'Observed Data Sources', value: data.sources?.length ?? null, scope: { clientId: selectedClient }, provenance: { validationStatus: data.validationStatus }, definition: { meaning: 'The number of source observation entries supplied in this response, including unavailable sources.', grain: 'Returned source observation entries.', dateBasis: 'All tenant-owned records, independent of the selected capture cohort.', calculation: 'Count of returned source entries; source row counts are not added together.', nullMeaning: 'Unavailable means the sources field was not supplied. An empty returned list is measured zero.' }, detailLimitation: 'This inventory count has no supporting lead-record drill. Exact supplied source identifiers can be opened in the source observations section.' }}
+                onInspect={() => {
+                  setSection('sources');
+                  const el = document.getElementById('source-evidence');
+                  el?.scrollIntoView({ behavior: 'auto' });
+                }}
+                inspectLabel="Inspect sources"
+              />
 
-            <section className="cx-command-panel" id="integrity-checks">
-              <div className="p-4"><ExportAnalysisButton filename="data_integrity_checks" rows={[
-                ['Check', 'Category', 'Status', 'Discrepancy count', 'Definition'],
-                ...data.checks.map(check => [check.checkName, check.category, check.status, check.discrepancyCount, check.detail]),
-              ]} validationStatus={data.validationStatus} definitions={data.reason} /></div>
-              <header><div><span className="cx-command-section-kicker">Integrity</span><h2>Observed discrepancy checks</h2><p>{data.reason}</p></div><Database size={16} className="text-slate-400"/></header>
-              <IntegrityAuditChecks key={JSON.stringify([selectedClient, startDate, endDate, filters])} data={data} scope={auditScope} />
+              <UnifiedMetricCard
+                label="Discrepancy Checks"
+                value={data.checks.length}
+                note={`${data.checks.filter(c => (c.discrepancyCount || 0) > 0).length} with measured gaps`}
+                auditContent={{ type: 'custom', title: 'Discrepancy Checks', value: data.checks.length, scope: auditScope, provenance: { validationStatus: data.validationStatus }, definition: { meaning: 'The number of returned integrity checks, including checks whose measurements are unavailable.', grain: 'Returned check entries.', calculation: 'Count of returned checks. This is not a sum of affected records; checks can overlap.' }, detailLimitation: 'Inspect an individual check for its exact count and definition. No affected-record filter is supplied for these checks.' }}
+                onInspect={() => {
+                  setSection('issues');
+                  const el = document.querySelector('.cx-integrity-table');
+                  el?.scrollIntoView({ behavior: 'auto' });
+                }}
+                inspectLabel="Inspect checks"
+              />
+
+              <UnifiedMetricCard
+                label="Validation Status"
+                value={data.validationStatus || data.healthGrade || 'Not reported'}
+                note="Operational rules status"
+                auditContent={{ type: 'custom', title: 'Validation Status', value: data.validationStatus || data.healthGrade || null, scope: auditScope, provenance: { validationStatus: data.validationStatus || data.healthGrade }, definition: { meaning: data.reason || 'The operational validation state returned with this response.', calculation: 'The supplied status is displayed directly; no health score or certification is calculated.' }, detailLimitation: 'An operational status has no affected-record drill.' }}
+                to={scoped('/reports')}
+                inspectLabel="Evidence reports"
+              />
             </section>
 
-            <section className="cx-command-panel">
-              <header><div><span className="cx-command-section-kicker">Trust boundary</span><h2>Current validation state</h2><p>Source freshness and discrepancy counts are operational observations, not financial or evidence-release certification.</p></div><ShieldCheck size={16} className="text-slate-400"/></header>
-            </section>
-          </>
-        )}
+</details>            {controls.data && <DataCompletenessPanel data={controls.data} />}
 
-        {/* Source Intake & Diagnostic Recovery Console - always accessible to authorized workspace users */}
-        <DataIntakePanel clientId={selectedClient} isAdmin={isAdmin} />
+</>}
+            <DataIntakePanel clientId={selectedClient} isAdmin={isAdmin} />
+          </> },
+        ]} />
+
       </div>
     </div>
   );

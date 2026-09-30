@@ -58,15 +58,17 @@
 
 .cx-commercial-page .cx-command-panel,
 .cx-commercial-page .cx-command-metric{border-color:var(--cx-border-subtle);border-radius:10px;box-shadow:var(--cx-shadow-sm)}
-.cx-commercial-page .cx-commercial-metrics{grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.cx-commercial-page .cx-commercial-notices{display:grid;gap:8px}
+.cx-commercial-page .cx-commercial-notices .cx-contract-note{margin:0}
+.cx-commercial-page .cx-commercial-metrics{grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--cx-card-gap);border:0;background:transparent;overflow:visible}
 .cx-commercial-page .cx-commercial-metrics .cx-command-metric{min-width:0;padding:15px}
 .cx-commercial-page .cx-commercial-metrics .cx-command-metric>span{font-size:10px;text-transform:uppercase;letter-spacing:.045em;font-weight:700;color:var(--cx-text-secondary)}
 .cx-commercial-page .cx-commercial-metrics .cx-command-metric>strong{display:block;margin-top:8px;font-size:23px;letter-spacing:-.03em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .cx-commercial-page .cx-commercial-source{gap:10px}
 .cx-commercial-page .cx-commercial-source>div,
-.cx-commercial-page .cx-commercial-ratios>div{background:var(--cx-surface-subtle);border:1px solid var(--cx-border-subtle);border-radius:7px;padding:11px 12px;min-width:0}
+.cx-commercial-page .cx-commercial-ratios>div{background:transparent;border:0;border-left:1px solid var(--cx-border-subtle);border-radius:0;padding:8px 12px;min-width:0}
 .cx-commercial-page .cx-commercial-source span,
-.cx-commercial-page .cx-commercial-ratios span{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--cx-text-secondary);font-weight:700}
+.cx-commercial-page .cx-commercial-ratios span{font-size:12px;text-transform:none;letter-spacing:normal;color:var(--cx-text-secondary);font-weight:700}
 .cx-commercial-page .cx-commercial-source strong,
 .cx-commercial-page .cx-commercial-ratios strong{font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .cx-commercial-page .cx-command-table-wrap{overflow:auto;max-width:100%;border:1px solid var(--cx-border-subtle);border-radius:8px}
@@ -87,7 +89,7 @@
   .cx-commercial-evidence-row:nth-child(2n){border-right:0}
   .cx-commercial-evidence-row:nth-last-child(-n+3){border-bottom:1px solid var(--cx-border-subtle)}
   .cx-commercial-evidence-row:nth-last-child(-n+2){border-bottom:0}
-  .cx-commercial-page .cx-commercial-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .cx-commercial-page .cx-commercial-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:700px){
   .cx-sales-evidence-grid,.cx-commercial-evidence-list{grid-template-columns:1fr}

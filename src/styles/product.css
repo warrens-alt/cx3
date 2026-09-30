@@ -305,10 +305,10 @@
 .cx-command-content {
   max-width: var(--cx-page-max-width, 1600px);
   margin: 0 auto;
-  padding: 24px var(--cx-page-padding-x, 24px) 56px;
+  padding: var(--cx-section-gap) var(--cx-page-padding-x, 24px) 40px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--cx-section-gap);
 }
 .cx-command-hero {
   display: flex;
@@ -2497,10 +2497,6 @@ a.cx-trust-pill:hover { background:transparent; }
 }
 
 /* Shared workspaces: one vertical rhythm instead of doubled flex + utility gaps. */
-.cx-app .cx-command-content {
-  padding: 24px var(--cx-page-padding-x, 24px) 40px;
-  gap: 20px;
-}
 .cx-app .cx-command-content.space-y-6 > :not(:last-child) { margin-block-end: 0; }
 .cx-app .cx-workspace-heading { padding-bottom: 12px; align-items: flex-start; }
 .cx-app .cx-workspace-heading h1,
@@ -2562,11 +2558,11 @@ a.cx-trust-pill:hover { background:transparent; }
 
 /* Overview outcome, comparison, trend and attention presentation. */
 /* Same existing outcome measures, with recognisable series and quieter actions. */
-.cx-app .cx-outcome-strip { gap: 14px; }
+.cx-app .cx-outcome-strip { gap: var(--cx-card-gap); }
 .cx-app .cx-outcome-card {
   --outcome-color: var(--cx-data-fetched);
   position: relative;
-  padding: 16px 18px 10px;
+  padding: var(--cx-panel-padding);
   border-top: 2px solid var(--outcome-color);
   min-width: 0;
   transition: border-color 140ms, box-shadow 140ms;
@@ -2577,7 +2573,7 @@ a.cx-trust-pill:hover { background:transparent; }
 .cx-app .cx-outcome-card[data-series="sales"] { --outcome-color: var(--cx-data-sales); }
 .cx-app .cx-outcome-card[data-series="activation"] { --outcome-color: var(--cx-data-activation); }
 .cx-app .cx-outcome-heading { align-items: center; gap: 12px; }
-.cx-app .cx-outcome-heading > span:first-child { font-size: 11px; letter-spacing: .055em; line-height: 1.5; }
+.cx-app .cx-outcome-heading > span:first-child { font-size: 12px; letter-spacing: normal; line-height: 1.5; }
 .cx-app .cx-outcome-icon {
   display: grid;
   place-items: center;
@@ -2659,9 +2655,9 @@ a.cx-trust-pill:hover { background:transparent; }
 
 @media (max-width: 639px) {
   .cx-app .cx-outcome-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-  .cx-app .cx-outcome-card { padding: 14px 12px 8px; }
+  .cx-app .cx-outcome-card { padding: 14px 12px; }
   .cx-app .cx-outcome-heading { align-items: flex-start; gap: 6px; }
-  .cx-app .cx-outcome-heading > span:first-child { font-size: 10px; letter-spacing: .025em; }
+  .cx-app .cx-outcome-heading > span:first-child { font-size: 11px; letter-spacing: normal; }
   .cx-app .cx-outcome-icon { width: 24px; height: 24px; flex-basis: 24px; }
   .cx-app .cx-outcome-icon svg { width: 14px; }
   .cx-app .cx-outcome-value { font-size: 29px; }

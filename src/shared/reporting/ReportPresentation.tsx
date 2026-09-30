@@ -45,12 +45,10 @@ export function ReportActions({ children, statusEvidence, aboutContent, analysis
   const [open, setOpen] = useState(false);
   const scoped = useScopedNavigationTarget();
   return <div className="cx-report-actions">
-    {children && <details className="cx-report-more" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}><summary>More actions</summary><div>{children}</div></details>}
-    <div ref={setExportTarget} className="cx-report-export-slot" />
+    <details className="cx-report-more" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}><summary>More actions</summary><div>{children}<AnalysisGuide additionalContent={aboutContent} analysisContext={analysisContext} /><div ref={setExportTarget} className="cx-report-export-slot" /></div></details>
     {statusEvidence ? <>
       <button type="button" className="cx-button-secondary cx-data-status-trigger" data-tone="unknown" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}><Info size={14} aria-hidden="true" />Data status · Not verified</button>
       <DataStatusDialog open={open} onClose={() => setOpen(false)}>{statusEvidence}<Link className="cx-button-secondary" to={scoped('/data-integrity')} onClick={() => setOpen(false)}>Inspect data evidence</Link></DataStatusDialog>
     </> : <div ref={setStatusTarget} className="cx-report-status-slot" />}
-    <AnalysisGuide additionalContent={aboutContent} analysisContext={analysisContext} />
   </div>;
 }

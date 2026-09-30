@@ -121,3 +121,13 @@
 .cx-trust-workspace .cx-unified-metric :is(.cx-why-btn,.cx-inspect-btn){background:none;border:0;box-shadow:none;padding:3px 0;font-size:11px;font-weight:500;color:var(--cx-action);transform:none;min-height:28px}
 .cx-trust-workspace .cx-unified-metric :is(.cx-why-btn,.cx-inspect-btn):hover{background:none;transform:none;text-decoration:underline;box-shadow:none}
 .cx-trust-workspace .cx-unified-metric :is(.cx-why-btn,.cx-inspect-btn) svg{color:currentColor}
+
+/* Overview shows returned issue inventories; full evidence is in local sections. */
+.cx-integrity-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--cx-card-gap); }
+.cx-integrity-attention { color: var(--cx-text); }
+.cx-integrity-attention h2 { font-size: 16px; font-weight: 650; }
+.cx-integrity-attention p { font-size: 13px; color: var(--cx-text-secondary); line-height: 1.6; margin-block: 6px; }
+.cx-integrity-attention ul { padding: 0; list-style: none; margin-block: 16px; }
+.cx-integrity-attention li { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; border-top: 1px solid var(--cx-border-subtle); padding: 12px 0; font-size: 13px; }
+.cx-integrity-attention li button { flex-shrink: 0; min-height: var(--cx-touch-target); }
+@media (max-width: 700px) { .cx-integrity-summary { grid-template-columns: 1fr; } .cx-integrity-attention li { flex-direction: column; gap: 4px; } }

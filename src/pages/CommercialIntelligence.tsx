@@ -1,7 +1,10 @@
+import ReportSections from '../shared/reporting/ReportSections';
+import TablePreview from '../shared/reporting/TablePreview';
+import UnifiedMetricCard from '../components/UnifiedMetricCard';
 import { ReportActions } from '../shared/reporting/ReportPresentation';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, ArrowRight, Database, DollarSign, Search, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Database, DollarSign, ShieldCheck } from 'lucide-react';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import SpendReconciliationPanel from '../components/SpendReconciliationPanel';
 import RootCauseDrawer from '../components/RootCauseDrawer';
@@ -20,6 +23,7 @@ import CommercialEvidenceMap, { type CommercialEvidenceItem } from '../features/
 
 export default function CommercialIntelligence() {
   // Only these two displayed metrics have a matching, supported media decomposition.
+  const [section, setSection] = useState('summary');
   const [audit, setAudit] = useState<InspectorContent | null>(null);
   const [rootMetric, setRootMetric] = useState<'spend' | 'cpl' | null>(null);
   const scoped = useScopedNavigationTarget();
@@ -80,36 +84,24 @@ export default function CommercialIntelligence() {
   ] : [];
 
   return <div className="cx-command-page cx-commercial-page">
-    <OffernetFilterBar onRefresh={() => loadData(true)} />
     <div className="cx-command-content">
-      <header className="cx-command-hero"><div><span className="cx-command-eyebrow">Commercial</span><h1>Spend, revenue & efficiency</h1><p>Interpret recorded value, observed media cost and matched operational outcomes separately. Missing financial evidence stays unavailable.</p></div><ReportActions><Link to={scoped('/campaigns')} className="cx-button-secondary"><DollarSign size={15} /><span><strong>MEDIA DETAIL</strong><small>Campaign spend & efficiency</small></span><ArrowRight size={14} /></Link></ReportActions></header>
+      <header className="cx-command-hero"><div><h1>Commercial</h1><p>Recorded spend, revenue and matched outcomes.</p></div><ReportActions><Link to={scoped('/campaigns')} className="cx-button-secondary"><DollarSign size={15} /><span><strong>Media detail</strong><small>Campaign spend & efficiency</small></span><ArrowRight size={14} /></Link></ReportActions></header>
+      <OffernetFilterBar onRefresh={() => loadData(true)} />
       {error && <div role="alert" className="cx-command-error"><AlertTriangle size={17} />{error}</div>}
       {loading && !data && <div role="status" className="cx-command-loading">Loading commercial evidence…</div>}
       {loading && data && <p role="status">Refreshing the current commercial scope…</p>}
       {data && baseline && <>
-        <section className="cx-command-panel" aria-label="Commercial evidence coverage">
-          <header><div><span className="cx-command-section-kicker">Measurement status</span><h2>{data.status}</h2><p>{data.reason}</p></div><ShieldCheck size={17} /></header>
-          <div className="cx-commercial-source">
-            <div><span>Media spend source</span><strong>{data.media.spendSourceColumn || 'Unavailable'}</strong><small>{data.media.spendSourceTable || 'No approved spend source reported'}</small></div>
-            <div><span>Platform population</span><strong>{formatTableNumber(data.media.platformLeads)} platform lead events</strong><small>{formatTableNumber(data.media.platformClicks)} clicks</small></div>
-            <div><span>Currency</span><strong>{currency || 'Not established'}</strong><small>No currency conversion is applied.</small></div>
-            <div><span>Invoices, cash & clawbacks</span><strong>Unavailable</strong><small>Source-recorded revenue is not settlement evidence.</small></div>
-          </div>
-        </section>
-        <CommercialEvidenceMap items={commercialEvidence} />
-        <SpendReconciliationPanel reconciliation={data.reconciliation} grain={data.grainDiagnostics} />
-        <section className="cx-command-metrics cx-commercial-metrics" aria-label="Commercial summary metrics">
-          {metrics.map(item => <article key={item.label} className="cx-command-metric">
-            <span>{item.label}</span><strong>{item.value}</strong><div><small>{item.note}</small></div>
-            <div className="cx-readiness-actions">
-              {item.metric && canCompareMedia && item.available && Number.isFinite(item.metric === 'spend' ? data.mediaComparison?.spendDeltaPct : data.mediaComparison?.cplDeltaPct) && <button type="button" className="cx-button-secondary" title={`Investigate ${item.label.toLowerCase()}`} onClick={() => setRootMetric(item.metric)}><Search size={12} aria-hidden="true" />Why changed?</button>}
-              <button type="button" className="cx-button-secondary" onClick={() => setAudit({ type: 'metric', title: item.label, value: item.value, scope: auditScope, definition: { meaning: item.note, dateBasis: item.metric ? 'Marketing reporting date' : 'Operational capture cohort / approved matched marketing population', nullMeaning: 'Unavailable financial evidence is not zero and budget is never substituted.' }, provenance: { ...suppliedProvenance(data), ...(item.metric && data.media.spendSourceTable ? { source: data.media.spendSourceTable } : {}) }, ...(item.metric === 'cpl' ? { numeratorCount: baseline.mediaSpend, numeratorLabel: 'Observed media spend', denominatorCount: data.media.platformLeads, denominatorLabel: 'Platform lead events' } : {}), reportPath: item.path, detailLimitation: 'A matching record-level drill is not supplied for this commercial aggregate.' })}>Inspect evidence<ArrowRight size={12} aria-hidden="true" /></button>
-            </div>
-          </article>)}
-        </section>
-        <AuditMetadata dateBasis="Marketing reporting date / operational capture cohort" validationStatus={suppliedProvenance(data).validationStatus} />
-        <section className="cx-command-panel" aria-label="Commercial matched-period changes">
-          <header><div><span className="cx-command-section-kicker">Matched prior period</span><h2>Commercial changes</h2><p>{data.attributionComparison?.reason}</p></div></header>
+        <div className="cx-commercial-notices"><p className="cx-contract-note" role="note">{data.status} · {data.reason}</p>
+        {data.reconciliation && data.reconciliation.status !== 'RECONCILED' && <p className="cx-contract-note" role="note">{data.reconciliation.reason}</p>}</div>
+        <ReportSections label="Commercial sections" value={section} onChange={setSection} sections={[
+          { id: 'summary', label: 'Summary', content: <><section className="cx-command-metrics cx-commercial-metrics" aria-label="Commercial summary metrics">
+          {metrics.slice(0, 4).map(item => <UnifiedMetricCard key={item.label} label={item.label} value={item.value} note={item.note}
+            change={item.metric && canCompareMedia && item.available ? item.metric === 'spend' ? data.mediaComparison?.spendDeltaPct : data.mediaComparison?.cplDeltaPct : undefined}
+            isPositiveGood={false}
+            onWhyChanged={item.metric && canCompareMedia && item.available && Number.isFinite(item.metric === 'spend' ? data.mediaComparison?.spendDeltaPct : data.mediaComparison?.cplDeltaPct) ? () => setRootMetric(item.metric) : undefined}
+            auditContent={{ type: 'metric', title: item.label, value: item.value, scope: auditScope, definition: { meaning: item.note, dateBasis: item.metric ? 'Marketing reporting date' : 'Operational capture cohort / approved matched marketing population', nullMeaning: 'Unavailable financial evidence is not zero and budget is never substituted.' }, provenance: { ...suppliedProvenance(data), ...(item.metric && data.media.spendSourceTable ? { source: data.media.spendSourceTable } : {}) }, ...(item.metric === 'cpl' ? { numeratorCount: baseline.mediaSpend, numeratorLabel: 'Observed media spend', denominatorCount: data.media.platformLeads, denominatorLabel: 'Platform lead events' } : {}), reportPath: item.path, detailLimitation: 'A matching record-level drill is not supplied for this commercial aggregate.' }} />)}
+        </section>        <section className="cx-command-panel" aria-label="Commercial matched-period changes">
+          <header><div><span className="cx-command-section-kicker">Previous-period comparison</span><h2>Commercial changes</h2><p>{data.attributionComparison?.reason}</p></div></header>
           <div className="cx-commercial-ratios">
             <div><span>Spend change</span><strong>{money(data.mediaComparison?.spendDelta ?? data.attributionComparison?.spend.absoluteChange)}</strong><small>{formatPercent(data.mediaComparison?.spendDeltaPct ?? data.attributionComparison?.spend.percentageChange)} change</small></div>
             <div><span>Platform CPL change</span><strong>{formatPercent(data.mediaComparison?.cplDeltaPct)}</strong><small>Marketing population only</small></div>
@@ -118,8 +110,14 @@ export default function CommercialIntelligence() {
             <div><span>Matched sales change</span><strong>{formatTableNumber(data.attributionComparison?.sales.absoluteChange)}</strong><small>Approved matched population, not the lead-to-sale rate</small></div>
           </div>
         </section>
-        <section className="cx-command-panel">
-          <header><div><span className="cx-command-section-kicker">Attribution bridge</span><h2>Spend → operational outcomes</h2><p>{attribution?.reason || 'Attribution status unavailable.'}</p></div><span className="cx-source-status" data-status={attribution?.status || 'UNAVAILABLE'}>{attribution?.status || 'UNAVAILABLE'}</span></header>
+<section className="cx-command-panel" aria-label="Attribution coverage"><header><div><h2>Attribution coverage</h2><p>{attribution?.reason || 'Attribution status unavailable.'}</p></div><button type="button" className="cx-admin-text-button" onClick={() => setSection('attribution')}>Inspect attribution →</button></header>          {attribution?.summary && <div className="cx-commercial-source">
+            <div><span>Matched spend</span><strong>{money(attribution.summary.matchedSpend)}</strong><small>{attribution.summary.matchedSpendSharePct == null ? 'Coverage unavailable' : `${formatPercent(attribution.summary.matchedSpendSharePct)} of observed spend`}</small></div>
+            <div><span>Unmatched media spend</span><strong>{money(attribution.summary.unmatchedMarketingSpend)}</strong><small>{formatTableNumber(attribution.summary.marketingOnlyKeys)} marketing-only keys</small></div>
+            <div><span>Join-key coverage</span><strong>{formatTableNumber(attribution.summary.matchedKeys)} matched keys</strong><small>{formatTableNumber(attribution.summary.operationsOnlyKeys)} operations-only keys</small></div>
+          </div>}
+</section><AuditMetadata dateBasis="Marketing reporting date / operational capture cohort" validationStatus={suppliedProvenance(data).validationStatus} /></> },
+          { id: 'attribution', label: 'Attribution', content: <>        <section className="cx-command-panel">
+          <header><div><span className="cx-command-section-kicker">Attribution coverage</span><h2>Spend → operational outcomes</h2><p>{attribution?.reason || 'Attribution status unavailable.'}</p></div><span className="cx-source-status" data-status={attribution?.status || 'UNAVAILABLE'}>{attribution?.status || 'UNAVAILABLE'}</span></header>
           {!loading && Boolean(attribution?.rows?.length) && <ExportAnalysisButton filename="commercial-attribution.csv" validationStatus={attribution?.validationStatus || 'NOT_VERIFIED'} dateBasis="marketing_reporting_date / operational_capture_cohort" definitions={`Currency: ${currency || 'unavailable'}. Spend uses complete unique marketing grain; costs use matching approved keys; null is unavailable; unmatched spend is excluded from attributed costs.`} truncated={attribution?.detailScope?.truncated} rows={[
             ['Approved key', 'Marketing present', 'Operations present', 'Spend', 'Platform leads', 'Fetched', 'Delivered', 'Dialled', 'RPC', 'Sales', 'Activations', 'Recorded revenue', 'Spend / fetched', 'Spend / sale', 'Spend / activation'],
             ...(attribution?.rows || []).map(row => [row.key, row.hasMarketing, row.hasOperations, row.spend, row.platformLeads, row.fetched, row.delivered, row.dialled, row.rpc, row.sales, row.activations, row.recordedRevenue, row.spendPerFetchedLead, row.spendPerSale, row.spendPerActivation]),
@@ -129,16 +127,23 @@ export default function CommercialIntelligence() {
             <div><span>Unmatched media spend</span><strong>{money(attribution.summary.unmatchedMarketingSpend)}</strong><small>{formatTableNumber(attribution.summary.marketingOnlyKeys)} marketing-only keys</small></div>
             <div><span>Join-key coverage</span><strong>{formatTableNumber(attribution.summary.matchedKeys)} matched keys</strong><small>{formatTableNumber(attribution.summary.operationsOnlyKeys)} operations-only keys</small></div>
           </div>}
-          {Boolean(attribution?.rows?.length) && <div className="cx-analytics-visual-grid">
+          {section === 'attribution' && Boolean(attribution?.rows?.length) && <div className="cx-analytics-visual-grid">
             <GroupedOutcomeChart title="Matched funnel outcomes by attribution key" subtitle="Top 12 displayed attribution keys by fetched volume. Independent recorded outcomes; no nested funnel is assumed." data={[...(attribution?.rows || [])].filter(row => row.hasMarketing && row.hasOperations).sort((a, b) => b.fetched - a.fetched).slice(0, 12)} xKey="key" series={[{ key: 'fetched', label: 'Fetched' }, { key: 'rpc', label: 'RPC' }, { key: 'sales', label: 'Sales' }, { key: 'activations', label: 'Activations' }]} />
             <RankedMetricChart title="Recorded revenue by matched key" subtitle="Only matched keys with recorded values; missing revenue remains unavailable." data={(attribution?.rows || []).filter(row => row.hasMarketing && row.hasOperations && row.recordedRevenue != null).map(row => ({ key: row.key, revenue: row.recordedRevenue }))} categoryKey="key" valueKey="revenue" valueLabel="Recorded revenue" valuePrefix={currency || ''} />
           </div>}
           {attribution?.rows?.length ? <>
             {attribution.detailScope?.truncated && <p className="cx-contract-note">The detailed table and its export are limited by the API. Summary coverage uses the full scoped population.</p>}
-            <div className="cx-command-table-wrap"><table className="cx-command-table"><caption>Approved attribution-key evidence; amounts in {currency || 'an unspecified currency'}</caption><thead><tr><th scope="col">Key</th><th>Coverage</th>{['Spend', 'Platform leads', 'Fetched', 'Delivered', 'Dialled', 'RPC', 'Sales', 'Activations', 'Recorded revenue', 'Spend / fetched', 'Spend / sale', 'Spend / activation'].map(label => <th key={label} scope="col">{label}</th>)}<th scope="col">Evidence</th></tr></thead><tbody>{attribution.rows.map(row => <tr key={row.key}><th scope="row">{row.key}</th><td>{row.hasMarketing && row.hasOperations ? 'Matched' : row.hasMarketing ? 'Marketing only' : 'Operations only'}</td><td>{money(row.spend)}</td><td>{formatTableNumber(row.platformLeads)}</td><td>{formatTableNumber(row.fetched)}</td><td>{formatTableNumber(row.delivered)}</td><td>{formatTableNumber(row.dialled)}</td><td>{formatTableNumber(row.rpc)}</td><td>{formatTableNumber(row.sales)}</td><td>{formatTableNumber(row.activations)}</td><td>{money(row.recordedRevenue)}</td><td>{money(row.spendPerFetchedLead)}</td><td>{money(row.spendPerSale)}</td><td>{money(row.spendPerActivation)}</td><td><button type="button" className="cx-button-secondary" onClick={() => setAudit({ type: 'segment', title: `${row.key} · observed spend`, value: money(row.spend), scope: auditScope, definition: { meaning: 'Returned spend for this approved attribution key. Coverage states whether matching marketing and operational records are present.', grain: 'Approved attribution key', dateBasis: 'Marketing reporting date / operational capture cohort', nullMeaning: 'Missing spend remains unavailable.' }, provenance: suppliedProvenance(attribution), relatedValue: { label: 'Coverage', value: row.hasMarketing && row.hasOperations ? 'Matched' : row.hasMarketing ? 'Marketing only' : 'Operations only' }, reportPath: '/commercial', detailLimitation: 'A record drill by attribution key is not supplied.' })}>Inspect evidence</button></td></tr>)}</tbody></table></div>
+            <TablePreview rows={attribution.rows} label="attribution rows">{visibleRows => <div className="cx-command-table-wrap"><table className="cx-command-table"><caption>Approved attribution-key evidence; amounts in {currency || 'an unspecified currency'}</caption><thead><tr><th scope="col">Key</th><th>Coverage</th>{['Spend', 'Platform leads', 'Fetched', 'Delivered', 'Dialled', 'RPC', 'Sales', 'Activations', 'Recorded revenue', 'Spend / fetched', 'Spend / sale', 'Spend / activation'].map(label => <th key={label} scope="col">{label}</th>)}<th scope="col">Evidence</th></tr></thead><tbody>{visibleRows.map(row => <tr key={row.key}><th scope="row">{row.key}</th><td>{row.hasMarketing && row.hasOperations ? 'Matched' : row.hasMarketing ? 'Marketing only' : 'Operations only'}</td><td>{money(row.spend)}</td><td>{formatTableNumber(row.platformLeads)}</td><td>{formatTableNumber(row.fetched)}</td><td>{formatTableNumber(row.delivered)}</td><td>{formatTableNumber(row.dialled)}</td><td>{formatTableNumber(row.rpc)}</td><td>{formatTableNumber(row.sales)}</td><td>{formatTableNumber(row.activations)}</td><td>{money(row.recordedRevenue)}</td><td>{money(row.spendPerFetchedLead)}</td><td>{money(row.spendPerSale)}</td><td>{money(row.spendPerActivation)}</td><td><button type="button" className="cx-button-secondary" onClick={() => setAudit({ type: 'segment', title: `${row.key} · observed spend`, value: money(row.spend), scope: auditScope, definition: { meaning: 'Returned spend for this approved attribution key. Coverage states whether matching marketing and operational records are present.', grain: 'Approved attribution key', dateBasis: 'Marketing reporting date / operational capture cohort', nullMeaning: 'Missing spend remains unavailable.' }, provenance: suppliedProvenance(attribution), relatedValue: { label: 'Coverage', value: row.hasMarketing && row.hasOperations ? 'Matched' : row.hasMarketing ? 'Marketing only' : 'Operations only' }, reportPath: '/commercial', detailLimitation: 'A record drill by attribution key is not supplied.' })}>Inspect</button></td></tr>)}</tbody></table></div>}</TablePreview>
           </> : <div className="cx-command-empty"><ShieldCheck size={17} />{attribution?.status === 'AVAILABLE' ? 'No attribution rows match this selection.' : 'Approved attribution evidence is not available for this selection. Review the mapping and source diagnostics.'}</div>}
         </section>
-        <div className="cx-command-grid cx-commercial-grid">
+</> },
+          { id: 'economics', label: 'Economics', content: <><section className="cx-command-metrics cx-commercial-metrics" aria-label="Commercial value ratio">
+          {metrics.slice(4).map(item => <UnifiedMetricCard key={item.label} label={item.label} value={item.value} note={item.note}
+            change={item.metric && canCompareMedia && item.available ? item.metric === 'spend' ? data.mediaComparison?.spendDeltaPct : data.mediaComparison?.cplDeltaPct : undefined}
+            isPositiveGood={false}
+            onWhyChanged={item.metric && canCompareMedia && item.available && Number.isFinite(item.metric === 'spend' ? data.mediaComparison?.spendDeltaPct : data.mediaComparison?.cplDeltaPct) ? () => setRootMetric(item.metric) : undefined}
+            auditContent={{ type: 'metric', title: item.label, value: item.value, scope: auditScope, definition: { meaning: item.note, dateBasis: item.metric ? 'Marketing reporting date' : 'Operational capture cohort / approved matched marketing population', nullMeaning: 'Unavailable financial evidence is not zero and budget is never substituted.' }, provenance: { ...suppliedProvenance(data), ...(item.metric && data.media.spendSourceTable ? { source: data.media.spendSourceTable } : {}) }, ...(item.metric === 'cpl' ? { numeratorCount: baseline.mediaSpend, numeratorLabel: 'Observed media spend', denominatorCount: data.media.platformLeads, denominatorLabel: 'Platform lead events' } : {}), reportPath: item.path, detailLimitation: 'A matching record-level drill is not supplied for this commercial aggregate.' }} />)}
+        </section>        <div className="cx-command-grid cx-commercial-grid">
           <section className="cx-command-panel"><header><div><span className="cx-command-section-kicker">Media efficiency</span><h2>Observed cost metrics</h2><p>Platform costs use marketing denominators. Funnel costs require approved matching keys. {economics?.reason}</p></div></header><div className="cx-commercial-ratios">
             {[
               ['CPC', baseline.cpc, 'Spend / clicks'], ['CPM', baseline.cpm, 'Spend / impressions × 1,000'], ['Platform CPL', baseline.cpl, 'Spend / platform lead events'],
@@ -149,7 +154,21 @@ export default function CommercialIntelligence() {
             <div><span>Revenue / fetched</span><strong>{money(baseline.revenuePerLead)}</strong><small>Recorded cohort revenue / fetched</small></div><div><span>Revenue / sale</span><strong>{money(baseline.revenuePerSale)}</strong><small>Recorded cohort revenue / sales</small></div><div><span>Revenue / activation</span><strong>{money(baseline.revenuePerActivation)}</strong><small>Recorded cohort revenue / activations</small></div><div><span>Matched recorded revenue</span><strong>{money(economics?.recordedRevenue)}</strong></div><div><span>Impressions</span><strong>{formatTableNumber(data.media.platformImpressions)}</strong></div><div><span>Reported reach sum</span><strong>{formatTableNumber(data.media.platformReach)}</strong><small>Audience overlap is not deduplicated</small></div><div><span>Outbound clicks</span><strong>{formatTableNumber(data.media.platformOutboundClicks)}</strong></div>
           </div><div className="cx-commercial-bridge">{data.pAndLBreakdown.map(item => <div key={item.type}><span>{item.item}</span><strong>{money(item.amount)}</strong></div>)}</div></section>
         </div>
-        <section className="cx-command-panel"><header><div><span className="cx-command-section-kicker">Still withheld</span><h2>Profitability inputs not sourced from approved tables</h2><p>These are not reconstructed from budgets, example rates or assumptions.</p></div><Database size={16} /></header><div className="cx-withheld-grid">{['Telephony cost', 'Agent / delivery cost', 'Commission', 'Fixed overhead', 'Total operating cost', 'Contribution margin', 'Net margin', 'Break-even volume'].map(label => <div key={label}><span>{label}</span><strong>UNAVAILABLE</strong></div>)}</div></section>
+</> },
+          { id: 'evidence', label: 'Evidence', content: <>        <section className="cx-command-panel" aria-label="Commercial evidence coverage">
+          <header><div><span className="cx-command-section-kicker">Evidence availability</span><h2>{data.status}</h2><p>{data.reason}</p></div><ShieldCheck size={17} /></header>
+          <div className="cx-commercial-source">
+            <div><span>Media spend source</span><strong>{data.media.spendSourceColumn || 'Unavailable'}</strong><small>{data.media.spendSourceTable || 'No approved spend source reported'}</small></div>
+            <div><span>Platform population</span><strong>{formatTableNumber(data.media.platformLeads)} platform lead events</strong><small>{formatTableNumber(data.media.platformClicks)} clicks</small></div>
+            <div><span>Currency</span><strong>{currency || 'Not established'}</strong><small>No currency conversion is applied.</small></div>
+            <div><span>Invoices, cash & clawbacks</span><strong>Unavailable</strong><small>Source-recorded revenue is not settlement evidence.</small></div>
+          </div>
+        </section>
+        <CommercialEvidenceMap items={commercialEvidence} />
+        <SpendReconciliationPanel reconciliation={data.reconciliation} grain={data.grainDiagnostics} />
+        <section className="cx-command-panel"><header><div><span className="cx-command-section-kicker">Inputs currently unavailable</span><h2>Profitability inputs not sourced from approved tables</h2><p>These are not reconstructed from budgets, example rates or assumptions.</p></div><Database size={16} /></header><div className="cx-withheld-grid">{['Telephony cost', 'Agent / delivery cost', 'Commission', 'Fixed overhead', 'Total operating cost', 'Contribution margin', 'Net margin', 'Break-even volume'].map(label => <div key={label}><span>{label}</span><strong>UNAVAILABLE</strong></div>)}</div></section>
+</> },
+        ]} />
       </>}
     </div>
     <InspectorHost open={Boolean(audit)} onClose={() => setAudit(null)} content={audit} />

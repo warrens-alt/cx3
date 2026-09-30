@@ -97,10 +97,6 @@ export default function PrimaryNavigation({
         <kbd aria-hidden="true">{searchShortcut}</kbd>
       </button>
 
-      {/* Review Mode Trigger */}
-      <div className="cx-sidebar-review">
-        <ReviewLauncher afterNavigate={onClose} />
-      </div>
 
       {/* Operations and investigation keep their existing destinations. */}
       <nav aria-label="Main navigation" className="cx-navigation cx-navigation-simple flex-1">
@@ -124,9 +120,10 @@ export default function PrimaryNavigation({
                       onClick={onClose}
                       className="cx-nav-link"
                       title={item.desc}
+                      aria-description={item.desc}
                     >
                       <Icon size={16} aria-hidden="true" />
-                      <span className="cx-nav-copy"><strong>{item.name}</strong><small>{item.desc}</small></span>
+                      <span className="cx-nav-copy"><strong>{item.name}</strong><small className={isCurrentArea ? undefined : 'sr-only'}>{item.desc}</small></span>
                     </Link>
                   </div>
                 </li>
@@ -149,7 +146,7 @@ export default function PrimaryNavigation({
                   title="Workspace configuration and preferences"
                 >
                   <Settings size={16} aria-hidden="true" />
-                  <span className="cx-nav-copy"><strong>Settings</strong><small>Workspace &amp; preferences</small></span>
+                  <span className="cx-nav-copy"><strong>Settings</strong><small className={['/admin', '/settings'].includes(location.pathname) ? undefined : 'sr-only'}>Workspace &amp; preferences</small></span>
                 </Link>
               </div>
             </li>
@@ -163,7 +160,7 @@ export default function PrimaryNavigation({
                   title="Google Cloud BigQuery warehouse tables, live API puller & schemas"
                 >
                   <Database size={16} aria-hidden="true" />
-                  <span className="cx-nav-copy"><strong>Cloud warehouse</strong><small>Tables, sources &amp; schemas</small></span>
+                  <span className="cx-nav-copy"><strong>Cloud warehouse</strong><small className={['/warehouse', '/warehouse-analytics'].includes(location.pathname) ? undefined : 'sr-only'}>Tables, sources &amp; schemas</small></span>
                 </Link>
               </div>
             </li>
@@ -178,7 +175,7 @@ export default function PrimaryNavigation({
                     title="Manage user access and roles"
                   >
                     <Shield size={16} aria-hidden="true" />
-                    <span className="cx-nav-copy"><strong>Access control</strong><small>User access &amp; roles</small></span>
+                    <span className="cx-nav-copy"><strong>Access control</strong><small className={['/access-control', '/users'].includes(location.pathname) ? undefined : 'sr-only'}>User access &amp; roles</small></span>
                   </Link>
                 </div>
               </li>
@@ -189,6 +186,7 @@ export default function PrimaryNavigation({
 
       {/* Footer */}
       <div className="cx-sidebar-footer">
+        <div className="cx-sidebar-review"><ReviewLauncher afterNavigate={onClose} /></div>
         <Link
           className="cx-sidebar-source-link"
           to={navigationTarget('/data-integrity', location.pathname, location.search)}

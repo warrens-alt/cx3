@@ -1,3 +1,4 @@
+import TablePreview from '../shared/reporting/TablePreview';
 import { useOperationalData } from '../lib/useOperationalData';
 import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Download, Search, Users } from 'lucide-react';
@@ -213,7 +214,7 @@ export default function AgentPerformanceIntelligence() {
                 <span>{filtered.length.toLocaleString()} rows</span>
               </div>
 
-              <div className="cx-performance-table-wrap" role="region" aria-label="Agent activity and outcomes" tabIndex={0}>
+              <TablePreview rows={filtered} label="agent rows">{visibleRows => <div className="cx-performance-table-wrap" role="region" aria-label="Agent activity and outcomes" tabIndex={0}>
                 <table className="cx-performance-table cx-agent-table">
                   <thead>
                     <tr>
@@ -231,7 +232,7 @@ export default function AgentPerformanceIntelligence() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((row, index) => (
+                    {visibleRows.map((row, index) => (
                       <tr key={`${row.agentId}-${row.vendor}-${index}`}>
                         <th>{row.agentId}</th>
                         <td>{row.vendor}</td>
@@ -244,12 +245,12 @@ export default function AgentPerformanceIntelligence() {
                         <td>{row.totalTalkTime || 'Unavailable'}</td>
                         <td>{row.avgHandleTime || 'Unavailable'}</td>
                         <td>{formatTableNumber(row.callbacksBooked)}</td>
-                        <td><button type="button" className="cx-button-secondary" onClick={() => setAudit(agentAudit(row, agentMetric, auditScope, data))} aria-label={`Inspect evidence for ${row.agentId}`}>Inspect evidence</button></td>
+                        <td><button type="button" className="cx-button-secondary" onClick={() => setAudit(agentAudit(row, agentMetric, auditScope, data))} aria-label={`Inspect evidence for ${row.agentId}`}>Inspect</button></td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </div>}</TablePreview>
             </section>
 
             {data.breakdowns && (['day', 'hour'] as const).map(dimension => <section className="cx-command-panel" key={dimension}>

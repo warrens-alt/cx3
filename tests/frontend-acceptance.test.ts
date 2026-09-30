@@ -1,3 +1,4 @@
+import { reductionPayloads } from './frontend/reductionFixtures';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,readFile,rm} from 'node:fs/promises';
@@ -536,6 +537,7 @@ test('About combines purpose, missing values and unchanged metric lineage withou
   const app=await mount('/overview'+scope);try{
     await app.wait(()=>app.find('button','About this analysis'));
     const before=app.w.__fixture.requests.length;
+    await app.click('summary','More actions');
     const trigger=await app.click('button','About this analysis');
     assert.match(app.w.document.body.textContent,/What am I looking at\?/);
     assert.match(app.w.document.body.textContent,/How to interpret missing values/);
@@ -553,6 +555,7 @@ test('About combines purpose, missing values and unchanged metric lineage withou
 test('Clear segments retains dates; Reset all clears dates and segment filters',async()=>{
   const app=await mount('/speed-to-lead'+scope+'&vendor=Synthetic+vendor&source=synthetic-source');try{
     await app.wait(()=>app.find('button','Filters (2)'));
+    await app.click('button','Change');
     await app.click('button','Filters (2)');
     await app.click('button','Clear segments');
     await app.wait(()=>!new URL(app.w.__fixture.location,'https://synthetic.invalid').searchParams.has('vendor'));
@@ -619,6 +622,7 @@ test('active non-admin sees no admin-only entry in sidebar, analyses or intent s
 test('source About uses original fetched-cohort evidence, separate from analytical metric lineage',async()=>{
   const app=await mount('/lead-ledger'+scope);try{
     await app.wait(()=>app.find('.cx-ledger-browser'));
+    await app.click('summary','More actions');
     await app.click('button','About this analysis');
     const about=app.find('.cx-analysis-help-panel');
     assert.match(about.textContent,/Original lead\/vendor source records/);
@@ -655,11 +659,15 @@ test('Data status closes when following its existing data-integrity link',async(
 const complexAuditFilters = {vendor:{operator:'in',values:['Synthetic vendor','Other vendor']},source:{operator:'equals',value:'synthetic-source'},grade:{operator:'between',min:1,max:3}};
 const auditContent = {type:'metric',metricId:'sales_per_fetched_rate',title:'Supplied rate',value:'35.7%',numeratorCount:570,denominatorCount:1597,scope:{clientId:'synthetic-a',clientLabel:'Synthetic workspace',startDate:'2026-09-22',endDate:'2026-09-28',filters:complexAuditFilters}};
 
-test('universal audit renders exact components, all scope, seven sections and reproducible copied link without requests',async()=>{
+test('universal audit renders exact components, all scope, progressive sections and reproducible copied link without requests',async()=>{
   const app=await mount('/__fixture/audit'+scope+'&workspace=alpha&workspace=beta&search=stale',{auditContent});try{
     await app.wait(()=>app.find('.cx-audit-drawer'));
     const drawer=app.find('.cx-audit-drawer');
-    assert.deepEqual(Array.from(drawer.querySelectorAll('h3'),(e:any)=>e.textContent),['Result','What this means','How it is calculated','Reporting scope','Data / validation evidence','Supporting records','Technical details']);
+    assert.deepEqual(Array.from(drawer.querySelectorAll('.cx-audit-disclosure > summary'),(e:any)=>e.textContent),['How this is calculated','Reporting scope & filters','Data provenance','Metric definition & technical details']);
+    assert.equal(drawer.querySelectorAll('.cx-audit-disclosure[open]').length,0);
+    assert.ok(drawer.querySelector('#audit-metric-definition'));
+    await app.click('summary','How this is calculated');
+    await app.click('summary','Reporting scope & filters');
     assert.equal(drawer.querySelector('.cx-audit-result strong').textContent,'35.7%');
     assert.deepEqual(Array.from(drawer.querySelectorAll('.cx-audit-calculation dd'),(e:any)=>e.textContent),['570','1,597']);
     assert.match(drawer.textContent,/Synthetic workspace.*synthetic-a.*2026-09-22 → 2026-09-28/);
@@ -680,7 +688,7 @@ test('universal audit renders exact components, all scope, seven sections and re
     const target=new URL(copied[0]);assert.equal(target.pathname,'/__fixture/audit');
     assert.equal(target.searchParams.get('clientId'),'synthetic-a');assert.equal(target.searchParams.get('startDate'),'2026-09-22');assert.equal(target.searchParams.get('endDate'),'2026-09-28');
     assert.deepEqual(target.searchParams.getAll('workspace'),['alpha','beta']);assert.deepEqual(JSON.parse(target.searchParams.get('filters')!),complexAuditFilters);assert.equal(target.searchParams.has('search'),false);
-    await app.click('summary','View metric definition and supplied metadata');
+    await app.click('summary','Metric definition & technical details');
     assert.equal(app.w.__fixture.requests.length,before);
     assert.deepEqual(app.errors,[]);
   }finally{app.close();}
@@ -714,7 +722,7 @@ test('Audit mode is local, safe for viewers, and adds no analytical requests acr
     await app.click('.cx-outcome-card button','Inspect evidence');
     await app.wait(()=>app.find('.cx-audit-drawer'));
     assert.equal(app.find('a','Inspect supporting records'),undefined);
-    await app.click('summary','View metric definition and supplied metadata');
+    await app.click('summary','Metric definition & technical details');
     await app.click('button','Close inspector');
     assert.equal(app.w.__fixture.requests.length,before);
     assert.equal(app.w.__fixture.requests.filter((r:string)=>r.includes('root-cause')).length,0);
@@ -743,4 +751,128 @@ test('Contact audits supplied bucket ratios and exact high-attempt predicate wit
     assert.match(app.find('.cx-audit-drawer').textContent,/combined two-or-more-call record drill is not supplied/);
     assert.equal(app.w.__fixture.requests.length,before);
   }finally{app.close();}
+});
+
+test('reduction: Audit Mode off hides metadata, whole-card evidence opens, and all disclosures are request-free',async()=>{
+  const app=await mount('/overview'+scope);try{
+    await app.wait(()=>app.find('.cx-outcome-strip'));
+    const before=[...app.w.__fixture.requests];
+    assert.equal(app.w.document.querySelectorAll('.cx-audit-metadata').length,0);
+    assert.equal(app.w.document.querySelectorAll('.cx-outcome-card button').length,4);
+    assert.equal(app.find('.cx-outcome-card .cx-outcome-actions'),undefined);
+    const trigger=await app.click('.cx-outcome-card .cx-metric-primary');
+    assert.ok(app.find('.cx-audit-support a','Inspect supporting records'));
+    assert.equal(app.w.document.querySelectorAll('.cx-audit-disclosure[open]').length,0);
+    for(const disclosure of app.w.document.querySelectorAll('.cx-audit-disclosure > summary'))(disclosure as any).click();
+    await app.click('button','Close inspector');assert.equal(app.w.document.activeElement,trigger);
+    await app.click('button','Display preferences');await app.click('[aria-label="Audit mode"] button','On');
+    assert.equal(app.w.document.querySelectorAll('.cx-audit-metadata').length,4);
+    await app.click('button','Display preferences');await app.click('.cx-outcome-card .cx-metric-primary');
+    assert.equal(app.w.document.querySelectorAll('.cx-audit-disclosure[open]').length,4);
+    await app.click('button','Close inspector');await app.click('button','Display preferences');await app.click('[aria-label="Audit mode"] button','Off');
+    assert.equal(app.w.document.querySelectorAll('.cx-audit-metadata').length,0);
+    assert.deepEqual([...app.w.__fixture.requests],before);
+  }finally{app.close();}
+});
+
+test('reduction: scope summary reveals exact existing editor without requests or URL mutation',async()=>{
+  const app=await mount('/overview'+scope+'&vendor=Synthetic+vendor&source=synthetic-source');try{
+    await app.wait(()=>app.find('.cx-outcome-strip')&&app.w.__fixture.requests.some((url:string)=>url.includes('filter-options')));
+    const before=[...app.w.__fixture.requests],url=app.w.__fixture.location;
+    assert.equal(app.find('.cx-scope-editable').hidden,true);
+    assert.match(app.find('.cx-scope-summary').textContent,/Synthetic vendor.*synthetic-source/);
+    await app.click('.cx-scope-toggle');assert.equal(app.find('.cx-scope-editable').hidden,false);
+    await app.click('button','Filters (');await app.input(app.find('input','Start date'),'2026-09-27');
+    assert.deepEqual([...app.w.__fixture.requests],before);assert.equal(app.w.__fixture.location,url);
+    await app.click('button','Apply dates');
+    await app.wait(()=>app.w.__fixture.requests.some((url:string)=>url.includes('/overview?')&&url.includes('startDate=2026-09-27')));
+    const added=app.w.__fixture.requests.slice(before.length);
+    assert.equal(added.filter((url:string)=>url.includes('/overview?')).length,1);
+    assert.equal(added.filter((url:string)=>url.includes('filter-options')).length,1);
+    const query=new URL(app.w.__fixture.location,'https://synthetic.invalid').searchParams;
+    assert.equal(query.get('startDate'),'2026-09-27');assert.ok(query.get('vendor') === 'Synthetic vendor' || (query.get('filters') || '').includes('Synthetic vendor'));
+    const after=[...app.w.__fixture.requests];await app.click('.cx-scope-toggle');assert.equal(app.find('.cx-scope-editable').hidden,true);assert.deepEqual([...app.w.__fixture.requests],after);
+  }finally{app.close();}
+});
+
+for(const [route,labels,first] of [
+  ['/commercial',['Summary','Attribution','Economics','Evidence'],'Summary'],
+  ['/data-integrity',['Overview','Issues','Sources','Diagnostics'],'Overview'],
+] as const)test(`reduction: ${route} presentation sections retain scope and cause zero new requests`,async()=>{
+  const app=await mount(route+scope,{payloads:reductionPayloads});try{
+    await app.wait(()=>app.find('[role="tabpanel"] .cx-unified-metric'));
+    const requests=[...app.w.__fixture.requests],url=app.w.__fixture.location;
+    assert.equal(app.find('[role="tab"][aria-selected="true"]').textContent,first);
+    for(const label of labels){await app.click('[role="tab"]',label);const selected=app.find('[role="tab"][aria-selected="true"]');assert.equal(selected.textContent,label);assert.equal(app.w.document.getElementById(selected.getAttribute('aria-controls')).hidden,false);assert.equal(app.w.document.querySelectorAll('[role="tabpanel"]:not([hidden])').length,1);}
+    const selected=app.find('[role="tab"][aria-selected="true"]');selected.dispatchEvent(new app.w.KeyboardEvent('keydown',{key:'Home',bubbles:true}));await app.wait(()=>app.find('[role="tab"][aria-selected="true"]').textContent===first);
+    assert.equal(app.w.document.activeElement,app.find('[role="tab"][aria-selected="true"]'));
+    assert.deepEqual([...app.w.__fixture.requests],requests);assert.equal(app.w.__fixture.location,url);
+    assert.deepEqual(app.errors,[]);
+  }finally{app.close();}
+});
+
+test('reduction: preview restores every loaded attribution row and export includes hidden rows',async()=>{
+  const app=await mount('/commercial'+scope,{payloads:reductionPayloads});try{
+    await app.wait(()=>app.find('[role="tab"]','Attribution'));await app.click('[role="tab"]','Attribution');
+    assert.equal(app.w.document.querySelectorAll('.cx-command-table tbody tr').length,10);
+    const before=[...app.w.__fixture.requests];
+    await app.click('button','Export analysis');await app.wait(()=>app.blobs.length>0);
+    const csv=await new Promise<string>((resolve,reject)=>{const reader=new app.w.FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=reject;reader.readAsText(app.blobs[0]);});
+    for(const row of reductionPayloads['/api/analytics/offernet/commercial'].attribution.rows)assert.ok(csv.includes(row.key), csv.slice(0,1000));
+    await app.click('button','View all attribution rows');assert.equal(app.w.document.querySelectorAll('.cx-command-table tbody tr').length,14);
+    await app.click('button','Show fewer attribution rows');assert.equal(app.w.document.querySelectorAll('.cx-command-table tbody tr').length,10);
+    assert.deepEqual([...app.w.__fixture.requests],before);
+  }finally{app.close();}
+});
+
+test('reduction: integrity overview separates gap checks and limitations, preserves zero and full evidence',async()=>{
+  const app=await mount('/data-integrity'+scope,{payloads:reductionPayloads});try{
+    await app.wait(()=>app.find('.cx-integrity-summary'));
+    assert.match(app.find('.cx-integrity-attention').textContent,/7 gaps.*Missing source contract/);
+    assert.equal(app.find('[role="tabpanel"]:not([hidden]) .cx-source-evidence-table'),undefined);
+    const before=[...app.w.__fixture.requests];await app.click('[role="tab"]','Issues');
+    assert.equal(app.w.document.querySelectorAll('#measured-discrepancies tbody tr').length,10);
+    await app.click('button','View all measured discrepancies');assert.equal(app.w.document.querySelectorAll('#measured-discrepancies tbody tr').length,13);
+    await app.click('#evidence-limitations button','Inspect evidence for Synthetic check 14');
+    assert.equal(app.find('.cx-audit-result strong').textContent,'—');
+    assert.match(app.find('.cx-audit-limitations').textContent,/overlap/);
+    await app.click('button','Close inspector');await app.click('#measured-discrepancies button','Inspect evidence for Synthetic check 2');assert.equal(app.find('.cx-audit-result strong').textContent,'0');
+    assert.deepEqual([...app.w.__fixture.requests],before);
+  }finally{app.close();}
+});
+
+test('reduction: empty command palette suggests six core areas, typing searches the full allowed catalogue',async()=>{
+  const app=await mount('/overview'+scope,{nonAdmin:true});try{
+    await app.wait(()=>app.find('.cx-outcome-strip'));const before=[...app.w.__fixture.requests];
+    await app.click('button','Search pages');await app.wait(()=>app.find('[role="combobox"]'));
+    assert.equal(app.w.document.querySelectorAll('[role="option"]').length,6);
+    const input=app.find('[role="combobox"]');await app.input(input,'visual');
+    assert.ok(app.find('[role="option"]','Visual workspace'));
+    await app.input(input,'lead ledger');assert.equal(app.w.document.querySelectorAll('[role="option"]').length,0);
+    await app.input(input,'cohort');assert.ok(app.find('[role="option"]','Cohort'));
+    await app.input(input,'visual');input.dispatchEvent(new app.w.KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+    await app.wait(()=>app.w.__fixture.location.startsWith('/visuals'));assert.ok(app.find('main h1'));assert.deepEqual([...app.w.__fixture.requests],before);
+  }finally{app.close();}
+});
+
+test('reduction: ledger compact snapshot exposes supplied technical details with no request',async()=>{
+  const app=await mount('/lead-ledger'+scope);try{
+    await app.wait(()=>app.find('.cx-ledger-snapshot'));const before=[...app.w.__fixture.requests];
+    const snapshot=app.find('.cx-ledger-snapshot');assert.equal(snapshot.querySelector('details').open,false);assert.match(snapshot.querySelector('.cx-ledger-snapshot-summary').textContent,/2026-09-28.*Fetched cohort.*Not verified/);
+    await app.click('.cx-ledger-snapshot summary');assert.equal(snapshot.querySelector('details').open,true);assert.match(snapshot.textContent,/Generated at.*2026-09-30T06:00:00Z.*synthetic source.*Report version/);assert.deepEqual([...app.w.__fixture.requests],before);
+  }finally{app.close();}
+});
+
+test('reduction: Commercial Why changed requires returned comparison, eligible scope and an available value',async()=>{
+  for(const [extra,payload,expected] of [
+    ['',reductionPayloads['/api/analytics/offernet/commercial'],2],
+    ['&vendor=Synthetic+vendor',reductionPayloads['/api/analytics/offernet/commercial'],0],
+    ['',{...reductionPayloads['/api/analytics/offernet/commercial'],mediaComparison:null},0],
+  ] as const){
+    const app=await mount('/commercial'+scope+extra,{payloads:{'/api/analytics/offernet/commercial':payload}});try{
+      await app.wait(()=>app.find('.cx-commercial-metrics .cx-unified-metric'));
+      assert.equal(app.w.document.querySelectorAll('[role="tabpanel"]:not([hidden]) .cx-why-btn').length,expected);
+      assert.equal(app.w.__fixture.requests.some((url:string)=>url.includes('root-cause')),false);
+    }finally{app.close();}
+  }
 });

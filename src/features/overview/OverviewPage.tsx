@@ -111,7 +111,7 @@ export default function OverviewPage() {
               Overview
             </h1>
             <p className="text-xs text-text-sec mt-1 max-w-2xl leading-relaxed">
-              See lead intake, delivery, contact, recorded sales and activation for the selected reporting cohort.
+              Intake, delivery, sales and activation for the selected cohort.
             </p>
           </div>
 
@@ -225,6 +225,22 @@ export default function OverviewPage() {
             </OperationalEmpty>
           )}
 
+          {/* 2. Primary 8/4 Layout: Performance Trend (2/3) + Needs Attention (1/3) */}
+          <div className="cx-overview-primary grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <div className="lg:col-span-8">
+              <PerformanceTrend
+                data={data.dailyTrends}
+                comparisonWindow={data.comparisonWindow}
+              />
+            </div>
+            <div className="lg:col-span-4">
+              <AttentionList
+                items={data.attention}
+                isAdmin={isAdmin}
+              />
+            </div>
+          </div>
+
           {/* Meaningful Matched-Period Changes Banner (when comparison is active) */}
           {hasComparison && meaningfulChanges.length > 0 && (
             <section
@@ -271,23 +287,8 @@ export default function OverviewPage() {
             </section>
           )}
 
-          {/* 2. Primary 8/4 Layout: Performance Trend (2/3) + Needs Attention (1/3) */}
-          <div className="cx-overview-primary grid grid-cols-1 lg:grid-cols-12 gap-5">
-            <div className="lg:col-span-8">
-              <PerformanceTrend
-                data={data.dailyTrends}
-                comparisonWindow={data.comparisonWindow}
-              />
-            </div>
-            <div className="lg:col-span-4">
-              <AttentionList
-                items={data.attention}
-                isAdmin={isAdmin}
-              />
-            </div>
-          </div>
-
           {/* 4. Segment Comparison (Receives verified lifecycle segments, no backlog fallback!) */}
+          <details className="cx-report-disclosure"><summary>Segment breakdowns</summary>
           <SegmentComparison
             segments={data.lifecycle?.segments || null}
             totalPopulation={data.kpis?.fetchedLeads}
@@ -354,11 +355,13 @@ export default function OverviewPage() {
             }}
           />
 
+          </details>
+
           {/* 5. Collapsible Operating Controls (Deferred Query) */}
           <details
             open={controlsExpanded}
             onToggle={(e) => setControlsExpanded(e.currentTarget.open)}
-            className="cx-overview-controls rounded-lg border border-border-subtle bg-surface p-4"
+            className="cx-overview-controls cx-report-disclosure"
           >
             <summary className="flex items-center justify-between cursor-pointer list-none">
               <div className="flex items-center gap-2">
@@ -391,7 +394,7 @@ export default function OverviewPage() {
           <details
             open={commercialExpanded}
             onToggle={(e) => setCommercialExpanded(e.currentTarget.open)}
-            className="rounded-lg border border-border-subtle bg-surface p-4"
+            className="cx-report-disclosure"
           >
             <summary className="flex items-center justify-between cursor-pointer list-none">
               <div className="flex items-center gap-2">

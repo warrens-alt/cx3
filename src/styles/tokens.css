@@ -129,6 +129,9 @@
   --cx-touch-target: 44px;
   --cx-header-height: 56px;
   --cx-page-max-width: 1600px;
+  --cx-section-gap: 24px;
+  --cx-card-gap: 16px;
+  --cx-panel-padding: 16px;
   --cx-page-padding-x: clamp(16px, 2vw, 32px);
 }
 

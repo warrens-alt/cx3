@@ -78,6 +78,10 @@ const LEGACY_PAGE_DESCRIPTIONS: Record<string, string> = {
 
 const CORE_CATALOGUE_PATHS = [
   '/overview',
+  '/visuals',
+  '/validation',
+  '/consumers',
+  '/ai-insights',
   '/funnel',
   '/offershop-flow',
   '/campaigns',

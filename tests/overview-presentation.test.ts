@@ -40,13 +40,13 @@ test('Overview Why changed requires comparison evidence and dispatches the exist
     const investigations: string[] = [];
     const inspected: string[] = [];
     const props = { data: outcomeData, isAdmin: true, onInspect: (content: any) => inspected.push(content.metricId), onWhyChanged: (metric: any) => investigations.push(metric) };
-    const whyButtons = () => [...app.container.querySelectorAll('button')].filter(button => button.textContent === 'Why changed?');
+    const whyButtons = () => [...app.container.querySelectorAll('button')].filter(button => button.textContent?.trim() === 'Why changed?');
     for (const hasComparison of [false, undefined]) {
       await app.render(React.createElement(OutcomeStrip, { ...props, hasComparison }));
       assert.equal(whyButtons().length, 0);
       assert.equal(app.container.querySelectorAll('.cx-outcome-card').length, 4);
     }
-    await app.click(app.container.querySelector('.cx-outcome-actions button')!);
+    await app.click(app.container.querySelector('.cx-outcome-card .cx-metric-primary')!);
     assert.deepEqual(inspected, ['fetched_leads']);
     assert.deepEqual(investigations, []);
     await app.render(React.createElement(OutcomeStrip, { ...props, hasComparison: true }));

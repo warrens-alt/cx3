@@ -1,5 +1,5 @@
 .cx-readiness { min-width: 0; color: var(--cx-text); }
-.cx-data-status-trigger { font-size: 12px; color: var(--cx-text-secondary); background: var(--cx-surface); border-color: var(--cx-border); }
+.cx-data-status-trigger { font-size: 12px; color: var(--cx-text-secondary); background: transparent; border-color: transparent; padding-inline: 4px; }
 .cx-readiness-note { color: var(--cx-text-secondary); font-size: 12px; line-height: 1.6; }
 .cx-readiness-failed { color: var(--cx-status-unfavorable-text); font-size: 12px; margin-top: 4px; }
 .cx-readiness-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; margin: 12px 0; }

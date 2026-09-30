@@ -282,13 +282,12 @@ export default function AppShell({ children }: AppShellProps) {
                 type="button"
                 className="cx-display-preferences"
                 aria-label="Display preferences"
-                title="Display preferences: table spacing and theme"
+                title="Display preferences: spacing, theme and Audit Mode"
                 aria-expanded={preferencesOpen}
                 aria-controls="display-preferences-dialog"
                 onClick={() => setPreferencesOpen(prev => !prev)}
               >
                 <SlidersHorizontal size={17} aria-hidden="true" />
-                <span>Display preferences</span>
               </button>
 
               {preferencesOpen && (
