@@ -9,6 +9,8 @@ import { navigationPage } from '../lib/navigation';
 import { PAGE_TITLES } from '../../contracts/naming';
 import ScopePreservingRedirect from './navigation/ScopePreservingRedirect';
 import AnalyticsReadinessPanel from '../shared/reporting/AnalyticsReadinessPanel';
+import { ReportPresentationProvider } from '../shared/reporting/ReportPresentation';
+import SourceCapabilityNotice from '../components/SourceCapabilityNotice';
 
 function safeImport<T>(loader: () => Promise<T>): Promise<T> {
   return loader().catch((error: any) => {
@@ -113,7 +115,9 @@ export default function AppRouter() {
           </div>
         }
       >
+        <ReportPresentationProvider>
         <AnalyticsReadinessPanel />
+        <SourceCapabilityNotice warningsOnly />
         <Routes>
           {/* PRIMARY OFFERNET OPERATIONAL INTELLIGENCE PLATFORM ROUTES */}
           <Route path="/" element={<OverviewPage key={selectedClient} />} />
@@ -192,6 +196,7 @@ export default function AppRouter() {
             }
           />
         </Routes>
+        </ReportPresentationProvider>
       </Suspense>
     </ErrorBoundary>
   );

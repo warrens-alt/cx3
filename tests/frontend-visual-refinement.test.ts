@@ -91,13 +91,15 @@ test('attention presentation retains exact supplied counts and complete evidence
   assert.match(html, /data-severity="high"/);
 });
 
-test('refinement remains scoped and uses existing chart series plus reduced-motion rules', () => {
-  const css = fs.readFileSync('src/styles/visualRefinement.css', 'utf8');
+test('canonical Overview styles stay scoped and preserve series, focus and reduced motion', () => {
+  const css = fs.readFileSync('src/styles/product.css', 'utf8');
+  const lateCss = fs.readFileSync('src/styles/visualRefinement.css', 'utf8');
   const chart = fs.readFileSync('src/features/overview/components/PerformanceTrend.tsx', 'utf8');
   for (const token of ['--cx-data-fetched', '--cx-data-delivered', '--cx-data-sales']) assert.ok(chart.includes(token));
   assert.match(css, /prefers-reduced-motion/);
   assert.match(css, /focus-visible/);
   assert.match(css, /\.cx-app/);
+  assert.doesNotMatch(lateCss, /\.cx-(?:outcome|change-rail|trend-|attention-)/);
   assert.doesNotMatch(css, /@import|https?:|url\(/);
   assert.match(chart, /connectNulls=\{true\}/);
   assert.match(chart, /isAnimationActive=\{false\}/);

@@ -1,3 +1,4 @@
+import { ReportActions } from '../shared/reporting/ReportPresentation';
 import { useOperationalData } from '../lib/useOperationalData';
 import React, { useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -71,7 +72,7 @@ export default function Exceptions() {
 
   return (
     <div className="cx-command-page cx-trust-workspace" aria-label="Investigate workspace">
-      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), queue.loadData(true), controls.refetch()]); }} />
+
       <div className="cx-command-content">
         <header className="cx-command-hero">
           <div>
@@ -79,15 +80,9 @@ export default function Exceptions() {
             <h1>Exceptions</h1>
             <p>Current populations that require investigation or operational follow-up in the selected scope.</p>
           </div>
-          <Link to={scoped('/reports')} className="cx-trust-pill">
-            <ShieldCheck size={15} />
-            <span>
-              <strong>{queue.data?.validationStatus || data?.validationStatus || 'NOT_VERIFIED'}</strong>
-              <small>Operational rules</small>
-            </span>
-            <ArrowRight size={14} />
-          </Link>
-        </header>
+          <ReportActions aboutContent={<p>Operational rules: {queue.data?.validationStatus || data?.validationStatus || 'NOT_VERIFIED'}</p>} />
+</header>
+      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), queue.loadData(true), controls.refetch()]); }} />
         <nav className="cx-viz-jump-nav" aria-label="Investigation sections"><a href="#exception-workbench">Exception workbench</a><a href="#exception-backlog">Backlog & vendors</a></nav>
 
         {(error || queue.error) && <div role="alert" className="cx-command-error"><AlertTriangle size={17} />{error || queue.error}</div>}

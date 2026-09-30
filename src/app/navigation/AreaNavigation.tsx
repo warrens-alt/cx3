@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
-import { getAreaForPath, getRouteItem, type RouteItem } from '../routeManifest';
+import { getAreaForPath, getRouteItem } from '../routeManifest';
 import { useScopedNavigationTarget } from '../../hooks/useScopedNavigationTarget';
 import { useAuth } from '../../lib/AuthContext';
 
@@ -112,16 +112,16 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
                   : 'border-border bg-surface hover:bg-surface-subtle text-text-sec hover:text-text-main'
               }`}
             >
-              <span>More views</span>
+              <span>More analyses</span>
               <ChevronDown size={13} aria-hidden="true" className={`transition-transform duration-150 ${moreOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {moreOpen && (
               <div
                 id="area-more-menu"
-                className="absolute right-0 mt-1.5 w-64 rounded-xl shadow-lg bg-surface border border-border py-1.5 z-50 text-xs animate-in fade-in zoom-in-95 duration-100"
+                className="cx-area-more-menu absolute right-0 mt-1.5 rounded-lg shadow-sm bg-surface border border-border py-1.5 z-50 text-xs"
                 role="group"
-                aria-label="More views"
+                aria-label="More analyses"
               >
                 {moreViews.map(view => {
                   const active = isCurrent(view.path);
@@ -140,7 +140,7 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
                         <span>{view.name}</span>
                         {active && <span className="w-1.5 h-1.5 rounded-full bg-action" />}
                       </div>
-                      <div className="text-[11px] text-text-mute truncate mt-0.5">{view.description}</div>
+                      <div className="cx-area-more-description">{view.description}</div>
                     </Link>
                   );
                 })}

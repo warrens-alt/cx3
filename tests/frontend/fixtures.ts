@@ -23,7 +23,17 @@ export function installFixture() {
   const second=raw({'Lead ID':rows[1].lead_id,'Fetched':'2026-09-28 10:00:00','Offershop Source':'Synthetic source B'});
   const sourceLeads=[analyseLedgerLead('synthetic-a',[first,{...first}],Date.parse('2026-09-30T00:00:00Z')),analyseLedgerLead('synthetic-b',[second],Date.parse('2026-09-30T00:00:00Z'))];
   const rawRows=Array.from({length:101},(_,i)=>i<2?rows[i]:{...rows[1],lead_id:`SYNTHETIC-LEAD-${String(i+1).padStart(4,'0')}`});
+  const overview = {
+    kpis: {fetchedLeads:120,deliveredLeads:100,dialledLeads:80,contactedLeads:12,saleLeads:30,activatedLeads:0,deliveryRate:null,dialRate:null,contactRate:null,leadToSaleRate:25,activationRate:0,contactToSaleRate:null,qualifiedLeads:null,totalCalls:null,revenue:null},
+    funnelStages: [['fetched','Fetched',120],['delivered','Delivered',100],['dialled','Dialled',80],['rpc','RPC',12],['sales','Recorded sale',30],['activated','Activated',0]].map(([key,name,volume])=>({key,name,volume,rate:null,transitionRate:null,loss:null})),
+    dailyTrends: [{date:'2026-09-28',leads:120,delivered:100,dialled:80,contacted:12,sales:30,activations:0,revenue:null}],
+    attention:[{id:'awaiting-first-dial',title:'Awaiting first dial',detail:'Synthetic returned queue for investigation',value:20,severity:'medium',path:'/speed-to-lead'}],
+    comparison:null,comparisonWindow:null,funnelLeak:null,validationStatus:'NOT_VERIFIED',currency:'ZAR',clientName:'Synthetic workspace',
+    backlog:{awaitingFirstDial:20,over60Minutes:0,buckets:[],byVendor:[]},sla:{firstDialTargetMinutes:15,complianceRate:null,medianDeliveryToDial:'Unavailable',p90DeliveryToDial:'Unavailable'},commercialStatus:'UNAVAILABLE',commercialReason:'Synthetic financial evidence unavailable',
+  };
   f.payloads = {
+    '/api/analytics/offernet/overview':overview,
+    '/api/analytics/offernet/source-observability':{clientId:'synthetic-a',generatedAt:'2026-09-30T06:00:00Z',sources:[{key:'leads',label:'Synthetic source',status:'OBSERVED',latestRecordAt:'2020-01-01T00:00:00Z',rowCount:120,missingTimestampRows:2},{key:'calls',label:'Synthetic calls',status:'NOT_VERIFIED',latestRecordAt:null,rowCount:null,missingTimestampRows:null}]},
     '/api/analytics/offernet/speed-to-lead':speed,
     '/api/analytics/offernet/ai-insights':{insights:[],executiveSummary:'Synthetic briefing',source:'synthetic',model:'fixture',validationStatus:'NOT_VERIFIED'},
     '/api/analytics/google/ask':{answer:'Synthetic answer for selected scope',model:'fixture',citations:[]},

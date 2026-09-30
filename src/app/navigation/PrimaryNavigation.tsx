@@ -3,12 +3,6 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   Activity,
   Search,
-  LayoutDashboard,
-  GitFork,
-  PhoneCall,
-  BadgeCheck,
-  CircleDollarSign,
-  AlertTriangle,
   Settings,
   Shield,
   Database,
@@ -22,7 +16,6 @@ import { getAreaForPath, BUSINESS_AREAS } from '../routeManifest';
 import { useClient } from '../../lib/ClientContext';
 import { useAuth } from '../../lib/AuthContext';
 import ReviewLauncher from '../../components/ReviewLauncher';
-import ThemeToggle from '../../components/ThemeToggle';
 import '../../styles/guidedAnalytics.css';
 
 interface PrimaryNavigationProps {
@@ -109,12 +102,15 @@ export default function PrimaryNavigation({
         <ReviewLauncher afterNavigate={onClose} />
       </div>
 
-      {/* Primary Navigation - Exactly 6 Business Areas */}
+      {/* Operations and investigation keep their existing destinations. */}
       <nav aria-label="Main navigation" className="cx-navigation cx-navigation-simple flex-1">
-        <section>
-          <div className="cx-nav-section-label">Customer journey</div>
+        {[
+          { name: 'Operations', items: businessNavItems.filter(item => item.id !== 'investigate') },
+          { name: 'Investigate', items: businessNavItems.filter(item => item.id === 'investigate') },
+        ].map(group => <section key={group.name} aria-label={group.name}>
+          <div className="cx-nav-section-label">{group.name}</div>
           <ul>
-            {businessNavItems.map(item => {
+            {group.items.map(item => {
               const Icon = item.icon;
               const isCurrentArea = currentArea.id === item.id;
               const isExactPage = location.pathname === item.path || (item.path === '/overview' && location.pathname === '/');
@@ -130,17 +126,17 @@ export default function PrimaryNavigation({
                       title={item.desc}
                     >
                       <Icon size={16} aria-hidden="true" />
-                      <span>{item.name}</span>
+                      <span className="cx-nav-copy"><strong>{item.name}</strong><small>{item.desc}</small></span>
                     </Link>
                   </div>
                 </li>
               );
             })}
           </ul>
-        </section>
+        </section>)}
 
         {/* Administration Section */}
-        <section className="mt-4">
+        <section aria-label="Administration">
           <div className="cx-nav-section-label">Administration</div>
           <ul>
             <li>
@@ -153,7 +149,7 @@ export default function PrimaryNavigation({
                   title="Workspace configuration and preferences"
                 >
                   <Settings size={16} aria-hidden="true" />
-                  <span>Settings</span>
+                  <span className="cx-nav-copy"><strong>Settings</strong><small>Workspace &amp; preferences</small></span>
                 </Link>
               </div>
             </li>
@@ -167,7 +163,7 @@ export default function PrimaryNavigation({
                   title="Google Cloud BigQuery warehouse tables, live API puller & schemas"
                 >
                   <Database size={16} aria-hidden="true" />
-                  <span>Cloud warehouse</span>
+                  <span className="cx-nav-copy"><strong>Cloud warehouse</strong><small>Tables, sources &amp; schemas</small></span>
                 </Link>
               </div>
             </li>
@@ -182,7 +178,7 @@ export default function PrimaryNavigation({
                     title="Manage user access and roles"
                   >
                     <Shield size={16} aria-hidden="true" />
-                    <span>Access control</span>
+                    <span className="cx-nav-copy"><strong>Access control</strong><small>User access &amp; roles</small></span>
                   </Link>
                 </div>
               </li>
@@ -232,7 +228,6 @@ export default function PrimaryNavigation({
             </span>
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            <ThemeToggle variant="compact" />
             <button
               type="button"
               onClick={() => signOut()}

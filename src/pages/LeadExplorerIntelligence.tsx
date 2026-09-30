@@ -1,3 +1,4 @@
+import { ReportActions } from '../shared/reporting/ReportPresentation';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -188,7 +189,7 @@ export default function LeadExplorerIntelligence() {
 
   return (
     <div className="cx-command-page">
-      <OffernetFilterBar onRefresh={() => loadData(true)} onExportCsv={isExportAvailable ? handleExportCsv : undefined} />
+
 
       <div className="cx-command-content">
         <header className="cx-command-hero">
@@ -197,7 +198,9 @@ export default function LeadExplorerIntelligence() {
             <h1>Explore</h1>
             <p>Inspect the lead population behind an operational metric, exception, cohort, vendor or funnel transition.</p>
           </div>
-        </header>
+                  <ReportActions />
+</header>
+      <OffernetFilterBar onRefresh={() => loadData(true)} onExportCsv={isExportAvailable ? handleExportCsv : undefined} />
 
         {investigation && (
           <section className="cx-investigation-banner">

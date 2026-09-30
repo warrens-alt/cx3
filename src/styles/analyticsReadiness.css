@@ -1,9 +1,7 @@
-.cx-readiness { margin: 12px var(--cx-page-padding-x, 16px); border: 1px solid var(--cx-border); border-radius: var(--cx-radius-lg); background: var(--cx-surface); color: var(--cx-text); }
-.cx-readiness-bar { display: flex; gap: 12px; justify-content: space-between; align-items: center; padding: 12px 16px; }
-.cx-readiness-bar > div { display: grid; gap: 3px; min-width: 0; }
-.cx-readiness-bar strong { font-size: 14px; }
-.cx-readiness-bar span, .cx-readiness-note { color: var(--cx-text-secondary); font-size: 12px; line-height: 1.6; }
-.cx-readiness-body { padding: 0 16px 16px; }
+.cx-readiness { min-width: 0; color: var(--cx-text); }
+.cx-data-status-trigger { font-size: 12px; color: var(--cx-text-secondary); background: var(--cx-surface); border-color: var(--cx-border); }
+.cx-readiness-note { color: var(--cx-text-secondary); font-size: 12px; line-height: 1.6; }
+.cx-readiness-failed { color: var(--cx-status-unfavorable-text); font-size: 12px; margin-top: 4px; }
 .cx-readiness-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; margin: 12px 0; }
 .cx-readiness-card { border: 1px solid var(--cx-border-subtle); border-radius: var(--cx-radius-md); padding: 16px; min-width: 0; background: var(--cx-surface-subtle); }
 .cx-readiness-card header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
@@ -16,8 +14,7 @@
 .cx-readiness-badge { border: 1px solid var(--cx-border); border-radius: 5px; padding: 3px 7px; font-size: 11px; font-weight: 600; color: var(--cx-text-secondary); background: var(--cx-surface); }
 .cx-readiness-badge[data-tone="warning"] { color: var(--cx-status-warning-text); background: var(--cx-status-warning-bg); border-color: var(--cx-status-warning-border); }
 .cx-readiness-badge[data-tone="error"] { color: var(--cx-status-unfavorable-text); background: var(--cx-status-unfavorable-bg); border-color: var(--cx-status-unfavorable-border); }
-.cx-readiness-badge[data-tone="observed"] { color: var(--cx-status-favorable-text); background: var(--cx-status-favorable-bg); border-color: var(--cx-status-favorable-border); }
+.cx-readiness-badge[data-tone="observed"] { color: var(--cx-action); background: var(--cx-selected-bg); border-color: var(--cx-border); }
 .cx-readiness-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .cx-readiness button, .cx-readiness a { min-height: 44px; }
 .cx-readiness :is(button, a):focus-visible { outline: 2px solid var(--cx-focus); outline-offset: 3px; }
-@media (max-width: 640px) { .cx-readiness-bar { align-items: stretch; flex-direction: column; } .cx-readiness-bar button { align-self: flex-start; } }

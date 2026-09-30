@@ -1,3 +1,4 @@
+import { ReportActions } from '../shared/reporting/ReportPresentation';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
@@ -120,7 +121,7 @@ export default function LeadLedger() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <ReportActions statusEvidence={<p>Operational analysis uses the normalised analytical records and timeline. Source reconciliation is not implied. Missing evidence remains unavailable.</p>}>
             <button
               type="button"
               onClick={handleExportCsv}
@@ -130,7 +131,7 @@ export default function LeadLedger() {
               <Download size={14} />
               <span>Export Page CSV</span>
             </button>
-          </div>
+          </ReportActions>
         </div>
 
         {/* Security & Access Protection Notice */}

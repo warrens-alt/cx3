@@ -4,12 +4,12 @@ import { Search, X, ArrowRight, Sun, Moon, Monitor } from 'lucide-react';
 import { searchNavigation, SECTION_NAMES } from '../lib/navigation';
 import { useAuth } from '../lib/AuthContext';
 import { isCurrentPage, navigationTarget } from '../lib/presentation';
-import { useTheme, type Theme } from '../lib/ThemeContext';
+import { useTheme } from '../lib/ThemeContext';
 import Modal from './Modal';
 
 export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; onOpenFilters?: () => void }) {
   const { isAdmin } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const { setTheme } = useTheme();
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
   const navigate = useNavigate(), location = useLocation(), list = useRef<HTMLDivElement>(null);
@@ -72,19 +72,24 @@ export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; o
       {totalResults.map((item, optionIndex) => {
         const Icon = item.icon;
         const current = !item.isAction && isCurrentPage(location.pathname, item.path, location.search);
-        return <div role="option" aria-selected={optionIndex === index} id={`${id}-option-${optionIndex}`} data-index={optionIndex}
-          key={item.path} onMouseMove={event => { if (event.movementX || event.movementY) setIndex(optionIndex); }} onMouseDown={event => event.preventDefault()}
+        const group = item.isAction === true ? 'Display preferences' : SECTION_NAMES[item.section];
+        const previous = totalResults[optionIndex - 1];
+        const previousGroup = previous ? (previous.isAction === true ? 'Display preferences' : SECTION_NAMES[previous.section]) : null;
+        return <React.Fragment key={item.path}>
+          {group !== previousGroup && <div className="cx-command-group-label" role="presentation">{group}</div>}
+          <div role="option" aria-selected={optionIndex === index} id={`${id}-option-${optionIndex}`} data-index={optionIndex}
+          onMouseMove={event => { if (event.movementX || event.movementY) setIndex(optionIndex); }} onMouseDown={event => event.preventDefault()}
           onClick={() => handleSelect(item)} className="cx-command-option">
           <Icon size={18} aria-hidden="true" />
           <span>
             <strong>{item.name}</strong>
             <small>{item.description}</small>
             <span className="cx-command-section">
-              {item.isAction ? 'Appearance Command' : `${SECTION_NAMES[(item as any).section]}${(item as any).adminOnly ? ' · Admin' : ''}`}
+              {item.isAction === true ? 'Appearance command' : `${SECTION_NAMES[item.section]}${item.adminOnly ? ' · Admin' : ''}`}
             </span>
           </span>
           {current ? <small className="cx-command-current">Current page</small> : <ArrowRight size={16} aria-hidden="true" />}
-        </div>;
+        </div></React.Fragment>;
       })}
     </div>
     {!totalResults.length && <div className="cx-command-empty-search"><strong>No matching pages or actions</strong><p>Try “first call”, “caller ID”, “spend”, “theme” or “dark”.</p><button type="button" className="cx-button-secondary" onClick={() => { setQuery(''); setIndex(0); list.current?.parentElement?.querySelector('input')?.focus(); }}>Clear search</button></div>}

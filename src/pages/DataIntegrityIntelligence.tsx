@@ -1,3 +1,4 @@
+import { ReportActions } from '../shared/reporting/ReportPresentation';
 import { useOperationalData } from '../lib/useOperationalData';
 import React, { useState } from 'react';
 import { AlertTriangle, Clock3, Database, ShieldCheck, GitFork } from 'lucide-react';
@@ -56,7 +57,7 @@ export default function DataIntegrityIntelligence() {
 
   return (
     <div className="cx-command-page cx-trust-workspace" aria-label="Data integrity workspace">
-      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />
+
       <div className="cx-command-content">
         <header className="cx-command-hero flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -69,7 +70,9 @@ export default function DataIntegrityIntelligence() {
               Offershop Deal Flow <GitFork size={13} />
             </Link>
           </div>
-        </header>
+                  <ReportActions />
+</header>
+      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />
 
         <nav className="cx-viz-jump-nav" aria-label="Data integrity sections"><a href="#source-evidence">Source evidence</a><a href="#integrity-comparison">Compare checks</a><a href="#integrity-checks">Checks & export</a></nav>
 

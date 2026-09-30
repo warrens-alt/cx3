@@ -198,7 +198,7 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
         <span>
           {comparisonWindow
             ? `Plotting ${currentConfig.label}. Preceding matched comparison window (${comparisonWindow.startDate} – ${comparisonWindow.endDate}) provides page-level delta context.`
-            : `Plotting ${currentConfig.label}. Select explicit dates in the scope bar to enable matched-period comparison.`}
+            : `Plotting ${currentConfig.label}. Comparison evidence is unavailable for the selected period.`}
         </span>
       </div>
     </section>

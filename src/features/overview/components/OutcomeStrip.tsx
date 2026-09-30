@@ -234,7 +234,7 @@ export default function OutcomeStrip({
               <ArrowUpRight size={13} />
             </button>
 
-            {onWhyChanged && (
+            {hasComparison && onWhyChanged && (
               <button
                 type="button"
                 onClick={() => onWhyChanged(item.rootMetric)}

@@ -1,3 +1,4 @@
+import { ReportActions } from '../shared/reporting/ReportPresentation';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import type { LifecycleExtension } from '../../contracts/lifecycleAnalytics';
 import { LifecycleSegmentsPanel } from '../components/LifecycleDiagnostics';
@@ -116,7 +117,7 @@ export default function VendorLeadQuality() {
 
   return (
     <div className="cx-command-page cx-trust-workspace" aria-label="Vendor quality workspace">
-      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />
+
       <div className="cx-command-content">
         <header className="cx-command-hero">
           <div>
@@ -124,16 +125,12 @@ export default function VendorLeadQuality() {
             <h1>Vendors, sources and lead quality</h1>
             <p>Compare operational execution and test whether lead-quality signals are associated with better downstream outcomes.</p>
           </div>
-          <div className="flex gap-2 flex-wrap justify-end items-center">
+          <ReportActions>
             <Link to={scoped('/campaigns')} className="cx-button-secondary">Campaigns & spend</Link>
             <Link to={scoped('/commercial')} className="cx-button-secondary">Commercial</Link>
-            <Link to={scoped('/reports')} className="cx-trust-pill">
-              <ShieldCheck size={15} />
-              <span><strong>NOT_VERIFIED</strong><small>Observed operational metrics</small></span>
-              <ArrowRight size={14} />
-            </Link>
-          </div>
-        </header>
+</ReportActions>
+</header>
+      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />
 
         <nav className="cx-viz-jump-nav" aria-label="Vendor quality sections"><a href="#vendor-comparison">Compare vendors</a><a href="#vendor-speed">Speed & contact</a><a href="#source-performance">Source performance</a><a href="#quality-signals">Grade & vetting</a></nav>
         {error && <div className="cx-command-error"><AlertTriangle size={17} />{error}</div>}

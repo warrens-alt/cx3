@@ -1,3 +1,4 @@
+import { ReportActions } from '../../shared/reporting/ReportPresentation';
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -47,10 +48,7 @@ export default function SpeedPage() {
   return (
     <div className="cx-speed-page">
       {/* 1. Scope Bar */}
-      <ReportingScopeBar
-        onRefresh={refreshAll}
-        onExportCsv={data ? handleExportCsv : undefined}
-      />
+
 
       <div className="cx-command-content space-y-6">
       {/* 2. Page Header */}
@@ -67,8 +65,7 @@ export default function SpeedPage() {
             Understand how quickly leads are contacted and how downstream outcomes change as first-dial age increases.
           </p>
         </div>
-
-        <div className="flex flex-wrap items-center gap-2">
+        <ReportActions>
           <Link
             to={scoped('/contact-strategy')}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-subtle bg-surface hover:bg-surface-subtle transition-colors text-xs font-medium text-text-sec hover:text-text-main shadow-xs"
@@ -95,8 +92,12 @@ export default function SpeedPage() {
             <AlertTriangle size={13} />
             <span>SLA exceptions</span>
           </Link>
-        </div>
+        </ReportActions>
       </header>
+      <ReportingScopeBar
+        onRefresh={refreshAll}
+        onExportCsv={data ? handleExportCsv : undefined}
+      />
 
       {/* Error state */}
       {error && (

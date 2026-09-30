@@ -18,6 +18,7 @@ import { dateDraftError, scopeFilterSummary, scopeSelectValue, type DateRangeDra
 import type { FilterCondition } from '../../../contracts/filters';
 import type { ScopePolicy } from '../../app/routeManifest';
 import '../../styles/scopeControls.css';
+import { ExportPresentation } from './ReportPresentation';
 
 export interface ReportingScopeBarProps {
   policy?: ScopePolicy;
@@ -201,9 +202,7 @@ function OperationalScopeBar({
   const data = optionsQuery.error ? undefined : optionsQuery.data?.data;
   const optionsLoading = optionsQuery.isFetching && !data;
 
-  const moreFilterCount = Object.keys(filters).filter(
-    key => !((showVendorFilter && key === 'vendor') || (showSourceFilter && key === 'source'))
-  ).length;
+  const moreFilterCount = Object.keys(filters).length;
 
   const visibleChips = Object.entries(filters).map(([key, condition]) => ({
     key,
@@ -316,13 +315,14 @@ function OperationalScopeBar({
   };
 
   return (
+    <>
     <section className={`cx-scopebar cx-scope-controls ${mobileExpanded ? 'is-mobile-expanded' : ''} ${className}`} aria-label="Reporting scope">
       <div className="cx-scopebar-main">
         <div className="cx-scope-mobile-summary">
           <strong>{selectedClientName}</strong>
           <span>
             <Calendar size={13} aria-hidden="true" />
-            {appliedPeriodLabel}
+            {appliedPeriodLabel} · {visibleChips.length} segments
           </span>
           {datesDirty && <small>Date changes not applied</small>}
         </div>
@@ -357,34 +357,6 @@ function OperationalScopeBar({
               </select>
             </div>
           </label>
-
-          {/* Dynamic 1-Click Quick Period Presets */}
-          <div className="hidden xl:flex items-center gap-1 self-end pb-0.5" role="group" aria-label="Quick period presets">
-            {[
-              { id: 'today', label: 'Today' },
-              { id: 'last7', label: '7D' },
-              { id: 'last30', label: '30D' },
-              { id: 'mtd', label: 'MTD' },
-            ].map(p => {
-              const active = periodValue === p.id;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => changePeriod(p.id)}
-                  aria-pressed={active}
-                  title={`Quick switch to ${p.label}`}
-                  className={`h-[38px] px-2.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
-                    active
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                      : 'bg-surface text-text-sec border-border hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-950/30'
-                  }`}
-                >
-                  {p.label}
-                </button>
-              );
-            })}
-          </div>
 
           {showVendorFilter && (
             <label className={`cx-scope-control ${!showSourceFilter ? 'cx-scope-control-wide' : ''}`}>
@@ -428,36 +400,11 @@ function OperationalScopeBar({
             aria-controls={panelId}
           >
             <SlidersHorizontal size={14} aria-hidden="true" />
-            <span>More filters</span>
-            {moreFilterCount > 0 && <strong aria-label={`${moreFilterCount} additional filters`}>{moreFilterCount}</strong>}
+            <span>Filters ({moreFilterCount})</span>
           </button>
         </div>
 
         <div className="cx-scopebar-actions">
-          {canClearDimensions && (
-            <button
-              type="button"
-              onClick={handleClearDimensions}
-              aria-label="Clear dimension filters"
-              title="Clear all filters while preserving reporting period"
-            >
-              <RotateCcw size={14} aria-hidden="true" />
-              <span className="cx-scope-action-label">Clear filters</span>
-            </button>
-          )}
-
-          {canResetScope && (
-            <button
-              type="button"
-              onClick={handleResetScope}
-              aria-label="Reset reporting scope"
-              title="Reset reporting dates and filters"
-            >
-              <RotateCcw size={14} aria-hidden="true" />
-              <span className="cx-scope-action-label">Reset</span>
-            </button>
-          )}
-
           {onRefresh && (
             <button
               type="button"
@@ -475,22 +422,11 @@ function OperationalScopeBar({
             </button>
           )}
 
-          {onExportCsv && (
-            <button
-              type="button"
-              className="cx-scope-export"
-              onClick={onExportCsv}
-              aria-label="Export current view"
-              title="Export current view"
-            >
-              <Download size={14} className="text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-              <span className="cx-scope-action-label text-emerald-700 dark:text-emerald-300 font-semibold">Export</span>
-            </button>
-          )}
+
         </div>
       </div>
 
-      <div className="cx-scopebar-meta">
+      {(customPeriod || visibleChips.length > 0) && <div className="cx-scopebar-meta">
         {(customPeriod || visibleChips.length > 0) && (
           <div className="cx-scope-chips" aria-label="Active reporting filters">
             {customPeriod && (
@@ -524,12 +460,7 @@ function OperationalScopeBar({
             ))}
           </div>
         )}
-        <div className="cx-scopebar-status" title="Operational analytics are live from BigQuery source tables">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block shrink-0" aria-hidden="true" />
-          <span>Operational data</span>
-          <em>Live telemetry</em>
-        </div>
-      </div>
+      </div>}
 
       {optionsQuery.isFetching && (
         <p className="cx-scope-feedback" role="status">
@@ -659,10 +590,48 @@ function OperationalScopeBar({
               </label>
             )}
             <p>Applied scope follows you between views.</p>
+            <div className="cx-scope-reset-actions">          {canClearDimensions && (
+            <button
+              type="button"
+              onClick={handleClearDimensions}
+              aria-label="Clear segments"
+              title="Clear all filters while preserving reporting period"
+            >
+              <RotateCcw size={14} aria-hidden="true" />
+              <span className="cx-scope-action-label">Clear segments</span>
+            </button>
+          )}
+
+          {canResetScope && (
+            <button
+              type="button"
+              onClick={handleResetScope}
+              aria-label="Reset all"
+              title="Reset reporting dates and filters"
+            >
+              <RotateCcw size={14} aria-hidden="true" />
+              <span className="cx-scope-action-label">Reset all</span>
+            </button>
+          )}
+
+            </div>
           </div>
         </div>
       )}
     </section>
+    {onExportCsv && <ExportPresentation>          {onExportCsv && (
+            <button
+              type="button"
+              className="cx-button-secondary cx-scope-export"
+              onClick={onExportCsv}
+              aria-label="Export current view"
+              title="Export current view"
+            >
+              <Download size={14} aria-hidden="true" />
+              <span className="cx-scope-action-label">Export</span>
+            </button>
+          )}</ExportPresentation>}
+    </>
   );
 }
 

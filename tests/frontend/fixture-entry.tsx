@@ -15,7 +15,7 @@ import RootCauseDrawer from '../../src/components/RootCauseDrawer';
 installFixture();
 const queryClient = new QueryClient({defaultOptions:{queries:{retry:false,refetchOnWindowFocus:false}}});
 registerQueryClientForSessionIsolation(queryClient);
-updateAnalyticalSession({uid:'synthetic-user',role:'admin',status:'active',allowedTenants:['synthetic-a','synthetic-b'],isAdmin:true,isActive:true});
+updateAnalyticalSession({uid:'synthetic-user',role:(window as any).__fixture.nonAdmin?'analyst':'admin',status:'active',allowedTenants:['synthetic-a','synthetic-b'],isAdmin:!(window as any).__fixture.nonAdmin,isActive:true});
 function Harness() {
   const navigate=useNavigate(); const location=useLocation();
   (window as any).__fixture.navigate=navigate;

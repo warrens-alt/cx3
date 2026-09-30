@@ -6,12 +6,13 @@ import { useFilters } from '../lib/FilterContext';
 const leadViews = new Set(['', 'overview', 'funnel', 'speed-to-lead', 'contact-strategy', 'vendor-quality', 'sales-activation', 'temporal', 'cohorts', 'routing', 'data-integrity', 'exceptions', 'lead-explorer']);
 
 /** Schema evidence is labelled separately from the freshness of live results. */
-export default function SourceCapabilityNotice() {
+export default function SourceCapabilityNotice({ warningsOnly = false }: { warningsOnly?: boolean }) {
   const { selectedClient } = useClient();
   const { filters, setFilter } = useFilters();
   const domain = useLocation().pathname.split('/')[1] || '';
   if (!FLAT_LEAD_TENANT_TABLES[selectedClient] || !leadViews.has(domain)) return null;
   const unsupported = ['grade', 'medium'].filter(key => filters[key]);
+  if (warningsOnly && unsupported.length === 0 && domain !== 'routing') return null;
   return <aside className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700" role="note" aria-label="Source data limitations">
     <strong>Grade, medium and routing history are not supplied by this tenant view.</strong>
     <p className="mt-1">Lead counts combine the recorded vendor transactions by lead ID. Validation flags are also unavailable; an absent field is not a failed check or a measured zero.</p>
