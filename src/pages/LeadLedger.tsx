@@ -25,6 +25,7 @@ import { LeadTimelineModal } from '../components/LeadTimelineModal';
 import { downloadCsv, formatTableCurrency, formatTableNumber } from '../lib/formatters';
 import { buildLeadLedgerExport } from '../lib/leadLedgerExport';
 import { ledgerValidation, ledgerOutcome, ledgerCalls } from '../lib/leadLedgerValues';
+import EvidenceExportPreflight, { returnedEvidenceFields } from '../features/leadLedger/EvidenceExportPreflight';
 
 export default function LeadLedger() {
   const { selectedClient } = useClient();
@@ -47,6 +48,7 @@ export default function LeadLedger() {
   }, [scopeKey]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [exportReview, setExportReview] = useState<{ scopeKey: string; result: RawLeadsData } | null>(null);
 
   const queryParams = useMemo(() => ({
     clientId: selectedClient,
@@ -67,6 +69,7 @@ export default function LeadLedger() {
   const totalCount = data?.totalCount ?? null;
   const totalPages = totalCount == null ? null : Math.max(1, Math.ceil(totalCount / pageSize));
   const currentRows = data?.rows || [];
+  useEffect(() => { setExportReview(null); }, [scopeKey, page, data, loading, error]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,7 +127,7 @@ export default function LeadLedger() {
           <ReportActions statusEvidence={<p>Operational analysis uses the normalised analytical records and timeline. Source reconciliation is not implied. Missing evidence remains unavailable.</p>}>
             <button
               type="button"
-              onClick={handleExportCsv}
+              onClick={() => { if (data) setExportReview({ scopeKey, result: data }); }}
               disabled={loading || Boolean(error) || !currentRows.length}
               className="cx-button-export disabled:opacity-50"
             >
@@ -133,6 +136,11 @@ export default function LeadLedger() {
             </button>
           </ReportActions>
         </div>
+
+        <EvidenceExportPreflight open={Boolean(exportReview && exportReview.scopeKey === scopeKey && exportReview.result === data && !loading && !error && currentRows.length)} onClose={() => setExportReview(null)} onConfirm={handleExportCsv} fields={data ? returnedEvidenceFields(data) : []}>
+          <strong>Current returned page · operational Ledger CSV</strong>
+          <p>Exports {currentRows.length} returned rows. The 17 Ledger columns and appended reporting-scope and page audit fields are unchanged. This action does not fetch the remaining matching records.</p>
+        </EvidenceExportPreflight>
 
         {/* Security & Access Protection Notice */}
         <div className="rounded-lg border border-blue-200 bg-blue-50/70 p-3 text-xs text-text-main flex items-start gap-2.5">

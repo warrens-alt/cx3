@@ -1,6 +1,6 @@
 import { ReportActions } from '../shared/reporting/ReportPresentation';
 import { useOperationalData } from '../lib/useOperationalData';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, Database, ShieldCheck } from 'lucide-react';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
@@ -16,6 +16,9 @@ import { formatPercent, formatTableNumber } from '../lib/formatters';
 import type { ExceptionAnalyticsData } from '../../contracts/exceptionAnalytics';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import UnifiedMetricCard from '../components/UnifiedMetricCard';
+import InspectorHost, { type InspectorContent } from '../shared/evidence/InspectorHost';
+import { AuditMetadata } from '../shared/evidence/AuditMode';
+import { exceptionAudit, suppliedProvenance } from '../features/evidenceWorkspace/secondaryAudit';
 import ExceptionWorkbench from '../features/trust/components/ExceptionWorkbench';
 import '../styles/journeyContactVisuals.css';
 import '../styles/trustQualityVisuals.css';
@@ -28,6 +31,9 @@ export default function Exceptions() {
   const { selectedClient } = useClient();
   const { isAdmin } = useAuth();
   const { startDate, endDate, filters } = useFilters();
+  const [audit, setAudit] = useState<InspectorContent | null>(null);
+  const auditScope = { clientId: selectedClient, startDate: startDate || undefined, endDate: endDate || undefined, filters };
+  useEffect(() => setAudit(null), [selectedClient, startDate, endDate, filters]);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -96,10 +102,9 @@ export default function Exceptions() {
                 value={queue.loading && !queue.data ? '…' : queue.error || !queue.data ? 'Unavailable' : ordered.length}
                 note="Configured checks with affected records"
                 onInspect={() => {
-                  const el = document.getElementById('exception-workbench');
-                  el?.scrollIntoView({ behavior: 'smooth' });
+                  setAudit({ type: 'metric', title: 'Active exception types', value: queue.error || !queue.data ? null : ordered.length, scope: auditScope, definition: { meaning: 'Number of returned configured exception checks with an affected population, not a count of distinct affected leads.', grain: 'Configured check', dateBasis: 'Lead capture cohort', nullMeaning: 'An unavailable queue does not establish zero active checks.' }, provenance: suppliedProvenance(queue.data), detailLimitation: 'Checks can overlap. Select an individual exception to inspect its affected records.' });
                 }}
-                inspectLabel="Inspect queue"
+                inspectLabel="Inspect evidence"
               />
 
               <UnifiedMetricCard
@@ -107,19 +112,20 @@ export default function Exceptions() {
                 value={loading && !data ? '…' : fmt(data?.backlog?.awaitingFirstDial)}
                 note={loading && !data ? 'Loading backlog…' : data?.backlog ? `${fmt(data.backlog.over60Minutes)} waiting > 60m` : 'Backlog data unavailable'}
                 isPositiveGood={false}
-                to={scoped('/speed-to-lead')}
-                inspectLabel="Inspect speed"
+                onInspect={() => setAudit({ type: 'metric', title: 'Awaiting first dial', value: data?.backlog?.awaitingFirstDial ?? null, scope: auditScope, definition: { meaning: 'Delivered leads without a recorded first dial.', grain: 'Distinct lead', dateBasis: 'Lead capture cohort', nullMeaning: 'Missing backlog evidence remains unavailable.' }, provenance: suppliedProvenance(data), recordDrill: { drill: 'awaiting-first-dial' }, reportPath: '/speed-to-lead' })}
+                inspectLabel="Inspect evidence"
               />
 
               <UnifiedMetricCard
                 label="15-Minute Response SLA"
                 value={loading && !data ? '…' : formatPercent(data?.sla?.complianceRate)}
                 note="Delivered leads dialled within target"
-                to={scoped('/speed-to-lead')}
-                inspectLabel="Inspect speed"
+                onInspect={() => setAudit({ type: 'metric', title: '15-minute response SLA', value: formatPercent(data?.sla?.complianceRate), scope: auditScope, definition: { meaning: 'Delivered leads dialled within the configured response target, as reported by the existing SLA measure.', dateBasis: 'Lead capture cohort', nullMeaning: 'Unavailable SLA evidence is not zero compliance.' }, provenance: suppliedProvenance(data), reportPath: '/speed-to-lead', detailLimitation: 'This aggregate does not supply a matching compliance record drill or ratio component counts.' })}
+                inspectLabel="Inspect evidence"
               />
             </section>
 
+            <AuditMetadata grain="Distinct lead per exception" dateBasis="Lead capture cohort" validationStatus={queue.data?.validationStatus} />
             {queue.loading && !queue.data ? (
               <div className="cx-command-panel p-6 text-center text-slate-500 text-xs flex items-center justify-center gap-2">
                 <div className="cx-command-spinner" />
@@ -127,6 +133,7 @@ export default function Exceptions() {
               </div>
             ) : ordered.length > 0 ? (
               !queue.error && <ExceptionWorkbench key={JSON.stringify([selectedClient, startDate, endDate, filters])}
+                onInspect={item => setAudit(exceptionAudit(item, auditScope, queue.data))}
                 items={ordered} isAdmin={isAdmin} populationNote={queue.data?.populationNote}
                 evidenceHref={id => isAdmin ? recordLink(id) : scoped('/data-integrity')} />
             ) : queue.data && !queue.error ? (
@@ -168,7 +175,7 @@ export default function Exceptions() {
               ) : ordered.length ? (
                 <div className="cx-live-exception-list">
                   {ordered.map(item => (
-                    <Link key={item.id} to={isAdmin ? recordLink(item.id) : scoped('/data-integrity')} className="cx-live-exception" data-severity={item.severity}>
+                    <button type="button" key={item.id} onClick={() => setAudit(exceptionAudit(item, auditScope, queue.data))} className="cx-live-exception w-full text-left" data-severity={item.severity}>
                       <div className="cx-live-exception-icon">
                         {item.id === 'awaiting-first-dial' ? <Clock3 size={17} /> : item.id === 'missing-disposition' ? <Database size={17} /> : <AlertTriangle size={17} />}
                       </div>
@@ -182,7 +189,7 @@ export default function Exceptions() {
                       </div>
                       <strong>{fmt(item.count)}</strong>
                       <ArrowRight size={16} />
-                    </Link>
+                    </button>
                   ))}
                 </div>
               ) : (
@@ -244,6 +251,7 @@ export default function Exceptions() {
           </>
         )}
       </div>
+      <InspectorHost open={Boolean(audit)} onClose={() => setAudit(null)} content={audit} />
     </div>
   );
 }

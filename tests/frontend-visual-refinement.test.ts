@@ -26,20 +26,16 @@ test('refined outcome cards preserve numbers, complete labels and the four serie
   for (const series of ['fetched', 'delivered', 'sales', 'activation']) assert.ok(html.includes(`data-series="${series}"`));
   assert.equal((html.match(/cx-outcome-icon/g) || []).length, 4);
   assert.match(html, /aria-hidden="true"/);
-  assert.match(html, /class="cx-outcome-value[^>]+>0<\/a>/);
+  assert.match(html, /class="cx-outcome-value[^>]+>0<\/button>/);
   assert.ok(!html.includes('NaN'));
 });
 
-test('outcome presentation retains administrator versus viewer navigation and selected dates', () => {
-  const admin = render(React.createElement(OutcomeStrip, { data, isAdmin: true, onInspect: () => {} }));
-  const viewer = render(React.createElement(OutcomeStrip, { data, isAdmin: false, onInspect: () => {} }));
-  assert.match(admin, /href="\/lead-explorer\?/);
-  assert.doesNotMatch(viewer, /href="\/lead-explorer\?/);
-  assert.match(viewer, /href="\/sales-activation\?/);
-  for (const html of [admin, viewer]) {
-    assert.match(html, /clientId=default_tenant/);
-    assert.match(html, /startDate=2026-09-22/);
-    assert.match(html, /endDate=2026-09-28/);
+test('outcome presentation offers audit-first buttons to administrators and viewers', () => {
+  for (const isAdmin of [true, false]) {
+    const html = render(React.createElement(OutcomeStrip, { data, isAdmin, onInspect: () => {} }));
+    assert.doesNotMatch(html, /href="\/lead-explorer\?/);
+    assert.equal((html.match(/aria-label="Inspect evidence:/g) || []).length, 4);
+    assert.equal((html.match(/>Inspect evidence</g) || []).length, 4);
   }
 });
 

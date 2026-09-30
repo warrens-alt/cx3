@@ -3,7 +3,7 @@ import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import type { LifecycleExtension } from '../../contracts/lifecycleAnalytics';
 import { LifecycleSegmentsPanel } from '../components/LifecycleDiagnostics';
 import { useOperationalData } from '../lib/useOperationalData';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, ArrowRight, BarChart3, ShieldCheck } from 'lucide-react';
 import {
   CartesianGrid,
@@ -25,7 +25,9 @@ import { useOperatingControls } from '../hooks/useOperatingControls';
 import { VendorControlsPanel } from '../components/OfferNetControlPanels';
 import { StackedCompositionChart, VolumeRateComboChart } from '../components/charts/OperationalVisuals';
 import UnifiedMetricCard from '../components/UnifiedMetricCard';
-import RootCauseDrawer from '../components/RootCauseDrawer';
+import InspectorHost, { type InspectorContent } from '../shared/evidence/InspectorHost';
+import { AuditMetadata } from '../shared/evidence/AuditMode';
+import { suppliedProvenance, vendorAudit } from '../features/evidenceWorkspace/secondaryAudit';
 import VendorComparison from '../features/vendors/components/VendorComparison';
 import '../styles/journeyContactVisuals.css';
 import '../styles/trustQualityVisuals.css';
@@ -39,8 +41,9 @@ export default function VendorLeadQuality() {
   const controls = useOperatingControls();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters, setFilter } = useFilters();
-  const [rootMetric, setRootMetric] = useState<string | null>(null);
-  const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
+  const [audit, setAudit] = useState<InspectorContent | null>(null);
+  const auditScope = { clientId: selectedClient, startDate: startDate || undefined, endDate: endDate || undefined, filters };
+  useEffect(() => setAudit(null), [selectedClient, startDate, endDate, filters]);
 
   const { data, loading, error, loadData } = useOperationalData<VendorQualityData & LifecycleExtension & { vendorGrades?: Array<{vendor:string;grade:string;leads:number}>; qualityEvidence?:string }>('VendorLeadQuality', {
     clientId: selectedClient,
@@ -144,12 +147,8 @@ export default function VendorLeadQuality() {
                   label="Captured Demand"
                   value={formatTableNumber(vendorSummary.totalLeads)}
                   note={`${vendorSummary.vendorCount} active vendors`}
-                  onWhyChanged={() => {
-                    setRootMetric('fetchedLeads');
-                    setRootMetricLabel('Vendor Lead Volume');
-                  }}
-                  to={scoped('/funnel')}
-                  inspectLabel="Inspect funnel"
+                  onInspect={() => setAudit({ type: 'metric', title: 'Captured demand across vendor groups', value: vendorSummary.totalLeads, scope: auditScope, definition: { meaning: 'Sum of the returned vendor lead counts. Vendor populations can overlap, so this is not the distinct workspace fetched-lead count.', grain: 'Lead within vendor group', dateBasis: 'Lead intake cohort', nullMeaning: 'Missing vendor results do not establish zero demand.' }, provenance: suppliedProvenance(data), detailLimitation: 'No distinct portfolio record population is supplied for this sum.' })}
+                  inspectLabel="Inspect evidence"
                 />
 
                 <div className="cx-control-note sm:col-span-2">
@@ -158,8 +157,10 @@ export default function VendorLeadQuality() {
               </section>
             )}
 
+            <AuditMetadata grain="Lead within vendor group" dateBasis="Lead intake cohort" validationStatus={suppliedProvenance(data).validationStatus} />
             <VendorComparison key={JSON.stringify([selectedClient, startDate, endDate, filters])} vendors={data.vendors}
-              onSelectVendor={vendor => setFilter('vendor', { operator: 'in', values: [vendor] })} />
+              onSelectVendor={vendor => setFilter('vendor', { operator: 'in', values: [vendor] })}
+              onInspectVendor={(vendor, measure) => setAudit(vendorAudit(vendor, measure, auditScope, data))} />
             <div className="cx-analytics-visual-grid">
               {vendorGradeVisual.data.length > 0 && <StackedCompositionChart
                 title="Vendor grade composition"
@@ -248,7 +249,7 @@ export default function VendorLeadQuality() {
                       <th>RPC / dialled</th>
                       <th>Sale / fetched</th>
                       <th>Activation / sale</th>
-                      <th>Invalid</th>
+                      <th>Invalid</th><th>Evidence</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -261,7 +262,7 @@ export default function VendorLeadQuality() {
                         <td>{formatPercent(source.contactRate)}</td>
                         <td>{formatPercent(source.leadToSaleRate)}</td>
                         <td>{formatPercent(source.activationRate)}</td>
-                        <td>{formatPercent(source.invalidRate)}</td>
+                        <td>{formatPercent(source.invalidRate)}</td><td><button type="button" className="cx-button-secondary" onClick={() => setAudit({ type: 'segment', metricId: 'fetched_leads', title: `${source.source} · fetched leads`, value: source.leads, scope: auditScope, provenance: suppliedProvenance(data), recordDrill: { drill: 'lifecycle-source', drillValue: source.source }, reportPath: '/vendor-quality', relatedValue: { label: 'Recorded sales', value: source.sales } })}>Inspect evidence</button></td>
                       </tr>
                     ))}
                   </tbody>
@@ -285,15 +286,7 @@ export default function VendorLeadQuality() {
         )}
       </div>
 
-      <RootCauseDrawer
-        open={Boolean(rootMetric)}
-        metric={rootMetric}
-        metricLabel={rootMetricLabel}
-        onClose={() => {
-          setRootMetric(null);
-          setRootMetricLabel(undefined);
-        }}
-      />
+      <InspectorHost open={Boolean(audit)} onClose={() => setAudit(null)} content={audit} />
     </div>
   );
 }

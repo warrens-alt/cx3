@@ -1,5 +1,5 @@
 import { ReportActions } from '../../shared/reporting/ReportPresentation';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Timer,
@@ -23,7 +23,9 @@ import {
   SlaBandsPanel,
   OperatingWindowPanel,
 } from '../../components/OfferNetControlPanels';
-import { useSpeedModel } from './model/useSpeedModel';
+import { useSpeedModel, type SpeedData } from './model/useSpeedModel';
+import AuditEvidenceButton from '../../shared/evidence/AuditEvidenceButton';
+import InspectorHost, { type InspectorContent } from '../../shared/evidence/InspectorHost';
 
 export default function SpeedPage() {
   const {
@@ -36,14 +38,30 @@ export default function SpeedPage() {
     controlsExpanded,
     setControlsExpanded,
     handleExportCsv,
+    scope,
+    filters,
   } = useSpeedModel();
-
+  const auditScope = { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters };
+  const auditScopeKey = JSON.stringify(auditScope);
+  const [selectedTiming, setSelectedTiming] = useState<{ scopeKey: string; stage: SpeedData['timingStages'][number] } | null>(null);
 
   const cohortMax = useMemo(
     () => Math.max(1, ...(data?.cohorts || []).map((row) => row.leads)),
     [data?.cohorts]
   );
   const primaryStage = data?.timingStages?.find((stage) => stage.stage === 'Delivery → First Dial');
+  const auditContent = (title: string, value: InspectorContent['value'], meaning: string): InspectorContent => ({
+    type: 'custom', title, value, scope: auditScope,
+    definition: { meaning, calculation: 'The returned result is displayed without recalculation. No independent eligible sample size is supplied.', nullMeaning: 'Unavailable means a measurement was not supplied; measured zero remains zero.', limitations: data?.methodology ? [data.methodology] : undefined },
+    detailLimitation: 'No affected-record filter is supplied for this measurement. Use the existing detailed reports for further investigation.',
+  });
+  const timingContent = (stage: SpeedData['timingStages'][number] | undefined, measure: 'median' | 'p75' | 'p90', title: string): InspectorContent => ({
+    ...auditContent(title, stage?.[measure] ?? null, stage?.description || 'No timing-stage definition was returned.'),
+    subtitle: stage?.stage,
+    definition: { meaning: stage?.description || 'No timing-stage definition was returned.', dateBasis: 'Lead capture / fetched cohort', calculation: `The returned ${measure === 'median' ? 'median' : measure.toUpperCase()} duration is shown as formatted by the response${stage ? ` for ${stage.stage}` : ''}. The eligible sample size is not supplied.`, nullMeaning: 'Missing event timestamps cannot supply a duration; unavailable is not zero.', limitations: ['Lifecycle durations have different start and end events. They must not be treated as interchangeable latency measures.', ...(data?.methodology ? [data.methodology] : [])] },
+    details: stage && <dl><div><dt>Average</dt><dd>{stage.avg || 'Unavailable'}</dd></div><div><dt>Median</dt><dd>{stage.median || 'Unavailable'}</dd></div><div><dt>Median seconds (supplied)</dt><dd>{stage.medianSec ?? 'Unavailable'}</dd></div><div><dt>P75</dt><dd>{stage.p75 || 'Unavailable'}</dd></div><div><dt>P90</dt><dd>{stage.p90 || 'Unavailable'}</dd></div><div><dt>P95</dt><dd>{stage.p95 || 'Unavailable'}</dd></div></dl>,
+  });
+  const chartStage = selectedTiming?.scopeKey === auditScopeKey && data?.timingStages.includes(selectedTiming.stage) ? selectedTiming.stage : null;
 
   return (
     <div className="cx-speed-page">
@@ -117,11 +135,12 @@ export default function SpeedPage() {
       )}
 
       {data && (
-        <>
+        <React.Fragment key={auditScopeKey}>
           {/* KPI Strip */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
             <UnifiedMetricCard
               label="Median First Dial"
+              auditContent={timingContent(primaryStage, 'median', 'Median First Dial')}
               value={primaryStage?.median || '—'}
               note={primaryStage?.stage || 'Delivery → First Dial'}
               to={scoped('/contact-strategy')}
@@ -130,6 +149,7 @@ export default function SpeedPage() {
 
             <UnifiedMetricCard
               label="P75 First Dial"
+              auditContent={timingContent(primaryStage, 'p75', 'P75 First Dial')}
               value={primaryStage?.p75 || '—'}
               note="75% within this latency"
               to={scoped('/contact-strategy')}
@@ -138,6 +158,7 @@ export default function SpeedPage() {
 
             <UnifiedMetricCard
               label="P90 First Dial"
+              auditContent={timingContent(primaryStage, 'p90', 'P90 First Dial')}
               value={primaryStage?.p90 || '—'}
               note="Tail latency threshold"
               to={scoped('/contact-strategy')}
@@ -146,6 +167,7 @@ export default function SpeedPage() {
 
             <UnifiedMetricCard
               label="Awaiting First Dial"
+              auditContent={{ ...auditContent('Awaiting First Dial', data.backlog?.awaitingFirstDial, 'Delivered leads in the selected cohort without a recorded first dial.'), recordDrill: { drill: 'awaiting-first-dial' }, detailLimitation: 'The existing awaiting-first-dial drill opens this backlog for authorized administrators.' }}
               value={data.backlog?.awaitingFirstDial !== undefined
                 ? formatTableNumber(data.backlog.awaitingFirstDial)
                 : '—'}
@@ -156,6 +178,7 @@ export default function SpeedPage() {
 
             <UnifiedMetricCard
               label="Current 15m Breaches"
+              auditContent={{ ...auditContent('Current 15m Breaches', data.backlog?.currentSlaBreaches, 'Delivered, undialled leads waiting more than 15 minutes in the selected cohort.'), reportPath: '/exceptions' }}
               value={data.backlog?.currentSlaBreaches !== undefined
                 ? formatTableNumber(data.backlog.currentSlaBreaches)
                 : '—'}
@@ -167,6 +190,7 @@ export default function SpeedPage() {
 
             <UnifiedMetricCard
               label="Oldest Undialled"
+              auditContent={{ ...auditContent('Oldest Undialled', data.backlog?.oldestUndialled, 'The returned age since delivery for the oldest undialled lead. This is a duration, not the size of the backlog.'), reportPath: '/exceptions' }}
               value={data.backlog?.oldestUndialled || '—'}
               note="Age since delivery"
               isPositiveGood={false}
@@ -201,6 +225,7 @@ export default function SpeedPage() {
           <section className="cx-speed-latency-visual bg-surface rounded-xl border border-border-subtle">
             <EvidenceBars title="Median latency by stage" description="Existing numeric timing evidence; exact reported durations remain in the table."
               items={data.timingStages.map((stage, index) => ({ key: `${stage.stage}-${index}`, label: stage.stage, value: stage.medianSec, displayValue: stage.median, detail: `P90 ${stage.p90 ?? 'Unavailable'}` }))}
+              onSelect={key => { const stage = data.timingStages.find((item, index) => `${item.stage}-${index}` === key); if (stage) setSelectedTiming({ scopeKey: auditScopeKey, stage }); }}
               scaleNote="Longer bars mean a longer measured median duration. Missing numeric duration is unavailable; formatted durations are not parsed into new precision." />
           </section>
 
@@ -229,6 +254,7 @@ export default function SpeedPage() {
                     <th className="px-4 py-2.5 text-right">P75</th>
                     <th className="px-4 py-2.5 text-right">P90</th>
                     <th className="px-4 py-2.5 text-right">P95</th>
+                    <th className="px-4 py-2.5">Audit</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle text-text-main">
@@ -246,6 +272,7 @@ export default function SpeedPage() {
                       <td className="px-4 py-3 text-right cx-tabular text-text-sec">{stage.p75}</td>
                       <td className="px-4 py-3 text-right cx-tabular text-text-sec">{stage.p90}</td>
                       <td className="px-4 py-3 text-right cx-tabular text-text-mute">{stage.p95 || '—'}</td>
+                      <td className="px-4 py-3"><AuditEvidenceButton content={timingContent(stage, 'median', stage.stage)} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -307,6 +334,7 @@ export default function SpeedPage() {
                       </span>
                     </div>
                   </div>
+                  <AuditEvidenceButton content={{ ...auditContent(row.cohort, row.leads, data.methodology || 'Returned lead population and outcomes for this first-dial timing group.'), unit: 'leads', definition: { meaning: data.methodology || 'Returned outcome associations for this first-dial timing group.', grain: 'Leads in the returned timing group.', calculation: 'Counts and rates below are supplied by the response. The dialled population used for RPC rate is not separately supplied in this cohort object.', nullMeaning: 'An unavailable rate is not zero. A zero population is retained as returned.', limitations: ['Timing groups describe association with outcomes; they do not establish causation.'] }, details: <dl><div><dt>RPC count / returned RPC rate</dt><dd>{formatTableNumber(row.contacted)} / {formatPercent(row.contactRate)}</dd></div><div><dt>Sale count / returned sale rate</dt><dd>{formatTableNumber(row.sales)} / {formatPercent(row.saleRate, 2)}</dd></div><div><dt>Activation count / returned activation rate</dt><dd>{formatTableNumber(row.activations)} / {formatPercent(row.activationRate)}</dd></div></dl> }} />
                 </div>
               ))}
             </div>
@@ -391,9 +419,10 @@ export default function SpeedPage() {
               <ArrowRight size={14} className="text-text-mute group-hover:text-brand-primary transition-colors" />
             </Link>
           </section>
-        </>
+        </React.Fragment>
       )}
       </div>
+      <InspectorHost open={Boolean(chartStage)} onClose={() => setSelectedTiming(null)} content={chartStage ? timingContent(chartStage, 'median', chartStage.stage) : null} />
     </div>
   );
 }

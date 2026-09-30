@@ -1,3 +1,4 @@
+import { STAGE_METRIC_IDS } from '../../shared/evidence/auditPresentation';
 import React, { useMemo } from 'react';
 import { ArrowRight, RefreshCw, Settings2, ChevronDown, Clock3, TrendingUp, TrendingDown, Search } from 'lucide-react';
 import { useOverviewModel, type RootMetric } from './model/useOverviewModel';
@@ -150,8 +151,10 @@ export default function OverviewPage() {
             data={data}
             onInspect={content => setInspectorContent({
               ...content,
+              provenance: { validationStatus: data.validationStatus, generatedAt: data.generatedAt, metricVersion: data.definitionVersion, timezone: data.timezone },
               scope: {
                 clientId: scope.clientId,
+                clientLabel: data?.clientName,
                 startDate: scope.startDate,
                 endDate: scope.endDate,
                 filters,
@@ -170,6 +173,7 @@ export default function OverviewPage() {
             onInspectStage={(stage) => {
               setInspectorContent({
                 type: 'stage',
+                metricId: STAGE_METRIC_IDS[stage.key],
                 title: `${stage.name} Stage`,
                 subtitle: 'Observed lifecycle population across the selected reporting period.',
                 value: `${formatTableNumber(stage.volume)} leads`,
@@ -183,6 +187,7 @@ export default function OverviewPage() {
                 },
                 scope: {
                   clientId: scope.clientId,
+                clientLabel: data?.clientName,
                   startDate: scope.startDate,
                   endDate: scope.endDate,
                   filters,
@@ -194,7 +199,7 @@ export default function OverviewPage() {
                 type: 'stage',
                 title: `${from} → ${to} Transition Dropoff`,
                 subtitle: `Leads observed in ${from} that did not progress to ${to}.`,
-                value: `−${formatTableNumber(loss)} leads`,
+                value: loss === 0 ? '0 leads' : `−${formatTableNumber(loss)} leads`,
                 unit: 'dropoff records',
                 reportPath: '/funnel',
                 reportLabel: 'Open deep funnel analysis',
@@ -205,6 +210,7 @@ export default function OverviewPage() {
                 },
                 scope: {
                   clientId: scope.clientId,
+                clientLabel: data?.clientName,
                   startDate: scope.startDate,
                   endDate: scope.endDate,
                   filters,
@@ -290,13 +296,10 @@ export default function OverviewPage() {
               setInspectorContent({
                 type: 'segment',
                 title: `${segment.dimension.charAt(0).toUpperCase() + segment.dimension.slice(1)}: ${segment.name}`,
-                subtitle: `Observed outcome rates and stage conversion in current reporting scope.`,
+                subtitle: `Fetched leads in the selected ${segment.dimension} segment.`,
+                metricId: 'fetched_leads',
                 value: `${formatTableNumber(segment.volume)} leads`,
                 unit: 'records',
-                numeratorCount: segment.sales,
-                numeratorLabel: 'Recorded sales (sales count)',
-                denominatorCount: segment.volume,
-                denominatorLabel: 'Fetched leads (denominator)',
                 reportPath: segment.dimension === 'grade' ? '/funnel' : '/vendor-quality',
                 reportLabel: `Open complete ${segment.dimension} breakdown`,
                 recordDrill: {
@@ -306,6 +309,7 @@ export default function OverviewPage() {
                 },
                 scope: {
                   clientId: scope.clientId,
+                clientLabel: data?.clientName,
                   startDate: scope.startDate,
                   endDate: scope.endDate,
                   filters,

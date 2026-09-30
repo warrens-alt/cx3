@@ -3,7 +3,7 @@ import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import SpendReconciliationPanel from '../components/SpendReconciliationPanel';
 import { useOperationalData } from '../lib/useOperationalData';
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, ArrowDownRight, ArrowRight, ArrowUpRight, Search, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, ArrowRight, ShieldCheck } from 'lucide-react';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import MarketingRootCauseDrawer from '../components/MarketingRootCauseDrawer';
 import { RankedMetricChart, VolumeRateComboChart } from '../components/charts/OperationalVisuals';
@@ -19,68 +19,24 @@ import {
 } from '../lib/offernetClient';
 
 import { formatPercent } from '../lib/formatters';
+import MediaMetricCard from '../features/evidenceWorkspace/MediaMetricCard';
 import EvidenceBars from '../shared/visuals/EvidenceBars';
+import InspectorHost, { type InspectorContent } from '../shared/evidence/InspectorHost';
+import { AuditMetadata } from '../shared/evidence/AuditMode';
+import { campaignAudit, suppliedProvenance } from '../features/evidenceWorkspace/secondaryAudit';
 
 const money = (value: number | null) => value == null ? '—' : `R ${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 const num = (value: number | null) => value == null ? '—' : value.toLocaleString();
 type MediaMetric = NonNullable<MarketingRootCauseData['metric']>['id'];
 type CampaignMeasure = 'leads' | 'spend' | 'ctr' | 'cpl';
 
-function Delta({ value, unit = '%' }: { value: number | null | undefined; unit?: string }) {
-  if (value == null || !Number.isFinite(value)) return <span className="cx-command-change muted">No comparison</span>;
-  const Icon = value >= 0 ? ArrowUpRight : ArrowDownRight;
-  return <span className={`cx-command-change ${value > 0 ? 'positive' : value < 0 ? 'negative' : 'muted'}`}><Icon size={12}/>{value > 0 ? '+' : ''}{value}{unit}</span>;
-}
-
-function MediaMetricCard({
-  label,
-  value,
-  note,
-  delta,
-  metric,
-  onInvestigate,
-}: {
-  label: string;
-  value: string;
-  note: string;
-  delta?: number | null;
-  metric: MediaMetric;
-  onInvestigate: (metric: MediaMetric) => void;
-}) {
-  return (
-    <article className="cx-command-metric flex flex-col justify-between">
-      <div>
-        <span>{label}</span>
-        <strong>{value}</strong>
-        <div><small>{note}</small><Delta value={delta}/></div>
-      </div>
-      <div className="flex items-center justify-between text-[11px] pt-2.5 mt-2.5 border-t border-border-subtle">
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 text-action hover:text-action-hover font-medium transition-colors cursor-pointer"
-          onClick={() => onInvestigate(metric)}
-          title={`Investigate why ${label.toLowerCase()} changed`}
-        >
-          <span>Why changed?</span>
-          <Search size={10} aria-hidden="true" />
-        </button>
-        <a
-          href="#campaigns-table"
-          className="inline-flex items-center gap-1 text-text-sec hover:text-action font-medium transition-colors"
-          title="Inspect campaign breakdown"
-        >
-          <span>Inspect</span>
-          <ArrowRight size={10} aria-hidden="true" />
-        </a>
-      </div>
-    </article>
-  );
-}
-
 export default function CampaignIntelligence() {
   const { selectedClient } = useClient();
   const { isAdmin } = useAuth();
   const { startDate, endDate, filters, setFilter } = useFilters();
+  const [audit, setAudit] = useState<InspectorContent | null>(null);
+  const auditScope = { clientId: selectedClient, startDate: startDate || undefined, endDate: endDate || undefined, filters };
+  useEffect(() => setAudit(null), [selectedClient, startDate, endDate, filters]);
   const [discovery, setDiscovery] = useState<MarketingDiscoveryData | null>(null);
   const [rootMetric, setRootMetric] = useState<MediaMetric | null>(null);
   const [campaignMeasure, setCampaignMeasure] = useState<CampaignMeasure>('leads');
@@ -115,6 +71,7 @@ export default function CampaignIntelligence() {
       const displayValue = campaignMeasure === 'leads' ? num(row.leads) : campaignMeasure === 'spend' || campaignMeasure === 'cpl' ? money(value) : formatPercent(value);
       return {
         key: `${row.campaign}-${row.adset}-${index}`,
+        sourceRow: row,
         label: row.campaign,
         detail: row.adset && row.adset !== row.campaign ? row.adset : row.channel,
         value,
@@ -124,7 +81,7 @@ export default function CampaignIntelligence() {
   }, [data?.campaigns, campaignMeasure]);
 
   const summary = data?.summary;
-  const canCompare = Boolean(startDate && endDate && data?.comparison);
+  const canCompare = Boolean(startDate && endDate && data?.comparison && !loading && !error);
 
   return (
     <div className="cx-command-page cx-campaign-page">
@@ -214,14 +171,15 @@ export default function CampaignIntelligence() {
             {data.denominatorDiagnostics?.some(item => item.missingRows > 0) && <div className="cx-control-note" role="status">Platform metrics with missing or invalid observations are unavailable: {data.denominatorDiagnostics.filter(item => item.missingRows > 0).map(item => `${item.metric}: ${item.missingRows} of ${item.rows} rows`).join('; ')}. Their derived ratios are withheld.</div>}
             {summary && (
               <section className="cx-command-metrics cx-media-metrics" aria-label="Media performance summary">
-                <MediaMetricCard label="Recorded media spend" value={money(summary.spend)} note="Approved API-table spend" delta={data.comparison?.spendDeltaPct} metric="spend" onInvestigate={metric => setRootMetric(metric)} />
-                <MediaMetricCard label="Platform CPL" value={money(summary.cpl)} note="Spend / platform lead events" delta={data.comparison?.cplDeltaPct} metric="cpl" onInvestigate={metric => setRootMetric(metric)} />
-                <MediaMetricCard label="CPC" value={money(summary.cpc)} note="Spend / clicks" delta={data.comparison?.cpcDeltaPct} metric="cpc" onInvestigate={metric => setRootMetric(metric)} />
-                <MediaMetricCard label="CPM" value={money(summary.cpm)} note="Spend / 1,000 impressions" delta={data.comparison?.cpmDeltaPct} metric="cpm" onInvestigate={metric => setRootMetric(metric)} />
-                <MediaMetricCard label="Platform lead events" value={num(summary.leads)} note={`${formatPercent(summary.ctr)} CTR · ${num(summary.clicks)} clicks`} delta={data.comparison?.leadsDeltaPct} metric="leads" onInvestigate={metric => setRootMetric(metric)} />
+                <MediaMetricCard label="Recorded media spend" value={money(summary.spend)} note="Approved API-table spend" delta={data.comparison?.spendDeltaPct} metric="spend" canCompare={canCompare} onInspect={() => setAudit(campaignAudit(data, summary, 'spend', auditScope))} onInvestigate={metric => setRootMetric(metric)} />
+                <MediaMetricCard label="Platform CPL" value={money(summary.cpl)} note="Spend / platform lead events" delta={data.comparison?.cplDeltaPct} metric="cpl" canCompare={canCompare} onInspect={() => setAudit(campaignAudit(data, summary, 'cpl', auditScope))} onInvestigate={metric => setRootMetric(metric)} />
+                <MediaMetricCard label="CPC" value={money(summary.cpc)} note="Spend / clicks" delta={data.comparison?.cpcDeltaPct} metric="cpc" canCompare={canCompare} onInspect={() => setAudit(campaignAudit(data, summary, 'cpc', auditScope))} onInvestigate={metric => setRootMetric(metric)} />
+                <MediaMetricCard label="CPM" value={money(summary.cpm)} note="Spend / 1,000 impressions" delta={data.comparison?.cpmDeltaPct} metric="cpm" canCompare={canCompare} onInspect={() => setAudit(campaignAudit(data, summary, 'cpm', auditScope))} onInvestigate={metric => setRootMetric(metric)} />
+                <MediaMetricCard label="Platform lead events" value={num(summary.leads)} note={`${formatPercent(summary.ctr)} CTR · ${num(summary.clicks)} clicks`} delta={data.comparison?.leadsDeltaPct} metric="leads" canCompare={canCompare} onInspect={() => setAudit(campaignAudit(data, summary, 'leads', auditScope))} onInvestigate={metric => setRootMetric(metric)} />
               </section>
             )}
 
+            <AuditMetadata grain={data.grainDiagnostics?.fields?.join(" × ")} dateBasis="Marketing reporting date" validationStatus={suppliedProvenance(data).validationStatus} />
             {summary && (
               <section className="cx-command-panel">
                 <header>
@@ -289,13 +247,13 @@ export default function CampaignIntelligence() {
                 </div>
                 <EvidenceBars
                   title={campaignMeasure === 'leads' ? 'Platform lead events' : campaignMeasure === 'spend' ? 'Recorded media spend' : campaignMeasure === 'ctr' ? 'CTR' : 'Platform CPL'}
-                  description="Top 12 returned campaign/adset groups for the selected measure. Select a row to apply the existing campaign filter."
+                  description="Top 12 returned campaign/adset groups for the selected measure. Select a row to inspect its exact reported measure."
                   items={campaignComparison}
                   maximum={campaignMeasure === 'ctr' ? 100 : undefined}
                   scaleNote={campaignMeasure === 'ctr' ? 'CTR uses a fixed 0–100% scale. Missing values remain unavailable.' : 'Bars share the largest returned value in this view as their scale.'}
                   onSelect={key => {
                     const item = campaignComparison.find(row => row.key === key);
-                    if (item) setFilter('campaign', { operator: 'in', values: [item.label] });
+                    if (item) setAudit(campaignAudit(data, item.sourceRow, campaignMeasure, auditScope));
                   }}
                 />
               </section>
@@ -389,7 +347,7 @@ export default function CampaignIntelligence() {
                       <th>Platform lead events</th>
                       <th>CPC</th>
                       <th>CPM</th>
-                      <th>Platform CPL</th>
+                      <th>Platform CPL</th><th>Evidence</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -412,10 +370,11 @@ export default function CampaignIntelligence() {
                         <td>{money(campaign.cpc)}</td>
                         <td>{money(campaign.cpm)}</td>
                         <td>{money(campaign.cpl)}</td>
+                        <td><button type="button" className="cx-button-secondary" onClick={() => setAudit(campaignAudit(data, campaign, campaignMeasure, auditScope))} aria-label={`Inspect evidence for ${campaign.campaign}`}>Inspect evidence</button></td>
                       </tr>
                     ))}
                     {!data.campaigns.length && (
-                      <tr><td colSpan={17}><div className="cx-command-empty">No campaign rows are available for this approved tenant scope.</div></td></tr>
+                      <tr><td colSpan={18}><div className="cx-command-empty">No campaign rows are available for this approved tenant scope.</div></td></tr>
                     )}
                   </tbody>
                 </table>
@@ -425,6 +384,7 @@ export default function CampaignIntelligence() {
         )}
       </div>
 
+      <InspectorHost open={Boolean(audit)} onClose={() => setAudit(null)} content={audit} />
       <MarketingRootCauseDrawer open={rootMetric !== null} metric={rootMetric} onClose={() => setRootMetric(null)} />
     </div>
   );

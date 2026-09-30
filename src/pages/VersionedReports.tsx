@@ -24,8 +24,8 @@ export default function VersionedReports() {
   const release = !error && !isLoading ? data?.release : undefined;
   const isAvailable = data?.status === 'AVAILABLE' && !!release;
   return <div className="cx-page cx-reports-evidence-page">
-    <PageHeader title="Versioned Reporting Releases" subtitle="Review the release manifest, reported audit checks and frozen source references. The release registry is separate from report execution." badges={[
-      { label: isLoading ? 'Checking registry' : error ? 'Registry unavailable' : isAvailable ? 'Release Active' : 'No Active Release', variant: isAvailable ? 'success' : 'neutral' },
+    <PageHeader title="Versioned Reporting Releases" subtitle="Immutable published release evidence: follow its audit checks, frozen source snapshots and technical manifest. Operational analytics remain separate." badges={[
+      { label: isLoading ? 'Checking registry' : error ? 'Registry unavailable' : isAvailable ? release.status : 'No published release', variant: 'neutral' },
       { label: `Tenant: ${clientId}`, variant: 'neutral' },
     ]} />
     <EvidenceScopeBar releaseId={release?.releaseId || 'No release reported'} cutoff={release?.cutoff} busy={isLoading} />

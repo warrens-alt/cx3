@@ -9,7 +9,6 @@ import { fetchTemporal, type TemporalData } from '../lib/offernetClient';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import UnifiedMetricCard from '../components/UnifiedMetricCard';
-import RootCauseDrawer from '../components/RootCauseDrawer';
 import { formatPercent, formatTableNumber } from '../lib/formatters';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
@@ -28,8 +27,6 @@ export default function TemporalIntelligence() {
   const { startDate, endDate, filters } = useFilters();
   const [timeBasis, setTimeBasis] = useState('Capture');
   const [metricView, setMetricView] = useState<MetricView>('contactRate');
-  const [rootMetric, setRootMetric] = useState<string | null>(null);
-  const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
 
   const { data, loading, error, loadData } = useOperationalData<TemporalData & { timeBases?: TimeBasis[]; methodology?:string }>('TemporalIntelligence', {
     clientId: selectedClient,
@@ -115,10 +112,6 @@ export default function TemporalIntelligence() {
                   label="Period Volume"
                   value={formatTableNumber(temporalSummary.totalVolume)}
                   note={`${timeBasis} event distribution`}
-                  onWhyChanged={() => {
-                    setRootMetric('fetchedLeads');
-                    setRootMetricLabel('Temporal Lead Volume');
-                  }}
                   to={scoped('/funnel')}
                   inspectLabel="Inspect funnel"
                 />
@@ -251,16 +244,6 @@ export default function TemporalIntelligence() {
           </>
         )}
       </div>
-
-      <RootCauseDrawer
-        open={Boolean(rootMetric)}
-        metric={rootMetric}
-        metricLabel={rootMetricLabel}
-        onClose={() => {
-          setRootMetric(null);
-          setRootMetricLabel(undefined);
-        }}
-      />
     </div>
   );
 }

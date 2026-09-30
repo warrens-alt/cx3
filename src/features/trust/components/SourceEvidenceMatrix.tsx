@@ -19,9 +19,9 @@ export function EvidenceStatus({ status }: { status?: string | null }) {
   </span>;
 }
 
-export default function SourceEvidenceMatrix({ sources }: { sources: Source[] | undefined }) {
+export default function SourceEvidenceMatrix({ sources, renderSourceAction }: { sources: Source[] | undefined; renderSourceAction?: (source: Source) => React.ReactNode }) {
   return <section className="cx-trust-panel" id="source-evidence" aria-labelledby="source-evidence-heading">
-    <header className="cx-trust-heading"><div><h2 id="source-evidence-heading">Source evidence at a glance</h2>
+    <header className="cx-trust-heading"><div><span className="cx-command-section-kicker">Source observations</span><h2 id="source-evidence-heading">Source evidence at a glance</h2>
       <p>All tenant-owned records, not just the selected capture cohort. Connection, timestamps and validation are separate observations.</p></div><Database size={18} aria-hidden="true" /></header>
     {!sources?.length ? <p className="cx-trust-empty">{sources ? 'No source observations returned for this workspace.' : 'Source observations were not supplied in this response.'}</p> :
       <div className="cx-trust-table-scroll" role="region" aria-label="Source evidence matrix" tabIndex={0}>
@@ -29,7 +29,7 @@ export default function SourceEvidenceMatrix({ sources }: { sources: Source[] | 
           <caption className="sr-only">Source status, latest record, returned age and rows. No health score or freshness SLA is inferred.</caption>
           <thead><tr><th scope="col">Source</th><th scope="col">Reported status</th><th scope="col">Latest record</th><th scope="col">Age (hours)</th><th scope="col">Source rows</th><th scope="col">Evidence & limitations</th></tr></thead>
           <tbody>{sources.map((source, index) => <tr key={`${source.key}-${index}`}>
-            <th scope="row">{source.label}<small className="cx-trust-source-path">{source.table || 'No table configured'}</small></th>
+            <th scope="row">{source.label}<small className="cx-trust-source-path">{source.table || 'No table configured'}</small>{renderSourceAction?.(source)}</th>
             <td><EvidenceStatus status={source.status} /></td>
             <td>{source.latestRecordAt ? <time dateTime={source.latestRecordAt}>{source.latestRecordAt}</time> : <span className="cx-trust-unavailable">Not recorded</span>}</td>
             <td className="cx-trust-number">{source.ageHours == null ? <span className="cx-trust-unavailable">Unavailable</span> : formatTableNumber(source.ageHours)}</td>

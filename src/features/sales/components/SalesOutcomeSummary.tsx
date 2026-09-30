@@ -1,5 +1,5 @@
 import React from 'react';
-import { BadgeCheck, CheckCircle2, Clock3, DollarSign, Search, ArrowRight } from 'lucide-react';
+import { BadgeCheck, CheckCircle2, Clock3, DollarSign, ArrowRight } from 'lucide-react';
 import type { AdaptedSalesActivation } from '../model/salesActivationAdapter';
 import { formatWorkspaceCurrency } from '../model/salesActivationAdapter';
 import { formatTableNumber, formatPercent } from '../../../lib/formatters';
@@ -7,10 +7,9 @@ import { formatTableNumber, formatPercent } from '../../../lib/formatters';
 interface SalesOutcomeSummaryProps {
   model: AdaptedSalesActivation;
   onInspect: (metricKey: 'sales' | 'activations' | 'unactivated' | 'revenue') => void;
-  onWhyChanged?: (metricKey: 'sales' | 'activations' | 'unactivated' | 'revenue') => void;
 }
 
-export default function SalesOutcomeSummary({ model, onInspect, onWhyChanged }: SalesOutcomeSummaryProps) {
+export default function SalesOutcomeSummary({ model, onInspect }: SalesOutcomeSummaryProps) {
   const { summary } = model;
 
   return (
@@ -41,24 +40,14 @@ export default function SalesOutcomeSummary({ model, onInspect, onWhyChanged }: 
         </div>
 
         <div className="flex items-center justify-between text-[11px] pt-2.5 mt-3 border-t border-border-subtle">
-          {onWhyChanged && (
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 text-action hover:text-action-hover font-medium transition-colors cursor-pointer"
-              onClick={() => onWhyChanged('sales')}
-              title="Investigate why recorded sales changed"
-            >
-              <span>Why changed?</span>
-              <Search size={10} aria-hidden="true" />
-            </button>
-          )}
+
           <button
             type="button"
             className="inline-flex items-center gap-1 text-text-sec hover:text-action font-medium transition-colors cursor-pointer ml-auto"
             onClick={() => onInspect('sales')}
             title="Inspect sales records"
           >
-            <span>Inspect</span>
+            <span>Inspect evidence</span>
             <ArrowRight size={10} aria-hidden="true" />
           </button>
         </div>
@@ -97,24 +86,14 @@ export default function SalesOutcomeSummary({ model, onInspect, onWhyChanged }: 
         </div>
 
         <div className="flex items-center justify-between text-[11px] pt-2.5 mt-3 border-t border-border-subtle">
-          {onWhyChanged && (
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 text-action hover:text-action-hover font-medium transition-colors cursor-pointer"
-              onClick={() => onWhyChanged('activations')}
-              title="Investigate why recorded activations changed"
-            >
-              <span>Why changed?</span>
-              <Search size={10} aria-hidden="true" />
-            </button>
-          )}
+
           <button
             type="button"
             className="inline-flex items-center gap-1 text-text-sec hover:text-action font-medium transition-colors cursor-pointer ml-auto"
             onClick={() => onInspect('activations')}
             title="Inspect activation records"
           >
-            <span>Inspect</span>
+            <span>Inspect evidence</span>
             <ArrowRight size={10} aria-hidden="true" />
           </button>
         </div>
@@ -149,24 +128,14 @@ export default function SalesOutcomeSummary({ model, onInspect, onWhyChanged }: 
         </div>
 
         <div className="flex items-center justify-between text-[11px] pt-2.5 mt-3 border-t border-border-subtle">
-          {onWhyChanged && (
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 text-action hover:text-action-hover font-medium transition-colors cursor-pointer"
-              onClick={() => onWhyChanged('unactivated')}
-              title="Investigate pending activations"
-            >
-              <span>Why changed?</span>
-              <Search size={10} aria-hidden="true" />
-            </button>
-          )}
+
           <button
             type="button"
             className="inline-flex items-center gap-1 text-text-sec hover:text-action font-medium transition-colors cursor-pointer ml-auto"
             onClick={() => onInspect('unactivated')}
             title="Inspect pending records"
           >
-            <span>Inspect</span>
+            <span>Inspect evidence</span>
             <ArrowRight size={10} aria-hidden="true" />
           </button>
         </div>
@@ -204,24 +173,14 @@ export default function SalesOutcomeSummary({ model, onInspect, onWhyChanged }: 
         </div>
 
         <div className="flex items-center justify-between text-[11px] pt-2.5 mt-3 border-t border-border-subtle">
-          {onWhyChanged && (
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 text-action hover:text-action-hover font-medium transition-colors cursor-pointer"
-              onClick={() => onWhyChanged('revenue')}
-              title="Investigate why recorded revenue changed"
-            >
-              <span>Why changed?</span>
-              <Search size={10} aria-hidden="true" />
-            </button>
-          )}
+
           <button
             type="button"
             className="inline-flex items-center gap-1 text-text-sec hover:text-action font-medium transition-colors cursor-pointer ml-auto"
             onClick={() => onInspect('revenue')}
             title="Inspect revenue breakdown"
           >
-            <span>Inspect</span>
+            <span>Inspect evidence</span>
             <ArrowRight size={10} aria-hidden="true" />
           </button>
         </div>

@@ -1,3 +1,4 @@
+import { AuditModeControl } from '../../shared/evidence/AuditMode';
 import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
@@ -330,6 +331,8 @@ export default function AppShell({ children }: AppShellProps) {
                   <div className="pt-2 border-t border-border-subtle">
                     <div className="font-semibold text-text-main mb-1.5">Theme</div>
                     <ThemeToggle variant="segmented" className="w-full justify-between" />
+                  </div>
+                  <div><AuditModeControl />
                   </div>
                 </div>
               )}

@@ -6,7 +6,6 @@ import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import UnifiedMetricCard from '../components/UnifiedMetricCard';
-import RootCauseDrawer from '../components/RootCauseDrawer';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { formatTableNumber, formatPercent, formatTableCurrency } from '../lib/formatters';
 import { heatmapColors } from '../lib/heatmapColors';
@@ -19,8 +18,6 @@ export default function Cohorts() {
   const scoped = useScopedNavigationTarget();
   const [cohortType, setCohortType] = useState<CohortGrain>('weekly');
   const [metricType, setMetricType] = useState<CohortMetric>('sale');
-  const [rootMetric, setRootMetric] = useState<string | null>(null);
-  const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
   const { clientConfig } = useClient();
   const currencyPrefix = clientConfig?.currency === 'GBP' ? '£' : clientConfig?.currency === 'USD' ? '$' : 'R ';
   const { data: cohorts, loading, error, refetch } = useAnalyticsData('cohorts', { cohortType, metricType });
@@ -122,10 +119,6 @@ export default function Cohorts() {
                   label="Total Cohort Leads"
                   value={formatTableNumber(cohortSummary.totalLeads)}
                   note={`${cohortSummary.cohortCount} observed cohorts`}
-                  onWhyChanged={() => {
-                    setRootMetric('fetchedLeads');
-                    setRootMetricLabel('Cohort Population');
-                  }}
                   to={scoped('/funnel')}
                   inspectLabel="Inspect funnel"
                 />
@@ -238,16 +231,6 @@ export default function Cohorts() {
           </>
         )}
       </div>
-
-      <RootCauseDrawer
-        open={Boolean(rootMetric)}
-        metric={rootMetric}
-        metricLabel={rootMetricLabel}
-        onClose={() => {
-          setRootMetric(null);
-          setRootMetricLabel(undefined);
-        }}
-      />
     </div>
   );
 }

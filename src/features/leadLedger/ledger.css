@@ -145,3 +145,12 @@
 
 .cx-ledger-source-selection:empty { display:none; }
 .cx-ledger-actions > label { min-width:190px; }
+
+.cx-ledger-snapshot{border:1px solid var(--cx-border);border-radius:9px;padding:14px 16px;background:var(--cx-surface)}
+.cx-ledger-snapshot>h2{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--cx-text-secondary)}
+.cx-ledger-snapshot dl{display:flex;flex-wrap:wrap;gap:12px 24px;margin:10px 0}
+.cx-ledger-snapshot dl>div{min-width:0;flex:1 1 160px}
+.cx-ledger-workspace .cx-ledger-snapshot p{font-size:11px}
+.cx-ledger-snapshot details{margin-top:8px}
+.cx-ledger-provenance{display:grid;gap:12px;margin:14px 0}
+.cx-ledger-provenance dd{white-space:pre-wrap;overflow-wrap:anywhere}

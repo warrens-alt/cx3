@@ -682,7 +682,7 @@ test('R2 closeout: OverviewPage binds lifecycle-segment drill and attaches expli
   assert.match(overviewPage, /drill:\s*'lifecycle-segment'/);
   assert.match(overviewPage, /drillValue:\s*`\$\{segment\.dimension\}:\$\{segment\.name\}`/);
   // Confirms scope is attached to inspector activations
-  assert.match(overviewPage, /scope:\s*\{\s*clientId:\s*scope\.clientId,\s*startDate:\s*scope\.startDate,\s*endDate:\s*scope\.endDate,\s*filters,\s*\}/);
+  assert.match(overviewPage, /scope:\s*\{\s*clientId:\s*scope\.clientId,\s*(?:clientLabel:\s*data\?\.clientName,\s*)?startDate:\s*scope\.startDate,\s*endDate:\s*scope\.endDate,\s*filters,\s*\}/);
 });
 
 test('R2 closeout: OverviewPage exports canonical filters dictionary rather than raw scope object', () => {

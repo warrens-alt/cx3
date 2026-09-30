@@ -33,9 +33,10 @@ export function ExportPresentation({ children }: { children: React.ReactNode }) 
 }
 
 export function DataStatusDialog({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }) {
+  const scoped = useScopedNavigationTarget();
   return open ? createPortal(<Modal open onClose={onClose} label="Data status" className="cx-data-status-dialog">
     <header className="cx-analysis-dialog-heading"><div><h2>Data status</h2><p>Source evidence, coverage and validation</p></div><button type="button" className="cx-icon-button" onClick={onClose} aria-label="Close data status"><X size={18} /></button></header>
-    <div className="cx-analysis-dialog-content">{children}</div>
+    <div className="cx-analysis-dialog-content">{children}<p>Operational analytics are separate from immutable published reporting releases.</p><Link to={scoped('/reports')} onClick={onClose}>View evidence releases</Link></div>
   </Modal>, document.body) : null;
 }
 

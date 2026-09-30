@@ -29,7 +29,7 @@ function RateCell({ value }: { value: number | null | undefined }) {
   </span></td>;
 }
 
-export default function VendorComparison({ vendors, onSelectVendor }: { vendors: Vendor[]; onSelectVendor: (vendor: string) => void }) {
+export default function VendorComparison({ vendors, onSelectVendor, onInspectVendor }: { vendors: Vendor[]; onSelectVendor: (vendor: string) => void; onInspectVendor?: (vendor: Vendor, measure: Measure) => void }) {
   const [search, setSearch] = useState('');
   const [measure, setMeasure] = useState<Measure>('leads');
   const [descending, setDescending] = useState(true);
@@ -44,7 +44,7 @@ export default function VendorComparison({ vendors, onSelectVendor }: { vendors:
     }), [vendors, search, measure, descending]);
   return <section id="vendor-comparison" aria-labelledby="vendor-comparison-title" className="cx-trust-panel cx-vendor-comparison">
     <header className="cx-trust-heading"><div><h2 id="vendor-comparison-title">Compare vendors on the same measure</h2>
-      <p>Choose one measure, compare its returned values, then filter to a vendor. Operational rates are not a lead-quality score.</p></div></header>
+      <p>Choose one measure, compare its returned values, then inspect its evidence or filter to that vendor. Operational rates are not a lead-quality score.</p></div></header>
     <div className="cx-trust-toolbar">
       <label className="cx-trust-search"><Search size={14} aria-hidden="true" /><span className="sr-only">Find a vendor</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Find a vendor…" />
         {search && <button type="button" onClick={() => setSearch('')} aria-label="Clear vendor search"><X size={14} /></button>}</label>
@@ -55,18 +55,19 @@ export default function VendorComparison({ vendors, onSelectVendor }: { vendors:
     <EvidenceBars title={definition.label} description={definition.rate ? 'Fixed 0–100% display scale. Exact returned percentages remain in the table, including any outside this range.' : 'Common count scale across the displayed vendor population.'}
       maximum={definition.rate ? 100 : undefined}
       items={rows.map(({ vendor, key }) => ({ key, label: vendor.vendor, value: vendor[measure], displayValue: definition.rate ? formatPercent(vendor[measure]) : formatTableNumber(vendor[measure]), detail: definition.rate ? `${formatTableNumber(vendor.leads)} fetched leads` : undefined }))}
-      onSelect={key => { const selected = rows.find(row => row.key === key); if (selected) onSelectVendor(selected.vendor.vendor); }}
-      scaleNote="Selecting a bar applies the existing vendor filter to the whole report. Missing measures are not replaced with zero." />
+      onSelect={key => { const selected = rows.find(row => row.key === key); if (selected) { if (onInspectVendor) onInspectVendor(selected.vendor, measure); else onSelectVendor(selected.vendor.vendor); } }}
+      scaleNote={onInspectVendor ? "Select a bar to inspect its exact returned measure. Vendor-name controls apply the report filter. Missing is not zero." : "Selecting a bar applies the existing vendor filter to the whole report. Missing measures are not replaced with zero."} />
     <div className="cx-trust-matrix-heading"><h3>Operational performance matrix</h3><span className="cx-trust-meta">Darker blue = higher percentage, not better performance. No target or pass/fail threshold.</span></div>
     <div className="cx-trust-table-scroll" role="region" aria-label="Vendor performance matrix" tabIndex={0}>
       <table className="cx-trust-table cx-vendor-matrix">
         <caption className="sr-only">All returned vendor measures. Text values are available independently of colour.</caption>
-        <thead><tr><th scope="col">Vendor</th><th scope="col">Leads</th><th scope="col">Delivery</th><th scope="col">Dial / delivered</th><th scope="col">RPC / dialled</th><th scope="col">Sale / RPC</th><th scope="col">Activation / sale</th><th scope="col">Median first dial</th><th scope="col">Calls / lead</th><th scope="col">Invalid</th></tr></thead>
+        <thead><tr><th scope="col">Vendor</th><th scope="col">Leads</th><th scope="col">Delivery</th><th scope="col">Dial / delivered</th><th scope="col">RPC / dialled</th><th scope="col">Sale / RPC</th><th scope="col">Activation / sale</th><th scope="col">Median first dial</th><th scope="col">Calls / lead</th><th scope="col">Invalid</th>{onInspectVendor && <th scope="col">Evidence</th>}</tr></thead>
         <tbody>{rows.map(({ vendor, key }) => <tr key={key}>
           <th scope="row"><button type="button" className="cx-trust-link" onClick={() => onSelectVendor(vendor.vendor)} aria-label={`Filter to vendor ${vendor.vendor}`}>{vendor.vendor}<ArrowUpRight size={12} aria-hidden="true" /></button></th>
           <td className="cx-trust-number">{formatTableNumber(vendor.leads)}</td>
           <RateCell value={vendor.deliveryRate} /><RateCell value={vendor.dialRate} /><RateCell value={vendor.contactRate} /><RateCell value={vendor.saleRate} /><RateCell value={vendor.activationRate} />
           <td className="cx-trust-number">{vendor.medianFirstDial || 'Unavailable'}</td><td className="cx-trust-number">{formatTableNumber(vendor.callsPerLead)}</td><RateCell value={vendor.invalidRate} />
+          {onInspectVendor && <td><button type="button" className="cx-button-secondary" onClick={() => onInspectVendor(vendor, measure)} aria-label={`Inspect ${definition.label} evidence for ${vendor.vendor}`}>Inspect evidence</button></td>}
         </tr>)}</tbody>
       </table>
     </div>

@@ -59,10 +59,9 @@ export default function JourneySummary({ stages = [], funnelLeak, isAdmin, onIns
           return <li key={stage.key} data-series={stagePresentation[stage.key]?.series} data-stage={stage.key}>
             <div className="cx-overview-stage-heading">
               <span>{index + 1}. {label}</span>
-              {isAdmin && onInspectStage && <button type="button" onClick={() => onInspectStage(stage, index)} aria-label={`Inspect ${label} evidence`}><Info size={14} aria-hidden="true" /></button>}
+              {onInspectStage && <button type="button" onClick={() => onInspectStage(stage, index)} aria-label={`Inspect ${label} evidence`}><Info size={14} aria-hidden="true" /></button>}
             </div>
-            {isAdmin ? <Link className="cx-overview-stage-count" to={scoped(`/lead-explorer?drill=funnel-stage&drillValue=${encodeURIComponent(stage.key)}`)} aria-label={`Inspect ${label} lead records: ${formatTableNumber(stage.volume)}`}>{count}</Link>
-              : onInspectStage ? <button type="button" className="cx-overview-stage-count" onClick={() => onInspectStage(stage, index)} aria-label={`Inspect ${label} evidence: ${formatTableNumber(stage.volume)}`}>{count}</button>
+            {onInspectStage ? <button type="button" className="cx-overview-stage-count" onClick={() => onInspectStage(stage, index)} aria-label={`Inspect ${label} evidence: ${formatTableNumber(stage.volume)}`}>{count}</button>
               : <strong className="cx-overview-stage-count">{count}</strong>}
             <div className="cx-overview-stage-track" data-evidence={!hasVolume ? 'unavailable' : stage.volume === 0 ? 'zero' : 'observed'} aria-hidden="true">
               {hasVolume && <span style={{ width: `${width}%` }} />}
@@ -80,8 +79,7 @@ export default function JourneySummary({ stages = [], funnelLeak, isAdmin, onIns
         {transitions.length > 0 && <ul>{transitions.map(({ previous, stage, loss, key }) => <li key={key}>
           <span>{labelFor(previous)} → {labelFor(stage)}</span>
           <strong>{formatTableNumber(loss)} leads</strong>
-          {lossKeys.has(key) && (isAdmin ? <Link to={scoped(`/lead-explorer?drill=funnel-loss&drillValue=${encodeURIComponent(key)}`)} aria-label={`Inspect ${labelFor(previous)} to ${labelFor(stage)} loss records`}>Inspect <ArrowRight size={12} aria-hidden="true" /></Link>
-            : onInspectLoss && <button type="button" onClick={() => onInspectLoss(previous.name, stage.name, loss, key)} aria-label={`Inspect ${labelFor(previous)} to ${labelFor(stage)} loss evidence`}>Inspect <ArrowRight size={12} aria-hidden="true" /></button>)}
+          {lossKeys.has(key) && onInspectLoss && <button type="button" onClick={() => onInspectLoss(previous.name, stage.name, loss, key)} aria-label={`Inspect ${labelFor(previous)} to ${labelFor(stage)} loss evidence`}>Inspect evidence <ArrowRight size={12} aria-hidden="true" /></button>}
         </li>)}</ul>}
       </details>}
     </section>

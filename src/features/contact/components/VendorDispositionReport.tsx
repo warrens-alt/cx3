@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import type { AuditScope } from '../../../shared/evidence/auditPresentation';
+import type { InspectorContent } from '../../../shared/evidence/InspectorHost';
 import {
   Download,
   Filter,
@@ -27,6 +29,7 @@ import {
 
 interface VendorDispositionReportProps {
   data?: ContactDispositionsData;
+  scope?: AuditScope;
   mode: DispositionReportingMode;
   onModeChange: (mode: DispositionReportingMode) => void;
   onSelectVendor: (vendor: string, group?: string) => void;
@@ -57,6 +60,7 @@ const OUTCOME_GROUPS_ORDER: ApprovedDispositionGroup[] = [
 
 export default function VendorDispositionReport({
   data,
+  scope,
   mode,
   onModeChange,
   onSelectVendor,
@@ -177,6 +181,11 @@ export default function VendorDispositionReport({
   if (!data) return null;
 
   const summary = data.summary;
+  const audit = (title: string, value: string): InspectorContent => ({ type: 'metric', title, value, scope,
+    definition: { meaning: `${title} in ${data.modeHeading}. ${data.modeDescription}`, grain: data.countingGrain, dateBasis: data.dateBasis, calculation: data.methodology },
+    provenance: { reportVersion: data.reportVersion, evaluatedAt: data.evaluatedAt, dateBasis: data.dateBasis, countingGrain: data.countingGrain, timezone: data.timezone },
+    detailLimitation: 'Vendor outcome evidence is available in the report below. This aggregate does not supply an exact supporting-record drill.',
+  });
 
   return (
     <div className="space-y-6">
@@ -230,36 +239,36 @@ export default function VendorDispositionReport({
       <section aria-label="Disposition summary statistics" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <UnifiedMetricCard
           label={isCallMode ? 'Total Calls' : 'Total Population'}
+          auditContent={audit(isCallMode ? 'Total Calls' : 'Total Population', formatTableNumber(summary.totalEntities))}
           value={formatTableNumber(summary.totalEntities)}
-          note={isCallMode ? 'Verified call events' : 'Delivered cohort leads'}
-          onWhyChanged={() => onWhyChanged?.('dialRate')}
+          note={isCallMode ? 'Observed call events' : 'Delivered cohort leads'}
           onInspect={() => onSelectVendor('ALL')}
           inspectLabel="Inspect all"
         />
 
         <UnifiedMetricCard
           label={isCallMode ? 'Dialled Calls' : 'Dialled Leads'}
+          auditContent={audit(isCallMode ? 'Dialled Calls' : 'Dialled Leads', formatTableNumber(summary.dialledEntities))}
           value={formatTableNumber(summary.dialledEntities)}
           note="Denominator base"
-          onWhyChanged={() => onWhyChanged?.('dialRate')}
           onInspect={() => onSelectVendor('ALL')}
           inspectLabel="Inspect all"
         />
 
         <UnifiedMetricCard
           label="Disposition Coverage"
+          auditContent={audit('Disposition Coverage', formatPercent(summary.dispositionCoveragePct))}
           value={formatPercent(summary.dispositionCoveragePct)}
           note={`${formatTableNumber(summary.missingDispositions)} missing`}
-          onWhyChanged={() => onWhyChanged?.('contactRate')}
           onInspect={() => onSelectVendor('ALL')}
           inspectLabel="Inspect all"
         />
 
         <UnifiedMetricCard
           label="Mapping Coverage"
+          auditContent={audit('Mapping Coverage', formatPercent(summary.mappingCoveragePct))}
           value={formatPercent(summary.mappingCoveragePct)}
           note={`${formatTableNumber(summary.unmappedDispositions)} unmapped`}
-          onWhyChanged={() => onWhyChanged?.('contactRate')}
           onInspect={() => onSelectVendor('ALL')}
           inspectLabel="Inspect all"
         />

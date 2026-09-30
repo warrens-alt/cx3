@@ -1,3 +1,4 @@
+import { STAGE_METRIC_IDS } from '../../shared/evidence/auditPresentation';
 import { ReportActions } from '../../shared/reporting/ReportPresentation';
 import '../../styles/journeyContactVisuals.css';
 import React, { useMemo, useState } from 'react';
@@ -59,6 +60,7 @@ export default function JourneyPage() {
     const isSupported = ['fetched', 'delivered', 'dialled', 'rpc', 'sales', 'activated'].includes(stage.key);
     setInspectorContent({
       type: 'stage',
+      metricId: STAGE_METRIC_IDS[stage.key],
       title: `${stage.name} Stage`,
       subtitle: 'Observed lifecycle population across the selected reporting period.',
       value: stage.volume !== null ? `${formatTableNumber(stage.volume)} leads` : '—',
@@ -115,14 +117,11 @@ export default function JourneyPage() {
   const handleInspectSegment = (segment: LifecycleSegment, dimension: JourneyDimension) => {
     setInspectorContent({
       type: 'segment',
+      metricId: 'fetched_leads',
       title: `${dimension.charAt(0).toUpperCase() + dimension.slice(1)}: ${segment.key}`,
       subtitle: 'Observed outcome rates and stage conversion in current reporting scope.',
       value: `${formatTableNumber(segment.fetched)} leads`,
       unit: 'records',
-      numeratorCount: segment.sales,
-      numeratorLabel: 'Recorded sales (sales count)',
-      denominatorCount: segment.fetched,
-      denominatorLabel: 'Fetched leads (denominator)',
       reportPath: dimension === 'grade' ? '/funnel' : '/vendor-quality',
       reportLabel: `Open complete ${dimension} breakdown`,
       recordDrill: {
@@ -206,9 +205,9 @@ export default function JourneyPage() {
           <div className="cx-visual-metric-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
             <UnifiedMetricCard
               label="Acquired Demand"
+              auditContent={{ type: 'metric', metricId: 'fetched_leads', title: 'Acquired Demand', value: headline.totalVolume !== null ? formatTableNumber(headline.totalVolume) : '—', scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters }, recordDrill: { drill: 'funnel-stage', drillValue: 'fetched' } }}
               value={headline.totalVolume !== null ? formatTableNumber(headline.totalVolume) : '—'}
               note="Intake cohort"
-              onWhyChanged={() => setRootMetric('fetchedLeads')}
               onAbout={stages[0] ? () => handleInspectStage(stages[0]) : undefined}
               to={scoped('/lead-explorer?drill=funnel-stage&drillValue=fetched')}
               inspectLabel="Inspect"
@@ -216,10 +215,10 @@ export default function JourneyPage() {
 
             <UnifiedMetricCard
               label="Delivery Rate"
+              auditContent={{ type: 'metric', metricId: 'delivery_rate', title: 'Delivery Rate', value: headline.deliveryPct !== null ? `${headline.deliveryPct.toFixed(1)}%` : '—', scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters }, recordDrill: { drill: 'funnel-stage', drillValue: 'delivered' }, numeratorCount: headline.deliveredVolume, denominatorCount: headline.totalVolume }}
               value={headline.deliveryPct !== null ? `${headline.deliveryPct.toFixed(1)}%` : '—'}
               note={headline.deliveredVolume !== null ? `${formatTableNumber(headline.deliveredVolume)} delivered` : 'Delivered'}
               denominatorLabel="Fetched leads"
-              onWhyChanged={() => setRootMetric('deliveryRate')}
               onAbout={stages[1] ? () => handleInspectStage(stages[1]) : undefined}
               to={scoped('/lead-explorer?drill=funnel-stage&drillValue=delivered')}
               inspectLabel="Inspect"
@@ -227,10 +226,10 @@ export default function JourneyPage() {
 
             <UnifiedMetricCard
               label="Dial Coverage"
+              auditContent={{ type: 'metric', metricId: 'dial_rate', title: 'Dial Coverage', value: headline.dialPct !== null ? `${headline.dialPct.toFixed(1)}%` : '—', scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters }, recordDrill: { drill: 'funnel-stage', drillValue: 'dialled' }, numeratorCount: headline.dialledVolume, denominatorCount: headline.deliveredVolume }}
               value={headline.dialPct !== null ? `${headline.dialPct.toFixed(1)}%` : '—'}
               note={headline.dialledVolume !== null ? `${formatTableNumber(headline.dialledVolume)} dialled` : 'Dialled'}
               denominatorLabel="Delivered leads"
-              onWhyChanged={() => setRootMetric('dialRate')}
               onAbout={stages[2] ? () => handleInspectStage(stages[2]) : undefined}
               to={scoped('/lead-explorer?drill=funnel-stage&drillValue=dialled')}
               inspectLabel="Inspect"
@@ -238,10 +237,10 @@ export default function JourneyPage() {
 
             <UnifiedMetricCard
               label="Contact Rate (RPC)"
+              auditContent={{ type: 'metric', metricId: 'rpc_rate', title: 'Contact Rate (RPC)', value: headline.rpcPct !== null ? `${headline.rpcPct.toFixed(1)}%` : '—', scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters }, recordDrill: { drill: 'funnel-stage', drillValue: 'rpc' }, numeratorCount: headline.rpcVolume, denominatorCount: headline.dialledVolume }}
               value={headline.rpcPct !== null ? `${headline.rpcPct.toFixed(1)}%` : '—'}
               note={headline.rpcVolume !== null ? `${formatTableNumber(headline.rpcVolume)} contacted` : 'Contacted'}
               denominatorLabel="Dialled leads"
-              onWhyChanged={() => setRootMetric('contactRate')}
               onAbout={stages[3] ? () => handleInspectStage(stages[3]) : undefined}
               to={scoped('/lead-explorer?drill=funnel-stage&drillValue=rpc')}
               inspectLabel="Inspect"
@@ -249,10 +248,10 @@ export default function JourneyPage() {
 
             <UnifiedMetricCard
               label="Lead → Sale"
+              auditContent={{ type: 'metric', metricId: 'sales_per_fetched_rate', title: 'Lead → Sale', value: headline.salePct !== null ? `${headline.salePct.toFixed(2)}%` : '—', scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters }, recordDrill: { drill: 'funnel-stage', drillValue: 'sales' }, numeratorCount: headline.salesVolume, denominatorCount: headline.totalVolume }}
               value={headline.salePct !== null ? `${headline.salePct.toFixed(2)}%` : '—'}
               note={headline.salesVolume !== null ? `${formatTableNumber(headline.salesVolume)} sales` : 'Sales'}
               denominatorLabel="Fetched leads"
-              onWhyChanged={() => setRootMetric('leadToSaleRate')}
               onAbout={stages[4] ? () => handleInspectStage(stages[4]) : undefined}
               to={scoped('/lead-explorer?drill=funnel-stage&drillValue=sales')}
               inspectLabel="Inspect"
@@ -260,10 +259,9 @@ export default function JourneyPage() {
 
             <UnifiedMetricCard
               label="Activations"
+              auditContent={{ type: 'metric', metricId: 'activated_leads', title: 'Activations', value: headline.activationsVolume !== null ? formatTableNumber(headline.activationsVolume) : '—', scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters }, recordDrill: { drill: 'funnel-stage', drillValue: 'activated' } }}
               value={headline.activationsVolume !== null ? formatTableNumber(headline.activationsVolume) : '—'}
               note="Fulfilled deals"
-              denominatorLabel="Recorded sales"
-              onWhyChanged={() => setRootMetric('activationRate')}
               onAbout={stages[5] ? () => handleInspectStage(stages[5]) : undefined}
               to={scoped('/lead-explorer?drill=funnel-stage&drillValue=activated')}
               inspectLabel="Inspect"
