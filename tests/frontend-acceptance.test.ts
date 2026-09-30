@@ -73,6 +73,28 @@ test('quick navigation opens Lead Ledger by keyboard and retains reporting scope
   }finally{app.close();}
 });
 
+test('successful filter-choice retry clears its error without refreshing records or losing scope',async()=>{
+  const app=await mount('/lead-explorer'+scope+'&vendor=Synthetic+vendor');try{
+    await app.wait(()=>app.text().includes('SYNTHETIC-LEAD-0001'));
+    app.w.__fixture.fail=['filter-options'];
+    await app.click('button','Refresh current view');
+    await app.wait(()=>app.find('button','Retry filter choices')&&app.find('button','Refresh current view'));
+    assert.match(app.text(),/Filter choices are unavailable/);
+    assert.ok(app.text().includes('SYNTHETIC-LEAD-0001'));
+    const before=app.w.__fixture.requests.length;
+    const location=app.w.__fixture.location;
+    app.w.__fixture.fail=[];
+    await app.click('button','Retry filter choices');
+    await app.wait(()=>!app.find('button','Retry filter choices'));
+    assert.equal(app.w.document.querySelectorAll('.cx-scopebar [role="alert"]').length,0);
+    const requests=app.w.__fixture.requests.slice(before);
+    assert.equal(requests.filter((r:string)=>r.includes('filter-options')).length,1);
+    assert.equal(requests.filter((r:string)=>r.includes('raw-leads')).length,0);
+    assert.equal(app.w.__fixture.location,location);
+    assert.ok(app.text().includes('SYNTHETIC-LEAD-0001'));
+  }finally{app.close();}
+});
+
 test('actual Speed route exposes numeric timing, zero geometry and existing controls',async()=>{
   const app=await mount('/speed-to-lead'+scope);try{
     await app.wait(()=>app.text().includes('Median latency by stage'));
