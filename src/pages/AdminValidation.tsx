@@ -128,8 +128,8 @@ export default function AdminValidation() {
 
   return <PageShell className="cx-validation-page">
     <PageHeader title="Validation evidence" description="Inspect returned comparison fields and registered schema references. Independent reconciliation remains outstanding." />
-    <section className="cx-command-panel" aria-label="Validation boundary">
-      <h2>Independent validation not established</h2>
+    <section className="cx-command-panel p-5 space-y-2" aria-label="Validation boundary">
+      <h2 className="text-base font-semibold">Independent validation not established</h2>
       <p>The current validation endpoint returns reference measurements and status claims without an independent live reconciliation run. These reference values do not describe the selected workspace or reporting dates. They are not proof of current warehouse accuracy, access, financial reconciliation, or tenant isolation.</p>
       <p>Endpoint status: <strong>{data?.overallStatus || data?.status || 'Not reported'}</strong> · Endpoint timestamp: {timestamp}. This is not a reconciliation timestamp.</p>
       <div className="flex flex-wrap gap-2 mt-3">
@@ -138,8 +138,8 @@ export default function AdminValidation() {
       </div>
     </section>
     <nav className="cx-viz-jump-nav my-4" aria-label="Validation views">{tabs.map(([key,label]) => <button type="button" className="cx-button-secondary" key={key} aria-pressed={activeTab === key} onClick={() => setActiveTab(key)}>{label}</button>)}</nav>
-    {activeTab === 'reconciliation' && <section className="cx-command-panel" aria-label="Returned comparison">
-      <h2>Unverified endpoint output</h2>
+    {activeTab === 'reconciliation' && <section className="cx-command-panel p-5 space-y-2" aria-label="Returned comparison">
+      <h2 className="text-base font-semibold">Unverified endpoint output</h2>
       <p>Each value below is returned by the endpoint. Labels such as VERIFIED are quoted source claims, not a frontend certification. The CSV retains the original endpoint status claims and does not include this on-screen caveat. It must not be used as certification evidence.</p>
       {loading || error || !data ? <DataState loading={loading} error={error} empty={!data} retry={refetch}/> : <>
         <div className="cx-performance-table-wrap" role="region" aria-label="Unverified comparison fields" tabIndex={0}>
@@ -150,8 +150,8 @@ export default function AdminValidation() {
         {!metricsList.length && <p>No comparison fields returned. No validation result is implied.</p>}
       </>}
     </section>}
-    {activeTab === 'objects' && <section className="cx-command-panel" aria-label="Warehouse catalogue">
-      <h2>Registered objects</h2><p>Saved schema registration does not establish live source access or row completeness.</p>
+    {activeTab === 'objects' && <section className="cx-command-panel p-5 space-y-2" aria-label="Warehouse catalogue">
+      <h2 className="text-base font-semibold">Registered objects</h2><p>Saved schema registration does not establish live source access or row completeness.</p>
       <div className="flex flex-wrap gap-3 my-4">
         <label>Search returned catalogue <input aria-label="Search returned catalogue" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} /></label>
         <label>Dataset <select value={datasetFilter} onChange={e=>setDatasetFilter(e.target.value)}><option value="all">All datasets</option>{[...new Set(warehouseTables.map(t=>t.dataset))].map(d=><option key={d}>{d}</option>)}</select></label>
@@ -163,8 +163,8 @@ export default function AdminValidation() {
         {!filteredObjects.length && <p>No registered objects match this local selection.</p>}
       </>}
     </section>}
-    {activeTab === 'telemetry' && <section className="cx-command-panel"><h2>Telemetry reference</h2><p>No measured JSON validity, event completeness or telemetry reconciliation result is returned by this page. Those checks are not reported.</p><p>The saved export manifest describes {EXPORT_MANIFEST_EVIDENCE.totalProjects} projects and {EXPORT_MANIFEST_EVIDENCE.totalDatasets} datasets. Registration is separate from current access.</p><details><summary>Historical export failure reference</summary><pre className="whitespace-pre-wrap break-words">{JSON.stringify(OBSERVED_EXPORT_FAILURES,null,2)}</pre></details></section>}
-    {activeTab === 'hygiene' && <section className="cx-command-panel"><h2>Validation rules reference</h2><p>Identity validation, telephone formatting and lifecycle chronology require measured source checks. No clean-data percentage, executed-test count or chronology pass result is available here.</p><p>Repository test execution and warehouse reconciliation are separate evidence. A page render runs neither.</p></section>}
-    {activeTab === 'blc_powerbi' && <section className="cx-command-panel"><h2>BLC integration contract reference</h2><p>No authenticated Power BI check or live mandate reconciliation has been performed by this page. Registered query definitions do not establish verified activations.</p><dl className="break-all"><dt>Dataset</dt><dd>{RUBIX_DATASET_ID}</dd><dt>Report</dt><dd>{RUBIX_REPORT_ID}</dd><dt>Model</dt><dd>{RUBIX_MODEL_ID}</dd><dt>Entity</dt><dd>{RUBIX_ENTITY}</dd><dt>Company predicate</dt><dd>{RUBIX_COMPANY_PREDICATE}</dd></dl><details><summary>Registered query types ({RUBIX_QUERY_TYPES.length})</summary><pre className="whitespace-pre-wrap break-words">{JSON.stringify(RUBIX_QUERY_TYPES,null,2)}</pre></details></section>}
+    {activeTab === 'telemetry' && <section className="cx-command-panel p-5 space-y-2"><h2 className="text-base font-semibold">Telemetry reference</h2><p>No measured JSON validity, event completeness or telemetry reconciliation result is returned by this page. Those checks are not reported.</p><p>The saved export manifest describes {EXPORT_MANIFEST_EVIDENCE.totalProjects} projects and {EXPORT_MANIFEST_EVIDENCE.totalDatasets} datasets. Registration is separate from current access.</p><details><summary>Historical export failure reference</summary><pre className="whitespace-pre-wrap break-words">{JSON.stringify(OBSERVED_EXPORT_FAILURES,null,2)}</pre></details></section>}
+    {activeTab === 'hygiene' && <section className="cx-command-panel p-5 space-y-2"><h2 className="text-base font-semibold">Validation rules reference</h2><p>Identity validation, telephone formatting and lifecycle chronology require measured source checks. No clean-data percentage, executed-test count or chronology pass result is available here.</p><p>Repository test execution and warehouse reconciliation are separate evidence. A page render runs neither.</p></section>}
+    {activeTab === 'blc_powerbi' && <section className="cx-command-panel p-5 space-y-2"><h2 className="text-base font-semibold">BLC integration contract reference</h2><p>No authenticated Power BI check or live mandate reconciliation has been performed by this page. Registered query definitions do not establish verified activations.</p><dl className="break-all"><dt>Dataset</dt><dd>{RUBIX_DATASET_ID}</dd><dt>Report</dt><dd>{RUBIX_REPORT_ID}</dd><dt>Model</dt><dd>{RUBIX_MODEL_ID}</dd><dt>Entity</dt><dd>{RUBIX_ENTITY}</dd><dt>Company predicate</dt><dd>{RUBIX_COMPANY_PREDICATE}</dd></dl><details><summary>Registered query types ({RUBIX_QUERY_TYPES.length})</summary><pre className="whitespace-pre-wrap break-words">{JSON.stringify(RUBIX_QUERY_TYPES,null,2)}</pre></details></section>}
   </PageShell>;
 }
