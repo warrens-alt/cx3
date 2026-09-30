@@ -234,7 +234,6 @@ export default function CampaignIntelligence() {
                     <strong>{summary.reach == null ? '—' : num(summary.reach)}</strong>
                     <div className="flex items-center justify-between gap-1 mt-1">
                       <small>{data.reachDefinition || 'Reported reach'}</small>
-                      <button type="button" onClick={() => setRootMetric('cpm')} className="text-[11px] text-action hover:underline inline-flex items-center gap-0.5 cursor-pointer">Why? <Search size={10} /></button>
                     </div>
                   </div>
                   <div>
@@ -242,7 +241,6 @@ export default function CampaignIntelligence() {
                     <strong>{summary.frequency == null ? '—' : summary.frequency.toFixed(2)}</strong>
                     <div className="flex items-center justify-between gap-1 mt-1">
                       <small>Impressions / reach</small>
-                      <button type="button" onClick={() => setRootMetric('cpm')} className="text-[11px] text-action hover:underline inline-flex items-center gap-0.5 cursor-pointer">Why? <Search size={10} /></button>
                     </div>
                   </div>
                   <div>
@@ -250,7 +248,6 @@ export default function CampaignIntelligence() {
                     <strong>{summary.outboundClicks == null ? '—' : num(summary.outboundClicks)}</strong>
                     <div className="flex items-center justify-between gap-1 mt-1">
                       <small>Clicks leaving platform</small>
-                      <button type="button" onClick={() => setRootMetric('cpc')} className="text-[11px] text-action hover:underline inline-flex items-center gap-0.5 cursor-pointer">Why? <Search size={10} /></button>
                     </div>
                   </div>
                   <div>
@@ -258,7 +255,6 @@ export default function CampaignIntelligence() {
                     <strong>{summary.outboundCtr == null ? '—' : `${summary.outboundCtr.toFixed(2)}%`}</strong>
                     <div className="flex items-center justify-between gap-1 mt-1">
                       <small>Outbound / impressions</small>
-                      <button type="button" onClick={() => setRootMetric('ctr')} className="text-[11px] text-action hover:underline inline-flex items-center gap-0.5 cursor-pointer">Why? <Search size={10} /></button>
                     </div>
                   </div>
                   <div>
@@ -266,7 +262,6 @@ export default function CampaignIntelligence() {
                     <strong>{summary.clickToLeadRate == null ? '—' : `${summary.clickToLeadRate.toFixed(2)}%`}</strong>
                     <div className="flex items-center justify-between gap-1 mt-1">
                       <small>Events / clicks</small>
-                      <button type="button" onClick={() => setRootMetric('leads')} className="text-[11px] text-action hover:underline inline-flex items-center gap-0.5 cursor-pointer">Why? <Search size={10} /></button>
                     </div>
                   </div>
                 </div>

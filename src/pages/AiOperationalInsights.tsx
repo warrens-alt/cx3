@@ -116,7 +116,7 @@ export default function AiOperationalInsights() {
         {loading && !data ? (
           <div className="cx-command-loading" role="status">
             <div className="cx-command-spinner" />
-            <span>Synthesizing operational metrics via Google Gemini…</span>
+            <span>Loading operational briefing…</span>
           </div>
         ) : data ? (
           <>

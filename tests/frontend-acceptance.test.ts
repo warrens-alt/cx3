@@ -8,6 +8,7 @@ import {buildAcceptanceFixture} from '../scripts/build-frontend-acceptance-fixtu
 import {navigationTarget} from '../src/lib/presentation';
 import {chartCoordinate} from '../src/lib/chartPresentation';
 import {buildLeadLedgerExport} from '../src/lib/leadLedgerExport';
+import {LEDGER_HEADERS} from '../contracts/leadLedgerReplica';
 
 const output=await mkdtemp(path.join(tmpdir(),'cx3-routed-acceptance-'));
 await buildAcceptanceFixture(output);
@@ -76,7 +77,93 @@ test('source and analytical Ledger are distinct panels with exact source evidenc
   }finally{app.close();}
 });
 
-test('analytical Ledger scope changes reset paging and do not revive an old selection',async()=>{
+test('source Ledger paging and submitted search preserve full filtered summary counts',async()=>{
+  const app=await mount('/lead-ledger'+scope,{sourceLeadCount:26});try{
+    await app.wait(()=>app.w.document.querySelectorAll('.cx-ledger-lead').length===25);
+    assert.match(app.text(),/26 leads in scope/);
+    for(const [metric,value] of [['leads','26'],['rows','27'],['lead-only','25'],['exceptions','2']])assert.equal(app.find(`[data-metric="${metric}"] strong`).textContent,value);
+    await app.click('button','Next');
+    await app.wait(()=>app.w.document.querySelectorAll('.cx-ledger-lead').length===1);
+    assert.match(app.text(),/SYNTHETIC-SOURCE-0026/);
+    assert.match(app.text(),/26 leads in scope/);
+    for(const [metric,value] of [['leads','26'],['rows','27'],['lead-only','25'],['exceptions','2']])assert.equal(app.find(`[data-metric="${metric}"] strong`).textContent,value);
+    await app.input(app.find('#ledger-search'),'SYNTHETIC-SOURCE-0026');
+    app.find('.cx-ledger-toolbar form').dispatchEvent(new app.w.Event('submit',{bubbles:true,cancelable:true}));
+    await app.wait(()=>app.text().includes('1 leads in scope'));
+    assert.match(app.text(),/Page 1/);
+    assert.ok(app.w.__fixture.requests.some((r:string)=>r.includes('replica?')&&r.includes('search=SYNTHETIC-SOURCE-0026')&&r.includes('offset=0')));
+  }finally{app.close();}
+});
+
+test('partial source coverage preserves its boundary and export choices',async()=>{
+  const coverage={compatible:false,available:LEDGER_HEADERS.filter(h=>h!=='HLC Last Call Date'),missing:['HLC Last Call Date'],source:'Synthetic partial source',richViewEnabled:false};
+  const app=await mount('/lead-ledger'+scope,{payloads:{'/api/analytics/lead-ledger/replica/coverage':coverage}});try{
+    await app.wait(()=>app.find('button','Export all rows · partial fields'));
+    assert.equal(app.find('button','Export complete 63-column CSV').disabled,true);
+    await app.wait(()=>!app.find('button','Export all rows · partial fields').disabled);
+    assert.match(app.text(),/HLC Last Call Date/);
+  }finally{app.close();}
+});
+
+test('data integrity does not certify an old observed timestamp as healthy',async()=>{
+  const app=await mount('/data-integrity'+scope);try{
+    await app.wait(()=>app.text().includes('Synthetic old source'));
+    assert.match(app.text(),/2020-01-01/);
+    assert.doesNotMatch(app.text(),/healthy sources/);
+    const sourceCard=[...app.w.document.querySelectorAll('article')].find((e:any)=>e.textContent.includes('Observed Data Sources')) as any;
+    assert.ok(sourceCard);assert.doesNotMatch(sourceCard.textContent,/Why changed/);
+  }finally{app.close();}
+});
+
+test('configured reconciliation without a release reports the returned reason',async()=>{
+  const app=await mount('/reconciliation'+scope);try{
+    await app.wait(()=>app.text().includes('No approved reporting release published'));
+    assert.doesNotMatch(app.text(),/currently unconfigured/);
+  }finally{app.close();}
+});
+
+test('briefing loading does not claim a model before returned provenance',async()=>{
+  const endpoint='/api/analytics/offernet/ai-insights';
+  const app=await mount('/ai-insights'+scope,{defer:[endpoint]});try{
+    await app.wait(()=>app.text().includes('Loading operational briefing'));
+    assert.doesNotMatch(app.text(),/Synthesizing operational metrics via Google Gemini/);
+    await app.wait(()=>Boolean(app.w.__fixture.pending?.[endpoint]));
+    app.w.__fixture.pending[endpoint]();
+    await app.wait(()=>app.text().includes('Synthetic briefing'));
+    assert.match(app.find('[aria-label="Briefing provenance"]').textContent,/synthetic/);
+  }finally{app.close();}
+});
+
+test('consumer and agent inspection remain available without unrelated decompositions',async()=>{
+  const app=await mount('/consumers'+scope);try{
+    await app.wait(()=>app.text().includes('Consumer Volume Tier Distribution'));
+    assert.equal(Boolean(app.find('button','Why changed?')),false);
+    const inspect=app.w.document.querySelectorAll('.cx-inspect-btn')[2];assert.ok(inspect);inspect.click();
+    await app.wait(()=>!app.text().includes('Consumer Volume Tier Distribution'));
+    assert.equal(app.w.__fixture.requests.filter((r:string)=>r.includes('root-cause')).length,0);
+    app.w.__fixture.navigate('/agent-performance'+scope);
+    await app.wait(()=>app.text().includes('Synthetic Agent A'));
+    assert.equal(Boolean(app.find('button','Why changed?')),false);
+    await app.click('button','Inspect roster');
+    assert.equal(app.w.__fixture.requests.filter((r:string)=>r.includes('root-cause')).length,0);
+  }finally{app.close();}
+});
+
+test('root-cause contribution region preserves record links, scope and keyboard focus',async()=>{
+  const app=await mount('/__fixture/root-cause'+scope);try{
+    await app.wait(()=>app.find('[aria-label="Vendor contribution evidence"]'));
+    const region=app.find('[aria-label="Vendor contribution evidence"]');
+    assert.equal(region.getAttribute('tabindex'),'0');
+    region.focus();assert.equal(app.w.document.activeElement,region);
+    assert.match(region.textContent,/Contribution.*20 leads/);
+    const link=region.querySelector('a');assert.ok(link);
+    const target=new URL(link.href);
+    assert.equal(target.searchParams.get('vendor'),'Synthetic vendor with a long descriptive name');
+    assert.equal(target.searchParams.get('startDate'),'2026-09-28');
+  }finally{app.close();}
+});
+
+test('analytical Ledger scope changes reset paging across a scope round trip',async()=>{
   const app=await mount('/lead-ledger'+scope);try{
     await app.click('button','Analytical ledger');
     await app.wait(()=>app.find('input','Search analytical ledger'));
@@ -137,6 +224,27 @@ test('explorer distinguishes absent outcomes from explicit false',async()=>{
     const rows=[...app.w.document.querySelectorAll('tbody tr')] as any[];
     assert.match(rows[0].textContent,/Unavailable/);
     assert.match(rows[1].textContent,/No/);
+  }finally{app.close();}
+});
+
+test('Explorer scope round trips clear the open timeline and reset its page',async()=>{
+  const app=await mount('/lead-explorer'+scope);try{
+    await app.wait(()=>app.text().includes('SYNTHETIC-LEAD-0001'));
+    await app.click('button','Next');
+    await app.wait(()=>app.text().includes('SYNTHETIC-LEAD-0051'));
+    await app.click('button[title="Open lead timeline"]');
+    await app.wait(()=>app.find('[role="dialog"]'));
+    app.w.__fixture.navigate('/lead-explorer?clientId=synthetic-a&startDate=2026-09-27&endDate=2026-09-28');
+    await app.wait(()=>!app.find('[role="dialog"]'));
+    await app.wait(()=>app.w.__fixture.requests.some((r:string)=>r.includes('raw-leads')&&r.includes('startDate=2026-09-27')));
+    assert.ok(app.w.__fixture.requests.filter((r:string)=>r.includes('raw-leads')&&r.includes('startDate=2026-09-27')).every((r:string)=>r.includes('offset=0')));
+    assert.equal(app.w.__fixture.requests.some((r:string)=>r.includes('lead-timeline')&&r.includes('startDate=2026-09-27')),false);
+    app.w.__fixture.navigate('/lead-explorer'+scope);
+    await app.wait(()=>app.w.__fixture.location==='/lead-explorer'+scope);
+    await new Promise(r=>setTimeout(r,70));
+    assert.equal(Boolean(app.find('[role="dialog"]')),false);
+    await app.wait(()=>app.text().includes('SYNTHETIC-LEAD-0001'));
+    assert.equal(app.find('button','Previous').disabled,true);
   }finally{app.close();}
 });
 
@@ -231,6 +339,24 @@ test('More views has native links, Escape closes it and returns focus',async()=>
     app.w.document.dispatchEvent(new app.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
     await app.wait(()=>!app.find('[role="group"]','More views'));
     assert.equal(app.w.document.activeElement,trigger);
+  }finally{app.close();}
+});
+
+test('More views closes on primary-link activation and router history changes',async()=>{
+  const app=await mount('/agent-performance'+scope);try{
+    await app.wait(()=>app.text().includes('Synthetic Agent A'));
+    await app.click('button','More views');
+    assert.ok(app.find('[role="group"]','More views'));
+    // A click without mousedown follows the same link activation path as Enter.
+    await app.click('nav[aria-label="Contact centre navigation"] a','Response speed');
+    await app.wait(()=>app.w.__fixture.location.startsWith('/speed-to-lead'));
+    await app.wait(()=>!app.find('[role="group"]','More views'));
+    assert.equal(Boolean(app.find('[role="group"]','More views')),false);
+    await app.click('button','More views');
+    app.w.__fixture.navigate(-1);
+    await app.wait(()=>app.w.__fixture.location.startsWith('/agent-performance'));
+    await app.wait(()=>!app.find('[role="group"]','More views'));
+    assert.equal(Boolean(app.find('[role="group"]','More views')),false);
   }finally{app.close();}
 });
 

@@ -5,7 +5,6 @@ import { PageShell } from '../components/PageShell';
 import { DataState } from '../components/DataState';
 import VettingChart from '../components/visuals/VettingChart';
 import { VisualTable } from '../components/visuals/DataVisual';
-import RootCauseDrawer from '../components/RootCauseDrawer';
 import UnifiedMetricCard from '../components/UnifiedMetricCard';
 import { useAnalyticsData } from '../lib/useAnalyticsData';
 import { useFilters, defaultDateRange } from '../lib/FilterContext';
@@ -172,8 +171,6 @@ function Matrix({report,measure,onSelect}:{report:VettingReport;measure:string;o
 export default function Vetting(){
   const [tab,setTab]=useState<typeof tabs[number][0]>('overview'),[interval,setInterval]=useState('day'),[classValue,setClassValue]=useState(''),[colourValue,setColourValue]=useState('');
   const [measure,setMeasure]=useState('leads'),[sourceAxis,setSourceAxis]=useState<'source'|'vendor'>('source');
-  const [rootMetric, setRootMetric] = useState<string | null>(null);
-  const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
   const {startDate,endDate,filters}=useFilters(),{selectedClient}=useClient();
   const defaultDates = useMemo(() => defaultDateRange(), []);
   const activeStart = startDate || defaultDates.start;
@@ -232,11 +229,11 @@ export default function Vetting(){
       {tab==='overview'&&<>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 my-3">
           {([
-            ['leads', 'Included Leads', 'fetchedLeads', 'classes'],
-            ['classRecorded', 'Class Result Recorded', 'fetchedLeads', 'classes'],
-            ['namedColour', 'Recognised Colour', 'deliveryRate', 'colours'],
-            ['bothRecorded', 'Class + Named Colour', 'contactRate', 'matrix'],
-          ] as [VettingMetric, string, string, string][]).map(([key, label, metricKey, targetTab]) => {
+            ['leads', 'Included Leads', 'classes'],
+            ['classRecorded', 'Class Result Recorded', 'classes'],
+            ['namedColour', 'Recognised Colour', 'colours'],
+            ['bothRecorded', 'Class + Named Colour', 'matrix'],
+          ] as [VettingMetric, string, string][]).map(([key, label, targetTab]) => {
             const currentVal = data?.current?.[key];
             const prevVal = data?.previous?.[key];
             const change = periodChange(currentVal, prevVal);
@@ -253,10 +250,6 @@ export default function Vetting(){
                 note={noteText}
                 change={numChange}
                 changeUnit="%"
-                onWhyChanged={() => {
-                  setRootMetric(metricKey);
-                  setRootMetricLabel(label);
-                }}
                 onInspect={() => setTab(targetTab as any)}
                 inspectLabel={`Inspect ${targetTab}`}
               />
@@ -292,14 +285,5 @@ export default function Vetting(){
       </>}
       <details className="vetting-evidence enterprise-card"><summary>Definitions, source fields and query evidence</summary><p><strong>Previous window:</strong> {data?.scope?.previousStart || '—'} to {data?.scope?.previousEnd || '—'}. <strong>Source:</strong> {data?.evidence?.table || 'Unavailable'}. <strong>Query job:</strong> {data?.evidence?.jobId||'Unavailable'}. <strong>Read at:</strong> {data?.evidence?.generatedAt || 'Unavailable'}.</p><p>No snapshot is pinned. The same filters and period definitions apply throughout this response.</p><ul>{(data?.notes || []).map(n=><li key={n}>{n}</li>)}</ul><dl>{Object.entries(data?.fields || {}).map(([key,f])=><div key={key}><dt>{f.sourceField}</dt><dd>{f.available?'Column available':'Mapping unavailable'}</dd></div>)}</dl></details>
     </div>}
-    <RootCauseDrawer
-      open={Boolean(rootMetric)}
-      metric={rootMetric}
-      metricLabel={rootMetricLabel}
-      onClose={() => {
-        setRootMetric(null);
-        setRootMetricLabel(undefined);
-      }}
-    />
   </div></PageShell>;
 }

@@ -39,7 +39,7 @@ export default function DataIntegrityIntelligence() {
   }, fetchDataIntegrity);
 
   const badge = (status: string) => {
-    const healthy = ['HEALTHY', 'OBSERVED'].includes(status);
+    const healthy = status === 'HEALTHY';
     const warning = ['WARNING', 'MAPPING_REQUIRED', 'TIMESTAMP_CONTRACT_REQUIRED'].includes(status);
     const cls = healthy
       ? 'text-emerald-700'
@@ -94,14 +94,10 @@ export default function DataIntegrityIntelligence() {
               <UnifiedMetricCard
                 label="Observed Data Sources"
                 value={data.sources?.length || 0}
-                note={`${data.sources?.filter(s => ['OK', 'HEALTHY', 'OBSERVED'].includes(s.status)).length || 0} healthy sources`}
-                onWhyChanged={() => {
-                  setRootMetric('deliveryRate');
-                  setRootMetricLabel('Data Sources Health');
-                }}
+                note="Returned source statuses; observation alone does not establish freshness or health"
                 onInspect={() => {
                   const el = document.getElementById('source-evidence');
-                  el?.scrollIntoView({ behavior: 'smooth' });
+                  el?.scrollIntoView({ behavior: 'auto' });
                 }}
                 inspectLabel="Inspect sources"
               />
@@ -110,13 +106,9 @@ export default function DataIntegrityIntelligence() {
                 label="Discrepancy Checks"
                 value={data.checks.length}
                 note={`${data.checks.filter(c => (c.discrepancyCount || 0) > 0).length} with measured gaps`}
-                onWhyChanged={() => {
-                  setRootMetric('deliveryRate');
-                  setRootMetricLabel('Discrepancy Checks');
-                }}
                 onInspect={() => {
                   const el = document.querySelector('.cx-integrity-table');
-                  el?.scrollIntoView({ behavior: 'smooth' });
+                  el?.scrollIntoView({ behavior: 'auto' });
                 }}
                 inspectLabel="Inspect checks"
               />
@@ -125,10 +117,6 @@ export default function DataIntegrityIntelligence() {
                 label="Validation Status"
                 value={data.validationStatus || data.healthGrade || 'OBSERVED'}
                 note="Operational rules status"
-                onWhyChanged={() => {
-                  setRootMetric('deliveryRate');
-                  setRootMetricLabel('Validation Rules');
-                }}
                 to={scoped('/reports')}
                 inspectLabel="Evidence reports"
               />
