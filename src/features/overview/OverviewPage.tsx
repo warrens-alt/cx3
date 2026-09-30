@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { Info, ArrowRight, RefreshCw, Settings2, ChevronDown, Clock3, TrendingUp, TrendingDown, Search } from 'lucide-react';
+import { ArrowRight, RefreshCw, Settings2, ChevronDown, Clock3, TrendingUp, TrendingDown, Search } from 'lucide-react';
 import { useOverviewModel, type RootMetric } from './model/useOverviewModel';
 import { useFilters } from '../../lib/FilterContext';
 import OutcomeStrip from './components/OutcomeStrip';
@@ -8,12 +7,11 @@ import PerformanceTrend from './components/PerformanceTrend';
 import AttentionList from './components/AttentionList';
 import JourneySummary from './components/JourneySummary';
 import SegmentComparison from './components/SegmentComparison';
-import ChangeContributionPanel from './components/ChangeContributionPanel';
 import InspectorHost from '../../shared/evidence/InspectorHost';
 import ReportingScopeBar from '../../shared/reporting/ReportingScopeBar';
+import { ReportActions } from '../../shared/reporting/ReportPresentation';
 import { OperationalEmpty, OperationalError, OverviewSkeleton } from '../../components/OperationalState';
 import { statusLabel } from '../../lib/statusPresentation';
-import { useScopedNavigationTarget } from '../../hooks/useScopedNavigationTarget';
 import RootCauseDrawer from '../../components/RootCauseDrawer';
 import { formatPercent, formatTableNumber } from '../../lib/formatters';
 import { downloadAnalysisCsv, type AnalysisCell } from '../../lib/analysisExport';
@@ -21,7 +19,6 @@ import { OperatingControlStrip } from '../../components/OfferNetControlPanels';
 import OverviewCommercialPanel from '../../components/OverviewCommercialPanel';
 
 export default function OverviewPage() {
-  const scoped = useScopedNavigationTarget();
   const { filters } = useFilters();
   const {
     data,
@@ -105,42 +102,25 @@ export default function OverviewPage() {
 
   return (
     <div className="cx-command-page cx-overview-page" aria-label="Overview workspace">
-      {/* Scope Bar */}
-      <ReportingScopeBar
-        onRefresh={refreshAll}
-        onExportCsv={data ? handleExportOverviewCsv : undefined}
-      />
-
       <div className="cx-command-content space-y-6">
         {/* Page Header */}
         <header className="cx-workspace-heading flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-2 border-b border-border-subtle">
           <div>
-            <div className="flex items-center gap-1.5 text-xs text-text-sec">
-              <span className="font-semibold text-action uppercase tracking-wider">Outcomes</span>
-              <span className="text-text-muted" aria-hidden="true">·</span>
-              <span className="font-medium text-text-muted">{data?.clientName || 'Workspace'}</span>
-            </div>
             <h1 className="text-2xl font-bold tracking-tight text-text-main mt-1">
               Overview
             </h1>
             <p className="text-xs text-text-sec mt-1 max-w-2xl leading-relaxed">
-              Follow acquired demand through intake, delivery, contact, sales, and activations across the selected reporting cohort.
+              See lead intake, delivery, contact, recorded sales and activation for the selected reporting cohort.
             </p>
           </div>
 
-          <Link
-            to={scoped('/reports')}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border-subtle bg-surface hover:bg-surface-subtle transition-colors text-xs text-text-sec shadow-xs shrink-0 self-start"
-            title="Inspect evidence and verification status"
-          >
-            <Info size={14} className="text-action" aria-hidden="true" />
-            <span>
-              <strong>{statusLabel(data?.validationStatus || 'NOT_VERIFIED')}</strong>
-              <span className="text-text-mute ml-1">· Evidence status</span>
-            </span>
-            <ArrowRight size={13} className="text-text-mute" />
-          </Link>
+          <ReportActions aboutContent={<p>Overview evidence: {statusLabel(data?.validationStatus || 'NOT_VERIFIED')}</p>} />
         </header>
+
+        <ReportingScopeBar
+          onRefresh={refreshAll}
+          onExportCsv={data ? handleExportOverviewCsv : undefined}
+        />
 
       {/* Error state */}
       {error && (
@@ -180,6 +160,57 @@ export default function OverviewPage() {
             onWhyChanged={investigate}
             isAdmin={isAdmin}
             hasComparison={hasComparison}
+          />
+
+          {/* Existing lifecycle counts, immediately after the primary outcomes. */}
+          <JourneySummary
+            stages={data.funnelStages}
+            funnelLeak={data.funnelLeak}
+            isAdmin={isAdmin}
+            onInspectStage={(stage) => {
+              setInspectorContent({
+                type: 'stage',
+                title: `${stage.name} Stage`,
+                subtitle: 'Observed lifecycle population across the selected reporting period.',
+                value: `${formatTableNumber(stage.volume)} leads`,
+                unit: 'records',
+                reportPath: '/funnel',
+                reportLabel: 'Open deep funnel analysis',
+                recordDrill: {
+                  drill: 'funnel-stage',
+                  drillValue: stage.key,
+                  label: `Inspect ${stage.name} lead records in Lead Explorer`,
+                },
+                scope: {
+                  clientId: scope.clientId,
+                  startDate: scope.startDate,
+                  endDate: scope.endDate,
+                  filters,
+                },
+              });
+            }}
+            onInspectLoss={(from, to, loss, lossKey) => {
+              setInspectorContent({
+                type: 'stage',
+                title: `${from} → ${to} Transition Dropoff`,
+                subtitle: `Leads observed in ${from} that did not progress to ${to}.`,
+                value: `−${formatTableNumber(loss)} leads`,
+                unit: 'dropoff records',
+                reportPath: '/funnel',
+                reportLabel: 'Open deep funnel analysis',
+                recordDrill: {
+                  drill: 'funnel-loss',
+                  drillValue: lossKey,
+                  label: `Inspect ${from} → ${to} loss records in Lead Explorer`,
+                },
+                scope: {
+                  clientId: scope.clientId,
+                  startDate: scope.startDate,
+                  endDate: scope.endDate,
+                  filters,
+                },
+              });
+            }}
           />
 
           {data.kpis?.fetchedLeads === 0 && (
@@ -249,57 +280,6 @@ export default function OverviewPage() {
               />
             </div>
           </div>
-
-          {/* 3. Lead-to-Activation Progression Journey */}
-          <JourneySummary
-            stages={data.funnelStages}
-            funnelLeak={data.funnelLeak}
-            isAdmin={isAdmin}
-            onInspectStage={(stage) => {
-              setInspectorContent({
-                type: 'stage',
-                title: `${stage.name} Stage`,
-                subtitle: 'Observed lifecycle population across the selected reporting period.',
-                value: `${formatTableNumber(stage.volume)} leads`,
-                unit: 'records',
-                reportPath: '/funnel',
-                reportLabel: 'Open deep funnel analysis',
-                recordDrill: {
-                  drill: 'funnel-stage',
-                  drillValue: stage.key,
-                  label: `Inspect ${stage.name} lead records in Lead Explorer`,
-                },
-                scope: {
-                  clientId: scope.clientId,
-                  startDate: scope.startDate,
-                  endDate: scope.endDate,
-                  filters,
-                },
-              });
-            }}
-            onInspectLoss={(from, to, loss, lossKey) => {
-              setInspectorContent({
-                type: 'stage',
-                title: `${from} → ${to} Transition Dropoff`,
-                subtitle: `Leads observed in ${from} that did not progress to ${to}.`,
-                value: `−${formatTableNumber(loss)} leads`,
-                unit: 'dropoff records',
-                reportPath: '/funnel',
-                reportLabel: 'Open deep funnel analysis',
-                recordDrill: {
-                  drill: 'funnel-loss',
-                  drillValue: lossKey,
-                  label: `Inspect ${from} → ${to} loss records in Lead Explorer`,
-                },
-                scope: {
-                  clientId: scope.clientId,
-                  startDate: scope.startDate,
-                  endDate: scope.endDate,
-                  filters,
-                },
-              });
-            }}
-          />
 
           {/* 4. Segment Comparison (Receives verified lifecycle segments, no backlog fallback!) */}
           <SegmentComparison

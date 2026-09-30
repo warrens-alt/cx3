@@ -1,3 +1,4 @@
+import { ReportActions } from '../../shared/reporting/ReportPresentation';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -76,10 +77,7 @@ export default function SalesActivationPage() {
   return (
     <div className="cx-command-page cx-sales-page" aria-label="Sales & activation workspace">
       {/* Shell Reporting Scope Bar */}
-      <ReportingScopeBar
-        onRefresh={refreshAll}
-        onExportCsv={handleExportCompleteWorkbook}
-      />
+
 
       <div className="cx-command-content space-y-5">
         {/* Page Header */}
@@ -97,18 +95,42 @@ export default function SalesActivationPage() {
               Recorded outcomes for the selected operational intake cohort. Understand confirmed sales, independent activation fulfilment, post-sale queue ageing, and source-recorded revenue.
             </p>
           </div>
+          <ReportActions aboutContent={<div className="space-y-3 text-xs text-slate-600 leading-relaxed">
+            <section className="space-y-1">
+              <h3 className="font-semibold text-slate-900">Operational Cohort Scope</h3>
+              <p>
+                The reporting period filters by <strong>lead intake date</strong> (when the lead was fetched/ingested), not the event timestamp of the subsequent sale or activation. This cohort-based structure allows accurate end-to-end conversion tracking for a cohort of leads, avoiding survival bias.
+              </p>
+            </section>
 
-          <div className="flex items-center gap-2 self-start flex-wrap">
-            <button
-              type="button"
-              onClick={() => setAboutOpen(true)}
-              className="cx-button-secondary text-xs flex items-center gap-1.5 py-1.5 px-3"
-              title="Methodology, independent count semantics and limitations"
-            >
-              <Info size={14} />
-              <span>About methodology</span>
-            </button>
+            <section className="space-y-1">
+              <h3 className="font-semibold text-slate-900">Independent Counts & Ratios</h3>
+              <p>
+                <strong>Recorded sales</strong> and <strong>Recorded activations</strong> are counted independently within the selected intake cohort. The displayed activation rate is an <em>independent-count ratio</em> (<code>activations / sales</code>), not a conditional transition assumption. Every activation is not assumed to have originated from a sale recorded in the exact same grain.
+              </p>
+            </section>
 
+            <section className="space-y-1">
+              <h3 className="font-semibold text-slate-900">Sales Without Recorded Activation</h3>
+              <p>
+                Calculated strictly from the observed population where <code>is_sale AND NOT is_activated</code> via the non-overlapping completed-day ageing queue (0–3d, 4–7d, 8–14d, 15–30d, 30d+, and future anomalies). It is <strong>never</strong> calculated as a naive subtraction of totalSales − totalActivations. Missing data remains unavailable.
+              </p>
+            </section>
+
+            <section className="space-y-1">
+              <h3 className="font-semibold text-slate-900">Source-Recorded Revenue Interpretation</h3>
+              <p>
+                Recorded revenue represents the sum of available source values, including explicit real zero amounts. Sales missing revenue are tracked separately and not defaulted to zero. Source-recorded revenue does not certify billable, invoiced, collected, or earned revenue.
+              </p>
+            </section>
+
+            <section className="space-y-1">
+              <h3 className="font-semibold text-slate-900">Withheld Maturation Curve</h3>
+              <p>
+                Maturation curves require an independently validated event-level join model. To preserve evidentiary integrity, ConversionX deliberately withholds synthetic extrapolation or unverified maturation curves until event-level activation models are certified.
+              </p>
+            </section>
+          </div>}>
             <Link
               to={scoped('/commercial')}
               className="cx-button-secondary text-xs flex items-center gap-1 py-1.5 px-3"
@@ -117,8 +139,13 @@ export default function SalesActivationPage() {
               <span>Spend & commercial</span>
               <ArrowRight size={13} />
             </Link>
-          </div>
+
+          </ReportActions>
         </header>
+      <ReportingScopeBar
+        onRefresh={refreshAll}
+        onExportCsv={handleExportCompleteWorkbook}
+      />
 
         {/* Operational Context Sub-Bar */}
         <div className="bg-surface-subtle border border-border rounded-lg p-2.5 px-3.5 flex flex-wrap items-center justify-between gap-3 text-xs text-text-sec">
@@ -269,79 +296,6 @@ export default function SalesActivationPage() {
         onClose={() => setInspectorContent(null)}
         content={inspectorContent}
       />
-
-      {/* About & Methodology Modal */}
-      <Modal
-        open={aboutOpen}
-        onClose={() => setAboutOpen(false)}
-        label="About Sales & Activation Analytics"
-      >
-        <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-2">
-              <BadgeCheck size={18} className="text-action" />
-              <h2 className="text-base font-bold text-text-main">
-                Sales & Activation Methodology & Governance
-              </h2>
-            </div>
-            <button
-              type="button"
-              onClick={() => setAboutOpen(false)}
-              className="text-slate-400 hover:text-slate-600 p-1 rounded-md"
-              aria-label="Close about dialog"
-            >
-              <X size={18} />
-            </button>
-          </div>
-
-          <div className="space-y-3 text-xs text-slate-600 leading-relaxed">
-            <section className="space-y-1">
-              <h3 className="font-semibold text-slate-900">Operational Cohort Scope</h3>
-              <p>
-                The reporting period filters by <strong>lead intake date</strong> (when the lead was fetched/ingested), not the event timestamp of the subsequent sale or activation. This cohort-based structure allows accurate end-to-end conversion tracking for a cohort of leads, avoiding survival bias.
-              </p>
-            </section>
-
-            <section className="space-y-1">
-              <h3 className="font-semibold text-slate-900">Independent Counts & Ratios</h3>
-              <p>
-                <strong>Recorded sales</strong> and <strong>Recorded activations</strong> are counted independently within the selected intake cohort. The displayed activation rate is an <em>independent-count ratio</em> (<code>activations / sales</code>), not a conditional transition assumption. Every activation is not assumed to have originated from a sale recorded in the exact same grain.
-              </p>
-            </section>
-
-            <section className="space-y-1">
-              <h3 className="font-semibold text-slate-900">Sales Without Recorded Activation</h3>
-              <p>
-                Calculated strictly from the observed population where <code>is_sale AND NOT is_activated</code> via the non-overlapping completed-day ageing queue (0–3d, 4–7d, 8–14d, 15–30d, 30d+, and future anomalies). It is <strong>never</strong> calculated as a naive subtraction of totalSales − totalActivations. Missing data remains unavailable.
-              </p>
-            </section>
-
-            <section className="space-y-1">
-              <h3 className="font-semibold text-slate-900">Source-Recorded Revenue Interpretation</h3>
-              <p>
-                Recorded revenue represents the sum of available source values, including explicit real zero amounts. Sales missing revenue are tracked separately and not defaulted to zero. Source-recorded revenue does not certify billable, invoiced, collected, or earned revenue.
-              </p>
-            </section>
-
-            <section className="space-y-1">
-              <h3 className="font-semibold text-slate-900">Withheld Maturation Curve</h3>
-              <p>
-                Maturation curves require an independently validated event-level join model. To preserve evidentiary integrity, ConversionX deliberately withholds synthetic extrapolation or unverified maturation curves until event-level activation models are certified.
-              </p>
-            </section>
-          </div>
-
-          <div className="pt-3 border-t border-slate-100 flex justify-end">
-            <button
-              type="button"
-              onClick={() => setAboutOpen(false)}
-              className="cx-button-primary text-xs py-1.5 px-4"
-            >
-              Done
-            </button>
-          </div>
-        </div>
-      </Modal>
 
       <RootCauseDrawer
         open={Boolean(rootMetric)}

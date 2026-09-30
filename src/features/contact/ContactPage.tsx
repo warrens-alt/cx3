@@ -1,3 +1,4 @@
+import { ReportActions } from '../../shared/reporting/ReportPresentation';
 import '../../styles/journeyContactVisuals.css';
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -116,7 +117,7 @@ export default function ContactPage() {
   return (
     <div className="cx-visual-workspace cx-contact-visual-workspace space-y-6">
       {/* 1. Scope Bar */}
-      <ReportingScopeBar onRefresh={refreshAll} onExportCsv={handleExportCsv} />
+
 
       <div className="cx-visual-workspace-body space-y-6">
       {/* 2. Page Header */}
@@ -133,8 +134,10 @@ export default function ContactPage() {
             Examine observed call attempts, outcome yields, and vendor disposition distributions.
           </p>
         </div>
-
-        <div className="flex flex-wrap items-center gap-2">
+        <ReportActions />
+      </header>
+      <ReportingScopeBar onRefresh={refreshAll} onExportCsv={handleExportCsv} />
+<nav className="cx-report-secondary-actions" aria-label="Contact analyses">
           {/* Tab Switcher */}
           <div className="inline-flex rounded-lg border border-border-subtle p-0.5 bg-surface text-xs font-medium">
             <button
@@ -182,8 +185,7 @@ export default function ContactPage() {
             <Search size={13} />
             <span>Inspect records</span>
           </Link>
-        </div>
-      </header>
+        </nav>
 
       {/* Error state */}
       {error && (

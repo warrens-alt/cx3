@@ -356,7 +356,7 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     id: 'lead-ledger',
     name: 'Lead ledger',
     path: '/lead-ledger',
-    description: 'Admin-only analytical lead transaction ledger.',
+    description: 'Inspect original source records and normalised lead timelines.',
     area: 'investigate',
     icon: Layers,
     scopePolicy: 'diagnostics',

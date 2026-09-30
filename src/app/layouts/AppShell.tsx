@@ -7,7 +7,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   AlertCircle,
-  Columns3,
   SlidersHorizontal,
 } from 'lucide-react';
 import { BRAND, PAGE_TITLES } from '../../../contracts/naming';
@@ -51,7 +50,7 @@ export default function AppShell({ children }: AppShellProps) {
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const preferencesRef = useRef<HTMLDivElement>(null);
   const preferencesButtonRef = useRef<HTMLButtonElement>(null);
-  const { density, toggleDensity } = useTableDensity();
+  const { density, setDensity } = useTableDensity();
 
   const currentArea = getAreaForPath(location.pathname);
   const pageNav = navigationPage(location.pathname);
@@ -151,10 +150,10 @@ export default function AppShell({ children }: AppShellProps) {
         inert={!sidebar}
         aria-hidden={!sidebar ? true : undefined}
         className={`cx-desktop-sidebar transition-all duration-300 ease-in-out ${
-          sidebar ? 'w-[224px] opacity-100' : 'w-0 opacity-0 pointer-events-none'
+          sidebar ? 'w-[252px] opacity-100' : 'w-0 opacity-0 pointer-events-none'
         }`}
       >
-        <div className="w-[224px] h-full">
+        <div className="w-[252px] h-full">
           <PrimaryNavigation
             onSearch={openSearch}
             searchShortcut={searchShortcut}
@@ -275,15 +274,12 @@ export default function AppShell({ children }: AppShellProps) {
               </select>
             </div>
 
-            {/* Quick 1-Click Theme Toggle */}
-            <ThemeToggle variant="compact" />
-
             {/* Display Preferences Popover (Density & Theme) */}
             <div className="relative inline-block" ref={preferencesRef}>
               <button
                 ref={preferencesButtonRef}
                 type="button"
-                className="cx-icon-button"
+                className="cx-display-preferences"
                 aria-label="Display preferences"
                 title="Display preferences: table spacing and theme"
                 aria-expanded={preferencesOpen}
@@ -291,6 +287,7 @@ export default function AppShell({ children }: AppShellProps) {
                 onClick={() => setPreferencesOpen(prev => !prev)}
               >
                 <SlidersHorizontal size={17} aria-hidden="true" />
+                <span>Display preferences</span>
               </button>
 
               {preferencesOpen && (
@@ -309,7 +306,8 @@ export default function AppShell({ children }: AppShellProps) {
                       <button
                         type="button"
                         aria-pressed={density === 'comfortable'}
-                        onClick={() => { if (density !== 'comfortable') toggleDensity(); }}
+                        onClick={() => setDensity('comfortable')}
+                        aria-label="Comfortable table spacing"
                         className={`py-1 px-2 rounded font-medium text-xs text-center transition-colors cursor-pointer ${
                           density === 'comfortable' ? 'bg-surface text-text-main shadow-2xs font-semibold' : 'text-text-sec hover:text-text-main'
                         }`}
@@ -319,7 +317,8 @@ export default function AppShell({ children }: AppShellProps) {
                       <button
                         type="button"
                         aria-pressed={density === 'compact'}
-                        onClick={() => { if (density !== 'compact') toggleDensity(); }}
+                        onClick={() => setDensity('compact')}
+                        aria-label="Compact table spacing"
                         className={`py-1 px-2 rounded font-medium text-xs text-center transition-colors cursor-pointer ${
                           density === 'compact' ? 'bg-surface text-text-main shadow-2xs font-semibold' : 'text-text-sec hover:text-text-main'
                         }`}

@@ -4,7 +4,7 @@
 .cx-nav-expand{display:grid;place-items:center;flex:0 0 30px;height:34px;border:0;border-radius:6px;background:transparent;color:#64748b;cursor:pointer}
 .cx-nav-expand[aria-expanded=true] svg{transform:rotate(180deg)}.cx-nav-expand:hover{background:#eef2f6}.cx-nav-expand:focus-visible{outline:2px solid #3562b3;outline-offset:2px}
 .cx-related-navigation[hidden]{display:none}.cx-sidebar-source-link{display:flex;align-items:center;gap:8px;padding:9px 6px;color:#475569;font-size:12px;text-decoration:none}
-.cx-read-guide{border:1px solid var(--cx-border);border-radius:8px;padding:12px 16px;background:var(--cx-surface);font-size:12px;color:var(--cx-text-secondary);min-width:0}
+.cx-read-guide{background:var(--cx-surface);font-size:13px;color:var(--cx-text-secondary);min-width:0}
 .cx-read-guide summary{cursor:pointer;font-weight:650;color:var(--cx-text)}.cx-read-guide summary span{font-weight:400;margin-left:10px;color:var(--cx-text-muted)}.cx-read-guide p{line-height:1.6;margin:6px 0}.cx-read-guide pre{white-space:pre-wrap;overflow-wrap:anywhere}
 .cx-read-guide-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;padding-top:14px}.cx-read-guide nav{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:12px}.cx-read-guide a{color:var(--cx-primary);text-decoration:underline;text-underline-offset:3px}
 .cx-review-modal{max-width:980px!important;width:100%!important;background:var(--cx-surface);border:1px solid var(--cx-border);color:var(--cx-text)}.cx-review-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:20px 24px;border-bottom:1px solid var(--cx-border)}.cx-review-header h2{font-size:22px;line-height:1.25;font-weight:650;color:var(--cx-text);margin:0}.cx-review-header p{color:var(--cx-text-muted);font-size:13px;margin:6px 0 0}
@@ -14,3 +14,32 @@
 .cx-review-questions{margin:24px 0}.cx-review-questions h3{font-size:16px;font-weight:650;color:var(--cx-text)}.cx-question-options{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}.cx-question-options button{border:1px solid var(--cx-border);background:var(--cx-surface);color:var(--cx-text-secondary);border-radius:7px;padding:9px 12px;font-size:12px;cursor:pointer}.cx-question-options button[aria-pressed=true]{background:var(--cx-primary-soft);border-color:var(--cx-action);color:var(--cx-action-hover)}.cx-question-options button:focus-visible{outline:2px solid var(--cx-focus);outline-offset:2px}.cx-review-questions>p{font-size:13px;line-height:1.6;color:var(--cx-text-muted)}.cx-review-steps{display:flex;gap:12px;flex-wrap:wrap;list-style:decimal inside;padding:0;color:var(--cx-text-muted)}.cx-review-steps li{flex:1;min-width:150px;padding:12px;border-top:2px solid var(--cx-border);font-size:13px}.cx-review-steps a{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--cx-primary);font-weight:600;text-decoration:none;margin-top:6px}.cx-review-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:18px}.cx-review-footer>a{color:var(--cx-primary);font-size:13px}
 @media(max-width:700px){.cx-read-guide-grid{grid-template-columns:1fr;gap:10px}.cx-read-guide summary span{display:block;margin:7px 0 0}.cx-review-body{padding:16px}.cx-review-header{padding:16px}.cx-review-facts{grid-template-columns:1fr;gap:14px}.cx-review-table th,.cx-review-table td{padding:9px}.cx-review-footer{align-items:flex-start;flex-direction:column}.cx-question-options{flex-direction:column}.cx-question-options button{text-align:left;min-height:40px}}
 @media print{.cx-review-header button,.cx-review-scope button,.cx-review-footer,.cx-question-options{display:none}.cx-review-body{overflow:visible}.cx-review-modal{max-height:none!important}}
+
+/* Shared report actions and progressively disclosed analysis guidance. */
+.cx-report-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; min-width: 0; }
+.cx-report-actions > div:empty { display: none; }
+.cx-report-actions .cx-button-secondary { min-height: 38px; font-size: 12px; }
+.cx-report-status-fallback, .cx-report-export-fallback { display: flex; justify-content: flex-end; padding: 8px var(--cx-page-padding-x, 24px); }
+.cx-report-more { position: relative; font-size: 12px; }
+.cx-report-more > summary { cursor: pointer; padding: 9px 10px; color: var(--cx-text-secondary); }
+.cx-report-more > div { position: absolute; right: 0; top: 100%; width: min(320px, calc(100vw - 48px)); z-index: 40; padding: 12px; display: grid; gap: 8px; border: 1px solid var(--cx-border); border-radius: 8px; background: var(--cx-surface); box-shadow: var(--cx-shadow-sm); }
+.cx-report-more > div > div { display: contents; }
+.cx-report-more summary:focus-visible { outline: 2px solid var(--cx-focus); outline-offset: 2px; }
+.cx-report-secondary-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.cx-analysis-dialog-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 20px 24px; border-bottom: 1px solid var(--cx-border); color: var(--cx-text); }
+.cx-analysis-dialog-heading h2 { margin: 0; font-size: 18px; font-weight: 650; }
+.cx-analysis-dialog-heading p { margin-top: 5px; font-size: 12px; color: var(--cx-text-secondary); }
+.cx-analysis-dialog-content { padding: 24px; overflow-y: auto; overscroll-behavior: contain; min-height: 0; color: var(--cx-text-secondary); font-size: 13px; line-height: 1.6; }
+.cx-analysis-dialog-content > section + section { border-top: 1px solid var(--cx-border-subtle); padding-top: 16px; margin-top: 16px; }
+.cx-analysis-dialog-content h3 { color: var(--cx-text); font-size: 13px; font-weight: 650; }
+.cx-analysis-dialog-content p { overflow-wrap: anywhere; }
+@media (max-width: 639px) {
+  .cx-report-actions { justify-content: flex-start; width: 100%; gap: 6px; }
+  .cx-report-more > div { left: 0; right: auto; }
+  .cx-analysis-dialog-heading { padding: 16px; }
+  .cx-analysis-dialog-content { padding: 16px; }
+}
+
+.cx-analysis-help { position: relative; }
+.cx-analysis-help-panel { position: fixed; top: 120px; right: 24px; z-index: 45; width: min(620px, calc(100vw - 48px)); max-height: min(680px, calc(100dvh - 144px)); display: flex; flex-direction: column; background: var(--cx-surface); border: 1px solid var(--cx-border); border-radius: 8px; box-shadow: var(--cx-shadow-sm); }
+@media (max-width: 1023px) { .cx-analysis-help-panel { position: fixed; inset: 116px 12px auto; width: auto; max-height: calc(100dvh - 196px); } }

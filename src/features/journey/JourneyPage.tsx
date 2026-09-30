@@ -1,3 +1,4 @@
+import { ReportActions } from '../../shared/reporting/ReportPresentation';
 import '../../styles/journeyContactVisuals.css';
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -141,10 +142,7 @@ export default function JourneyPage() {
   return (
     <div className="cx-visual-workspace cx-journey-visual-workspace space-y-6">
       {/* 1. Scope Bar */}
-      <ReportingScopeBar
-        onRefresh={refreshAll}
-        onExportCsv={data ? handleExportCsv : undefined}
-      />
+
 
       <div className="cx-visual-workspace-body space-y-6">
       {/* 2. Page Header */}
@@ -161,8 +159,7 @@ export default function JourneyPage() {
             See where acquired demand progresses or drops off across intake, delivery, dialling, contact, and sales.
           </p>
         </div>
-
-        <div className="flex items-center gap-2">
+        <ReportActions>
           <Link
             to={scoped('/offershop-flow')}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-subtle bg-surface hover:bg-surface-subtle transition-colors text-xs font-medium text-text-sec hover:text-text-main shadow-xs"
@@ -180,8 +177,12 @@ export default function JourneyPage() {
             <Search size={13} />
             <span>Inspect records</span>
           </Link>
-        </div>
+        </ReportActions>
       </header>
+      <ReportingScopeBar
+        onRefresh={refreshAll}
+        onExportCsv={data ? handleExportCsv : undefined}
+      />
 
       <nav className="cx-viz-jump-nav" aria-label="Lead Journey sections"><a href="#journey-progression">Stage progression</a><a href="#journey-segments">Segment comparison</a><a href="#journey-timing">Timing evidence</a></nav>
       {/* Error state */}

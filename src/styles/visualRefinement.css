@@ -1,189 +1,13 @@
 /* Frontend-only refinement of the existing light reporting system.
    No metric values, visibility gates, route targets or source states are changed. */
 
-/* A quieter shell with a legible, consistent navigation rhythm. */
-.cx-app .cx-sidebar { background: var(--cx-surface); }
-.cx-app .cx-sidebar .cx-brand { padding-inline: 18px; }
-.cx-app .cx-sidebar .cx-brand-icon {
-  background: var(--cx-selected-bg);
-  border-color: transparent;
-  color: var(--cx-action);
-  box-shadow: none;
-}
-.cx-app .cx-brand-copy small { letter-spacing: .03em; font-size: 11px; }
-.cx-app .cx-sidebar-review { padding: 16px 14px 12px; }
-.cx-app .cx-sidebar-review > button {
-  min-height: 38px;
-  border-color: var(--cx-border);
-  background: var(--cx-surface-subtle);
-  box-shadow: none;
-  font-size: 12px;
-}
-.cx-app .cx-nav-section-label {
-  padding: 14px 20px 8px;
-  font-size: 10px;
-  letter-spacing: .09em;
-  color: var(--cx-text-muted);
-}
-.cx-app .cx-navigation .cx-nav-goal-row { margin: 3px 10px; }
-.cx-app .cx-navigation .cx-nav-link {
-  min-height: 40px;
-  padding: 10px 12px;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  color: var(--cx-text-secondary);
-  font-size: 13px;
-  font-weight: 500;
-  gap: 11px;
-  transition: background-color 140ms, color 140ms, border-color 140ms;
-}
-.cx-app .cx-navigation .cx-nav-link:hover {
-  color: var(--cx-text);
-  background: var(--cx-surface-subtle);
-}
-.cx-app .cx-navigation .cx-nav-link:is([aria-current="page"], [data-current-section="true"]) {
-  color: var(--cx-action-hover);
-  background: var(--cx-selected-bg);
-  border-color: color-mix(in srgb, var(--cx-action) 16%, transparent);
-  font-weight: 650;
-}
-.cx-app .cx-navigation .cx-nav-link::before { display: none; }
-.cx-app .cx-sidebar-footer { padding: 12px 14px; }
-.cx-app .cx-workspace { box-shadow: none; background: var(--cx-surface-subtle); }
-.cx-app .cx-account-row { padding-top: 12px; }
-.cx-app .cx-topbar { box-shadow: none; gap: 12px; }
-.cx-app .cx-breadcrumb { font-size: 12px; }
-.cx-app .cx-workspace-select select { background: var(--cx-surface); color: var(--cx-text); }
-.cx-app .cx-search-trigger { min-height: 34px; border-radius: 7px; }
-.cx-app .cx-area-nav { background: var(--cx-surface); }
-.cx-app .cx-area-nav-item { font-size: 12px; min-height: 42px; }
-.cx-app .cx-area-nav-item[aria-current="page"] {
-  background: transparent;
-  border-bottom-color: var(--cx-action);
-  color: var(--cx-action-hover);
-}
-
-/* Keep evidence prominent without letting infrastructure controls dominate. */
-.cx-app .cx-readiness { margin-block: 12px 8px; box-shadow: none; }
-.cx-app .cx-readiness-bar { padding: 8px 14px; gap: 16px; }
-.cx-app .cx-readiness-bar strong { font-size: 12px; font-weight: 650; }
-.cx-app .cx-readiness-bar span { font-size: 11px; }
-.cx-app .cx-readiness-bar > button { flex-shrink: 0; font-size: 12px; }
-.cx-app .cx-readiness-card { padding: 16px; background: var(--cx-surface-subtle); }
-
-/* Consistent scope controls; existing mobile expand/collapse stays in charge. */
-.cx-app .cx-scope-controls .cx-scopebar-main { gap: 10px; padding-block: 10px 8px; }
-.cx-app .cx-scope-control > span { font-size: 10px; letter-spacing: .065em; }
-.cx-app .cx-scope-controls :is(select, .cx-scope-more, .cx-scopebar-actions button) {
-  box-shadow: none;
-  border-radius: 6px;
-  transition: border-color 140ms, background-color 140ms, color 140ms;
-}
-.cx-app .cx-scope-controls .cx-scopebar-actions button:hover:not(:disabled) { transform: none; box-shadow: none; }
-.cx-app .cx-scope-controls .cx-scopebar-actions { gap: 8px; }
-
-/* Shared workspaces: one vertical rhythm instead of doubled flex + utility gaps. */
-.cx-app .cx-command-content {
-  padding: 24px var(--cx-page-padding-x, 24px) 40px;
-  gap: 20px;
-}
-.cx-app .cx-command-content.space-y-6 > :not(:last-child) { margin-block-end: 0; }
-.cx-app .cx-workspace-heading { padding-bottom: 12px; align-items: flex-start; }
-.cx-app .cx-workspace-heading h1,
-.cx-app .cx-page-header h1 { font-size: clamp(24px, 2vw, 30px); line-height: 1.2; letter-spacing: -.035em; }
-.cx-app .cx-workspace-heading p,
-.cx-app .cx-page-header > div > p { font-size: 13px; line-height: 1.6; }
-.cx-app .cx-command-content :is(.cx-card, .enterprise-card) {
-  border-color: var(--cx-border-subtle);
-  border-radius: var(--cx-radius-lg);
-  box-shadow: var(--cx-shadow-sm);
-}
-
-/* Same existing outcome measures, with recognisable series and quieter actions. */
-.cx-app .cx-outcome-strip { gap: 14px; }
-.cx-app .cx-outcome-card {
-  --outcome-color: var(--cx-data-fetched);
-  position: relative;
-  padding: 16px 18px 10px;
-  border-top: 2px solid var(--outcome-color);
-  min-width: 0;
-  transition: border-color 140ms, box-shadow 140ms;
-}
-.cx-app .cx-command-content .cx-outcome-card { border-top-color: var(--outcome-color); }
-.cx-app .cx-outcome-card > .my-3 { margin-block: 8px; }
-.cx-app .cx-outcome-card[data-series="delivered"] { --outcome-color: var(--cx-data-delivered); }
-.cx-app .cx-outcome-card[data-series="sales"] { --outcome-color: var(--cx-data-sales); }
-.cx-app .cx-outcome-card[data-series="activation"] { --outcome-color: var(--cx-data-activation); }
-.cx-app .cx-outcome-heading { align-items: center; gap: 12px; }
-.cx-app .cx-outcome-heading > span:first-child { font-size: 11px; letter-spacing: .055em; line-height: 1.5; }
-.cx-app .cx-outcome-icon {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  flex: 0 0 26px;
-  color: var(--outcome-color);
-  background: color-mix(in srgb, var(--outcome-color) 8%, var(--cx-surface));
-  border-radius: 7px;
-}
-.cx-app .cx-outcome-value {
-  font-family: var(--font-sans);
-  font-size: clamp(28px, 2.6vw, 36px);
-  font-weight: 700;
-  letter-spacing: -.035em;
-  line-height: 1.15;
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-  text-decoration: none;
-}
-.cx-app .cx-outcome-actions { padding-top: 8px; gap: 6px; flex-wrap: wrap; }
-.cx-app .cx-outcome-actions button { font-size: 11px; font-weight: 500; min-height: 28px; }
 .cx-app .cx-unified-metric { min-width: 0; padding: 18px; }
 .cx-app .cx-unified-metric .cx-metric-label { font-size: 11px; letter-spacing: .045em; line-height: 1.5; }
 .cx-app .cx-unified-metric .cx-metric-value { font-family: var(--font-sans); letter-spacing: -.035em; overflow-wrap: anywhere; }
 .cx-app .cx-unified-metric small { font-size: 12px; line-height: 1.5; }
 
-/* Comparisons are context, not another competing row of KPI cards. */
-.cx-app .cx-change-rail {
-  padding: 12px 0;
-  border: 0;
-  border-block: 1px solid var(--cx-border-subtle);
-  border-radius: 0;
-  background: transparent;
-  align-items: flex-start;
-  flex-direction: column;
-  gap: 8px;
-}
-.cx-app .cx-change-rail button { min-height: 32px; padding: 6px 10px; border-radius: 6px; }
-.cx-app .cx-change-rail button .text-text-mute { font-size: 11px; }
-
-/* More useful chart space, without changing points, scales or calculations. */
-.cx-app .cx-overview-primary { gap: 20px; align-items: stretch; }
-.cx-app .cx-overview-primary > div { min-width: 0; }
-.cx-app .cx-trend-panel,
-.cx-app .cx-attention-panel { height: 100%; padding: 20px; }
-.cx-app .cx-trend-heading { align-items: flex-start; flex-wrap: wrap; }
-.cx-app .cx-trend-heading h2,
-.cx-app .cx-attention-panel h2 { font-size: 16px; font-weight: 650; letter-spacing: -.02em; }
-.cx-app .cx-trend-heading p { font-size: 12px; line-height: 1.5; }
-.cx-app .cx-trend-tabs { padding: 3px; gap: 2px; border-radius: 7px; max-width: 100%; }
-.cx-app .cx-trend-tabs button { font-size: 11px; padding: 7px 9px; min-height: 32px; border-radius: 5px; }
-.cx-app .cx-trend-tabs button[aria-selected="true"] { background: var(--cx-surface); color: var(--cx-action-hover); }
-.cx-app .cx-trend-canvas { min-width: 0; margin-top: 4px; }
-.cx-app .cx-trend-panel > div:last-child > svg { flex-shrink: 0; }
 .cx-app .cx-chart-tooltip { border-color: var(--cx-border); border-radius: 8px; padding: 10px 14px; }
 .cx-app .cx-chart-tooltip-value { font-variant-numeric: tabular-nums; font-weight: 650; }
-.cx-app .cx-attention-row { border: 0; border-left: 3px solid var(--cx-action); border-radius: 0 6px 6px 0; padding: 12px; align-items: flex-start; }
-.cx-app .cx-attention-row[data-severity="critical"],
-.cx-app .cx-attention-row[data-severity="high"] { border-left-color: var(--cx-negative); }
-.cx-app .cx-attention-row[data-severity="medium"] { border-left-color: var(--cx-warning); }
-.cx-app .cx-attention-row > div:first-child { align-items: flex-start; }
-.cx-app .cx-attention-row > div:first-child > span { margin-top: 5px; }
-.cx-app .cx-attention-title { font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
-.cx-app .cx-attention-detail { font-size: 11px; line-height: 1.5; margin-top: 4px; overflow-wrap: anywhere; }
-.cx-app .cx-attention-row > div:last-child { padding-top: 1px; }
-.cx-app .cx-attention-panel > div:last-child { gap: 10px; flex-wrap: wrap; }
-
 /* Readable tabular evidence and optional panels, keeping all disclosures intact. */
 .cx-app .cx-command-content :is(details, .cx-ops-table-card) { border-radius: 8px; }
 .cx-app .cx-command-content details > summary { min-height: 40px; }
@@ -191,7 +15,7 @@
 .cx-app .cx-command-content :is(table, .cx-ops-table) { font-variant-numeric: tabular-nums; }
 .cx-app .cx-command-content table th { letter-spacing: .025em; font-weight: 650; }
 .cx-app .cx-command-content table :is(th, td) { vertical-align: middle; }
-.cx-app :is(.cx-outcome-actions, .cx-trend-tabs, .cx-navigation) :is(a, button):focus-visible {
+.cx-app .cx-navigation :is(a, button):focus-visible {
   outline: 2px solid var(--cx-focus);
   outline-offset: 3px;
 }
@@ -200,60 +24,8 @@
   /* Restore the intended responsive search: the desktop header already has it. */
   .cx-app .cx-sidebar .cx-sidebar-search.lg\:hidden { display: none; }
 }
-@media (min-width: 1500px) {
-  .cx-app .cx-change-rail { flex-direction: row; align-items: center; gap: 16px; }
-  .cx-app .cx-change-rail > div:first-child { flex: 0 1 340px; flex-wrap: wrap; gap: 4px 8px; }
-  .cx-app .cx-change-rail > div:first-child > span:last-child { flex-basis: 100%; }
-  .cx-app .cx-change-rail > div:last-child { justify-content: flex-end; flex-shrink: 0; }
-}
-@media (max-width: 1100px) {
-  .cx-app .cx-outcome-actions { align-items: flex-start; }
-  .cx-app .cx-trend-tabs { width: fit-content; }
-}
 @media (max-width: 639px) {
   .cx-app .cx-command-content { padding: 20px 16px 32px; gap: 18px; }
-  .cx-app .cx-readiness { margin: 10px 16px 8px; }
-  .cx-app .cx-readiness-bar { gap: 8px; }
-  .cx-app .cx-readiness-bar span { font-size: 12px; }
   .cx-app .cx-workspace-heading h1 { font-size: 26px; }
-  .cx-app .cx-outcome-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-  .cx-app .cx-outcome-card { padding: 14px 12px 8px; }
-  .cx-app .cx-outcome-heading { align-items: flex-start; gap: 6px; }
-  .cx-app .cx-outcome-heading > span:first-child { font-size: 10px; letter-spacing: .025em; }
-  .cx-app .cx-outcome-icon { width: 24px; height: 24px; flex-basis: 24px; }
-  .cx-app .cx-outcome-icon svg { width: 14px; }
-  .cx-app .cx-outcome-value { font-size: 29px; }
-  .cx-app .cx-outcome-card .text-xs { line-height: 1.5; }
-  .cx-app .cx-outcome-actions { flex-direction: column; align-items: flex-start; gap: 0; }
-  .cx-app .cx-outcome-actions button { min-height: 38px; font-size: 11px; }
-  .cx-app .cx-change-rail > div { flex-wrap: wrap; }
-  .cx-app .cx-change-rail button { min-height: 40px; }
-  .cx-app .cx-trend-panel, .cx-app .cx-attention-panel { padding: 16px; }
-  .cx-app .cx-trend-tabs { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .cx-app .cx-trend-tabs button { white-space: normal; min-height: 42px; font-size: 11px; padding: 6px; }
-  .cx-app .cx-trend-canvas { height: 230px; min-height: 230px; }
-  .cx-app .cx-attention-row { padding: 10px; }
-}
-@media (max-width: 359px) {
-  .cx-app .cx-outcome-strip { grid-template-columns: 1fr; }
-  .cx-app .cx-outcome-actions { flex-direction: row; }
-  .cx-app .cx-topbar { gap: 6px; padding-inline: 12px; }
-  .cx-app .cx-topbar-actions { min-width: 0; flex: 1; gap: 6px; }
-  .cx-app .cx-workspace-select { min-width: 0; max-width: none; flex: 1; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .cx-app :is(.cx-outcome-card, .cx-nav-link, .cx-trend-tabs button, .cx-attention-row, .cx-desktop-sidebar) { transition: none; }
-}
 
-/* The existing refresh button uses !important; neutralise decoration only. */
-.cx-app .cx-scope-controls .cx-scopebar-actions .cx-scope-refresh {
-  background: var(--cx-action) !important;
-  border-color: var(--cx-action) !important;
-  box-shadow: none !important;
-}
-.cx-app .cx-scope-controls .cx-scopebar-actions .cx-scope-refresh:hover:not(:disabled) {
-  background: var(--cx-action-hover) !important;
-  border-color: var(--cx-action-hover) !important;
-  transform: none !important;
-  box-shadow: none !important;
 }

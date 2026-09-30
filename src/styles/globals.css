@@ -58,7 +58,7 @@ th[data-numeric="true"],
 .cx-area-nav {
   background-color: var(--cx-surface);
   border-bottom: 1px solid var(--cx-border-subtle);
-  padding: 0 1.25rem;
+  padding: 0;
   display: flex;
   align-items: center;
   gap: 0.25rem;
@@ -73,13 +73,13 @@ th[data-numeric="true"],
   align-items: center;
   gap: 0.5rem;
   padding: 0.625rem 0.875rem;
-  font-size: 0.875rem;
+  font-size: 12px;
   font-weight: 500;
   color: var(--cx-text-secondary);
   border-bottom: 2px solid transparent;
   transition: all 0.15s ease;
   white-space: nowrap;
-  min-height: var(--cx-control-height);
+  min-height: 42px;
 }
 
 .cx-area-nav-item:hover {
@@ -89,10 +89,13 @@ th[data-numeric="true"],
 
 .cx-area-nav-item[aria-current="page"],
 .cx-area-nav-item.active {
-  color: var(--cx-brand-primary);
-  border-bottom-color: var(--cx-brand-primary);
+  color: var(--cx-action-hover);
+  background: transparent;
+  border-bottom-color: var(--cx-action);
   font-weight: 600;
 }
+.cx-area-more-menu { width: min(320px, calc(100vw - 32px)); max-height: min(480px, 70dvh); overflow-y: auto; }
+.cx-area-more-description { margin-top: 4px; font-size: 12px; line-height: 1.45; white-space: normal; overflow-wrap: anywhere; color: var(--cx-text-muted); }
 
 /* Compact Reporting Scope Bar */
 .cx-reporting-scope-bar {

@@ -1,3 +1,4 @@
+import { ReportActions } from '../shared/reporting/ReportPresentation';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import SpendReconciliationPanel from '../components/SpendReconciliationPanel';
 import { useOperationalData } from '../lib/useOperationalData';
@@ -127,12 +128,7 @@ export default function CampaignIntelligence() {
 
   return (
     <div className="cx-command-page cx-campaign-page">
-      <OffernetFilterBar
-        onRefresh={() => loadData(true)}
-        showVendorFilter={false}
-        showSourceFilter={false}
-        showGradeFilter={false}
-      />
+
 
       <div className="cx-command-content">
         <header className="cx-command-hero">
@@ -141,7 +137,14 @@ export default function CampaignIntelligence() {
             <h1>Campaigns & spend</h1>
             <p>Observed platform delivery and spend from the approved marketing API-table contract for the selected tenant.</p>
           </div>
-        </header>
+                  <ReportActions />
+</header>
+      <OffernetFilterBar
+        onRefresh={() => loadData(true)}
+        showVendorFilter={false}
+        showSourceFilter={false}
+        showGradeFilter={false}
+      />
 
         <nav className="cx-analysis-jump-nav" aria-label="Campaign analysis sections">
           <a href="#campaign-evidence">Evidence</a>

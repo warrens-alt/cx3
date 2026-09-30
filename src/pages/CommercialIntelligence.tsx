@@ -1,3 +1,4 @@
+import { ReportActions } from '../shared/reporting/ReportPresentation';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, Database, DollarSign, Search, ShieldCheck } from 'lucide-react';
@@ -75,7 +76,7 @@ export default function CommercialIntelligence() {
   return <div className="cx-command-page cx-commercial-page">
     <OffernetFilterBar onRefresh={() => loadData(true)} />
     <div className="cx-command-content">
-      <header className="cx-command-hero"><div><span className="cx-command-eyebrow">Commercial</span><h1>Spend, revenue & efficiency</h1><p>Interpret recorded value, observed media cost and matched operational outcomes separately. Missing financial evidence stays unavailable.</p></div><Link to={scoped('/campaigns')} className="cx-trust-pill"><DollarSign size={15} /><span><strong>MEDIA DETAIL</strong><small>Campaign spend & efficiency</small></span><ArrowRight size={14} /></Link></header>
+      <header className="cx-command-hero"><div><span className="cx-command-eyebrow">Commercial</span><h1>Spend, revenue & efficiency</h1><p>Interpret recorded value, observed media cost and matched operational outcomes separately. Missing financial evidence stays unavailable.</p></div><ReportActions><Link to={scoped('/campaigns')} className="cx-button-secondary"><DollarSign size={15} /><span><strong>MEDIA DETAIL</strong><small>Campaign spend & efficiency</small></span><ArrowRight size={14} /></Link></ReportActions></header>
       {error && <div role="alert" className="cx-command-error"><AlertTriangle size={17} />{error}</div>}
       {loading && !data && <div role="status" className="cx-command-loading">Loading commercial evidence…</div>}
       {loading && data && <p role="status">Refreshing the current commercial scope…</p>}

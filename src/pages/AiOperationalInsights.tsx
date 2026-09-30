@@ -1,3 +1,4 @@
+import { ReportActions } from '../shared/reporting/ReportPresentation';
 import React, { useState, useRef, useEffect } from 'react';
 import { useOperationalData } from '../lib/useOperationalData';
 import {
@@ -91,9 +92,11 @@ export default function AiOperationalInsights() {
 
   return (
     <div className="cx-command-page cx-ai-evidence-page">
-      <OffernetFilterBar onRefresh={() => loadData(true)} />
+
       <div className="cx-command-content space-y-6">
-        <header className="cx-command-hero"><div><span className="cx-command-eyebrow">Operational analysis</span><h1>AI insights & evidence</h1><p>Review the returned briefing, explore its findings and inspect supplied metric references before acting.</p></div><Cpu size={24} aria-hidden="true" /></header>
+        <header className="cx-command-hero"><div><span className="cx-command-eyebrow">Operational analysis</span><h1>AI insights & evidence</h1><p>Review the returned briefing, explore its findings and inspect supplied metric references before acting.</p></div><Cpu size={24} aria-hidden="true" />          <ReportActions />
+</header>
+      <OffernetFilterBar onRefresh={() => loadData(true)} />
         <dl className="cx-ai-provenance" aria-label="Briefing provenance"><div><dt>Source</dt><dd>{data?.source || 'Not reported'}</dd></div><div><dt>Reported model</dt><dd>{data?.model || 'Not reported'}</dd></div><div><dt>Response status</dt><dd>{data?.status || 'Not reported'}</dd></div><div><dt>Validation</dt><dd>{data?.validationStatus || 'NOT_VERIFIED'}</dd></div></dl>
         {data && <nav className="cx-admin-section-nav" aria-label="AI insight sections"><a href="#ai-briefing">Briefing</a><a href="#ai-findings">Findings & evidence</a><a href="#ai-question">Ask a question</a></nav>}
 

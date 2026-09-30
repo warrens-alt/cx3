@@ -14,7 +14,10 @@ export default function MobileBottomNav({ onOpenMenu, menuOpen = false }: Mobile
   const itemClass = (active: boolean) => `cx-mobile-nav-item flex flex-col items-center justify-center gap-[3px] min-h-12 text-[11px] leading-tight touch-manipulation ${active ? 'cx-mobile-nav-active text-action font-semibold' : 'text-text-sec'}`;
   const dot = <span className="cx-mobile-nav-dot w-1 h-1 rounded-full bg-action" aria-hidden="true" />;
 
-  const currentArea = getAreaForPath(location.pathname).id;
+  const area = getAreaForPath(location.pathname);
+  const currentArea = area.id;
+  const contextArea = currentArea === 'sales' || currentArea === 'commercial' ? area : null;
+  const ContextIcon = contextArea?.icon;
 
   const isOverview = currentArea === 'overview';
   const isJourney = currentArea === 'journey';
@@ -68,7 +71,15 @@ export default function MobileBottomNav({ onOpenMenu, menuOpen = false }: Mobile
           {isInvestigate && dot}
         </Link>
 
-        <button
+        {contextArea && ContextIcon ? <Link
+          to={navigationTarget(contextArea.landingPath, location.pathname, location.search)}
+          aria-current={location.pathname === contextArea.landingPath ? 'page' : 'location'}
+          className={itemClass(true)}
+        >
+          <ContextIcon size={18} aria-hidden="true" />
+          <span>{contextArea.id === 'sales' ? 'Sales' : 'Commercial'}</span>
+          {dot}
+        </Link> : <button
           type="button"
           onClick={onOpenMenu}
           aria-label="Open full navigation"
@@ -80,7 +91,7 @@ export default function MobileBottomNav({ onOpenMenu, menuOpen = false }: Mobile
           <Menu size={18} aria-hidden="true" />
           <span>More</span>
           {isMore && dot}
-        </button>
+        </button>}
       </div>
     </nav>
   );

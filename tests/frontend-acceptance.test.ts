@@ -9,6 +9,7 @@ import {navigationTarget} from '../src/lib/presentation';
 import {chartCoordinate} from '../src/lib/chartPresentation';
 import {buildLeadLedgerExport} from '../src/lib/leadLedgerExport';
 import {LEDGER_HEADERS} from '../contracts/leadLedgerReplica';
+import {FLAT_LEAD_TENANT_TABLES} from '../contracts/warehouseSchemaSnapshot';
 
 const output=await mkdtemp(path.join(tmpdir(),'cx3-routed-acceptance-'));
 await buildAcceptanceFixture(output);
@@ -117,7 +118,7 @@ test('source and analytical Ledger are distinct panels with exact source evidenc
     await app.click('.cx-ledger-lead summary');
     await app.wait(()=>app.text().includes('1234567890.123456789'));
     assert.match(app.text(),/repeated|duplicate/i);
-    await app.click('button','Analytical ledger');
+    await app.click('button','Operational analysis');
     await app.wait(()=>app.find('input','Search analytical ledger'));
     await app.wait(()=>app.text().includes('SYNTHETIC-LEAD-0001'));
     assert.ok(!app.find('.cx-ledger-lead'));
@@ -213,7 +214,7 @@ test('root-cause contribution region preserves record links, scope and keyboard 
 
 test('analytical Ledger scope changes reset paging across a scope round trip',async()=>{
   const app=await mount('/lead-ledger'+scope);try{
-    await app.click('button','Analytical ledger');
+    await app.click('button','Operational analysis');
     await app.wait(()=>app.find('input','Search analytical ledger'));
     await app.wait(()=>app.text().includes('SYNTHETIC-LEAD-0001'));
     const next=app.w.document.querySelector('button[title="Next Page"]');assert.ok(next);next.click();
@@ -230,7 +231,7 @@ test('analytical Ledger scope changes reset paging across a scope round trip',as
 
 test('analytical search submits exact existing query and shows matched rows',async()=>{
   const app=await mount('/lead-ledger'+scope);try{
-    await app.click('button','Analytical ledger');await app.wait(()=>app.find('input','Search analytical ledger'));
+    await app.click('button','Operational analysis');await app.wait(()=>app.find('input','Search analytical ledger'));
     await app.wait(()=>app.text().includes('SYNTHETIC-LEAD-0001'));
     await app.input(app.find('input','Search analytical ledger'),'SYNTHETIC-LEAD-0002');
     app.find('form').dispatchEvent(new app.w.Event('submit',{bubbles:true,cancelable:true}));
@@ -243,7 +244,7 @@ test('analytical search submits exact existing query and shows matched rows',asy
 
 test('timeline reports missing milestone timestamps and returns keyboard focus',async()=>{
   const app=await mount('/lead-ledger'+scope);try{
-    await app.click('button','Analytical ledger');await app.wait(()=>app.find('input','Search analytical ledger'));
+    await app.click('button','Operational analysis');await app.wait(()=>app.find('input','Search analytical ledger'));
     await app.wait(()=>app.text().includes('SYNTHETIC-LEAD-0001'));
     const trigger=await app.click('button[title="Inspect lead timeline"]');
     await app.wait(()=>app.find('[role="dialog"]'));
@@ -262,7 +263,7 @@ test('timeline reports missing milestone timestamps and returns keyboard focus',
 
 test('request failure is not rendered as an empty analytical ledger',async()=>{
   const app=await mount('/lead-ledger'+scope,{fail:['raw-leads']});try{
-    await app.click('button','Analytical ledger');
+    await app.click('button','Operational analysis');
     await app.wait(()=>app.find('[role="alert"]'));
     assert.doesNotMatch(app.text(),/No records match/);
     assert.match(app.text(),/unavailable|could not|failure/i);
@@ -379,35 +380,35 @@ test('agent chart uses the existing local search handler without another analyti
   }finally{app.close();}
 });
 
-test('More views has native links, Escape closes it and returns focus',async()=>{
+test('More analyses has native links, Escape closes it and returns focus',async()=>{
   const app=await mount('/speed-to-lead'+scope);try{
     await app.wait(()=>app.text().includes('Median latency by stage'));
-    const trigger=await app.click('button','More views');
-    await app.wait(()=>app.find('[role="group"]','More views'));
-    const group=app.find('[role="group"]','More views');
+    const trigger=await app.click('button','More analyses');
+    await app.wait(()=>app.find('[role="group"]','More analyses'));
+    const group=app.find('[role="group"]','More analyses');
     assert.ok(group.querySelector('a[href*="agent-performance"]'));
     assert.equal(group.querySelectorAll('[role="menuitem"]').length,0);
     app.w.document.dispatchEvent(new app.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
-    await app.wait(()=>!app.find('[role="group"]','More views'));
+    await app.wait(()=>!app.find('[role="group"]','More analyses'));
     assert.equal(app.w.document.activeElement===trigger,true,'Focus returns to its trigger');
   }finally{app.close();}
 });
 
-test('More views closes on primary-link activation and router history changes',async()=>{
+test('More analyses closes on primary-link activation and router history changes',async()=>{
   const app=await mount('/agent-performance'+scope);try{
     await app.wait(()=>app.text().includes('Synthetic Agent A'));
-    await app.click('button','More views');
-    assert.ok(app.find('[role="group"]','More views'));
+    await app.click('button','More analyses');
+    assert.ok(app.find('[role="group"]','More analyses'));
     // A click without mousedown follows the same link activation path as Enter.
     await app.click('nav[aria-label="Contact centre navigation"] a','Response speed');
     await app.wait(()=>app.w.__fixture.location.startsWith('/speed-to-lead'));
-    await app.wait(()=>!app.find('[role="group"]','More views'));
-    assert.equal(Boolean(app.find('[role="group"]','More views')),false);
-    await app.click('button','More views');
+    await app.wait(()=>!app.find('[role="group"]','More analyses'));
+    assert.equal(Boolean(app.find('[role="group"]','More analyses')),false);
+    await app.click('button','More analyses');
     app.w.__fixture.navigate(-1);
     await app.wait(()=>app.w.__fixture.location.startsWith('/agent-performance'));
-    await app.wait(()=>!app.find('[role="group"]','More views'));
-    assert.equal(Boolean(app.find('[role="group"]','More views')),false);
+    await app.wait(()=>!app.find('[role="group"]','More analyses'));
+    assert.equal(Boolean(app.find('[role="group"]','More analyses')),false);
   }finally{app.close();}
 });
 
@@ -458,5 +459,163 @@ test('failed exception evidence cannot claim an empty vendor backlog',async()=>{
     assert.doesNotMatch(app.text(),/No vendor backlog is currently observed/);
     assert.equal(app.find('button','Why changed?'),undefined);
     assert.ok(app.find('a','Inspect speed'));
+  }finally{app.close();}
+});
+
+test('Overview puts independent lifecycle evidence after outcomes and gates Why changed',async()=>{
+  const app=await mount('/overview'+scope);try{
+    await app.wait(()=>app.find('.cx-overview-journey'));
+    assert.equal(app.find('button','Why changed?'),undefined);
+    const stages=[...app.w.document.querySelectorAll('.cx-overview-lifecycle-rail > li')];
+    assert.equal(stages.length,6);
+    assert.equal(app.w.__fixture.requests.filter((r:string)=>r.includes('/overview?')).length,1);
+    assert.equal(app.w.__fixture.requests.filter((r:string)=>r.includes('/commercial?')||r.includes('operating-controls')||r.includes('source-observability')).length,0);
+    const all=app.w.document.querySelector('.cx-outcome-strip');
+    assert.ok(all.compareDocumentPosition(app.find('.cx-overview-journey'))&app.w.Node.DOCUMENT_POSITION_FOLLOWING);
+  }finally{app.close();}
+});
+
+test('Data status uses one client-only check and preserves failed-check feedback',async()=>{
+  const app=await mount('/overview'+scope+'&vendor=Synthetic+vendor');try{
+    await app.wait(()=>app.find('button','Data status'));
+    assert.equal(app.w.__fixture.requests.filter((r:string)=>r.includes('source-observability')).length,0);
+    assert.equal(app.w.document.querySelectorAll('.cx-data-status-trigger').length,1);
+    assert.equal(app.find('.cx-data-status-trigger').dataset.tone,'unknown');
+    assert.ok(!app.text().includes('Live telemetry'));
+    await app.click('button','Data status');
+    await app.wait(()=>app.w.document.body.textContent.includes('Source readable'));
+    const request=app.w.__fixture.requests.find((r:string)=>r.includes('source-observability'));
+    assert.equal(request,'/api/analytics/offernet/source-observability?clientId=synthetic-a');
+    assert.equal(app.find('.cx-readiness-badge','Source readable').dataset.tone,'observed');
+    app.w.__fixture.fail=['source-observability'];
+    await app.click('button','Recheck source evidence');
+    await app.wait(()=>app.w.document.body.textContent.includes('Source evidence could not be checked'));
+    await app.click('button','Close data status');
+    assert.match(app.text(),/Source evidence could not be checked/);
+    app.w.__fixture.fail=[];
+    await app.click('button','Data status');
+    await app.click('button','Recheck source evidence');
+    await app.wait(()=>app.w.document.body.textContent.includes('Source readable'));
+    await app.click('button','Close data status');
+    assert.ok(!app.text().includes('Source evidence could not be checked'));
+  }finally{app.close();}
+});
+
+test('About combines purpose, missing values and unchanged metric lineage without requests',async()=>{
+  const app=await mount('/overview'+scope);try{
+    await app.wait(()=>app.find('button','About this analysis'));
+    const before=app.w.__fixture.requests.length;
+    const trigger=await app.click('button','About this analysis');
+    assert.match(app.w.document.body.textContent,/What am I looking at\?/);
+    assert.match(app.w.document.body.textContent,/How to interpret missing values/);
+    await app.click('button','Metric definitions');
+    await app.wait(()=>app.find('[role="dialog"]','Metric lineage'));
+    app.find('.cx-analysis-help').dispatchEvent(new app.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+    await app.wait(()=>!app.find('[role="dialog"]'));
+    app.find('.cx-analysis-help').dispatchEvent(new app.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+    await app.wait(()=>!app.find('.cx-analysis-help-panel'));
+    assert.equal(app.w.document.activeElement,trigger);
+    assert.equal(app.w.__fixture.requests.length,before);
+  }finally{app.close();}
+});
+
+test('Clear segments retains dates; Reset all clears dates and segment filters',async()=>{
+  const app=await mount('/speed-to-lead'+scope+'&vendor=Synthetic+vendor&source=synthetic-source');try{
+    await app.wait(()=>app.find('button','Filters (2)'));
+    await app.click('button','Filters (2)');
+    await app.click('button','Clear segments');
+    await app.wait(()=>!new URL(app.w.__fixture.location,'https://synthetic.invalid').searchParams.has('vendor'));
+    let params=new URL(app.w.__fixture.location,'https://synthetic.invalid').searchParams;
+    assert.equal(params.get('startDate'),'2026-09-28');assert.equal(params.get('endDate'),'2026-09-28');assert.equal(params.get('source'),null);
+    await app.click('button','Reset all');
+    params=new URL(app.w.__fixture.location,'https://synthetic.invalid').searchParams;
+    assert.equal(params.get('startDate'),null);assert.equal(params.get('endDate'),null);assert.equal(params.get('vendor'),null);assert.equal(params.get('source'),null);
+  }finally{app.close();}
+});
+
+test('desktop source inspector retains every field and duplicate record without a request',async()=>{
+  const app=await mount('/lead-ledger'+scope);try{
+    await app.wait(()=>app.find('.cx-ledger-master-detail'));
+    const before=app.w.__fixture.requests.length;
+    await app.click('.cx-ledger-master-detail button','Inspect source lead SYNTHETIC-LEAD-0001');
+    await app.click('.cx-ledger-inspector summary','View all 63 raw source fields');
+    const records=[...app.w.document.querySelectorAll('.cx-ledger-inspector .cx-ledger-raw-record')];
+    assert.equal(records.length,2);
+    for(const record of records as any[]){
+      const fields=[...record.querySelectorAll('[data-raw-field]')] as any[];
+      assert.equal(fields.length,63);assert.deepEqual(fields.map(f=>f.querySelector('dt').textContent).sort(),[...LEDGER_HEADERS].sort());
+      const value=(header:string)=>fields.find(f=>f.querySelector('dt').textContent===header).querySelector('dd').textContent;
+      assert.equal(value('HLC Revenue Generated'),'1234567890.123456789');assert.equal(value('HLC Total Calls'),'0');assert.equal(value('HLC RPC'),'Not recorded');
+    }
+    await app.click('.cx-ledger-master-detail button','Inspect source lead SYNTHETIC-LEAD-0002');
+    assert.equal(app.w.__fixture.requests.length,before);
+    assert.ok(!app.find('.cx-ledger-inspector').textContent.includes('1234567890.123456789'));
+  }finally{app.close();}
+});
+
+test('desktop source selection clears on page and scope round trips; switching views retains scope',async()=>{
+  const app=await mount('/lead-ledger'+scope+'&vendor=Synthetic+vendor',{sourceLeadCount:26});try{
+    await app.wait(()=>app.find('.cx-ledger-master-detail'));
+    await app.click('.cx-ledger-master-detail button','Inspect source lead SYNTHETIC-LEAD-0001');
+    await app.click('button','Next');
+    await app.wait(()=>app.text().includes('Page 2'));
+    assert.equal(app.w.document.querySelectorAll('tr[data-selected="true"]').length,0);
+    await app.click('button','Previous');await app.wait(()=>app.text().includes('Page 1'));
+    assert.equal(app.w.document.querySelectorAll('tr[data-selected="true"]').length,0);
+    const location=app.w.__fixture.location;
+    await app.click('button','Operational analysis');await app.wait(()=>app.find('input','Search analytical ledger'));
+    assert.equal(app.w.__fixture.location,location);
+    await app.click('button','Source evidence');await app.wait(()=>app.find('.cx-ledger-master-detail'));
+    assert.equal(app.w.__fixture.location,location);
+    assert.equal(app.w.document.querySelectorAll('tr[data-selected="true"]').length,0);
+    assert.equal(app.w.__fixture.requests.filter((r:string)=>r.includes('source-observability')).length,0);
+  }finally{app.close();}
+});
+
+test('active non-admin sees no admin-only entry in sidebar, analyses or intent search',async()=>{
+  const app=await mount('/overview'+scope,{nonAdmin:true});try{
+    assert.equal(app.find('a','Access control'),undefined);
+    await app.click('button','More analyses');
+    assert.equal(app.find('#area-more-menu a','Lead ledger'),undefined);
+    await app.click('button','Find a page');
+    const input=app.find('input','Search pages and navigation');await app.input(input,'Lead ledger');
+    assert.equal(app.find('[role="option"]','Lead ledger'),undefined);
+    await app.input(input,'Access control');assert.equal(app.find('[role="option"]','Access control'),undefined);
+  }finally{app.close();}
+});
+
+
+test('source About uses original fetched-cohort evidence, separate from analytical metric lineage',async()=>{
+  const app=await mount('/lead-ledger'+scope);try{
+    await app.wait(()=>app.find('.cx-ledger-browser'));
+    await app.click('button','About this analysis');
+    const about=app.find('.cx-analysis-help-panel');
+    assert.match(about.textContent,/Original lead\/vendor source records/);
+    assert.match(about.textContent,/Fetched date selects the cohort/);
+    assert.match(about.textContent,/Naive timestamps are UTC/);
+    assert.match(about.textContent,/Normalised metric definitions and lineage belong to the separate Operational analysis view/);
+    assert.equal(app.find('button','Metric definitions'),undefined);
+    assert.equal(app.w.document.querySelectorAll('select').length>0,true);
+    assert.ok(app.find('label','Source dataset'));
+  }finally{app.close();}
+});
+
+test('unavailable routing sequence warning remains visible without opening About',async()=>{
+  const tenant=Object.keys(FLAT_LEAD_TENANT_TABLES)[0];
+  const app=await mount('/routing?clientId='+tenant);try{
+    await app.wait(()=>app.text().includes('This source cannot establish a routing sequence'));
+    assert.equal(app.find('.cx-analysis-help-panel'),undefined);
+    assert.ok(app.find('aside','Source data limitations'));
+  }finally{app.close();}
+});
+
+test('Data status closes when following its existing data-integrity link',async()=>{
+  const app=await mount('/overview'+scope);try{
+    await app.wait(()=>app.find('button','Data status'));
+    await app.click('button','Data status');
+    await app.wait(()=>app.find('a','Inspect data evidence'));
+    await app.click('a','Inspect data evidence');
+    await app.wait(()=>app.w.__fixture.location.startsWith('/data-integrity'));
+    assert.equal(app.find('[role="dialog"]'),undefined);
   }finally{app.close();}
 });
