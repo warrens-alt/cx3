@@ -287,7 +287,6 @@ export default function AppShell({ children }: AppShellProps) {
                 aria-label="Display preferences"
                 title="Display preferences: table spacing and theme"
                 aria-expanded={preferencesOpen}
-                aria-haspopup="true"
                 aria-controls="display-preferences-dialog"
                 onClick={() => setPreferencesOpen(prev => !prev)}
               >
@@ -298,18 +297,18 @@ export default function AppShell({ children }: AppShellProps) {
                 <div
                   id="display-preferences-dialog"
                   className="absolute right-0 mt-2 w-64 rounded-lg shadow-xl bg-surface border border-border p-3 z-50 text-xs space-y-3"
-                  role="menu"
+                  role="group"
+                  aria-label="Display preferences"
                 >
                   <div>
                     <div className="font-semibold text-text-main mb-1.5 flex items-center justify-between">
                       <span>Table spacing</span>
                       <span className="text-[11px] text-text-mute capitalize font-mono">{density}</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-1.5 bg-surface-subtle p-1 rounded-md border border-border-subtle" role="radiogroup" aria-label="Table density">
+                    <div className="grid grid-cols-2 gap-1.5 bg-surface-subtle p-1 rounded-md border border-border-subtle" role="group" aria-label="Table density">
                       <button
                         type="button"
-                        role="radio"
-                        aria-checked={density === 'comfortable'}
+                        aria-pressed={density === 'comfortable'}
                         onClick={() => { if (density !== 'comfortable') toggleDensity(); }}
                         className={`py-1 px-2 rounded font-medium text-xs text-center transition-colors cursor-pointer ${
                           density === 'comfortable' ? 'bg-surface text-text-main shadow-2xs font-semibold' : 'text-text-sec hover:text-text-main'
@@ -319,8 +318,7 @@ export default function AppShell({ children }: AppShellProps) {
                       </button>
                       <button
                         type="button"
-                        role="radio"
-                        aria-checked={density === 'compact'}
+                        aria-pressed={density === 'compact'}
                         onClick={() => { if (density !== 'compact') toggleDensity(); }}
                         className={`py-1 px-2 rounded font-medium text-xs text-center transition-colors cursor-pointer ${
                           density === 'compact' ? 'bg-surface text-text-main shadow-2xs font-semibold' : 'text-text-sec hover:text-text-main'

@@ -1,3 +1,4 @@
+import { buildPreservedDestination, UNIVERSAL_SCOPE_PARAMS, SETTINGS_SCOPE_PARAMS, RELEASE_SCOPE_PARAMS } from '../app/navigation/ScopePreservingRedirect';
 export type TableDensity = 'comfortable' | 'compact';
 export const DENSITY_KEY = 'cx.presentation.density.v1';
 export function safeDensity(value: unknown): TableDensity { return value === 'compact' ? 'compact' : 'comfortable'; }
@@ -19,43 +20,21 @@ export function isCurrentPage(pathname: string, path: string, currentSearch?: st
   }
   return true;
 }
-/** Preserve legacy report filters when moving between legacy pages; evidence scope remains separate. */
+/** Carry reporting scope according to the existing destination policy. Local view state belongs to its page. */
 export function navigationTarget(target: string, currentPath: string, search: string) {
-  const [targetPath, targetQuery] = target.split('?');
-  const targetParams = new URLSearchParams(targetQuery || '');
-
-  if (targetPath !== '/reports' && currentPath !== '/reports') {
-    if (targetQuery !== undefined) {
-      const merged = new URLSearchParams();
-      const currentParams = new URLSearchParams(search || '');
-      const seen = new Set<string>();
-      for (const key of currentParams.keys()) {
-        if (seen.has(key)) continue;
-        seen.add(key);
-        if (!targetParams.has(key)) {
-          for (const val of currentParams.getAll(key)) {
-            merged.append(key, val);
-          }
-        }
-      }
-      for (const [k, v] of targetParams.entries()) {
-        merged.append(k, v);
-      }
-      return { pathname: targetPath, search: merged.toString() ? '?' + merged.toString() : '' };
-    }
-    return { pathname: targetPath, search: search || '' };
-  }
-
-  const workspace = new URLSearchParams();
-  const currentParams = new URLSearchParams(search);
-  const clientId = currentParams.get('clientId');
-  if (clientId) workspace.set('clientId', clientId);
-  // Preserve repeated invalid values so navigation does not silently broaden their scope.
-  for (const id of currentParams.getAll('workspace')) workspace.append('workspace', id);
-  for (const [k, v] of targetParams.entries()) {
-    workspace.set(k, v);
-  }
-  return { pathname: targetPath, search: workspace.size ? '?' + workspace.toString() : '' };
+  const targetPath = target.split('?')[0];
+  const current = new URLSearchParams(search);
+  const sourceIsRelease = currentPath === '/reports' || currentPath === '/vendors';
+  const targetIsRelease = targetPath === '/reports' || targetPath === '/vendors';
+  const allowed = sourceIsRelease && !targetIsRelease ? SETTINGS_SCOPE_PARAMS
+    : sourceIsRelease && targetIsRelease ? RELEASE_SCOPE_PARAMS
+    : UNIVERSAL_SCOPE_PARAMS;
+  // Keep repeated scope parameters intact; only explicit destination parameters replace them.
+  const scope = new URLSearchParams();
+  for (const [key, value] of current) if (allowed.has(key)) scope.append(key, value);
+  const destination = buildPreservedDestination(target, scope.toString());
+  const [pathname, query] = destination.split('?');
+  return { pathname, search: query ? `?${query}` : '' };
 }
 export function utcDatePresets(now = new Date()) {
   const end = now.toISOString().slice(0,10);

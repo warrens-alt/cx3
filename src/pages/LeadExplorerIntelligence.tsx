@@ -18,6 +18,7 @@ import { buildLeadEvidenceExport } from '../lib/analysisExport';
 import { downloadCsv } from '../lib/formatters';
 import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 import { useOperationalData } from '../lib/useOperationalData';
+import { ledgerOutcome } from '../lib/leadLedgerValues';
 import RootCauseDrawer from '../components/RootCauseDrawer';
 
 const DRILL_LABELS: Record<string, string> = {
@@ -260,7 +261,7 @@ export default function LeadExplorerIntelligence() {
           <form onSubmit={handleSearchSubmit} className="cx-explorer-search">
             <label>
               <Search size={14} />
-              <input
+              <input aria-label="Search lead records"
                 type="text"
                 value={search}
                 onChange={event => setSearch(event.target.value)}
@@ -310,27 +311,13 @@ export default function LeadExplorerIntelligence() {
                       <td className="text-xs max-w-[140px] truncate" title={row.last_dialer_status}>{row.last_dialer_status || 'Unavailable'}</td>
                       <td className="text-right font-mono tabular-nums font-semibold text-xs text-text-main">{formatCurrency(row.revenue)}</td>
                       <td className="text-center text-xs">
-                        {row.contacted == null ? (
-                          <span className="text-text-disabled">—</span>
-                        ) : row.contacted ? (
-                          <span className="text-emerald-700 font-semibold">Yes</span>
-                        ) : (
-                          <span className="text-text-muted">No</span>
-                        )}
+                        {ledgerOutcome(row.contacted) === 'Unavailable' ? 'Unavailable' : ledgerOutcome(row.contacted) === 'TRUE' ? 'Yes' : 'No'}
                       </td>
                       <td className="text-center text-xs">
-                        {row.sale ? (
-                          <span className="text-emerald-700 font-semibold">Yes</span>
-                        ) : (
-                          <span className="text-text-muted">No</span>
-                        )}
+                        {ledgerOutcome(row.sale) === 'Unavailable' ? 'Unavailable' : ledgerOutcome(row.sale) === 'TRUE' ? 'Yes' : 'No'}
                       </td>
                       <td className="text-center text-xs">
-                        {row.activated ? (
-                          <span className="text-blue-700 font-semibold">Yes</span>
-                        ) : (
-                          <span className="text-text-muted">No</span>
-                        )}
+                        {ledgerOutcome(row.activated) === 'Unavailable' ? 'Unavailable' : ledgerOutcome(row.activated) === 'TRUE' ? 'Yes' : 'No'}
                       </td>
                       <td className="text-center">
                         <button type="button" className="cx-record-open" onClick={() => handleOpenTimeline(row.lead_id, row.vendor)} title="Open lead timeline" aria-label={`Open timeline for lead ${row.lead_id}`}>
