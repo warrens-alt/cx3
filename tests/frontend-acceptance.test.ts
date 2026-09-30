@@ -193,8 +193,9 @@ test('analytical search submits exact existing query and shows matched rows',asy
     await app.input(app.find('input','Search analytical ledger'),'SYNTHETIC-LEAD-0002');
     app.find('form').dispatchEvent(new app.w.Event('submit',{bubbles:true,cancelable:true}));
     await app.wait(()=>app.w.__fixture.requests.some((r:string)=>r.includes('search=SYNTHETIC-LEAD-0002')));
-    await app.wait(()=>!app.text().includes('SYNTHETIC-LEAD-0001'));
+    await app.wait(()=>app.text().includes('SYNTHETIC-LEAD-0002')&&!app.text().includes('SYNTHETIC-LEAD-0001'));
     assert.match(app.text(),/SYNTHETIC-LEAD-0002/);
+    assert.doesNotMatch(app.text(),/SYNTHETIC-LEAD-0001/);
   }finally{app.close();}
 });
 
