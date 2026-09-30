@@ -118,7 +118,7 @@ export default function OffershopProcessObservability() {
   }, [allNodes, matrixSearch, matrixStatusFilter, selectedFamily]);
 
   return (
-    <div className="cx-command-page">
+    <div className="cx-command-page cx-process-page">
       <OffernetFilterBar onRefresh={() => loadData(true)} />
       <div className="cx-command-content">
         <OperationalPageHeader
