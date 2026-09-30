@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import React, { useState } from 'react';
 import {
   Database,
@@ -37,7 +38,7 @@ export default function LeadEngineLayout({ initialModule = 'ledger' }: LeadEngin
       id: 'ledger' as const,
       index: '01',
       title: 'Lead Ledger',
-      subtitle: 'Table Preview & 350k+ Deep Search',
+      subtitle: 'Legacy table preview',
       icon: Database,
     },
     {
@@ -163,14 +164,14 @@ export default function LeadEngineLayout({ initialModule = 'ledger' }: LeadEngin
             <span className="text-neutral-400 text-[11px]">BigQuery Engine:</span>
             <span className="flex items-center gap-1.5 font-mono text-[11px] text-neutral-200 font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-neutral-400" />
-              Connected
+              Not verified
             </span>
           </div>
 
           <div className="p-2.5 rounded-md bg-neutral-900 border border-neutral-800 text-[11px] font-mono text-neutral-400 space-y-0.5">
             <div className="text-neutral-200 truncate">dashboards-422710</div>
             <div className="text-[10px] text-neutral-400 truncate">lead_ledger.clustered_lead_ledger</div>
-            <div className="text-[10px] text-neutral-400">350,573 leads · 18 columns</div>
+            <div className="text-[10px] text-neutral-400">Legacy schema reference</div>
           </div>
         </div>
       </aside>
@@ -220,15 +221,15 @@ export default function LeadEngineLayout({ initialModule = 'ledger' }: LeadEngin
 
             {/* Warehouse Workspace Client Switcher */}
             <div className="flex items-center gap-1 text-xs">
-              <label htmlFor="cx-workspace-client-select" className="sr-only">Active client</label>
+              <label htmlFor="cx-workspace-client-select" className="sr-only">Legacy project label (display only)</label>
               <select
                 id="cx-workspace-client-select"
-                aria-label="Active client"
+                aria-label="Legacy project label (display only)"
                 value={selectedClient}
                 onChange={e => setSelectedClient(e.target.value)}
                 className="cx-workspace-select text-xs font-mono bg-white border border-neutral-300 rounded px-2.5 py-1 text-neutral-800 focus:outline-neutral-900 font-medium"
               >
-                <option value="dashboards-422710">dashboards-422710 (Production)</option>
+                <option value="dashboards-422710">dashboards-422710 (reference)</option>
                 <option value="vibe-code-warren-stear">vibe-code-warren-stear</option>
               </select>
             </div>
@@ -237,7 +238,8 @@ export default function LeadEngineLayout({ initialModule = 'ledger' }: LeadEngin
 
         {/* Main Work Surface */}
         <main id="main-content" tabIndex={-1} className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1720px] w-full mx-auto outline-hidden">
-          {activeModule === 'ledger' && <LeadLedgerModule />}
+          <section className="mb-5 p-4 border border-neutral-300 bg-white rounded-lg" aria-label="Legacy view boundary"><h2 className="font-semibold">Legacy reference workspace — live acceptance blocked</h2><p className="text-sm mt-2">These modules contain illustrative scenarios and incomplete diagnostics. Their legacy API is not mounted in the reviewed application. They do not establish current warehouse access, validation, profitability or workspace scope. The project label above changes display state only.</p><p className="text-sm mt-2"><Link className="underline" to="/lead-ledger">Open the source ledger</Link> · <Link className="underline" to="/data-integrity">Open source status</Link></p></section>
+          {activeModule === 'ledger'  && <LeadLedgerModule />}
           {activeModule === 'quality' && <DataQualityModule />}
           {activeModule === 'rate-card' && <RateCardModule />}
           {activeModule === 'settings' && <SettingsModule />}

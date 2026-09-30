@@ -197,9 +197,9 @@ export default function SettingsModule() {
               Active Cached Queries
             </span>
             <strong className="text-2xl font-bold font-mono text-neutral-900 block mt-1">
-              {cacheStats?.activeEntries || 0}
+              {cacheStats?.activeEntries ?? 'Not reported'}
             </strong>
-            <span className="text-[11px] text-neutral-500">of {cacheStats?.totalEntries || 0} total entries</span>
+            <span className="text-[11px] text-neutral-500">of {cacheStats?.totalEntries ?? 'Not reported'} total entries</span>
           </div>
 
           <div className="p-4 rounded-lg bg-neutral-50 border border-neutral-200">
@@ -207,9 +207,9 @@ export default function SettingsModule() {
               Cache Hit Rate
             </span>
             <strong className="text-2xl font-bold font-mono text-neutral-900 block mt-1">
-              {cacheStats?.hitRate || 0}%
+              {cacheStats?.hitRate == null ? 'Not reported' : `${cacheStats?.hitRate}%`}
             </strong>
-            <span className="text-[11px] text-neutral-500">{cacheStats?.hits || 0} hits · {cacheStats?.misses || 0} misses</span>
+            <span className="text-[11px] text-neutral-500">{cacheStats?.hits ?? 'Not reported'} hits · {cacheStats?.misses ?? 'Not reported'} misses</span>
           </div>
 
           <div className="p-4 rounded-lg bg-neutral-50 border border-neutral-200">
@@ -227,7 +227,7 @@ export default function SettingsModule() {
               Estimated Memory
             </span>
             <strong className="text-2xl font-bold font-mono text-neutral-900 block mt-1">
-              ~{cacheStats?.estimatedMemoryKb || 1} KB
+              ~{cacheStats?.estimatedMemoryKb ?? 'Not reported'} KB
             </strong>
             <span className="text-[11px] text-neutral-500">In-process heap</span>
           </div>
@@ -236,7 +236,7 @@ export default function SettingsModule() {
         {/* Live Cached Query Items */}
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs text-neutral-600 font-medium">
-            <span>Live Cached Query Keys & TTL Expiry Countdown:</span>
+            <span>Last returned cache diagnostic (not live certification):</span>
             <span className="font-mono text-[11px] text-neutral-400">Refreshes every 5s</span>
           </div>
 
@@ -307,7 +307,7 @@ export default function SettingsModule() {
 
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-mono font-semibold bg-neutral-100 text-neutral-800 border border-neutral-300">
               <CheckCircle2 size={13} />
-              <span>{serviceAccount?.iamStatus || 'Active & Authorized'}</span>
+              <span>{serviceAccount?.iamStatus ?? 'Not reported'}</span>
             </span>
           </div>
         </div>
@@ -317,7 +317,7 @@ export default function SettingsModule() {
             <span className="text-[10.5px] font-mono text-neutral-400 block uppercase">Client Email</span>
             <div className="flex items-center gap-1 mt-1">
               <span className="font-mono text-neutral-800 text-[11px] truncate">
-                {serviceAccount?.clientEmail || 'bigquery-vibe-code-access@...'}
+                {serviceAccount?.clientEmail ?? 'Not reported'}
               </span>
               <button
                 type="button"
@@ -332,7 +332,7 @@ export default function SettingsModule() {
           <div className="p-3 bg-neutral-50 rounded border border-neutral-200">
             <span className="text-[10.5px] font-mono text-neutral-400 block uppercase">Target Project</span>
             <span className="font-mono font-bold text-neutral-900 text-[11.5px] block mt-1">
-              {serviceAccount?.projectId || 'dashboards-422710'}
+              {serviceAccount?.projectId ?? 'Not reported'}
             </span>
           </div>
 
@@ -340,7 +340,7 @@ export default function SettingsModule() {
             <span className="text-[10.5px] font-mono text-neutral-400 block uppercase">BigQuery API Latency</span>
             <div className="flex items-center gap-1.5 mt-1">
               <span className="font-mono font-bold text-neutral-900 text-sm">
-                {serviceAccount?.apiLatencyMs || 120} ms
+                {serviceAccount?.apiLatencyMs ?? 'Not reported'} ms
               </span>
             </div>
           </div>
@@ -348,7 +348,7 @@ export default function SettingsModule() {
           <div className="p-3 bg-neutral-50 rounded border border-neutral-200">
             <span className="text-[10.5px] font-mono text-neutral-400 block uppercase">Auth Mechanism</span>
             <span className="font-mono text-neutral-700 text-[11px] block mt-1">
-              {serviceAccount?.authType || 'OAuth2 Service Account JWT'}
+              {serviceAccount?.authType ?? 'Not reported'}
             </span>
           </div>
         </div>
@@ -368,18 +368,12 @@ export default function SettingsModule() {
           </div>
 
           <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded bg-neutral-100 text-neutral-800 border border-neutral-300">
-            18 UNPACKED COLUMNS ACTIVE
+            Registered columns; activation not verified
           </span>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs font-mono">
-          {(hlcExploder?.columnsList || [
-            'hlc_vendor', 'hlc_transaction_id', 'hlc_status', 'hlc_attempted_to_deliver',
-            'hlc_delivered', 'hlc_rpc', 'hlc_revenue_generated', 'hlc_dialer_cost',
-            'hlc_response_code', 'hlc_response_message', 'hlc_call_duration_seconds', 'hlc_dialer_attempts',
-            'hlc_last_dialer_status', 'hlc_buyer_contract_id', 'hlc_payout_rate', 'hlc_lead_tier',
-            'hlc_optin_verified', 'hlc_transmission_id'
-          ]).map((col, idx) => (
+          {(hlcExploder?.columnsList || []).map((col, idx) => (
             <div key={col} className="p-2 rounded bg-neutral-50 border border-neutral-200 text-[11px] truncate">
               <span className="text-neutral-400 mr-1">#{idx + 1}</span>
               <span className="text-neutral-900 font-medium">{col}</span>

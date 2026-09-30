@@ -55,6 +55,9 @@ export default function UserManagement() {
   const [invitesList, setInvitesList] = useState<AccessInvite[]>([]);
   const [auditList, setAuditList] = useState<AuditLogEntry[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [directoryError, setDirectoryError] = useState(false);
+  const [inviteState, setInviteState] = useState<'loading' | 'loaded' | 'error'>('loading');
+  const [auditState, setAuditState] = useState<'loading' | 'loaded' | 'error'>('loading');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'pending' | 'suspended'>('all');
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'analyst' | 'viewer'>('all');
@@ -99,23 +102,14 @@ export default function UserManagement() {
           if (b.role === 'admin' && a.role !== 'admin') return 1;
           return (a.email || '').localeCompare(b.email || '');
         });
+        setDirectoryError(false);
         setUsersList(users);
         setLoadingUsers(false);
       },
       (error) => {
         console.warn('User directory sync notice:', error);
-        setUsersList([
-          {
-            uid: currentUser?.uid || 'lb9z5IHnOsYRRcqcS7WD5WcURK13',
-            email: currentUser?.email || 'warrens@bastionflowe.com',
-            displayName: currentUser?.displayName || 'Warren Stear',
-            role: 'admin',
-            status: 'active',
-            allowedTenants: ['*'],
-            createdAt: new Date().toISOString(),
-            lastLoginAt: new Date().toISOString()
-          }
-        ]);
+        setUsersList([]);
+        setDirectoryError(true);
         setLoadingUsers(false);
       }
     );
@@ -128,9 +122,12 @@ export default function UserManagement() {
           invites.push(doc.data() as AccessInvite);
         });
         setInvitesList(invites);
+        setInviteState('loaded');
       },
       (error) => {
         console.warn('Invites subscription notice:', error);
+        setInvitesList([]);
+        setInviteState('error');
       }
     );
 
@@ -142,9 +139,12 @@ export default function UserManagement() {
           logs.push(doc.data() as AuditLogEntry);
         });
         setAuditList(logs);
+        setAuditState('loaded');
       },
       (error) => {
         console.warn('Audit subscription notice:', error);
+        setAuditList([]);
+        setAuditState('error');
       }
     );
 
@@ -353,30 +353,30 @@ export default function UserManagement() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-2xs space-y-1 hover:border-slate-300 transition-all">
+        <div className="bg-surface p-4 rounded-lg border border-slate-200 shadow-2xs space-y-1 hover:border-slate-300 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-semibold uppercase tracking-wider">
             <span>Total Accounts</span>
             <Users className="w-3.5 h-3.5 text-slate-400" />
           </div>
-          <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">{totalUsers}</div>
+          <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">{loadingUsers ? '…' : directoryError ? 'Unavailable' : totalUsers}</div>
           <p className="text-[10.5px] text-slate-500 font-mono">Registered Google accounts</p>
         </div>
 
-        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-2xs space-y-1 hover:border-slate-300 transition-all">
+        <div className="bg-surface p-4 rounded-lg border border-slate-200 shadow-2xs space-y-1 hover:border-slate-300 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-semibold uppercase tracking-wider">
             <span>Active Users</span>
             <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
           </div>
-          <div className="text-2xl font-bold text-emerald-600 font-mono tabular-nums">{activeCount}</div>
+          <div className="text-2xl font-bold text-emerald-600 font-mono tabular-nums">{loadingUsers ? '…' : directoryError ? 'Unavailable' : activeCount}</div>
           <p className="text-[10.5px] text-slate-500 font-mono">Currently authorized</p>
         </div>
 
-        <div
+        <button type="button"
           onClick={() => {
             setActiveTab('users');
             setStatusFilter('pending');
           }}
-          className={`bg-white p-4 rounded-lg border shadow-2xs space-y-1 cursor-pointer transition-all ${
+          className={`bg-surface p-4 rounded-lg border shadow-2xs space-y-1 cursor-pointer transition-all ${
             pendingCount > 0 ? 'border-amber-300 bg-amber-50/20 hover:border-amber-400' : 'border-slate-200 hover:border-slate-300'
           }`}
         >
@@ -386,7 +386,7 @@ export default function UserManagement() {
           </div>
           <div className="flex items-center gap-2">
             <span className={`text-2xl font-bold font-mono tabular-nums ${pendingCount > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
-              {pendingCount}
+              {loadingUsers ? '…' : directoryError ? 'Unavailable' : pendingCount}
             </span>
             {pendingCount > 0 && (
               <span className="px-1.5 py-0.5 text-[9.5px] font-semibold bg-amber-100 text-amber-800 rounded font-mono">
@@ -395,22 +395,23 @@ export default function UserManagement() {
             )}
           </div>
           <p className="text-[10.5px] text-slate-500 font-mono">Awaiting access grant</p>
-        </div>
+        </button>
 
-        <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-2xs space-y-1 hover:border-slate-300 transition-all">
+        <div className="bg-surface p-4 rounded-lg border border-slate-200 shadow-2xs space-y-1 hover:border-slate-300 transition-all">
           <div className="flex items-center justify-between text-slate-500 text-[11px] font-semibold uppercase tracking-wider">
             <span>Administrators</span>
             <Shield className="w-3.5 h-3.5 text-blue-500" />
           </div>
-          <div className="text-2xl font-bold text-blue-700 font-mono tabular-nums">{adminCount}</div>
+          <div className="text-2xl font-bold text-blue-700 font-mono tabular-nums">{loadingUsers ? '…' : directoryError ? 'Unavailable' : adminCount}</div>
           <p className="text-[10.5px] text-slate-500 font-mono">Full platform authority</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-slate-200 flex gap-6 text-xs sm:text-sm font-semibold">
+      <div className="border-b border-slate-200 flex flex-wrap gap-4 text-xs sm:text-sm font-semibold">
         <button
           type="button"
+          aria-pressed={activeTab === 'users'}
           onClick={() => setActiveTab('users')}
           className={`pb-3 border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${
             activeTab === 'users'
@@ -419,16 +420,17 @@ export default function UserManagement() {
           }`}
         >
           <Users className="w-4 h-4" />
-          <span>User Directory ({usersList.length})</span>
+          <span>User Directory ({directoryError ? 'Unavailable' : loadingUsers ? '…' : usersList.length})</span>
           {pendingCount > 0 && (
             <span className="text-[11px] font-semibold text-amber-700 font-mono">
-              ({pendingCount} pending)
+              ({loadingUsers ? '…' : directoryError ? 'Unavailable' : pendingCount} pending)
             </span>
           )}
         </button>
 
         <button
           type="button"
+          aria-pressed={activeTab === 'invites'}
           onClick={() => setActiveTab('invites')}
           className={`pb-3 border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${
             activeTab === 'invites'
@@ -437,11 +439,12 @@ export default function UserManagement() {
           }`}
         >
           <KeyRound className="w-4 h-4" />
-          <span>Pre-Authorized Invites ({invitesList.length})</span>
+          <span>Pre-Authorized Invites ({inviteState === 'loaded' ? invitesList.length : inviteState === 'error' ? 'Unavailable' : '…'})</span>
         </button>
 
         <button
           type="button"
+          aria-pressed={activeTab === 'policies'}
           onClick={() => setActiveTab('policies')}
           className={`pb-3 border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${
             activeTab === 'policies'
@@ -455,6 +458,7 @@ export default function UserManagement() {
 
         <button
           type="button"
+          aria-pressed={activeTab === 'audit'}
           onClick={() => setActiveTab('audit')}
           className={`pb-3 border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${
             activeTab === 'audit'
@@ -463,19 +467,20 @@ export default function UserManagement() {
           }`}
         >
           <History className="w-4 h-4" />
-          <span>Audit Log ({auditList.length})</span>
+          <span>Audit Log ({auditState === 'loaded' ? auditList.length : auditState === 'error' ? 'Unavailable' : '…'})</span>
         </button>
       </div>
 
       {/* TAB 1: USERS DIRECTORY */}
       {activeTab === 'users' && (
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden space-y-4 p-4 sm:p-5">
+        <div className="bg-surface rounded-lg border border-slate-200 shadow-sm overflow-hidden space-y-4 p-4 sm:p-5">
           {/* Controls bar */}
           <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
             <div className="relative flex-1 max-w-md">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
+                aria-label="Search loaded user directory"
                 placeholder="Search users by name or email…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -497,7 +502,7 @@ export default function UserManagement() {
                 aria-label="Filter by status"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="px-3 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 bg-white"
+                className="px-3 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 bg-surface"
               >
                 <option value="all">All Statuses</option>
                 <option value="active">Active Only</option>
@@ -509,7 +514,7 @@ export default function UserManagement() {
                 aria-label="Filter by role"
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value as any)}
-                className="px-3 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 bg-white"
+                className="px-3 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 bg-surface"
               >
                 <option value="all">All Roles</option>
                 <option value="admin">Admins</option>
@@ -541,7 +546,8 @@ export default function UserManagement() {
                   </tr>
                 )}
 
-                {!loadingUsers && filteredUsers.length === 0 && (
+                {directoryError && <tr><td colSpan={6} className="px-4 py-8 text-center" role="alert">User directory unavailable. Account roles and access scopes could not be loaded.</td></tr>}
+                {!loadingUsers && !directoryError && filteredUsers.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
                       No users match the search filter.
@@ -553,7 +559,8 @@ export default function UserManagement() {
                   filteredUsers.map((user) => {
                     const isSelf = user.uid === currentUser?.uid;
                     const isSuper = user.email.toLowerCase() === 'warrens@bastionflowe.com';
-                    const allowed = user.allowedTenants || ['*'];
+                    const allowed = user.allowedTenants || [];
+                    const tenantScopeReported = Array.isArray(user.allowedTenants);
                     const hasAllTenants = allowed.includes('*');
 
                     return (
@@ -613,7 +620,7 @@ export default function UserManagement() {
                               value={user.role}
                               onChange={(e) => handleRoleChange(user, e.target.value as UserRole)}
                               disabled={isSelf}
-                              className="px-2.5 py-1 border border-slate-200 rounded-md text-xs font-semibold bg-white cursor-pointer hover:border-slate-300"
+                              className="px-2.5 py-1 border border-slate-200 rounded-md text-xs font-semibold bg-surface cursor-pointer hover:border-slate-300"
                             >
                               <option value="admin">Admin</option>
                               <option value="analyst">Analyst</option>
@@ -647,7 +654,7 @@ export default function UserManagement() {
                         {/* Client Workspaces */}
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-1.5 flex-wrap max-w-xs">
-                            {hasAllTenants ? (
+                            {!tenantScopeReported ? <span>Not reported</span> : hasAllTenants ? (
                               <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-[11px] font-medium border border-blue-200">
                                 All Workspaces (*)
                               </span>
@@ -688,7 +695,7 @@ export default function UserManagement() {
                                 hour: '2-digit',
                                 minute: '2-digit'
                               })
-                            : 'Never'}
+                            : 'Not reported'}
                         </td>
 
                         {/* Actions */}
@@ -746,7 +753,7 @@ export default function UserManagement() {
 
       {/* TAB 2: PRE-AUTHORIZED INVITES */}
       {activeTab === 'invites' && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+        <div className="bg-surface rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 pb-4">
             <div>
               <h2 className="text-sm font-bold text-slate-900">Pre-Authorized Access Whitelist</h2>
@@ -776,7 +783,8 @@ export default function UserManagement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {invitesList.length === 0 && (
+                {inviteState !== 'loaded' && <tr><td colSpan={5} className="px-4 py-8 text-center" role={inviteState === 'error' ? 'alert' : 'status'}>{inviteState === 'error' ? 'Invitations unavailable. The subscription failed.' : 'Loading invitations…'}</td></tr>}
+                {inviteState === 'loaded' && invitesList.length === 0 && (
                   <tr>
                     <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
                       No pre-authorized invites configured. New users will be placed in the pending approval queue.
@@ -814,11 +822,11 @@ export default function UserManagement() {
 
       {/* TAB 3: ACCESS POLICIES */}
       {activeTab === 'policies' && (
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 max-w-2xl space-y-6">
+        <div className="bg-surface rounded-lg border border-slate-200 shadow-sm p-6 max-w-2xl space-y-6">
           <div className="border-b border-slate-100 pb-4">
             <h2 className="text-base font-bold text-slate-900">Access Control & Registration Rules</h2>
             <p className="text-xs text-slate-500">
-              Govern default behavior when any user signs in with Google.
+              Draft policy values. The current saved policy is not loaded here. Verify the intended settings before saving; these defaults are not evidence of the active policy.
             </p>
           </div>
 
@@ -887,7 +895,7 @@ export default function UserManagement() {
 
       {/* TAB 4: AUDIT LOG */}
       {activeTab === 'audit' && (
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-5 space-y-4">
+        <div className="bg-surface rounded-lg border border-slate-200 shadow-sm p-5 space-y-4">
           <div className="border-b border-slate-100 pb-3">
             <h2 className="text-sm font-bold text-slate-900">Security & Access Audit Trail</h2>
             <p className="text-xs text-slate-500">
@@ -896,7 +904,8 @@ export default function UserManagement() {
           </div>
 
           <div className="divide-y divide-slate-100 text-xs">
-            {auditList.length === 0 && (
+            {auditState !== 'loaded' && <p role={auditState === 'error' ? 'alert' : 'status'}>{auditState === 'error' ? 'Audit log unavailable. The subscription failed.' : 'Loading audit log…'}</p>}
+            {auditState === 'loaded' && auditList.length === 0 && (
               <div className="py-6 text-center text-slate-400">No audit events recorded yet.</div>
             )}
             {auditList.map((log) => (
@@ -927,7 +936,7 @@ export default function UserManagement() {
       {/* MODAL: PRE-AUTHORIZE INVITE */}
       {inviteModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95">
+          <div className="bg-surface rounded-lg max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-base text-slate-900">Pre-Authorize User</h3>
               <button
@@ -1026,7 +1035,7 @@ export default function UserManagement() {
       {/* MODAL: EDIT WORKSPACE CLIENTS FOR USER */}
       {editingTenantsUser && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+          <div className="bg-surface rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-bold text-base text-slate-900">Manage Workspace Scopes</h3>

@@ -199,10 +199,10 @@ export default function RateCardModule() {
             <span className="text-xs text-neutral-500 font-mono">· Commercial Monetization</span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-neutral-900 mt-1">
-            Commercial Rate Card & Yield Optimizer
+            Illustrative Rate Card Scenario
           </h1>
           <p className="text-xs text-neutral-500 mt-0.5">
-            Configurable grade pricing matrix, financial simulator, per-vendor yield ranking, and traffic reallocation engine
+            Illustrative scenario using fixed populations and cost assumptions, including R5.25 media cost. Calculated outputs are not observed spend, revenue or verified profitability.
           </p>
         </div>
 
@@ -222,7 +222,7 @@ export default function RateCardModule() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-lg border border-neutral-200 space-y-1">
           <span className="text-[11px] font-mono uppercase tracking-wider text-neutral-500 font-medium">
-            Total Potential Gross Revenue
+            Scenario Gross Value
           </span>
           <strong className="text-2xl font-bold font-mono text-neutral-900 block mt-1">
             R {financial.totalGross.toLocaleString('en-ZA', { maximumFractionDigits: 0 })}
@@ -268,7 +268,7 @@ export default function RateCardModule() {
           <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
             <div>
               <h3 className="text-sm font-bold text-neutral-900 tracking-tight">Grade Pricing Matrix (ZAR)</h3>
-              <p className="text-xs text-neutral-500">Live rate card payout per delivered lead</p>
+              <p className="text-xs text-neutral-500">Example payout assumption per delivered lead</p>
             </div>
           </div>
 
@@ -449,7 +449,7 @@ export default function RateCardModule() {
 
             <div className="text-right sm:text-right">
               <span className="text-xs font-mono uppercase text-neutral-400 font-semibold tracking-wider">
-                Projected Incremental Profit
+                Illustrative Incremental Value
               </span>
               <div className="text-2xl font-bold font-mono text-white mt-1">
                 +R {reallocation.incrementalProfit.toLocaleString('en-ZA')}/month
@@ -504,7 +504,7 @@ export default function RateCardModule() {
           </div>
         </div>
 
-        {/* Dynamic Tactical Recommendations */}
+        {/* Dynamic Scenario Notes */}
         <div className="p-4 rounded-lg bg-neutral-100 border border-neutral-200 space-y-2">
           <span className="text-xs font-bold text-neutral-900 tracking-tight flex items-center gap-1.5">
             <Zap size={14} className="text-neutral-700" />
@@ -534,7 +534,7 @@ export default function RateCardModule() {
                   <th className="py-2.5 px-3">Partner Vendor</th>
                   <th className="py-2.5 px-3">Tier</th>
                   <th className="py-2.5 px-3 text-right">Agreed CPL</th>
-                  <th className="py-2.5 px-3 text-right">Realized CPA</th>
+                  <th className="py-2.5 px-3 text-right">Scenario CPA</th>
                   <th className="py-2.5 px-3 text-right">RPC Rate %</th>
                   <th className="py-2.5 px-3 text-right">Delivery %</th>
                   <th className="py-2.5 px-3 text-right">Net Yield Margin</th>

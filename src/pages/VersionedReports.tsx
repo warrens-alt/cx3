@@ -21,11 +21,11 @@ export default function VersionedReports() {
     queryFn: ({ signal }) => fetchReportingCatalogue(clientId, signal),
     staleTime: 30000,
   });
-  const release = data?.release;
+  const release = !error && !isLoading ? data?.release : undefined;
   const isAvailable = data?.status === 'AVAILABLE' && !!release;
   return <div className="cx-page cx-reports-evidence-page">
     <PageHeader title="Versioned Reporting Releases" subtitle="Review the release manifest, reported audit checks and frozen source references. The release registry is separate from report execution." badges={[
-      { label: isAvailable ? 'Release Active' : 'No Active Release', variant: isAvailable ? 'success' : 'neutral' },
+      { label: isLoading ? 'Checking registry' : error ? 'Registry unavailable' : isAvailable ? 'Release Active' : 'No Active Release', variant: isAvailable ? 'success' : 'neutral' },
       { label: `Tenant: ${clientId}`, variant: 'neutral' },
     ]} />
     <EvidenceScopeBar releaseId={release?.releaseId || 'No release reported'} cutoff={release?.cutoff} busy={isLoading} />

@@ -80,7 +80,7 @@ export default function LeadInspectorDrawer({ lead, onClose }: LeadInspectorDraw
               <h2 id="drawer-title" className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
                 <span>Consumer #{lead.consumer_id || lead.lead_id}</span>
                 <span className="text-xs px-2.5 py-0.5 rounded font-mono font-medium bg-neutral-800 text-neutral-200 border border-neutral-700">
-                  {lead.hlc_lead_tier || `Grade ${lead.offershop_grade || 'B'}`}
+                  {lead.hlc_lead_tier || (lead.offershop_grade ? `Grade ${lead.offershop_grade}` : 'Not reported')}
                 </span>
               </h2>
             </div>
@@ -101,25 +101,25 @@ export default function LeadInspectorDrawer({ lead, onClose }: LeadInspectorDraw
               <div className="p-3 bg-white rounded-lg border border-neutral-200">
                 <span className="text-[10.5px] uppercase font-mono tracking-wider text-neutral-500 block">Delivery</span>
                 <strong className="text-sm font-semibold text-neutral-900 block mt-0.5">
-                  {lead.hlc_status || 'Pending'}
+                  {lead.hlc_status ?? 'Not reported'}
                 </strong>
               </div>
               <div className="p-3 bg-white rounded-lg border border-neutral-200">
                 <span className="text-[10.5px] uppercase font-mono tracking-wider text-neutral-500 block">RPC Status</span>
                 <strong className="text-sm font-semibold text-neutral-900 block mt-0.5">
-                  {lead.hlc_rpc || 'Unreached'}
+                  {lead.hlc_rpc ?? 'Not reported'}
                 </strong>
               </div>
               <div className="p-3 bg-white rounded-lg border border-neutral-200">
                 <span className="text-[10.5px] uppercase font-mono tracking-wider text-neutral-500 block">Realized Yield</span>
                 <strong className="text-sm font-semibold font-mono text-neutral-900 block mt-0.5">
-                  {lead.hlc_revenue_generated || 'R 0.00'}
+                  {lead.hlc_revenue_generated ?? 'Not reported'}
                 </strong>
               </div>
               <div className="p-3 bg-white rounded-lg border border-neutral-200">
                 <span className="text-[10.5px] uppercase font-mono tracking-wider text-neutral-500 block">Agreed Rate</span>
                 <strong className="text-sm font-semibold font-mono text-neutral-900 block mt-0.5">
-                  {lead.hlc_payout_rate || 'R 24.00'}
+                  {lead.hlc_payout_rate ?? 'Not reported'}
                 </strong>
               </div>
             </div>
@@ -146,14 +146,14 @@ export default function LeadInspectorDrawer({ lead, onClose }: LeadInspectorDraw
                   <span className="text-neutral-500 block text-[10.5px] font-medium">[1] Partner Vendor</span>
                   <strong className="text-neutral-900 font-semibold block mt-0.5 flex items-center gap-1.5">
                     <Building size={12} className="text-neutral-600" />
-                    {lead.hlc_vendor || 'Lewis Group'}
+                    {lead.hlc_vendor ?? 'Not reported'}
                   </strong>
                 </div>
 
                 <div>
                   <span className="text-neutral-500 block text-[10.5px] font-medium">[2] Vendor Transaction ID</span>
                   <div className="flex items-center gap-1 mt-0.5">
-                    <span className="font-mono text-neutral-800 truncate">{lead.hlc_transaction_id || 'TXN-371694'}</span>
+                    <span className="font-mono text-neutral-800 truncate">{lead.hlc_transaction_id ?? 'Not reported'}</span>
                     <button
                       type="button"
                       onClick={() => handleCopy(lead.hlc_transaction_id, 'txn-id')}
@@ -167,85 +167,85 @@ export default function LeadInspectorDrawer({ lead, onClose }: LeadInspectorDraw
                 <div>
                   <span className="text-neutral-500 block text-[10.5px] font-medium">[3] Delivery Status</span>
                   <span className="text-neutral-900 font-medium block mt-0.5">
-                    {lead.hlc_status || 'Delivered'}
+                    {lead.hlc_status ?? 'Not reported'}
                   </span>
                 </div>
 
                 <div>
                   <span className="text-neutral-500 block text-[10.5px] font-medium">[4] Attempted Timestamp</span>
-                  <span className="font-mono text-neutral-700 block mt-0.5 truncate">{lead.hlc_attempted_to_deliver || '2026-08-24 15:10:13'}</span>
+                  <span className="font-mono text-neutral-700 block mt-0.5 truncate">{lead.hlc_attempted_to_deliver ?? 'Not reported'}</span>
                 </div>
 
                 <div>
                   <span className="text-neutral-500 block text-[10.5px] font-medium">[5] Delivery Confirmed</span>
-                  <span className="font-mono text-neutral-700 block mt-0.5 truncate">{lead.hlc_delivered || '2026-08-24 15:10:13'}</span>
+                  <span className="font-mono text-neutral-700 block mt-0.5 truncate">{lead.hlc_delivered ?? 'Not reported'}</span>
                 </div>
 
                 <div>
                   <span className="text-neutral-500 block text-[10.5px] font-medium">[6] Right Party Contact</span>
                   <strong className="text-neutral-900 font-medium block mt-0.5">
-                    {lead.hlc_rpc || 'Unreached'}
+                    {lead.hlc_rpc ?? 'Not reported'}
                   </strong>
                 </div>
 
                 <div>
                   <span className="text-neutral-500 block text-[10.5px] font-medium">[7] Realized Revenue</span>
-                  <span className="font-mono font-bold text-neutral-900 block mt-0.5">{lead.hlc_revenue_generated || 'R 0.00'}</span>
+                  <span className="font-mono font-bold text-neutral-900 block mt-0.5">{lead.hlc_revenue_generated ?? 'Not reported'}</span>
                 </div>
 
                 <div>
                   <span className="text-neutral-500 block text-[10.5px] font-medium">[8] Telecom Dialler Fee</span>
-                  <span className="font-mono text-neutral-700 block mt-0.5">{lead.hlc_dialer_cost || 'R 0.45'}</span>
+                  <span className="font-mono text-neutral-700 block mt-0.5">{lead.hlc_dialer_cost ?? 'Not reported'}</span>
                 </div>
 
                 <div>
                   <span className="text-neutral-500 block text-[10.5px] font-medium">[9] HTTP Response Code</span>
-                  <span className="font-mono text-neutral-800 block mt-0.5">{lead.hlc_response_code || '200 OK'}</span>
+                  <span className="font-mono text-neutral-800 block mt-0.5">{lead.hlc_response_code ?? 'Not reported'}</span>
                 </div>
 
                 <div className="col-span-2">
                   <span className="text-neutral-500 block text-[10.5px] font-medium">[10] Dialler Response Message</span>
-                  <span className="text-neutral-800 block mt-0.5 italic">{lead.hlc_response_message || 'Delivery acknowledged by telecom gateway'}</span>
+                  <span className="text-neutral-800 block mt-0.5 italic">{lead.hlc_response_message ?? 'Not reported'}</span>
                 </div>
 
                 <div>
                   <span className="text-neutral-500 block text-[10.5px] font-medium">[11] Call Duration</span>
-                  <span className="font-mono text-neutral-700 block mt-0.5">{lead.hlc_call_duration_seconds || 0} seconds</span>
+                  <span className="font-mono text-neutral-700 block mt-0.5">{lead.hlc_call_duration_seconds ?? 'Not reported'} seconds</span>
                 </div>
 
                 <div>
                   <span className="text-neutral-500 block text-[10.5px] font-medium">[12] Dialler Attempts</span>
-                  <span className="font-mono text-neutral-700 block mt-0.5">{lead.hlc_dialer_attempts || 1} calls</span>
+                  <span className="font-mono text-neutral-700 block mt-0.5">{lead.hlc_dialer_attempts ?? 'Not reported'} calls</span>
                 </div>
 
                 <div>
                   <span className="text-neutral-500 block text-[10.5px] font-medium">[13] Last Call Disposition</span>
-                  <span className="text-neutral-800 font-medium block mt-0.5">{lead.hlc_last_dialer_status || 'Answered'}</span>
+                  <span className="text-neutral-800 font-medium block mt-0.5">{lead.hlc_last_dialer_status ?? 'Not reported'}</span>
                 </div>
 
                 <div>
                   <span className="text-neutral-500 block text-[10.5px] font-medium">[14] Buyer Contract ID</span>
-                  <span className="font-mono text-neutral-800 block mt-0.5">{lead.hlc_buyer_contract_id || 'CTR-ZA-LEW-2026'}</span>
+                  <span className="font-mono text-neutral-800 block mt-0.5">{lead.hlc_buyer_contract_id ?? 'Not reported'}</span>
                 </div>
 
                 <div>
                   <span className="text-neutral-500 block text-[10.5px] font-medium">[15] Contracted Payout Rate</span>
-                  <span className="font-mono text-neutral-900 font-semibold block mt-0.5">{lead.hlc_payout_rate || 'R 24.00'}</span>
+                  <span className="font-mono text-neutral-900 font-semibold block mt-0.5">{lead.hlc_payout_rate ?? 'Not reported'}</span>
                 </div>
 
                 <div>
                   <span className="text-neutral-500 block text-[10.5px] font-medium">[16] Commercial Tier</span>
-                  <span className="text-neutral-800 font-medium block mt-0.5">{lead.hlc_lead_tier || 'Grade B'}</span>
+                  <span className="text-neutral-800 font-medium block mt-0.5">{lead.hlc_lead_tier ?? 'Not reported'}</span>
                 </div>
 
                 <div>
                   <span className="text-neutral-500 block text-[10.5px] font-medium">[17] POPIA / GDPR Verified</span>
-                  <span className="font-mono text-neutral-600 block mt-0.5 truncate">{lead.hlc_optin_verified || lead.fetched || '2026-08-24 15:03:04'}</span>
+                  <span className="font-mono text-neutral-600 block mt-0.5 truncate">{lead.hlc_optin_verified ?? 'Not reported'}</span>
                 </div>
 
                 <div className="col-span-2">
                   <span className="text-neutral-500 block text-[10.5px] font-medium">[18] Transmission Ref</span>
-                  <span className="font-mono text-[11px] text-neutral-600 block mt-0.5 break-all">{lead.hlc_transmission_id || `TRX-${lead.lead_id}`}</span>
+                  <span className="font-mono text-[11px] text-neutral-600 block mt-0.5 break-all">{lead.hlc_transmission_id ?? 'Not reported'}</span>
                 </div>
               </div>
             </div>
@@ -265,37 +265,37 @@ export default function LeadInspectorDrawer({ lead, onClose }: LeadInspectorDraw
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-3.5 gap-x-4 text-xs">
                 <div>
                   <span className="text-neutral-500 block text-[10.5px] font-medium">Offershop Source</span>
-                  <span className="text-neutral-900 font-semibold block mt-0.5 truncate">{lead.offershop_source || 'www.offershop.co.za'}</span>
+                  <span className="text-neutral-900 font-semibold block mt-0.5 truncate">{lead.offershop_source ?? 'Not reported'}</span>
                 </div>
 
                 <div>
                   <span className="text-neutral-500 block text-[10.5px] font-medium">Campaign Medium</span>
-                  <span className="text-neutral-800 font-mono block mt-0.5">{lead.offernet_medium || 'facebook'}</span>
+                  <span className="text-neutral-800 font-mono block mt-0.5">{lead.offernet_medium ?? 'Not reported'}</span>
                 </div>
 
                 <div>
                   <span className="text-neutral-500 block text-[10.5px] font-medium">Ingestion Date</span>
-                  <span className="text-neutral-700 font-mono block mt-0.5 truncate">{lead.fetched || '2026-08-24 14:59:08'}</span>
+                  <span className="text-neutral-700 font-mono block mt-0.5 truncate">{lead.fetched ?? 'Not reported'}</span>
                 </div>
 
                 <div>
                   <span className="text-neutral-500 block text-[10.5px] font-medium">ID Luhn Compliance</span>
                   <span className={`block mt-0.5 font-mono ${isValidId ? 'font-semibold text-neutral-900' : 'text-neutral-400'}`}>
-                    {isValidId ? 'PASS (Luhn Mod-10)' : 'FAIL'}
+                    {lead.valid_idno == null ? 'Not reported' : isValidId ? 'PASS (Luhn Mod-10)' : 'FAIL'}
                   </span>
                 </div>
 
                 <div>
                   <span className="text-neutral-500 block text-[10.5px] font-medium">Mobile E.164 Compliance</span>
                   <span className={`block mt-0.5 font-mono ${isValidPhone ? 'font-semibold text-neutral-900' : 'text-neutral-400'}`}>
-                    {isValidPhone ? 'PASS (E.164 MSISDN)' : 'FAIL'}
+                    {lead.phone_valid == null ? 'Not reported' : isValidPhone ? 'PASS (E.164 MSISDN)' : 'FAIL'}
                   </span>
                 </div>
 
                 <div>
                   <span className="text-neutral-500 block text-[10.5px] font-medium">Dual Compliance</span>
                   <span className={`block mt-0.5 font-mono ${lead.valid_lead ? 'font-semibold text-neutral-900' : 'text-neutral-400'}`}>
-                    {lead.valid_lead ? 'PASS (Dual Compliant)' : 'FAIL'}
+                    {lead.valid_lead == null ? 'Not reported' : lead.valid_lead === true || lead.valid_lead === 'true' ? 'PASS (Dual Compliant)' : 'FAIL'}
                   </span>
                 </div>
               </div>
