@@ -17,7 +17,6 @@ import MetricRail from '../components/operations/MetricRail';
 import ExactBarChart from '../components/operations/ExactBarChart';
 import EvidenceInspector, { type EvidenceSelection } from '../components/operations/EvidenceInspector';
 import { VisualTable } from '../components/visuals/DataVisual';
-import RootCauseDrawer from '../components/RootCauseDrawer';
 
 const METRICS = ['sale_events','activation_events','expected_value','approved_value','invoiced_value','collected_value'];
 const STAGES = ['expected_value','approved_value','invoiced_value','collected_value'];
@@ -41,8 +40,6 @@ export default function CommercialReconciliation() {
   const [sort,setSort]=useState('collected_value'), [sortAsc,setSortAsc]=useState(false);
   const [selectedVendor,setSelectedVendor]=useState<string|null>(null), [inspection,setInspection]=useState<EvidenceSelection|null>(null);
   const [vendorView, setVendorView] = useState<'table' | 'graph'>('table');
-  const [rootMetric, setRootMetric] = useState<string | null>(null);
-  const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
 
   const filtered=useMemo(() => {
     const list = rows.filter(row => !deferredSearch || row.group.toLowerCase().includes(deferredSearch));
@@ -89,10 +86,6 @@ export default function CommercialReconciliation() {
     comparison:'vs previous comparable period',
     note:id==='collected_value'?'Signed collection changes only.':`${METRIC_BY_ID[id].definition}`,
     status:total(id)?.calculationStatus,
-    onWhyChanged: () => {
-      setRootMetric('leadToSaleRate');
-      setRootMetricLabel(METRIC_BY_ID[id].label);
-    },
     onInspect: () => setInspection({metricId:id,group:null,label:METRIC_BY_ID[id].label}),
     inspectLabel: 'Inspect',
   }));
@@ -144,7 +137,7 @@ export default function CommercialReconciliation() {
           <span>Operational Release Telemetry Guidance</span>
         </div>
         <p className="text-sm text-text-sec">
-          The versioned reporting dataset (<code>CX_REPORTING_DATASET</code>) is currently unconfigured in this environment. Multi-stage commercial reconciliation requires published BigQuery release snapshots.
+          {workspace.catalogue.data.reason || 'No approved reporting release is available for this workspace.'} Multi-stage commercial reconciliation requires published release evidence.
         </p>
         <div className="flex flex-wrap gap-3 pt-2">
           <Link to="/overview" className="cx-button-secondary text-xs">Explore Executive Overview</Link>
@@ -388,14 +381,5 @@ export default function CommercialReconciliation() {
       </section>
       <EvidenceInspector report={report} selection={inspection} onClose={()=>setInspection(null)}/>
     </>}
-    <RootCauseDrawer
-      open={Boolean(rootMetric)}
-      metric={rootMetric}
-      metricLabel={rootMetricLabel}
-      onClose={() => {
-        setRootMetric(null);
-        setRootMetricLabel(undefined);
-      }}
-    />
   </div>;
 }

@@ -12,7 +12,6 @@ import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import UnifiedMetricCard from '../components/UnifiedMetricCard';
-import RootCauseDrawer from '../components/RootCauseDrawer';
 import { formatTableNumber, formatPercent } from '../lib/formatters';
 import { useOperationalData } from '../lib/useOperationalData';
 import { fetchOffershopFlow, simulateOffershopRule } from '../lib/offernetClient';
@@ -32,8 +31,6 @@ export default function OffershopProcessObservability() {
   const { selectedClient, clientConfig } = useClient();
   const { isAdmin } = useAuth();
   const { startDate, endDate, filters } = useFilters();
-  const [rootMetric, setRootMetric] = useState<string | null>(null);
-  const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<TabId>('flow');
   const [selectedFamily, setSelectedFamily] = useState<OffershopProcessFamily | 'all'>('all');
   const [matrixSearch, setMatrixSearch] = useState('');
@@ -160,10 +157,6 @@ export default function OffershopProcessObservability() {
                 label="Total Diagram Nodes"
                 value={data.readinessSummary.totalNodes}
                 note="From Deal Flow V3 drawing"
-                onWhyChanged={() => {
-                  setRootMetric('fetchedLeads');
-                  setRootMetricLabel('Diagram Architecture Nodes');
-                }}
                 onInspect={() => setActiveTab('matrix')}
                 inspectLabel="Inspect matrix"
               />
@@ -172,10 +165,6 @@ export default function OffershopProcessObservability() {
                 label="Mapped"
                 value={data.readinessSummary.mappedCount}
                 note={`${data.readinessSummary.readinessPct}% of diagram branches`}
-                onWhyChanged={() => {
-                  setRootMetric('deliveryRate');
-                  setRootMetricLabel('Mapped Branches');
-                }}
                 onInspect={() => setActiveTab('flow')}
                 inspectLabel="Inspect flow"
               />
@@ -185,10 +174,6 @@ export default function OffershopProcessObservability() {
                 value={data.readinessSummary.dependencyBlockedCount}
                 note="Upstream table access denied"
                 isPositiveGood={false}
-                onWhyChanged={() => {
-                  setRootMetric('deliveryRate');
-                  setRootMetricLabel('Dependency Blocked Nodes');
-                }}
                 onInspect={() => setActiveTab('matrix')}
                 inspectLabel="Inspect matrix"
               />
@@ -198,10 +183,6 @@ export default function OffershopProcessObservability() {
                 value={data.readinessSummary.mappingRequiredCount}
                 note="Awaiting schema definition"
                 isPositiveGood={false}
-                onWhyChanged={() => {
-                  setRootMetric('deliveryRate');
-                  setRootMetricLabel('Mapping Required Nodes');
-                }}
                 onInspect={() => setActiveTab('matrix')}
                 inspectLabel="Inspect matrix"
               />
@@ -211,10 +192,6 @@ export default function OffershopProcessObservability() {
                 value={data.readinessSummary.notInstrumentedCount}
                 note="Upstream execution only"
                 isPositiveGood={false}
-                onWhyChanged={() => {
-                  setRootMetric('deliveryRate');
-                  setRootMetricLabel('Not Instrumented Nodes');
-                }}
                 onInspect={() => setActiveTab('matrix')}
                 inspectLabel="Inspect matrix"
               />
@@ -921,16 +898,6 @@ export default function OffershopProcessObservability() {
           </>
         )}
       </div>
-
-      <RootCauseDrawer
-        open={Boolean(rootMetric)}
-        metric={rootMetric}
-        metricLabel={rootMetricLabel}
-        onClose={() => {
-          setRootMetric(null);
-          setRootMetricLabel(undefined);
-        }}
-      />
     </div>
   );
 }

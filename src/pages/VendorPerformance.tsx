@@ -92,10 +92,8 @@ export default function VendorPerformance() {
 
   const kpiMap: Record<string, string> = {
     fetched_leads: 'fetchedLeads',
-    delivered_episodes: 'deliveryRate',
     call_coverage: 'dialRate',
     sale_activation_rate: 'activationRate',
-    collected_value: 'leadToSaleRate',
   };
 
   const kpi=(id:string,note:string)=>{
@@ -109,10 +107,10 @@ export default function VendorPerformance() {
       comparison:`vs ${workspace.previousPeriod.startDate} — ${workspace.previousPeriod.endDate}`,
       note,
       status:currentMetric?.calculationStatus,
-      onWhyChanged: () => {
-        setRootMetric(kpiMap[id] || 'fetchedLeads');
+      onWhyChanged: kpiMap[id] ? () => {
+        setRootMetric(kpiMap[id]);
         setRootMetricLabel(METRIC_BY_ID[id].label);
-      },
+      } : undefined,
       onInspect: CHART_METRICS.includes(id) ? () => setChartMetric(id) : undefined,
     };
   };

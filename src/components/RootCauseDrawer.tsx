@@ -318,7 +318,7 @@ export default function RootCauseDrawer({
                       {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </button>
                     {isOpen && (
-                      <div className="cx-rootcause-segments">
+                      <div className="cx-rootcause-segments" role="region" aria-label={`${dimension.label} contribution evidence`} tabIndex={0}>
                         <div className="cx-rootcause-segment-head">
                           <span>Segment</span>
                           <span>Current</span>

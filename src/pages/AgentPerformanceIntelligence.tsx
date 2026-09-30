@@ -9,7 +9,6 @@ import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import OperationalPageHeader from '../components/OperationalPageHeader';
 import { VolumeRateComboChart } from '../components/charts/OperationalVisuals';
 import UnifiedMetricCard from '../components/UnifiedMetricCard';
-import RootCauseDrawer from '../components/RootCauseDrawer';
 import { downloadCsv, formatPercent, formatRatioPercent, formatTableNumber } from '../lib/formatters';
 import { downloadAnalysisCsv } from '../lib/analysisExport';
 import { sumRecordedValues } from '../lib/metricPresentation';
@@ -28,8 +27,6 @@ export default function AgentPerformanceIntelligence() {
   const { startDate, endDate, filters } = useFilters();
   const [search, setSearch] = useState('');
   const [agentMetric, setAgentMetric] = useState<AgentMetric>('calls');
-  const [rootMetric, setRootMetric] = useState<string | null>(null);
-  const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
 
   const { data, loading, error, loadData } = useOperationalData<AgentActivityData>('AgentPerformanceIntelligence', {
     clientId: selectedClient,
@@ -115,13 +112,9 @@ export default function AgentPerformanceIntelligence() {
                 label="Agents Observed"
                 value={totals.agents.toLocaleString()}
                 note="Distinct agent/vendor rows"
-                onWhyChanged={() => {
-                  setRootMetric('dialRate');
-                  setRootMetricLabel('Agents Observed');
-                }}
                 onInspect={() => {
                   const el = document.querySelector('.cx-agent-table');
-                  el?.scrollIntoView({ behavior: 'smooth' });
+                  el?.scrollIntoView({ behavior: 'auto' });
                 }}
                 inspectLabel="Inspect roster"
               />
@@ -130,13 +123,9 @@ export default function AgentPerformanceIntelligence() {
                 label="Total Calls"
                 value={formatTableNumber(totals.calls)}
                 note="Recorded calls in roster"
-                onWhyChanged={() => {
-                  setRootMetric('dialRate');
-                  setRootMetricLabel('Total Calls');
-                }}
                 onInspect={() => {
                   const el = document.querySelector('.cx-agent-table');
-                  el?.scrollIntoView({ behavior: 'smooth' });
+                  el?.scrollIntoView({ behavior: 'auto' });
                 }}
                 inspectLabel="Inspect roster"
               />
@@ -145,10 +134,6 @@ export default function AgentPerformanceIntelligence() {
                 label="Contacted (RPC)"
                 value={formatTableNumber(totals.contacts)}
                 note={`${formatRatioPercent(totals.contacts, totals.calls)} of calls`}
-                onWhyChanged={() => {
-                  setRootMetric('contactRate');
-                  setRootMetricLabel('Agent Right-Party Contact');
-                }}
                 to={scoped('/contact-strategy')}
                 inspectLabel="Inspect contact"
               />
@@ -157,10 +142,6 @@ export default function AgentPerformanceIntelligence() {
                 label="Sales Recorded"
                 value={formatTableNumber(totals.sales)}
                 note={`${formatRatioPercent(totals.rpcSales, totals.contacts)} of RPC calls sold`}
-                onWhyChanged={() => {
-                  setRootMetric('leadToSaleRate');
-                  setRootMetricLabel('Agent Sales Conversion');
-                }}
                 to={scoped('/sales-activation')}
                 inspectLabel="Inspect sales"
               />
@@ -280,16 +261,6 @@ export default function AgentPerformanceIntelligence() {
           </>
         )}
       </div>
-
-      <RootCauseDrawer
-        open={Boolean(rootMetric)}
-        metric={rootMetric}
-        metricLabel={rootMetricLabel}
-        onClose={() => {
-          setRootMetric(null);
-          setRootMetricLabel(undefined);
-        }}
-      />
     </div>
   );
 }

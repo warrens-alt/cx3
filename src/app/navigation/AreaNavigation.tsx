@@ -17,6 +17,10 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
+  useEffect(() => {
+    setMoreOpen(false);
+  }, [location.pathname]);
+
   const activeArea = getAreaForPath(location.pathname);
   const currentPath = location.pathname === '/' ? '/overview' : location.pathname;
 
