@@ -101,7 +101,6 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
               type="button"
               onClick={() => setMoreOpen(prev => !prev)}
               aria-expanded={moreOpen}
-              aria-haspopup="true"
               aria-controls="area-more-menu"
               className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
                 isMoreViewActive
@@ -117,7 +116,8 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
               <div
                 id="area-more-menu"
                 className="absolute right-0 mt-1.5 w-64 rounded-xl shadow-lg bg-surface border border-border py-1.5 z-50 text-xs animate-in fade-in zoom-in-95 duration-100"
-                role="menu"
+                role="group"
+                aria-label="More views"
               >
                 {moreViews.map(view => {
                   const active = isCurrent(view.path);
@@ -125,7 +125,6 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
                     <Link
                       key={view.path}
                       to={scoped(view.path)}
-                      role="menuitem"
                       aria-current={active ? 'page' : undefined}
                       onClick={() => setMoreOpen(false)}
                       className={`block px-3.5 py-2.5 hover:bg-surface-subtle transition-colors ${

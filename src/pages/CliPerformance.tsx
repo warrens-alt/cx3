@@ -1,3 +1,4 @@
+import { chartCoordinate } from '../lib/chartPresentation';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useOperationalData } from '../lib/useOperationalData';
 import { cliExportUrl } from '../lib/cliExport';
@@ -245,14 +246,15 @@ export default function CliPerformance() {
     if (!data?.cliPerformance) return [];
     const list = [...data.cliPerformance];
     list.sort((a: any, b: any) => {
-      const vA = parseFloat(a[rankMetric] || '0');
-      const vB = parseFloat(b[rankMetric] || '0');
+      const vA = chartCoordinate(a[rankMetric]);
+      const vB = chartCoordinate(b[rankMetric]);
+      if (vA === null || vB === null) return vA === vB ? 0 : vA === null ? 1 : -1;
       return vB - vA;
     });
     return list.slice(0, 10).map(r => ({
       cli: r.cli,
       campaign: r.campaign,
-      value: parseFloat((r as any)[rankMetric] || '0'),
+      value: chartCoordinate((r as any)[rankMetric]),
       calls: parseInt(r.totalCalls, 10),
       sales: parseInt(r.saleCount, 10),
       rpcRate: parseFloat(r.contactRate),

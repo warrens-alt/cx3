@@ -44,13 +44,6 @@ export default function TemporalIntelligence() {
   const temporalSummary = useMemo(() => {
     if (!activeHeatmap.length) return null;
     const totalVolume = activeHeatmap.reduce((sum, r) => sum + (r.volume || 0), 0);
-    const totalWeightedContact = activeHeatmap.reduce((sum, r) => sum + (r.volume || 0) * (r.contactRate || 0), 0);
-    const totalWeightedSale = activeHeatmap.reduce((sum, r) => sum + (r.volume || 0) * (r.saleRate || 0), 0);
-    const totalWeightedActivation = activeHeatmap.reduce((sum, r) => sum + (r.volume || 0) * (r.activationRate || 0), 0);
-    const avgContactRate = totalVolume > 0 ? totalWeightedContact / totalVolume : null;
-    const avgSaleRate = totalVolume > 0 ? totalWeightedSale / totalVolume : null;
-    const avgActivationRate = totalVolume > 0 ? totalWeightedActivation / totalVolume : null;
-
     const hourTotals = new Map<number, number>();
     for (const r of activeHeatmap) {
       hourTotals.set(r.hour, (hourTotals.get(r.hour) || 0) + (r.volume || 0));
@@ -63,13 +56,10 @@ export default function TemporalIntelligence() {
         peakHour = h;
       }
     }
-    const peakHourLabel = `${String(peakHour).padStart(2, '0')}:00 – ${String((peakHour + 1) % 24).padStart(2, '0')}:00`;
+    const peakHourLabel = peakVol > 0 ? `${String(peakHour).padStart(2, '0')}:00 – ${String((peakHour + 1) % 24).padStart(2, '0')}:00` : 'Unavailable';
 
     return {
       totalVolume,
-      avgContactRate,
-      avgSaleRate,
-      avgActivationRate,
       peakHourLabel,
     };
   }, [activeHeatmap]);
@@ -99,10 +89,10 @@ export default function TemporalIntelligence() {
           description="See when captured lead volume, RPC and sale outcomes are concentrated in the tenant's local timezone without turning observed peaks into prescriptive calling rules."
           actions={
             <div className="cx-segmented-control" role="group" aria-label="Temporal metric">
-              <button type="button" data-active={metricView === 'contactRate'} onClick={() => setMetricView('contactRate')}>RPC rate</button>
-              <button type="button" data-active={metricView === 'saleRate'} onClick={() => setMetricView('saleRate')}>Sale rate</button>
-              <button type="button" data-active={metricView === 'activationRate'} onClick={() => setMetricView('activationRate')}>Activation rate</button>
-              <button type="button" data-active={metricView === 'volume'} onClick={() => setMetricView('volume')}>Volume</button>
+              <button type="button" data-active={metricView === 'contactRate'} aria-pressed={metricView === 'contactRate'} onClick={() => setMetricView('contactRate')}>RPC rate</button>
+              <button type="button" data-active={metricView === 'saleRate'} aria-pressed={metricView === 'saleRate'} onClick={() => setMetricView('saleRate')}>Sale rate</button>
+              <button type="button" data-active={metricView === 'activationRate'} aria-pressed={metricView === 'activationRate'} onClick={() => setMetricView('activationRate')}>Activation rate</button>
+              <button type="button" data-active={metricView === 'volume'} aria-pressed={metricView === 'volume'} onClick={() => setMetricView('volume')}>Volume</button>
             </div>
           }
         />
@@ -137,37 +127,11 @@ export default function TemporalIntelligence() {
                   label="Peak Activity Window"
                   value={temporalSummary.peakHourLabel || '—'}
                   note="Highest event concentration"
-                  onWhyChanged={() => {
-                    setRootMetric('dialRate');
-                    setRootMetricLabel('Peak Activity Window');
-                  }}
                   onInspect={() => setMetricView('volume')}
                   inspectLabel="View volume map"
                 />
 
-                <UnifiedMetricCard
-                  label="Contact Rate (RPC)"
-                  value={temporalSummary.avgContactRate != null ? formatPercent(temporalSummary.avgContactRate) : '—'}
-                  note="Volume-weighted RPC"
-                  onWhyChanged={() => {
-                    setRootMetric('contactRate');
-                    setRootMetricLabel('Temporal Contact Rate');
-                  }}
-                  to={scoped('/contact-strategy')}
-                  inspectLabel="Inspect contact"
-                />
-
-                <UnifiedMetricCard
-                  label="Lead → Sale Rate"
-                  value={temporalSummary.avgSaleRate != null ? formatPercent(temporalSummary.avgSaleRate) : '—'}
-                  note="Observed sale conversion"
-                  onWhyChanged={() => {
-                    setRootMetric('leadToSaleRate');
-                    setRootMetricLabel('Temporal Sale Rate');
-                  }}
-                  to={scoped('/sales-activation')}
-                  inspectLabel="Inspect sales"
-                />
+                <div className="cx-control-note sm:col-span-2">Combined rates are not supplied for this time distribution. Compare the returned cell and time-bucket rates below using their stated denominators.</div>
               </section>
             )}
 
@@ -206,6 +170,8 @@ export default function TemporalIntelligence() {
                               key={`${day}-${hour}`}
                               className="cx-temporal-cell"
                               data-empty={value === null}
+                              role="img"
+                              aria-label={`${day} ${String(hour).padStart(2, '0')}:00 · ${metricView} · ${value === null ? 'Unavailable' : label}`}
                               title={`${day} ${String(hour).padStart(2, '0')}:00 · ${label}`}
                               style={heatmapColors(value, maxMetric)}
                             >

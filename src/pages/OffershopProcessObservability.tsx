@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   GitFork, ShieldCheck, AlertTriangle, ArrowRight, CheckCircle2, Clock3,
   Search, Sliders, Database, Layers, RefreshCw, Info, ExternalLink,
@@ -45,7 +45,12 @@ export default function OffershopProcessObservability() {
   const [simPartner, setSimPartner] = useState<OffershopPartner>('mondo');
   const [simDuplicateHours, setSimDuplicateHours] = useState<number>(240);
   const [simColourRule, setSimColourRule] = useState<'GreenOnly' | 'GreenAndAmber' | 'All'>('GreenAndAmber');
-  const [simResult, setSimResult] = useState<ReadOnlyRuleSimulationResult | null>(null);
+  const resultScope = JSON.stringify([selectedClient, startDate, endDate, filters, simPartner, simDuplicateHours, simColourRule]);
+  const requestVersion = useRef(0);
+  const currentResultScope = useRef(resultScope);
+  currentResultScope.current = resultScope;
+  const [simResultState, setSimResult] = useState<{ scope: string; value: ReadOnlyRuleSimulationResult } | null>(null);
+  const simResult = simResultState?.scope === resultScope ? simResultState.value : null;
   const [simLoading, setSimLoading] = useState(false);
   const [simError, setSimError] = useState<string | null>(null);
 
@@ -62,7 +67,12 @@ export default function OffershopProcessObservability() {
     fetchOffershopFlow
   );
 
+  useEffect(() => { requestVersion.current += 1; setSimResult(null); setSimError(null); setSimLoading(false); }, [resultScope]);
+
   const runSimulation = async () => {
+    const requestScope = resultScope;
+    const version = ++requestVersion.current;
+    setSimResult(null);
     setSimLoading(true);
     setSimError(null);
     try {
@@ -75,18 +85,18 @@ export default function OffershopProcessObservability() {
           endDate: endDate || undefined,
         },
       }, queryParams);
-      setSimResult(res);
+      if (currentResultScope.current === requestScope && requestVersion.current === version) setSimResult({ scope: requestScope, value: res });
     } catch (err: any) {
-      setSimError(err.message || 'Simulation execution failed');
+      if (currentResultScope.current === requestScope && requestVersion.current === version) setSimError(err.message || 'Simulation execution failed');
     } finally {
-      setSimLoading(false);
+      if (currentResultScope.current === requestScope && requestVersion.current === version) setSimLoading(false);
     }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'MAPPED':
-        return <span className="text-emerald-700 font-medium">Mapped & Verified</span>;
+        return <span className="text-emerald-700 font-medium">Mapped</span>;
       case 'DEPENDENCY_BLOCKED':
         return <span className="text-amber-800 font-medium">Dependency Blocked</span>;
       case 'MAPPING_REQUIRED':
@@ -159,12 +169,12 @@ export default function OffershopProcessObservability() {
               />
 
               <UnifiedMetricCard
-                label="Mapped & Verified"
+                label="Mapped"
                 value={data.readinessSummary.mappedCount}
                 note={`${data.readinessSummary.readinessPct}% of diagram branches`}
                 onWhyChanged={() => {
                   setRootMetric('deliveryRate');
-                  setRootMetricLabel('Mapped & Verified Branches');
+                  setRootMetricLabel('Mapped Branches');
                 }}
                 onInspect={() => setActiveTab('flow')}
                 inspectLabel="Inspect flow"
@@ -520,22 +530,22 @@ export default function OffershopProcessObservability() {
                     <article className="p-3 bg-white rounded border border-slate-200">
                       <span className="text-xs text-slate-500 block mb-1">Total Hospital Entries</span>
                       <strong className="text-lg font-mono tabular-nums text-slate-900">
-                        {formatTableNumber(data.consumerHospitalSummary.hospitalEntries || 0)}
+                        {formatTableNumber(data.consumerHospitalSummary.hospitalEntries)}
                       </strong>
                       <div className="text-[11px] text-slate-500 mt-1">Failed initial Luhn/Phone check</div>
                     </article>
                     <article className="p-3 bg-white rounded border border-slate-200">
                       <span className="text-xs text-slate-500 block mb-1">Recovered & Returned</span>
                       <strong className="text-lg font-mono tabular-nums text-emerald-700">
-                        {formatTableNumber(data.consumerHospitalSummary.hospitalRecovered || 0)}
+                        {formatTableNumber(data.consumerHospitalSummary.hospitalRecovered)}
                       </strong>
                       <div className="text-[11px] text-slate-500 mt-1">Returned to qualification waterfall</div>
                     </article>
                     <article className="p-3 bg-white rounded border border-slate-200">
                       <span className="text-xs text-slate-500 block mb-1">Recovery Success Rate</span>
                       <strong className="text-lg font-mono tabular-nums text-slate-900">
-                        {data.consumerHospitalSummary.hospitalEntries
-                          ? formatPercent(((data.consumerHospitalSummary.hospitalRecovered || 0) / data.consumerHospitalSummary.hospitalEntries) * 100)
+                        {data.consumerHospitalSummary.hospitalEntries && data.consumerHospitalSummary.hospitalRecovered != null
+                          ? formatPercent(((data.consumerHospitalSummary.hospitalRecovered) / data.consumerHospitalSummary.hospitalEntries) * 100)
                           : '—'}
                       </strong>
                       <div className="text-[11px] text-slate-500 mt-1">Pipeline re-entry share</div>
@@ -543,7 +553,7 @@ export default function OffershopProcessObservability() {
                     <article className="p-3 bg-white rounded border border-slate-200">
                       <span className="text-xs text-slate-500 block mb-1">Terminal Morgue Outcomes</span>
                       <strong className="text-lg font-mono tabular-nums text-slate-600">
-                        {formatTableNumber(data.consumerHospitalSummary.terminalMorgueCount || 0)}
+                        {formatTableNumber(data.consumerHospitalSummary.terminalMorgueCount)}
                       </strong>
                       <div className="text-[11px] text-slate-500 mt-1">Unresolved after retries</div>
                     </article>
@@ -627,7 +637,7 @@ export default function OffershopProcessObservability() {
                       className="px-2 py-1 text-xs border border-slate-300 rounded bg-white text-slate-800"
                     >
                       <option value="all">All statuses</option>
-                      <option value="MAPPED">Mapped & Verified</option>
+                      <option value="MAPPED">Mapped</option>
                       <option value="DEPENDENCY_BLOCKED">Dependency Blocked</option>
                       <option value="MAPPING_REQUIRED">Mapping Required</option>
                       <option value="NOT_INSTRUMENTED">Not Instrumented</option>

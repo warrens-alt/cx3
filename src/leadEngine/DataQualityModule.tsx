@@ -1,3 +1,4 @@
+import { formatTableNumber } from '../lib/formatters';
 import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
@@ -163,7 +164,7 @@ export default function DataQualityModule() {
             Data Quality & Cleansing Engine
           </h1>
           <p className="text-xs text-neutral-500 mt-0.5">
-            Audit compliance across 350,573 leads: Luhn Mod-10 ID verification, E.164 mobile standardisation, and algorithmic remediation
+            Illustrative validation reference. Returned legacy diagnostics are not an independently verified audit; the preview performs no data cleansing.
           </p>
         </div>
 
@@ -208,27 +209,27 @@ export default function DataQualityModule() {
                   ID Number Compliance
                 </span>
                 <span className="text-xs font-mono font-bold text-neutral-900 bg-neutral-100 px-2 py-0.5 rounded border border-neutral-300">
-                  {scorecard?.idCompliance.validPercentage || 96.1}% PASS
+                  {scorecard?.idCompliance.validPercentage == null ? 'Not reported' : `${scorecard?.idCompliance.validPercentage}%`} reported
                 </span>
               </div>
 
               <div>
                 <strong className="text-2xl font-bold font-mono text-neutral-900">
-                  {(scorecard?.idCompliance.valid || 336897).toLocaleString()}
+                  {formatTableNumber(scorecard?.idCompliance.valid)}
                 </strong>
-                <span className="text-xs text-neutral-500 ml-1.5">valid of 350,573</span>
+                <span className="text-xs text-neutral-500 ml-1.5">reported valid records</span>
               </div>
 
               {/* Progress Bar */}
               <div className="w-full bg-neutral-200 rounded-full h-2 overflow-hidden flex">
                 <div
                   className="bg-neutral-900 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${scorecard?.idCompliance.validPercentage || 96.1}%` }}
+                  style={{ width: scorecard?.idCompliance.validPercentage == null ? '0%' : `${scorecard?.idCompliance.validPercentage}%` }}
                 />
               </div>
 
               <div className="flex items-center justify-between text-[11px] text-neutral-500 pt-1 border-t border-neutral-100">
-                <span>Flagged Invalid: {(scorecard?.idCompliance.invalid || 13648).toLocaleString()} (3.9%)</span>
+                <span>Flagged Invalid: {formatTableNumber(scorecard?.idCompliance.invalid)}</span>
                 <span className="font-mono text-[10px]">Luhn Mod-10 Check</span>
               </div>
             </div>
@@ -241,27 +242,27 @@ export default function DataQualityModule() {
                   Mobile Number Compliance
                 </span>
                 <span className="text-xs font-mono font-bold text-neutral-900 bg-neutral-100 px-2 py-0.5 rounded border border-neutral-300">
-                  {scorecard?.mobileCompliance.validPercentage || 99.6}% PASS
+                  {scorecard?.mobileCompliance.validPercentage == null ? 'Not reported' : `${scorecard?.mobileCompliance.validPercentage}%`} reported
                 </span>
               </div>
 
               <div>
                 <strong className="text-2xl font-bold font-mono text-neutral-900">
-                  {(scorecard?.mobileCompliance.valid || 349020).toLocaleString()}
+                  {formatTableNumber(scorecard?.mobileCompliance.valid)}
                 </strong>
-                <span className="text-xs text-neutral-500 ml-1.5">valid of 350,573</span>
+                <span className="text-xs text-neutral-500 ml-1.5">reported valid records</span>
               </div>
 
               {/* Progress Bar */}
               <div className="w-full bg-neutral-200 rounded-full h-2 overflow-hidden flex">
                 <div
                   className="bg-neutral-900 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${scorecard?.mobileCompliance.validPercentage || 99.6}%` }}
+                  style={{ width: scorecard?.mobileCompliance.validPercentage == null ? '0%' : `${scorecard?.mobileCompliance.validPercentage}%` }}
                 />
               </div>
 
               <div className="flex items-center justify-between text-[11px] text-neutral-500 pt-1 border-t border-neutral-100">
-                <span>Flagged Invalid: {(scorecard?.mobileCompliance.invalid || 1525).toLocaleString()} (0.4%)</span>
+                <span>Flagged Invalid: {formatTableNumber(scorecard?.mobileCompliance.invalid)}</span>
                 <span className="font-mono text-[10px]">ITU-T E.164</span>
               </div>
             </div>
@@ -274,13 +275,13 @@ export default function DataQualityModule() {
                   Dual-Compliant Leads
                 </span>
                 <span className="text-xs font-mono font-bold text-neutral-900 bg-neutral-100 px-2 py-0.5 rounded border border-neutral-300">
-                  {scorecard?.dualCompliantLeads.percentage || 95.8}%
+                  {scorecard?.dualCompliantLeads.percentage == null ? 'Not reported' : `${scorecard?.dualCompliantLeads.percentage}%`}
                 </span>
               </div>
 
               <div>
                 <strong className="text-2xl font-bold font-mono text-neutral-900">
-                  {(scorecard?.dualCompliantLeads.count || 335696).toLocaleString()}
+                  {formatTableNumber(scorecard?.dualCompliantLeads.count)}
                 </strong>
                 <span className="text-xs text-neutral-500 ml-1.5">dual pass</span>
               </div>
@@ -288,7 +289,7 @@ export default function DataQualityModule() {
               <div className="w-full bg-neutral-200 rounded-full h-2 overflow-hidden flex">
                 <div
                   className="bg-neutral-900 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${scorecard?.dualCompliantLeads.percentage || 95.8}%` }}
+                  style={{ width: scorecard?.dualCompliantLeads.percentage == null ? '0%' : `${scorecard?.dualCompliantLeads.percentage}%` }}
                 />
               </div>
 
@@ -503,7 +504,7 @@ export default function DataQualityModule() {
                   </span>
                 </div>
                 <h2 className="text-xl font-bold tracking-tight text-white mt-1">
-                  Recovered +10,447 Leads into Valid Commercial Status
+                  Illustrative recovery preview — no records changed
                 </h2>
                 <p className="text-xs text-neutral-400 mt-0.5">
                   Algorithmic restoration of truncated leading zeros, E.164 sanitization, and credit imputation
@@ -526,7 +527,7 @@ export default function DataQualityModule() {
             {simulatedSuccess && (
               <div className="p-3 bg-neutral-900 border border-neutral-700 rounded text-neutral-200 text-xs flex items-center gap-2">
                 <CheckCircle2 size={16} className="text-neutral-300" />
-                <span>Simulation Complete: 10,447 records verified for algorithmic recovery with 94.2% confidence.</span>
+                <span>Preview finished; no records were checked or changed.</span>
               </div>
             )}
 
@@ -537,9 +538,9 @@ export default function DataQualityModule() {
                   Pre-Clean Valid Rate
                 </span>
                 <strong className="text-2xl font-bold font-mono text-white block mt-1">
-                  {cleansing?.summary.preCleanValidRate || 95.8}%
+                  {cleansing?.summary.preCleanValidRate == null ? 'Not reported' : `${cleansing?.summary.preCleanValidRate}%`}
                 </strong>
-                <span className="text-[11px] text-neutral-400">335,696 baseline</span>
+                <span className="text-[11px] text-neutral-400">Baseline not independently verified</span>
               </div>
 
               <div className="bg-neutral-900 p-3.5 rounded border border-neutral-800">
@@ -547,9 +548,9 @@ export default function DataQualityModule() {
                   Post-Clean Valid Rate
                 </span>
                 <strong className="text-2xl font-bold font-mono text-white block mt-1">
-                  {cleansing?.summary.postCleanValidRate || 98.9}%
+                  {cleansing?.summary.postCleanValidRate == null ? 'Not reported' : `${cleansing?.summary.postCleanValidRate}%`}
                 </strong>
-                <span className="text-[11px] text-neutral-400">+{cleansing?.summary.rateLiftPercentage || 3.1}% compliance lift</span>
+                <span className="text-[11px] text-neutral-400">+{cleansing?.summary.rateLiftPercentage == null ? 'Not reported' : `${cleansing?.summary.rateLiftPercentage}%`} compliance lift</span>
               </div>
 
               <div className="bg-neutral-900 p-3.5 rounded border border-neutral-800">
@@ -557,9 +558,9 @@ export default function DataQualityModule() {
                   Recoverable Leads
                 </span>
                 <strong className="text-2xl font-bold font-mono text-white block mt-1">
-                  +{(cleansing?.summary.recoverableLeadsCount || 10447).toLocaleString()}
+                  +{formatTableNumber(cleansing?.summary.recoverableLeadsCount)}
                 </strong>
-                <span className="text-[11px] text-neutral-400">Rescued from discard</span>
+                <span className="text-[11px] text-neutral-400">Illustrative recoverable population</span>
               </div>
 
               <div className="bg-neutral-900 p-3.5 rounded border border-neutral-800">
@@ -567,9 +568,9 @@ export default function DataQualityModule() {
                   Unlocked Commercial Value
                 </span>
                 <strong className="text-2xl font-bold font-mono text-white block mt-1">
-                  {cleansing?.summary.unlockedCommercialValueFormatted || '+R 250,728'}
+                  {cleansing?.summary.unlockedCommercialValueFormatted ?? 'Not reported'}
                 </strong>
-                <span className="text-[11px] text-neutral-400">Gross revenue potential</span>
+                <span className="text-[11px] text-neutral-400">Illustrative scenario value</span>
               </div>
             </div>
           </div>

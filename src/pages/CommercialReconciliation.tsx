@@ -1,3 +1,4 @@
+import { chartCoordinate } from '../lib/chartPresentation';
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowDown, ArrowRight, ArrowUp, ArrowUpDown, Database, Download, FileText, Info, Search, X, Table as TableIcon, BarChart2 } from 'lucide-react';
@@ -51,16 +52,19 @@ export default function CommercialReconciliation() {
         cmp = a.group.localeCompare(b.group);
       } else if (sort === 'sales') {
         const av = available(a.metrics['sale_events']), bv = available(b.metrics['sale_events']);
-        cmp = av === null && bv === null ? 0 : av === null ? 1 : bv === null ? -1 : compareExactDecimal(av, bv);
+        if (av === null || bv === null) return av === bv ? 0 : av === null ? 1 : -1;
+        cmp = compareExactDecimal(av, bv);
       } else if (sort === 'gap') {
         const ag = (available(a.metrics.invoiced_value) && available(a.metrics.collected_value))
           ? subtractExactDecimals(available(a.metrics.invoiced_value)!, available(a.metrics.collected_value)!) : null;
         const bg = (available(b.metrics.invoiced_value) && available(b.metrics.collected_value))
           ? subtractExactDecimals(available(b.metrics.invoiced_value)!, available(b.metrics.collected_value)!) : null;
-        cmp = ag === null && bg === null ? 0 : ag === null ? 1 : bg === null ? -1 : compareExactDecimal(ag, bg);
+        if (ag === null || bg === null) return ag === bg ? 0 : ag === null ? 1 : -1;
+        cmp = compareExactDecimal(ag, bg);
       } else {
         const av = available(a.metrics[sort]), bv = available(b.metrics[sort]);
-        cmp = av === null && bv === null ? 0 : av === null ? 1 : bv === null ? -1 : compareExactDecimal(av, bv);
+        if (av === null || bv === null) return av === bv ? 0 : av === null ? 1 : -1;
+        cmp = compareExactDecimal(av, bv);
       }
       return sortAsc ? cmp : -cmp;
     });
@@ -332,14 +336,15 @@ export default function CommercialReconciliation() {
               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
                 <BarChart data={filtered.slice(0, 15).map(row => ({
                   vendor: row.group,
-                  sales: Number(available(row.metrics.sale_events)) || 0,
-                  invoiced: Number(available(row.metrics.invoiced_value)) || 0,
-                  collected: Number(available(row.metrics.collected_value)) || 0,
+                  sales: chartCoordinate(available(row.metrics.sale_events)),
+                  invoiced: chartCoordinate(available(row.metrics.invoiced_value)),
+                  collected: chartCoordinate(available(row.metrics.collected_value)),
                 }))} margin={{ top: 10, right: 30, left: 10, bottom: 35 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="vendor" tick={{ fontSize: 9, fill: '#64748b' }} stroke="#cbd5e1" interval={0} angle={-25} textAnchor="end" height={45} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" axisLine={false} tickLine={false} tickFormatter={v => `${currency} ${Number(v).toLocaleString()}`} />
                   <Tooltip
+                    filterNull={false}
                     content={({ active, payload, label }) => {
                       if (!active || !payload?.length) return null;
                       return (
@@ -355,7 +360,7 @@ export default function CommercialReconciliation() {
                                   <span>{entry.name}</span>
                                 </span>
                                 <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">
-                                  {currency} {Number(entry.value || 0).toLocaleString()}
+                                  {currency} {entry.value == null ? 'Unavailable' : Number(entry.value).toLocaleString()}
                                 </span>
                               </div>
                             ))}

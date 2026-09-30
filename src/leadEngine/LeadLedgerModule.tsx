@@ -330,67 +330,7 @@ export default function LeadLedgerModule() {
         </div>
       </div>
 
-      {/* Top Summary KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg border border-neutral-200">
-          <span className="text-[11px] font-mono uppercase tracking-wider text-neutral-500 font-medium">
-            Total Ingested Leads
-          </span>
-          <div className="mt-1 flex items-baseline gap-2">
-            <strong className="text-2xl font-bold tracking-tight text-neutral-900 font-mono">
-              350,573
-            </strong>
-            <span className="text-xs text-neutral-500">records</span>
-          </div>
-          <div className="mt-2 text-[11px] text-neutral-600 font-mono">
-            <span>100% BigQuery cluster partitioned</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-lg border border-neutral-200">
-          <span className="text-[11px] font-mono uppercase tracking-wider text-neutral-500 font-medium">
-            Delivery Success Rate
-          </span>
-          <div className="mt-1 flex items-baseline gap-2">
-            <strong className="text-2xl font-bold tracking-tight text-neutral-900 font-mono">
-              91.4%
-            </strong>
-            <span className="text-xs text-neutral-500">acknowledged</span>
-          </div>
-          <div className="mt-2 text-[11px] text-neutral-600 font-mono">
-            <span>320,423 delivered to partners</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-lg border border-neutral-200">
-          <span className="text-[11px] font-mono uppercase tracking-wider text-neutral-500 font-medium">
-            Right Party Contact (RPC)
-          </span>
-          <div className="mt-1 flex items-baseline gap-2">
-            <strong className="text-2xl font-bold tracking-tight text-neutral-900 font-mono">
-              64.2%
-            </strong>
-            <span className="text-xs text-neutral-500">live connection</span>
-          </div>
-          <div className="mt-2 text-[11px] text-neutral-600 font-mono">
-            <span>Verified voice pickups</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-lg border border-neutral-200">
-          <span className="text-[11px] font-mono uppercase tracking-wider text-neutral-500 font-medium">
-            Realized Revenue
-          </span>
-          <div className="mt-1 flex items-baseline gap-2">
-            <strong className="text-2xl font-bold tracking-tight text-neutral-900 font-mono">
-              R 4,892,100
-            </strong>
-          </div>
-          <div className="mt-2 text-[11px] text-neutral-600 font-mono">
-            <span>ZAR Rand yield</span>
-          </div>
-        </div>
-      </div>
+      <p className="bg-white p-4 rounded-lg border border-neutral-200 text-sm">Summary metrics unavailable in this legacy view. Use the source ledger for returned population evidence.</p>
 
       {/* Warehouse Project, Dataset & Table Selection Bar */}
       <div className="bg-white p-4 rounded-lg border border-neutral-200 space-y-3">
@@ -454,7 +394,7 @@ export default function LeadLedgerModule() {
                   </option>
                 ))}
                 {tables.length === 0 && (
-                  <option value="clustered_lead_ledger">clustered_lead_ledger (350,573 rows)</option>
+                  <option value="clustered_lead_ledger">clustered_lead_ledger (unverified population rows)</option>
                 )}
               </select>
             </div>
@@ -482,7 +422,7 @@ export default function LeadLedgerModule() {
               onClick={handleSwitchToFallback}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-neutral-900 hover:bg-neutral-800 text-white font-medium text-xs transition-colors shrink-0 cursor-pointer"
             >
-              <span>Switch to Clustered Lead Ledger (350,573 leads)</span>
+              <span>Switch to Clustered Lead Ledger (unverified population leads)</span>
               <ArrowRight size={13} />
             </button>
           </div>
@@ -656,8 +596,7 @@ export default function LeadLedgerModule() {
         <div className="p-3 bg-neutral-50 border-b border-neutral-200 flex items-center justify-between text-xs text-neutral-600">
           <div className="flex items-center gap-2 font-mono">
             <span>
-              Showing {displayedRows.length > 0 ? page * pageSize + 1 : 0}–
-              {Math.min((page + 1) * pageSize, totalCount)} of {totalCount.toLocaleString()} leads
+              {displayedRows.length} returned page rows · Total population not verified
             </span>
             {executionTimeMs > 0 && (
               <span className="text-neutral-400">({executionTimeMs} ms)</span>

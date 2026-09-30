@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useOperationalData } from '../lib/useOperationalData';
 import {
   AlertTriangle,
@@ -52,23 +52,33 @@ export default function AiOperationalInsights() {
 
   const [question, setQuestion] = useState('');
   const [asking, setAsking] = useState(false);
-  const [qaResult, setQaResult] = useState<{ answer: string; model: string; citations: string[] } | null>(null);
+  const resultScope = JSON.stringify([selectedClient, startDate, endDate, filters]);
+  const requestVersion = useRef(0);
+  const currentResultScope = useRef(resultScope);
+  currentResultScope.current = resultScope;
+  const [qaResultState, setQaResult] = useState<{ scope: string; value: { answer: string; model: string; citations: string[] } } | null>(null);
+  const qaResult = qaResultState?.scope === resultScope ? qaResultState.value : null;
   const [qaError, setQaError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [severityFilter, setSeverityFilter] = useState<'ALL' | 'HIGH' | 'MEDIUM' | 'LOW'>('ALL');
 
+  useEffect(() => { requestVersion.current += 1; setQaResult(null); setQaError(null); setAsking(false); }, [resultScope]);
+
   const handleAskQuestion = async (qText?: string) => {
     const promptToAsk = (qText || question).trim();
     if (!promptToAsk || asking) return;
+    const requestScope = resultScope;
+    const version = ++requestVersion.current;
+    setQaResult(null);
     setAsking(true);
     setQaError(null);
     try {
       const response = await askGeminiAnalytics(promptToAsk, queryParams);
-      setQaResult(response);
+      if (currentResultScope.current === requestScope && requestVersion.current === version) setQaResult({ scope: requestScope, value: response });
     } catch (err: any) {
-      setQaError(err?.message || 'Failed to process question via Google Gemini API');
+      if (currentResultScope.current === requestScope && requestVersion.current === version) setQaError(err?.message || 'Failed to process question via Google Gemini API');
     } finally {
-      setAsking(false);
+      if (currentResultScope.current === requestScope && requestVersion.current === version) setAsking(false);
     }
   };
 

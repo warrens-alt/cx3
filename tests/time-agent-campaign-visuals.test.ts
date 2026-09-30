@@ -5,13 +5,14 @@ import fs from 'node:fs';
 const read = (path: string) => fs.readFileSync(path, 'utf8');
 
 test('speed-to-lead uses existing numeric timing evidence in a visual stage comparison', () => {
-  const page = read('src/pages/SpeedToLeadIntelligence.tsx');
+  const page = read('src/features/contact/SpeedPage.tsx');
   assert.match(page, /medianSec/);
   assert.match(page, /displayValue: stage\.median/);
-  assert.match(page, /P90 \$\{stage\.p90\}/);
+  assert.match(page, /P90 \$\{stage\.p90 \?\? \'Unavailable\'\}/);
   assert.match(page, /<EvidenceBars/);
   assert.match(page, /Longer bars mean a longer measured median duration/);
-  assert.match(page, /fetchSpeedToLead/);
+  assert.match(page, /useSpeedModel/);
+  assert.match(read('src/features/contact/model/useSpeedModel.ts'), /fetchSpeedToLead/);
 });
 
 test('temporal workspace keeps existing heatmap semantics and adds navigation only', () => {

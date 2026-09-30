@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Timer,
@@ -16,8 +16,7 @@ import { OperationalError } from '../../components/OperationalState';
 import { formatPercent, formatTableNumber } from '../../lib/formatters';
 import { VolumeRateComboChart } from '../../components/charts/OperationalVisuals';
 import UnifiedMetricCard from '../../components/UnifiedMetricCard';
-import RootCauseDrawer from '../../components/RootCauseDrawer';
-import type { RootCauseData } from '../../lib/offernetClient';
+import EvidenceBars, { evidenceBarWidth } from '../../shared/visuals/EvidenceBars';
 import {
   CaptureTurnaroundPanel,
   SlaBandsPanel,
@@ -38,7 +37,6 @@ export default function SpeedPage() {
     handleExportCsv,
   } = useSpeedModel();
 
-  const [rootMetric, setRootMetric] = useState<RootCauseData['metric']['id'] | null>(null);
 
   const cohortMax = useMemo(
     () => Math.max(1, ...(data?.cohorts || []).map((row) => row.leads)),
@@ -47,13 +45,14 @@ export default function SpeedPage() {
   const primaryStage = data?.timingStages?.find((stage) => stage.stage === 'Delivery → First Dial');
 
   return (
-    <div className="space-y-6">
+    <div className="cx-speed-page">
       {/* 1. Scope Bar */}
       <ReportingScopeBar
         onRefresh={refreshAll}
         onExportCsv={data ? handleExportCsv : undefined}
       />
 
+      <div className="cx-command-content space-y-6">
       {/* 2. Page Header */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-1 border-b border-border-subtle pb-4">
         <div>
@@ -124,27 +123,24 @@ export default function SpeedPage() {
               label="Median First Dial"
               value={primaryStage?.median || '—'}
               note={primaryStage?.stage || 'Delivery → First Dial'}
-              onWhyChanged={() => setRootMetric('dialRate')}
-              to={scoped('/lead-explorer?drill=delivery-to-first-dial')}
-              inspectLabel="Inspect speed"
+              to={scoped('/contact-strategy')}
+              inspectLabel="Review contact"
             />
 
             <UnifiedMetricCard
               label="P75 First Dial"
               value={primaryStage?.p75 || '—'}
               note="75% within this latency"
-              onWhyChanged={() => setRootMetric('dialRate')}
-              to={scoped('/lead-explorer?drill=delivery-to-first-dial')}
-              inspectLabel="Inspect speed"
+              to={scoped('/contact-strategy')}
+              inspectLabel="Review contact"
             />
 
             <UnifiedMetricCard
               label="P90 First Dial"
               value={primaryStage?.p90 || '—'}
               note="Tail latency threshold"
-              onWhyChanged={() => setRootMetric('dialRate')}
-              to={scoped('/lead-explorer?drill=delivery-to-first-dial')}
-              inspectLabel="Inspect speed"
+              to={scoped('/contact-strategy')}
+              inspectLabel="Review contact"
             />
 
             <UnifiedMetricCard
@@ -153,8 +149,7 @@ export default function SpeedPage() {
                 ? formatTableNumber(data.backlog.awaitingFirstDial)
                 : '—'}
               note="Undialled backlog"
-              onWhyChanged={() => setRootMetric('deliveryRate')}
-              to={scoped('/lead-explorer?drill=undialled-backlog')}
+              to={scoped('/lead-explorer?drill=awaiting-first-dial')}
               inspectLabel="Inspect backlog"
             />
 
@@ -165,9 +160,8 @@ export default function SpeedPage() {
                 : '—'}
               note="Waiting > 15 minutes"
               isPositiveGood={false}
-              onWhyChanged={() => setRootMetric('dialRate')}
-              to={scoped('/lead-explorer?drill=delivery-to-first-dial')}
-              inspectLabel="Inspect breaches"
+              to={scoped('/exceptions')}
+              inspectLabel="Review SLA queues"
             />
 
             <UnifiedMetricCard
@@ -175,9 +169,8 @@ export default function SpeedPage() {
               value={data.backlog?.oldestUndialled || '—'}
               note="Age since delivery"
               isPositiveGood={false}
-              onWhyChanged={() => setRootMetric('deliveryRate')}
-              to={scoped('/lead-explorer?drill=undialled-backlog')}
-              inspectLabel="Inspect oldest"
+              to={scoped('/lead-explorer?drill=awaiting-first-dial')}
+              inspectLabel="Inspect backlog"
             />
           </div>
 
@@ -204,6 +197,12 @@ export default function SpeedPage() {
             />
           </div>
 
+          <section className="cx-speed-latency-visual bg-surface rounded-xl border border-border-subtle">
+            <EvidenceBars title="Median latency by stage" description="Existing numeric timing evidence; exact reported durations remain in the table."
+              items={data.timingStages.map((stage, index) => ({ key: `${stage.stage}-${index}`, label: stage.stage, value: stage.medianSec, displayValue: stage.median, detail: `P90 ${stage.p90 ?? 'Unavailable'}` }))}
+              scaleNote="Longer bars mean a longer measured median duration. Missing numeric duration is unavailable; formatted durations are not parsed into new precision." />
+          </section>
+
           {/* Timing Stages Table */}
           <div className="bg-surface rounded-xl border border-border-subtle overflow-hidden">
             <div className="p-4 border-b border-border-subtle bg-surface-sec flex items-center justify-between">
@@ -218,8 +217,8 @@ export default function SpeedPage() {
               <Clock3 size={16} className="text-text-mute" />
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
+            <div className="cx-performance-table-wrap overflow-x-auto" role="region" aria-label="Lifecycle timing evidence" tabIndex={0}>
+              <table className="cx-performance-table w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-border-subtle bg-surface-subtle/40 text-text-mute font-semibold">
                     <th className="px-4 py-2.5">Stage</th>
@@ -281,7 +280,8 @@ export default function SpeedPage() {
                     <div className="w-full h-1.5 bg-surface-subtle rounded-full overflow-hidden mt-2">
                       <div
                         className="h-full bg-brand-primary rounded-full"
-                        style={{ width: `${Math.max(2, (row.leads / cohortMax) * 100)}%` }}
+                        data-state={row.leads == null ? 'unknown' : row.leads === 0 ? 'zero' : 'observed'}
+                        style={{ width: `${evidenceBarWidth(row.leads, cohortMax) ?? 0}%` }}
                       />
                     </div>
                   </div>
@@ -312,8 +312,7 @@ export default function SpeedPage() {
           </div>
 
           {/* Operating Controls */}
-          {controls.data && (
-            <details
+          <details
               className="group bg-surface rounded-xl border border-border-subtle overflow-hidden transition-colors"
               open={controlsExpanded}
               onToggle={(e) => setControlsExpanded(e.currentTarget.open)}
@@ -335,14 +334,15 @@ export default function SpeedPage() {
               </summary>
 
               <div className="p-5 border-t border-border-subtle bg-surface-subtle/30 space-y-4">
-                <CaptureTurnaroundPanel data={controls.data} />
+                {controls.isFetching && <p role="status">Loading operating controls…</p>}
+                {controls.error && <OperationalError message={controls.error.message} onRetry={() => void controls.refetch()} />}
+                {controls.data && <><CaptureTurnaroundPanel data={controls.data} />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <SlaBandsPanel data={controls.data} />
                   <OperatingWindowPanel data={controls.data} />
-                </div>
+                </div></>}
               </div>
             </details>
-          )}
 
           {/* Contextual navigation shortcuts */}
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
@@ -392,6 +392,7 @@ export default function SpeedPage() {
           </section>
         </>
       )}
+      </div>
     </div>
   );
 }

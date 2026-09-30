@@ -1,3 +1,4 @@
+import { chartCoordinate } from '../lib/chartPresentation';
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowRight, ArrowUp, ArrowUpDown, Columns3, Download, Filter, Info, Search, X, FileSpreadsheet, Check, Table as TableIcon, BarChart2 } from 'lucide-react';
@@ -76,7 +77,8 @@ export default function VendorPerformance() {
       return direction === 'asc' ? cmp : -cmp;
     }
     const av=availableValue(a.metrics[sortMetric]), bv=availableValue(b.metrics[sortMetric]);
-    const compared=av===null&&bv===null?0:av===null?1:bv===null?-1:compareExactDecimal(av,bv);
+    if(av===null||bv===null)return av===bv?0:av===null?1:-1;
+    const compared=compareExactDecimal(av,bv);
     return direction==='asc'?compared:-compared;
   }),[rows,deferredSearch,sortMetric,direction]);
   useEffect(()=>{setPage(0);},[deferredSearch,sortMetric,direction,pageSize]);
@@ -111,7 +113,7 @@ export default function VendorPerformance() {
         setRootMetric(kpiMap[id] || 'fetchedLeads');
         setRootMetricLabel(METRIC_BY_ID[id].label);
       },
-      onInspect: () => setChartMetric(id),
+      onInspect: CHART_METRICS.includes(id) ? () => setChartMetric(id) : undefined,
     };
   };
   const chartRows=matching.slice(0,12).map(row=>({id:row.key,label:row.group,value:availableValue(row.metrics[chartMetric]),formatted:format(row.metrics[chartMetric]),secondary:availableValue(previousRows.find(item=>item.key===row.key)?.metrics[chartMetric]),secondaryFormatted:`Previous: ${format(previousRows.find(item=>item.key===row.key)?.metrics[chartMetric])}`}));
@@ -172,7 +174,7 @@ export default function VendorPerformance() {
       <MetricRail items={[kpi('fetched_leads','Distinct captured leads in the selected scope; vendor rows are not summed because populations can overlap.'),kpi('delivered_episodes','Observed successful vendor delivery episodes.'),kpi('call_coverage','Delivered episodes with a subsequent observed call.'),kpi('sale_activation_rate','Distinct sales with at least one observed activation.'),kpi('collected_value','Signed collected-stage ledger changes; not expected or invoiced value.')]}/>
       <section className="cx-ops-analysis-grid"><div className="cx-ops-primary">
         <div className="cx-ops-viewbar" aria-label="Vendor chart controls"><div><strong>Vendor comparison</strong><span>Local controls — no new warehouse query</span></div><label>Measure<select value={chartMetric} onChange={event=>setChartMetric(event.target.value)}>{CHART_METRICS.map(id=><option key={id} value={id}>{METRIC_BY_ID[id].label}</option>)}</select></label></div>
-        <ExactBarChart data={chartRows} title={`${METRIC_BY_ID[chartMetric].label} by vendor`} description="Exact values are retained in labels and the evidence table. Bar lengths use display-only coordinates." onSelect={setSelectedVendor} selectedId={selectedCurrent?.group}/>
+        <ExactBarChart data={chartRows} title={`${METRIC_BY_ID[chartMetric].label} by vendor`} description="Exact values are retained in labels and the evidence table. Bar lengths use display-only coordinates." onSelect={setSelectedVendor} selectedId={selectedCurrent?.key}/>
       </div><aside className="enterprise-card cx-ops-periods"><header><h2>Period comparison</h2><p>Current, previous comparable period and previous matched calendar days.</p></header>{[['Current',report],['Previous',previous],['Matched days',matched]].map(([label,data])=><div key={label as string}><span>{label as string}</span><strong>{format(metricValue(data as ReportResult|undefined,chartMetric))}</strong><small>{label==='Current'?`${workspace.request.startDate} — ${workspace.request.endDate}`:label==='Previous'?`${workspace.previousPeriod.startDate} — ${workspace.previousPeriod.endDate}`:`${workspace.matchedPeriod.startDate} — ${workspace.matchedPeriod.endDate}`}</small></div>)}</aside></section>
       <section className="enterprise-card cx-ops-driver" aria-label="Descriptive driver decomposition">
         <header>
@@ -329,15 +331,16 @@ export default function VendorPerformance() {
               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
                 <BarChart data={matching.slice(0, 12).map(r => ({
                   vendor: r.group,
-                  delivered: Number(availableValue(r.metrics.delivered_episodes)) || 0,
-                  called: Number(availableValue(r.metrics.called_episodes)) || 0,
-                  sales: Number(availableValue(r.metrics.sale_events)) || 0,
-                  activations: Number(availableValue(r.metrics.activation_events)) || 0,
+                  delivered: chartCoordinate(availableValue(r.metrics.delivered_episodes)),
+                  called: chartCoordinate(availableValue(r.metrics.called_episodes)),
+                  sales: chartCoordinate(availableValue(r.metrics.sale_events)),
+                  activations: chartCoordinate(availableValue(r.metrics.activation_events)),
                 }))} margin={{ top: 10, right: 30, left: 10, bottom: 35 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="vendor" tick={{ fontSize: 9, fill: '#64748b' }} stroke="#cbd5e1" interval={0} angle={-25} textAnchor="end" height={45} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" axisLine={false} tickLine={false} tickFormatter={v => Number(v).toLocaleString()} />
                   <Tooltip
+                    filterNull={false}
                     content={({ active, payload, label }) => {
                       if (!active || !payload?.length) return null;
                       return (
@@ -353,7 +356,7 @@ export default function VendorPerformance() {
                                   <span>{entry.name}</span>
                                 </span>
                                 <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">
-                                  {Number(entry.value || 0).toLocaleString()}
+                                  {entry.value == null ? 'Unavailable' : Number(entry.value).toLocaleString()}
                                 </span>
                               </div>
                             ))}

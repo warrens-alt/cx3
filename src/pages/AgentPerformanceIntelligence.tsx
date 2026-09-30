@@ -174,9 +174,9 @@ export default function AgentPerformanceIntelligence() {
                   <p>Rank the displayed roster by one observed measure at a time. This is descriptive evidence, not a performance score.</p>
                 </div>
                 <div className="cx-segmented-control" role="group" aria-label="Agent comparison metric">
-                  <button type="button" data-active={agentMetric === 'calls'} onClick={() => setAgentMetric('calls')}>Calls</button>
-                  <button type="button" data-active={agentMetric === 'contactRate'} onClick={() => setAgentMetric('contactRate')}>RPC rate</button>
-                  <button type="button" data-active={agentMetric === 'saleRate'} onClick={() => setAgentMetric('saleRate')}>Sold RPC / RPC</button>
+                  <button type="button" aria-pressed={agentMetric === 'calls'} data-active={agentMetric === 'calls'} onClick={() => setAgentMetric('calls')}>Calls</button>
+                  <button type="button" aria-pressed={agentMetric === 'contactRate'} data-active={agentMetric === 'contactRate'} onClick={() => setAgentMetric('contactRate')}>RPC rate</button>
+                  <button type="button" aria-pressed={agentMetric === 'saleRate'} data-active={agentMetric === 'saleRate'} onClick={() => setAgentMetric('saleRate')}>Sold RPC / RPC</button>
                 </div>
               </div>
               <EvidenceBars
@@ -220,7 +220,7 @@ export default function AgentPerformanceIntelligence() {
               <div className="cx-table-toolbar">
                 <label>
                   <Search size={14}/>
-                  <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search agent or vendor…" />
+                  <input aria-label="Search returned agents or vendors" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search agent or vendor…" />
                 </label>
                 <span>{filtered.length.toLocaleString()} rows</span>
               </div>
