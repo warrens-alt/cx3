@@ -242,7 +242,7 @@ test('AI answer is hidden after scope changes and obsolete asynchronous answers 
     app.w.__fixture.navigate('/ai-insights?clientId=synthetic-a&startDate=2026-09-27&endDate=2026-09-28');
     await app.wait(()=>!app.text().includes('Synthetic answer for selected scope'));
     app.w.__fixture.defer=['/api/analytics/google/ask'];
-    await app.wait(()=>app.find('button','Ask AI')); 
+    await app.wait(()=>app.find('button','Ask AI'));
     await app.click('button','Ask AI');await app.wait(()=>app.w.__fixture.pending?.['/api/analytics/google/ask']);
     app.w.__fixture.navigate('/ai-insights'+scope);
     await app.wait(()=>app.w.__fixture.location==='/ai-insights'+scope);
