@@ -293,6 +293,10 @@ button svg, a svg { flex-shrink: 0; }
   -webkit-overflow-scrolling: touch;
 }
 .cx-main:focus { outline: none; }
+@media (max-width: 1023px) {
+  /* Keep keyboard-focused controls above the fixed mobile navigation. */
+  .cx-main { scroll-padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+}
 .cx-skip {
   position: fixed; top: 10px; left: 14px; z-index: 100; transform: translateY(-150%);
   border-radius: 6px; background: #fff; padding: 8px 14px; color: #17243B;
