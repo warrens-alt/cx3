@@ -83,7 +83,7 @@ node --import tsx --test tests/frontend-acceptance.test.ts
 git diff --check
 ```
 
-`verify` is the existing lint → test → surface inventory → build chain. The ordinary suite has 760 tests: 759 pass, one Firestore integration skip, zero failures; the separate emulator suite exercises that lifecycle (10 pass, zero skipped). The new acceptance suite has 21 passing tests. Compiled production HTTP smoke covers four entrypoints; Google launch harness covers four modes. Audit threshold passes with six existing moderate findings and no high findings; dependencies are unchanged. Final delivery records the exact tested commit and required CI result.
+`verify` is the existing lint → test → surface inventory → build chain. The ordinary suite has 760 tests: 759 pass, one Firestore integration skip, zero failures; the separate emulator suite exercises that lifecycle (10 pass, zero skipped). The new acceptance suite has 21 passing tests. Compiled production HTTP smoke covers four entrypoints; Google launch harness covers five modes. Audit threshold passes with six existing moderate findings and no high findings; dependencies are unchanged. Final delivery records the exact tested commit and required CI result.
 
 The isolated fixture bundles actual AppShell/AppRouter/AuthGate/pages with test-only identity, Firestore and fetch doubles. Every fetch terminates inside the harness. No production QA/auth bypass, provider change or new dependency. Build it with `node scripts/build-frontend-acceptance-fixture.mjs /private/tmp/cx3-frontend-acceptance-after` after `npm run build`; serve that directory with an SPA fallback. Test outputs and screenshots remain outside source.
 
