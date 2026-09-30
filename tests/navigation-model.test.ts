@@ -20,6 +20,14 @@ test('administrative and record-level links retain role-based visibility', () =>
   assert.ok(!relatedPages('exceptions', false).some(page => page.path === '/lead-explorer'));
   assert.ok(relatedPages('exceptions', true).some(page => page.path === '/lead-explorer'));
 });
+test('Lead Ledger is discoverable by its title and alias only for administrators', () => {
+  for (const query of ['Lead Ledger', 'ledger']) {
+    assert.equal(searchNavigation(query, true)[0]?.path, '/lead-ledger');
+    assert.ok(!searchNavigation(query, false).some(page => page.path === '/lead-ledger'));
+  }
+  assert.ok(relatedPages('exceptions', true).some(page => page.path === '/lead-ledger'));
+  assert.ok(!relatedPages('exceptions', false).some(page => page.path === '/lead-ledger'));
+});
 test('six business destinations replace competing primary dashboards without retiring routes', () => {
   assert.deepEqual(NAV_GROUPS[0].items.map(item => item.name), ['Overview', 'Lead journey', 'Contact centre', 'Sales & activation', 'Commercial', 'Investigate']);
   assert.equal(navigationPage('/')?.path, '/overview');

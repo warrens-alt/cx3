@@ -53,6 +53,26 @@ test('navigation uses destination scope policies and preserves repeated workspac
   assert.equal(new URLSearchParams(navigationTarget('/overview','/reports',query+'&release=r1').search).get('startDate'),null);
 });
 
+test('quick navigation opens Lead Ledger by keyboard and retains reporting scope',async()=>{
+  const app=await mount('/lead-explorer'+scope+'&workspace=alpha&workspace=beta&drill=old&search=old');try{
+    await app.click('button','Find a page');
+    await app.wait(()=>app.find('input','Search pages and navigation'));
+    const input=app.find('input','Search pages and navigation');
+    await app.input(input,'Lead Ledger');
+    await app.wait(()=>app.find('[role="option"]','Lead ledger'),'Lead Ledger must appear in quick navigation');
+    input.dispatchEvent(new app.w.KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+    await app.wait(()=>app.w.__fixture.location.startsWith('/lead-ledger?')&&!!app.find('.cx-ledger-lead'));
+    assert.equal(app.find('[role="dialog"]'),undefined);
+    const params=new URL(app.w.__fixture.location,'https://synthetic.invalid').searchParams;
+    assert.equal(params.get('clientId'),'synthetic-a');
+    assert.equal(params.get('startDate'),'2026-09-28');
+    assert.equal(params.get('endDate'),'2026-09-28');
+    assert.deepEqual(params.getAll('workspace'),['alpha','beta']);
+    assert.equal(params.get('drill'),null);
+    assert.equal(params.get('search'),null);
+  }finally{app.close();}
+});
+
 test('actual Speed route exposes numeric timing, zero geometry and existing controls',async()=>{
   const app=await mount('/speed-to-lead'+scope);try{
     await app.wait(()=>app.text().includes('Median latency by stage'));

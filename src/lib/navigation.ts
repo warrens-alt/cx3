@@ -95,6 +95,7 @@ const CORE_CATALOGUE_PATHS = [
   '/reconciliation',
   '/exceptions',
   '/lead-explorer',
+  '/lead-ledger',
   '/data-integrity',
   '/warehouse',
   '/reports',
