@@ -83,7 +83,7 @@ export default function Cohorts() {
     .map((row: any) => String(row.maturationReason))));
 
   return (
-    <div className="cx-command-page">
+    <div className="cx-command-page cx-cohorts-page">
       <OffernetFilterBar onRefresh={() => refetch()} />
       <div className="cx-command-content">
         <OperationalPageHeader
