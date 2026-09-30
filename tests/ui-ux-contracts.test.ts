@@ -1,3 +1,4 @@
+import { navigationTarget } from '../src/lib/presentation';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -239,8 +240,12 @@ test('selected client is URL-addressable and preserved through evidence navigati
   assert.match(clients, /useSearchParams/);
   assert.match(clients, /next\.set\('clientId', id\)/);
   assert.match(clients, /searchParams\.get\('clientId'\)/);
-  assert.match(presentation, /currentParams\.get\('clientId'\)/);
-  assert.match(presentation, /workspace\.set\('clientId', clientId\)/);
+  for (const target of ['/reports', '/vendors', '/overview', '/lead-explorer', '/admin']) {
+    const destination = navigationTarget(target, '/overview', '?clientId=tenant-a&workspace=a&workspace=b&startDate=2026-09-28');
+    const scope = new URLSearchParams(destination.search);
+    assert.equal(scope.get('clientId'), 'tenant-a');
+    assert.deepEqual(scope.getAll('workspace'), ['a', 'b']);
+  }
 });
 
 test('Explorer record loading follows applied URL search state', () => {
