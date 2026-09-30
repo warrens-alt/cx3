@@ -1,7 +1,7 @@
 import { AuditMetadata } from '../../../shared/evidence/AuditMode';
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, TrendingUp, TrendingDown, ArrowRight, Search, Inbox, Send, BadgeCheck, Zap } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowRight, Search, Inbox, Send, BadgeCheck, Zap } from 'lucide-react';
 import { formatPercent, formatTableNumber } from '../../../lib/formatters';
 import type { OverviewData } from '../../../lib/offernetClient';
 import type { InspectorContent } from '../../../shared/evidence/InspectorHost';
@@ -182,17 +182,17 @@ export default function OutcomeStrip({
         <article
           key={item.id}
           data-series={presentation.series}
-          className="cx-outcome-card enterprise-card bg-surface border border-border hover:border-action/50 rounded-xl p-5 shadow-xs hover:shadow-sm transition-all duration-200 flex flex-col justify-between group"
+          className="cx-outcome-card cx-metric-card enterprise-card bg-surface border border-border hover:border-action/50 rounded-xl p-5 shadow-xs hover:shadow-sm transition-all duration-200 flex flex-col justify-between group"
         >
           <div className="cx-outcome-heading flex items-start justify-between">
-            <span className="text-[11px] font-bold text-text-sec uppercase tracking-wider">
+            <span className="text-[11px] font-semibold text-text-sec">
               {item.label}
             </span>
             <span className="cx-outcome-icon" aria-hidden="true"><Icon size={16} strokeWidth={1.8} /></span>
           </div>
 
           <div className="my-3">
-            <button type="button" onClick={() => onInspect(item.inspectContent)} className="cx-outcome-value text-3xl lg:text-[34px] font-bold cx-tabular text-text-main block hover:text-action transition-colors font-mono tracking-tight leading-tight" aria-label={`Inspect evidence: ${item.label}`}>{item.value}</button>
+            <button type="button" onClick={() => onInspect(item.inspectContent)} className="cx-metric-primary cx-outcome-value text-3xl lg:text-[34px] font-bold cx-tabular text-text-main block hover:text-action transition-colors font-mono tracking-tight leading-tight" aria-label={`Inspect evidence: ${item.label}`}>{item.value}</button>
 
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <span className="text-xs text-text-sec font-medium">{item.subnote}</span>
@@ -201,28 +201,8 @@ export default function OutcomeStrip({
           </div>
 
           <AuditMetadata metricId={item.inspectContent.metricId} />
-          <div className="cx-outcome-actions pt-3 border-t border-border-subtle flex items-center justify-between text-xs text-text-mute">
-            <button
-              type="button"
-              onClick={() => onInspect(item.inspectContent)}
-              className="inline-flex items-center gap-1 font-semibold text-text-sec hover:text-action transition-colors cursor-pointer"
-            >
-              <span>Inspect evidence</span>
-              <ArrowUpRight size={13} />
-            </button>
-
-            {hasComparison && item.id === 'fetched_leads' && onWhyChanged && (
-              <button
-                type="button"
-                onClick={() => onWhyChanged(item.rootMetric)}
-                className="inline-flex items-center gap-1 font-semibold hover:text-action transition-colors cursor-pointer"
-                title={`Investigate why ${item.label.toLowerCase()} changed`}
-              >
-                <span>Why changed?</span>
-                <Search size={12} />
-              </button>
-            )}
-          </div>
+          <ArrowRight className="cx-metric-chevron" size={14} aria-hidden="true" />
+          {hasComparison && item.id === 'fetched_leads' && onWhyChanged && Number.isFinite(item.delta) && <button type="button" className="cx-why-btn cx-metric-context-action" onClick={() => onWhyChanged(item.rootMetric)} title={`Investigate why ${item.label.toLowerCase()} changed`}>Why changed? <Search size={12} aria-hidden="true" /></button>}
         </article>
         );
       })}

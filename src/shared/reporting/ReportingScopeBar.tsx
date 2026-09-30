@@ -151,7 +151,7 @@ function OperationalScopeBar({
   showGradeFilter = true,
   className = '',
 }: ReportingScopeBarProps) {
-  const { clients, selectedClient } = useClient();
+  const { selectedClient } = useClient();
   const {
     startDate,
     endDate,
@@ -164,7 +164,7 @@ function OperationalScopeBar({
   } = useFilters();
 
   const [expanded, setExpanded] = useState(false);
-  const [mobileExpanded, setMobileExpanded] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState('');
@@ -232,7 +232,8 @@ function OperationalScopeBar({
   const periodValue = draft ? 'custom' : currentPreset?.id || 'custom';
   const customPeriod = !currentPreset ? appliedFilters.find(item => item.key === 'dateRange') : undefined;
   const appliedPeriodLabel = currentPreset?.label || customPeriod?.value || 'Custom dates';
-  const selectedClientName = clients.find(client => client.id === selectedClient)?.name || selectedClient;
+  const displayDate = (value: string) => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${value}T12:00:00Z`));
+  const periodSummary = startDate && endDate ? startDate === endDate ? displayDate(startDate) : `${displayDate(startDate)} – ${displayDate(endDate)}` : appliedPeriodLabel;
 
   const hasDimensionFilters = Object.keys(filters).length > 0;
   const canClearDimensions = hasDimensionFilters;
@@ -316,29 +317,28 @@ function OperationalScopeBar({
 
   return (
     <>
-    <section className={`cx-scopebar cx-scope-controls ${mobileExpanded ? 'is-mobile-expanded' : ''} ${className}`} aria-label="Reporting scope">
+    <section className={`cx-scopebar cx-scope-controls ${editorOpen ? 'is-expanded' : ''} ${className}`} aria-label="Reporting scope">
       <div className="cx-scopebar-main">
-        <div className="cx-scope-mobile-summary">
-          <strong>{selectedClientName}</strong>
-          <span>
-            <Calendar size={13} aria-hidden="true" />
-            {appliedPeriodLabel} · {visibleChips.length} segments
-          </span>
+        <div className="cx-scope-summary">
+          <span><Calendar size={13} aria-hidden="true" /><strong>{periodSummary}</strong></span>
+          <span>{filters.vendor ? `Vendor: ${scopeFilterSummary(filters.vendor)}` : 'All vendors'}</span>
+          <span>{filters.source ? `Source: ${scopeFilterSummary(filters.source)}` : 'All sources'}</span>
+          {visibleChips.filter(item => !['vendor', 'source'].includes(item.key)).map(item => <span key={item.key}>{item.label}: {item.value}</span>)}
           {datesDirty && <small>Date changes not applied</small>}
         </div>
 
         <button
           type="button"
-          className="cx-scope-mobile-toggle"
-          onClick={() => setMobileExpanded(value => !value)}
-          aria-expanded={mobileExpanded}
-          aria-controls={controlsId}
+          className="cx-scope-toggle"
+          onClick={() => setEditorOpen(value => !value)}
+          aria-expanded={editorOpen}
+          aria-controls={`${controlsId} ${panelId}`}
         >
           <SlidersHorizontal size={14} aria-hidden="true" />
-          {mobileExpanded ? 'Hide filters' : 'Edit filters'}
+          {editorOpen ? 'Done' : 'Change'}
         </button>
 
-        <div className="cx-scope-editable" id={controlsId}>
+        <div className="cx-scope-editable" id={controlsId} hidden={!editorOpen}>
           <label className="cx-scope-control cx-scope-period">
             <span>Period</span>
             <div className="cx-scope-control-icon">
@@ -426,7 +426,7 @@ function OperationalScopeBar({
         </div>
       </div>
 
-      {(customPeriod || visibleChips.length > 0) && <div className="cx-scopebar-meta">
+      {editorOpen && (customPeriod || visibleChips.length > 0) && <div className="cx-scopebar-meta">
         {(customPeriod || visibleChips.length > 0) && (
           <div className="cx-scope-chips" aria-label="Active reporting filters">
             {customPeriod && (
@@ -496,7 +496,7 @@ function OperationalScopeBar({
         {announcement}
       </span>
 
-      {expanded && (
+      {editorOpen && expanded && (
         <div
           className="cx-scopebar-more"
           id={panelId}

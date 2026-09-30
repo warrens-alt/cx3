@@ -57,7 +57,7 @@ export default function UnifiedMetricCard({
   if (loading) {
     return (
       <article
-        className={`cx-unified-metric enterprise-card bg-surface border border-border rounded-xl p-4 sm:p-5 flex flex-col justify-between animate-pulse ${className}`}
+        className={`cx-unified-metric cx-metric-card enterprise-card bg-surface border border-border rounded-xl p-4 sm:p-5 flex flex-col justify-between animate-pulse ${className}`}
         role="status"
         aria-label={`Loading ${label}`}
       >
@@ -80,27 +80,19 @@ export default function UnifiedMetricCard({
   const positive = hasChange && (isPos ? isPositiveGood : !isPositiveGood);
   const DeltaIcon = isZero ? Minus : isPos ? TrendingUp : TrendingDown;
 
-  const hasFooter = Boolean(
-    auditContent || onWhyChanged ||
-    to ||
-    onInspect ||
-    (denominatorLink && denominatorLabel) ||
-    (onDenominatorClick && denominatorLabel)
-  );
-
   return (
     <article
-      className={`cx-unified-metric enterprise-card bg-surface border border-border hover:border-action/40 rounded-xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-150 hover:shadow-xs group ${className}`}
+      className={`cx-unified-metric cx-metric-card enterprise-card bg-surface border border-border hover:border-action/40 rounded-xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-150 hover:shadow-xs group ${className}`}
     >
       <div>
         <div className="flex items-center justify-between gap-1 mb-1">
-          <span className="text-xs sm:text-[12px] font-semibold text-text-sec uppercase tracking-wider cx-metric-label">
+          <span className="text-xs sm:text-[12px] font-semibold text-text-sec cx-metric-label">
             {label}
           </span>
           {onAbout && !auditContent && (
             <button
               type="button"
-              className="text-text-mute hover:text-brand-primary p-0.5 rounded transition-colors cursor-pointer shrink-0"
+              className="relative z-10 text-text-mute hover:text-brand-primary p-0.5 rounded transition-colors cursor-pointer shrink-0"
               onClick={onAbout}
               title={aboutLabel || `About ${label} definition`}
               aria-label={aboutLabel || `About ${label} definition`}
@@ -110,10 +102,10 @@ export default function UnifiedMetricCard({
           )}
         </div>
 
-        {auditContent ? <button type="button" className="block text-left my-1.5 w-full" onClick={() => setAuditOpen(true)} aria-label={`Inspect evidence: ${label}`}><strong className="cx-metric-value text-2xl lg:text-[28px] font-bold font-mono tracking-tight text-text-main tabular-nums leading-tight">{displayValue}</strong></button> : to ? (
+        {auditContent ? <button type="button" className="cx-metric-primary block text-left my-1.5 w-full" onClick={() => setAuditOpen(true)} aria-label={`Inspect evidence: ${label}`}><strong className="cx-metric-value text-2xl lg:text-[28px] font-bold font-mono tracking-tight text-text-main tabular-nums leading-tight">{displayValue}</strong></button> : to ? (
           <Link
             to={to}
-            className="block hover:underline hover:text-action transition-colors my-1.5"
+            className="cx-metric-primary block hover:text-action transition-colors my-1.5"
             title={inspectLabel ? `${inspectLabel} records for ${label}` : `Inspect ${label}`}
           >
             <strong className="cx-metric-value text-2xl lg:text-[28px] font-bold font-mono tracking-tight text-text-main tabular-nums leading-tight">
@@ -124,7 +116,8 @@ export default function UnifiedMetricCard({
           <button
             type="button"
             onClick={onInspect}
-            className="block text-left hover:text-action transition-colors my-1.5 cursor-pointer w-full"
+            className="cx-metric-primary block text-left hover:text-action transition-colors my-1.5 cursor-pointer w-full"
+            aria-label={inspectLabel ? `${inspectLabel} ${label}` : `Inspect ${label}`}
             title={inspectLabel ? `${inspectLabel} ${label}` : `Inspect ${label}`}
           >
             <strong className="cx-metric-value text-2xl lg:text-[28px] font-bold font-mono tracking-tight text-text-main tabular-nums leading-tight">
@@ -163,80 +156,12 @@ export default function UnifiedMetricCard({
       </div>
 
       {auditContent && <AuditMetadata metricId={auditContent.metricId} grain={auditContent.definition?.grain || auditContent.provenance?.countingGrain} dateBasis={auditContent.definition?.dateBasis || auditContent.provenance?.dateBasis} validationStatus={auditContent.provenance?.validationStatus} />}
-      {hasFooter ? (
-        <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-border-subtle text-[11px] min-h-[29px] flex-wrap">
-          {onWhyChanged && (
-            <button
-              type="button"
-              className="cx-why-btn"
-              onClick={onWhyChanged}
-              title={`Investigate why ${label.toLowerCase()} changed`}
-            >
-              <span>{whyLabel}</span>
-              <Search size={10} aria-hidden="true" />
-            </button>
-          )}
-
-          {onWhyChanged && (to || onInspect) && (
-            <span className="text-border-strong text-[10px]" aria-hidden="true">·</span>
-          )}
-
-          {auditContent && <button type="button" className="cx-inspect-btn" onClick={() => setAuditOpen(true)}>Inspect evidence <ArrowRight size={10} aria-hidden="true" /></button>}
-          {to && !auditContent && (
-            <Link
-              to={to}
-              className="cx-inspect-btn"
-              title={inspectLabel || `Inspect ${label} records`}
-            >
-              <span>{inspectLabel}</span>
-              <ArrowRight size={10} aria-hidden="true" />
-            </Link>
-          )}
-
-          {!auditContent && !to && onInspect && (
-            <button
-              type="button"
-              onClick={onInspect}
-              className="cx-inspect-btn"
-              title={inspectLabel || `Inspect ${label}`}
-            >
-              <span>{inspectLabel}</span>
-              <ArrowRight size={10} aria-hidden="true" />
-            </button>
-          )}
-
-          {denominatorLabel && (
-            <>
-              {(onWhyChanged || to || onInspect) && (
-                <span className="text-border-strong text-[10px]" aria-hidden="true">·</span>
-              )}
-              {denominatorLink ? (
-                <Link
-                  to={denominatorLink}
-                  className="inline-flex items-center gap-1 text-text-mute hover:text-text-sec font-medium transition-colors"
-                  title="Inspect denominator records"
-                >
-                  <span>{denominatorLabel}</span>
-                </Link>
-              ) : onDenominatorClick ? (
-                <button
-                  type="button"
-                  onClick={onDenominatorClick}
-                  className="inline-flex items-center gap-1 text-text-mute hover:text-text-sec font-medium transition-colors cursor-pointer"
-                  title="Inspect denominator records"
-                >
-                  <span>{denominatorLabel}</span>
-                </button>
-              ) : (
-                <span className="text-text-mute font-medium">{denominatorLabel}</span>
-              )}
-            </>
-          )}
-        </div>
-      ) : (
-        <div className="mt-3 pt-2.5 border-t border-transparent min-h-[29px]" aria-hidden="true" />
-      )}
-      {auditContent && auditOpen && <InspectorHost open={auditOpen} onClose={() => setAuditOpen(false)} content={auditContent} />}
+      {(auditContent || to || onInspect) && <ArrowRight className="cx-metric-chevron" size={14} aria-hidden="true" />}
+      {onWhyChanged && hasChange && <button type="button" className="cx-why-btn cx-metric-context-action" onClick={onWhyChanged} title={`Investigate why ${label.toLowerCase()} changed`}>{whyLabel}<Search size={10} aria-hidden="true" /></button>}
+      {!auditContent && denominatorLabel && <div className="cx-metric-context-action">
+        {denominatorLink ? <Link to={denominatorLink}>{denominatorLabel}</Link> : onDenominatorClick ? <button type="button" onClick={onDenominatorClick}>{denominatorLabel}</button> : <small>{denominatorLabel}</small>}
+      </div>}
+      {auditContent && auditOpen && <InspectorHost open={auditOpen} onClose={() => setAuditOpen(false)} content={{ ...auditContent, details: <>{auditContent.details}{denominatorLabel && <p>Denominator context: {denominatorLink ? <Link to={denominatorLink}>{denominatorLabel}</Link> : onDenominatorClick ? <button type="button" onClick={onDenominatorClick}>{denominatorLabel}</button> : denominatorLabel}</p>}</> }} />}
     </article>
   );
 }

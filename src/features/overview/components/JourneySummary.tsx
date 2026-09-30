@@ -59,9 +59,9 @@ export default function JourneySummary({ stages = [], funnelLeak, isAdmin, onIns
           return <li key={stage.key} data-series={stagePresentation[stage.key]?.series} data-stage={stage.key}>
             <div className="cx-overview-stage-heading">
               <span>{index + 1}. {label}</span>
-              {onInspectStage && <button type="button" onClick={() => onInspectStage(stage, index)} aria-label={`Inspect ${label} evidence`}><Info size={14} aria-hidden="true" /></button>}
+              {onInspectStage && <Info size={14} aria-hidden="true" />}
             </div>
-            {onInspectStage ? <button type="button" className="cx-overview-stage-count" onClick={() => onInspectStage(stage, index)} aria-label={`Inspect ${label} evidence: ${formatTableNumber(stage.volume)}`}>{count}</button>
+            {onInspectStage ? <button type="button" className="cx-metric-primary cx-overview-stage-count" onClick={() => onInspectStage(stage, index)} aria-label={`Inspect ${label} evidence: ${formatTableNumber(stage.volume)}`}>{count}</button>
               : <strong className="cx-overview-stage-count">{count}</strong>}
             <div className="cx-overview-stage-track" data-evidence={!hasVolume ? 'unavailable' : stage.volume === 0 ? 'zero' : 'observed'} aria-hidden="true">
               {hasVolume && <span style={{ width: `${width}%` }} />}

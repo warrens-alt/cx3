@@ -4,7 +4,7 @@ import type { MarketingRootCauseData } from '../../lib/offernetClient';
 type MediaMetric = NonNullable<MarketingRootCauseData['metric']>['id'];
 
 function Delta({ value, unit = '%' }: { value: number | null | undefined; unit?: string }) {
-  if (value == null || !Number.isFinite(value)) return <span className="cx-command-change muted">No comparison</span>;
+  if (value == null || !Number.isFinite(value)) return null;
   const Icon = value >= 0 ? ArrowUpRight : ArrowDownRight;
   return <span className={`cx-command-change ${value > 0 ? 'positive' : value < 0 ? 'negative' : 'muted'}`}><Icon size={12}/>{value > 0 ? '+' : ''}{value}{unit}</span>;
 }
@@ -29,17 +29,16 @@ export default function MediaMetricCard({
   canCompare: boolean;
 }) {
   return (
-    <article className="cx-command-metric flex flex-col justify-between">
+    <article className="cx-command-metric cx-metric-card flex flex-col justify-between">
       <div>
         <span>{label}</span>
-        <strong>{value}</strong>
+        <button type="button" className="cx-metric-primary" aria-label={`Inspect evidence: ${label}`} onClick={onInspect}><strong>{value}</strong></button>
         <div><small>{note}</small><Delta value={delta}/></div>
       </div>
-      <div className="flex items-center justify-between text-[11px] pt-2.5 mt-2.5 border-t border-border-subtle">
         {canCompare && delta != null && Number.isFinite(delta) && value !== "—" && (
         <button
           type="button"
-          className="inline-flex items-center gap-1 text-action hover:text-action-hover font-medium transition-colors cursor-pointer"
+          className="cx-why-btn cx-metric-context-action"
           onClick={() => onInvestigate(metric)}
           title={`Investigate why ${label.toLowerCase()} changed`}
         >
@@ -47,8 +46,7 @@ export default function MediaMetricCard({
           <Search size={10} aria-hidden="true" />
         </button>
         )}
-        <button type="button" onClick={onInspect} className="inline-flex items-center gap-1 text-text-sec hover:text-action font-medium transition-colors"><span>Inspect evidence</span><ArrowRight size={10} aria-hidden="true" /></button>
-      </div>
+      <ArrowRight className="cx-metric-chevron" size={14} aria-hidden="true" />
     </article>
   );
 }

@@ -194,9 +194,10 @@ test('palette area headings preserve option indexes, intent searches and admin v
       await app.click('button', 'Search pages');
       const input = app.find('input', 'Search pages and navigation');
       await app.wait(() => app.find('[role="option"]'));
-      assert.ok(app.w.document.querySelectorAll('.cx-command-group-label').length > 1);
+      assert.equal(app.w.document.querySelectorAll('.cx-command-group-label').length, 1);
+      assert.equal(app.find('.cx-command-group-label').textContent, 'Suggested');
       const options = [...app.w.document.querySelectorAll('[role="option"]')] as HTMLElement[];
-      assert.deepEqual(options.map(option => option.querySelector('strong')!.textContent), searchNavigation('', admin).map(page => page.name));
+      assert.deepEqual(options.map(option => option.querySelector('strong')!.textContent), ['Overview', 'Lead journey', 'Contact centre', 'Sales & activation', 'Commercial', 'Investigate']);
       input.dispatchEvent(new app.w.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
       await app.wait(() => options[1].getAttribute('aria-selected') === 'true');
       assert.equal(input.getAttribute('aria-activedescendant'), options[1].id);

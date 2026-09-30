@@ -1,3 +1,4 @@
+import TablePreview from '../shared/reporting/TablePreview';
 import { ReportActions } from '../shared/reporting/ReportPresentation';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import SpendReconciliationPanel from '../components/SpendReconciliationPanel';
@@ -327,7 +328,7 @@ export default function CampaignIntelligence() {
                   Showing {num(data.detailScope.displayedCampaignGroups)} of {num(data.detailScope.totalCampaignGroups)} campaign/adset groups, ranked by platform lead events. Summary metrics cover the full selected scope.
                 </div>
               )}
-              <div className="cx-performance-table-wrap" role="region" aria-label="Campaign spend and delivery efficiency" tabIndex={0}>
+              <TablePreview rows={data.campaigns} label="campaign rows">{visibleRows => <div className="cx-performance-table-wrap" role="region" aria-label="Campaign spend and delivery efficiency" tabIndex={0}>
                 <table className="cx-performance-table cx-campaign-table">
                   <thead>
                     <tr>
@@ -351,7 +352,7 @@ export default function CampaignIntelligence() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.campaigns.map((campaign, index) => (
+                    {visibleRows.map((campaign, index) => (
                       <tr key={`${campaign.channel}-${campaign.campaign}-${campaign.adset}-${index}`}>
                         <th>{campaign.channel}</th>
                         <td>{campaign.campaign}</td>
@@ -370,7 +371,7 @@ export default function CampaignIntelligence() {
                         <td>{money(campaign.cpc)}</td>
                         <td>{money(campaign.cpm)}</td>
                         <td>{money(campaign.cpl)}</td>
-                        <td><button type="button" className="cx-button-secondary" onClick={() => setAudit(campaignAudit(data, campaign, campaignMeasure, auditScope))} aria-label={`Inspect evidence for ${campaign.campaign}`}>Inspect evidence</button></td>
+                        <td><button type="button" className="cx-button-secondary" onClick={() => setAudit(campaignAudit(data, campaign, campaignMeasure, auditScope))} aria-label={`Inspect evidence for ${campaign.campaign}`}>Inspect</button></td>
                       </tr>
                     ))}
                     {!data.campaigns.length && (
@@ -378,7 +379,7 @@ export default function CampaignIntelligence() {
                     )}
                   </tbody>
                 </table>
-              </div>
+              </div>}</TablePreview>
             </section>
           </>
         )}

@@ -16,19 +16,19 @@ export default function SalesOutcomeSummary({ model, onInspect }: SalesOutcomeSu
     <section className="cx-command-metrics cx-outcome-metrics" aria-label="Outcome summary">
       {/* 1. Recorded Sales */}
       <article
-        className="cx-command-metric hover:border-action/40 transition-colors flex flex-col justify-between"
+        className="cx-command-metric cx-metric-card hover:border-action/40 transition-colors flex flex-col justify-between"
         aria-label="Recorded sales summary"
       >
         <div>
           <div className="flex items-center justify-between text-text-sec">
-            <span className="font-semibold text-xs text-text-sec uppercase tracking-wider">Recorded sales</span>
+            <span className="font-semibold text-xs text-text-sec ">Recorded sales</span>
             <BadgeCheck size={16} className="text-action" />
           </div>
           <button
             type="button"
             onClick={() => onInspect('sales')}
-            className="text-left block hover:text-action transition-colors my-1.5 cursor-pointer w-full"
-            title="Inspect recorded sales"
+            className="cx-metric-primary text-left block hover:text-action transition-colors my-1.5 cursor-pointer w-full"
+            aria-label="Inspect recorded sales" title="Inspect recorded sales"
           >
             <strong className="text-2xl font-bold font-mono tracking-tight text-text-main tabular-nums block">
               {formatTableNumber(summary.totalSales)}
@@ -39,35 +39,24 @@ export default function SalesOutcomeSummary({ model, onInspect }: SalesOutcomeSu
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-[11px] pt-2.5 mt-3 border-t border-border-subtle">
-
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 text-text-sec hover:text-action font-medium transition-colors cursor-pointer ml-auto"
-            onClick={() => onInspect('sales')}
-            title="Inspect sales records"
-          >
-            <span>Inspect evidence</span>
-            <ArrowRight size={10} aria-hidden="true" />
-          </button>
-        </div>
+        <ArrowRight className="cx-metric-chevron" size={14} aria-hidden="true" />
       </article>
 
       {/* 2. Recorded Activations */}
       <article
-        className="cx-command-metric hover:border-semantic-pos/40 transition-colors flex flex-col justify-between"
+        className="cx-command-metric cx-metric-card hover:border-semantic-pos/40 transition-colors flex flex-col justify-between"
         aria-label="Recorded activations summary"
       >
         <div>
           <div className="flex items-center justify-between text-text-sec">
-            <span className="font-semibold text-xs text-text-sec uppercase tracking-wider">Recorded activations</span>
+            <span className="font-semibold text-xs text-text-sec ">Recorded activations</span>
             <CheckCircle2 size={16} className="text-semantic-pos" />
           </div>
           <button
             type="button"
             onClick={() => onInspect('activations')}
-            className="text-left block hover:text-semantic-pos transition-colors my-1.5 cursor-pointer w-full"
-            title="Inspect recorded activations"
+            className="cx-metric-primary text-left block hover:text-semantic-pos transition-colors my-1.5 cursor-pointer w-full"
+            aria-label="Inspect recorded activations" title="Inspect recorded activations"
           >
             <strong className="text-2xl font-bold font-mono tracking-tight text-text-main tabular-nums block">
               {formatTableNumber(summary.totalActivations)}
@@ -85,35 +74,24 @@ export default function SalesOutcomeSummary({ model, onInspect }: SalesOutcomeSu
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-[11px] pt-2.5 mt-3 border-t border-border-subtle">
-
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 text-text-sec hover:text-action font-medium transition-colors cursor-pointer ml-auto"
-            onClick={() => onInspect('activations')}
-            title="Inspect activation records"
-          >
-            <span>Inspect evidence</span>
-            <ArrowRight size={10} aria-hidden="true" />
-          </button>
-        </div>
+        <ArrowRight className="cx-metric-chevron" size={14} aria-hidden="true" />
       </article>
 
       {/* 3. Sales Without Recorded Activation */}
       <article
-        className="cx-command-metric hover:border-semantic-warn/40 transition-colors flex flex-col justify-between"
+        className="cx-command-metric cx-metric-card hover:border-semantic-warn/40 transition-colors flex flex-col justify-between"
         aria-label="Sales without recorded activation summary"
       >
         <div>
           <div className="flex items-center justify-between text-text-sec">
-            <span className="font-semibold text-xs text-text-sec uppercase tracking-wider">Sales without activation</span>
+            <span className="font-semibold text-xs text-text-sec ">Sales without activation</span>
             <Clock3 size={16} className="text-semantic-warn" />
           </div>
           <button
             type="button"
             onClick={() => onInspect('unactivated')}
-            className="text-left block hover:text-semantic-warn transition-colors my-1.5 cursor-pointer w-full"
-            title="Inspect unactivated sales"
+            className="cx-metric-primary text-left block hover:text-semantic-warn transition-colors my-1.5 cursor-pointer w-full"
+            aria-label="Inspect unactivated sales" title="Inspect unactivated sales"
           >
             <strong className="text-2xl font-bold font-mono tracking-tight text-text-main tabular-nums block">
               {summary.salesWithoutActivation !== null ? formatTableNumber(summary.salesWithoutActivation) : '—'}
@@ -127,35 +105,24 @@ export default function SalesOutcomeSummary({ model, onInspect }: SalesOutcomeSu
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-[11px] pt-2.5 mt-3 border-t border-border-subtle">
-
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 text-text-sec hover:text-action font-medium transition-colors cursor-pointer ml-auto"
-            onClick={() => onInspect('unactivated')}
-            title="Inspect pending records"
-          >
-            <span>Inspect evidence</span>
-            <ArrowRight size={10} aria-hidden="true" />
-          </button>
-        </div>
+        <ArrowRight className="cx-metric-chevron" size={14} aria-hidden="true" />
       </article>
 
       {/* 4. Source-Recorded Revenue & Completeness */}
       <article
-        className="cx-command-metric hover:border-action/40 transition-colors flex flex-col justify-between"
+        className="cx-command-metric cx-metric-card hover:border-action/40 transition-colors flex flex-col justify-between"
         aria-label="Source-recorded revenue summary"
       >
         <div>
           <div className="flex items-center justify-between text-text-sec">
-            <span className="font-semibold text-xs text-text-sec uppercase tracking-wider">Source-recorded revenue</span>
+            <span className="font-semibold text-xs text-text-sec ">Source-recorded revenue</span>
             <DollarSign size={16} className="text-semantic-purple" />
           </div>
           <button
             type="button"
             onClick={() => onInspect('revenue')}
-            className="text-left block hover:text-action transition-colors my-1.5 cursor-pointer w-full"
-            title="Inspect recorded revenue"
+            className="cx-metric-primary text-left block hover:text-action transition-colors my-1.5 cursor-pointer w-full"
+            aria-label="Inspect recorded revenue" title="Inspect recorded revenue"
           >
             <strong className="text-2xl font-bold font-mono tracking-tight text-text-main tabular-nums block">
               {formatWorkspaceCurrency(summary.realizedRevenue, summary.currency)}
@@ -172,18 +139,7 @@ export default function SalesOutcomeSummary({ model, onInspect }: SalesOutcomeSu
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-[11px] pt-2.5 mt-3 border-t border-border-subtle">
-
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 text-text-sec hover:text-action font-medium transition-colors cursor-pointer ml-auto"
-            onClick={() => onInspect('revenue')}
-            title="Inspect revenue breakdown"
-          >
-            <span>Inspect evidence</span>
-            <ArrowRight size={10} aria-hidden="true" />
-          </button>
-        </div>
+        <ArrowRight className="cx-metric-chevron" size={14} aria-hidden="true" />
       </article>
     </section>
   );

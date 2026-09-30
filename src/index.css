@@ -425,17 +425,18 @@ button svg, a svg { flex-shrink: 0; }
   color: var(--cx-text-muted);
 }
 .cx-app .cx-brand-copy small { letter-spacing: .03em; font-size: 11px; }
-.cx-app .cx-sidebar-review { padding: 16px 14px 12px; }
+.cx-app .cx-sidebar-review { padding: 0 0 8px; }
 .cx-app .cx-sidebar-review > button {
   min-height: 38px;
-  border-color: var(--cx-border);
-  background: var(--cx-surface-subtle);
+  border-color: transparent;
+  background: transparent;
+  justify-content: flex-start;
   box-shadow: none;
   font-size: 12px;
 }
 .cx-app .cx-navigation .cx-nav-goal-row { margin: 3px 10px; }
 .cx-app .cx-navigation .cx-nav-link {
-  min-height: 54px;
+  min-height: 42px;
   height: auto;
   padding: 10px 12px;
   border: 1px solid transparent;
@@ -879,51 +880,10 @@ button svg, a svg { flex-shrink: 0; }
 }
 
 /* Dedicated "Why changed?" Action Badge Button */
-.cx-why-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 8.5px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #4F46E5;
-  background: rgba(79, 70, 229, 0.08);
-  border: 1px solid rgba(79, 70, 229, 0.25);
-  cursor: pointer;
-  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 1px 2px rgba(79, 70, 229, 0.05);
-  white-space: nowrap;
-  text-decoration: none;
-}
-.cx-why-btn svg {
-  color: #D97706;
-  transition: transform 0.15s ease;
-}
-.cx-why-btn:hover {
-  background: rgba(79, 70, 229, 0.16);
-  border-color: #6366F1;
-  color: #3730A3;
-  transform: translateY(-0.5px);
-  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.18);
-}
-.cx-why-btn:hover svg {
-  transform: scale(1.15);
-}
-[data-theme="dark"] .cx-why-btn {
-  color: #A5B4FC;
-  background: rgba(99, 102, 241, 0.15);
-  border-color: rgba(99, 102, 241, 0.38);
-}
-[data-theme="dark"] .cx-why-btn svg {
-  color: #FBBF24;
-}
-[data-theme="dark"] .cx-why-btn:hover {
-  background: rgba(99, 102, 241, 0.26);
-  border-color: #818CF8;
-  color: #E0E7FF;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
-}
+.cx-why-btn { display: inline-flex; align-items: center; gap: 5px; padding: 3px 0; border: 0; font-size: 12px; font-weight: 500; color: var(--cx-action); background: transparent; cursor: pointer; white-space: nowrap; }
+.cx-why-btn svg { color: currentColor; }
+.cx-why-btn:hover { text-decoration: underline; text-underline-offset: 3px; }
+
 
 /* Dedicated "Inspect" Drilldown Action Button */
 .cx-inspect-btn {

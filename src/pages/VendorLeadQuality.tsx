@@ -1,3 +1,4 @@
+import TablePreview from '../shared/reporting/TablePreview';
 import { ReportActions } from '../shared/reporting/ReportPresentation';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
 import type { LifecycleExtension } from '../../contracts/lifecycleAnalytics';
@@ -172,7 +173,7 @@ export default function VendorLeadQuality() {
             </div>
 
             {data.lifecycle && <LifecycleSegmentsPanel data={data.lifecycle} />}
-            {data.vendorGrades && <section className="cx-command-panel"><header><div><h2>Vendor grade distribution</h2><p>{data.qualityEvidence}</p></div><ExportAnalysisButton filename="vendor_grade_distribution" rows={[["Vendor","Grade","Leads"], ...data.vendorGrades.map(r=>[r.vendor,r.grade,r.leads])]} definitions={[data.qualityEvidence || 'Lead/vendor grain']} /></header><div className="cx-performance-table-wrap"><table className="cx-performance-table"><thead><tr><th>Vendor</th><th>Grade</th><th>Leads</th></tr></thead><tbody>{data.vendorGrades.map(r => <tr key={`${r.vendor}-${r.grade}`}><th>{r.vendor}</th><td>{r.grade}</td><td>{fmt(r.leads)}</td></tr>)}</tbody></table></div></section>}
+            {data.vendorGrades && <section className="cx-command-panel"><header><div><h2>Vendor grade distribution</h2><p>{data.qualityEvidence}</p></div><ExportAnalysisButton filename="vendor_grade_distribution" rows={[["Vendor","Grade","Leads"], ...data.vendorGrades.map(r=>[r.vendor,r.grade,r.leads])]} definitions={[data.qualityEvidence || 'Lead/vendor grain']} /></header><TablePreview rows={data.vendorGrades} label="vendor grade rows">{visibleRows => <div className="cx-performance-table-wrap"><table className="cx-performance-table"><thead><tr><th>Vendor</th><th>Grade</th><th>Leads</th></tr></thead><tbody>{visibleRows.map(r => <tr key={`${r.vendor}-${r.grade}`}><th>{r.vendor}</th><td>{r.grade}</td><td>{fmt(r.leads)}</td></tr>)}</tbody></table></div>}</TablePreview></section>}
 
             <section className="cx-command-panel" id="vendor-speed">
               <header>
@@ -238,7 +239,7 @@ export default function VendorLeadQuality() {
                   <p>Lead volume alone is not enough: compare delivery, dial coverage, RPC, sales and invalid-rate outcomes for every source.</p>
                 </div>
               </header>
-              <div className="cx-performance-table-wrap" role="region" aria-label="Source performance through the funnel" tabIndex={0}>
+              <TablePreview rows={data.sources} label="source rows">{visibleRows => <div className="cx-performance-table-wrap" role="region" aria-label="Source performance through the funnel" tabIndex={0}>
                 <table className="cx-performance-table">
                   <thead>
                     <tr>
@@ -253,7 +254,7 @@ export default function VendorLeadQuality() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.sources.map((source, index) => (
+                    {visibleRows.map((source, index) => (
                       <tr key={`${source.source}-${index}`}>
                         <th>{source.source}</th>
                         <td>{fmt(source.leads)}</td>
@@ -262,12 +263,12 @@ export default function VendorLeadQuality() {
                         <td>{formatPercent(source.contactRate)}</td>
                         <td>{formatPercent(source.leadToSaleRate)}</td>
                         <td>{formatPercent(source.activationRate)}</td>
-                        <td>{formatPercent(source.invalidRate)}</td><td><button type="button" className="cx-button-secondary" onClick={() => setAudit({ type: 'segment', metricId: 'fetched_leads', title: `${source.source} · fetched leads`, value: source.leads, scope: auditScope, provenance: suppliedProvenance(data), recordDrill: { drill: 'lifecycle-source', drillValue: source.source }, reportPath: '/vendor-quality', relatedValue: { label: 'Recorded sales', value: source.sales } })}>Inspect evidence</button></td>
+                        <td>{formatPercent(source.invalidRate)}</td><td><button type="button" className="cx-button-secondary" onClick={() => setAudit({ type: 'segment', metricId: 'fetched_leads', title: `${source.source} · fetched leads`, value: source.leads, scope: auditScope, provenance: suppliedProvenance(data), recordDrill: { drill: 'lifecycle-source', drillValue: source.source }, reportPath: '/vendor-quality', relatedValue: { label: 'Recorded sales', value: source.sales } })}>Inspect</button></td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </div>}</TablePreview>
             </section>
 
             <div className="cx-command-grid cx-quality-grid" id="quality-signals">

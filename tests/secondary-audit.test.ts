@@ -103,7 +103,7 @@ test('marketing change action requires supplied comparison and dispatches its ex
     for (const extra of [{ canCompare: false }, { delta: null }, { value: '—' }]) {
       await app.render(React.createElement(MediaMetricCard, { ...props, ...extra }));
       assert.equal([...app.container.querySelectorAll('button')].some(b => b.textContent === 'Why changed?'), false);
-      await app.click([...app.container.querySelectorAll('button')].find(b => b.textContent === 'Inspect evidence')!);
+      await app.click([...app.container.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === 'Inspect evidence: Platform CPL')!);
     }
     assert.equal(inspections, 3); assert.deepEqual(calls, []);
     await app.render(React.createElement(MediaMetricCard, props));
@@ -118,7 +118,7 @@ test('sales count and revenue cards provide evidence actions without unrelated r
     const model = { summary: { totalSales: 5, totalActivations: 0, activationRatio: 0, salesWithoutActivation: null, validPendingActivation: null, invalidFutureSales: 0, realizedRevenue: null, currency: 'ZAR', salesWithRecordedRevenue: null, unbilledSales: 0, unrecordedRevenueSales: 5 } } as any;
     await app.render(React.createElement(SalesOutcomeSummary, { model, onInspect: metric => calls.push(metric) }));
     assert.equal(app.container.textContent!.includes('Why changed?'), false);
-    const inspect = [...app.container.querySelectorAll('button')].filter(b => b.textContent === 'Inspect evidence');
+    const inspect = [...app.container.querySelectorAll<HTMLButtonElement>('.cx-metric-primary')];
     assert.equal(inspect.length, 4); for (const button of inspect) await app.click(button);
     assert.deepEqual(calls, ['sales', 'activations', 'unactivated', 'revenue']);
     assert.equal(app.container.querySelector('[aria-label="Recorded activations summary"] strong')?.textContent, '0');

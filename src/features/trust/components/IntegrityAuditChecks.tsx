@@ -1,3 +1,4 @@
+import TablePreview from '../../../shared/reporting/TablePreview';
 import React, { useState } from 'react';
 import type { DataIntegrityData } from '../../../lib/offernetClient';
 import InspectorHost, { type InspectorContent } from '../../../shared/evidence/InspectorHost';
@@ -47,18 +48,18 @@ export default function IntegrityAuditChecks({ data, scope }: {
     ].map(group => <section className="cx-integrity-audit-group" id={group.id} key={group.id} aria-labelledby={`${group.id}-heading`}>
       <header><h3 id={`${group.id}-heading`}>{group.title}</h3><p>{group.description}</p></header>
       {!group.checks.length ? <p className="cx-admin-empty">No checks in this group were returned.</p> :
-        <div className="cx-performance-table-wrap" role="region" aria-label={group.title} tabIndex={0}>
+        <TablePreview rows={group.checks} label={group.title.toLowerCase()}>{visibleRows => <div className="cx-performance-table-wrap" role="region" aria-label={group.title} tabIndex={0}>
           <table className="cx-performance-table cx-integrity-table">
             <thead><tr><th scope="col">Check</th><th scope="col">Status</th><th scope="col">Observed gaps</th><th scope="col">Evidence / definition</th><th scope="col">Audit</th></tr></thead>
-            <tbody>{group.checks.map((item, index) => <tr key={`${item.checkName}-${index}`}>
+            <tbody>{visibleRows.map((item, index) => <tr key={`${item.checkName}-${index}`}>
               <th scope="row">{item.checkName}<small>{item.category}</small></th>
               <td><EvidenceStatus status={item.status} /></td>
               <td>{item.discrepancyCount == null ? 'Unavailable' : formatTableNumber(item.discrepancyCount)}</td>
               <td><EvidenceStatus status={item.evidence} /><p>{item.detail || 'No check definition was supplied.'}</p></td>
-              <td><button type="button" className="cx-admin-text-button" aria-label={`Inspect evidence for ${item.checkName}`} onClick={() => setSelected(item)}>Inspect evidence</button><small>Record drill is not available for this check.</small></td>
+              <td><button type="button" className="cx-admin-text-button" aria-label={`Inspect evidence for ${item.checkName}`} onClick={() => setSelected(item)}>Inspect</button><small>Record drill is not available for this check.</small></td>
             </tr>)}</tbody>
           </table>
-        </div>}
+        </div>}</TablePreview>}
     </section>)}
     <InspectorHost open={Boolean(content)} content={content} onClose={() => setSelected(null)} />
   </>;
