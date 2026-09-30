@@ -208,7 +208,7 @@ export default function RootCauseDrawer({
         topName: top.name,
         topDimension: top.dimensionLabel,
         contribution: top.delta,
-        deltaUnit: marketingData.metric?.unit === 'currency' ? 'R' : marketingData.metric?.unit === 'pp' ? '%' : '',
+        deltaUnit: marketingData.metric?.unit === 'currency' ? 'R' : marketingData.metric?.unit === 'pp' ? 'pp' : '',
       };
     }
     return null;
@@ -251,19 +251,20 @@ export default function RootCauseDrawer({
         ) : data ? (
           <div className="cx-rootcause-body">
             <section className="cx-rootcause-summary">
+              <p>Explaining metric: <strong>{data.metric.label}</strong> <code>{data.metric.id}</code></p>
               <span>{data.metric.label}</span>
               <div>
                 <strong>
                   {formatTableNumber(data.metric.currentValue)}
                   {data.metric.kind === 'rate' ? '%' : ''}
                 </strong>
-                <small>Current</small>
+                <small>Current period</small>
                 <ArrowRight size={16} />
                 <strong>
                   {formatTableNumber(data.metric.previousValue)}
                   {data.metric.kind === 'rate' ? '%' : ''}
                 </strong>
-                <small>Previous</small>
+                <small>Comparison period</small>
               </div>
               <p>
                 {(data.metric.delta ?? 0) > 0 ? '+' : ''}
@@ -287,7 +288,7 @@ export default function RootCauseDrawer({
             )}
 
             <section className="cx-rootcause-drivers">
-              <h3>Largest contributions</h3>
+              <h3>Returned contribution breakdown</h3>
               {data.drivers.slice(0, 6).map((driver, index) => (
                 <div key={`${driver.dimension}-${driver.name}-${index}`}>
                   <span>{driver.dimensionLabel}</span>
@@ -317,6 +318,7 @@ export default function RootCauseDrawer({
                       </small>
                       {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </button>
+                    {dimension.residual != null && <p>Returned residual: {formatTableNumber(dimension.residual)} {data.metric.deltaUnit}</p>}
                     {isOpen && (
                       <div className="cx-rootcause-segments" role="region" aria-label={`${dimension.label} contribution evidence`} tabIndex={0}>
                         <div className="cx-rootcause-segment-head">
@@ -365,27 +367,27 @@ export default function RootCauseDrawer({
         ) : marketingData?.metric ? (
           <div className="cx-rootcause-body">
             <section className="cx-rootcause-summary">
-              <span>{marketingData.metric.label}</span>
+              <p>Explaining metric: <strong>{marketingData.metric.label}</strong> <code>{targetMetric}</code></p>
               <div>
                 <strong>
                   {marketingData.metric.unit === 'currency' ? 'R ' : ''}
                   {formatTableNumber(marketingData.metric.currentValue)}
                   {marketingData.metric.unit === 'pp' ? '%' : ''}
                 </strong>
-                <small>Current</small>
+                <small>Current period</small>
                 <ArrowRight size={16} />
                 <strong>
                   {marketingData.metric.unit === 'currency' ? 'R ' : ''}
                   {formatTableNumber(marketingData.metric.previousValue)}
                   {marketingData.metric.unit === 'pp' ? '%' : ''}
                 </strong>
-                <small>Previous</small>
+                <small>Comparison period</small>
               </div>
               <p>
                 {(marketingData.metric.delta ?? 0) > 0 ? '+' : ''}
                 {marketingData.metric.unit === 'currency' ? 'R ' : ''}
                 {formatTableNumber(marketingData.metric.delta)}
-                {marketingData.metric.unit === 'pp' ? '%' : ''}{' '}
+                {marketingData.metric.unit === 'pp' ? ' pp' : ''}{' '}
                 vs {marketingData.previousWindow?.startDate} → {marketingData.previousWindow?.endDate}
               </p>
             </section>

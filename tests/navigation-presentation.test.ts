@@ -145,6 +145,8 @@ test('mobile fifth position identifies Sales and Commercial and preserves scope 
       assert.equal(fifth.getAttribute('aria-current'), current);
       fifth.focus(); fifth.click();
       await app.wait(() => app.w.__navigation.location === fifth.getAttribute('href'));
+      // Wait for the route's overlay-reset and focus effect before opening navigation.
+      if (route !== landing) await app.wait(() => app.w.document.activeElement === app.w.document.querySelector('#main-content'));
       const url = new URL(app.w.__navigation.location, 'https://synthetic.invalid');
       assert.equal(url.searchParams.get('startDate'), '2026-09-01');
       assert.deepEqual(url.searchParams.getAll('workspace'), ['one', 'two']);

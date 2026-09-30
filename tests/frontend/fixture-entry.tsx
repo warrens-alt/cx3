@@ -10,6 +10,7 @@ import { ThemeProvider } from '../../src/lib/ThemeContext';
 import { FilterProvider } from '../../src/lib/FilterContext';
 import { registerQueryClientForSessionIsolation, updateAnalyticalSession } from '../../src/lib/analyticalSession';
 import { installFixture } from './fixtures';
+import InspectorHost from '../../src/shared/evidence/InspectorHost';
 import RootCauseDrawer from '../../src/components/RootCauseDrawer';
 
 installFixture();
@@ -23,6 +24,7 @@ function Harness() {
   (window as any).__fixture.location=location.pathname+location.search+location.hash;
   return <AuthGate><FilterProvider><AppShell>{location.pathname==='/__fixture/root-cause'
     ? <RootCauseDrawer open metric="fetchedLeads" onClose={()=>navigate('/speed-to-lead'+location.search)}/>
+    : location.pathname === '/__fixture/audit' ? <InspectorHost open content={(window as any).__fixture.auditContent} onClose={()=>navigate('/overview'+location.search)} />
     : <AppRouter/>}</AppShell></FilterProvider></AuthGate>;
 }
 const root=createRoot(document.getElementById('root')!);

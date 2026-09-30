@@ -1,5 +1,5 @@
 import { useOperationalData } from '../lib/useOperationalData';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Download, Search, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useFilters, extractOffernetFilters } from '../lib/FilterContext';
@@ -15,6 +15,10 @@ import { sumRecordedValues } from '../lib/metricPresentation';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import EvidenceBars from '../shared/visuals/EvidenceBars';
 
+import InspectorHost, { type InspectorContent } from '../shared/evidence/InspectorHost';
+import { AuditMetadata } from '../shared/evidence/AuditMode';
+import { agentAudit, suppliedProvenance } from '../features/evidenceWorkspace/secondaryAudit';
+
 type AgentMetric = 'calls' | 'contactRate' | 'saleRate';
 type AgentActivityData = AgentPerformanceData & {
   breakdowns?: { day: Array<AgentPerformanceData['agents'][number] & { bucket: string }>; hour: Array<AgentPerformanceData['agents'][number] & { bucket: string }> };
@@ -25,6 +29,9 @@ export default function AgentPerformanceIntelligence() {
   const scoped = useScopedNavigationTarget();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
+  const [audit, setAudit] = useState<InspectorContent | null>(null);
+  const auditScope = { clientId: selectedClient, startDate: startDate || undefined, endDate: endDate || undefined, filters };
+  useEffect(() => setAudit(null), [selectedClient, startDate, endDate, filters]);
   const [search, setSearch] = useState('');
   const [agentMetric, setAgentMetric] = useState<AgentMetric>('calls');
 
@@ -66,6 +73,7 @@ export default function AgentPerformanceIntelligence() {
       const displayValue = agentMetric === 'calls' ? formatTableNumber(value) : formatPercent(value, 2);
       return {
         key: `${row.agentId}-${row.vendor}-${index}`,
+        sourceRow: row,
         label: row.agentId,
         detail: row.vendor || 'Vendor unavailable',
         value,
@@ -113,10 +121,9 @@ export default function AgentPerformanceIntelligence() {
                 value={totals.agents.toLocaleString()}
                 note="Distinct agent/vendor rows"
                 onInspect={() => {
-                  const el = document.querySelector('.cx-agent-table');
-                  el?.scrollIntoView({ behavior: 'auto' });
+                  setAudit({ type: 'metric', title: 'Agents observed', value: totals.agents, scope: auditScope, definition: { meaning: 'Count of returned agent/vendor groups in the displayed roster; the same agent may occur with more than one vendor.', grain: 'Agent/vendor group', dateBasis: 'Call start date', nullMeaning: 'An empty returned roster is different from an unavailable response.' }, provenance: suppliedProvenance(data), detailLimitation: 'No agent-directory record drill is supplied for this aggregate.' });
                 }}
-                inspectLabel="Inspect roster"
+                inspectLabel="Inspect evidence"
               />
 
               <UnifiedMetricCard
@@ -124,29 +131,29 @@ export default function AgentPerformanceIntelligence() {
                 value={formatTableNumber(totals.calls)}
                 note="Recorded calls in roster"
                 onInspect={() => {
-                  const el = document.querySelector('.cx-agent-table');
-                  el?.scrollIntoView({ behavior: 'auto' });
+                  setAudit({ type: 'metric', title: 'Total calls', value: formatTableNumber(totals.calls), scope: auditScope, definition: { meaning: 'Recorded calls summed across the returned roster, which can be limited to the highest-volume groups.', grain: 'Call event', dateBasis: 'Call start date', nullMeaning: 'Unavailable call counts remain unavailable.' }, provenance: suppliedProvenance(data), detailLimitation: 'No supporting call-event drill is supplied for this roster total.' });
                 }}
-                inspectLabel="Inspect roster"
+                inspectLabel="Inspect evidence"
               />
 
               <UnifiedMetricCard
                 label="Contacted (RPC)"
                 value={formatTableNumber(totals.contacts)}
                 note={`${formatRatioPercent(totals.contacts, totals.calls)} of calls`}
-                to={scoped('/contact-strategy')}
-                inspectLabel="Inspect contact"
+                onInspect={() => setAudit({ type: 'metric', title: 'RPC calls in returned roster', value: formatTableNumber(totals.contacts), scope: auditScope, definition: { meaning: 'Sum of recorded RPC call counts across the displayed agent/vendor roster.', grain: 'Call event', dateBasis: 'Call start date', nullMeaning: 'Missing flags remain unavailable; calls are not distinct lead populations.' }, provenance: suppliedProvenance(data) })}
+                inspectLabel="Inspect evidence"
               />
 
               <UnifiedMetricCard
                 label="Sales Recorded"
                 value={formatTableNumber(totals.sales)}
                 note={`${formatRatioPercent(totals.rpcSales, totals.contacts)} of RPC calls sold`}
-                to={scoped('/sales-activation')}
-                inspectLabel="Inspect sales"
+                onInspect={() => setAudit({ type: 'metric', title: 'Sale calls in returned roster', value: formatTableNumber(totals.sales), scope: auditScope, definition: { meaning: 'Sum of recorded sale call counts across the displayed agent/vendor roster. The contextual sold-RPC rate uses calls marked both RPC and sale.', grain: 'Call event', dateBasis: 'Call start date', nullMeaning: 'Missing call outcomes remain unavailable.' }, provenance: suppliedProvenance(data) })}
+                inspectLabel="Inspect evidence"
               />
             </section>
 
+            <AuditMetadata grain="Call event" dateBasis="Call start date" validationStatus={suppliedProvenance(data).validationStatus} />
             <section className="cx-command-panel cx-agent-comparison" aria-label="Agent comparison">
               <div className="cx-viz-toolbar">
                 <div>
@@ -162,13 +169,13 @@ export default function AgentPerformanceIntelligence() {
               </div>
               <EvidenceBars
                 title={agentMetric === 'calls' ? 'Recorded calls by agent' : agentMetric === 'contactRate' ? 'RPC / calls by agent' : 'Sold RPC / RPC by agent'}
-                description="Top 12 displayed agent/vendor rows for the selected metric. Select a row to focus the roster search on that agent."
+                description="Top 12 displayed agent/vendor rows for the selected metric. Select a row to inspect its supplied count or rate evidence."
                 items={agentComparison}
                 maximum={agentMetric === 'calls' ? undefined : 100}
                 scaleNote={agentMetric === 'calls' ? 'Bars share the largest returned call count as their scale.' : 'Rates use a fixed 0–100% scale; unavailable values remain unavailable.'}
                 onSelect={key => {
                   const item = agentComparison.find(row => row.key === key);
-                  if (item) setSearch(item.label);
+                  if (item) setAudit(agentAudit(item.sourceRow, agentMetric, auditScope, data));
                 }}
               />
             </section>
@@ -220,7 +227,7 @@ export default function AgentPerformanceIntelligence() {
                       <th>Sold RPC / RPC</th>
                       <th>Recorded call duration</th>
                       <th>Avg call duration</th>
-                      <th>Callbacks</th>
+                      <th>Callbacks</th><th>Evidence</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -237,6 +244,7 @@ export default function AgentPerformanceIntelligence() {
                         <td>{row.totalTalkTime || 'Unavailable'}</td>
                         <td>{row.avgHandleTime || 'Unavailable'}</td>
                         <td>{formatTableNumber(row.callbacksBooked)}</td>
+                        <td><button type="button" className="cx-button-secondary" onClick={() => setAudit(agentAudit(row, agentMetric, auditScope, data))} aria-label={`Inspect evidence for ${row.agentId}`}>Inspect evidence</button></td>
                       </tr>
                     ))}
                   </tbody>
@@ -261,6 +269,7 @@ export default function AgentPerformanceIntelligence() {
           </>
         )}
       </div>
+      <InspectorHost open={Boolean(audit)} onClose={() => setAudit(null)} content={audit} />
     </div>
   );
 }

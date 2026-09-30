@@ -1,4 +1,6 @@
 import React from 'react';
+import type { AuditScope } from '../../../shared/evidence/auditPresentation';
+import type { InspectorContent } from '../../../shared/evidence/InspectorHost';
 import ContactCoverage from './ContactCoverage';
 import CallEffortDistribution from './CallEffortDistribution';
 import { Download, ExternalLink, Info, PhoneCall } from 'lucide-react';
@@ -15,6 +17,7 @@ interface CallEffortReportProps {
     summary?: ContactStrategyData['summary'] & { oneCallNoRpcLeads?: number; zeroCallNoRpcLeads?: number };
     effortEvidence?: { reason: string };
   };
+  scope?: AuditScope;
   onInspectBucket?: (bucket: string, leads: number) => void;
   onWhyChanged?: (metricId: string) => void;
   onExportCsv?: () => void;
@@ -22,6 +25,7 @@ interface CallEffortReportProps {
 
 export default function CallEffortReport({
   data,
+  scope,
   onInspectBucket,
   onWhyChanged,
   onExportCsv,
@@ -29,6 +33,11 @@ export default function CallEffortReport({
   if (!data) return null;
 
   const summary = data.summary;
+  const audit = (title: string, value: string, extra: Partial<InspectorContent> = {}): InspectorContent => ({
+    type: 'metric', title, value, scope,
+    definition: { meaning: title, grain: 'Distinct lead', dateBasis: 'Lead capture cohort', nullMeaning: 'Missing counters remain Unrecorded; they are separate from explicitly recorded zero calls.', calculation: data.methodology || 'Exclusive call-count buckets describe the maximum non-negative recorded HLC total_calls per lead.' },
+    ...extra,
+  });
 
   return (
     <div className="cx-effort-report space-y-6">
@@ -38,44 +47,44 @@ export default function CallEffortReport({
         <section aria-label="Contact governance summary" className="cx-visual-metric-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <UnifiedMetricCard
             label="Zero-call leads"
+            auditContent={audit('Zero-call leads', formatTableNumber(summary.zeroCallLeads), { recordDrill: { drill: 'zero-call-leads' } })}
             value={formatTableNumber(summary.zeroCallLeads)}
             note="Explicitly recorded zero calls"
-            onWhyChanged={() => onWhyChanged?.('dialRate')}
             onInspect={onInspectBucket ? () => onInspectBucket('0 calls', summary.zeroCallLeads) : undefined}
-            inspectLabel="Inspect bucket"
+            inspectLabel="Inspect evidence"
             onAbout={onInspectBucket ? () => onInspectBucket('0 calls', summary.zeroCallLeads) : undefined}
           />
 
           <UnifiedMetricCard
             label="One-call share"
+            auditContent={audit('One-call share', formatPercent(summary.singleAttemptSharePct), { numeratorCount: summary.oneCallLeads, numeratorLabel: 'Leads with one recorded call', denominatorCount: summary.dialledLeads, denominatorLabel: 'Dialled leads', recordDrill: { drill: 'call-effort', drillValue: '1 call' } })}
             value={formatPercent(summary.singleAttemptSharePct)}
             note={`${formatTableNumber(summary.oneCallLeads)} leads · share of dialled`}
             denominatorLabel="Dialled leads"
-            onWhyChanged={() => onWhyChanged?.('dialRate')}
             onInspect={onInspectBucket ? () => onInspectBucket('1 call', summary.oneCallLeads) : undefined}
-            inspectLabel="Inspect bucket"
+            inspectLabel="Inspect evidence"
             onAbout={onInspectBucket ? () => onInspectBucket('1 call', summary.oneCallLeads) : undefined}
           />
 
           <UnifiedMetricCard
             label="Multi-call share"
+            auditContent={audit('Multi-call share', formatPercent(summary.multiAttemptSharePct), { numeratorCount: summary.multiAttemptLeads, numeratorLabel: 'Leads with two or more recorded calls', denominatorCount: summary.dialledLeads, denominatorLabel: 'Dialled leads', detailLimitation: 'A combined two-or-more-call record drill is not supplied by the existing drill route.' })}
             value={formatPercent(summary.multiAttemptSharePct)}
             note={`${formatTableNumber(summary.multiAttemptLeads)} leads · 2+ calls`}
             denominatorLabel="Dialled leads"
-            onWhyChanged={() => onWhyChanged?.('contactRate')}
             onInspect={onInspectBucket ? () => onInspectBucket('2-4 calls', summary.multiAttemptLeads) : undefined}
-            inspectLabel="Inspect bucket"
+            inspectLabel="Inspect evidence"
             onAbout={onInspectBucket ? () => onInspectBucket('2-4 calls', summary.multiAttemptLeads) : undefined}
           />
 
           <UnifiedMetricCard
             label="5+ calls, no RPC"
+            auditContent={audit('5+ calls, no RPC', formatTableNumber(summary.fivePlusNoRpcLeads), { recordDrill: { drill: 'high-attempt-no-rpc' } })}
             value={formatTableNumber(summary.fivePlusNoRpcLeads)}
             note="High effort without contact"
             denominatorLabel="Dialled outreach"
-            onWhyChanged={() => onWhyChanged?.('contactRate')}
             onInspect={onInspectBucket ? () => onInspectBucket('5+ calls', summary.fivePlusNoRpcLeads) : undefined}
-            inspectLabel="Inspect bucket"
+            inspectLabel="Inspect evidence"
             onAbout={onInspectBucket ? () => onInspectBucket('5+ calls', summary.fivePlusNoRpcLeads) : undefined}
           />
         </section>
@@ -152,7 +161,7 @@ export default function CallEffortReport({
                 <th scope="col" className="px-4 py-2.5 text-right">Sales</th>
                 <th scope="col" className="px-4 py-2.5 text-right">Sale / Lead</th>
                 <th scope="col" className="px-4 py-2.5 text-right">Activations</th>
-                <th scope="col" className="px-4 py-2.5 text-right">Action</th>
+                <th scope="col" className="px-4 py-2.5 text-right">Evidence</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle text-text-main">
@@ -189,7 +198,7 @@ export default function CallEffortReport({
                         onClick={() => onInspectBucket(row.bucket, row.leads)}
                         className="px-2.5 py-1 text-[11px] font-medium text-brand-primary hover:bg-brand-soft rounded transition-colors cursor-pointer"
                       >
-                        Inspect
+                        Inspect evidence
                       </button>
                     )}
                   </td>

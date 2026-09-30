@@ -56,10 +56,10 @@ test('catalogue bars represent supplied objects and preserve zero', () => {
   assert.ok(html.includes('not leads, source rows or connectivity'));
   assert.ok(html.includes('Not checked'));
 });
-test('catalogue search and browse have complete accessible identifiers', () => {
+test('catalogue search and evidence inspection have complete accessible identifiers', () => {
   const html = render(React.createElement(CatalogueDatasetExplorer, { datasets: [{ project: 'test-project', dataset: 'lead_data', totalObjects: 8, totalColumns: 24 }] as any, onBrowse: () => {} }));
   assert.match(html, /aria-label="Search datasets"/);
-  assert.match(html, /Browse test-project.lead_data schema/);
+  assert.match(html, /Inspect evidence for test-project.lead_data/);
 });
 test('finding text and references are escaped, never treated as executable markup', () => {
   const html = render(React.createElement(InsightWorkbench, { insights: [{ category: 'Unusual coverage', severity: 'HIGH', finding: '<script>not executed</script>', directive: 'Check the returned source', metricReference: '<unknown-reference>' }], severity: 'ALL', onSeverity: () => {} }));

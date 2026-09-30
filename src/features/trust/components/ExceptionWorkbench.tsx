@@ -5,11 +5,12 @@ import type { ExceptionPopulation } from '../../../../contracts/exceptionAnalyti
 import { formatTableNumber, formatPercent } from '../../../lib/formatters';
 import EvidenceBars, { evidenceBarWidth } from '../../../shared/visuals/EvidenceBars';
 
-export default function ExceptionWorkbench({ items, evidenceHref, isAdmin, populationNote }: {
+export default function ExceptionWorkbench({ items, evidenceHref, isAdmin, populationNote, onInspect }: {
   items: ExceptionPopulation[];
   evidenceHref: (id: string) => To;
   isAdmin: boolean;
   populationNote?: string;
+  onInspect?: (item: ExceptionPopulation) => void;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -40,7 +41,7 @@ export default function ExceptionWorkbench({ items, evidenceHref, isAdmin, popul
       </ul>
       <div className="cx-exception-selected" aria-label="Selected exception evidence" aria-live="polite">
         {selected ? <><header className="cx-trust-heading"><div><span className="cx-trust-meta">Selected exception</span><h3>{selected.title}</h3></div>
-          <Link to={evidenceHref(selected.id)} className="cx-trust-link">{isAdmin ? 'Inspect records' : 'Open data integrity'}<ArrowUpRight size={14} aria-hidden="true" /></Link></header>
+          {onInspect ? <button type="button" className="cx-button-secondary" onClick={() => onInspect(selected)}>Inspect evidence</button> : <Link to={evidenceHref(selected.id)} className="cx-trust-link">{isAdmin ? 'Inspect records' : 'Open data integrity'}<ArrowUpRight size={14} aria-hidden="true" /></Link>}</header>
           <p>{selected.detail}</p>
           <dl className="cx-exception-periods"><div><dt>Current cohort</dt><dd>{formatTableNumber(selected.count)}</dd></div><div><dt>Previous cohort</dt><dd>{formatTableNumber(selected.previousCount)}</dd></div>
             <div><dt>Count change</dt><dd>{selected.absoluteChange == null ? 'Unavailable' : `${selected.absoluteChange > 0 ? '+' : ''}${formatTableNumber(selected.absoluteChange)}`}</dd></div>

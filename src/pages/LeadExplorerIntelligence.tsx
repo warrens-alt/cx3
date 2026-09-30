@@ -1,6 +1,6 @@
 import { ReportActions } from '../shared/reporting/ReportPresentation';
 import React, { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -20,6 +20,9 @@ import { downloadCsv } from '../lib/formatters';
 import { useDialogAccessibility } from '../hooks/useDialogAccessibility';
 import { useOperationalData } from '../lib/useOperationalData';
 import { ledgerOutcome } from '../lib/leadLedgerValues';
+import { useAuth } from '../lib/AuthContext';
+import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
+import EvidenceExportPreflight, { returnedEvidenceFields } from '../features/leadLedger/EvidenceExportPreflight';
 
 const DRILL_LABELS: Record<string, string> = {
   'awaiting-first-dial': 'Delivered leads awaiting first dial',
@@ -60,6 +63,8 @@ const STAGE_LABELS: Record<string, string> = {
 };
 
 export default function LeadExplorerIntelligence() {
+  const { isAdmin } = useAuth();
+  const scoped = useScopedNavigationTarget();
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
   const [params, setParams] = useSearchParams();
@@ -168,6 +173,8 @@ export default function LeadExplorerIntelligence() {
 
   const isCurrentClientData = Boolean(data && data.clientId === selectedClient);
   const isExportAvailable = Boolean(isCurrentClientData && !loading && !error);
+  const [exportReview, setExportReview] = useState<{ scopeKey: string; result: RawLeadsData } | null>(null);
+  useEffect(() => { setExportReview(null); }, [scopeKey, page, data, loading, error]);
 
   const handleExportCsv = () => {
     if (!isExportAvailable || !data) return;
@@ -200,7 +207,7 @@ export default function LeadExplorerIntelligence() {
           </div>
                   <ReportActions />
 </header>
-      <OffernetFilterBar onRefresh={() => loadData(true)} onExportCsv={isExportAvailable ? handleExportCsv : undefined} />
+      <OffernetFilterBar onRefresh={() => loadData(true)} onExportCsv={isExportAvailable ? () => { if (data) setExportReview({ scopeKey, result: data }); } : undefined} />
 
         {investigation && (
           <section className="cx-investigation-banner">
@@ -330,6 +337,11 @@ export default function LeadExplorerIntelligence() {
         </section>
       </div>
 
+      <EvidenceExportPreflight open={Boolean(exportReview && exportReview.scopeKey === scopeKey && exportReview.result === data && isExportAvailable)} onClose={() => setExportReview(null)} onConfirm={handleExportCsv} fields={data ? returnedEvidenceFields(data) : []}>
+        <strong>Current returned page · analytical lead evidence CSV</strong>
+        <p>Exports {data?.rows.length ?? 0} returned rows with reporting-scope and page audit fields. Pagination limits still apply; this action does not fetch the remaining matching records.</p>
+      </EvidenceExportPreflight>
+
       {selectedLead && (
         <div className="cx-timeline-backdrop" onMouseDown={event => { if (event.currentTarget === event.target) closeTimeline(); }}>
           <aside ref={timelineDialogRef} tabIndex={-1} className="cx-timeline-modal" role="dialog" aria-modal="true" aria-label="Lead timeline">
@@ -365,6 +377,10 @@ export default function LeadExplorerIntelligence() {
                 </div>
               </div>
             ) : <div className="cx-command-empty">No timeline evidence is available for this lead.</div>}
+            {isAdmin && <footer className="cx-explorer-source-evidence">
+              <Link className="cx-button-primary" to={scoped(`/lead-ledger?${new URLSearchParams({ search: selectedLead })}`)} onClick={closeTimeline}>Open source evidence</Link>
+              <p>Search this lead identifier in the current reporting scope, retaining applied vendor and other filters. Source search may return multiple matching records; analytical interpretation does not replace the source record.</p>
+            </footer>}
           </aside>
         </div>
       )}

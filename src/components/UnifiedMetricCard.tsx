@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
+import InspectorHost, { type InspectorContent } from '../shared/evidence/InspectorHost';
+import { AuditMetadata } from '../shared/evidence/AuditMode';
 import { Link, type To } from 'react-router-dom';
 import { Info, Search, ArrowRight, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 export interface UnifiedMetricCardProps {
+  auditContent?: InspectorContent;
   label: string;
   value: string | number | null | undefined;
   note?: string;
@@ -27,6 +30,7 @@ export interface UnifiedMetricCardProps {
 }
 
 export default function UnifiedMetricCard({
+  auditContent,
   label,
   value,
   note,
@@ -49,6 +53,7 @@ export default function UnifiedMetricCard({
   loading = false,
   unavailable = false,
 }: UnifiedMetricCardProps) {
+  const [auditOpen, setAuditOpen] = useState(false);
   if (loading) {
     return (
       <article
@@ -76,7 +81,7 @@ export default function UnifiedMetricCard({
   const DeltaIcon = isZero ? Minus : isPos ? TrendingUp : TrendingDown;
 
   const hasFooter = Boolean(
-    onWhyChanged ||
+    auditContent || onWhyChanged ||
     to ||
     onInspect ||
     (denominatorLink && denominatorLabel) ||
@@ -92,7 +97,7 @@ export default function UnifiedMetricCard({
           <span className="text-xs sm:text-[12px] font-semibold text-text-sec uppercase tracking-wider cx-metric-label">
             {label}
           </span>
-          {onAbout && (
+          {onAbout && !auditContent && (
             <button
               type="button"
               className="text-text-mute hover:text-brand-primary p-0.5 rounded transition-colors cursor-pointer shrink-0"
@@ -105,7 +110,7 @@ export default function UnifiedMetricCard({
           )}
         </div>
 
-        {to ? (
+        {auditContent ? <button type="button" className="block text-left my-1.5 w-full" onClick={() => setAuditOpen(true)} aria-label={`Inspect evidence: ${label}`}><strong className="cx-metric-value text-2xl lg:text-[28px] font-bold font-mono tracking-tight text-text-main tabular-nums leading-tight">{displayValue}</strong></button> : to ? (
           <Link
             to={to}
             className="block hover:underline hover:text-action transition-colors my-1.5"
@@ -157,6 +162,7 @@ export default function UnifiedMetricCard({
         )}
       </div>
 
+      {auditContent && <AuditMetadata metricId={auditContent.metricId} grain={auditContent.definition?.grain || auditContent.provenance?.countingGrain} dateBasis={auditContent.definition?.dateBasis || auditContent.provenance?.dateBasis} validationStatus={auditContent.provenance?.validationStatus} />}
       {hasFooter ? (
         <div className="flex items-center gap-1.5 mt-3 pt-2.5 border-t border-border-subtle text-[11px] min-h-[29px] flex-wrap">
           {onWhyChanged && (
@@ -175,7 +181,8 @@ export default function UnifiedMetricCard({
             <span className="text-border-strong text-[10px]" aria-hidden="true">·</span>
           )}
 
-          {to && (
+          {auditContent && <button type="button" className="cx-inspect-btn" onClick={() => setAuditOpen(true)}>Inspect evidence <ArrowRight size={10} aria-hidden="true" /></button>}
+          {to && !auditContent && (
             <Link
               to={to}
               className="cx-inspect-btn"
@@ -186,7 +193,7 @@ export default function UnifiedMetricCard({
             </Link>
           )}
 
-          {!to && onInspect && (
+          {!auditContent && !to && onInspect && (
             <button
               type="button"
               onClick={onInspect}
@@ -229,6 +236,7 @@ export default function UnifiedMetricCard({
       ) : (
         <div className="mt-3 pt-2.5 border-t border-transparent min-h-[29px]" aria-hidden="true" />
       )}
+      {auditContent && auditOpen && <InspectorHost open={auditOpen} onClose={() => setAuditOpen(false)} content={auditContent} />}
     </article>
   );
 }

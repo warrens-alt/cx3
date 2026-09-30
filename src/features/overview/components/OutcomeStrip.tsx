@@ -1,3 +1,4 @@
+import { AuditMetadata } from '../../../shared/evidence/AuditMode';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, TrendingUp, TrendingDown, ArrowRight, Search, Inbox, Send, BadgeCheck, Zap } from 'lucide-react';
@@ -102,14 +103,11 @@ export default function OutcomeStrip({
       recordDrillValue: 'delivered',
       inspectContent: {
         type: 'metric' as const,
-        metricId: 'delivery_rate',
-        title: 'Delivered leads & delivery rate',
-        subtitle: 'Proportion of fetched intake successfully delivered to receiving vendors.',
-        value: formatPercent(kpis.deliveryRate),
-        numeratorCount: kpis.deliveredLeads,
-        numeratorLabel: 'Delivered leads (numerator)',
-        denominatorCount: kpis.fetchedLeads,
-        denominatorLabel: 'Fetched leads (denominator)',
+        metricId: 'delivered_leads',
+        title: 'Delivered leads',
+        subtitle: 'Distinct fetched leads with delivery evidence in the selected cohort.',
+        value: fmt(kpis.deliveredLeads),
+        relatedValue: { label: 'Delivered / fetched', value: formatPercent(kpis.deliveryRate) },
         reportPath: '/funnel',
         reportLabel: 'Open delivery breakdown',
         recordDrill: {
@@ -132,14 +130,11 @@ export default function OutcomeStrip({
       recordDrillValue: 'sales',
       inspectContent: {
         type: 'metric' as const,
-        metricId: 'sales_per_fetched_rate',
+        metricId: 'sale_leads',
         title: 'Recorded sales',
         subtitle: 'Unique leads with confirmed sales recorded by receiving contact operations.',
         value: fmt(kpis.saleLeads),
-        numeratorCount: kpis.saleLeads,
-        numeratorLabel: 'Sale leads (numerator)',
-        denominatorCount: kpis.fetchedLeads,
-        denominatorLabel: 'Fetched leads (denominator)',
+        relatedValue: { label: 'Sales / fetched', value: formatPercent(kpis.leadToSaleRate) },
         reportPath: '/sales-activation',
         reportLabel: 'Open sales activation',
         recordDrill: {
@@ -162,14 +157,11 @@ export default function OutcomeStrip({
       recordDrillValue: 'activated',
       inspectContent: {
         type: 'metric' as const,
-        metricId: 'activation_rate',
-        title: 'Activations & activation rate',
+        metricId: 'activated_leads',
+        title: 'Activations',
         subtitle: 'Fulfilled sales converted to active recurring commercial status.',
-        value: formatPercent(kpis.activationRate),
-        numeratorCount: kpis.activatedLeads,
-        numeratorLabel: 'Activated leads (numerator)',
-        denominatorCount: kpis.saleLeads,
-        denominatorLabel: 'Recorded sales (denominator)',
+        value: fmt(kpis.activatedLeads),
+        relatedValue: { label: 'Activations / recorded sales', value: formatPercent(kpis.activationRate) },
         reportPath: '/sales-activation',
         reportLabel: 'Open activation workspace',
         recordDrill: {
@@ -200,23 +192,7 @@ export default function OutcomeStrip({
           </div>
 
           <div className="my-3">
-            {isAdmin ? (
-              <Link
-                to={scoped(`/lead-explorer?drill=funnel-stage&drillValue=${item.recordDrillValue}`)}
-                className="cx-outcome-value text-3xl lg:text-[34px] font-bold cx-tabular text-text-main block hover:text-action transition-colors font-mono tracking-tight leading-tight"
-                title={`Inspect ${item.label} records in Lead Explorer`}
-              >
-                {item.value}
-              </Link>
-            ) : (
-              <Link
-                to={scoped(item.reportPath)}
-                className="cx-outcome-value text-3xl lg:text-[34px] font-bold cx-tabular text-text-main block hover:text-action transition-colors font-mono tracking-tight leading-tight"
-                title={`Open ${item.label} report`}
-              >
-                {item.value}
-              </Link>
-            )}
+            <button type="button" onClick={() => onInspect(item.inspectContent)} className="cx-outcome-value text-3xl lg:text-[34px] font-bold cx-tabular text-text-main block hover:text-action transition-colors font-mono tracking-tight leading-tight" aria-label={`Inspect evidence: ${item.label}`}>{item.value}</button>
 
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <span className="text-xs text-text-sec font-medium">{item.subnote}</span>
@@ -224,17 +200,18 @@ export default function OutcomeStrip({
             </div>
           </div>
 
+          <AuditMetadata metricId={item.inspectContent.metricId} />
           <div className="cx-outcome-actions pt-3 border-t border-border-subtle flex items-center justify-between text-xs text-text-mute">
             <button
               type="button"
               onClick={() => onInspect(item.inspectContent)}
               className="inline-flex items-center gap-1 font-semibold text-text-sec hover:text-action transition-colors cursor-pointer"
             >
-              <span>Inspect definition</span>
+              <span>Inspect evidence</span>
               <ArrowUpRight size={13} />
             </button>
 
-            {hasComparison && onWhyChanged && (
+            {hasComparison && item.id === 'fetched_leads' && onWhyChanged && (
               <button
                 type="button"
                 onClick={() => onWhyChanged(item.rootMetric)}

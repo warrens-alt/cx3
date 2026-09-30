@@ -1,5 +1,5 @@
 import { ReportActions } from '../../shared/reporting/ReportPresentation';
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -17,7 +17,8 @@ import {
 import ReportingScopeBar from '../../shared/reporting/ReportingScopeBar';
 import InspectorHost from '../../shared/evidence/InspectorHost';
 import Modal from '../../components/Modal';
-import RootCauseDrawer from '../../components/RootCauseDrawer';
+import { AuditMetadata } from '../../shared/evidence/AuditMode';
+import { salesAudit, suppliedProvenance } from '../evidenceWorkspace/secondaryAudit';
 import { OperationalError } from '../../components/OperationalState';
 import { useSalesActivationModel } from './model/useSalesActivationModel';
 import SalesOutcomeSummary from './components/SalesOutcomeSummary';
@@ -28,9 +29,9 @@ import SalesTimingAndCoverage from './components/SalesTimingAndCoverage';
 import BlcReportingPanel from './components/BlcReportingPanel';
 
 export default function SalesActivationPage() {
-  const [rootMetric, setRootMetric] = useState<string | null>(null);
   const {
     model,
+    rawData,
     loading,
     error,
     refreshAll,
@@ -56,23 +57,6 @@ export default function SalesActivationPage() {
     handleExportAgeing,
     handleExportCompleteWorkbook,
   } = useSalesActivationModel();
-
-  const handleWhyChanged = (key: 'sales' | 'activations' | 'unactivated' | 'revenue') => {
-    switch (key) {
-      case 'sales':
-        setRootMetric('leadToSaleRate');
-        break;
-      case 'activations':
-      case 'unactivated':
-        setRootMetric('activationRate');
-        break;
-      case 'revenue':
-        setRootMetric('leadToSaleRate');
-        break;
-      default:
-        setRootMetric('leadToSaleRate');
-    }
-  };
 
   return (
     <div className="cx-command-page cx-sales-page" aria-label="Sales & activation workspace">
@@ -203,10 +187,10 @@ export default function SalesActivationPage() {
             <SalesOutcomeSummary
               model={model}
               onInspect={handleInspectSummaryMetric}
-              onWhyChanged={handleWhyChanged}
             />
 
             {/* 2. Outcome evidence map */}
+            <AuditMetadata dateBasis={rawData?.metadata?.dateBasis || "Lead intake cohort"} validationStatus={suppliedProvenance(rawData).validationStatus} />
             <SalesOutcomeMap
               model={model}
               onInspect={handleInspectSummaryMetric}
@@ -294,13 +278,7 @@ export default function SalesActivationPage() {
       <InspectorHost
         open={Boolean(inspectorContent)}
         onClose={() => setInspectorContent(null)}
-        content={inspectorContent}
-      />
-
-      <RootCauseDrawer
-        open={Boolean(rootMetric)}
-        metric={rootMetric}
-        onClose={() => setRootMetric(null)}
+        content={salesAudit(inspectorContent, rawData)}
       />
     </div>
   );

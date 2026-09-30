@@ -102,7 +102,7 @@ test('commercial investigations cannot substitute sale rate for revenue, costs o
   assert.doesNotMatch(commercial, /setRootMetric\('leadToSaleRate'\)|setRootMetric\('fetchedLeads'\)/);
   assert.match(commercial, /Revenue decomposition is not available/);
   assert.match(commercial, /item\.metric &&/);
-  assert.match(commercial, /!canCompareMedia \|\| !item\.available/);
+  assert.match(commercial, /item\.metric && canCompareMedia && item\.available && Number\.isFinite\(item\.metric === \'spend\' \? data\.mediaComparison\?\.spendDeltaPct : data\.mediaComparison\?\.cplDeltaPct\)/);
   assert.match(commercial, /data\?\.currency \|\| clientConfig\?\.currency/);
   assert.match(commercial, /row\.hasMarketing && row\.hasOperations/);
 });

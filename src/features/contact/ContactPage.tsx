@@ -77,6 +77,7 @@ export default function ContactPage() {
       subtitle: 'Observed lead population for this call-attempt bucket.',
       value: `${formatTableNumber(leads)} leads`,
       unit: 'records',
+      definition: { meaning: `Leads in the returned ${bucket} call-count bucket.`, grain: 'Distinct lead', dateBasis: 'Lead capture cohort', calculation: callCountData?.methodology, nullMeaning: 'Missing counters remain Unrecorded and are not measured zero.' },
       reportPath: '/contact-strategy',
       reportLabel: 'Back to contact strategy',
       recordDrill,
@@ -208,6 +209,7 @@ export default function ContactPage() {
       {activeTab === 'call_counts' && callCountData && (
         <CallEffortReport
           data={callCountData}
+          scope={{ clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters }}
           onInspectBucket={handleInspectBucket}
           onWhyChanged={(m) => setRootMetric(m as any)}
           onExportCsv={handleExportCallCountsCsv}
@@ -217,6 +219,7 @@ export default function ContactPage() {
       {activeTab === 'vendor_dispositions' && dispData && (
         <VendorDispositionReport
           data={dispData}
+          scope={{ clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters }}
           mode={dispositionMode}
           onModeChange={handleModeChange}
           onSelectVendor={handleSelectVendor}

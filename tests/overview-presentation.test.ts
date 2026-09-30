@@ -50,9 +50,9 @@ test('Overview Why changed requires comparison evidence and dispatches the exist
     assert.deepEqual(inspected, ['fetched_leads']);
     assert.deepEqual(investigations, []);
     await app.render(React.createElement(OutcomeStrip, { ...props, hasComparison: true }));
-    assert.equal(whyButtons().length, 4);
+    assert.equal(whyButtons().length, 1);
     for (const button of whyButtons()) await app.click(button);
-    assert.deepEqual(investigations, ['fetchedLeads', 'deliveryRate', 'leadToSaleRate', 'activationRate']);
+    assert.deepEqual(investigations, ['fetchedLeads']);
     await app.render(React.createElement(OutcomeStrip, { ...props, hasComparison: false }));
     assert.equal(whyButtons().length, 0);
     await app.render(React.createElement(OutcomeStrip, { ...props, hasComparison: true, onWhyChanged: undefined }));
@@ -69,7 +69,7 @@ const stages: FunnelStageItem[] = [
   { key: 'activated', name: 'Activated', volume: 0, transitionRate: 0, loss: 0 },
 ];
 
-test('Overview rail preserves nonnested counts, null and zero, returned losses, and scoped admin drills', async () => {
+test('Overview rail preserves nonnested counts, null and zero, returned losses, and audit-first admin selections', async () => {
   await withRenderedComponent(async app => {
     const inspected: { stage: FunnelStageItem; index: number }[] = [];
     const before = JSON.stringify(stages);
@@ -89,14 +89,7 @@ test('Overview rail preserves nonnested counts, null and zero, returned losses, 
     assert.match(items[4].textContent!, /Transition rate unavailable/);
     assert.match(items[5].textContent!, /0% from prior stage/);
     assert.equal(app.container.querySelector('a button, button a'), null);
-    const stageLink = items[2].querySelector<HTMLAnchorElement>('a.cx-overview-stage-count')!;
-    const target = new URL(stageLink.href);
-    assert.equal(target.searchParams.get('drill'), 'funnel-stage');
-    assert.equal(target.searchParams.get('drillValue'), 'dialled');
-    assert.equal(target.searchParams.get('clientId'), 'synthetic-a');
-    assert.equal(target.searchParams.get('startDate'), '2026-09-22');
-    assert.equal(target.searchParams.get('endDate'), '2026-09-28');
-    assert.equal(target.searchParams.get('vendor'), 'Synthetic vendor');
+    assert.equal(app.container.querySelector('a[href*="lead-explorer"]'), null);
     await app.click(items[2].querySelector('button')!);
     assert.deepEqual(inspected, [{ stage: stages[2], index: 2 }]);
     const disclosure = app.container.querySelector('details')!;
@@ -104,8 +97,6 @@ test('Overview rail preserves nonnested counts, null and zero, returned losses, 
     await app.click(disclosure.querySelector('summary')!);
     assert.equal(disclosure.open, true);
     assert.deepEqual([...disclosure.querySelectorAll('li strong')].map(element => element.textContent), ['7 leads', '11 leads', '0 leads']);
-    const loss = new URL(disclosure.querySelector<HTMLAnchorElement>('li a')!.href);
-    assert.equal(loss.searchParams.get('drillValue'), 'fetched-to-delivered');
     assert.doesNotMatch(app.container.textContent!, /Waterfall|Overall Conversion|Highest Drop Milestone|NaN/);
     assert.equal(JSON.stringify(stages), before);
   });

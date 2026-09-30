@@ -17,7 +17,6 @@ import WorkspaceState from '../components/operations/WorkspaceState';
 import MetricRail from '../components/operations/MetricRail';
 import ExactBarChart from '../components/operations/ExactBarChart';
 import EvidenceInspector, { type EvidenceSelection } from '../components/operations/EvidenceInspector';
-import RootCauseDrawer from '../components/RootCauseDrawer';
 import { VisualTable } from '../components/visuals/DataVisual';
 
 const METRICS = ['delivered_episodes','called_episodes','call_attempts','call_coverage','sale_events','activation_events','sale_activation_rate','expected_value','approved_value','invoiced_value','collected_value'];
@@ -66,8 +65,6 @@ export default function VendorPerformance() {
   const [vendorTableView, setVendorTableView] = useState<'table' | 'graph'>('table');
   const [visible,setVisible]=useState(()=>new Set(TABLE_COLUMNS));
   const [inspection,setInspection]=useState<EvidenceSelection|null>(null);
-  const [rootMetric, setRootMetric] = useState<string | null>(null);
-  const [rootMetricLabel, setRootMetricLabel] = useState<string | undefined>(undefined);
   const deferredSearch=useDeferredValue(search.trim().toLowerCase());
   const rows=useMemo(()=>pivotReportGroups(report),[report]);
   const previousRows=useMemo(()=>pivotReportGroups(previous),[previous]);
@@ -90,12 +87,6 @@ export default function VendorPerformance() {
   const format=(metric:MetricResult|null|undefined)=>metric?formatReportValue(metric,currency):'Unavailable';
   const total=(id:string)=>metricValue(report,id), previousTotal=(id:string)=>metricValue(previous,id);
 
-  const kpiMap: Record<string, string> = {
-    fetched_leads: 'fetchedLeads',
-    call_coverage: 'dialRate',
-    sale_activation_rate: 'activationRate',
-  };
-
   const kpi=(id:string,note:string)=>{
     const currentMetric=id==='fetched_leads'?metricValue(leadTotals.current.data,id):total(id);
     const previousMetric=id==='fetched_leads'?metricValue(leadTotals.previous.data,id):previousTotal(id);
@@ -107,10 +98,6 @@ export default function VendorPerformance() {
       comparison:`vs ${workspace.previousPeriod.startDate} — ${workspace.previousPeriod.endDate}`,
       note,
       status:currentMetric?.calculationStatus,
-      onWhyChanged: kpiMap[id] ? () => {
-        setRootMetric(kpiMap[id]);
-        setRootMetricLabel(METRIC_BY_ID[id].label);
-      } : undefined,
       onInspect: CHART_METRICS.includes(id) ? () => setChartMetric(id) : undefined,
     };
   };
@@ -376,14 +363,5 @@ export default function VendorPerformance() {
       </section>
       <EvidenceInspector report={report} selection={inspection} onClose={()=>setInspection(null)}/>
     </>}
-    <RootCauseDrawer
-      open={Boolean(rootMetric)}
-      metric={rootMetric}
-      metricLabel={rootMetricLabel}
-      onClose={() => {
-        setRootMetric(null);
-        setRootMetricLabel(undefined);
-      }}
-    />
   </div>;
 }

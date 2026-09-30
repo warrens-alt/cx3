@@ -108,6 +108,8 @@ test('actual Speed route exposes numeric timing, zero geometry and existing cont
     assert.equal(requests.length,1);
     const disclosure=app.find('summary','Operating');assert.ok(disclosure);disclosure.click();
     await app.wait(()=>disclosure.parentElement.open);
+    await app.click('button','Inspect evidence: Awaiting First Dial');
+    await app.wait(()=>app.find('[role="dialog"]'));
     assert.ok([...app.w.document.querySelectorAll('a')].some((a:any)=>a.href.includes('drill=awaiting-first-dial')));
   }finally{app.close();}
 });
@@ -193,7 +195,15 @@ test('consumer and agent inspection remain available without unrelated decomposi
     app.w.__fixture.navigate('/agent-performance'+scope);
     await app.wait(()=>app.text().includes('Synthetic Agent A'));
     assert.equal(Boolean(app.find('button','Why changed?')),false);
-    await app.click('button','Inspect roster');
+    const requests=[...app.w.__fixture.requests];
+    await app.click('button','Inspect evidence');
+    await app.wait(()=>app.find('.cx-audit-drawer'));
+    const drawer=app.find('.cx-audit-drawer');
+    assert.equal(drawer.querySelector('h2').textContent,'Agents observed');
+    assert.match(drawer.textContent,/Agent\/vendor group/);
+    assert.match(drawer.textContent,/synthetic-a/);
+    assert.match(drawer.textContent,/2026-09-28 → 2026-09-28/);
+    assert.deepEqual([...app.w.__fixture.requests],requests,'Local inspection does not fetch another population');
     assert.equal(app.w.__fixture.requests.filter((r:string)=>r.includes('root-cause')).length,0);
   }finally{app.close();}
 });
@@ -205,6 +215,9 @@ test('root-cause contribution region preserves record links, scope and keyboard 
     assert.equal(region.getAttribute('tabindex'),'0');
     region.focus();assert.equal(app.w.document.activeElement===region,true);
     assert.match(region.textContent,/Contribution.*20 leads/);
+    assert.match(app.text(),/Explaining metric: Fetched leads.*fetchedLeads/);
+    assert.match(app.text(),/Returned contribution breakdown/);
+    assert.doesNotMatch(app.text(),/Returned residual|fully explained/i);
     const link=region.querySelector('a');assert.ok(link);
     const target=new URL(link.href);
     assert.equal(target.searchParams.get('vendor'),'Synthetic vendor with a long descriptive name');
@@ -363,16 +376,24 @@ test('analytical export preserves synthetic raw precision, missing states and or
   assert.equal(result.rows[1][14],'Unavailable');assert.equal(result.rows[1][15],'FALSE');
 });
 
-test('agent chart uses the existing local search handler without another analytical request',async()=>{
+test('agent chart opens scoped call evidence without another analytical request',async()=>{
   const app=await mount('/agent-performance'+scope);try{
     await app.wait(()=>app.text().includes('Synthetic Agent B'));
-    const initial=app.w.__fixture.requests.filter((r:string)=>r.includes('agent-performance')).length;
+    const requests=[...app.w.__fixture.requests];
     await app.click('button','Inspect Synthetic Agent A:');
-    await app.wait(()=>!app.text().includes('Synthetic Agent B'));
-    assert.equal(app.find('input','Search returned agents or vendors').value,'Synthetic Agent A');
-    assert.equal(app.w.__fixture.requests.filter((r:string)=>r.includes('agent-performance')).length,initial);
-    await app.input(app.find('input','Search returned agents or vendors'),'');
-    await app.wait(()=>app.text().includes('Synthetic Agent B'));
+    await app.wait(()=>app.find('.cx-audit-drawer'));
+    const drawer=app.find('.cx-audit-drawer');
+    assert.equal(drawer.querySelector('h2').textContent,'Synthetic Agent A · Recorded calls');
+    assert.equal(drawer.querySelector('.cx-audit-result strong').textContent,'120');
+    assert.match(drawer.textContent,/Call event, grouped by agent and vendor/);
+    assert.match(drawer.textContent,/Call start date/);
+    assert.match(drawer.textContent,/synthetic-a/);
+    assert.match(drawer.textContent,/2026-09-28 → 2026-09-28/);
+    assert.equal(app.find('.cx-audit-drawer a','Inspect supporting records'),undefined,'Call evidence has no unrelated lead drill');
+    assert.equal(app.find('input','Search returned agents or vendors').value,'');
+    assert.match(app.text(),/Synthetic Agent B/);
+    assert.deepEqual([...app.w.__fixture.requests],requests,'Chart inspection uses the returned evidence');
+    await app.click('button','Close inspector');
     await app.click('button','RPC rate');
     assert.equal(app.find('button','RPC rate').getAttribute('aria-pressed'),'true');
     const barRows=[...app.w.document.querySelectorAll('.cx-evidence-bar-row')] as any[];
@@ -458,7 +479,17 @@ test('failed exception evidence cannot claim an empty vendor backlog',async()=>{
     await app.wait(()=>app.text().includes('Vendor backlog evidence unavailable.'));
     assert.doesNotMatch(app.text(),/No vendor backlog is currently observed/);
     assert.equal(app.find('button','Why changed?'),undefined);
-    assert.ok(app.find('a','Inspect speed'));
+    const requests=[...app.w.__fixture.requests];
+    await app.click('[aria-label="Exceptions summary metrics"] .cx-unified-metric:nth-child(2) button');
+    await app.wait(()=>app.find('.cx-audit-drawer'));
+    const drawer=app.find('.cx-audit-drawer');
+    assert.equal(drawer.querySelector('h2').textContent,'Awaiting first dial');
+    assert.equal(drawer.querySelector('.cx-audit-result strong').textContent,'—');
+    assert.match(drawer.textContent,/Unavailable/);
+    assert.match(drawer.textContent,/NOT_VERIFIED/);
+    assert.match(drawer.textContent,/synthetic-a/);
+    assert.match(drawer.textContent,/2026-09-28 → 2026-09-28/);
+    assert.deepEqual([...app.w.__fixture.requests],requests,'Unavailable evidence inspection does not fetch or invent a result');
   }finally{app.close();}
 });
 
@@ -617,5 +648,99 @@ test('Data status closes when following its existing data-integrity link',async(
     await app.click('a','Inspect data evidence');
     await app.wait(()=>app.w.__fixture.location.startsWith('/data-integrity'));
     assert.equal(app.find('[role="dialog"]'),undefined);
+  }finally{app.close();}
+});
+
+
+const complexAuditFilters = {vendor:{operator:'in',values:['Synthetic vendor','Other vendor']},source:{operator:'equals',value:'synthetic-source'},grade:{operator:'between',min:1,max:3}};
+const auditContent = {type:'metric',metricId:'sales_per_fetched_rate',title:'Supplied rate',value:'35.7%',numeratorCount:570,denominatorCount:1597,scope:{clientId:'synthetic-a',clientLabel:'Synthetic workspace',startDate:'2026-09-22',endDate:'2026-09-28',filters:complexAuditFilters}};
+
+test('universal audit renders exact components, all scope, seven sections and reproducible copied link without requests',async()=>{
+  const app=await mount('/__fixture/audit'+scope+'&workspace=alpha&workspace=beta&search=stale',{auditContent});try{
+    await app.wait(()=>app.find('.cx-audit-drawer'));
+    const drawer=app.find('.cx-audit-drawer');
+    assert.deepEqual(Array.from(drawer.querySelectorAll('h3'),(e:any)=>e.textContent),['Result','What this means','How it is calculated','Reporting scope','Data / validation evidence','Supporting records','Technical details']);
+    assert.equal(drawer.querySelector('.cx-audit-result strong').textContent,'35.7%');
+    assert.deepEqual(Array.from(drawer.querySelectorAll('.cx-audit-calculation dd'),(e:any)=>e.textContent),['570','1,597']);
+    assert.match(drawer.textContent,/Synthetic workspace.*synthetic-a.*2026-09-22 → 2026-09-28/);
+    assert.match(drawer.textContent,/in: Synthetic vendor, Other vendor/);
+    assert.match(drawer.textContent,/between: 1 → 3/);
+    assert.match(drawer.textContent,/Not verified \(NOT_VERIFIED\)/);
+    assert.match(drawer.textContent,/Additional source provenance is not supplied/);
+    assert.match(drawer.textContent,/Record-level evidence is not available for this aggregate/);
+    assert.equal(app.find('a','Inspect supporting records'),undefined);
+    assert.match(drawer.textContent,/Operational analytics are separate from immutable published reporting releases/);
+    assert.equal(new URL(app.find('a','View evidence releases').href).pathname,'/reports');
+    assert.equal(drawer.querySelector('dd[data-validation="PASS"]'),null);
+    assert.equal(Array.from(drawer.querySelectorAll('dt'),(e:any)=>e.textContent).includes('Query job ID'),false);
+    const before=app.w.__fixture.requests.length;const copied:string[]=[];
+    Object.defineProperty(app.w.navigator,'clipboard',{value:{writeText:async(value:string)=>copied.push(value)},configurable:true});
+    await app.click('button','Copy scoped link');
+    await app.wait(()=>app.find('[role="status"]','Copied'));
+    const target=new URL(copied[0]);assert.equal(target.pathname,'/__fixture/audit');
+    assert.equal(target.searchParams.get('clientId'),'synthetic-a');assert.equal(target.searchParams.get('startDate'),'2026-09-22');assert.equal(target.searchParams.get('endDate'),'2026-09-28');
+    assert.deepEqual(target.searchParams.getAll('workspace'),['alpha','beta']);assert.deepEqual(JSON.parse(target.searchParams.get('filters')!),complexAuditFilters);assert.equal(target.searchParams.has('search'),false);
+    await app.click('summary','View metric definition and supplied metadata');
+    assert.equal(app.w.__fixture.requests.length,before);
+    assert.deepEqual(app.errors,[]);
+  }finally{app.close();}
+});
+
+test('audit null and measured zero remain distinct; record drill respects admin permission and supported scope',async()=>{
+  for(const [value,expected,state] of [[null,'—','Unavailable'],[0,'0','Measured zero'],['ZAR 0.00','ZAR 0.00','Measured zero'],['','—','Unavailable']] as const){
+    const app=await mount('/__fixture/audit'+scope+'&workspace=alpha',{auditContent:{...auditContent,value,recordDrill:{drill:'funnel-stage',drillValue:'sales'}}});try{
+      await app.wait(()=>app.find('.cx-audit-drawer'));
+      assert.equal(app.find('.cx-audit-result strong').textContent,expected);assert.match(app.find('.cx-audit-result').textContent,new RegExp(state));
+      const link=new URL(app.find('a','Inspect supporting records').href);assert.equal(link.pathname,'/lead-explorer');assert.equal(link.searchParams.get('drillValue'),'sales');assert.equal(link.searchParams.get('workspace'),'alpha');assert.deepEqual(JSON.parse(link.searchParams.get('filters')!),complexAuditFilters);
+    }finally{app.close();}
+  }
+  const viewer=await mount('/__fixture/audit'+scope,{nonAdmin:true,auditContent:{...auditContent,recordDrill:{drill:'funnel-stage',drillValue:'sales'}}});try{
+    await viewer.wait(()=>viewer.find('.cx-audit-drawer'));assert.equal(viewer.find('a','Inspect supporting records'),undefined);assert.match(viewer.text(),/require administrator access/);assert.equal(viewer.w.__fixture.requests.some((r:string)=>r.includes('raw-leads')),false);
+  }finally{viewer.close();}
+});
+
+test('Audit mode is local, safe for viewers, and adds no analytical requests across drawer and definition actions',async()=>{
+  const app=await mount('/overview'+scope,{nonAdmin:true});try{
+    await app.wait(()=>app.find('.cx-outcome-strip'));
+    const before=app.w.__fixture.requests.length;
+    await app.click('button','Display preferences');
+    await app.click('[aria-label="Audit mode"] button','On');
+    await app.wait(()=>app.find('.cx-audit-metadata'));
+    assert.equal(app.w.localStorage.getItem('cx.presentation.audit-mode.v1'),'on');
+    assert.match(app.find('.cx-audit-metadata').textContent,/fetched_leads.*NOT_VERIFIED/);
+    assert.equal(app.find('a[href*="lead-ledger"]'),undefined);
+    assert.doesNotMatch(Array.from(app.w.document.querySelectorAll('.cx-audit-metadata'),(e:any)=>e.textContent).join(' '),/SELECT |FROM |queryJob|@|SYNTHETIC-LEAD/);
+    await app.click('button','Display preferences');
+    await app.click('.cx-outcome-card button','Inspect evidence');
+    await app.wait(()=>app.find('.cx-audit-drawer'));
+    assert.equal(app.find('a','Inspect supporting records'),undefined);
+    await app.click('summary','View metric definition and supplied metadata');
+    await app.click('button','Close inspector');
+    assert.equal(app.w.__fixture.requests.length,before);
+    assert.equal(app.w.__fixture.requests.filter((r:string)=>r.includes('root-cause')).length,0);
+    assert.deepEqual(app.errors,[]);
+  }finally{app.close();}
+});
+
+test('Contact audits supplied bucket ratios and exact high-attempt predicate without unsupported Why mappings',async()=>{
+  const data={attemptPerformance:[],attemptCadence:[],summary:{totalLeads:100,dialledLeads:40,unrecordedCallLeads:10,zeroCallLeads:20,oneCallLeads:50,singleAttemptSharePct:125,multiAttemptLeads:20,multiAttemptSharePct:50,fivePlusCallLeads:8,fivePlusNoRpcLeads:3},methodology:'Exclusive recorded call-count buckets; missing counters remain Unrecorded. One-call share uses dialled leads as its denominator.',noAnswerAnalysis:{status:'UNAVAILABLE',reason:'No sequence evidence'}};
+  const app=await mount('/contact-strategy'+scope,{payloads:{'/api/analytics/offernet/contact-strategy':data}});try{
+    await app.wait(()=>app.find('button','Inspect evidence: One-call share'));
+    const before=app.w.__fixture.requests.length;
+    assert.equal(app.find('button','Why changed?'),undefined);
+    await app.click('button','Inspect evidence: One-call share');
+    assert.equal(app.find('.cx-audit-result strong').textContent,'125.0%');
+    assert.deepEqual(Array.from(app.w.document.querySelectorAll('.cx-audit-calculation dd'),(e:any)=>e.textContent),['50','40']);
+    assert.doesNotMatch(app.find('.cx-audit-drawer').textContent,/one_call_dialled_share/);
+    assert.equal(new URL(app.find('a','Inspect supporting records').href).searchParams.get('drillValue'),'1 call');
+    await app.click('button','Close inspector');
+    await app.click('button','Inspect evidence: 5+ calls, no RPC');
+    assert.equal(app.find('.cx-audit-result strong').textContent,'3');
+    assert.equal(new URL(app.find('a','Inspect supporting records').href).searchParams.get('drill'),'high-attempt-no-rpc');
+    await app.click('button','Close inspector');
+    await app.click('button','Inspect evidence: Multi-call share');
+    assert.equal(app.find('a','Inspect supporting records'),undefined);
+    assert.match(app.find('.cx-audit-drawer').textContent,/combined two-or-more-call record drill is not supplied/);
+    assert.equal(app.w.__fixture.requests.length,before);
   }finally{app.close();}
 });
