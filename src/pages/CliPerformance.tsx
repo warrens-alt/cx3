@@ -290,7 +290,7 @@ export default function CliPerformance() {
   const isImported = data?.provenance === 'IMPORTED_REPORT';
 
   return (
-    <div className="cx-command-page">
+    <div className="cx-command-page cx-cli-page">
       <OffernetFilterBar onRefresh={() => loadData(true)} onExportCsv={handleExportCsv} />
       <div className="cx-command-content">
         <OperationalPageHeader
