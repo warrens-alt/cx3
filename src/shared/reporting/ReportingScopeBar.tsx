@@ -301,8 +301,7 @@ function OperationalScopeBar({
         setRefreshError(msg);
         setAnnouncement('Refresh failed.');
       } else if (options.status === 'rejected') {
-        const msg = options.reason instanceof Error ? options.reason.message : 'Filter choices could not be loaded.';
-        setRefreshError(msg);
+        // The query error owns this feedback and clears when filter choices recover.
         setAnnouncement('Filter choices could not be loaded.');
       } else {
         setAnnouncement('Refresh request finished.');
