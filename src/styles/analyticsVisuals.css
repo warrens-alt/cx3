@@ -16,32 +16,41 @@
   box-shadow: var(--cx-shadow-card);
 }
 .cx-analytics-tooltip {
-  min-width:180px;
-  border:1px solid #DCE4ED;
-  border-radius:9px;
-  background:rgba(255,255,255,.97);
-  box-shadow:0 12px 28px rgba(15,23,42,.12);
+  max-width:280px;
+  border:1px solid var(--cx-border);
+  border-radius:var(--cx-radius-md);
+  background:var(--cx-surface);
+  box-shadow:var(--cx-shadow-md);
   padding:10px 12px;
   font-size:12px;
-  color:#334155;
+  line-height:1.5;
+  color:var(--cx-text);
+  overflow-wrap:anywhere;
 }
 .cx-analytics-tooltip>strong {
   display:block;
   padding-bottom:6px;
   margin-bottom:6px;
-  border-bottom:1px solid #EEF2F6;
-  color:#0F172A;
+  border-bottom:1px solid var(--cx-border-subtle);
+  color:var(--cx-text);
 }
-.cx-analytics-tooltip>div {
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:18px;
-  padding:2px 0;
-}
-.cx-analytics-tooltip span { display:flex; align-items:center; gap:6px; color:#64748B; }
-.cx-analytics-tooltip i { width:8px; height:8px; border-radius:999px; display:inline-block; }
-.cx-analytics-tooltip b { font-variant-numeric:tabular-nums; color:#0F172A; }
+.cx-analytics-tooltip>div:first-child { color:var(--cx-text); border-color:var(--cx-border-subtle); }
+.cx-analytics-tooltip :is(span,b) { color:var(--cx-text); }
+.cx-analytics-tooltip b { font-variant-numeric:tabular-nums; }
+.cx-analytics-tooltip i { width:8px; height:8px; border-radius:2px; display:inline-block; flex-shrink:0; }
+
+.cx-category-chart { position:relative; min-width:0; }
+.cx-chart-scroll { max-width:100%; overflow-x:auto; overscroll-behavior-inline:contain; }
+.cx-chart-scroll:focus-visible { outline:2px solid var(--cx-focus); outline-offset:2px; }
+.cx-chart-tooltip-host { position:absolute; inset:0; pointer-events:none; z-index:4; }
+.cx-chart-tooltip-host .recharts-tooltip-wrapper { width:max-content; }
+.cx-chart-tooltip-host .cx-analytics-tooltip { max-width:100%; }
+.cx-chart-tooltip-host .recharts-default-tooltip { width:100%; }
+.cx-chart-series { display:flex; flex-wrap:wrap; justify-content:center; gap:8px 16px; list-style:none; padding:12px 0 0; margin:0; color:var(--cx-text-secondary); font-size:12px; line-height:1.5; }
+.cx-chart-series li { display:flex; align-items:center; gap:6px; }
+.cx-chart-series i { width:10px; height:10px; flex-shrink:0; border-radius:2px; }
+.cx-analytics-card .recharts-text { fill:var(--cx-text-secondary); }
+.cx-analytics-card .recharts-cartesian-grid line { stroke:var(--cx-border-subtle); }
 @media(max-width:960px) {
   .cx-analytics-visual-grid { grid-template-columns:minmax(0,1fr); }
 }
@@ -54,6 +63,9 @@
 
 /* Shared chart interaction and responsive analytical presentation. */
 .cx-chart-toolbar { min-width:0; }
+.cx-chart-toolbar-copy h3 { color:var(--cx-text); }
+.cx-chart-toolbar-copy p { color:var(--cx-text-secondary); }
+.cx-chart-toolbar-actions>button { background:var(--cx-surface); color:var(--cx-text-secondary); border-color:var(--cx-border); }
 .cx-chart-toolbar-copy { min-width:0; }
 .cx-chart-toolbar-copy h3,
 .cx-chart-toolbar-copy p { overflow-wrap:anywhere; }
@@ -61,14 +73,12 @@
 .cx-analytics-card .recharts-wrapper,
 .cx-analytics-card .recharts-surface { overflow: visible; }
 .cx-analytics-card .recharts-legend-wrapper { line-height:1.45; }
-.cx-chart-clickable { cursor:pointer; }
-.cx-chart-clickable:focus { outline:none; }
+.cx-chart-clickable:focus-visible { outline:2px solid var(--cx-focus); outline-offset:2px; }
 @media(max-width:760px) {
   .cx-chart-toolbar { align-items:flex-start!important; }
   .cx-chart-toolbar-actions { width:100%; }
   .cx-chart-toolbar-actions>button { min-height:38px; }
   .cx-analytics-card { padding:14px 10px 16px; }
-  .cx-analytics-card .recharts-legend-wrapper { font-size:10px!important; }
 }
 @media(max-width:520px) {
   .cx-analytics-card { padding-inline:8px; }
@@ -78,24 +88,4 @@
 [data-theme="dark"] .cx-analytics-card {
   border-color: rgba(255, 255, 255, 0.08);
   background: var(--cx-surface, #0f172a);
-}
-
-[data-theme="dark"] .cx-analytics-tooltip {
-  background: rgba(15, 23, 42, 0.96);
-  border-color: rgba(255, 255, 255, 0.12);
-  color: #e2e8f0;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
-}
-
-[data-theme="dark"] .cx-analytics-tooltip > strong {
-  border-bottom-color: rgba(255, 255, 255, 0.1);
-  color: #f8fafc;
-}
-
-[data-theme="dark"] .cx-analytics-tooltip b {
-  color: #f8fafc;
-}
-
-[data-theme="dark"] .cx-analytics-tooltip span {
-  color: #94a3b8;
 }

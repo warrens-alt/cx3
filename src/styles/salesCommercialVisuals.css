@@ -59,10 +59,6 @@
 .cx-commercial-page .cx-command-panel,
 .cx-commercial-page .cx-command-metric{background:var(--cx-surface);border-color:var(--cx-border-subtle);border-radius:10px;box-shadow:var(--cx-shadow-sm)}
 .cx-commercial-page .cx-command-panel>header{border-color:var(--cx-border-subtle)}
-.cx-commercial-page .cx-chart-toolbar-copy h3{color:var(--cx-text)}
-.cx-commercial-page .cx-chart-toolbar-actions>button{background:var(--cx-surface);color:var(--cx-text-secondary);border-color:var(--cx-border)}
-.cx-commercial-page .cx-analytics-card .recharts-text{fill:var(--cx-text-secondary)}
-.cx-commercial-page .cx-analytics-card .recharts-cartesian-grid line{stroke:var(--cx-border-subtle)}
 .cx-commercial-page .cx-commercial-summary-detail{border:0;border-top:1px solid var(--cx-border-subtle);border-radius:0;background:transparent;box-shadow:none}
 .cx-commercial-page .cx-commercial-summary-detail>header{padding:16px 0 12px;border:0}
 .cx-commercial-page .cx-commercial-summary-detail .cx-commercial-ratios{border:0}
@@ -116,3 +112,15 @@
 @media(prefers-reduced-motion:reduce){
   .cx-sales-evidence-item{transition:none}
 }
+
+/* Bound the attribution identifier while retaining every numeric column and full key. */
+.cx-commercial-page .cx-attribution-table-scroll{max-height:570px}
+.cx-commercial-page .cx-attribution-table caption{text-align:left;padding:10px 12px;color:var(--cx-text-secondary);font-size:12px}
+.cx-commercial-page .cx-attribution-table :is(th,td):first-child{min-width:220px;width:240px;max-width:240px;white-space:normal;overflow-wrap:anywhere;border-right:1px solid var(--cx-border-subtle)}
+.cx-commercial-page .cx-attribution-table :is(th,td):nth-child(n+3):not(:last-child){text-align:right}
+.cx-commercial-page .cx-attribution-table-scroll:focus-visible{outline:2px solid var(--cx-focus);outline-offset:2px}
+@media(max-width:639px){.cx-commercial-page .cx-attribution-table :is(th,td):first-child{min-width:145px;width:145px;max-width:145px}}
+
+.cx-sales-page .cx-sales-segment-table :is(th,td):first-child{min-width:200px;max-width:240px;width:240px;white-space:normal;overflow-wrap:anywhere}
+.cx-sales-page .cx-sales-segment-scroll{max-height:570px;overscroll-behavior-inline:contain}
+@media(max-width:639px){.cx-sales-page .cx-sales-segment-table :is(th,td):first-child{min-width:145px;max-width:145px;width:145px}}

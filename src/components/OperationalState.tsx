@@ -13,10 +13,14 @@ export function OperationalEmpty({ title, children }: { title: string; children:
   return <div className="cx-feedback cx-feedback-empty"><Inbox size={22} aria-hidden="true" /><div><h3>{title}</h3><p>{children}</p></div></div>;
 }
 
-export function OverviewSkeleton() {
-  return <div className="cx-overview-skeleton cx-command-loading" role="status" aria-label="Loading overview" aria-busy="true">
-    <span className="sr-only">Loading the selected overview…</span>
-    <div className="cx-skeleton-metrics" aria-hidden="true">{Array.from({ length: 5 }, (_, index) => <div key={index}><i /><b /><i /></div>)}</div>
+export function ReportSkeleton({ label = 'Loading report', metricCount = 4 }: { label?: string; metricCount?: number } = {}) {
+  return <div className="cx-overview-skeleton cx-command-loading" role="status" aria-label={label} aria-busy="true" style={{ '--cx-skeleton-columns': metricCount } as import('react').CSSProperties}>
+    <span className="sr-only">{label}…</span>
+    <div className="cx-skeleton-metrics" aria-hidden="true">{Array.from({ length: metricCount }, (_, index) => <div key={index}><i /><b /><i /></div>)}</div>
     <div className="cx-skeleton-panels" aria-hidden="true"><div /><div /></div>
   </div>;
+}
+
+export function OverviewSkeleton() {
+  return <ReportSkeleton label="Loading overview" />;
 }
