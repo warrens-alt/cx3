@@ -29,23 +29,23 @@ export const ANALYTICS_COLORS = {
 
 export function EmptyChartState({ message = 'No observations recorded for the active filters.' }: { message?: string }) {
   return (
-    <div className="h-44 w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 dark:bg-slate-900/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-800 p-4">
-      <span className="font-medium text-slate-600 dark:text-slate-300 mb-1">{message}</span>
-      <span className="text-xs text-slate-400">Try adjusting dates, vendor scope, or filters to display data.</span>
+    <div className="h-44 w-full flex flex-col items-center justify-center text-xs text-text-sec bg-surface-subtle rounded-lg border border-dashed border-border p-4">
+      <span className="font-medium text-text-sec mb-1">{message}</span>
+      <span className="text-xs text-text-sec">Try adjusting dates, vendor scope, or filters to display data.</span>
     </div>
   );
 }
 
 const CHART_LEGEND_STYLE = { fontSize: 12, paddingTop: 10 };
 const CHART_TOOLTIP_STYLE = {
-  borderRadius: 9,
+  borderRadius: 'var(--cx-radius-md)',
   border: '1px solid var(--cx-border)',
   background: 'var(--cx-surface)',
   color: 'var(--cx-text)',
   maxWidth: 280,
   whiteSpace: 'normal' as const,
   overflowWrap: 'anywhere' as const,
-  boxShadow: '0 12px 28px rgba(15,23,42,.12)',
+  boxShadow: 'var(--cx-shadow-md)',
   fontSize: 12,
 };
 
@@ -92,16 +92,16 @@ export function VolumeRateComboChart({
   const tooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
     return (
-      <div className="cx-analytics-tooltip bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl p-3 text-xs ring-1 ring-black/5 dark:ring-white/5 transition-all">
-        <strong className="text-slate-900 dark:text-slate-100 font-mono block pb-1 border-b border-slate-100 dark:border-slate-800 mb-1.5">{label}</strong>
+      <div className="cx-analytics-tooltip">
+        <strong className="text-text-main font-mono block pb-1 border-b border-border-subtle mb-1.5">{label}</strong>
         <div className="space-y-1">
           {payload.map((item: any) => (
             <div key={item.dataKey} className="flex items-center justify-between gap-3">
-              <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+              <span className="flex items-center gap-1.5 text-text-sec">
                 <i className="inline-block w-2 h-2 rounded-xs" style={{ background: item.color }} />
                 <span>{item.name}</span>
               </span>
-              <b className="font-mono text-slate-900 dark:text-slate-100 tabular-nums">
+              <b className="font-mono text-text-main tabular-nums">
                 {item.dataKey === volumeKey ? formatTableNumber(item.value) : item.value == null || !Number.isFinite(Number(item.value)) ? '—' : formatPercent(item.value, 2)}
               </b>
             </div>
@@ -121,7 +121,7 @@ export function VolumeRateComboChart({
             <XAxis dataKey={xKey} tick={<CategoryAxisTick />} axisLine={false} tickLine={false} interval={0} height={38} />
             <YAxis yAxisId="volume" tick={{ fontSize: 12, fill: 'var(--cx-text-secondary)' }} axisLine={false} tickLine={false} tickFormatter={formatChartAxis} />
             <YAxis yAxisId="rate" orientation="right" domain={[0, 'auto']} tick={{ fontSize: 12, fill: 'var(--cx-text-secondary)' }} axisLine={false} tickLine={false} tickFormatter={value => `${formatChartAxis(value)}%`} />
-            <Tooltip content={tooltip} portal={portal ?? undefined} wrapperStyle={chartTooltipWrapperStyle} isAnimationActive={false} />
+            <Tooltip cursor={{ stroke: 'var(--cx-border)' }} content={tooltip} portal={portal ?? undefined} wrapperStyle={chartTooltipWrapperStyle} isAnimationActive={false} />
             <Bar
               yAxisId="volume"
               dataKey={volumeKey}
@@ -146,7 +146,8 @@ export function VolumeRateComboChart({
                 name={series.label}
                 stroke={series.color || [ANALYTICS_COLORS.rpc, ANALYTICS_COLORS.sale, ANALYTICS_COLORS.activation][index % 3]}
                 strokeWidth={2.25}
-                dot={{ r: 3, fill: '#fff', strokeWidth: 2 }}
+                dot={{ r: 3, fill: 'var(--cx-surface)', strokeWidth: 2 }}
+                activeDot={{ stroke: 'var(--cx-surface)' }}
                 connectNulls={false}
                 isAnimationActive={false}
               />
@@ -323,8 +324,8 @@ export function MultiSeriesTrendChart({
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border-subtle)" />
             <XAxis dataKey={xKey} tick={{ fontSize: 12, fill: 'var(--cx-text-secondary)' }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 12, fill: 'var(--cx-text-secondary)' }} axisLine={false} tickLine={false} tickFormatter={value => `${formatChartAxis(value)}${valueSuffix}`} />
-            <Tooltip formatter={(value: any, name: any) => [value == null || !Number.isFinite(Number(value)) ? '—' : `${Number(value).toFixed(1)}${valueSuffix}`, name]} contentStyle={CHART_TOOLTIP_STYLE} />
-            <Legend wrapperStyle={CHART_LEGEND_STYLE} />
+            <Tooltip cursor={{ stroke: 'var(--cx-border)' }} labelStyle={{ color: 'var(--cx-text)' }} formatter={(value: any, name: any) => [value == null || !Number.isFinite(Number(value)) ? '—' : `${Number(value).toFixed(1)}${valueSuffix}`, name]} contentStyle={CHART_TOOLTIP_STYLE} />
+            <Legend wrapperStyle={CHART_LEGEND_STYLE} formatter={label => <span style={{ color: 'var(--cx-text-secondary)' }}>{label}</span>} />
             {series.slice(0, 8).map((item, index) => (
               <Line
                 key={item.key}
@@ -333,7 +334,8 @@ export function MultiSeriesTrendChart({
                 name={item.label}
                 stroke={item.color || SERIES_PALETTE[index % SERIES_PALETTE.length]}
                 strokeWidth={2.2}
-                dot={{ r: 2.5, fill: '#fff', strokeWidth: 2 }}
+                dot={{ r: 2.5, fill: 'var(--cx-surface)', strokeWidth: 2 }}
+                activeDot={{ stroke: 'var(--cx-surface)' }}
                 connectNulls={false}
                 isAnimationActive={false}
               />
@@ -382,7 +384,7 @@ export function StackedCompositionChart({
             <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--cx-border-subtle)" />
             <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12, fill: 'var(--cx-text-secondary)' }} axisLine={false} tickLine={false} tickFormatter={value => `${value}%`} />
             <YAxis type="category" dataKey={categoryKey} width={138} tick={<CategoryAxisTick horizontal />} interval={0} axisLine={false} tickLine={false} />
-            <Tooltip formatter={(value: any, name: any) => [`${Number(value).toFixed(1)}%`, name]} contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ color: 'var(--cx-text)' }} portal={portal ?? undefined} wrapperStyle={chartTooltipWrapperStyle} isAnimationActive={false} />
+            <Tooltip cursor={{ fill: 'var(--cx-surface-subtle)' }} formatter={(value: any, name: any) => [`${Number(value).toFixed(1)}%`, name]} contentStyle={CHART_TOOLTIP_STYLE} labelStyle={{ color: 'var(--cx-text)' }} portal={portal ?? undefined} wrapperStyle={chartTooltipWrapperStyle} isAnimationActive={false} />
             {series.slice(0, 8).map((item, index) => (
               <Bar
                 key={item.key}
@@ -428,8 +430,8 @@ export function HorizontalStackedOutcomeChart({
   if (!safeData.length || !series || !series.length) {
     return (
       <div className="w-full">
-        {title && <h3 className="text-sm font-semibold text-slate-900 mb-1">{title}</h3>}
-        {subtitle && <p className="text-xs text-slate-500 mb-3">{subtitle}</p>}
+        {title && <h3 className="text-sm font-semibold text-text-main mb-1">{title}</h3>}
+        {subtitle && <p className="text-xs text-text-sec mb-3">{subtitle}</p>}
         <EmptyChartState />
       </div>
     );
@@ -457,14 +459,14 @@ export function HorizontalStackedOutcomeChart({
               axisLine={false}
               tickLine={false}
             />
-            <Tooltip portal={portal ?? undefined} wrapperStyle={chartTooltipWrapperStyle} isAnimationActive={false}
+            <Tooltip cursor={{ fill: 'var(--cx-surface-subtle)' }} portal={portal ?? undefined} wrapperStyle={chartTooltipWrapperStyle} isAnimationActive={false}
               content={({ active, payload, label }) => {
                 if (!active || !payload?.length) return null;
                 const row = payload[0]?.payload;
                 const base = row?.base || 0;
                 return (
                   <div className="cx-analytics-tooltip">
-                    <div className="font-bold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1.5 mb-2">
+                    <div className="font-bold text-text-main border-b border-border-subtle pb-1.5 mb-2">
                       {label} · Base: {formatTableNumber(base)} {tooltipBaseLabel}
                     </div>
                     <div className="space-y-1.5">
@@ -477,9 +479,9 @@ export function HorizontalStackedOutcomeChart({
                             <div key={p.dataKey} className="flex items-center justify-between gap-3">
                               <div className="flex items-center gap-1.5">
                                 <span className="w-2.5 h-2.5 rounded-xs shrink-0" style={{ backgroundColor: p.color }} />
-                                <span className="text-slate-700 dark:text-slate-300">{p.name}</span>
+                                <span className="text-text-sec">{p.name}</span>
                               </div>
-                              <span className="font-mono text-slate-900 dark:text-slate-100 font-medium">
+                              <span className="font-mono text-text-main font-medium">
                                 {formatTableNumber(rawCount)} ({pct}%)
                               </span>
                             </div>
@@ -487,7 +489,7 @@ export function HorizontalStackedOutcomeChart({
                         })}
                     </div>
                     {onSelect && (
-                      <div className="mt-2.5 pt-1.5 border-t border-slate-100 dark:border-slate-800 text-[11px] text-sky-700 dark:text-sky-400 font-medium">
+                      <div className="mt-2.5 pt-1.5 border-t border-border-subtle text-[11px] text-action font-medium">
                         Click to drill down into raw codes
                       </div>
                     )}
@@ -520,4 +522,3 @@ export function HorizontalStackedOutcomeChart({
     </div>
   );
 }
-

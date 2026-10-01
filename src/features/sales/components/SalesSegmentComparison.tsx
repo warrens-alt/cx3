@@ -108,23 +108,23 @@ export default function SalesSegmentComparison({
   return (
     <section className="enterprise-card cx-analytics-card" aria-label="Segment comparison">
       {/* Header and Dimension Selector */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 border-b border-slate-100">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 border-b border-border-subtle">
         <div>
           <div className="flex items-center gap-2">
             <span className="cx-command-section-kicker">Outcome distribution</span>
-            <Layers size={15} className="text-slate-400" />
+            <Layers size={15} className="text-text-sec" />
           </div>
-          <h2 className="text-base font-semibold text-slate-900">
+          <h2 className="text-base font-semibold text-text-main">
             {dimensionTitle} outcomes & fulfilment
           </h2>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-text-sec">
             Compare recorded sales, activations, activation / sale ratio, and source-recorded revenue across {activeDimension}s.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start md:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
           {/* Dimension Selector Tabs */}
-          <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50" role="tablist">
+          <div className="inline-flex rounded-lg border border-border p-0.5 bg-surface-subtle" role="tablist">
             {(['vendor', 'source', 'grade'] as const).map((dim) => {
               const label = dim === 'vendor' ? 'Vendors' : dim === 'source' ? 'Sources' : 'Grades';
               const active = activeDimension === dim;
@@ -137,8 +137,8 @@ export default function SalesSegmentComparison({
                   onClick={() => onSelectDimension(dim)}
                   className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
                     active
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-surface text-text-main shadow-xs'
+                      : 'text-text-sec hover:text-text-main'
                   }`}
                 >
                   {label}
@@ -161,7 +161,7 @@ export default function SalesSegmentComparison({
       </header>
 
       {/* Comparison Chart */}
-      <div className="p-4 bg-slate-50/50 border-b border-slate-100">
+      <div className="p-4 bg-surface-subtle border-b border-border-subtle">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-semibold text-text-main">
             Volume & activation ratio ({showAllInChart ? `All ${allRows.length}` : `Top ${chartRows.length} by sales`})
@@ -192,11 +192,11 @@ export default function SalesSegmentComparison({
                 data={chartRows}
                 margin={{ top: 12, right: 24, left: -10, bottom: 12 }}
               >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border-subtle)" />
                 <XAxis dataKey="name" tick={<CategoryAxisTick />} axisLine={false} tickLine={false} interval={0} height={38} />
                 <YAxis
                   yAxisId="volume"
-                  tick={{ fontSize: 11, fill: '#64748B' }}
+                  tick={{ fontSize: 11, fill: 'var(--cx-text-secondary)' }}
                   axisLine={false}
                   tickLine={false}
                   tickFormatter={formatChartAxis}
@@ -205,19 +205,19 @@ export default function SalesSegmentComparison({
                   yAxisId="rate"
                   orientation="right"
                   domain={[0, 100]}
-                  tick={{ fontSize: 11, fill: '#64748B' }}
+                  tick={{ fontSize: 11, fill: 'var(--cx-text-secondary)' }}
                   axisLine={false}
                   tickLine={false}
                   tickFormatter={(val) => `${val}%`}
                 />
-                <Tooltip portal={portal ?? undefined} wrapperStyle={chartTooltipWrapperStyle} isAnimationActive={false}
+                <Tooltip cursor={{ stroke: 'var(--cx-border)' }} portal={portal ?? undefined} wrapperStyle={chartTooltipWrapperStyle} isAnimationActive={false}
                   content={({ active, payload, label }: any) => {
                     if (!active || !payload?.length) return null;
                     const r: AdaptedSegmentRow = payload[0]?.payload;
                     return (
                       <div className="cx-analytics-tooltip space-y-1.5">
-                        <div className="font-semibold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1 font-mono">{label}</div>
-                        <div className="flex items-center justify-between text-slate-700 dark:text-slate-300">
+                        <div className="font-semibold text-text-main border-b border-border-subtle pb-1 font-mono">{label}</div>
+                        <div className="flex items-center justify-between text-text-sec">
                           <span>Recorded sales:</span>
                           <b className="font-mono tabular-nums">{formatTableNumber(r.sales)}</b>
                         </div>
@@ -225,15 +225,15 @@ export default function SalesSegmentComparison({
                           <span>Recorded activations:</span>
                           <b className="font-mono tabular-nums">{formatTableNumber(r.activations)}</b>
                         </div>
-                        <div className="flex items-center justify-between text-[#315BCB] dark:text-blue-400">
+                        <div className="flex items-center justify-between text-action">
                           <span>Activation / sale:</span>
                           <b className="font-mono tabular-nums">{r.activationRatio !== null ? formatPercent(r.activationRatio) : '—'}</b>
                         </div>
-                        <div className="flex items-center justify-between text-purple-700 dark:text-purple-400 border-t border-slate-100 dark:border-slate-800 pt-1">
+                        <div className="flex items-center justify-between text-text-main border-t border-border-subtle pt-1">
                           <span>Source revenue:</span>
                           <b className="font-mono tabular-nums">{formatWorkspaceCurrency(r.revenue, currency)}</b>
                         </div>
-                        <div className="text-[11px] text-blue-600 dark:text-blue-400 font-medium pt-1 font-sans">
+                        <div className="text-[11px] text-action font-medium pt-1 font-sans">
                           Click row below to inspect segment evidence
                         </div>
                       </div>
@@ -266,7 +266,8 @@ export default function SalesSegmentComparison({
                   name="Activation / sale ratio (%)"
                   stroke="var(--cx-action)"
                   strokeWidth={2}
-                  dot={{ r: 3, fill: '#fff', strokeWidth: 2 }}
+                  dot={{ r: 3, fill: 'var(--cx-surface)', strokeWidth: 2 }}
+                  activeDot={{ stroke: 'var(--cx-surface)' }}
                   connectNulls={true}
                   isAnimationActive={false}
                 />
@@ -274,7 +275,7 @@ export default function SalesSegmentComparison({
             </ResponsiveContainer>
           )}</CategoryChartFrame>
         ) : (
-          <div className="py-8 text-center text-xs text-slate-400">
+          <div className="py-8 text-center text-xs text-text-sec">
             No segment records observed for {dimensionTitle.toLowerCase()}s in this reporting period.
           </div>
         )}
@@ -289,7 +290,7 @@ export default function SalesSegmentComparison({
             placeholder={`Filter ${dimensionTitle.toLowerCase()}s…`}
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-xs rounded-md border border-border focus:outline-hidden focus:ring-1 focus:ring-action focus:border-action"
+            className="bg-surface text-text-main w-full pl-8 pr-3 py-1.5 text-xs rounded-md border border-border focus:outline-hidden focus:ring-1 focus:ring-action focus:border-action"
           />
         </div>
         <div className="text-xs text-text-sec self-end sm:self-auto">
@@ -302,14 +303,14 @@ export default function SalesSegmentComparison({
         <table className="cx-performance-table cx-sales-segment-table w-full text-left border-collapse">
           <thead>
             <tr>
-              <th className="py-2.5 px-3 text-xs font-semibold text-slate-700">{dimensionTitle}</th>
-              <th className="py-2.5 px-3 text-xs font-semibold text-slate-700 text-right">Recorded sales</th>
-              <th className="py-2.5 px-3 text-xs font-semibold text-slate-700 text-right">Recorded activations</th>
-              <th className="py-2.5 px-3 text-xs font-semibold text-slate-700 text-right">Activation / sale</th>
-              <th className="py-2.5 px-3 text-xs font-semibold text-slate-700 text-right">Source revenue</th>
-              <th className="py-2.5 px-3 text-xs font-semibold text-slate-700 text-right">Revenue / sale</th>
-              <th className="py-2.5 px-3 text-xs font-semibold text-slate-700 text-right">Missing revenue</th>
-              <th className="py-2.5 px-3 text-xs font-semibold text-slate-700 text-right">Action</th>
+              <th className="py-2.5 px-3 text-xs font-semibold text-text-sec">{dimensionTitle}</th>
+              <th className="py-2.5 px-3 text-xs font-semibold text-text-sec text-right">Recorded sales</th>
+              <th className="py-2.5 px-3 text-xs font-semibold text-text-sec text-right">Recorded activations</th>
+              <th className="py-2.5 px-3 text-xs font-semibold text-text-sec text-right">Activation / sale</th>
+              <th className="py-2.5 px-3 text-xs font-semibold text-text-sec text-right">Source revenue</th>
+              <th className="py-2.5 px-3 text-xs font-semibold text-text-sec text-right">Revenue / sale</th>
+              <th className="py-2.5 px-3 text-xs font-semibold text-text-sec text-right">Missing revenue</th>
+              <th className="py-2.5 px-3 text-xs font-semibold text-text-sec text-right">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -317,27 +318,27 @@ export default function SalesSegmentComparison({
               <tr
                 key={row.name}
                 onClick={() => onInspectRow(row)}
-                className="cursor-pointer transition-colors hover:bg-slate-50"
+                className="cursor-pointer transition-colors hover:bg-surface-subtle"
               >
-                <th className="py-2.5 px-3 text-xs font-semibold text-slate-900">{row.name}</th>
-                <td className="py-2.5 px-3 text-xs font-mono text-slate-900 text-right">
+                <th className="py-2.5 px-3 text-xs font-semibold text-text-main">{row.name}</th>
+                <td className="py-2.5 px-3 text-xs font-mono text-text-main text-right">
                   {formatTableNumber(row.sales)}
                 </td>
-                <td className="py-2.5 px-3 text-xs font-mono text-slate-900 text-right">
+                <td className="py-2.5 px-3 text-xs font-mono text-text-main text-right">
                   {formatTableNumber(row.activations)}
                 </td>
-                <td className="py-2.5 px-3 text-xs text-slate-700 text-right">
+                <td className="py-2.5 px-3 text-xs text-text-sec text-right">
                   {row.activationRatio !== null ? formatPercent(row.activationRatio) : '—'}
                 </td>
-                <td className="py-2.5 px-3 text-xs font-mono text-slate-900 text-right">
+                <td className="py-2.5 px-3 text-xs font-mono text-text-main text-right">
                   {formatWorkspaceCurrency(row.revenue, currency)}
                 </td>
-                <td className="py-2.5 px-3 text-xs text-slate-600 text-right">
+                <td className="py-2.5 px-3 text-xs text-text-sec text-right">
                   {row.revenuePerSale !== null ? formatWorkspaceCurrency(row.revenuePerSale, currency) : '—'}
                 </td>
-                <td className="py-2.5 px-3 text-xs text-slate-500 text-right">
+                <td className="py-2.5 px-3 text-xs text-text-sec text-right">
                   {row.unrecordedRevenueSales > 0 ? (
-                    <span className="text-amber-600 font-medium">{formatTableNumber(row.unrecordedRevenueSales)}</span>
+                    <span className="text-semantic-warn font-medium">{formatTableNumber(row.unrecordedRevenueSales)}</span>
                   ) : (
                     '0'
                   )}
@@ -352,14 +353,14 @@ export default function SalesSegmentComparison({
 
             {filteredRows.length === 0 && (
               <tr>
-                <td colSpan={8} className="py-8 text-center text-xs text-slate-400">
+                <td colSpan={8} className="py-8 text-center text-xs text-text-sec">
                   No {dimensionTitle.toLowerCase()}s match the search query "{search}".
                 </td>
               </tr>
             )}
           </tbody>
           <tfoot>
-            <tr className="border-t-2 border-slate-200 bg-slate-50/80 font-bold text-slate-900">
+            <tr className="border-t-2 border-border bg-surface-subtle font-bold text-text-main">
               <th className="py-2.5 px-3 text-xs">Total ({dimensionTitle} dimension)</th>
               <td className="py-2.5 px-3 text-xs font-mono text-right">{formatTableNumber(totals.sales)}</td>
               <td className="py-2.5 px-3 text-xs font-mono text-right">{formatTableNumber(totals.activations)}</td>
@@ -368,8 +369,8 @@ export default function SalesSegmentComparison({
               </td>
               <td className="py-2.5 px-3 text-xs font-mono text-right">{formatWorkspaceCurrency(totals.revenue, currency)}</td>
               <td className="py-2.5 px-3 text-xs text-right">{formatWorkspaceCurrency(totals.revenuePerSale, currency)}</td>
-              <td className="py-2.5 px-3 text-xs text-right text-slate-500">{formatTableNumber(totals.missingRev)}</td>
-              <td className="py-2.5 px-3 text-xs text-right text-slate-400">—</td>
+              <td className="py-2.5 px-3 text-xs text-right text-text-sec">{formatTableNumber(totals.missingRev)}</td>
+              <td className="py-2.5 px-3 text-xs text-right text-text-sec">—</td>
             </tr>
           </tfoot>
         </table>

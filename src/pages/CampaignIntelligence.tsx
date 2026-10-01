@@ -1,3 +1,4 @@
+import { ReportSkeleton } from '../components/OperationalState';
 import TablePreview from '../shared/reporting/TablePreview';
 import { ReportActions } from '../shared/reporting/ReportPresentation';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
@@ -111,7 +112,7 @@ export default function CampaignIntelligence() {
         </nav>
 
         {error && <div className="cx-command-error"><AlertTriangle size={17}/>{error}</div>}
-        {loading && !data && <div className="cx-command-loading"><div className="cx-command-spinner"/>Loading media performance…</div>}
+        {loading && !data && <ReportSkeleton label="Loading media performance" metricCount={5} />}
 
         {data && (
           <>

@@ -13,7 +13,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import ReportingScopeBar from '../../shared/reporting/ReportingScopeBar';
-import { OperationalError } from '../../components/OperationalState';
+import { OperationalError, ReportSkeleton } from '../../components/OperationalState';
 import { formatPercent, formatTableNumber } from '../../lib/formatters';
 import { VolumeRateComboChart } from '../../components/charts/OperationalVisuals';
 import UnifiedMetricCard from '../../components/UnifiedMetricCard';
@@ -129,9 +129,7 @@ export default function SpeedPage() {
 
       {/* Loading state */}
       {loading && !data && (
-        <div className="p-12 text-center text-sm text-text-sec bg-surface rounded-xl border border-border-subtle animate-pulse">
-          Calculating latency distributions and first-dial SLA compliance…
-        </div>
+        <ReportSkeleton label="Calculating latency distributions and first-dial SLA compliance" metricCount={6} />
       )}
 
       {data && (

@@ -21,7 +21,7 @@ import ReportingScopeBar from '../../shared/reporting/ReportingScopeBar';
 import InspectorHost from '../../shared/evidence/InspectorHost';
 import RootCauseDrawer from '../../components/RootCauseDrawer';
 import UnifiedMetricCard from '../../components/UnifiedMetricCard';
-import { OperationalError } from '../../components/OperationalState';
+import { OperationalError, ReportSkeleton } from '../../components/OperationalState';
 import { formatPercent, formatRatioPercent, formatTableNumber } from '../../lib/formatters';
 import { MatchedPeriodPanel } from '../../components/LifecycleDiagnostics';
 import { SlaBandsPanel } from '../../components/OfferNetControlPanels';
@@ -194,9 +194,7 @@ export default function JourneyPage() {
 
       {/* Loading state */}
       {loading && !data && (
-        <div className="p-12 text-center text-sm text-text-sec bg-surface rounded-xl border border-border-subtle animate-pulse">
-          Loading stage progression and cohort evidence…
-        </div>
+        <ReportSkeleton label="Loading stage progression and cohort evidence" metricCount={6} />
       )}
 
       {data && (

@@ -12,7 +12,7 @@ import {
 import ReportingScopeBar from '../../shared/reporting/ReportingScopeBar';
 import InspectorHost from '../../shared/evidence/InspectorHost';
 import RootCauseDrawer from '../../components/RootCauseDrawer';
-import { OperationalError } from '../../components/OperationalState';
+import { OperationalError, ReportSkeleton } from '../../components/OperationalState';
 import { formatTableNumber } from '../../lib/formatters';
 import { useScopedNavigationTarget } from '../../hooks/useScopedNavigationTarget';
 import { useContactModel } from './model/useContactModel';
@@ -200,9 +200,7 @@ export default function ContactPage() {
 
       {/* Loading state */}
       {loading && !hasData && (
-        <div className="p-12 text-center text-sm text-text-sec bg-surface rounded-xl border border-border-subtle animate-pulse">
-          Loading contact strategy and disposition evidence…
-        </div>
+        <ReportSkeleton label="Loading contact strategy and disposition evidence" metricCount={4} />
       )}
 
       {/* Main Content */}

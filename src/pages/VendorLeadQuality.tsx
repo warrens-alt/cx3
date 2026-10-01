@@ -1,3 +1,4 @@
+import { ReportSkeleton } from '../components/OperationalState';
 import TablePreview from '../shared/reporting/TablePreview';
 import { ReportActions } from '../shared/reporting/ReportPresentation';
 import ExportAnalysisButton from '../components/ExportAnalysisButton';
@@ -138,7 +139,7 @@ export default function VendorLeadQuality() {
 
         <nav className="cx-viz-jump-nav" aria-label="Vendor quality sections"><a href="#vendor-comparison">Compare vendors</a><a href="#vendor-speed">Speed & contact</a><a href="#source-performance">Source performance</a><a href="#quality-signals">Grade & vetting</a></nav>
         {error && <div className="cx-command-error"><AlertTriangle size={17} />{error}</div>}
-        {loading && !data && <div className="cx-command-loading"><div className="cx-command-spinner" />Loading performance analysis…</div>}
+        {loading && !data && <ReportSkeleton label="Loading performance analysis" metricCount={1} />}
 
         {data && (
           <>

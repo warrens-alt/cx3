@@ -1,3 +1,4 @@
+import { ReportSkeleton } from '../components/OperationalState';
 import TablePreview from '../shared/reporting/TablePreview';
 import { useOperationalData } from '../lib/useOperationalData';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -112,7 +113,7 @@ export default function AgentPerformanceIntelligence() {
         />
 
         {error && <div className="cx-command-error"><AlertTriangle size={17}/>{error}</div>}
-        {loading && !data && <div className="cx-command-loading"><div className="cx-command-spinner"/>Aggregating agent call activity…</div>}
+        {loading && !data && <ReportSkeleton label="Aggregating agent call activity" metricCount={4} />}
 
         {data && (
           <>
