@@ -1,4 +1,5 @@
 import React from 'react';
+import { CategoryChartFrame, chartTooltipWrapperStyle } from '../../../components/charts/CategoryChartFrame';
 import {
   BarChart,
   Bar,
@@ -50,7 +51,7 @@ export default function ActivationAgeing({
     if (!bucket) return null;
 
     return (
-      <div className="bg-surface border border-border rounded-lg p-3 shadow-md text-xs space-y-1.5 max-w-xs z-50">
+      <div className="cx-analytics-tooltip space-y-1.5">
         <div className="font-semibold text-text-main flex items-center justify-between">
           <span>{bucket.bucket}</span>
           {bucket.isInvalidFuture && (
@@ -108,26 +109,26 @@ export default function ActivationAgeing({
 
       {/* Visual Bar Chart: Strictly chronological order */}
       <div className="p-4 bg-surface-subtle">
-        <div className="h-64 min-h-[256px] w-full">
+        <CategoryChartFrame title="Sales awaiting activation by completed age" height={256} minWidth={0}>{portal => (
           <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
             <BarChart
               data={chartData}
               margin={{ top: 12, right: 16, left: -10, bottom: 20 }}
             >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border-subtle)" />
               <XAxis
                 dataKey="name"
-                tick={{ fontSize: 11, fill: '#475569' }}
+                tick={{ fontSize: 11, fill: 'var(--cx-text-secondary)' }}
                 axisLine={false}
                 tickLine={false}
               />
               <YAxis
-                tick={{ fontSize: 11, fill: '#64748B' }}
+                tick={{ fontSize: 11, fill: 'var(--cx-text-secondary)' }}
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={formatChartAxis}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--cx-surface-subtle)' }} portal={portal ?? undefined} wrapperStyle={chartTooltipWrapperStyle} isAnimationActive={false} />
               <Bar
                 dataKey="sales"
                 name="Sales"
@@ -149,7 +150,7 @@ export default function ActivationAgeing({
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </div>
+        )}</CategoryChartFrame>
       </div>
 
       {/* Precise Supporting Table in Unified Analytical Region */}
@@ -170,7 +171,7 @@ export default function ActivationAgeing({
                 key={b.bucket}
                 onClick={() => onInspectBucket(b)}
                 className={`cursor-pointer transition-colors hover:bg-surface-subtle ${
-                  b.isInvalidFuture ? 'bg-red-50/40 hover:bg-red-50/70' : ''
+                  b.isInvalidFuture ? 'bg-semantic-neg-bg hover:bg-semantic-neg-bg' : ''
                 }`}
               >
                 <th className="py-2.5 px-3 text-xs font-semibold text-text-main flex items-center gap-2">

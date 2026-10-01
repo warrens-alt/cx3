@@ -446,7 +446,7 @@
 .cx-command-grid-change { grid-template-columns: minmax(300px,.72fr) minmax(0,1.4fr); }
 .cx-command-panel {
   overflow: hidden;
-  background: #fff;
+  background: var(--cx-surface);
   border: 1px solid var(--cx-line);
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(15,23,42,.03);
@@ -457,7 +457,7 @@
   justify-content: space-between;
   gap: 14px;
   padding: 20px;
-  border-bottom: 1px solid #EDF1F5;
+  border-bottom: 1px solid var(--cx-border-subtle);
 }
 .cx-command-panel>header h2 {
   margin: 2px 0 2px;
@@ -840,11 +840,11 @@
   font-size:12px;
   font-variant-numeric:tabular-nums;
 }
-.cx-performance-table thead { background:#FAFBFD; color:#66768A; }
+.cx-performance-table thead { background:var(--cx-surface-subtle); color:var(--cx-text-secondary); }
 .cx-performance-table th,
 .cx-performance-table td {
   padding:10px 12px;
-  border-bottom:1px solid #EDF1F5;
+  border-bottom:1px solid var(--cx-border-subtle);
   text-align:right;
   white-space:nowrap;
 }
@@ -856,9 +856,9 @@
 }
 .cx-performance-table th:first-child,
 .cx-performance-table td:first-child { text-align:left; }
-.cx-performance-table tbody th { color:#223047; font-weight:650; }
-.cx-performance-table tbody td { color:#52657D; }
-.cx-performance-table tbody tr:hover { background:#FAFCFF; }
+.cx-performance-table tbody th { color:var(--cx-text); font-weight:650; }
+.cx-performance-table tbody td { color:var(--cx-text-secondary); }
+.cx-performance-table tbody tr:hover { background:var(--cx-surface-subtle); }
 .cx-quality-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
 .cx-quality-outcomes { padding:4px 16px 12px; }
 .cx-quality-head,
@@ -2372,9 +2372,9 @@
 .cx-trend-data>summary { padding:12px 18px; color:var(--cx-accent); font-size:12px; font-weight:600; }
 .cx-trend-data .cx-performance-table { min-width:0; }
 .cx-trend-data .cx-performance-table-wrap { max-height:280px; }
-.cx-performance-table thead th { position:sticky; top:0; z-index:2; background:#F8FAFC; }
-.cx-performance-table :is(thead,tbody) th:first-child { position:sticky; left:0; background:#fff; box-shadow:1px 0 0 #E6EBF1; }
-.cx-performance-table thead th:first-child { z-index:3; background:#F8FAFC; }
+.cx-performance-table thead th { position:sticky; top:0; z-index:2; background:var(--cx-surface-subtle); }
+.cx-performance-table :is(thead,tbody) th:first-child { position:sticky; left:0; background:var(--cx-surface); box-shadow:1px 0 0 var(--cx-border-subtle); }
+.cx-performance-table thead th:first-child { z-index:3; background:var(--cx-surface-subtle); }
 [data-density=compact] .cx-performance-table :is(th,td) { padding:7px 10px; }
 .cx-trust-pill strong { letter-spacing:0; font-size:12px; }
 @media(max-width:760px) {
@@ -2457,7 +2457,7 @@ a.cx-trust-pill:hover { background:transparent; }
 .cx-kpi-card .text-\[11px\] { font-size:12px; }
 .cx-temporal-day,.cx-temporal-corner { position:sticky; left:0; z-index:1; background:var(--cx-surface); }
 .cx-cohort-matrix :is(thead,tbody) th:first-child { position:sticky; left:0; z-index:1; background:var(--cx-surface); box-shadow:1px 0 0 var(--cx-line); }
-.cx-performance-table thead th { color:var(--cx-muted); font-size:12px; text-transform:none; letter-spacing:0; }
+.cx-performance-table thead th { color:var(--cx-text-secondary); font-size:12px; text-transform:none; letter-spacing:0; }
 .cx-performance-table tbody tr:hover { background:var(--cx-canvas); }
 .cx-performance-table :is(th,td) { vertical-align:middle; }
 @media (max-width:1180px) and (min-width:761px) {

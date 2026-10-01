@@ -19,7 +19,7 @@ import InspectorHost from '../../shared/evidence/InspectorHost';
 import Modal from '../../components/Modal';
 import { AuditMetadata } from '../../shared/evidence/AuditMode';
 import { salesAudit, suppliedProvenance } from '../evidenceWorkspace/secondaryAudit';
-import { OperationalError } from '../../components/OperationalState';
+import { OperationalError, ReportSkeleton } from '../../components/OperationalState';
 import { useSalesActivationModel } from './model/useSalesActivationModel';
 import SalesOutcomeSummary from './components/SalesOutcomeSummary';
 import SalesOutcomeMap from './components/SalesOutcomeMap';
@@ -174,10 +174,7 @@ export default function SalesActivationPage() {
 
         {/* Loading State */}
         {loading && !model && (
-          <div className="cx-command-loading py-12 text-center text-sm text-text-sec flex flex-col items-center justify-center gap-3">
-            <div className="cx-command-spinner w-6 h-6 border-2 border-action border-t-transparent rounded-full animate-spin" />
-            <span>Loading recorded sales and activation outcomes…</span>
-          </div>
+          <ReportSkeleton label="Loading recorded sales and activation outcomes" metricCount={4} />
         )}
 
         {/* Content Body */}

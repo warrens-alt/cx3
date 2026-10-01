@@ -1,3 +1,4 @@
+import { ReportSkeleton } from '../components/OperationalState';
 import { downloadAnalysisCsv } from '../lib/analysisExport';
 import { useOperationalData } from '../lib/useOperationalData';
 import React, { useMemo, useState } from 'react';
@@ -102,7 +103,7 @@ export default function TemporalIntelligence() {
         </nav>
 
         {error && <div className="cx-command-error"><AlertTriangle size={17}/>{error}</div>}
-        {loading && !data && <div className="cx-command-loading"><div className="cx-command-spinner"/>Building day/hour matrix…</div>}
+        {loading && !data && <ReportSkeleton label="Building day/hour matrix" metricCount={2} />}
 
         {data && (
           <>

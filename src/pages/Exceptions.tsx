@@ -1,3 +1,4 @@
+import { ReportSkeleton } from '../components/OperationalState';
 import { ReportActions } from '../shared/reporting/ReportPresentation';
 import { useOperationalData } from '../lib/useOperationalData';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -93,7 +94,7 @@ export default function Exceptions() {
 
         {(error || queue.error) && <div role="alert" className="cx-command-error"><AlertTriangle size={17} />{error || queue.error}</div>}
         {(!data && !queue.data && (loading || queue.loading)) ? (
-          <div className="cx-command-loading"><div className="cx-command-spinner" />Loading exception populations…</div>
+          <ReportSkeleton label="Loading exception populations" metricCount={3} />
         ) : (
           <>
             <section className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6" aria-label="Exceptions summary metrics">
