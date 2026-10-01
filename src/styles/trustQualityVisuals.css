@@ -1,6 +1,8 @@
 /* Frontend-only trust, investigation and vendor views. Returned values own all business meanings. */
 .cx-trust-workspace{min-width:0;color:var(--cx-text)}
 .cx-trust-workspace .cx-command-content{gap:20px}
+.cx-trust-workspace .cx-command-panel{background:var(--cx-surface)}
+.cx-trust-workspace .cx-command-panel>header{border-color:var(--cx-border-subtle)}
 .cx-trust-workspace .cx-command-content>section.mb-6{margin-bottom:0}
 .cx-trust-workspace .cx-command-hero{align-items:flex-start}
 .cx-trust-workspace .cx-command-hero h1{font-size:clamp(24px,2vw,30px);letter-spacing:-.035em;line-height:1.2}
@@ -123,6 +125,10 @@
 .cx-trust-workspace .cx-unified-metric :is(.cx-why-btn,.cx-inspect-btn) svg{color:currentColor}
 
 /* Overview shows returned issue inventories; full evidence is in local sections. */
+.cx-integrity-boundary { display:flex; align-items:flex-start; gap:10px; padding:16px 0; border-top:1px solid var(--cx-border-subtle); color:var(--cx-text-secondary); }
+.cx-integrity-boundary>svg { flex-shrink:0; margin-top:2px; }
+.cx-integrity-boundary h2 { font-size:13px; font-weight:600; }
+.cx-integrity-boundary p { margin-top:4px; font-size:12px; line-height:1.6; }
 .cx-integrity-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--cx-card-gap); }
 .cx-integrity-attention { color: var(--cx-text); }
 .cx-integrity-attention h2 { font-size: 16px; font-weight: 650; }

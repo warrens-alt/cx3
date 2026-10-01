@@ -12,13 +12,14 @@
 .cx-scope-editable { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; flex-basis: 100%; order: 3; }
 .cx-scope-editable[hidden] { display: none; }
 .cx-scope-controls .cx-scopebar-main {
+  min-height: 52px;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
   max-width: 1600px;
   margin: 0 auto;
-  padding: 10px var(--cx-page-padding-x, 24px) 8px;
+  padding: 8px var(--cx-page-padding-x, 24px) 6px;
 }
 .cx-scope-controls .cx-scope-control {
   min-width: 130px;
@@ -274,7 +275,7 @@
   .cx-scope-additional { margin-top: 0; padding-left: 0; border-left: 0; }
 }
 @media (max-width: 620px) {
-  .cx-scope-controls .cx-scopebar-main { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 12px; gap: 10px; }
+  .cx-scope-controls .cx-scopebar-main { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 8px 12px; gap: 6px; }
   .cx-scope-controls .cx-scope-control { min-width: 0; max-width: none; width: 100%; }
   .cx-scope-editable { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cx-scope-summary { grid-column: 1 / -1; }

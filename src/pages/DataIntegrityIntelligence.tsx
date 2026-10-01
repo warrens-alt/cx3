@@ -98,9 +98,9 @@ export default function DataIntegrityIntelligence() {
               <IntegrityAuditChecks key={JSON.stringify([selectedClient, startDate, endDate, filters])} data={data} scope={auditScope} />
             </section>
 
-            <section className="cx-command-panel">
-              <header><div><span className="cx-command-section-kicker">Trust boundary</span><h2>Current validation state</h2><p>Source freshness and discrepancy counts are operational observations, not financial or evidence-release certification.</p></div><ShieldCheck size={16} className="text-slate-400"/></header>
-            </section>
+            <aside className="cx-integrity-boundary" aria-label="Trust boundary">
+              <ShieldCheck size={16} aria-hidden="true"/><div><h2>Current validation state</h2><p>Source freshness and discrepancy counts are operational observations, not financial or evidence-release certification.</p></div>
+            </aside>
 </> },
           { id: 'sources', label: 'Sources', content: data && <>            <SourceEvidenceMatrix sources={data.sources} renderSourceAction={source => {
               const target = warehouseSchemaPath(source.table, selectedClient, analysisPath);
