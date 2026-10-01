@@ -70,3 +70,11 @@
 @media(prefers-reduced-motion:reduce){
   .cx-analysis-jump-nav a{transition:none}
 }
+
+/* Long names must not cover the measures in an internally scrolling table. */
+.cx-agent-page .cx-agent-table :is(th,td):nth-child(-n+2),
+.cx-campaign-page .cx-campaign-table :is(th,td):nth-child(-n+3){min-width:160px;max-width:240px;width:220px;white-space:normal;overflow-wrap:anywhere;text-align:left}
+.cx-agent-page .cx-performance-table-wrap,
+.cx-campaign-page .cx-performance-table-wrap{max-height:570px;overscroll-behavior-inline:contain}
+@media(max-width:639px){.cx-agent-page .cx-agent-table :is(th,td):first-child,
+.cx-campaign-page .cx-campaign-table :is(th,td):first-child{min-width:130px;max-width:145px;width:145px}}

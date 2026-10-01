@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { CategoryAxisTick, CategoryChartFrame, categoryPlotWidth, chartTooltipWrapperStyle } from '../../../components/charts/CategoryChartFrame';
 import {
   ComposedChart,
   Bar,
@@ -7,7 +8,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from 'recharts';
 import {
@@ -182,23 +182,18 @@ export default function SalesSegmentComparison({
         </div>
 
         {chartRows.length > 0 ? (
-          <div style={{ height: Math.max(260, Math.min(420, chartRows.length * 28 + 60)), minHeight: 260, width: '100%' }}>
+          <CategoryChartFrame title="Sales and activation by segment" height={320} minWidth={categoryPlotWidth(chartRows.length, 144)} legend={[
+            { label: 'Recorded sales', color: 'var(--cx-data-sales)' },
+            { label: 'Recorded activations', color: 'var(--cx-data-activation)' },
+            { label: 'Activation / sale ratio (%)', color: 'var(--cx-action)' },
+          ]}>{portal => (
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
               <ComposedChart
                 data={chartRows}
-                margin={{ top: 12, right: 24, left: -10, bottom: chartRows.length > 6 ? 40 : 16 }}
+                margin={{ top: 12, right: 24, left: -10, bottom: 12 }}
               >
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                <XAxis
-                  dataKey="name"
-                  tick={{ fontSize: 11, fill: '#475569' }}
-                  axisLine={false}
-                  tickLine={false}
-                  interval={0}
-                  angle={chartRows.length > 6 ? -20 : 0}
-                  textAnchor={chartRows.length > 6 ? 'end' : 'middle'}
-                  height={chartRows.length > 6 ? 44 : 24}
-                />
+                <XAxis dataKey="name" tick={<CategoryAxisTick />} axisLine={false} tickLine={false} interval={0} height={38} />
                 <YAxis
                   yAxisId="volume"
                   tick={{ fontSize: 11, fill: '#64748B' }}
@@ -215,12 +210,12 @@ export default function SalesSegmentComparison({
                   tickLine={false}
                   tickFormatter={(val) => `${val}%`}
                 />
-                <Tooltip
+                <Tooltip portal={portal ?? undefined} wrapperStyle={chartTooltipWrapperStyle} isAnimationActive={false}
                   content={({ active, payload, label }: any) => {
                     if (!active || !payload?.length) return null;
                     const r: AdaptedSegmentRow = payload[0]?.payload;
                     return (
-                      <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-lg p-3 shadow-xl text-xs space-y-1.5 z-50 ring-1 ring-black/5 dark:ring-white/5 min-w-[200px]">
+                      <div className="cx-analytics-tooltip space-y-1.5">
                         <div className="font-semibold text-slate-900 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1 font-mono">{label}</div>
                         <div className="flex items-center justify-between text-slate-700 dark:text-slate-300">
                           <span>Recorded sales:</span>
@@ -245,12 +240,12 @@ export default function SalesSegmentComparison({
                     );
                   }}
                 />
-                <Legend wrapperStyle={{ fontSize: 11, paddingTop: 6 }} />
+
                 <Bar
                   yAxisId="volume"
                   dataKey="sales"
                   name="Recorded sales"
-                  fill="#426D80"
+                  fill="var(--cx-data-sales)"
                   radius={[3, 3, 0, 0]}
                   maxBarSize={32}
                   isAnimationActive={false}
@@ -259,7 +254,7 @@ export default function SalesSegmentComparison({
                   yAxisId="volume"
                   dataKey="activations"
                   name="Recorded activations"
-                  fill="#566273"
+                  fill="var(--cx-data-activation)"
                   radius={[3, 3, 0, 0]}
                   maxBarSize={32}
                   isAnimationActive={false}
@@ -269,7 +264,7 @@ export default function SalesSegmentComparison({
                   type="monotone"
                   dataKey="activationRatio"
                   name="Activation / sale ratio (%)"
-                  stroke="#315BCB"
+                  stroke="var(--cx-action)"
                   strokeWidth={2}
                   dot={{ r: 3, fill: '#fff', strokeWidth: 2 }}
                   connectNulls={true}
@@ -277,7 +272,7 @@ export default function SalesSegmentComparison({
                 />
               </ComposedChart>
             </ResponsiveContainer>
-          </div>
+          )}</CategoryChartFrame>
         ) : (
           <div className="py-8 text-center text-xs text-slate-400">
             No segment records observed for {dimensionTitle.toLowerCase()}s in this reporting period.
@@ -303,8 +298,8 @@ export default function SalesSegmentComparison({
       </div>
 
       {/* Exact Supporting Table */}
-      <div className="cx-performance-table-wrap">
-        <table className="cx-performance-table w-full text-left border-collapse">
+      <div role="region" aria-label="Sales segment evidence table" tabIndex={0} className="cx-sales-segment-scroll cx-performance-table-wrap">
+        <table className="cx-performance-table cx-sales-segment-table w-full text-left border-collapse">
           <thead>
             <tr>
               <th className="py-2.5 px-3 text-xs font-semibold text-slate-700">{dimensionTitle}</th>

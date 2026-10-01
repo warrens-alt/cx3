@@ -1,3 +1,4 @@
+import { ReportSkeleton } from '../components/OperationalState';
 import { ReportActions } from '../shared/reporting/ReportPresentation';
 import { useOperationalData } from '../lib/useOperationalData';
 import React, { useState } from 'react';
@@ -70,7 +71,7 @@ export default function DataIntegrityIntelligence() {
         <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />
 
         {error && <div role="alert" className="cx-command-error"><AlertTriangle size={16}/>{error}</div>}
-        {loading && !data && <div className="cx-command-loading"><div className="cx-command-spinner"/>Auditing source state…</div>}
+        {loading && !data && <ReportSkeleton label="Loading data integrity" metricCount={3} />}
 
         <ReportSections label="Data integrity sections" value={section} onChange={setSection} sections={[
           { id: 'overview', label: 'Overview', content: data && <><section className="cx-integrity-summary" aria-label="Data integrity overview metrics">

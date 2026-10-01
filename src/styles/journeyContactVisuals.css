@@ -110,7 +110,7 @@ button.cx-evidence-bar-row:hover{background:var(--cx-surface-subtle)}
 @media(prefers-reduced-motion:reduce){.cx-visual-workspace *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 
 .cx-effort-yield-scroll{min-width:0;max-width:100%;overflow:auto;border:1px solid var(--cx-border-subtle);border-radius:10px;background:var(--cx-surface)}
-.cx-effort-yield-scroll>.cx-analytics-card{border:0;box-shadow:none;min-width:490px;height:100%;margin:0;padding:20px}
+.cx-effort-yield-scroll>.cx-analytics-card{border:0;box-shadow:none;min-width:0;height:100%;margin:0;padding:20px}
 .cx-effort-yield-scroll:focus-visible,.cx-viz-table-scroll:focus-visible{outline:2px solid var(--cx-focus,var(--cx-action));outline-offset:3px}
 
 /* Keep card actions secondary and avoid oversized footers in six-column summaries. */

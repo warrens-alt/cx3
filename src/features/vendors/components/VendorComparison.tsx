@@ -67,7 +67,7 @@ export default function VendorComparison({ vendors, onSelectVendor, onInspectVen
           <td className="cx-trust-number">{formatTableNumber(vendor.leads)}</td>
           <RateCell value={vendor.deliveryRate} /><RateCell value={vendor.dialRate} /><RateCell value={vendor.contactRate} /><RateCell value={vendor.saleRate} /><RateCell value={vendor.activationRate} />
           <td className="cx-trust-number">{vendor.medianFirstDial || 'Unavailable'}</td><td className="cx-trust-number">{formatTableNumber(vendor.callsPerLead)}</td><RateCell value={vendor.invalidRate} />
-          {onInspectVendor && <td><button type="button" className="cx-button-secondary" onClick={() => onInspectVendor(vendor, measure)} aria-label={`Inspect ${definition.label} evidence for ${vendor.vendor}`}>Inspect evidence</button></td>}
+          {onInspectVendor && <td><button type="button" className="cx-button-secondary" onClick={() => onInspectVendor(vendor, measure)} aria-label={`Inspect ${definition.label} evidence for ${vendor.vendor}`}>Inspect</button></td>}
         </tr>)}</tbody>
       </table>
     </div>
