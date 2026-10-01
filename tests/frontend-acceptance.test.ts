@@ -846,6 +846,10 @@ test('reduction: empty command palette suggests six core areas, typing searches 
     await app.wait(()=>app.find('.cx-outcome-strip'));const before=[...app.w.__fixture.requests];
     await app.click('button','Search pages');await app.wait(()=>app.find('[role="combobox"]'));
     assert.equal(app.w.document.querySelectorAll('[role="option"]').length,6);
+    for (const option of app.w.document.querySelectorAll('[role="option"]')) {
+      assert.ok(option.querySelector('small')?.textContent, 'Suggestions retain their descriptive text');
+      assert.ok(option.querySelector('.sr-only')?.textContent, 'Section context remains available to assistive technology');
+    }
     const input=app.find('[role="combobox"]');await app.input(input,'visual');
     assert.ok(app.find('[role="option"]','Visual workspace'));
     await app.input(input,'lead ledger');assert.equal(app.w.document.querySelectorAll('[role="option"]').length,0);

@@ -84,7 +84,7 @@ export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; o
           <span>
             <strong>{item.name}</strong>
             <small>{item.description}</small>
-            <span className="cx-command-section">
+            <span className={query.trim() ? "cx-command-section" : "sr-only"}>
               {item.isAction === true ? 'Appearance command' : `${SECTION_NAMES[item.section]}${item.adminOnly ? ' · Admin' : ''}`}
             </span>
           </span>

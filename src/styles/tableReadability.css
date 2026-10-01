@@ -1,8 +1,11 @@
 /* Narrative evidence needs bounded wrapping alongside the numeric gap count. */
 .cx-performance-table.cx-integrity-table { min-width:800px; table-layout:fixed; }
-.cx-integrity-table :is(th,td) { vertical-align:top; }
-.cx-integrity-table :is(th,td):nth-child(1) { width:22%; white-space:normal; overflow-wrap:anywhere; }
-.cx-integrity-table :is(th,td):nth-child(2) { width:15%; white-space:normal; text-align:left; }
-.cx-integrity-table :is(th,td):nth-child(3) { width:14%; white-space:normal; text-align:left; overflow-wrap:anywhere; }
-.cx-integrity-table :is(th,td):nth-child(4) { width:13%; }
-.cx-integrity-table :is(th,td):last-child { width:36%; white-space:normal; text-align:left; overflow-wrap:anywhere; line-height:1.6; }
+.cx-performance-table.cx-integrity-table :is(th,td) { vertical-align:top; border-color:var(--cx-border-subtle); }
+.cx-performance-table.cx-integrity-table :is(th,td):nth-child(1) { width:22%; white-space:normal; overflow-wrap:anywhere; }
+.cx-performance-table.cx-integrity-table :is(th,td):nth-child(2) { width:15%; white-space:normal; text-align:left; }
+.cx-performance-table.cx-integrity-table :is(th,td):nth-child(3) { width:14%; white-space:normal; text-align:left; overflow-wrap:anywhere; }
+.cx-performance-table.cx-integrity-table :is(th,td):nth-child(4) { width:31%; white-space:normal; text-align:left; overflow-wrap:anywhere; }
+.cx-performance-table.cx-integrity-table :is(th,td):last-child { width:18%; white-space:normal; text-align:left; overflow-wrap:anywhere; line-height:1.6; }
+
+.cx-performance-table.cx-integrity-table tbody th { background:var(--cx-surface); color:var(--cx-text); box-shadow:none; }
+.cx-performance-table.cx-integrity-table tbody td { color:var(--cx-text-secondary); }

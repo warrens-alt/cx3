@@ -243,9 +243,10 @@ interface GroupedOutcomeChartProps {
   xKey: string;
   series: Array<{ key: string; label: string; color?: string }>;
   height?: number;
+  minPlotWidth?: number;
 }
 
-export function GroupedOutcomeChart({ title, subtitle, data, xKey, series, height = 320 }: GroupedOutcomeChartProps) {
+export function GroupedOutcomeChart({ title, subtitle, data, xKey, series, height = 320, minPlotWidth }: GroupedOutcomeChartProps) {
   const safeData = useMemo(() => data || [], [data]);
 
   if (!safeData.length) {
@@ -259,11 +260,12 @@ export function GroupedOutcomeChart({ title, subtitle, data, xKey, series, heigh
   return (
     <div className="enterprise-card cx-analytics-card">
       <ChartToolbar visualData={safeData} title={title} subtitle={subtitle} />
-      <div style={{ height, minHeight: height, width: '100%' }}>
+      <div style={{ overflowX: 'auto' }}>
+      <div style={{ height, minHeight: height, width: '100%', minWidth: minPlotWidth }}>
         <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={50}>
-          <BarChart data={safeData} margin={{ top: 14, right: 18, left: -6, bottom: safeData.length > 8 ? 48 : 12 }}>
+          <BarChart data={safeData} margin={{ top: 14, right: 18, left: safeData.length > 8 ? 60 : -6, bottom: 12 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EEF2F6" />
-            <XAxis dataKey={xKey} tick={{ fontSize: 12, fill: '#475569' }} axisLine={false} tickLine={false} interval={0} angle={safeData.length > 8 ? -24 : 0} textAnchor={safeData.length > 8 ? 'end' : 'middle'} />
+            <XAxis dataKey={xKey} tick={{ fontSize: 12, fill: '#475569' }} axisLine={false} tickLine={false} interval={0} angle={safeData.length > 8 ? -24 : 0} textAnchor={safeData.length > 8 ? 'end' : 'middle'} height={safeData.length > 8 ? 64 : 34} />
             <YAxis tick={{ fontSize: 12, fill: '#475569' }} axisLine={false} tickLine={false} tickFormatter={formatChartAxis} />
             <Tooltip formatter={(value: any) => formatTableNumber(value)} cursor={{ fill: '#F8FAFC' }} contentStyle={CHART_TOOLTIP_STYLE} />
             <Legend wrapperStyle={CHART_LEGEND_STYLE} />
@@ -272,6 +274,7 @@ export function GroupedOutcomeChart({ title, subtitle, data, xKey, series, heigh
             ))}
           </BarChart>
         </ResponsiveContainer>
+      </div>
       </div>
     </div>
   );
