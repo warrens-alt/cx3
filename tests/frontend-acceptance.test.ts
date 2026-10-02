@@ -467,14 +467,16 @@ test('signed exact bars retain labels, represent negative extent and expose nati
   }finally{dom.window.close();}
 });
 
-test('legacy Lead Engine route identifies its blocked boundary and removes static portfolio cards',async()=>{
-  const app=await mount('/lead-engine'+scope);try{
-    await app.wait(()=>app.text().includes('Summary metrics unavailable in this legacy view'));
-    assert.match(app.w.document.body.textContent,/Legacy reference workspace/);
-    assert.doesNotMatch(app.text(),/350,573|91\.4%|64\.2%|4,892,100/);
-  }finally{app.close();}
+test('retired Lead Engine route and nested legacy paths render page not found',async()=>{
+  for(const route of ['/lead-engine','/lead-engine/ledger']){
+    const app=await mount(route+scope);try{
+      await app.wait(()=>app.text().includes('Page not found'));
+      assert.doesNotMatch(app.w.document.body.textContent,/Legacy reference workspace|LEAD ENGINE/);
+      assert.equal(app.w.__fixture.requests.some((r:string)=>/api\/(quality|commercial\/simulator|settings\/status|table-data)/.test(r)),false);
+      assert.equal(app.w.document.querySelector('a[href^="/lead-engine"]'),null);
+    }finally{app.close();}
+  }
 });
-
 
 test('failed exception evidence cannot claim an empty vendor backlog',async()=>{
   const app=await mount('/exceptions'+scope,{fail:['overview','exceptions']});try{

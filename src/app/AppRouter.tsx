@@ -56,7 +56,6 @@ export const CommercialReconciliation = React.lazy(() => safeImport(() => import
 export const LeadLedger = React.lazy(() => safeImport(() => import('../features/leadLedger/LeadLedgerWorkspace')));
 export const WarehouseAnalytics = React.lazy(() => safeImport(() => import('../pages/WarehouseAnalytics')));
 export const OffershopProcessObservability = React.lazy(() => safeImport(() => import('../pages/OffershopProcessObservability')));
-export const LeadEngineLayout = React.lazy(() => safeImport(() => import('../leadEngine/LeadEngineLayout')));
 
 export default function AppRouter() {
   const location = useLocation();
@@ -159,7 +158,6 @@ export default function AppRouter() {
           <Route path="/offershop-flow" element={<OffershopProcessObservability />} />
           <Route path="/admin" element={<SettingsPage />} />
           <Route path="/validation" element={<AdminValidation />} />
-          <Route path="/lead-engine" element={<LeadEngineLayout />} />
 
           {/* EXPLICIT URL ALIASES & COMPATIBILITY REDIRECTS */}
           <Route path="/insights" element={<ScopePreservingRedirect to="/overview" replace />} />
