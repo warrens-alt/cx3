@@ -1,4 +1,26 @@
-# Implementation status — 26 September 2026
+# Implementation status — 2 October 2026
+
+## Investigation workspace implementation
+
+The maintained workflow is now **Signal → Diagnose → Segment → Records → Evidence → Conclusion**. `/investigate` and compatible `/exceptions` share the upgraded inbox, with URL-backed predicate/narrowing context, matched-period descriptive drivers, and contextual evidence confidence. The administrator record explorer provides compact field presets, structured factual inclusion reasons and a persistent six-tab lead dossier. Existing Lead Journey and Lead Ledger source formatting are reused rather than duplicated.
+
+Navigation exposes Investigation inbox, Record explorer and Data confidence, followed by an Evidence & Audit group containing Evidence reports, Lead ledger and Vendor evidence. Administrator checks and historical URLs remain intact. Source-wide confidence checks disclose their observation boundary; retaining investigation context does not imply exact-cohort source certification.
+
+The existing exception, record, root-cause, timeline and AI APIs share validated investigation qualification and additive vendor/source/grade/first-dial-age narrowing. Narrowing intersects global filters and the original drill. Root-cause metric IDs are exact and no unrelated metric falls back to sale rate. Exceptions retain current vendor/source concentration and matched capture-cohort snapshots; unsupported segment comparisons remain unavailable. Structured reasons come from the same predicate family used for inclusion. Missing call counters, outcomes, timestamps and commercial evidence are not converted to zero or fictional events.
+
+A local evidence tray pins scope/provenance-bearing observations and exports with the existing CSV utilities. Optional investigation AI displays its confirmed scope, source/model, supplied references and limitations; deterministic measurements stay primary. The standalone AI surface remains available.
+
+Intentional boundaries in this revision:
+
+- deterministic limit/offset pagination remains; no new keyset or unbounded population export;
+- dossier lead IDs remain session state; private search/identity scope is not silently broadened to create a share link;
+- evidence tray state is local; no saved-analysis persistence backend, collaboration service or publication flow was introduced;
+- exception grade/age and previous segment breakdowns remain unavailable because the existing API does not supply them;
+- driver comparison requires explicit dates and is unavailable while record-text search is active;
+- source confidence and arithmetic reconciliation do not promote `NOT_VERIFIED` to verified;
+- call aggregates are not reconstructed as individual attempts, and prior capture-cohort backlogs are not reconstructed historical queue snapshots.
+
+Final `npm run verify` passed: lint, 897 passing tests (0 failures; 1 existing Firestore-emulator test skipped), surface inventory and production build. Seventeen synthetic Chromium workflow checks passed with no page errors or console warnings at desktop, tablet and 390px mobile widths in both themes. See [verification notes and screenshots](qa/investigation-workspace/README.md). These checks do not establish analytical source certification. See [OfferNet analytics map](OFFERNET-ANALYTICS-MAP.md#investigation-workflow--2-october-2026) and [frontend inventory](FRONTEND-INVENTORY.md#current-investigation-workspace--2-october-2026) for the detailed contract.
 
 ## Deployment boundary
 
@@ -98,7 +120,8 @@ The `/api/analytics/offernet/*` adapter accepts one string equality value per su
 | Operational report | Supported optional dimensions |
 | --- | --- |
 | Standard lead-based reports | `vendor`, `source`, `medium`, `grade`. |
-| Agent performance and individual lead timelines | `vendor`. |
+| Agent performance | `vendor`, `agent`. |
+| Individual OfferNet lead timelines | Capture-cohort dates, `vendor`, `source`, `medium`, `grade`, record search, supported drill predicates and additive investigation segments; exact scoped lead membership is required. Selected vendor segments also constrain displayed vendor source events. |
 | Campaigns and marketing root-cause | `campaign`; their services reject operational source/vendor/medium/grade scope that cannot be mapped to marketing. |
 | Marketing discovery and source observability | No optional dimension filters. |
 

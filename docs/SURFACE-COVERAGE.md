@@ -1,8 +1,27 @@
 # UI, API and query surface coverage
 
-> **Current inventory:** `docs/SURFACE-INVENTORY.md` is generated directly from `src/App.tsx` and the API router sources. CI runs `npm run docs:surfaces:check`, so route/API drift now fails verification. The narrative classifications below remain the 21 September audit context unless explicitly updated.
+> **Current inventory:** `docs/SURFACE-INVENTORY.md` is generated directly from the mounted app router and the API router sources. CI runs `npm run docs:surfaces:check`, so route/API drift now fails verification. The narrative classifications below remain the 21 September audit context unless explicitly updated.
 
 Audit date: 21 September 2026. Every reachable React route in `src/App.tsx` and every Express endpoint mounted by `server.ts` is listed here. “Legacy” means intentionally available but not independently reconciled; it does not mean untested.
+
+## Current investigation coverage — 2 October 2026
+
+The maintained inbox is `/investigate`; `/exceptions` resolves to the same `Exceptions` implementation. Record explorer is `/lead-explorer`, Data confidence remains `/data-integrity`, and Lead Ledger remains `/lead-ledger`. These surfaces preserve compatible reporting scope and visible investigation context. Historical route descriptions below are audit history; use the generated inventory for current mounted targets.
+
+| API or boundary | Current investigation behaviour |
+| --- | --- |
+| `GET /api/analytics/offernet/exceptions` | Existing measured exception counts, matched capture cohorts at query time, and current vendor/source concentrations. Additive segment scope intersects global filters; each queue entry retains its own exception rule. No invented prior segment/grade/age breakdown. |
+| `GET /api/analytics/offernet/root-cause` | Existing exact metric allowlist and equal-length period decomposition, now intersected with shared investigation drill/narrowing. Explicit dates required; record-text search rejected. Source/grade/vendor grouping and narrowing share blank normalization. |
+| `GET /api/analytics/offernet/raw-leads` | Existing admin/tenant protections, shared qualification and deterministic page ordering. Structured `investigationReason` is returned from the same supported predicate family; limit/offset and export boundaries remain intact. |
+| `GET /api/analytics/offernet/lead-timeline/:leadId` | Admin-only. The lead must qualify within the same reporting and investigation scope. Late results cannot replace a newer selected dossier. No fabricated attempt-level evidence. |
+| Lead Ledger replica/source API | Existing admin and tenant access. The dossier qualifies the lead first and shows source records with their own scope/provenance; raw source rows are not relabelled as an independently qualified exception population. |
+| `GET /api/analytics/offernet/data-integrity` | Reused by contextual evidence confidence. Source-wide ownership/observation checks are disclosed separately from selected-cohort completeness; unavailable/unverified statuses are preserved. |
+| `GET /api/analytics/offernet/ai-insights` | Existing deterministic/model synthesis receives exact investigation predicate, segments and applicable search. Scope echo must match before display; references, model/source, validation and limitations remain visible. |
+| Local evidence tray | No persistence endpoint or backend. Pins retain their original evidence scope and provenance, clear with session/workspace changes, and export through the existing CSV utility. |
+
+The additive parameters `segmentVendor`, `segmentSource`, `segmentGrade`, `segmentLeadAge` never replace a global dimension filter. Unsupported populations fail closed. `drill`, `drillValue`, `investigationMetric` and narrowing travel between compatible investigation routes; unrelated operational and fixed-release destinations retain their existing scope policies. Private record selection remains in memory. Search changes preserve the investigation, while copying a link is withheld when exact private scope cannot safely be represented.
+
+Driver tests cover exact metric IDs, scoped matched periods, contribution reconciliation and descriptive language; navigation tests cover canonical and compatible paths, role visibility and scope retention. Dossier/record tests cover factual inclusion, keyboard selection, stale scope, shared journey/source evidence, unknown values and tab access. Browser fixture QA remains separate from live source reconciliation and production authorization verification.
 
 ## Shared execution boundary
 
