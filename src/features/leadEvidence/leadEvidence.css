@@ -227,3 +227,7 @@
 @media(max-width:1180px){.cx-lead-evidence-master-detail[data-has-selection=true]{grid-template-columns:minmax(0,1fr) minmax(340px,390px)}}
 @media(max-width:900px){.cx-lead-evidence-master-detail[data-has-selection=true]{grid-template-columns:minmax(0,1fr)}.cx-lead-evidence-master-detail .cx-lead-dossier{position:static;max-height:none}.cx-source-record-scroll table{min-width:520px}}
 @media(max-width:420px){.cx-lead-evidence-mode-tabs{gap:16px}.cx-lead-evidence-page .cx-ledger-toolbar input{min-width:0;width:100%;max-width:100%}.cx-lead-evidence-page .cx-ledger-toolbar form{min-width:0;flex-wrap:wrap;flex-basis:100%}.cx-lead-evidence-page .cx-explorer-pagination{padding:12px}.cx-lead-evidence-page .cx-ledger-panel{padding:12px}.cx-lead-evidence-page .cx-ledger-toolbar{padding:10px}}
+
+/* Align the sticky dossier with the retained reporting scope and workflow rail. */
+@media(min-width:901px){.cx-lead-evidence-master-detail .cx-lead-dossier{top:calc(var(--cx-sticky-scope-height,44px) + 12px);max-height:calc(100dvh - 180px)}}
+@media(min-width:1180px){.cx-lead-evidence-page:has(.cx-investigation-context[data-compact=true]) .cx-lead-dossier{top:calc(var(--cx-sticky-scope-height,44px) + 164px);max-height:calc(100dvh - 324px)}}

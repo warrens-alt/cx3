@@ -70,7 +70,7 @@ try {
     await trigger.click(); await page.getByRole('complementary', { name: /Lead dossier for/ }).waitFor();
     assert.match(await stageDescription('records'), /Lead dossier open/);
     assert.equal(new URL(page.url()).searchParams.has('leadId'), false);
-    for (const tab of ['Journey', 'Evidence', 'Source', 'Overview']) { const button = page.getByRole('tab', { name: tab, exact: true }); if (await button.count()) await button.click(); }
+    for (const tab of ['Journey', 'Calls', 'Outcomes', 'Audit', 'Source', 'Summary']) await page.getByRole('tab', { name: tab, exact: true }).click();
     await page.getByRole('button', { name: 'Close lead dossier' }).click();
     assert.equal(await trigger.evaluate(element => element === document.activeElement), true);
   });

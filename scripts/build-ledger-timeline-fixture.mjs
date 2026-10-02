@@ -73,6 +73,10 @@ const f=window.__fixture;
 const fallbackFetch=window.fetch;
 window.fetch=async (input:any,options:any={})=>{
   const url=new URL(String(input),'https://synthetic.invalid');
+  if(url.pathname.startsWith('/api/analytics/offernet/lead-timeline/')){
+    f.requests.push(url.pathname+url.search);
+    return Response.json({success:true,data:{leadId:decodeURIComponent(url.pathname.split('/').at(-1)),consumerId:0,vendor:'Synthetic vendor',source:'Synthetic paid social',grade:'A',events:[],callEvidence:{status:'UNAVAILABLE',rowLimit:0,displayedCalls:0,reason:'Individual synthetic call times are not supplied.'}},metadata:{clientId:url.searchParams.get('clientId'),validationStatus:'NOT_VERIFIED'}});
+  }
   if(!['/api/analytics/offernet/raw-leads','/api/analytics/lead-ledger/replica'].includes(url.pathname))return fallbackFetch(input,options);
   f.requests.push(url.pathname+url.search);
   const clientId=url.searchParams.get('clientId'),search=url.searchParams.get('search')||'',limit=Number(url.searchParams.get('limit'))||50,offset=Number(url.searchParams.get('offset'))||0;
@@ -110,7 +114,7 @@ if (!globalName) throw new Error('Run npm run build before building the syntheti
 await copyFile(path.join(root, 'dist/assets', globalName), path.join(out, 'application.css'));
 }
 await writeFile(path.join(out, 'index.html'), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CX3 synthetic navigation and ledger</title>${includeProductionCss ? '<link rel="stylesheet" href="/application.css">' : ''}<link rel="stylesheet" href="/fixture.css"><style>body{margin:0}.synthetic-banner{position:fixed;bottom:0;right:0;z-index:10000;padding:3px 8px;background:#ffedc2;color:#493500;font:11px system-ui;pointer-events:none}@media(max-width:1023px){.synthetic-banner{bottom:58px}}</style></head><body><div class="synthetic-banner">SYNTHETIC QA · no customer data</div><div id="root"></div><script>window.__fixture={initialRoute:location.pathname+location.search,browserHistory:true};</script><script src="/fixture.js"></script></body></html>`);
-await writeFile(path.join(out, 'README.txt'), 'Actual AppShell, AppRouter, LeadLedgerWorkspace and API adapters; synthetic authentication, context and fetch responses. All requests terminate in this fixture. No production or customer data. Complete journey means all currently supported stages: only capture, delivery and first dial have timestamps; RPC, sale and activation are explicitly untimed. Only aggregate attempt counts exist, so RPC attempt ordinal and individual call timestamps cannot be tested or fabricated. Scenarios: complete, partial, untimed outcomes, no timeline, zero calls, sale without activation, long elapsed intervals, long identifiers, future timestamp, reversed timestamps, invalid and placeholder timestamps.\n');
+await writeFile(path.join(out, 'README.txt'), 'Actual AppShell, AppRouter, LeadEvidenceWorkspace and API adapters; synthetic authentication, context and fetch responses. All requests terminate in this fixture. No production or customer data. Complete journey means all currently supported stages: only capture, delivery and first dial have timestamps; RPC, sale and activation are explicitly untimed. Only aggregate attempt counts exist, so RPC attempt ordinal and individual call timestamps cannot be tested or fabricated. Scenarios: complete, partial, untimed outcomes, no timeline, zero calls, sale without activation, long elapsed intervals, long identifiers, future timestamp, reversed timestamps, invalid and placeholder timestamps.\n');
 return out;
 }
 

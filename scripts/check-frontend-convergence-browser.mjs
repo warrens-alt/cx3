@@ -36,9 +36,9 @@ await build({
 const { routes, areas, reductionPayloads, convergencePayloads, secondaryMaturityPayloads, secondaryMaturityScopes, SIDEBAR_COLLAPSED_KEY } = await import(pathToFileURL(metadataPath).href);
 const matrixPaths = ['/overview', '/funnel', '/contact-strategy', '/speed-to-lead', '/temporal', '/sales-activation', '/vendor-quality', '/campaigns', '/commercial', '/investigate', '/lead-explorer', '/lead-ledger', '/data-integrity', '/admin', '/vetting', '/cohorts', '/agent-performance', '/cli-performance', '/routing', '/consumers', '/reconciliation', '/warehouse'];
 const matrixRoutes = matrixPaths.map(routePath => {
-  const route = routes.find(item => item.path === routePath);
-  assert.ok(route, `Missing requested canonical route ${routePath}`);
-  return route;
+  const route = routes.find(item => item.path === routePath || item.urlAliases?.includes(routePath));
+  assert.ok(route, `Missing requested canonical or compatibility route ${routePath}`);
+  return { ...route, entryPath: routePath };
 });
 const viewports = [
   { name: 'desktop', width: 1440, height: 1000 },
@@ -196,9 +196,13 @@ async function scenario(name, { viewport = viewports[0], theme = 'light', fixtur
 
 try {
   for (const theme of ['light', 'dark']) for (const viewport of viewports) for (const route of matrixRoutes) {
-    await scenario(`${route.name} · ${viewport.name} · ${theme}`, { viewport, theme, kind: 'matrix', route: route.path, fixtureState: route.path === '/agent-performance' ? { nonAdmin: true } : {} }, async page => {
-      await visit(page, route.path, ['/investigate', '/lead-explorer'].includes(route.path) ? '&drill=awaiting-first-dial' : '');
+    await scenario(`${route.name}${route.entryPath === '/lead-ledger' ? ' Source compatibility' : ''} · ${viewport.name} · ${theme}`, { viewport, theme, kind: 'matrix', route: route.entryPath, canonicalRoute: route.path, fixtureState: route.path === '/agent-performance' ? { nonAdmin: true } : {} }, async page => {
+      await visit(page, route.entryPath, ['/investigate', '/lead-explorer'].includes(route.entryPath) ? '&drill=awaiting-first-dial' : '');
       assert.equal(new URL(page.url()).pathname, route.path);
+      if (route.entryPath === '/lead-ledger') {
+        assert.equal(new URL(page.url()).searchParams.get('view'), 'source');
+        assert.equal(endpointCount(await requests(page), 'raw-leads'), 0, 'Source mode does not mount an analytical population');
+      }
       assert.equal(await page.title(), `${route.name} · Offernet`);
       assert.equal(await page.locator('main h1').count(), 1);
       const heading = (await page.locator('main h1').innerText()).trim();
@@ -249,7 +253,7 @@ try {
       for (const metric of metricFonts) assert.doesNotMatch(metric.family, /monospace|SFMono|Menlo|Monaco|Consolas|Courier/i, `Primary metric must use the UI font: ${JSON.stringify(metric)}`);
       const retain = true;
       if (retain) {
-        const filename = `${basename(route.path)}-${viewport.name}-${theme}.png`;
+        const filename = `${basename(route.entryPath)}-${viewport.name}-${theme}.png`;
         await page.screenshot({ path: path.join(output, filename) });
         screenshots.push(filename);
       }
@@ -441,8 +445,12 @@ try {
     const first = await input.getAttribute('aria-activedescendant');
     await input.press('ArrowDown'); assert.notEqual(await input.getAttribute('aria-activedescendant'), first);
     await input.press('ArrowUp'); assert.equal(await input.getAttribute('aria-activedescendant'), first);
-    await input.fill('Lead ledger'); await input.press('Enter');
-    await page.waitForURL('**/lead-ledger?**');
+    await input.fill('Lead ledger');
+    await namedOption(page, 'Lead Evidence').waitFor();
+    assert.equal(await page.getByRole('listbox', { name: 'Matching pages and commands' }).getByRole('option').count(), 1, 'Ledger alias resolves to one canonical destination');
+    assert.equal(await namedOption(page, 'Lead Evidence').count(), 1);
+    await input.press('Enter');
+    await page.waitForURL('**/lead-explorer?**');
     const params = new URL(page.url()).searchParams;
     assert.equal(params.get('clientId'), 'synthetic-a');
     assert.equal(params.get('startDate'), '2026-09-28');

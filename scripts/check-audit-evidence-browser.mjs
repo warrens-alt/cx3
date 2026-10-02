@@ -47,6 +47,15 @@ async function openAudit(page, trigger, verify, screenshotName) {
   assert.deepEqual(await requests(page), before, 'Opening audit must not fetch');
   await verify(panel);
   await overflow(page);
+  const visibility = await panel.evaluate(element => {
+    const box = element.getBoundingClientRect();
+    return [0.2, 0.5, 0.75].map(fraction => {
+      const x = box.left + box.width / 2, y = box.top + box.height * fraction;
+      const hit = document.elementFromPoint(x, y);
+      return { fraction, visible: element.contains(hit), obstructingElement: hit?.className };
+    });
+  });
+  assert.ok(visibility.every(point => point.visible), `Audit drawer must remain above sticky workspace layers: ${JSON.stringify(visibility)}`);
   assert.equal(await panel.evaluate(element => element.contains(document.activeElement)), true, 'Focus enters panel');
   await page.keyboard.press('Shift+Tab');
   assert.equal(await panel.evaluate(element => element.contains(document.activeElement)), true, 'Keyboard focus stays inside');
@@ -104,7 +113,7 @@ try {
       await visit('/investigate', '&drill=awaiting-first-dial&segmentSource=synthetic-source'); await page.getByRole('button', { name: 'Pin evidence', exact: true }).click(); const tray = page.locator('#investigation-evidence-tray:visible'); if (await tray.getAttribute('open') === null) await tray.locator('summary').first().click(); await openAudit(page, tray.locator('.cx-audit-evidence-control:visible').first(), async panel => { const link = panel.getByRole('link', { name: /Inspect supporting records/ }); const params = new URL(await link.getAttribute('href'), origin).searchParams; assert.equal(params.get('drill'), 'awaiting-first-dial'); assert.equal(params.get('segmentSource'), 'synthetic-source'); assertVendorScope(params); }, shot('pinned-audit'));
     });
     await run('ledger-record', async () => {
-      await visit('/lead-ledger'); await page.getByRole('button', { name: /Operational analysis/ }).click(); await page.locator('button[title="Inspect lead timeline"]:visible').first().click(); const event = page.locator('.cx-journey-event').first(); await event.click(); await openAudit(page, page.locator('.cx-journey-evidence .cx-audit-evidence-control'), async panel => { assert.match(await panel.innerText(), /already loaded evidence/); assert.equal(await panel.locator('.cx-metric-anatomy').count(), 0); assert.equal(await panel.getByRole('button', { name: 'Load supporting preview', exact: true }).count(), 0); }, shot('ledger-record'));
+      await visit('/lead-explorer', '&view=population'); await page.getByRole('button', { name: /Open dossier for lead/ }).filter({ visible: true }).first().click(); await page.getByRole('tab', { name: 'Journey', exact: true }).click(); const event = page.locator('.cx-journey-event').first(); await event.click(); await openAudit(page, page.locator('.cx-journey-evidence .cx-audit-evidence-control'), async panel => { assert.match(await panel.innerText(), /already loaded evidence/); assert.equal(await panel.locator('.cx-metric-anatomy').count(), 0); assert.equal(await panel.getByRole('button', { name: 'Load supporting preview', exact: true }).count(), 0); }, shot('ledger-record'));
     });
     await run('audit-state-visuals', async () => { await page.goto(origin + '/__fixture/audit' + scope); const panel=page.getByRole('dialog'); await panel.waitFor(); await settle(page); assert.equal(await page.locator('html').getAttribute('data-theme'), theme); for (const state of ['observed','mapped','scoped','partial','mismatch','not_verified','unavailable']) assert.ok(await panel.locator(`.cx-audit-dimensions > li[data-state="${state}"]`).count() >= 1, `Missing visible audit state: ${state}`); await overflow(page); await page.screenshot({path:path.join(output,shot('audit-state-visuals')+'.png')}); });
     await context.close();

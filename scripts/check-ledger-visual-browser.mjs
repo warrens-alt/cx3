@@ -34,16 +34,16 @@ try {
     page.on('console', entry => { if (['error', 'warning'].includes(entry.type())) errors.push(entry.text()); });
     await page.addInitScript(theme => localStorage.setItem('cx-theme', theme), theme);
     const selectLead = async lead => {
-      await page.locator('[aria-label="Analytical ledger records"] tbody button').filter({ hasText: new RegExp(`^${lead}$`) }).click();
-      await page.locator('.cx-ledger-operational-inspector h2').filter({ hasText: new RegExp(`^${lead}$`) }).waitFor();
+      await page.getByRole('button', { name: `Open dossier for lead ${lead}`, exact: true }).filter({ visible: true }).click();
+      await page.locator('.cx-lead-dossier h2').filter({ hasText: new RegExp(`^${lead}$`) }).waitFor();
+      await page.getByRole('tab', { name: 'Journey', exact: true }).click();
       await page.locator('.cx-ledger-journey').scrollIntoViewIfNeeded();
     };
     const screenshot = async state => { const name = `ledger-${state}-${theme}-${viewport.width}.png`; await page.screenshot({ path: path.join(output, name) }); result.screenshots.push(name); };
     try {
-      await page.goto(`${origin}/lead-ledger?clientId=synthetic-a&startDate=2026-09-15&endDate=2026-09-30`);
-      await page.getByRole('button', { name: 'Operational analysis', exact: false }).click();
+      await page.goto(`${origin}/lead-explorer?clientId=synthetic-a&startDate=2026-09-15&endDate=2026-09-30&preset=full`);
       await selectLead('SYN-COMPLETE');
-      assert.match(await page.title(), /Lead ledger/i);
+      assert.match(await page.title(), /Lead Evidence/i);
       assert.equal(await page.locator('vite-error-overlay').count(), 0);
       assert.equal(await page.locator('.cx-journey-spine .cx-journey-node svg').count(), 6);
       assert.equal(await page.locator('.cx-journey-spine [data-certainty=observed]').count(), 3);
