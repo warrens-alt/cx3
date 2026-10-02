@@ -11,6 +11,7 @@ import {chartCoordinate} from '../src/lib/chartPresentation';
 import {buildLeadLedgerExport} from '../src/lib/leadLedgerExport';
 import {LEDGER_HEADERS} from '../contracts/leadLedgerReplica';
 import {FLAT_LEAD_TENANT_TABLES} from '../contracts/warehouseSchemaSnapshot';
+import {getRouteItem} from '../src/app/routeManifest';
 
 const output=await mkdtemp(path.join(tmpdir(),'cx3-routed-acceptance-'));
 await buildAcceptanceFixture(output);
@@ -57,7 +58,7 @@ test('navigation uses destination scope policies and preserves repeated workspac
 
 test('quick navigation opens Lead Ledger by keyboard and retains reporting scope',async()=>{
   const app=await mount('/lead-explorer'+scope+'&workspace=alpha&workspace=beta&drill=awaiting-first-dial&search=old');try{
-    await app.click('button','Find a page');
+    await app.click('button','Search pages');
     await app.wait(()=>app.find('input','Search pages and navigation'));
     const input=app.find('input','Search pages and navigation');
     await app.input(input,'Lead Ledger');
@@ -630,7 +631,7 @@ test('active non-admin sees no admin-only entry in sidebar, analyses or intent s
     assert.equal(app.find('a','Access control'),undefined);
     await app.click('button','More analyses');
     assert.equal(app.find('#area-more-menu a','Lead ledger'),undefined);
-    await app.click('button','Find a page');
+    await app.click('button','Search pages');
     const input=app.find('input','Search pages and navigation');await app.input(input,'Lead ledger');
     assert.equal(app.find('[role="option"]','Lead ledger'),undefined);
     await app.input(input,'Access control');assert.equal(app.find('[role="option"]','Access control'),undefined);
@@ -921,3 +922,94 @@ test('visual catalogue controls never turn missing analytics into chart values',
     assert.deepEqual([...app.w.__fixture.requests],before,'Presentation controls cannot fetch or fabricate analytical data');
   }finally{app.close();}
 });
+
+for (const route of ['/overview','/funnel','/campaigns','/vetting','/routing','/contact-strategy','/speed-to-lead','/sales-activation','/commercial','/data-integrity','/agent-performance','/temporal','/cli-performance','/cohorts','/offershop-flow','/consumers','/lead-ledger','/lead-explorer','/investigate']) {
+  test(`convergence: ${route} renders its canonical title before reporting scope`, async () => {
+    const app = await mount(route + scope, { payloads: { ...reductionPayloads, ...(route === '/temporal' ? { '/api/analytics/offernet/temporal': { heatmap: [], peakWindows: [], timeBases: [] } } : {}) } });
+    try {
+      await app.wait(() => app.find('.cx-analytics-page .cx-page-header h1') && app.find('.cx-analytics-page .cx-scopebar'));
+      const title = app.find('.cx-analytics-page .cx-page-header h1');
+      const scopeBar = app.find('.cx-analytics-page .cx-scopebar');
+      assert.equal(title.textContent, getRouteItem(route)?.name);
+      assert.ok(title.compareDocumentPosition(scopeBar) & app.w.Node.DOCUMENT_POSITION_FOLLOWING);
+      assert.equal(app.w.document.querySelectorAll('main h1').length, 1);
+      assert.equal(app.find('.cx-viz-jump-nav, .cx-analysis-jump-nav'), undefined);
+      if (route === '/lead-ledger') {
+        assert.ok(scopeBar.compareDocumentPosition(app.find('.cx-ledger-tabs')) & app.w.Node.DOCUMENT_POSITION_FOLLOWING);
+        await app.click('.cx-ledger-tabs button', 'Operational analysis');
+        await app.wait(() => app.find('.cx-ledger-analysis-page .cx-page-header h1'));
+        const analyticalTitle = app.find('.cx-ledger-analysis-page .cx-page-header h1');
+        assert.equal(analyticalTitle.textContent, getRouteItem(route)?.name);
+        assert.ok(analyticalTitle.compareDocumentPosition(app.find('.cx-ledger-analysis-page .cx-scopebar')) & app.w.Node.DOCUMENT_POSITION_FOLLOWING);
+        assert.equal(app.w.document.querySelectorAll('main h1').length, 1);
+      }
+    } finally { app.close(); }
+  });
+}
+
+test('convergence: Overview answer hierarchy and local disclosures retain trend state without analytical requests', async () => {
+  const app = await mount('/overview' + scope);
+  try {
+    await app.wait(() => app.find('.cx-outcome-strip') && app.w.__fixture.requests.some((url: string) => url.includes('filter-options')));
+    const ordered = ['.cx-outcome-strip', '.cx-overview-primary', '.cx-overview-secondary', '.cx-overview-more'].map(selector => app.find(selector));
+    for (let i = 1; i < ordered.length; i++) assert.ok(ordered[i - 1].compareDocumentPosition(ordered[i]) & app.w.Node.DOCUMENT_POSITION_FOLLOWING);
+    assert.equal(app.w.document.querySelectorAll('.cx-outcome-card').length, 4);
+    assert.match(app.find('.cx-outcome-strip').textContent, /Activations/);
+    assert.match(app.find('.cx-overview-response').textContent, /Awaiting first call20.*Waiting over 60 min0/);
+    assert.equal(app.find('.cx-overview-response-value').textContent, '—');
+    assert.equal(app.find('.cx-overview-lifecycle-disclosure').open, false);
+    const requests = [...app.w.__fixture.requests];
+    await app.click('.cx-trend-tabs [role="tab"]', 'Recorded sales');
+    await app.click('.cx-overview-lifecycle-disclosure > summary');
+    await app.click('.cx-overview-stage-count');
+    await app.wait(() => app.find('.cx-audit-drawer'));
+    await app.click('button', 'Close inspector');
+    await app.click('.cx-overview-lifecycle-disclosure > summary');
+    await app.click('.cx-overview-lifecycle-disclosure > summary');
+    assert.equal(app.find('.cx-trend-tabs [aria-selected="true"]').textContent, 'Recorded sales');
+    assert.equal(app.find('.cx-overview-lifecycle-disclosure').open, true);
+    assert.deepEqual([...app.w.__fixture.requests], requests);
+    assert.equal(requests.filter((url: string) => url.includes('/overview?')).length, 1);
+    assert.equal(requests.some((url: string) => /commercial|operating-controls|root-cause/.test(url)), false);
+    await app.click('summary', 'Operating controls');
+    await app.wait(() => app.w.__fixture.requests.some((url: string) => url.includes('operating-controls')));
+    assert.equal(app.w.__fixture.requests.filter((url: string) => url.includes('operating-controls')).length, 1);
+    assert.equal(app.w.__fixture.requests.some((url: string) => url.includes('/commercial?')), false);
+    await app.click('summary', 'Commercial overview');
+    await app.wait(() => app.w.__fixture.requests.some((url: string) => url.includes('/commercial?')));
+    assert.equal(app.w.__fixture.requests.filter((url: string) => url.includes('/commercial?')).length, 1);
+    assert.equal(app.w.__fixture.requests.filter((url: string) => url.includes('/overview?')).length, 1);
+    assert.equal(app.w.__fixture.location, '/overview' + scope);
+  } finally { app.close(); }
+});
+
+for (const route of ['/consumers', '/vetting']) {
+  test(`convergence: ${route} new scope editor defers choices and retains local controls`, async () => {
+    const app = await mount(route + scope);
+    try {
+      await app.wait(() => app.find('.cx-scope-toggle') && app.w.__fixture.requests.some((url: string) => url.startsWith('/api/analytics' + route + '?')));
+      if (route === '/consumers') {
+        await app.wait(() => app.find('.cx-tab-item', 'Sequential Entry Economics'));
+        await app.click('.cx-tab-item', 'Sequential Entry Economics');
+      } else {
+        const control = app.find('select', 'Vetting comparison measure');
+        control.value = 'sales';
+        control.dispatchEvent(new app.w.Event('change', { bubbles: true }));
+      }
+      const existing = [...app.w.__fixture.requests];
+      assert.equal(existing.some((url: string) => url.includes('filter-options')), false);
+      await app.click('button', 'Refresh current view');
+      await app.wait(() => app.w.__fixture.requests.length > existing.length);
+      assert.equal(app.w.__fixture.requests.some((url: string) => url.includes('filter-options')), false);
+      const beforeEdit = [...app.w.__fixture.requests];
+      await app.click('.cx-scope-toggle');
+      await app.wait(() => app.w.__fixture.requests.some((url: string) => url.includes('filter-options')));
+      assert.equal(app.w.__fixture.requests.filter((url: string) => url.includes('filter-options')).length, 1);
+      assert.equal(app.w.__fixture.requests.filter((url: string) => !url.includes('filter-options')).length, beforeEdit.length);
+      await app.click('.cx-scope-toggle');
+      if (route === '/consumers') assert.equal(app.find('.cx-tab-item[aria-pressed="true"]').textContent, 'Sequential Entry Economics');
+      else assert.equal(app.find('select', 'Vetting comparison measure').value, 'sales');
+      assert.equal(app.w.__fixture.location, route + scope);
+    } finally { app.close(); }
+  });
+}

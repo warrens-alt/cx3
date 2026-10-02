@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { ROUTE_MANIFEST, BUSINESS_AREAS } from '../src/app/routeManifest';
 
 const read = (path: string) => fs.readFileSync(path, 'utf8');
 
@@ -89,6 +90,14 @@ function generateInventory() {
     '| Route | Current target |',
     '| --- | --- |',
     ...ui.map(route => `| \`${escapeCell(route.path)}\` | ${escapeCell(route.target)} |`),
+    '',
+    '## Canonical frontend navigation',
+    '',
+    'Area → page → section. See [frontend design architecture](FRONTEND-DESIGN-ARCHITECTURE.md) for scope, colour and stylesheet ownership. Administrative visibility reflects the manifest; it does not replace server authority checks.',
+    '',
+    '| Route | Page | Business area | Navigation visibility |',
+    '| --- | --- | --- | --- |',
+    ...ROUTE_MANIFEST.map(route => `| \`${escapeCell(route.path)}\` | ${escapeCell(route.name)} | ${escapeCell(BUSINESS_AREAS.find(area => area.id === route.area)?.name || route.area)} | ${route.adminOnly ? 'Administrator only' : 'Authenticated workspace access'} |`),
     '',
     '## API routes',
     '',

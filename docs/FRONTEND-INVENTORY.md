@@ -1,5 +1,36 @@
 # ConversionX frontend inventory and verification map
 
+## Current frontend UX convergence — 2 October 2026
+
+The convergence starting at `a12bc89` establishes **Area → Page → Scope → Answer →
+Detail**. The sidebar contains seven business areas, with a 248px expanded view and
+a persistent 60px icon rail. Contextual page tabs and overflow replace permanent
+second-level sidebar links. Mobile keeps Overview, Journey, Contact, Investigate
+and More in stable positions. Canonical route ownership, aliases, search and role
+visibility come from `routeManifest.tsx`; Validation's frontend visibility now
+matches its existing administrator-only backend gate.
+
+`AnalyticsPageLayout` composes the shared header, scope, status and answer content.
+Reporting, shell, visuals and Overview have explicit stylesheet owners; feature
+styles retain their local layouts. Overview presents primary results before
+supporting detail. Investigation and Record Explorer use a compact stage/context
+layout and one responsive evidence subtree, preserving the existing analytical
+models and scope boundaries.
+
+The retired `Sidebar` and `SectionNavigation` components had no mounted consumers.
+Five unused stylesheets were removed only after direct/indirect import, runtime,
+fixture and tooling checks. `KpiCard` remains as a behaviour wrapper over the shared
+metric styling; historical unmounted pages with fixture/source-test consumers
+remain intentionally retained. See [design ownership and the cleanup audit](FRONTEND-DESIGN-ARCHITECTURE.md)
+for the exact files, palette and pre-change CSS baseline.
+
+This section supersedes older navigation/layout descriptions below. The generated
+[surface inventory](SURFACE-INVENTORY.md) is authoritative for current mounted
+routes. Final verification passed 1,026 repository tests (one emulator-only skip),
+63 convergence browser scenarios and 17 Investigation scenarios. See the
+[verification record](qa/frontend-convergence/README.md) for exact commands,
+screenshots and sizes; earlier dated results apply to their original revisions.
+
 ## Current investigation workspace — 2 October 2026
 
 The consolidation adds `InvestigationWorkflow` and `useInvestigationAnalysis` over
@@ -36,7 +67,11 @@ The investigation routes now share an analytical context and evidence workflow. 
 
 The context bar distinguishes reporting scope, global filters, investigation predicate and additive narrowing. Narrowing uses `segmentVendor`, `segmentSource`, `segmentGrade`, and delivery-to-first-dial `segmentLeadAge`; these are ANDed with existing globals and the original drill. Session-only dossier selection is not serialized as a lead ID. Back/forward navigation derives the context from the URL and stale responses are hidden for a different request/session.
 
-Primary navigation now separates Operations, Investigate, Evidence & Audit, and Administration. The Investigate tabs are Investigation inbox, Record explorer (admin), and Data confidence; Evidence & Audit contains Evidence reports, Lead ledger (admin), and Vendor evidence. `/exceptions` and existing record/trust aliases remain compatible.
+The current area-only primary navigation is described above. Within Investigate,
+the tabs are Investigation inbox, Record explorer (admin), and Data confidence;
+Evidence & Audit is a contextual disclosure containing Evidence reports, Lead
+ledger (admin), and Vendor evidence. `/exceptions` and existing record/trust aliases
+remain compatible.
 
 New focused regression coverage includes `investigation-drivers.test.ts` (exact metrics, matched comparison, narrowing, noncausal language and role-safe links), investigation model/reason tests, dossier interaction tests, navigation presentation, and the updated full frontend acceptance harness. Fixture tests are synthetic and do not establish live BigQuery correctness or production authentication.
 

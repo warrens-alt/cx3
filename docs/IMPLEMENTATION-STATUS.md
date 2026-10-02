@@ -1,5 +1,36 @@
 # Implementation status — 2 October 2026
 
+## Frontend UX convergence
+
+The frontend convergence starts from PR #50 (`a12bc89`) and follows **Area → Page →
+Scope → Answer → Detail**. Seven business areas share one route manifest, an
+area-only sidebar with a persistent 60px icon rail, contextual page tabs/overflow,
+and stable mobile destinations. The compact topbar retains workspace, search and
+display preferences; Start a review and account actions remain available.
+
+`AnalyticsPageLayout` and the shared header/scope primitives establish a consistent
+page order. Overview prioritises outcomes and the primary trend before supporting
+detail. Investigation and Record Explorer retain the six-stage workflow with a
+compact context summary and one responsive evidence subtree. Existing models,
+requests, predicates, exports and evidence limitations remain authoritative.
+
+Styling now has explicit token, shell, reporting, visual, Overview and feature
+owners. Five unreferenced stylesheets and the obsolete `Sidebar` and
+`SectionNavigation` components are retired. Live rules from the older visual/scope
+sheets were moved to their canonical owners. `KpiCard` deliberately retains its
+definition, audit and analysis behaviour while sharing the metric visual shell.
+Historical unmounted pages with fixture/source-test consumers remain in place.
+
+Navigation area accents are separate from analytical series and evidence/status
+colours. Validation's manifest gate now reflects its existing administrator-only
+backend authority. This work does not change analytical calculations, backend
+queries, source contracts, authentication or API response semantics.
+
+See [the design architecture and cleanup audit](FRONTEND-DESIGN-ARCHITECTURE.md) and
+[current frontend inventory](FRONTEND-INVENTORY.md#current-frontend-ux-convergence--2-october-2026).
+Final convergence verification passed: 1,026 repository tests (one emulator-only skip), 10 dedicated Firestore tests, 63 convergence browser scenarios and 17 Investigation scenarios. Source CSS fell 24.12%; built gzip CSS fell 7.58%. See [the QA record](qa/frontend-convergence/README.md).
+The dated verification counts below describe their original revisions.
+
 ## Consolidation after the Investigation rebuild
 
 The consolidation pass starts from PR #49 (`bc002ad`). The legacy `/lead-engine`
@@ -126,7 +157,12 @@ Where the source supports an observed value, it is returned. Where a required co
 
 ## Frontend consolidation
 
-The current command-centre routes are the maintained product surfaces. Superseded page implementations that were no longer mounted by `src/App.tsx` have been removed rather than retained beside their replacements. Historical URLs remain supported through explicit redirects to the maintained surfaces, so bookmarks and internal links continue to resolve without preserving duplicate implementations.
+The current command-centre routes are the maintained product surfaces. Earlier
+consolidation removed superseded pages after checking their consumers. Some
+historical unmounted implementations remain because fixtures or source tests still
+refer to them; the convergence pass does not treat absence from `src/App.tsx` alone
+as deletion evidence. Historical URLs remain supported through explicit aliases
+and redirects to the maintained surfaces.
 
 `docs/SURFACE-INVENTORY.md` is generated from the current route and API sources, and `npm run verify` fails when that inventory is stale.
 

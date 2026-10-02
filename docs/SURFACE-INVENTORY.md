@@ -60,6 +60,42 @@
 | `/process-flow` | redirect → /offershop-flow |
 | `/platform-insights` | redirect → /campaigns |
 
+## Canonical frontend navigation
+
+Area → page → section. See [frontend design architecture](FRONTEND-DESIGN-ARCHITECTURE.md) for scope, colour and stylesheet ownership. Administrative visibility reflects the manifest; it does not replace server authority checks.
+
+| Route | Page | Business area | Navigation visibility |
+| --- | --- | --- | --- |
+| `/overview` | Overview | Overview | Authenticated workspace access |
+| `/funnel` | Progression | Lead journey | Authenticated workspace access |
+| `/campaigns` | Acquisition | Lead journey | Authenticated workspace access |
+| `/vetting` | Qualification | Lead journey | Authenticated workspace access |
+| `/routing` | Routing | Lead journey | Authenticated workspace access |
+| `/offershop-flow` | Process flow | Lead journey | Authenticated workspace access |
+| `/vendor-quality` | Vendor quality | Lead journey | Authenticated workspace access |
+| `/cohorts` | Cohort maturation | Lead journey | Authenticated workspace access |
+| `/contact-strategy` | Contact effort | Contact centre | Authenticated workspace access |
+| `/speed-to-lead` | Response speed | Contact centre | Authenticated workspace access |
+| `/cli-performance` | Caller ID | Contact centre | Authenticated workspace access |
+| `/agent-performance` | Agent activity | Contact centre | Authenticated workspace access |
+| `/temporal` | Time & day | Contact centre | Authenticated workspace access |
+| `/sales-activation` | Sales & activation | Sales & activation | Authenticated workspace access |
+| `/commercial` | Commercial overview | Commercial | Authenticated workspace access |
+| `/reconciliation` | Reconciliation | Commercial | Authenticated workspace access |
+| `/investigate` | Investigation inbox | Investigate | Authenticated workspace access |
+| `/lead-explorer` | Record explorer | Investigate | Administrator only |
+| `/data-integrity` | Data confidence | Investigate | Authenticated workspace access |
+| `/reports` | Evidence reports | Investigate | Authenticated workspace access |
+| `/vendors` | Vendor evidence | Investigate | Authenticated workspace access |
+| `/lead-ledger` | Lead ledger | Investigate | Administrator only |
+| `/admin` | Settings | Settings & Admin | Authenticated workspace access |
+| `/access-control` | Access control | Settings & Admin | Administrator only |
+| `/warehouse` | Cloud warehouse | Settings & Admin | Authenticated workspace access |
+| `/visuals` | Visual workspace | Overview | Authenticated workspace access |
+| `/consumers` | Consumer re-entry | Lead journey | Authenticated workspace access |
+| `/ai-insights` | AI Insights | Overview | Authenticated workspace access |
+| `/validation` | Validation suite | Settings & Admin | Administrator only |
+
 ## API routes
 
 | Method | Path | Declared in |
