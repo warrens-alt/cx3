@@ -52,6 +52,7 @@ export default function ContactPage() {
     clearSelectedExportError,
     handleExportCallCountsCsv,
     handleExportVendorSummaryTable,
+    handleExportOutcomeComparison,
     handleExportVendorRawBreakdown,
     handleExportVendorSelectedBreakdown,
   } = useContactModel();
@@ -191,6 +192,7 @@ export default function ContactPage() {
           onFilterReportByVendor={handleFilterReportByVendor}
           onWhyChanged={(m) => setRootMetric(m as any)}
           onExportSummaryTable={handleExportVendorSummaryTable}
+          onExportOutcomeComparison={handleExportOutcomeComparison}
           exportError={summaryExportError}
           onClearExportError={clearSummaryExportError}
         />

@@ -48,7 +48,8 @@ test('operational pages preserve unavailable metrics instead of displaying fallb
   for (const path of [
     'src/features/overview/OverviewPage.tsx',
     'src/pages/Exceptions.tsx',
-    'src/pages/ContactStrategyIntelligence.tsx',
+    'src/features/contact/components/CallEffortReport.tsx',
+    'src/features/contact/components/VendorDispositionReport.tsx',
     'src/pages/DataIntegrityIntelligence.tsx',
   ]) {
     const source = fs.readFileSync(path, 'utf8');

@@ -167,6 +167,9 @@ export default function CallEffortReport({
                 <th scope="col" className="px-4 py-2.5 text-right">Sales</th>
                 <th scope="col" className="px-4 py-2.5 text-right">Sale / Lead</th>
                 <th scope="col" className="px-4 py-2.5 text-right">Activations</th>
+                <th scope="col" className="px-4 py-2.5 text-right">Independent activation / sale</th>
+                <th scope="col" className="px-4 py-2.5 text-right">Explicit no RPC</th>
+                <th scope="col" className="px-4 py-2.5 text-right">RPC unrecorded</th>
                 <th scope="col" className="px-4 py-2.5 text-right">Evidence</th>
               </tr>
             </thead>
@@ -197,6 +200,9 @@ export default function CallEffortReport({
                   <td className="px-4 py-3 text-right cx-tabular text-text-sec">
                     {formatTableNumber(row.activations)}
                   </td>
+                  <td className="px-4 py-3 text-right cx-tabular">{formatPercent(row.activationRate)}</td>
+                  <td className="px-4 py-3 text-right cx-tabular">{formatTableNumber(row.noRpc)}</td>
+                  <td className="px-4 py-3 text-right cx-tabular">{formatTableNumber(row.rpcUnrecorded)}</td>
                   <td className="px-4 py-3 text-right">
                     {onInspectBucket && (
                       <button
@@ -218,6 +224,8 @@ export default function CallEffortReport({
         <summary>Call-effort methodology</summary>
         <div className="cx-contact-methodology">
           <p>{data.methodology || 'Exclusive call-count buckets describe the maximum non-negative recorded HLC total_calls per lead.'}</p>
+          {data.effortEvidence?.reason && <p>{data.effortEvidence.reason}</p>}
+          {data.noAnswerAnalysis?.reason && <p>{data.noAnswerAnalysis.reason}</p>}
           <p>RPC and sale rates describe associations within each bucket, not the outcome of that particular attempt or a recommended stopping threshold.</p>
           <p>All returned buckets remain visible. Missing feedback is separate from recorded zero; unavailable rates have no bar. Selection highlights the same bucket locally and does not change reporting scope.</p>
         </div>

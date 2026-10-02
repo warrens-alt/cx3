@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { dispositionComparison } from '../model/dispositionComparison';
 import TelemetryRail from '../../../shared/visuals/TelemetryRail';
 import ChartFrame from '../../../shared/visuals/ChartFrame';
 import ReportingScopeSummary from '../../../shared/reporting/ReportingScopeSummary';
@@ -45,23 +46,6 @@ interface VendorDispositionReportProps {
   onClearExportError?: () => void;
 }
 
-const OUTCOME_GROUPS_ORDER: ApprovedDispositionGroup[] = [
-  'REPORTED_SALE',
-  'CONTACTED_RPC',
-  'CALLBACK_REQUESTED',
-  'NOT_INTERESTED',
-  'NO_ANSWER',
-  'BUSY',
-  'VOICEMAIL',
-  'INVALID_WRONG_NUMBER',
-  'DO_NOT_CONTACT',
-  'TECHNICAL_FAILURE',
-  'OTHER',
-  'UNMAPPED',
-  'MISSING_DISPOSITION',
-  'CONFLICTING_EVIDENCE',
-];
-
 export default function VendorDispositionReport({
   data,
   scope,
@@ -83,63 +67,8 @@ export default function VendorDispositionReport({
 
   const isCallMode = mode === 'call_records';
 
-  // Group breakdown by vendor + approvedGroup for Horizontal Stacked Bar Chart
-  const { chartRows, activeGroups } = useMemo(() => {
-    if (!data?.vendorSummaries || !data?.breakdown) {
-      return { chartRows: [], activeGroups: [] };
-    }
-
-    const vendorGroupTotals = new Map<string, Map<ApprovedDispositionGroup, number>>();
-    const presentGroupsSet = new Set<ApprovedDispositionGroup>();
-
-    for (const row of data.breakdown) {
-      if (!vendorGroupTotals.has(row.vendor)) {
-        vendorGroupTotals.set(row.vendor, new Map());
-      }
-      const groupMap = vendorGroupTotals.get(row.vendor)!;
-      const current = groupMap.get(row.approvedGroup) || 0;
-      groupMap.set(row.approvedGroup, current + row.count);
-      presentGroupsSet.add(row.approvedGroup);
-    }
-
-    const activeGroupsList = OUTCOME_GROUPS_ORDER.filter((g) => presentGroupsSet.has(g));
-
-    const rows = data.vendorSummaries.map((v) => {
-      const groupMap = vendorGroupTotals.get(v.vendor) || new Map();
-      // Enforce contracted denominator:
-      // In call_records mode: total call events is the denominator
-      // In lead_status mode: dialled leads is the denominator. If dialledCount is 0, base is 0 (unavailable percentage)
-      const base = isCallMode ? v.totalPopulation : v.dialledCount;
-      const countRow: Record<string, any> = {
-        vendor: v.vendor,
-        totalPopulation: v.totalPopulation,
-        dialledCount: v.dialledCount,
-        base,
-      };
-      const pctRow: Record<string, any> = {
-        vendor: v.vendor,
-        totalPopulation: v.totalPopulation,
-        dialledCount: v.dialledCount,
-        base,
-      };
-
-      for (const g of activeGroupsList) {
-        const cnt = groupMap.get(g) || 0;
-        countRow[g] = cnt;
-        pctRow[g] = base > 0 ? Number(((cnt / base) * 100).toFixed(1)) : null;
-        pctRow[`${g}_count`] = cnt;
-      }
-
-      return {
-        countRow,
-        pctRow,
-        totalVolume: isCallMode ? v.totalPopulation : v.dialledCount,
-        vendor: v.vendor,
-      };
-    });
-
-    return { chartRows: rows, activeGroups: activeGroupsList };
-  }, [data, isCallMode]);
+  // Chart and export share the same supplied population and denominator.
+  const { chartRows, activeGroups } = useMemo(() => dispositionComparison(data), [data]);
 
   // Displayed chart rows with Top-N limit
   const displayedChartRows = useMemo(() => {

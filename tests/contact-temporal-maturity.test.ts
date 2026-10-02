@@ -13,14 +13,14 @@ const script = await readFile(path.join(output, 'fixture.js'), 'utf8');
 test.after(() => rm(output, { recursive: true, force: true }));
 const scope = '?clientId=synthetic-a&startDate=2026-09-28&endDate=2026-09-28';
 
-async function mount(route: string) {
+async function mount(route: string, payloads = convergencePayloads) {
   const errors: string[] = [];
   const console = new VirtualConsole();
   console.on('jsdomError', error => { if (!error.message.includes('navigation')) errors.push(error.message); });
   console.on('error', (...args) => errors.push(args.map(String).join(' ')));
   const dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', { url: 'https://synthetic.invalid', runScripts: 'outside-only', pretendToBeVisual: true, virtualConsole: console });
   const w = dom.window as any;
-  Object.assign(w, { Response, Request, Headers, AbortController, TextEncoder, TextDecoder, ReadableStream, ResizeObserver: class { observe() {} unobserve() {} disconnect() {} }, __fixture: { initialRoute: route + scope, payloads: convergencePayloads } });
+  Object.assign(w, { Response, Request, Headers, AbortController, TextEncoder, TextDecoder, ReadableStream, ResizeObserver: class { observe() {} unobserve() {} disconnect() {} }, __fixture: { initialRoute: route + scope, payloads } });
   w.matchMedia = (query: string) => ({ matches: false, media: query, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
   w.HTMLElement.prototype.scrollIntoView = () => {};
   w.HTMLElement.prototype.scrollTo = () => {};
@@ -103,6 +103,37 @@ test('temporal focus keeps selected evidence mounted, shows exact scope and rest
     assert.equal(app.w.document.activeElement, trigger);
     assert.equal(app.w.document.querySelector('.cx-temporal-cell'), originalCell);
     assert.deepEqual([...app.w.__fixture.requests], beforeRequests);
+    assert.deepEqual(app.errors, []);
+  } finally { app.close(); }
+});
+
+
+test('canonical contact exact evidence retains independent ratios, explicit no-RPC and unknown RPC without requests', async () => {
+  const payloads = structuredClone(convergencePayloads);
+  const contact = payloads['/api/analytics/offernet/contact-strategy'] as any;
+  contact.attemptPerformance[0] = { ...contact.attemptPerformance[0], activationRate: 125, noRpc: 0, rpcUnrecorded: null };
+  const app = await mount('/contact-strategy', payloads);
+  try {
+    await app.wait(() => app.w.document.querySelector('tr[data-bucket]'));
+    const requests = [...app.w.__fixture.requests];
+    const row = app.w.document.querySelector('tr[data-bucket]');
+    const headers = [...app.w.document.querySelectorAll('.cx-effort-report .cx-viz-table th')].map((cell: any) => cell.textContent);
+    const cells = [...row.children].map((cell: any) => cell.textContent);
+    assert.equal(cells[headers.indexOf('Independent activation / sale')], '125.0%');
+    assert.equal(cells[headers.indexOf('Explicit no RPC')], '0');
+    assert.equal(cells[headers.indexOf('RPC unrecorded')], '—');
+    assert.deepEqual([...app.w.__fixture.requests], requests);
+    assert.deepEqual(app.errors, []);
+  } finally { app.close(); }
+});
+
+test('canonical Speed keeps measured completed breaches separate from undialled backlog', async () => {
+  // The acceptance fixture supplies a measured zero, separate from null durations.
+  const app = await mount('/speed-to-lead');
+  try {
+    await app.wait(() => app.w.document.body.textContent.includes('Completed dial breaches:'));
+    assert.match(app.w.document.body.textContent, /Completed dial breaches: 0 measured delivery → first-dial intervals above 15 minutes/);
+    assert.match(app.w.document.body.textContent, /separate from the current undialled backlog/);
     assert.deepEqual(app.errors, []);
   } finally { app.close(); }
 });

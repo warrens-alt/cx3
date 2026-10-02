@@ -5,24 +5,25 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const read = (path: string) => fs.readFileSync(path, 'utf8');
+const readMany = (...paths: string[]) => paths.map(read).join('\n');
 
-test('primary operational pages use the shared command-centre shell', () => {
+test('mounted primary operational pages use the shared reporting shell', () => {
   for (const path of [
-    'src/pages/FunnelIntelligence.tsx',
-    'src/pages/SpeedToLeadIntelligence.tsx',
-    'src/pages/SalesActivationIntelligence.tsx',
+    'src/features/journey/JourneyPage.tsx',
+    'src/features/contact/SpeedPage.tsx',
+    'src/features/sales/SalesActivationPage.tsx',
   ]) {
     const source = read(path);
-    assert.match(source, /cx-command-page/);
-    assert.match(source, /OperationalPageHeader/);
-    assert.match(source, /OffernetFilterBar/);
+    assert.match(source, /<AnalyticsPageLayout/);
+    assert.match(source, /<ReportingScopeBar/);
+    assert.match(source, /onExportCsv=/);
   }
 });
 
 test('primary diagnostic pages do not require table-vs-chart mode switching', () => {
-  const funnel = read('src/pages/FunnelIntelligence.tsx');
-  const speed = read('src/pages/SpeedToLeadIntelligence.tsx');
-  const sales = read('src/pages/SalesActivationIntelligence.tsx');
+  const funnel = read('src/features/journey/JourneyPage.tsx');
+  const speed = read('src/features/contact/SpeedPage.tsx');
+  const sales = read('src/features/sales/SalesActivationPage.tsx');
 
   for (const source of [funnel, speed, sales]) {
     assert.doesNotMatch(source, /ViewMode/);
@@ -229,18 +230,24 @@ test('mobile and in-page operational navigation preserve reporting scope', () =>
 
   for (const path of [
     'src/features/overview/components/JourneySummary.tsx',
-    'src/pages/FunnelIntelligence.tsx',
-    'src/pages/SpeedToLeadIntelligence.tsx',
+    'src/features/journey/JourneyPage.tsx',
+    'src/features/contact/SpeedPage.tsx',
     'src/pages/VendorLeadQuality.tsx',
     'src/pages/Exceptions.tsx',
-    'src/pages/SalesActivationIntelligence.tsx',
+    'src/features/sales/SalesActivationPage.tsx',
     'src/pages/CommercialIntelligence.tsx',
     'src/pages/TemporalIntelligence.tsx',
     'src/pages/AgentPerformanceIntelligence.tsx',
     'src/pages/RoutingIntelligence.tsx',
   ]) {
     const source = read(path);
-    assert.match(source, /useScopedNavigationTarget/);
+    const scopedModel: Record<string, string> = {
+      'src/features/journey/JourneyPage.tsx': 'src/features/journey/model/useJourneyModel.ts',
+      'src/features/contact/SpeedPage.tsx': 'src/features/contact/model/useSpeedModel.ts',
+      'src/features/sales/SalesActivationPage.tsx': 'src/features/sales/model/useSalesActivationModel.ts',
+    };
+    assert.match(scopedModel[path] ? read(scopedModel[path]) : source, /useScopedNavigationTarget/);
+    assert.match(source, /scoped\(/);
     assert.doesNotMatch(source, /<Link\b[^>]*to=["']\/(?:overview|funnel|speed-to-lead|contact-strategy|vendor-quality|exceptions|campaigns|commercial|reports|lead-explorer|cli-performance)["']/);
   }
 });
@@ -293,11 +300,11 @@ test('all custom analysis drawers use focus-managed dialog semantics', () => {
 test('primary OfferNet tabs expose operating-control analytics appropriate to their purpose', () => {
   const expectations = [
     ['src/features/overview/OverviewPage.tsx', 'OperatingControlStrip'],
-    ['src/pages/FunnelIntelligence.tsx', 'SlaBandsPanel'],
-    ['src/pages/SpeedToLeadIntelligence.tsx', 'OperatingWindowPanel'],
+    ['src/features/journey/JourneyPage.tsx', 'SlaBandsPanel'],
+    ['src/features/contact/SpeedPage.tsx', 'OperatingWindowPanel'],
     ['src/pages/VendorLeadQuality.tsx', 'VendorControlsPanel'],
     ['src/pages/Exceptions.tsx', 'ContactGovernancePanel'],
-    ['src/pages/SalesActivationIntelligence.tsx', 'ActivationAgeingPanel'],
+    ['src/features/sales/SalesActivationPage.tsx', 'ActivationAgeing'],
     ['src/pages/TemporalIntelligence.tsx', 'OperatingWindowPanel'],
     ['src/pages/DataIntegrityIntelligence.tsx', 'DataCompletenessPanel'],
   ] as const;
@@ -307,11 +314,11 @@ test('primary OfferNet tabs expose operating-control analytics appropriate to th
 });
 
 test('contact strategy exposes observed effort controls without prescriptive redial claims', () => {
-  const page = read('src/pages/ContactStrategyIntelligence.tsx');
-  assert.match(page, /Zero-call leads/);
+  const page = read('src/features/contact/components/CallEffortReport.tsx');
+  assert.match(read('src/features/contact/components/ContactCoverage.tsx'), /Recorded zero calls/);
   assert.match(page, /One-call share/);
   assert.match(page, /5\+ calls, no RPC/);
-  assert.match(page, /descriptive, not a recommended stop-threshold model/);
+  assert.match(page, /not the outcome of that particular attempt or a recommended stopping threshold/);
 });
 
 test('Explore uses shared labels for OfferNet contact-governance drill populations', () => {
@@ -321,13 +328,15 @@ test('Explore uses shared labels for OfferNet contact-governance drill populatio
   assert.equal(investigationLabel(new URLSearchParams({ drill: 'one-call-only' })), 'One-call-only leads');
 });
 
-test('funnel source and grade views show delivery-to-sale progression', () => {
-  const funnel = read('src/pages/FunnelIntelligence.tsx');
-  assert.match(funnel, /cx-segment-funnel-rates/);
-  assert.match(funnel, /<dt>Delivery<\/dt>/);
-  assert.match(funnel, /<dt>Dial<\/dt>/);
-  assert.match(funnel, /<dt>RPC<\/dt>/);
-  assert.match(funnel, /<dt>Sale<\/dt>/);
+test('canonical Journey source and grade views retain exact stage counts and supplied rates', () => {
+  const segments = read('src/features/journey/components/JourneySegments.tsx');
+  assert.match(segments, /\['vendor', 'source', 'grade'\]/);
+  for (const field of ['fetched', 'delivered', 'dialled', 'rpc', 'sales', 'activations']) {
+    assert.ok(segments.includes(`formatTableNumber(row.${field})`), field);
+  }
+  for (const field of ['deliveryRate', 'dialRate', 'rpcRate', 'saleRate', 'activationRate']) {
+    assert.ok(segments.includes(`formatPercent(row.${field})`), field);
+  }
 });
 
 
@@ -377,17 +386,17 @@ test('CLI import UI matches the scoped source contract and renders unavailable m
 
 
 test('trust-safe funnel, outcome and temporal presentation', () => {
-  const funnel = read('src/pages/FunnelIntelligence.tsx');
-  const sales = read('src/pages/SalesActivationIntelligence.tsx');
+  const funnel = readMany('src/features/journey/JourneyPage.tsx', 'src/features/journey/components/JourneySegments.tsx');
+  const sales = read('src/features/sales/components/SalesSegmentComparison.tsx');
   const commercial = read('src/pages/CommercialIntelligence.tsx');
   const temporal = read('src/pages/TemporalIntelligence.tsx');
-  const speed = read('src/pages/SpeedToLeadIntelligence.tsx');
+  const speed = read('src/features/contact/SpeedPage.tsx');
 
-  assert.match(funnel, /formatRatioPercent/);
+  assert.match(funnel, /formatPercent\(row\.saleRate\)/);
   assert.doesNotMatch(funnel, /den > 0 .* : 0/);
   assert.doesNotMatch(funnel, /Number\(row\.[a-zA-Z]+ \|\| 0\)\.toLocaleString/);
 
-  assert.match(sales, /formatRatioPercent\(row\.activations, row\.sales\)/);
+  assert.match(sales, /formatPercent\(row\.activationRatio\)/);
   assert.doesNotMatch(sales, /activationRate \?\? 0/);
 
   assert.match(commercial, /<th>Coverage<\/th>/);
@@ -429,8 +438,8 @@ test('superseded page implementations stay removed behind compatibility redirect
 
 test('primary operational analytics are chart-first while retaining evidence tables', () => {
   const lifecycle = read('src/components/LifecycleDiagnostics.tsx');
-  const speed = read('src/pages/SpeedToLeadIntelligence.tsx');
-  const sales = read('src/pages/SalesActivationIntelligence.tsx');
+  const speed = read('src/features/contact/SpeedPage.tsx');
+  const sales = read('src/features/sales/SalesActivationPage.tsx');
   const agents = read('src/pages/AgentPerformanceIntelligence.tsx');
   const integrity = read('src/pages/DataIntegrityIntelligence.tsx');
   const campaigns = read('src/pages/CampaignIntelligence.tsx');
@@ -439,7 +448,8 @@ test('primary operational analytics are chart-first while retaining evidence tab
   assert.match(lifecycle, /RankedMetricChart/);
   assert.match(speed, /Lead age vs downstream outcomes/);
   assert.match(speed, /VolumeRateComboChart/);
-  assert.match(sales, /Vendor sales and activation/);
+  assert.match(sales, /<SalesSegmentComparison/);
+  assert.match(read('src/features/sales/components/SalesSegmentComparison.tsx'), /<EvidenceBars/);
   assert.match(agents, /Agent call volume and RPC rate/);
   assert.match(integrity, /<IntegrityCheckComparison/);
   assert.match(integrity, /<SourceEvidenceMatrix/);
@@ -463,7 +473,7 @@ test('overview and secondary operational tabs use the shared visual analytics la
   const overview = read('src/features/overview/OverviewPage.tsx');
   const commercial = read('src/pages/CommercialIntelligence.tsx');
   const temporal = read('src/pages/TemporalIntelligence.tsx');
-  const contact = read('src/pages/ContactStrategyIntelligence.tsx');
+  const contact = read('src/features/contact/components/CallEffortReport.tsx');
   const exceptions = read('src/pages/Exceptions.tsx');
 
   assert.match(overview, /JourneySummary/);

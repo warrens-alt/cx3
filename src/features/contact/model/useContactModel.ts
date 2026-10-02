@@ -25,6 +25,7 @@ import {
   type DispositionExportMetadata,
 } from '../../../lib/analysisExport';
 import { buildVendorSelectedExport } from './dispositionSelection';
+import { vendorSummaryExportRows, vendorOutcomeExportRows } from './dispositionComparison';
 import type { InspectorContent } from '../../../shared/evidence/InspectorHost';
 
 export type ContactTab = 'call_counts' | 'vendor_dispositions';
@@ -290,33 +291,10 @@ export function useContactModel() {
   const handleExportVendorSummaryTable = () => {
     try {
       setSummaryExportError(null);
-      if (!dispQuery.data?.vendorSummaries) {
+      if (!dispData?.vendorSummaries) {
         throw new Error('Cannot export summary: No vendor summary data is available.');
       }
-      const isCallMode = dispositionMode === 'call_records';
-      const headers = [
-        'Vendor',
-        isCallMode ? 'Total Calls' : 'Total Leads',
-        isCallMode ? 'Dialled Calls' : 'Dialled Leads',
-        'Disposition Coverage %',
-        'Mapping Coverage %',
-        'RPC Count',
-        'Sale Count',
-        'Callback Count',
-      ];
-      const dataRows = [
-        headers,
-        ...dispQuery.data.vendorSummaries.map(v => [
-          v.vendor,
-          v.totalPopulation,
-          v.dialledCount,
-          v.dispositionCoveragePct !== null ? `${v.dispositionCoveragePct}%` : '—',
-          v.mappingCoveragePct !== null ? `${v.mappingCoveragePct}%` : '—',
-          v.rpcCount,
-          v.saleCount,
-          v.callbackCount,
-        ]),
-      ];
+      const dataRows = vendorSummaryExportRows(dispData);
       downloadDispositionExportCsv(
         `vendor_dispositions_summary_${dispositionMode}_${selectedClient}`,
         dataRows,
@@ -324,6 +302,21 @@ export function useContactModel() {
       );
     } catch (err: any) {
       setSummaryExportError(err?.message || 'Failed to export vendor summary table.');
+    }
+  };
+
+  // Export the complete returned vendor comparison, independent of chart Top-N state.
+  const handleExportOutcomeComparison = () => {
+    try {
+      setSummaryExportError(null);
+      if (!dispData) throw new Error('Cannot export comparison: No active report data available.');
+      downloadDispositionExportCsv(
+        `vendor_outcomes_comparison_${dispositionMode}_${selectedClient}`,
+        vendorOutcomeExportRows(dispData),
+        { ...getDispositionExportMeta(false), exportScope: 'OUTCOME_COMPARISON' }
+      );
+    } catch (err: any) {
+      setSummaryExportError(err?.message || 'Failed to export vendor outcome comparison.');
     }
   };
 
@@ -408,6 +401,7 @@ export function useContactModel() {
     },
     handleExportCallCountsCsv,
     handleExportVendorSummaryTable,
+    handleExportOutcomeComparison,
     handleExportVendorRawBreakdown,
     handleExportVendorSelectedBreakdown,
     getDispositionExportMeta,

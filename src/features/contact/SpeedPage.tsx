@@ -270,6 +270,7 @@ export default function SpeedPage() {
             <summary>Methodology and queue context</summary>
             <div className="p-4 space-y-2 text-xs text-text-sec">
               <p>Oldest undialled: <strong>{data.backlog?.oldestUndialled || 'Unavailable'}</strong> since delivery.</p>
+              <p>Completed dial breaches: <strong>{formatTableNumber(data.backlog?.completedDialBreaches)}</strong> measured delivery → first-dial intervals above 15 minutes. This is separate from the current undialled backlog.</p>
               <p>{data.methodology || 'Timing statistics and cohort outcomes are presented as returned.'}</p>
               <p>Latency cohorts use capture → first dial. Percentiles above use delivery → first dial; these are different measures. RPC, sale and activation rates describe associations, not a causal effect of response speed.</p>
               <p>Missing values have no bar; recorded zero remains zero. Undialled leads and invalid timing remain separate from measured latency.</p>

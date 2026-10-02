@@ -236,10 +236,6 @@ test('sales-activation router & compatibility: mounts SalesActivationPage and pr
     'AppRouter must preserve /outcomes alias to /sales-activation'
   );
 
-  // Verify compatibility export from SalesActivationIntelligence
-  const compatSource = fs.readFileSync(path.join(process.cwd(), 'src/pages/SalesActivationIntelligence.tsx'), 'utf-8');
-  assert.ok(
-    compatSource.includes('SalesActivationPage'),
-    'SalesActivationIntelligence must delegate to SalesActivationPage'
-  );
+  // Compatibility is owned by the public URL alias, never a second page wrapper.
+  assert.ok(appRouterSource.includes("import('../features/sales/SalesActivationPage')"));
 });
