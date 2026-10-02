@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import InspectorHost, { type InspectorContent } from '../shared/evidence/InspectorHost';
 import { AuditMetadata } from '../shared/evidence/AuditMode';
 import { Link, type To } from 'react-router-dom';
-import { Info, Search, ArrowRight, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { type LucideIcon, Info, Search, ArrowRight, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 export interface UnifiedMetricCardProps {
   auditContent?: InspectorContent;
   label: string;
+  icon?: LucideIcon;
   value: string | number | null | undefined;
   note?: string;
   change?: number | null;
@@ -32,6 +33,7 @@ export interface UnifiedMetricCardProps {
 export default function UnifiedMetricCard({
   auditContent,
   label,
+  icon: Icon,
   value,
   note,
   change,
@@ -83,10 +85,12 @@ export default function UnifiedMetricCard({
   return (
     <article
       className={`cx-unified-metric cx-metric-card ${className}`}
+      data-evidence={isMissing ? 'unavailable' : 'observed'}
     >
       <div>
         <div className="flex items-center justify-between gap-1 mb-1">
           <span className="text-xs sm:text-[12px] font-semibold text-text-sec cx-metric-label">
+            {Icon && <Icon size={15} className="cx-metric-concept-icon" aria-hidden="true" />}
             {label}
           </span>
           {onAbout && !auditContent && (
