@@ -287,7 +287,7 @@ test('dossier reuses the loaded journey, preserves unavailable evidence and supp
     const trigger = await app.click('button', 'Open dossier for lead SYNTHETIC-EXPORT');
     await app.wait(() => app.find('.cx-lead-dossier'));
     assert.match(app.find('.cx-dossier-inclusion').textContent, /Delivered · no recorded first dial/);
-    assert.match(app.find('.cx-lead-dossier').textContent, /First dial timestampUnavailable/);
+    assert.match(app.find('.cx-lead-dossier').textContent, /Recorded first dial timestampUnavailable/);
     assert.match(app.find('.cx-lead-dossier').textContent, /NOT_VERIFIED/);
     const summary = app.find('[role="tab"]', 'Summary');
     summary.focus(); summary.dispatchEvent(new app.w.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
@@ -393,5 +393,28 @@ test('closing dossier restores focus to the visible table counterpart when a spl
     await app.wait(() => app.w.document.activeElement === tableTrigger);
     assert.equal(cardTrigger.getClientRects().length, 0, 'The previous card trigger is now hidden');
     assert.ok(tableTrigger.getClientRects().length, 'Focus lands on the visible equivalent lead');
+  } finally { app.close(); }
+});
+
+
+test('dossier retains recorded anomalous timestamps and distinguishes qualified progression from recorded outcomes', async () => {
+  const result = analyticalResult();
+  result.rows[0] = { ...result.rows[0], fetched: '2026-09-28T10:00:00Z', delivered_time: '2026-09-28T10:01:00Z', first_call_time: '2026-09-28T09:00:00Z', sale_time: '2026-09-28T10:20:00Z', activation_time: '2026-09-28T10:10:00Z',
+    recorded_first_dial: true, qualified_delivery: true, dialled: false, qualified_activation: false,
+    delivery_before_capture: false, first_dial_before_capture: true, first_dial_before_delivery: true, sale_before_capture: false, activation_before_sale: true,
+    sale: true, activated: true, investigationReason: { code: 'INVALID_TIMESTAMPS', label: 'Recorded timestamp order is inconsistent' },
+  } as typeof result.rows[0];
+  const app = await mount('/lead-explorer' + scope + '&drill=invalid-timestamps', { payloads: { '/api/analytics/offernet/raw-leads': result } });
+  try {
+    await app.wait(() => app.find('button', 'Open dossier for lead SYNTHETIC-EXPORT'));
+    await app.click('button', 'Open dossier for lead SYNTHETIC-EXPORT');
+    await app.wait(() => app.find('.cx-lead-dossier'));
+    const text = app.find('.cx-lead-dossier').textContent;
+    assert.match(text, /Recorded first dial timestamp2026-09-28T09:00:00Z/);
+    assert.match(text, /First dial qualificationExcluded from qualified progression/);
+    assert.match(text, /Invalid: First dial before capture; First dial before delivery; Activation before sale/);
+    assert.match(text, /SaleRecordedActivatedRecorded/);
+    assert.match(text, /Source-recorded revenue/);
+    assert.match(text, /Sales and activations do not certify billing or collection/);
   } finally { app.close(); }
 });

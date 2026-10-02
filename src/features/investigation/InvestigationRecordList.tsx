@@ -35,7 +35,7 @@ const columnMap: Record<string, Column> = {
   delivered: { key: 'delivered', label: 'Delivered', value: row => evidenceText(row.delivered_time) },
   dial: { key: 'dial', label: 'First dial', value: row => evidenceText(row.first_call_time) },
   rpc: { key: 'rpc', label: 'RPC', value: row => outcomeText(row.contacted) },
-  revenue: { key: 'revenue', label: 'Reported revenue', value: row => row.revenue == null ? 'Unavailable' : formatCurrency(row.revenue) },
+  revenue: { key: 'revenue', label: 'Source-recorded revenue', value: row => row.revenue == null ? 'Unavailable' : formatCurrency(row.revenue) },
   grade: { key: 'grade', label: 'Grade / medium', value: row => <><span>{evidenceText(row.grade)}</span><small>{evidenceText(row.medium)}</small></> },
   transaction: { key: 'transaction', label: 'Transaction / consumer', value: row => <><span>{evidenceText(row.transaction_id)}</span><small>{evidenceText(row.consumer_id)}</small></> },
 };
