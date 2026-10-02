@@ -178,6 +178,36 @@ test('large-desktop evidence rail starts expanded with exactly one evidence stat
   }finally{app.close()}
 });
 
+test('pinned Investigation audit retains its original narrowed population without loading records',async()=>{
+  const app=await mount('/investigate?'+query,{payloads:exceptions},false);try{
+    await app.wait(()=>stage(app,'signal').textContent.includes('Current 7'));
+    app.find('.cx-driver-pin').click();await app.wait(()=>app.find('#investigation-evidence-tray').textContent.includes('1 pinned'));
+    app.w.__fixture.navigate('/investigate?'+query.replace('Source+A','Source+B'));
+    await app.wait(()=>app.find('[aria-label="Current case scope"]').textContent.includes('Source B'));
+    // Navigation updates the context before its existing scoped request effect runs.
+    // Establish the new report population before measuring audit-only requests.
+    await app.wait(()=>app.w.__fixture.requests.some((url:string)=>url.includes('/exceptions?') && new URL(url,'https://test.invalid').searchParams.get('segmentSource')==='Source B'));
+    await app.wait(()=>stage(app,'signal').textContent.includes('Current 7'));
+    const tray=app.find('#investigation-evidence-tray');tray.open=true;
+    const before=app.w.__fixture.requests.length;
+    const trigger=app.find('#investigation-evidence-tray button','Audit evidence');trigger.focus();trigger.click();
+    await app.wait(()=>app.find('[role="dialog"]'));
+    const dialog=app.find('[role="dialog"]');
+    assert.match(dialog.textContent,/Source A/);
+    const href=dialog.querySelector('a[href*="lead-explorer"]').getAttribute('href');
+    const params=new URL(href,'https://test.invalid').searchParams;
+    assert.equal(params.get('clientId'),'synthetic-a');
+    assert.equal(params.get('startDate'),'2026-09-01');
+    assert.equal(params.get('endDate'),'2026-09-30');
+    assert.equal(params.get('drill'),'awaiting-first-dial');
+    assert.equal(params.get('segmentSource'),'Source A');
+    assert.match(params.get('filters')||params.get('vendor')||'',/Vendor A/);
+    assert.equal(params.has('leadId'),false);
+    assert.equal(app.w.__fixture.requests.length,before,'Opening pin audit must not request records or re-evaluate its population');
+    app.find('button','Close inspector').click();await app.wait(()=>!app.find('[role="dialog"]'));
+  }finally{app.close()}
+});
+
 test('metric signal reports the loaded metric and preserves unavailable values without claiming a population',async()=>{
   const route='/investigate?clientId=synthetic-a&startDate=2026-09-01&endDate=2026-09-30&investigationMetric=fetchedLeads';
   const app=await mount(route,{payloads:exceptions},false);try{

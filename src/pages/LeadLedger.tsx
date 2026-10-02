@@ -497,7 +497,7 @@ export default function LeadLedger({ onViewSource, workspaceNavigation }: { onVi
 
         <aside className="cx-ledger-inspector cx-ledger-operational-inspector" id={inspectorId} aria-label="Selected operational lead" tabIndex={-1}>
           {selectedRow ? <><header className="cx-ledger-inspector-heading"><div><p className="cx-ledger-eyebrow">SELECTED LEAD</p><h2>{selectedLeadId}</h2></div><button type="button" className="cx-button-secondary" aria-label="Clear selected operational lead" onClick={() => { setSelectedLeadId(null); selectionButton.current?.focus(); }}>Clear</button></header>
-            {loading ? <div className="cx-journey-loading" role="status"><span>Updating lead evidence…</span><div aria-hidden="true">● ─── ● ─── ●</div></div> : <LeadJourney key={selectedLeadId} row={selectedRow} validationStatus={data?.validationStatus} onViewSource={fields => onViewSource(selectedLeadId!, fields)} />}
+            {loading ? <div className="cx-journey-loading" role="status"><span>Updating lead evidence…</span><div aria-hidden="true">● ─── ● ─── ●</div></div> : <LeadJourney key={selectedLeadId} row={selectedRow} validationStatus={data?.validationStatus} auditScope={{ clientId: selectedClient, startDate, endDate, filters, narrowing: appliedSearch ? { search: appliedSearch } : {} }} onViewSource={fields => onViewSource(selectedLeadId!, fields)} />}
           </> : <div className="cx-ledger-inspector-empty"><p className="cx-ledger-eyebrow">LEAD JOURNEY</p><h2>Select a lead</h2><p>See recorded milestones, elapsed time and call evidence, then inspect the source fields.</p></div>}
         </aside>
         </div>

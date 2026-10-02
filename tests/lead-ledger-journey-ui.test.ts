@@ -166,6 +166,30 @@ test('source handoff preserves scope, sends one exact existing source search and
   } finally { app.close(); }
 });
 
+test('selected Lead Journey audit opens the canonical record trace without requesting records and restores focus', async () => {
+  const app = await mount();
+  try {
+    await openOperational(app);
+    await selectLead(app, 'SYN-COMPLETE');
+    await app.click('.cx-journey-spine button', 'First dial');
+    await app.wait(() => app.find('.cx-journey-evidence').textContent.includes('Audit evidence'));
+    const before = app.requests();
+    const trigger = await app.click('.cx-journey-evidence button', 'Audit evidence');
+    await app.wait(() => app.find('[role="dialog"]'));
+    const dialog = app.find('[role="dialog"]');
+    assert.match(dialog.textContent, /2026-09-28T09:29:51.000Z/);
+    assert.match(dialog.textContent, /HLC First Call Date/);
+    assert.match(dialog.textContent, /dialled: Qualified/);
+    assert.match(dialog.textContent, /Independent reconciliation/);
+    assert.equal(dialog.querySelector('.cx-metric-anatomy'), null, 'Timestamp evidence has no count or ratio anatomy');
+    assert.equal(dialog.querySelector('a[href*="lead-explorer"]'), null, 'A selected identity cannot create a population drill');
+    assert.deepEqual(app.requests(), before);
+    assert.equal(app.requests().some(request => request.includes('lead-timeline')), false);
+    await app.click('button', 'Close inspector');
+    await app.wait(() => app.w.document.activeElement === trigger);
+  } finally { app.close(); }
+});
+
 test('missing, partial, zero and untimed evidence remain distinct in the selected inspector', async () => {
   const app = await mount();
   try {

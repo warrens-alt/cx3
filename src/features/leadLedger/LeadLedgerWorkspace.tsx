@@ -9,6 +9,7 @@ import { type LedgerCell, type LedgerCoverage, type LedgerLead, type LedgerRepli
 import { ReportActions } from '../../shared/reporting/ReportPresentation';
 import { receiveLedgerCsv } from './download';
 import LeadEvidence from './LeadSourceEvidence';
+import LedgerFieldCoverage from './LedgerFieldCoverage';
 import EvidenceExportPreflight, { returnedEvidenceFields } from './EvidenceExportPreflight';
 import InvestigationContextBar from '../investigation/InvestigationContextBar';
 import { INVESTIGATION_KEYS, investigationPath } from '../investigation/investigationModel';
@@ -132,6 +133,7 @@ function SourceLedger({ sourceMode, setSourceMode, sourceFocus, workspaceNavigat
         </details>
       </section>}
       <div className="cx-ledger-source-selection">{fields?.missing.length ? <div role="note"><strong>{fields.missing.length} unavailable fields — exports are explicitly partial</strong><details><summary>Unavailable source fields</summary><p>{fields.missing.join(', ')}</p></details></div> : null}</div>
+      {fields && <details className="cx-ledger-panel"><summary>Field availability and metric dependencies</summary><LedgerFieldCoverage coverage={fields} /></details>}
       {!enabled && <div className="cx-ledger-panel"><h2>Select a fetched-date window</h2><p>This report requires both dates, with a maximum of 366 days. Later vendor outcomes remain attached to that fetched cohort.</p><button type="button" onClick={() => { const dates = defaultDateRange(); setDateRange(dates.start, dates.end); }}>Use last 30 days</button></div>}
       {error && <p role="alert" className="cx-ledger-error">{error}</p>}
       {query.isFetching && enabled && <p role="status">Loading source records…</p>}
