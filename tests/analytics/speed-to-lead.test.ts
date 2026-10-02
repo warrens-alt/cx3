@@ -15,12 +15,12 @@ test('speed-to-lead: normal cohorts and percentiles return precise timings and r
       p90_deliv_dial: 600,
     },
     cohorts: [
-      { age_cohort: '0-5m', leads: 400, contacted: 240, sales: 30, activations: 21 },
-      { age_cohort: '5-15m', leads: 200, contacted: 90, sales: 8, activations: 5 },
+      { age_cohort: '0-5m', leads: 400, dialled: 400, contacted: 240, sales: 30, activations: 21 },
+      { age_cohort: '5-15m', leads: 200, dialled: 200, contacted: 90, sales: 8, activations: 5 },
     ],
     after_hours: [
-      { is_after_hours: false, leads: 500, contacted: 300, sales: 35, avg_dial_sec: 180 },
-      { is_after_hours: true, leads: 100, contacted: 30, sales: 3, avg_dial_sec: 7200 },
+      { is_after_hours: false, leads: 500, dialled: 500, contacted: 300, sales: 35, avg_dial_sec: 180 },
+      { is_after_hours: true, leads: 100, dialled: 100, contacted: 30, sales: 3, avg_dial_sec: 7200 },
     ],
   };
 
@@ -88,4 +88,11 @@ test('speed-to-lead: null timestamps and zero cohorts do not produce false 0s', 
 
   assert.equal(result.afterHours[0].contactRate, null);
   assert.equal(result.afterHours[0].avgTimeToFirstDial, '—');
+});
+
+
+test('speed-to-lead missing dial denominator remains unavailable even with observed leads', () => {
+  const result = buildSpeedToLeadResult({ cohorts: [{ leads: 20, contacted: 4 }], after_hours: [{ leads: 20, contacted: 4 }] }, { timezone: 'Africa/Johannesburg' }, { start: '08:00', end: '17:30' });
+  assert.equal(result.cohorts[0].contactRate, null);
+  assert.equal(result.afterHours[0].contactRate, null);
 });

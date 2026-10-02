@@ -92,7 +92,7 @@ export async function getMarketingAttributionAnalytics(params: OffernetQueryPara
         COUNT(DISTINCT TO_JSON_STRING(STRUCT(_cx_attribution_key AS attribution_key))) AS key_count
       FROM attribution_source GROUP BY lead_id
     ), operation_leads AS (
-      SELECT k.*, o.is_delivered AS delivered, o.is_dialled AS dialled, o.is_rpc AS rpc,
+      SELECT k.*, o.is_delivered AS delivered, o.is_dialled AS dialled, o.is_qualified_rpc AS rpc,
         o.is_sale AS sale, o.is_activated AS activation, o.revenue AS recorded_revenue
       FROM operational_leads o JOIN operation_keys k USING (lead_id)
       WHERE TRUE AND (SELECT row_count > 0 AND duplicate_grain_rows = 0 AND missing_grain_rows = 0

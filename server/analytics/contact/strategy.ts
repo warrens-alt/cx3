@@ -9,9 +9,9 @@ export function buildContactStrategyResult(rows: any[]) {
   const totalLeads = rows.reduce((acc: number, row: any) => acc + Number(row.leads || 0), 0);
   const attemptPerformance = rows.map((row: any) => {
     const leads = Number(row.leads || 0);
-    const dialled = row.dialled != null ? Number(row.dialled) : (row.attempt_bucket === '0 calls' || row.attempt_bucket === 'Unrecorded' ? 0 : leads);
+    const dialled = row.dialled != null ? Number(row.dialled) : null;
     const contacted = Number(row.contacted || 0);
-    const noRpc = row.no_rpc != null ? Number(row.no_rpc) : Math.max(0, dialled - contacted);
+    const noRpc = row.no_rpc != null ? Number(row.no_rpc) : null;
     const sales = Number(row.sales || 0);
     const activations = Number(row.activations || 0);
     return {
@@ -20,7 +20,7 @@ export function buildContactStrategyResult(rows: any[]) {
       sharePct: metricPercent(leads, totalLeads, 1),
       dialled,
       noRpc,
-      rpcUnrecorded: Number(row.rpc_unrecorded || 0),
+      rpcUnrecorded: row.rpc_unrecorded == null ? null : Number(row.rpc_unrecorded),
       contacted,
       contactRate: metricPercent(contacted, dialled),
       sales,
@@ -34,13 +34,12 @@ export function buildContactStrategyResult(rows: any[]) {
     };
   });
 
-  const dialledLeads = attemptPerformance.reduce((sum, row) => sum + row.dialled, 0);
+  const dialledLeads = attemptPerformance.some(row => row.dialled === null) ? null : attemptPerformance.reduce((sum, row) => sum + row.dialled, 0);
   const oneCall = attemptPerformance.find(row => row.bucket === '1 call');
-  const multiCallLeads = attemptPerformance
-    .filter(row => !['0 calls', '1 call', 'Unrecorded'].includes(row.bucket))
-    .reduce((sum, row) => sum + row.leads, 0);
+  const multiCallRows = attemptPerformance.filter(row => !['0 calls', '1 call', 'Unrecorded'].includes(row.bucket));
+  const multiCallLeads = multiCallRows.some(row => row.dialled === null) ? null : multiCallRows.reduce((sum, row) => sum + row.dialled, 0);
   const highAttempt = attemptPerformance.find(row => row.bucket === '5+ calls');
-  const oneCallLeads = oneCall?.leads || 0;
+  const oneCallLeads = oneCall ? oneCall.dialled : 0;
 
   return {
     attemptPerformance,
@@ -49,15 +48,16 @@ export function buildContactStrategyResult(rows: any[]) {
       totalLeads,
       dialledLeads,
       unrecordedCallLeads: attemptPerformance.find(row => row.bucket === 'Unrecorded')?.leads || 0,
-      oneCallNoRpcLeads: oneCall?.noRpc || 0,
-      zeroCallNoRpcLeads: attemptPerformance.find(row => row.bucket === '0 calls')?.noRpc || 0,
+      unrecordedDialledCallLeads: attemptPerformance.find(row => row.bucket === 'Unrecorded')?.dialled ?? (attemptPerformance.some(row => row.bucket === 'Unrecorded') ? null : 0),
+      oneCallNoRpcLeads: oneCall ? oneCall.noRpc : 0,
+      zeroCallNoRpcLeads: attemptPerformance.some(row => row.bucket === '0 calls') ? attemptPerformance.find(row => row.bucket === '0 calls')!.noRpc : 0,
       zeroCallLeads: attemptPerformance.find(row => row.bucket === '0 calls')?.leads || 0,
       oneCallLeads,
       singleAttemptSharePct: dialledLeads > 0 ? metricPercent(oneCallLeads, dialledLeads, 1) : null,
       multiAttemptLeads: multiCallLeads,
       multiAttemptSharePct: dialledLeads > 0 ? metricPercent(multiCallLeads, dialledLeads, 1) : null,
       fivePlusCallLeads: highAttempt?.leads || 0,
-      fivePlusNoRpcLeads: highAttempt ? (highAttempt.noRpc != null ? highAttempt.noRpc : Math.max(0, highAttempt.leads - highAttempt.contacted)) : 0,
+      fivePlusNoRpcLeads: highAttempt ? highAttempt.noRpc : 0,
     },
     effortEvidence: { status: 'UNAVAILABLE', reason: 'Incremental attempt-level RPC and sale yield require the attempt that produced each outcome. Total-call snapshots support only exclusive bucket associations.' },
     noAnswerAnalysis: {
@@ -68,7 +68,7 @@ export function buildContactStrategyResult(rows: any[]) {
       callbackFollowupRate: null,
       callbackSaleConversion: null
     },
-    methodology: 'Buckets are exclusive per lead using the maximum non-negative recorded HLC total_calls value. Missing counters remain Unrecorded; no-RPC counts require an explicit recorded zero. One-call share uses dialled leads as its denominator. They describe observed call-count populations and do not identify which specific attempt produced the outcome.'
+    methodology: 'Buckets are exclusive per lead using the maximum non-negative recorded HLC total_calls value. Missing counters remain Unrecorded; no-RPC counts require an explicit recorded zero. One-call and multi-call shares count qualified dialled leads in those recorded buckets / all qualified dialled leads; the denominator includes the separately exposed unrecorded-call population. They describe observed call-count populations and do not identify which specific attempt produced the outcome.'
   };
 }
 
@@ -105,7 +105,7 @@ export async function getContactStrategyAnalytics(params: OffernetQueryParams) {
         COUNTIF(is_dialled) AS dialled,
         COUNTIF(is_rpc IS FALSE) AS no_rpc,
         COUNTIF(is_rpc IS NULL) AS rpc_unrecorded,
-        COUNTIF(is_rpc) AS contacted,
+        COUNTIF(is_qualified_rpc) AS contacted,
         COUNTIF(is_sale) AS sales,
         COUNTIF(is_activated) AS activations,
         ROUND(${completeRevenueSumSql()}, 2) AS revenue

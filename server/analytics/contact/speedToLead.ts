@@ -32,6 +32,7 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
     cohorts AS (
       SELECT
         CASE
+          WHEN has_recorded_first_dial AND NOT is_dialled THEN 'Invalid / unrecorded timing'
           WHEN NOT is_dialled THEN 'Undialled'
           WHEN capture_to_first_dial_sec IS NULL OR capture_to_first_dial_sec < 0 THEN 'Invalid / unrecorded timing'
           WHEN capture_to_first_dial_sec <= 300 THEN '0–5 min'
@@ -45,6 +46,7 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
           ELSE '24+ hrs'
         END as age_cohort,
         CASE
+          WHEN has_recorded_first_dial AND NOT is_dialled THEN 11
           WHEN NOT is_dialled THEN 10
           WHEN capture_to_first_dial_sec IS NULL OR capture_to_first_dial_sec < 0 THEN 11
           WHEN capture_to_first_dial_sec <= 300 THEN 1
@@ -59,7 +61,7 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
         END as sort_order,
         COUNT(DISTINCT lead_id) as leads,
         COUNTIF(is_dialled) AS dialled,
-        COUNT(DISTINCT CASE WHEN is_rpc THEN lead_id END) as contacted,
+        COUNT(DISTINCT CASE WHEN is_qualified_rpc THEN lead_id END) as contacted,
         COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) as sales,
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) as activations
       FROM stage_timings
@@ -71,10 +73,10 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
         is_after_hours,
         COUNT(DISTINCT lead_id) as leads,
         COUNTIF(is_dialled) AS dialled,
-        COUNT(DISTINCT CASE WHEN is_rpc THEN lead_id END) as contacted,
+        COUNT(DISTINCT CASE WHEN is_qualified_rpc THEN lead_id END) as contacted,
         COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) as sales,
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) as activations,
-        AVG(CASE WHEN capture_to_first_dial_sec >= 0 THEN capture_to_first_dial_sec END) as avg_dial_sec
+        AVG(CASE WHEN is_dialled AND capture_to_first_dial_sec >= 0 THEN capture_to_first_dial_sec END) as avg_dial_sec
       FROM stage_timings
       GROUP BY is_after_hours
     ),
@@ -95,25 +97,25 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
         APPROX_QUANTILES(CASE WHEN fetch_to_delivery_sec >= 0 THEN fetch_to_delivery_sec END, 100)[OFFSET(95)] as p95_fetch_deliv,
 
         -- Stage 3: Delivery -> First Dial
-        ROUND(AVG(CASE WHEN delivery_to_first_dial_sec >= 0 THEN delivery_to_first_dial_sec END), 0) as avg_deliv_dial,
-        APPROX_QUANTILES(CASE WHEN delivery_to_first_dial_sec >= 0 THEN delivery_to_first_dial_sec END, 100)[OFFSET(50)] as med_deliv_dial,
-        APPROX_QUANTILES(CASE WHEN delivery_to_first_dial_sec >= 0 THEN delivery_to_first_dial_sec END, 100)[OFFSET(75)] as p75_deliv_dial,
-        APPROX_QUANTILES(CASE WHEN delivery_to_first_dial_sec >= 0 THEN delivery_to_first_dial_sec END, 100)[OFFSET(90)] as p90_deliv_dial,
-        APPROX_QUANTILES(CASE WHEN delivery_to_first_dial_sec >= 0 THEN delivery_to_first_dial_sec END, 100)[OFFSET(95)] as p95_deliv_dial,
+        ROUND(AVG(CASE WHEN is_dialled AND delivery_to_first_dial_sec >= 0 THEN delivery_to_first_dial_sec END), 0) as avg_deliv_dial,
+        APPROX_QUANTILES(CASE WHEN is_dialled AND delivery_to_first_dial_sec >= 0 THEN delivery_to_first_dial_sec END, 100)[OFFSET(50)] as med_deliv_dial,
+        APPROX_QUANTILES(CASE WHEN is_dialled AND delivery_to_first_dial_sec >= 0 THEN delivery_to_first_dial_sec END, 100)[OFFSET(75)] as p75_deliv_dial,
+        APPROX_QUANTILES(CASE WHEN is_dialled AND delivery_to_first_dial_sec >= 0 THEN delivery_to_first_dial_sec END, 100)[OFFSET(90)] as p90_deliv_dial,
+        APPROX_QUANTILES(CASE WHEN is_dialled AND delivery_to_first_dial_sec >= 0 THEN delivery_to_first_dial_sec END, 100)[OFFSET(95)] as p95_deliv_dial,
 
         -- Stage 4: Capture -> First Dial
-        ROUND(AVG(CASE WHEN capture_to_first_dial_sec >= 0 THEN capture_to_first_dial_sec END), 0) as avg_cap_dial,
-        APPROX_QUANTILES(CASE WHEN capture_to_first_dial_sec >= 0 THEN capture_to_first_dial_sec END, 100)[OFFSET(50)] as med_cap_dial,
-        APPROX_QUANTILES(CASE WHEN capture_to_first_dial_sec >= 0 THEN capture_to_first_dial_sec END, 100)[OFFSET(75)] as p75_cap_dial,
-        APPROX_QUANTILES(CASE WHEN capture_to_first_dial_sec >= 0 THEN capture_to_first_dial_sec END, 100)[OFFSET(90)] as p90_cap_dial,
-        APPROX_QUANTILES(CASE WHEN capture_to_first_dial_sec >= 0 THEN capture_to_first_dial_sec END, 100)[OFFSET(95)] as p95_cap_dial
+        ROUND(AVG(CASE WHEN is_dialled AND capture_to_first_dial_sec >= 0 THEN capture_to_first_dial_sec END), 0) as avg_cap_dial,
+        APPROX_QUANTILES(CASE WHEN is_dialled AND capture_to_first_dial_sec >= 0 THEN capture_to_first_dial_sec END, 100)[OFFSET(50)] as med_cap_dial,
+        APPROX_QUANTILES(CASE WHEN is_dialled AND capture_to_first_dial_sec >= 0 THEN capture_to_first_dial_sec END, 100)[OFFSET(75)] as p75_cap_dial,
+        APPROX_QUANTILES(CASE WHEN is_dialled AND capture_to_first_dial_sec >= 0 THEN capture_to_first_dial_sec END, 100)[OFFSET(90)] as p90_cap_dial,
+        APPROX_QUANTILES(CASE WHEN is_dialled AND capture_to_first_dial_sec >= 0 THEN capture_to_first_dial_sec END, 100)[OFFSET(95)] as p95_cap_dial
       FROM stage_timings
     )
     SELECT
       (SELECT AS STRUCT COUNTIF(is_delivered AND NOT is_dialled) AS awaitingFirstDial,
         COUNTIF(is_delivered AND NOT is_dialled AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), delivered_ts, SECOND) > 900) AS currentSlaBreaches,
         MAX(IF(is_delivered AND NOT is_dialled AND delivered_ts <= CURRENT_TIMESTAMP(), TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), delivered_ts, SECOND), NULL)) AS oldestUndialledSec,
-        COUNTIF(delivery_to_first_dial_sec > 900) AS completedDialBreaches FROM stage_timings) AS backlog,
+        COUNTIF(is_dialled AND delivery_to_first_dial_sec > 900) AS completedDialBreaches FROM stage_timings) AS backlog,
       (SELECT AS STRUCT * FROM percentiles) as percentiles,
       ARRAY(SELECT AS STRUCT * FROM cohorts) as cohorts,
       ARRAY(SELECT AS STRUCT * FROM after_hours) as after_hours
@@ -187,7 +189,7 @@ export function buildSpeedToLeadResult(data: any, clientConfig: any, operating: 
   const cohorts = (data.cohorts || []).map((c: any) => {
     const leads = Number(c.leads || 0);
     const contacted = Number(c.contacted || 0);
-    const dialled = c.dialled !== undefined ? Number(c.dialled) : leads;
+    const dialled = c.dialled != null ? Number(c.dialled) : null;
     const sales = Number(c.sales || 0);
     const activations = Number(c.activations || 0);
     return {
@@ -204,7 +206,7 @@ export function buildSpeedToLeadResult(data: any, clientConfig: any, operating: 
 
   const afterHours = (data.after_hours || []).map((a: any) => {
     const leads = Number(a.leads || 0);
-    const dialled = a.dialled !== undefined ? Number(a.dialled) : leads;
+    const dialled = a.dialled != null ? Number(a.dialled) : null;
     const contacted = Number(a.contacted || 0);
     const sales = Number(a.sales || 0);
     return {

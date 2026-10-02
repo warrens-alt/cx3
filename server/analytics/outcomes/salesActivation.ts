@@ -23,9 +23,9 @@ export async function getSalesActivationAnalytics(params: OffernetQueryParams) {
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) as total_activations,
         ${completeRevenueSumSql()} as realized_revenue,
         AVG(CASE WHEN is_sale AND sale_ts >= fetched_ts THEN TIMESTAMP_DIFF(sale_ts, fetched_ts, SECOND) END) as avg_time_to_sale_sec,
-        AVG(CASE WHEN is_activated AND activation_ts >= sale_ts THEN TIMESTAMP_DIFF(activation_ts, sale_ts, SECOND) END) as avg_time_to_activation_sec,
+        AVG(CASE WHEN is_qualified_activation AND activation_ts >= sale_ts THEN TIMESTAMP_DIFF(activation_ts, sale_ts, SECOND) END) as avg_time_to_activation_sec,
         APPROX_QUANTILES(CASE WHEN is_sale AND sale_ts >= fetched_ts THEN TIMESTAMP_DIFF(sale_ts, fetched_ts, SECOND) END, 100)[OFFSET(50)] AS median_time_to_sale_sec,
-        APPROX_QUANTILES(CASE WHEN is_activated AND activation_ts >= sale_ts THEN TIMESTAMP_DIFF(activation_ts, sale_ts, SECOND) END, 100)[OFFSET(50)] AS median_time_to_activation_sec
+        APPROX_QUANTILES(CASE WHEN is_qualified_activation AND activation_ts >= sale_ts THEN TIMESTAMP_DIFF(activation_ts, sale_ts, SECOND) END, 100)[OFFSET(50)] AS median_time_to_activation_sec
       FROM sales_data
     ),
     by_segment AS (

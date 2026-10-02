@@ -27,7 +27,7 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
         COUNT(DISTINCT lead_id) AS leads,
         COUNT(DISTINCT CASE WHEN is_delivered THEN lead_id END) AS delivered,
         COUNT(DISTINCT CASE WHEN is_dialled THEN lead_id END) AS dialled,
-        COUNT(DISTINCT CASE WHEN is_rpc THEN lead_id END) AS contacted,
+        COUNT(DISTINCT CASE WHEN is_qualified_rpc THEN lead_id END) AS contacted,
         COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) AS sales,
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) AS activations,
         COUNT(DISTINCT CASE WHEN is_invalid THEN lead_id END) AS invalid_leads,
@@ -48,7 +48,7 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
         COUNT(DISTINCT lead_id) AS leads,
         COUNT(DISTINCT CASE WHEN is_delivered THEN lead_id END) AS delivered,
         COUNT(DISTINCT CASE WHEN is_dialled THEN lead_id END) AS dialled,
-        COUNT(DISTINCT CASE WHEN is_rpc THEN lead_id END) AS contacted,
+        COUNT(DISTINCT CASE WHEN is_qualified_rpc THEN lead_id END) AS contacted,
         COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) AS sales,
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) AS activations,
         COUNT(DISTINCT CASE WHEN is_invalid THEN lead_id END) AS invalid_leads
@@ -62,7 +62,7 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
         grade,
         COUNT(DISTINCT lead_id) AS leads,
         COUNT(DISTINCT CASE WHEN is_dialled THEN lead_id END) AS dialled,
-        COUNT(DISTINCT CASE WHEN is_rpc THEN lead_id END) AS contacted,
+        COUNT(DISTINCT CASE WHEN is_qualified_rpc THEN lead_id END) AS contacted,
         COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) AS sales,
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) AS activations
       FROM base
@@ -81,7 +81,7 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
         END AS vetting_color,
         COUNT(DISTINCT lead_id) AS leads,
         COUNT(DISTINCT CASE WHEN is_dialled THEN lead_id END) AS dialled,
-        COUNT(DISTINCT CASE WHEN is_rpc THEN lead_id END) AS contacted,
+        COUNT(DISTINCT CASE WHEN is_qualified_rpc THEN lead_id END) AS contacted,
         COUNT(DISTINCT CASE WHEN is_sale THEN lead_id END) AS sales,
         COUNT(DISTINCT CASE WHEN is_activated THEN lead_id END) AS activations
       FROM base

@@ -178,7 +178,7 @@ test('latency services use one normalized lead interval and preserve zero/missin
   assert.match(queries[0], /FROM operational_leads/);
   assert.match(queries[0], /WHEN NOT is_dialled THEN 'Undialled'/);
   assert.match(queries[0], /capture_to_first_dial_sec IS NULL OR capture_to_first_dial_sec < 0/);
-  assert.match(queries[0], /CASE WHEN delivery_to_first_dial_sec >= 0/);
+  assert.match(queries[0], /CASE WHEN is_dialled AND delivery_to_first_dial_sec >= 0/);
   assert.ok(!queries[0].includes('delivery_to_first_dial_sec BETWEEN 0 AND 604800'));
   await getSalesActivationAnalytics(scope);
   assert.match(queries[1], /sale_ts >= fetched_ts/);
