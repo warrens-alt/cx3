@@ -45,6 +45,7 @@ export default function VettingChart({
   scopeNote,
 }: VettingChartProps) {
   const [chartType, setChartType] = useState(initial);
+  const activeChartType = chartType === 'column' ? 'bar' : chartType;
 
   const formattedRows = (rows || []).map((r) => {
     const obj: any = { label: r.label || r.key || 'Unknown', key: r.key || r.label };
@@ -74,13 +75,13 @@ export default function VettingChart({
         </div>
 
         <div className="flex items-center gap-1 bg-[var(--cx-surface-subtle)] p-0.5 rounded text-[11px]">
-          {(['bar', 'line', 'donut'] as const).map((t) => (
+          {(['bar', 'line', 'pie', 'donut'] as const).map((t) => (
             <button
               key={t}
-              type="button" aria-pressed={chartType === t}
+              type="button" aria-pressed={activeChartType === t}
               onClick={() => setChartType(t)}
               className={`px-2 py-0.5 rounded capitalize ${
-                chartType === t ? 'bg-[var(--cx-surface)] font-semibold text-[var(--cx-action)]' : 'text-[var(--cx-text-muted)] hover:text-[var(--cx-text)]'
+                activeChartType === t ? 'bg-[var(--cx-surface)] font-semibold text-[var(--cx-action)]' : 'text-[var(--cx-text-muted)] hover:text-[var(--cx-text)]'
               }`}
             >
               {t}
