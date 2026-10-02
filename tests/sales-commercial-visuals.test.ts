@@ -80,7 +80,7 @@ test('new visual CSS is scoped, responsive and keeps table evidence readable', (
 
 test('stylesheet is loaded after the established visual system', () => {
   const main = fs.readFileSync('src/main.tsx', 'utf8');
-  const base = main.indexOf("import './styles/visualRefinement.css';");
+  const base = main.indexOf("import './styles/reporting.css';");
   const phase = main.indexOf("import './styles/salesCommercialVisuals.css';");
   assert.ok(base >= 0 && phase > base);
 });

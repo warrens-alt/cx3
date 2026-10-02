@@ -5,13 +5,6 @@
   --cx-converge-radius:10px;
   --cx-converge-gap:18px;
 }
-:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page) .cx-command-content{gap:var(--cx-converge-gap)}
-:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page) :is(.cx-command-panel,.enterprise-card){
-  border-color:var(--cx-border-subtle);
-  border-radius:var(--cx-converge-radius);
-  box-shadow:var(--cx-shadow-sm);
-}
-:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page) .cx-command-section-kicker,
 .cx-reconciliation-page .cx-ops-eyebrow,
 .vetting-page .cx-ops-eyebrow{
   font-size:10px;
@@ -22,27 +15,6 @@
 }
 
 /* KPI rows: one restrained visual grammar everywhere. */
-:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page) :is(.cx-command-metrics,.cx-ops-metrics){
-  gap:12px;
-}
-:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page) :is(.cx-command-metric,.cx-ops-metric){
-  min-width:0;
-  border-color:var(--cx-border-subtle);
-  border-radius:9px;
-  box-shadow:var(--cx-shadow-sm);
-}
-:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page) :is(.cx-command-metric,.cx-ops-metric)>span{
-  font-size:10px;
-  text-transform:uppercase;
-  letter-spacing:.045em;
-  font-weight:700;
-  color:var(--cx-text-secondary);
-}
-:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page) :is(.cx-command-metric,.cx-ops-metric)>strong{
-  letter-spacing:-.03em;
-  font-variant-numeric:tabular-nums;
-  overflow-wrap:anywhere;
-}
 
 /* Secondary route controls align with the primary workspaces. */
 :is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page,.cx-reconciliation-page,.vetting-page)
@@ -63,10 +35,6 @@
 }
 
 /* Dense evidence tables get consistent sticky context and numeric scanning. */
-:is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page,.cx-reconciliation-page,.vetting-page)
-:is(.cx-performance-table-wrap,.cx-ops-table-scroll,.overflow-x-auto){
-  scrollbar-gutter:stable;
-}
 :is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page,.cx-reconciliation-page,.vetting-page)
 table{
   font-variant-numeric:tabular-nums;
@@ -147,11 +115,6 @@ table tbody tr:hover{background:var(--cx-selected-bg)}
 .cx-reconciliation-page .cx-commercial-controls>article{
   border-color:var(--cx-border-subtle);border-radius:8px;background:var(--cx-surface-subtle)
 }
-.cx-reconciliation-page .cx-ops-table-scroll{border:1px solid var(--cx-border-subtle);border-radius:8px;overflow:auto}
-.cx-reconciliation-page .cx-ops-table-scroll thead th{position:sticky;top:0;z-index:2;background:var(--cx-surface-subtle)}
-.cx-reconciliation-page .cx-ops-table-scroll :is(th,td):first-child{position:sticky;left:0;z-index:1;background:var(--cx-surface)}
-.cx-reconciliation-page .cx-ops-table-scroll thead th:first-child{z-index:3;background:var(--cx-surface-subtle)}
-.cx-reconciliation-page .cx-ops-table-scroll tbody tr:hover :is(th,td):first-child{background:var(--cx-selected-bg)}
 
 /* Vetting: converge its existing rich visuals with the shared spacing/table system. */
 .vetting-page{gap:18px}
@@ -165,12 +128,10 @@ table tbody tr:hover{background:var(--cx-selected-bg)}
 .vetting-page .vetting-scorecard table thead th:first-child{z-index:3;background:var(--cx-surface-subtle)}
 
 /* The journey "More views" now contains consumer re-entry, where users expect it. */
-.cx-area-nav,.cx-navigation{scrollbar-width:thin}
 
 @media(max-width:900px){
   .cx-reconciliation-page .cx-commercial-flow{grid-template-columns:1fr;gap:6px}
   .cx-reconciliation-page .cx-commercial-flow>svg{transform:rotate(90deg);justify-self:center}
-  :is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page) .cx-command-content{gap:16px}
 }
 @media(max-width:700px){
   :is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page,.cx-reconciliation-page,.vetting-page)
@@ -179,7 +140,8 @@ table tbody tr:hover{background:var(--cx-selected-bg)}
   .vetting-page .vetting-selection{grid-template-columns:1fr 1fr}
 }
 @media(max-width:420px){
-  .cx-cohorts-page .cx-cohort-controls,.vetting-page .vetting-selection{grid-template-columns:1fr}
+  .cx-cohorts-page .cx-cohort-controls,
+.vetting-page .vetting-selection{grid-template-columns:1fr}
 }
 @media(prefers-reduced-motion:reduce){
   :is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page,.cx-reconciliation-page,.vetting-page)

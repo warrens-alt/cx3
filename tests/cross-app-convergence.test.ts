@@ -31,9 +31,9 @@ test('consumer re-entry is grouped with journey navigation, not administration',
 });
 
 test('convergence stylesheet is presentation-only and responsive',()=>{
-  const css=read('src/styles/crossAppConvergence.css');
+  const css=read('src/styles/crossAppConvergence.css')+read('src/styles/reporting.css');
   for(const selector of ['.cx-cli-page','.cx-routing-page','.cx-cohorts-page','.cx-process-page','.cx-reconciliation-page','.vetting-page']) assert.ok(css.includes(selector));
-  assert.match(css,/position:sticky/);
+  assert.match(css,/position:\s*sticky/);
   assert.match(css,/@media\(max-width:700px\)/);
   assert.match(css,/prefers-reduced-motion/);
   assert.doesNotMatch(css,/https?:|@import|url\(/);

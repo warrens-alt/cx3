@@ -10,7 +10,6 @@ const tokens = readFileSync(new URL('../src/styles/tokens.css', import.meta.url)
 for (const [legacy, canonical] of [
   ['--cx-radius-card', '--cx-radius-lg'],
   ['--cx-radius-control', '--cx-radius-sm'],
-  ['--cx-shadow-card', '--cx-shadow-sm'],
   ['--cx-shadow-elevated', '--cx-shadow-md'],
 ] as const) {
   test(`existing presentation consumer ${legacy} resolves through the canonical scale`, () => {
@@ -20,6 +19,11 @@ for (const [legacy, canonical] of [
     assert.match(root, new RegExp(`${canonical}:\\s*[^;]+;`));
   });
 }
+
+test('analytical surfaces stay flat in both themes while elevated overlays retain a shadow scale', () => {
+  assert.equal([...tokens.matchAll(/--cx-shadow-card:\s*none\s*;/g)].length, 2);
+  assert.match(tokens, /--cx-shadow-elevated:\s*var\(--cx-shadow-md\)/);
+});
 
 test('Tailwind emits the brand utilities already used by active report controls', async () => {
   const compiler = await compile(`${tokens}\n@tailwind utilities;`);
