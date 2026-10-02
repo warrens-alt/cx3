@@ -1,6 +1,6 @@
 import React from 'react';
-import { Clock3, DollarSign, ArrowRight } from 'lucide-react';
-import { lifecyclePresentation } from '../../../shared/visuals/lifecyclePresentation';
+import { Clock3, ArrowRight } from 'lucide-react';
+import { lifecyclePresentation, conceptIcons } from '../../../shared/visuals/lifecyclePresentation';
 import type { AdaptedSalesActivation } from '../model/salesActivationAdapter';
 import { formatWorkspaceCurrency } from '../model/salesActivationAdapter';
 import { formatTableNumber, formatPercent } from '../../../lib/formatters';
@@ -45,7 +45,7 @@ export default function SalesOutcomeSummary({ model, onInspect }: SalesOutcomeSu
 
       {/* 2. Recorded Activations */}
       <article
-        className="cx-command-metric cx-metric-card hover:border-semantic-pos/40 transition-colors flex flex-col justify-between"
+        className="cx-command-metric cx-metric-card hover:border-data-activation/40 transition-colors flex flex-col justify-between"
         aria-label="Recorded activations summary"
       >
         <div>
@@ -56,7 +56,7 @@ export default function SalesOutcomeSummary({ model, onInspect }: SalesOutcomeSu
           <button
             type="button"
             onClick={() => onInspect('activations')}
-            className="cx-metric-primary text-left block hover:text-semantic-pos transition-colors my-1.5 cursor-pointer w-full"
+            className="cx-metric-primary text-left block hover:text-data-activation transition-colors my-1.5 cursor-pointer w-full"
             aria-label="Inspect recorded activations" title="Inspect recorded activations"
           >
             <strong className="text-2xl font-bold font-sans tabular-nums tracking-tight text-text-main block">
@@ -66,7 +66,7 @@ export default function SalesOutcomeSummary({ model, onInspect }: SalesOutcomeSu
           <div className="text-xs text-text-mute mt-1">
             <span>
               {summary.activationRatio !== null ? (
-                <span className="font-semibold text-semantic-pos">
+                <span className="font-semibold text-data-activation">
                   {formatPercent(summary.activationRatio)}
                 </span>
               ) : '—'}{' '}
@@ -117,7 +117,7 @@ export default function SalesOutcomeSummary({ model, onInspect }: SalesOutcomeSu
         <div>
           <div className="flex items-center justify-between text-text-sec">
             <span className="font-semibold text-xs text-text-sec ">Source-recorded revenue</span>
-            <DollarSign size={16} className="text-semantic-purple" />
+            <conceptIcons.commercial size={16} className="text-text-sec" aria-hidden="true" />
           </div>
           <button
             type="button"

@@ -15,11 +15,13 @@ test('speed-to-lead uses existing numeric timing evidence in a visual stage comp
   assert.match(read('src/features/contact/model/useSpeedModel.ts'), /fetchSpeedToLead/);
 });
 
-test('temporal workspace keeps existing heatmap semantics and adds navigation only', () => {
+test('temporal workspace preserves returned heatmap evidence in an accessible dedicated visual', () => {
   const page = read('src/pages/TemporalIntelligence.tsx');
-  assert.match(page, /heatmapColors\(value, maxMetric\)/);
+  assert.match(page, /<TemporalHeatmap rows=\{activeHeatmap\}/);
+  const heatmap = read('src/features/contact/components/TemporalHeatmap.tsx');
+  assert.match(heatmap, /data-empty=\{intensity === null\}/);
+  assert.match(heatmap, /id="temporal-matrix"/);
   assert.match(page, /metricView === 'contactRate'/);
-  assert.match(page, /id="temporal-matrix"/);
   assert.match(page, /id="temporal-peaks"/);
   assert.match(page, /fetchTemporal/);
 });

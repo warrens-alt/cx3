@@ -32,7 +32,7 @@ export default function MediaMetricCard({
     <article className="cx-command-metric cx-metric-card flex flex-col justify-between">
       <div>
         <span>{label}</span>
-        <button type="button" className="cx-metric-primary" aria-label={`Inspect evidence: ${label}`} onClick={onInspect}><strong>{value}</strong></button>
+        <button type="button" className="cx-metric-primary" aria-label={`Inspect evidence: ${label}`} onClick={onInspect}><strong className="cx-metric-value">{value}</strong></button>
         <div><small>{note}</small><Delta value={delta}/></div>
       </div>
         {canCompare && delta != null && Number.isFinite(delta) && value !== "—" && (

@@ -87,7 +87,7 @@ try {
   });
   await check('Responsive 1440/820/390 layouts in light/dark themes have no document overflow', async () => {
     for (const theme of ['light', 'dark']) for (const width of [1440, 820, 390]) {
-      await page.setViewportSize({ width, height: 1000 });
+      await page.setViewportSize({ width, height: width === 820 ? 1180 : width === 390 ? 844 : 1000 });
       await page.evaluate(theme => { localStorage.setItem('cx-theme', theme); document.documentElement.dataset.theme = theme; document.documentElement.classList.toggle('dark', theme === 'dark'); }, theme);
       await page.locator('[aria-label="Investigation context"]').scrollIntoViewIfNeeded(); await settle();
       const sizes = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth, main: document.querySelector('main')?.clientWidth, mainScroll: document.querySelector('main')?.scrollWidth }));

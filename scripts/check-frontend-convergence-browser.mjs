@@ -1,5 +1,5 @@
 /**
- * Synthetic frontend acceptance: 54 route/viewport/theme checks, seven interactions and two access-control theme checks.
+ * Synthetic frontend acceptance: 84 route/viewport/theme checks, six lifecycle interactions, seven shell interactions and two access-control theme checks.
  * Run after npm run build. Browser plugin not available; uses an optional Playwright runtime.
  * CX_PLAYWRIGHT_MODULE / CX_CHROMIUM_EXECUTABLE select an existing runtime; no dependencies are installed.
  * Screenshots and results are written outside the repository through CX_BROWSER_QA_OUTPUT or a temp directory.
@@ -33,7 +33,7 @@ await build({
   bundle: true, platform: 'node', format: 'esm', outfile: metadataPath,
 });
 const { routes, areas, reductionPayloads, convergencePayloads, SIDEBAR_COLLAPSED_KEY } = await import(pathToFileURL(metadataPath).href);
-const matrixPaths = ['/overview', '/funnel', '/contact-strategy', '/sales-activation', '/commercial', '/investigate', '/lead-explorer', '/data-integrity', '/admin'];
+const matrixPaths = ['/overview', '/funnel', '/contact-strategy', '/speed-to-lead', '/temporal', '/sales-activation', '/vendor-quality', '/campaigns', '/commercial', '/investigate', '/lead-explorer', '/lead-ledger', '/data-integrity', '/admin'];
 const matrixRoutes = matrixPaths.map(routePath => {
   const route = routes.find(item => item.path === routePath);
   assert.ok(route, `Missing requested canonical route ${routePath}`);
@@ -98,6 +98,8 @@ async function overflow(page) {
 }
 
 async function ownership(page, route) {
+  // Secondary routes expose their current link inside the existing More analyses menu.
+  if (route.isMoreView) await page.locator('.cx-area-more-trigger').click();
   await page.waitForFunction(({ area, path }) => document.querySelector('.cx-breadcrumb')?.getAttribute('data-navigation-area') === area
     && document.querySelector('.cx-area-nav a[aria-current="page"]')?.getAttribute('href')?.split('?')[0] === path, { area: route.area, path: route.path });
   const desktop = page.locator('#desktop-navigation nav[aria-label="Main navigation"]');
@@ -119,6 +121,7 @@ async function ownership(page, route) {
   assert.equal((await activeMobile.textContent()).trim(), ({ overview: 'Overview', journey: 'Journey', contact: 'Contact', investigate: 'Investigate' })[route.area] || 'More');
   const accent = await contextual.evaluate(element => getComputedStyle(element).getPropertyValue('--cx-nav-accent').trim());
   assert.ok(accent, `No canonical accent token for ${route.area}`);
+  if (route.isMoreView) await page.locator('.cx-area-more-trigger').click();
 }
 
 async function scenario(name, { viewport = viewports[0], theme = 'light', fixtureState = {}, ...metadata } = {}, action) {
@@ -186,15 +189,52 @@ try {
       const dimensions = await overflow(page);
       const metricFonts = await page.locator('.cx-metric-primary, .cx-metric-primary strong, .cx-metric-value, .cx-outcome-value, .cx-driver-summary strong').evaluateAll(elements => elements.filter(element => element.getClientRects().length).map(element => ({ value: element.textContent.trim(), family: getComputedStyle(element).fontFamily })));
       for (const metric of metricFonts) assert.doesNotMatch(metric.family, /monospace|SFMono|Menlo|Monaco|Consolas|Courier/i, `Primary metric must use the UI font: ${JSON.stringify(metric)}`);
-      const retain = (theme === 'light' && viewport.name === 'desktop')
-        || (theme === 'dark' && viewport.name === 'mobile' && ['/overview', '/investigate', '/lead-explorer'].includes(route.path))
-        || (theme === 'light' && viewport.name === 'tablet' && route.path === '/contact-strategy');
+      const retain = true;
       if (retain) {
         const filename = `${basename(route.path)}-${viewport.name}-${theme}.png`;
         await page.screenshot({ path: path.join(output, filename) });
         screenshots.push(filename);
       }
       return { heading, dimensions, metricFonts, unavailableState: /Synthetic request failure|unavailable/i.test(await page.locator('main').innerText()) };
+    });
+  }
+
+  for (const theme of ['light', 'dark']) for (const viewport of viewports) {
+    await scenario(`Lifecycle evidence interactions · ${viewport.name} · ${theme}`, { viewport, theme, kind: 'visual-interaction' }, async page => {
+      await visit(page, '/overview');
+      const tabs = page.getByRole('tablist', { name: 'Select metric to plot' });
+      await tabs.getByRole('tab', { name: 'Fetched leads' }).focus();
+      await page.keyboard.press('ArrowRight');
+      assert.equal(await tabs.getByRole('tab', { name: 'Delivered leads' }).getAttribute('aria-selected'), 'true');
+      await page.getByText('View exact daily evidence', { exact: true }).click();
+      assert.ok(await page.getByRole('region', { name: 'Daily trend evidence' }).isVisible());
+      const before = analyticalRequests(await requests(page));
+      await page.locator('.cx-lifecycle-node').first().focus();
+      await page.keyboard.press('Enter');
+      await page.getByRole('dialog').waitFor();
+      assert.match(await page.getByRole('dialog').innerText(), /Fetched evidence/);
+      await page.getByRole('button', { name: 'Close inspector' }).click();
+      assert.deepEqual(analyticalRequests(await requests(page)), before);
+      await visit(page, '/funnel');
+      const lifecyclePath = page.locator('.cx-lifecycle-path');
+      assert.equal(await lifecyclePath.locator('li[data-stage]').count(), 6);
+      assert.equal(await lifecyclePath.locator('[data-transition="non-nested"]').count(), 2);
+      assert.match(await lifecyclePath.innerText(), /6 of 8 with both events/);
+      await lifecyclePath.scrollIntoViewIfNeeded();
+      const filename = `lifecycle-path-${viewport.name}-${theme}.png`;
+      await lifecyclePath.screenshot({ path: path.join(output, filename) });
+      screenshots.push(filename);
+      await page.getByText('View exact transition evidence', { exact: true }).click();
+      assert.equal(await page.getByRole('region', { name: 'Transition evidence table' }).locator('tbody tr').count(), 5);
+      const journeyRequests = analyticalRequests(await requests(page));
+      await lifecyclePath.locator('button.cx-lifecycle-loss').first().focus();
+      await page.keyboard.press('Enter');
+      await page.getByRole('dialog').waitFor();
+      assert.match(await page.getByRole('dialog').innerText(), /Capture.*Delivery Transition Dropoff/);
+      assert.match(await page.locator('.cx-audit-result').innerText(), /2 leads/);
+      await page.getByRole('button', { name: 'Close inspector' }).click();
+      assert.deepEqual(analyticalRequests(await requests(page)), journeyRequests);
+      return { exactStages: 6, nonNestedTransitions: 2, keyboardTrendSwitch: true, exactTable: true, keyboardInspectors: true, dimensions: await overflow(page) };
     });
   }
 
@@ -395,7 +435,7 @@ try {
     });
   }
 } finally {
-  await writeFile(path.join(output, 'results.json'), JSON.stringify({ synthetic: true, fixturePolicy: 'Existing synthetic fixtures only; unavailable endpoints remain explicit unavailable states.', browserPath: 'Browser plugin not available; optional Playwright runtime.', origin, browser: await browser.version(), expectedChecks: 63, passed: checks.filter(check => check.passed).length, failed: checks.filter(check => !check.passed).length, checks, screenshots, errors, messages }, null, 2));
+  await writeFile(path.join(output, 'results.json'), JSON.stringify({ synthetic: true, fixturePolicy: 'Existing synthetic fixtures only; unavailable endpoints remain explicit unavailable states.', browserPath: 'Browser plugin not available; optional Playwright runtime.', origin, browser: await browser.version(), expectedChecks: matrixRoutes.length * viewports.length * 2 + viewports.length * 2 + 9, passed: checks.filter(check => check.passed).length, failed: checks.filter(check => !check.passed).length, checks, screenshots, errors, messages }, null, 2));
   await browser.close();
   await new Promise(resolve => server.close(resolve));
 }

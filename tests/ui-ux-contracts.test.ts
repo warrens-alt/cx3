@@ -389,9 +389,11 @@ test('trust-safe funnel, outcome and temporal presentation', () => {
   assert.match(commercial, /<th>Coverage<\/th>/);
   assert.match(commercial, /formatTableNumber\(row\.platformLeads\)/);
 
-  assert.match(temporal, /: null;/);
-  assert.match(temporal, /data-empty=\{value === null\}/);
-  assert.doesNotMatch(temporal, /rawVal \?\? 0/);
+  const temporalHeatmap = read('src/features/contact/components/TemporalHeatmap.tsx');
+  assert.match(temporal, /<TemporalHeatmap rows=\{activeHeatmap\}/);
+  assert.match(temporalHeatmap, /data-empty=\{intensity === null\}/);
+  assert.match(temporalHeatmap, /value == null \|\| !Number\.isFinite\(value\)/);
+  assert.doesNotMatch(temporalHeatmap, /row\?\.\[metric\] \?\? 0/);
 
   assert.match(speed, /formatTableNumber\(row\.leads\)/);
   assert.match(speed, /formatPercent\(row\.contactRate\)/);
@@ -482,7 +484,7 @@ test('vendor, cohort and routing analytics use visual composition and maturation
   assert.match(vendor, /Vendor grade composition/);
   assert.match(vendor, /StackedCompositionChart/);
   assert.match(vendor, /<VendorComparison/);
-  assert.match(read('src/features/vendors/components/VendorComparison.tsx'), /Operational performance matrix/);
+  assert.match(read('src/features/vendors/components/VendorComparison.tsx'), /Lifecycle performance matrix/);
   assert.match(cohorts, /maturation curves/);
   assert.match(cohorts, /MultiSeriesTrendChart/);
   assert.match(cohorts, /Cohort volume and observed outcomes/);
@@ -790,7 +792,6 @@ test('R3: SpeedPage provides latency distributions, undialled backlog counters, 
   assert.match(speed, /Awaiting First Dial/);
   assert.match(speed, /CaptureTurnaroundPanel/);
 });
-
 
 
 

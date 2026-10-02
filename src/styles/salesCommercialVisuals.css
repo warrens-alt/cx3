@@ -19,7 +19,7 @@
 .cx-sales-page .cx-outcome-metrics .cx-command-metric{position:relative;overflow:hidden;border-top:2px solid var(--cx-data-sales)}
 .cx-sales-page .cx-outcome-metrics .cx-command-metric:nth-child(2){border-top-color:var(--cx-data-activation)}
 .cx-sales-page .cx-outcome-metrics .cx-command-metric:nth-child(3){border-top-color:var(--cx-warning)}
-.cx-sales-page .cx-outcome-metrics .cx-command-metric:nth-child(4){border-top-color:var(--cx-semantic-purple,#7c3aed)}
+.cx-sales-page .cx-outcome-metrics .cx-command-metric:nth-child(4){border-top-color:var(--cx-text-muted)}
 .cx-sales-page .cx-analytics-card{border-color:var(--cx-border-subtle);border-radius:10px;box-shadow:var(--cx-shadow-sm)}
 .cx-sales-page .cx-analytics-card>header{background:var(--cx-surface)}
 .cx-sales-page .cx-performance-table-wrap{overflow:auto;max-width:100%}

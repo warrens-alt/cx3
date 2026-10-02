@@ -753,6 +753,8 @@ test('Audit mode is local, safe for viewers, and adds no analytical requests acr
 test('Contact audits supplied bucket ratios and exact high-attempt predicate without unsupported Why mappings',async()=>{
   const data={attemptPerformance:[],attemptCadence:[],summary:{totalLeads:100,dialledLeads:40,unrecordedCallLeads:10,zeroCallLeads:20,oneCallLeads:50,singleAttemptSharePct:125,multiAttemptLeads:20,multiAttemptSharePct:50,fivePlusCallLeads:8,fivePlusNoRpcLeads:3},methodology:'Exclusive recorded call-count buckets; missing counters remain Unrecorded. One-call share uses dialled leads as its denominator.',noAnswerAnalysis:{status:'UNAVAILABLE',reason:'No sequence evidence'}};
   const app=await mount('/contact-strategy'+scope,{payloads:{'/api/analytics/offernet/contact-strategy':data}});try{
+    await app.wait(()=>app.find('summary','View exact call-effort evidence'));
+    await app.click('summary','View exact call-effort evidence');
     await app.wait(()=>app.find('button','Inspect evidence: One-call share'));
     const before=app.w.__fixture.requests.length;
     assert.equal(app.find('button','Why changed?'),undefined);
@@ -848,7 +850,11 @@ test('reduction: preview restores every loaded attribution row and export includ
 test('reduction: integrity overview separates gap checks and limitations, preserves zero and full evidence',async()=>{
   const app=await mount('/data-integrity'+scope,{payloads:reductionPayloads});try{
     await app.wait(()=>app.find('.cx-integrity-summary'));
-    assert.match(app.find('.cx-integrity-attention').textContent,/7 gaps.*Missing source contract/);
+    const priorities=app.find('[role="tabpanel"]:not([hidden]) #integrity-comparison');
+    assert.match(priorities.querySelector('.cx-evidence-bars').textContent,/Synthetic check 1.*7/);
+    assert.equal(priorities.querySelector('.cx-trust-big-number').textContent,'7');
+    assert.match(app.find('.cx-integrity-attention').textContent,/Missing source contract/);
+    assert.ok(app.find('[role="tabpanel"]:not([hidden]) .cx-evidence-matrix'));
     assert.equal(app.find('[role="tabpanel"]:not([hidden]) .cx-source-evidence-table'),undefined);
     const before=[...app.w.__fixture.requests];await app.click('[role="tab"]','Issues');
     assert.equal(app.w.document.querySelectorAll('#measured-discrepancies tbody tr').length,10);

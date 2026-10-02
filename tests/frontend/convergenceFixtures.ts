@@ -2,7 +2,7 @@
 // This file is test-only: it is not imported by the application or production build.
 // Preserve unavailable/null entries; these payloads establish no live-source verification.
 import type { JourneyData } from '../../src/features/journey/model/useJourneyModel';
-import type { SalesActivationData } from '../../src/lib/offernetClient';
+import type { CampaignData, SalesActivationData, VendorQualityData } from '../../src/lib/offernetClient';
 import { DISPOSITION_REPORT_VERSION, type ContactDispositionsData } from '../../contracts/vendorDispositions';
 
 // tests/journey-and-contact-contracts.test.ts: independent totals vs transition intersections.
@@ -340,9 +340,40 @@ export const convergenceDispositionPayload: ContactDispositionsData = {
   clientId: 'synthetic-a',
 };
 
+// Existing normal and zero-denominator cases from tests/analytics/vendor-performance.test.ts.
+// These are the returned fixture measures, not new production fallback values.
+export const convergenceVendorPayload: VendorQualityData = {
+  vendors: [
+    { vendor: 'LeadDialler SA', leads: 1000, deliveryRate: 95, dialRate: 84.2, contactRate: 50, saleRate: 12.5, activationRate: 80,
+      medianFirstDial: '3m', medianFirstDialSec: 180, callsPerLead: 2.5, invalidRate: 2, revenue: 60000, directCost: null, deliveryCost: null, contribution: null, marginPct: null },
+    { vendor: 'Empty Vendor', leads: 0, deliveryRate: null, dialRate: null, contactRate: null, saleRate: null, activationRate: null,
+      medianFirstDial: '—', medianFirstDialSec: null, callsPerLead: null, invalidRate: null, revenue: 0, directCost: null, deliveryCost: null, contribution: null, marginPct: null },
+  ],
+  sources: [{ source: 'Google_Ads', leads: 500, delivered: 480, dialled: 400, contacted: 220, sales: 30, activations: 25, deliveryRate: 96, dialRate: 83.3, contactRate: 55, leadToSaleRate: 6, activationRate: 83.3, invalidRate: 2 }],
+  grades: [{ grade: 'Gold', leads: 300, contacted: 180, sales: 25, activations: 20, contactRate: 60, leadToSaleRate: 8.33, activationRate: 80 }],
+  vetting: [{ vetting_color: 'Green', leads: 400, contacted: 260, sales: 35, activations: 30, contactRate: 65, leadToSaleRate: 8.75, activationRate: 85.7 }],
+  commercialStatus: 'UNAVAILABLE', commercialReason: 'Synthetic fixture: approved cost contracts unavailable.',
+};
+
+// Existing normal population from tests/analytics/campaigns.test.ts.
+// Source mapping is active but campaign-grain operational attribution is unavailable.
+export const convergenceCampaignPayload: CampaignData = {
+  status: 'PARTIAL', reason: 'Synthetic platform observations; operational attribution unavailable.', mappingStatus: 'MAPPED', grainStatus: 'VALID',
+  attribution: { status: 'ACTIVE', reason: 'Synthetic source mapping only; no campaign-grain matched population.' },
+  funnelStatus: { status: 'UNAVAILABLE', reason: 'Campaign/adset outcomes require approved equivalence at this detail grain.' },
+  spendSource: { status: 'OBSERVED', column: 'spend', table: 'synthetic.marketing' },
+  summary: { spend: 2700, impressions: 15000, reach: 12000, frequency: 1.25, clicks: 900, outboundClicks: 750, leads: 80, ctr: 6, outboundCtr: 5, clickToLeadRate: 10.67, cpc: 3, cpm: 180, cpl: 33.75 },
+  campaigns: [
+    { client: 'Client Alpha', channel: 'Facebook', campaign: 'Summer_Sale', adset: 'Retargeting', spend: 1200, latestBudget: 2000, impressions: 10000, reach: 8000, frequency: 1.25, clicks: 400, outboundClicks: 300, leads: 30, ctr: 4, outboundCtr: 3, clickToLeadRate: 10, cpc: 3, cpm: 120, cpl: 40 },
+    { client: 'Client Alpha', channel: 'Google', campaign: 'Search_Brand', adset: 'Exact', spend: 1500, latestBudget: 2500, impressions: 5000, reach: 4000, frequency: 1.25, clicks: 500, outboundClicks: 450, leads: 50, ctr: 10, outboundCtr: 9, clickToLeadRate: 11.11, cpc: 3, cpm: 300, cpl: 30 },
+  ],
+};
+
 export const convergencePayloads = {
   '/api/analytics/offernet/funnel': convergenceJourneyPayload,
   '/api/analytics/offernet/contact-strategy': convergenceContactPayload,
   '/api/analytics/offernet/contact-dispositions': convergenceDispositionPayload,
   '/api/analytics/offernet/sales-activation': convergenceSalesPayload,
+  '/api/analytics/offernet/vendor-quality': convergenceVendorPayload,
+  '/api/analytics/offernet/campaigns': convergenceCampaignPayload,
 };
