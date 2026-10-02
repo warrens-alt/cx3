@@ -2,6 +2,12 @@
 
 React + Express analytics application backed by configured Google BigQuery sources.
 
+The supported investigation workflow is Signal → Diagnose → Segment → Records →
+Evidence → Conclusion. The legacy Lead Engine surface and unused Cloud SQL user
+APIs have been removed. Static validation comparisons are reference evidence,
+never live verification. See [the consolidation audit](docs/CONSOLIDATION-AUDIT.md)
+and [verification record](docs/qa/consolidation/README.md).
+
 ## Primary host: Google AI Studio
 
 CX3 is hosted through Google AI Studio. Use [the Google AI Studio runtime guide](docs/GOOGLE-AI-STUDIO.md) for preview startup, GitHub synchronisation, server secrets and Cloud Run publishing. Cloudflare instructions below are an optional alternative; a Pages check does not diagnose the Google-hosted app. A GitHub merge does not establish that the AI Studio working copy or its published revision has updated.
@@ -42,7 +48,7 @@ Current live operational outputs that still depend on source semantics remain ma
 
 The owner-supplied specification workbook has been checked against source contracts, all nine tenant operating configurations, API access controls and metric calculations. See [the workbook validation record](docs/WORKBOOK-VALIDATION.md) for corrections, intentional contract differences, regression coverage and remaining live-data checks. The workbook contains definitions, not transaction records, so this validation does not certify production totals.
 
-CLI analytics follow the same fail-closed rule: imported reports are administrator-managed, production sample data is disabled by default, missing duration/lead-age fields remain unavailable, and matched-period comparisons are withheld unless a real comparable source population exists.
+CLI analytics follow the same fail-closed rule: imported reports are administrator-managed, production sample loading is always disabled, missing duration/lead-age fields remain unavailable, and matched-period comparisons are withheld unless a real comparable source population exists. The former `ENABLE_CLI_SAMPLE_DATA` flag cannot enable synthetic loading in production.
 
 CLI CSV exports resolve the same live or imported source as the dashboard and apply dates, CLI/campaign/vendor filters, and literal CLI-or-campaign search before the export limit. JSON metadata and HTTP headers report row counts and truncation. Imported charts and lead-age summaries use the selected record population. Malformed CSV rows are rejected rather than shifting values between metric columns.
 
@@ -64,7 +70,7 @@ npm run verify
 3. Generated route/API inventory freshness check.
 4. Production client and server build.
 
-CI executes the same repository checks, a separate Firestore emulator suite with Java 21, and a dependency audit. It does **not** claim to execute a live BigQuery reconciliation, Dataform warehouse build, or browser fixture suite because those assets are not present in this repository revision.
+CI also executes production HTTP smoke tests, Google runtime launch checks, a Firestore emulator suite with Java 21, and a dependency audit. The separate Cloudflare workflow bundles and boots the Worker locally. The optional synthetic browser harness is documented in [consolidation QA](docs/qa/consolidation/README.md); it requires a local Playwright runtime. These checks do not execute live BigQuery reconciliation or certify production configuration.
 
 Common commands:
 
@@ -89,7 +95,6 @@ CX_AUTH_MODE=firebase
 BIGQUERY_CREDENTIALS='<complete service-account JSON>'
 BIGQUERY_MAX_BYTES_BILLED=1000000000
 CX_MARKETING_SPEND_FIELD_JSON=
-ENABLE_CLI_SAMPLE_DATA=false
 ```
 
 The deployed hostname must also be present in Firebase Authentication **Authorized domains**. AI Studio secrets and Cloudflare Worker secrets are separate stores; configure the production values in Cloudflare as well. `BIGQUERY_PROJECT_ID` and `BIGQUERY_DATASET` are not runtime inputs in this repository revision because the approved project/dataset/table identities live in the server-side source contract.

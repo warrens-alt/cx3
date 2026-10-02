@@ -1,5 +1,10 @@
 # Saved investigation verification — 2 October 2026
 
+The subsequent consolidation documents all backend variables in `.env.example` and
+reruns saved-definition privacy, revision, configuration and browser behavior checks.
+See [current verification](../consolidation/README.md). The counts below belong to the
+original saved-definition revision.
+
 The saved-definition phase follows the investigation workspace merged in PR #48 (`2eeba94`). It adds named personal definitions with exact scope, revision-controlled updates and explicitly configured private storage. It does not persist analytical results or local evidence-tray content.
 
 ## Browser verification

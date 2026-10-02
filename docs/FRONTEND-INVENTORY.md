@@ -2,6 +2,25 @@
 
 ## Current investigation workspace — 2 October 2026
 
+The consolidation adds `InvestigationWorkflow` and `useInvestigationAnalysis` over
+the existing scoped context. Both inbox and Record Explorer show six stage links
+with text/ARIA current state, actual driver comparisons, narrowing, record/dossier
+state, pin count and conclusion/unknown state. Header summaries reuse the existing
+driver response; refresh, request cancellation, role changes and workspace changes
+retain the analytical session boundary. Stage navigation is non-blocking, keyboard
+operable and responsive at desktop/tablet/mobile widths. Quick starts now have one
+focused domain component. Conclusions remain local analyst notes, not certification.
+
+`/lead-engine` and its implementation are removed, with no alias or command-search
+entry. `/validation` displays non-certified historical references and exports their
+true status. Its warehouse catalogue is loaded only when selected. Access Control
+uses five controlled domain views under `src/features/access`, with subscriptions
+and mutations still centralized in UserManagement. The chart catalogue does not
+present synthetic values as selected-workspace analytics.
+
+See [the consolidation audit](CONSOLIDATION-AUDIT.md) and
+[browser/repository QA](qa/consolidation/README.md) for this revision.
+
 The investigation routes now share an analytical context and evidence workflow. This section supersedes the historical investigation/timeline and navigation descriptions below; the generated [surface inventory](SURFACE-INVENTORY.md) remains authoritative for mounted routes.
 
 | Surface | Current implementation and interaction |

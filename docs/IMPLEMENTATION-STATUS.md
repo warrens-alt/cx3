@@ -1,5 +1,51 @@
 # Implementation status — 2 October 2026
 
+## Consolidation after the Investigation rebuild
+
+The consolidation pass starts from PR #49 (`bc002ad`). The legacy `/lead-engine`
+product surface and both unused Lead Engine packages are removed. Its historical
+KPI, rate-card, quality and commercial values were not moved into another report.
+The unused Cloud SQL user listing/synchronisation APIs and their sole helper were
+also removed; Access Control continues to use Firebase/Firestore authority.
+
+Validation now reports static comparison rows as `HISTORICAL_REFERENCE` and
+`NOT_VERIFIED`. Every reference metric is non-certified, both verification timestamps
+are null, and the selected request scope is separate from the unrecorded historical
+measurement scope. UI and CSV carry the same boundary. Power BI query templates are
+non-certified, and its unreconciled response uses `checkedAt` while `reconciledAt`
+remains null. Live marketing schema inspection fails explicitly instead of
+substituting saved catalogue columns. Production always rejects synthetic CLI
+loading, including the former opt-in flag.
+
+The reachable `/visuals` catalogue now has an explicit unavailable analytical state
+instead of synthetic counts tied to the reporting period. The unused lazy entry for
+the historical ExecutiveOverview/ExecutiveAnalyticsConsole was removed from the
+production bundle; the maintained OverviewPage and its definitions are unchanged.
+
+Investigation and Record Explorer share an active six-stage workspace header:
+Signal → Diagnose → Segment → Records → Evidence → Conclusion. Stage links preserve
+URL scope and use existing results; the header adds no analytical requests. It
+shows actual comparisons, narrowing, record availability/dossier state, pin count
+and analyst-note/unknown state. Current stage means navigation focus, not completed
+verification. Driver refresh follows the current-view refresh action, with obsolete
+responses fenced by scope/session and cancellation. Local selection also clears
+on access changes. Evidence sufficiency remains explicitly unestablished.
+
+UserManagement retains central Firestore subscriptions and mutations while its
+directory, invites, policy drafts, audit log and access editor have focused view
+modules. Invitations are now described accurately: registration still needs approval
+and an invitation cannot grant administrator authority. Analytical request parsing
+is shared in `server/analytics/requestScope.ts`; route order and admin gates remain.
+
+Saved investigations continue to store definitions only. `.env.example` now documents
+the explicit Node/GCS and Worker/R2 activation requirements; unconfigured storage is
+a neutral deployment state. No storage, cloud infrastructure or IAM was provisioned.
+
+See [the audit and consumer map](CONSOLIDATION-AUDIT.md),
+[current verification](qa/consolidation/README.md), and
+[saved-storage configuration](SAVED-INVESTIGATIONS.md). Earlier dated test counts below
+describe their original revisions, not this consolidation's final result.
+
 ## Investigation workspace implementation
 
 The maintained workflow is now **Signal → Diagnose → Segment → Records → Evidence → Conclusion**. `/investigate` and compatible `/exceptions` share the upgraded inbox, with URL-backed predicate/narrowing context, matched-period descriptive drivers, and contextual evidence confidence. The administrator record explorer provides compact field presets, structured factual inclusion reasons and a persistent six-tab lead dossier. Existing Lead Journey and Lead Ledger source formatting are reused rather than duplicated.
@@ -48,7 +94,7 @@ A local development identity is available only when `NODE_ENV` is not `productio
 - Enforced tenant permission checks on evidence-reporting catalogue and exception requests.
 - Scoped Offernet lead timelines to the authorised tenant/vendor population.
 - Scoped agent analytics to tenant/date/vendor and reject unsupported cross-grain filters.
-- Restricted CLI report import/sample/clear mutations to administrators; synthetic sample loading is disabled in production by default.
+- Restricted CLI report import/sample/clear mutations to administrators; synthetic sample loading is always disabled in production.
 - Live CLI analytics now require tenant-safe vendor scoping and fail closed when required source fields are absent.
 - Shared-source aggregate queries enforce ownership independently of caller filters: tenant vendor mappings for calls, approved client-name mappings for marketing, tenant-specific lead views, and explicitly supported activation ownership. Unestablished ownership returns HTTP 422; see `SOURCE_API.md`.
 - New Firebase profiles can no longer self-activate; non-bootstrap accounts remain pending until administrator approval.
