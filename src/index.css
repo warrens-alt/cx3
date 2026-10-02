@@ -1,4 +1,5 @@
 @import "./shared/evidence/auditEvidence.css";
+@import "./shared/evidence/auditVisuals.css";
 @import "tailwindcss";
 @import "./styles/tokens.css";
 

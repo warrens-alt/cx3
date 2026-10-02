@@ -9,6 +9,10 @@
 .cx-evidence-matrix-cell>svg{flex-shrink:0;margin-top:1px;color:var(--cx-text-secondary)}
 .cx-evidence-matrix-cell strong{font-size:12px;font-weight:550;line-height:1.5}
 .cx-evidence-matrix [data-state=observed] svg{color:var(--cx-action)}
+.cx-evidence-matrix :is([data-state=mapped],[data-state=scoped],[data-state=formula_checked],[data-state=api_consistent],[data-state=presentation_consistent]) svg{color:var(--cx-action)}
+.cx-evidence-matrix :is([data-state=reconciled],[data-state=business_verified]) svg{color:var(--cx-favourable)}
+.cx-evidence-matrix [data-state=mismatch] svg{color:var(--cx-warning)}
+.cx-evidence-matrix [data-state=not_verified]{color:var(--cx-text-muted)}
 .cx-evidence-matrix [data-state=issue] svg,.cx-evidence-matrix [data-state=partial] svg{color:var(--cx-warning)}
 .cx-evidence-matrix [data-state=unavailable],.cx-evidence-matrix [data-state=unverified]{color:var(--cx-text-muted)}
 .cx-evidence-matrix td[data-state=unavailable] .cx-evidence-matrix-cell,.cx-evidence-matrix td[data-state=unverified] .cx-evidence-matrix-cell{border-bottom:1px dashed var(--cx-border);padding-bottom:5px}
