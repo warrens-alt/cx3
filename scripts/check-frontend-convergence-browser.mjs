@@ -44,6 +44,7 @@ const viewports = [
   { name: 'tablet', width: 820, height: 1180 },
   { name: 'mobile', width: 390, height: 844 },
 ];
+const expectedChecks = matrixRoutes.length * viewports.length * 2 + viewports.length * 2 + 9;
 const scope = '?clientId=synthetic-a&startDate=2026-09-28&endDate=2026-09-28';
 // The exception payload is shared in shape and values with check-investigation-browser.mjs.
 const exception = { id: 'awaiting-first-dial', title: 'Awaiting first dial', count: 20, previousCount: 15, absoluteChange: 5, percentageChange: 100 / 3, severity: 'medium', description: 'Synthetic pending queue', byVendor: [{ name: 'Synthetic vendor', count: 20 }], bySource: [{ name: 'synthetic-source', count: 20 }] };
@@ -444,9 +445,9 @@ try {
     });
   }
 } finally {
-  await writeFile(path.join(output, 'results.json'), JSON.stringify({ synthetic: true, fixturePolicy: 'Existing synthetic fixtures only; unavailable endpoints remain explicit unavailable states.', browserPath: 'Browser plugin not available; optional Playwright runtime.', origin, browser: await browser.version(), expectedChecks: matrixRoutes.length * viewports.length * 2 + viewports.length * 2 + 9, passed: checks.filter(check => check.passed).length, failed: checks.filter(check => !check.passed).length, checks, screenshots, errors, messages }, null, 2));
+  await writeFile(path.join(output, 'results.json'), JSON.stringify({ synthetic: true, fixturePolicy: 'Existing synthetic fixtures only; unavailable endpoints remain explicit unavailable states.', browserPath: 'Browser plugin not available; optional Playwright runtime.', origin, browser: await browser.version(), expectedChecks, passed: checks.filter(check => check.passed).length, failed: checks.filter(check => !check.passed).length, checks, screenshots, errors, messages }, null, 2));
   await browser.close();
   await new Promise(resolve => server.close(resolve));
 }
 console.log(`Browser evidence: ${output}`);
-if (checks.length !== 63 || checks.some(check => !check.passed)) process.exitCode = 1;
+if (checks.length !== expectedChecks || checks.some(check => !check.passed)) process.exitCode = 1;
