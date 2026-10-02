@@ -416,6 +416,9 @@ export interface TemporalData {
     dayName: string;
     hour: number;
     volume: number;
+    dialled?: number | null;
+    rpcUnknownLeads?: number | null;
+    dialledRpcUnknownLeads?: number | null;
     contactRate: number | null;
     saleRate: number | null;
     activationRate: number | null;

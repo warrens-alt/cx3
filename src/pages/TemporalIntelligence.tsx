@@ -19,8 +19,8 @@ import { heatmapColors } from '../lib/heatmapColors';
 import { VolumeRateComboChart } from '../components/charts/OperationalVisuals';
 
 type MetricView = 'contactRate' | 'saleRate' | 'activationRate' | 'volume';
-type TimeBucket = { label:string; volume:number; rpc:number; sales:number; activations:number; contactRate:number|null; saleRate:number|null; activationRate:number|null };
-type TimeBasis = { basis:string; missingTimestampLeads:number; heatmap: TemporalData['heatmap']; byHour:TimeBucket[]; byDay:TimeBucket[]; weekType:TimeBucket[] };
+type TimeBucket = { label:string; volume:number; rpc:number; sales:number; activations:number; dialled?:number|null; rpcUnknownLeads?:number|null; dialledRpcUnknownLeads?:number|null; contactRate:number|null; saleRate:number|null; activationRate:number|null };
+type TimeBasis = { basis:string; cohortLeads?:number; recordedTimestampLeads?:number; missingTimestampLeads:number; heatmap: TemporalData['heatmap']; byHour:TimeBucket[]; byDay:TimeBucket[]; weekType:TimeBucket[] };
 
 export default function TemporalIntelligence() {
   const scoped = useScopedNavigationTarget();
@@ -65,10 +65,11 @@ export default function TemporalIntelligence() {
   const handleExportCsv = () => {
     if (!data) return;
     const rows = [
-      ['Day', 'Hour', 'Volume', 'RPC rate', 'Sale rate', 'Activation rate'],
-      ...activeHeatmap.map(row => [row.dayName, `${row.hour}:00`, row.volume, row.contactRate, row.saleRate, row.activationRate]),
+      ['Day', 'Hour', 'Volume', 'Qualified dialled', 'RPC evidence unknown', 'Dialled with RPC evidence unknown', 'RPC / qualified dialled', 'Recorded sale / lead', 'Recorded activation / recorded sale'],
+      ...activeHeatmap.map(row => [row.dayName, `${row.hour}:00`, row.volume, row.dialled, row.rpcUnknownLeads, row.dialledRpcUnknownLeads, row.contactRate, row.saleRate, row.activationRate]),
+      ['Event timestamp unrecorded', '', selectedBasis?.missingTimestampLeads],
     ];
-    downloadAnalysisCsv(`temporal_${timeBasis.toLowerCase().replaceAll(' ', '_')}_${selectedClient}_${startDate || 'all'}_${endDate || 'all'}`, rows, { clientId: selectedClient, startDate, endDate, filters, validationStatus: 'NOT_VERIFIED', definitions: `Selected capture cohort grouped by ${timeBasis.toLowerCase()} time in tenant timezone. RPC/dialled, sales/leads, activations/sales.` });
+    downloadAnalysisCsv(`temporal_${timeBasis.toLowerCase().replaceAll(' ', '_')}_${selectedClient}_${startDate || 'all'}_${endDate || 'all'}`, rows, { clientId: selectedClient, startDate, endDate, filters, validationStatus: 'NOT_VERIFIED', definitions: `Selected capture cohort grouped by ${timeBasis.toLowerCase()} time in tenant timezone. Positive recorded RPC among qualified dialled / qualified dialled; recorded sales/leads; recorded activations/recorded sales (independent populations). Missing event timestamps are exported separately.` });
   };
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -87,7 +88,7 @@ export default function TemporalIntelligence() {
             <div className="cx-segmented-control" role="group" aria-label="Temporal metric">
               <button type="button" data-active={metricView === 'contactRate'} aria-pressed={metricView === 'contactRate'} onClick={() => setMetricView('contactRate')}>RPC rate</button>
               <button type="button" data-active={metricView === 'saleRate'} aria-pressed={metricView === 'saleRate'} onClick={() => setMetricView('saleRate')}>Sale rate</button>
-              <button type="button" data-active={metricView === 'activationRate'} aria-pressed={metricView === 'activationRate'} onClick={() => setMetricView('activationRate')}>Activation rate</button>
+              <button type="button" data-active={metricView === 'activationRate'} aria-pressed={metricView === 'activationRate'} onClick={() => setMetricView('activationRate')}>Activation / sale</button>
               <button type="button" data-active={metricView === 'volume'} aria-pressed={metricView === 'volume'} onClick={() => setMetricView('volume')}>Volume</button>
             </div>
           }
@@ -101,7 +102,7 @@ export default function TemporalIntelligence() {
             {temporalSummary && (
               <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6" aria-label="Temporal performance summary">
                 <UnifiedMetricCard
-                  label="Period Volume"
+                  label="Recorded event volume"
                   value={formatTableNumber(temporalSummary.totalVolume)}
                   note={`${timeBasis} event distribution`}
                   to={scoped('/funnel')}
@@ -120,7 +121,7 @@ export default function TemporalIntelligence() {
               </section>
             )}
 
-            <div className="cx-control-note"><label>Event time <select aria-label="Temporal event basis" value={timeBasis} onChange={e => setTimeBasis(e.target.value)}>{(data.timeBases || []).map(b => <option key={b.basis}>{b.basis}</option>)}</select></label> · {formatTableNumber(selectedBasis?.missingTimestampLeads)} leads without this event timestamp. {data.methodology}</div>
+            <div className="cx-control-note"><label>Event time <select aria-label="Temporal event basis" value={timeBasis} onChange={e => setTimeBasis(e.target.value)}>{(data.timeBases || []).map(b => <option key={b.basis}>{b.basis}</option>)}</select></label> · {formatTableNumber(selectedBasis?.missingTimestampLeads)} leads without this event timestamp; {formatTableNumber(selectedBasis?.cohortLeads)} leads in the selected capture cohort. {data.methodology}</div>
             <section className="cx-command-panel" id="temporal-matrix">
               <header>
                 <div>
@@ -182,7 +183,7 @@ export default function TemporalIntelligence() {
                 rateSeries={[
                   { key: 'contactRate', label: 'RPC rate' },
                   { key: 'saleRate', label: 'Sale rate' },
-                  { key: 'activationRate', label: 'Activation rate' },
+                  { key: 'activationRate', label: 'Activation / sale' },
                 ]}
               />
               <VolumeRateComboChart
@@ -199,7 +200,7 @@ export default function TemporalIntelligence() {
               />
             </div>}
 
-            {selectedBasis && ([['Hour',selectedBasis.byHour],['Day',selectedBasis.byDay],['Week',selectedBasis.weekType]] as const).map(([title,rows]) => <section className="cx-command-panel" id={title === 'Day' ? 'temporal-day' : undefined} key={title}><header><div><h2>{timeBasis} by {title.toLowerCase()}</h2><p>RPC / dialled · sales / leads · activations / sales.</p></div></header><div className="cx-performance-table-wrap"><table className="cx-performance-table"><thead><tr><th>{title}</th><th>Leads</th><th>RPC</th><th>RPC rate</th><th>Sales</th><th>Sale rate</th><th>Activations</th><th>Activation rate</th></tr></thead><tbody>{rows.map(r => <tr key={r.label}><th>{r.label}</th><td>{formatTableNumber(r.volume)}</td><td>{formatTableNumber(r.rpc)}</td><td>{formatPercent(r.contactRate)}</td><td>{formatTableNumber(r.sales)}</td><td>{formatPercent(r.saleRate)}</td><td>{formatTableNumber(r.activations)}</td><td>{formatPercent(r.activationRate)}</td></tr>)}</tbody></table></div></section>)}
+            {selectedBasis && ([['Hour',selectedBasis.byHour],['Day',selectedBasis.byDay],['Week',selectedBasis.weekType]] as const).map(([title,rows]) => <section className="cx-command-panel" id={title === 'Day' ? 'temporal-day' : undefined} key={title}><header><div><h2>{timeBasis} by {title.toLowerCase()}</h2><p>Positive RPC / qualified dialled · recorded sales / leads · recorded activations / recorded sales (independent populations).</p></div></header><div className="cx-performance-table-wrap"><table className="cx-performance-table"><thead><tr><th>{title}</th><th>Leads</th><th>RPC</th><th>RPC unknown</th><th>RPC rate</th><th>Recorded sales</th><th>Sale rate</th><th>Recorded activations</th><th>Activation / sale</th></tr></thead><tbody>{rows.map(r => <tr key={r.label}><th>{r.label}</th><td>{formatTableNumber(r.volume)}</td><td>{formatTableNumber(r.rpc)}</td><td>{formatTableNumber(r.rpcUnknownLeads)}</td><td>{formatPercent(r.contactRate)}</td><td>{formatTableNumber(r.sales)}</td><td>{formatPercent(r.saleRate)}</td><td>{formatTableNumber(r.activations)}</td><td>{formatPercent(r.activationRate)}</td></tr>)}</tbody></table></div></section>)}
             {controls.data && <OperatingWindowPanel data={controls.data} />}
             {controls.data && <CaptureTurnaroundPanel data={controls.data} />}
 
