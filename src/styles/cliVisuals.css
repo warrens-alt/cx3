@@ -1,0 +1,16 @@
+/* Caller-ID telemetry keeps two aligned rows without individual card surfaces. */
+.cx-cli-telemetry{grid-template-columns:repeat(5,minmax(0,1fr));row-gap:10px}
+.cx-cli-telemetry>:nth-child(5n){border-inline-end:0;padding-right:0}
+.cx-cli-telemetry>:nth-child(5n+1){padding-left:0}
+@media(min-width:640px) and (max-width:1199px){
+ .cx-cli-telemetry{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .cx-cli-telemetry>:nth-child(n){padding-inline:16px;border-inline-end:1px solid var(--cx-border-subtle)}
+ .cx-cli-telemetry>:nth-child(3n){padding-right:0;border-inline-end:0}
+ .cx-cli-telemetry>:nth-child(3n+1){padding-left:0}
+}
+@media(max-width:639px){
+ .cx-cli-telemetry{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .cx-cli-telemetry>:nth-child(n){padding-inline:14px;border-inline-end:1px solid var(--cx-border-subtle)}
+ .cx-cli-telemetry>:nth-child(2n){padding-right:0;border-inline-end:0}
+ .cx-cli-telemetry>:nth-child(2n+1){padding-left:0}
+}

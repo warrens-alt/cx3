@@ -1,3 +1,4 @@
+import TelemetryRail from '../shared/visuals/TelemetryRail';
 import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
 import React, { useMemo, useState } from 'react';
 import { AlertTriangle, CalendarDays, Layers3 } from 'lucide-react';
@@ -75,7 +76,7 @@ export default function Cohorts() {
     <AnalyticsPageLayout className="cx-cohorts-page" title="Cohort maturation" header={<OperationalPageHeader
           eyebrow="Lifecycle"
           title="Cohort maturation"
-          description="Compare captured cohorts as their observed call, sale and activation outcomes accumulate over time."
+          description="Recorded outcomes as captured cohorts mature."
           status="NOT_VERIFIED"
           statusLabel="Legacy cohort analytics"
           actions={
@@ -112,7 +113,7 @@ export default function Cohorts() {
         {cohorts && cohorts.length > 0 && (
           <>
             {cohortSummary && (
-              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6" aria-label="Cohort maturation summary">
+              <TelemetryRail label="Cohort maturation summary">
                 <UnifiedMetricCard
                   label="Total Cohort Leads"
                   value={formatTableNumber(cohortSummary.totalLeads)}
@@ -122,10 +123,10 @@ export default function Cohorts() {
                 />
 
                 <div className="cx-control-note sm:col-span-2">Summary covers the returned cohort groups. Combined rates are not supplied; inspect each cohort's returned rates below. Missing cohort evidence remains unavailable.</div>
-              </section>
+              </TelemetryRail>
             )}
 
-            <section className="cx-command-panel">
+            <section className="cx-command-panel cx-analytical-chapter">
               <header>
                 <div>
                   <span className="cx-command-section-kicker">Maturation</span>
@@ -189,15 +190,8 @@ export default function Cohorts() {
               </div>
             </section>
 
-            <section className="cx-command-panel">
-              <header>
-                <div>
-                  <span className="cx-command-section-kicker">Full funnel</span>
-                  <h2>Outcome progression by cohort</h2>
-                  <p>Volume and conversion measures stay together in one table for cross-cohort comparison.</p>
-                </div>
-                <Layers3 size={16} className="text-slate-400"/>
-              </header>
+            <details className="cx-report-disclosure">
+              <summary>View exact outcome progression by cohort</summary>
               <div className="cx-performance-table-wrap">
                 <table className="cx-performance-table cx-cohort-table">
                   <thead>
@@ -221,7 +215,7 @@ export default function Cohorts() {
                   </tbody>
                 </table>
               </div>
-            </section>
+            </details>
 
             <div className="cx-command-empty cx-cohort-note">
               Cohort outputs remain exploratory until the legacy cohort service is migrated onto the current evidence and source-contract layer.

@@ -1,3 +1,9 @@
+import ChartFrame from '../shared/visuals/ChartFrame';
+import ChartTooltip from '../shared/visuals/ChartTooltip';
+import TelemetryRail from '../shared/visuals/TelemetryRail';
+import ReportingScopeSummary from '../shared/reporting/ReportingScopeSummary';
+import { ReportActions } from '../shared/reporting/ReportPresentation';
+import { AuditMetadata } from '../shared/evidence/AuditMode';
 import { VisualTable } from '../components/visuals/DataVisual';
 import { formatTableNumber, formatPercent } from '../lib/formatters';
 import React, { useState } from 'react';
@@ -9,7 +15,7 @@ import { useAnalyticsData } from '../lib/useAnalyticsData';
 import { useAuth } from '../lib/AuthContext';
 import { useClient } from '../lib/ClientContext';
 import { DataState } from '../components/DataState';
-import { Users, Repeat, DollarSign, TrendingDown, Layers, CheckCircle2, ShieldCheck, AlertCircle, Table as TableIcon, BarChart2 } from 'lucide-react';
+import { Repeat, TrendingDown, Layers, CheckCircle2, AlertCircle, Table as TableIcon, BarChart2 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 
 const fixed = (value: number | string | null | undefined, digits: number) => value == null || value === '' || !Number.isFinite(Number(value)) ? 'Unavailable' : Number(value).toFixed(digits);
@@ -26,7 +32,7 @@ export default function ConsumerReentry() {
 
   const scope = <ReportingScopeBar deferOptionsUntilExpanded onRefresh={refetch} />;
   const title = 'Consumer re-entry';
-  const description = 'Consumer-level deduplication, repeat entry frequency, sequence decay economics, and multi-lead lifecycle value.';
+  const description = 'Consumer re-entry frequency, sequential outcomes and recorded value.';
 
   if (error) return <AnalyticsPageLayout title={title} description={description} scope={scope}><DataState error={error} retry={refetch}/></AnalyticsPageLayout>;
 
@@ -41,10 +47,10 @@ export default function ConsumerReentry() {
   if (error || !data || !data.overview) {
     return (
       <AnalyticsPageLayout title={title} description={description} scope={scope}>
-        <div className="bg-white rounded-xl border border-slate-200 p-8 text-center max-w-xl mx-auto my-12 shadow-sm">
-          <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-slate-800 mb-2">Unable to Load Consumer Re-entry Data</h2>
-          <p className="text-slate-600 text-sm mb-4">
+        <div className="bg-surface rounded-xl border border-border p-8 text-center max-w-xl mx-auto my-12 shadow-sm">
+          <AlertCircle className="w-12 h-12 text-warning mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-text-main mb-2">Unable to Load Consumer Re-entry Data</h2>
+          <p className="text-text-sec text-sm mb-4">
             {error || 'The response did not include a consumer overview. Population size is unavailable.'}
           </p>
         </div>
@@ -55,13 +61,11 @@ export default function ConsumerReentry() {
   const { overview, tiers, sequenceEconomics, repeatConsumersSample } = data;
 
   return (
-    <AnalyticsPageLayout title={title} description={description} scope={scope} actions={<div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 px-3 py-1.5 rounded-lg text-xs font-medium">
-          <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <span>Entity: vw_consumers (Grain: consumer_id)</span>
-        </div>}>
+    <AnalyticsPageLayout title={title} description={description} scope={scope} actions={<ReportActions />}>
+      <AuditMetadata source="vw_consumers" grain="consumer_id" />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-7 gap-4 lg:gap-5 mb-6 sm:mb-8">
+      <TelemetryRail label="Consumer summary">
         <KpiCard
           title="Total Consumers"
           value={overview.total_consumers ?? null}
@@ -107,10 +111,10 @@ export default function ConsumerReentry() {
           subtitle="Revenue summed by recorded consumer ID; not verified lifetime value"
           onAnalyse={() => setActiveTab('sequence')}
         />
-      </div>
+      </TelemetryRail>
 
       {/* Sub Navigation */}
-      <nav aria-label="Consumer reentry sub sections" className="cx-tabs">
+      <nav aria-label="Consumer reentry sub sections" className="cx-tabs overflow-x-auto">
         <button
           type="button"
           onClick={() => setActiveTab('tiers')}
@@ -144,49 +148,11 @@ export default function ConsumerReentry() {
       </nav>
 
       {activeTab === 'tiers' && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div>
-              <h3 className="text-base font-semibold text-slate-900">Consumer Volume Tier Distribution</h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Breakdown of consumer base by lifetime lead submission count and revenue yield.
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setTiersView('table')}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 font-medium rounded ${
-                    tiersView === 'table'
-                      ? 'bg-white text-blue-700 shadow-2xs font-semibold'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <TableIcon size={12} /> Table
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTiersView('graph')}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 font-medium rounded ${
-                    tiersView === 'graph'
-                      ? 'bg-white text-blue-700 shadow-2xs font-semibold'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <BarChart2 size={12} /> Graph
-                </button>
-              </div>
-              <div className="text-xs font-medium text-slate-600 bg-slate-100 px-3 py-1 rounded">
-                Rule: Count(DISTINCT consumer_id)
-              </div>
-            </div>
-          </div>
-
+        <ChartFrame title="Consumer Volume Tier Distribution" subtitle="Consumer counts and recorded value by lead volume tier." scope={<ReportingScopeSummary />} controls={<ConsumerViewControls view={tiersView} onChange={setTiersView} />} footer={<details className="cx-evidence-disclosure"><summary>Methodology</summary><p className="cx-tech-label">Count(DISTINCT consumer_id)</p></details>}>
           {tiersView === 'table' ? (
             <div className="overflow-x-auto">
-              <VisualTable visual={{id:'consumers.tiers',data:(tiers)}} className="w-full text-left text-sm text-slate-700">
-                <thead className="bg-slate-50/80 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+              <VisualTable visual={{id:'consumers.tiers',data:(tiers)}} className="w-full text-left text-sm text-text-sec">
+                <thead className="bg-surface-subtle text-xs font-semibold text-text-sec uppercase tracking-wider border-b border-border">
                   <tr>
                     <th className="py-3 px-4">Lead Tier</th>
                     <th className="py-3 px-4 text-right">Consumers</th>
@@ -200,21 +166,21 @@ export default function ConsumerReentry() {
                     <th className="py-3 px-4 text-right">Recorded Revenue / Lead</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 font-mono text-xs">
+                <tbody className="divide-y divide-border-subtle font-sans tabular-nums text-xs">
                   {tiers.map((tier: any, idx: number) => (
-                    <tr key={idx} className="hover:bg-slate-50/60">
-                      <td className="py-3 px-4 font-sans font-medium text-slate-900">
+                    <tr key={idx} className="hover:bg-surface-subtle">
+                      <td className="py-3 px-4 font-sans font-medium text-text-main">
                         {tier.lead_tier}
                       </td>
-                      <td className="py-3 px-4 text-right font-medium text-slate-900">{formatTableNumber(tier.consumer_count)}</td>
-                      <td className="py-3 px-4 text-right text-slate-600">{formatPercent(tier.consumer_share_pct)}</td>
-                      <td className="py-3 px-4 text-right font-medium text-slate-900">{formatTableNumber(tier.total_leads)}</td>
-                      <td className="py-3 px-4 text-right text-slate-600">{formatTableNumber(tier.consumers_with_sale)}</td>
-                      <td className="py-3 px-4 text-right text-slate-600">{formatPercent(tier.sale_rate_pct)}</td>
-                      <td className="py-3 px-4 text-right font-semibold text-emerald-700">{formatPercent(tier.billable_sale_rate_pct)}</td>
-                      <td className="py-3 px-4 text-right font-semibold text-slate-900">{currencyPrefix}{formatTableNumber(tier.total_revenue)}</td>
-                      <td className="py-3 px-4 text-right font-bold text-[#315EAD]">{currencyPrefix}{fixed(tier.rev_per_consumer, 2)}</td>
-                      <td className="py-3 px-4 text-right font-semibold text-slate-700 bg-slate-50/50">{currencyPrefix}{fixed(tier.rev_per_lead, 2)}</td>
+                      <td className="py-3 px-4 text-right font-medium text-text-main">{formatTableNumber(tier.consumer_count)}</td>
+                      <td className="py-3 px-4 text-right text-text-sec">{formatPercent(tier.consumer_share_pct)}</td>
+                      <td className="py-3 px-4 text-right font-medium text-text-main">{formatTableNumber(tier.total_leads)}</td>
+                      <td className="py-3 px-4 text-right text-text-sec">{formatTableNumber(tier.consumers_with_sale)}</td>
+                      <td className="py-3 px-4 text-right text-text-sec">{formatPercent(tier.sale_rate_pct)}</td>
+                      <td className="py-3 px-4 text-right font-semibold text-text-main">{formatPercent(tier.billable_sale_rate_pct)}</td>
+                      <td className="py-3 px-4 text-right font-semibold text-text-main">{currencyPrefix}{formatTableNumber(tier.total_revenue)}</td>
+                      <td className="py-3 px-4 text-right font-bold text-action">{currencyPrefix}{fixed(tier.rev_per_consumer, 2)}</td>
+                      <td className="py-3 px-4 text-right font-semibold text-text-sec bg-surface-subtle">{currencyPrefix}{fixed(tier.rev_per_lead, 2)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -223,97 +189,40 @@ export default function ConsumerReentry() {
           ) : (
             <div className="p-5 h-72 min-h-[288px] w-full">
               {!tiers.length ? (
-                <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
-                  <span className="font-medium text-slate-600 mb-1">No consumer tier observations recorded.</span>
-                  <span className="text-[11px] text-slate-400">Try adjusting your filters or date range.</span>
+                <div className="h-full w-full flex flex-col items-center justify-center text-xs text-text-muted bg-surface-subtle rounded-lg border border-dashed border-border p-4">
+                  <span className="font-medium text-text-sec mb-1">No consumer tier observations recorded.</span>
+                  <span className="text-[11px] text-text-muted">Try adjusting your filters or date range.</span>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
                   <BarChart data={tiers} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="lead_tier" tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" axisLine={false} tickLine={false} tickFormatter={v => Number(v).toLocaleString()} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border-subtle)" />
+                    <XAxis dataKey="lead_tier" tick={{ fontSize: 10, fill: 'var(--cx-text-secondary)' }} stroke="var(--cx-border)" axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: 'var(--cx-text-secondary)' }} stroke="var(--cx-border)" axisLine={false} tickLine={false} tickFormatter={v => Number(v).toLocaleString()} />
                     <Tooltip
                       content={({ active, payload, label }) => {
                         if (!active || !payload?.length) return null;
-                        return (
-                          <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg p-3 text-xs min-w-[190px] ring-1 ring-black/5 dark:ring-white/5 font-mono">
-                            <div className="font-semibold text-slate-800 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1 mb-2 font-mono">
-                              Tier: {label}
-                            </div>
-                            <div className="space-y-1.5">
-                              {payload.map((entry: any, i: number) => (
-                                <div key={i} className="flex items-center justify-between gap-3">
-                                  <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 font-sans">
-                                    <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ backgroundColor: entry.color }} />
-                                    <span>{entry.name}</span>
-                                  </span>
-                                  <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">
-                                    {formatTableNumber(entry.value)}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
+                        return <ChartTooltip title={`Tier: ${label}`} rows={payload.map((entry: any) => ({ label: String(entry.name), value: formatTableNumber(entry.value), color: String(entry.stroke || entry.color || entry.fill || 'var(--cx-text-secondary)') }))} />;
                       }}
                     />
                     <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                    <Bar dataKey="consumer_count" name="Consumers" fill="#315BCB" radius={[3, 3, 0, 0]} isAnimationActive={false} />
-                    <Bar dataKey="total_leads" name="Total Leads" fill="#4F5FB7" radius={[3, 3, 0, 0]} isAnimationActive={false} />
-                    <Bar dataKey="consumers_with_sale" name="Consumers with Sale" fill="#426D80" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                    <Bar dataKey="consumer_count" name="Consumers" fill="var(--cx-action)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                    <Bar dataKey="total_leads" name="Total Leads" fill="var(--cx-data-fetched)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                    <Bar dataKey="consumers_with_sale" name="Consumers with Sale" fill="var(--cx-data-sales)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
             </div>
           )}
-        </div>
+        </ChartFrame>
       )}
 
       {activeTab === 'sequence' && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div>
-              <h3 className="text-base font-semibold text-slate-900">Sequential Entry Conversion & Economics</h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                How contact, reach, sales, and revenue decay or perform across sequential submissions by the same consumer.
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setSequenceView('table')}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 font-medium rounded ${
-                    sequenceView === 'table'
-                      ? 'bg-white text-blue-700 shadow-2xs font-semibold'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <TableIcon size={12} /> Table
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSequenceView('graph')}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 font-medium rounded ${
-                    sequenceView === 'graph'
-                      ? 'bg-white text-blue-700 shadow-2xs font-semibold'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  <BarChart2 size={12} /> Graph
-                </button>
-              </div>
-              <div className="text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded">
-                Order: ROW_NUMBER() OVER(PARTITION BY consumer_id ORDER BY capture_timestamp ASC)
-              </div>
-            </div>
-          </div>
-
+        <ChartFrame title="Sequential Entry Conversion & Economics" subtitle="Returned contact, sales and revenue by submission order." scope={<ReportingScopeSummary />} controls={<ConsumerViewControls view={sequenceView} onChange={setSequenceView} />} footer={<details className="cx-evidence-disclosure"><summary>Methodology</summary><p className="cx-tech-label">ROW_NUMBER() OVER(PARTITION BY consumer_id ORDER BY capture_timestamp ASC)</p></details>}>
           {sequenceView === 'table' ? (
             <div className="overflow-x-auto">
-              <VisualTable visual={{id:'consumers.sequence',data:(sequenceEconomics)}} className="w-full text-left text-sm text-slate-700">
-                <thead className="bg-slate-50/80 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+              <VisualTable visual={{id:'consumers.sequence',data:(sequenceEconomics)}} className="w-full text-left text-sm text-text-sec">
+                <thead className="bg-surface-subtle text-xs font-semibold text-text-sec uppercase tracking-wider border-b border-border">
                   <tr>
                     <th className="py-3 px-4">Sequential Stage</th>
                     <th className="py-3 px-4 text-right">Lead Count</th>
@@ -326,22 +235,22 @@ export default function ConsumerReentry() {
                     <th className="py-3 px-4 text-right">Recorded Revenue / Lead</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 font-mono text-xs">
+                <tbody className="divide-y divide-border-subtle font-sans tabular-nums text-xs">
                   {sequenceEconomics.map((seq: any, idx: number) => {
                     const isFirst = seq.entry_stage === '1st Entry';
                     return (
-                      <tr key={idx} className={isFirst ? 'bg-[#EDF5FC]/50 font-medium' : 'hover:bg-slate-50/60'}>
-                        <td className="py-3.5 px-4 font-sans font-semibold text-slate-900">
+                      <tr key={idx} className={isFirst ? 'bg-selected font-medium' : 'hover:bg-surface-subtle'}>
+                        <td className="py-3.5 px-4 font-sans font-semibold text-text-main">
                           {seq.entry_stage}
                         </td>
-                        <td className="py-3.5 px-4 text-right font-medium text-slate-900">{formatTableNumber(seq.leads)}</td>
-                        <td className="py-3.5 px-4 text-right text-slate-600">{formatPercent(seq.delivery_rate_pct)}</td>
-                        <td className="py-3.5 px-4 text-right text-slate-600">{formatPercent(seq.call_rate_pct)}</td>
-                        <td className="py-3.5 px-4 text-right text-slate-600">{formatPercent(seq.rpc_rate_pct)}</td>
-                        <td className="py-3.5 px-4 text-right text-slate-600">{formatPercent(seq.sale_rate_pct)}</td>
-                        <td className="py-3.5 px-4 text-right font-bold text-emerald-700">{formatPercent(seq.billable_sale_rate_pct)}</td>
-                        <td className="py-3.5 px-4 text-right font-semibold text-slate-900">{currencyPrefix}{formatTableNumber(seq.total_revenue)}</td>
-                        <td className="py-3.5 px-4 text-right font-bold text-[#315EAD] bg-[#EDF5FC]/70">{currencyPrefix}{fixed(seq.rev_per_lead, 2)}</td>
+                        <td className="py-3.5 px-4 text-right font-medium text-text-main">{formatTableNumber(seq.leads)}</td>
+                        <td className="py-3.5 px-4 text-right text-text-sec">{formatPercent(seq.delivery_rate_pct)}</td>
+                        <td className="py-3.5 px-4 text-right text-text-sec">{formatPercent(seq.call_rate_pct)}</td>
+                        <td className="py-3.5 px-4 text-right text-text-sec">{formatPercent(seq.rpc_rate_pct)}</td>
+                        <td className="py-3.5 px-4 text-right text-text-sec">{formatPercent(seq.sale_rate_pct)}</td>
+                        <td className="py-3.5 px-4 text-right font-bold text-text-main">{formatPercent(seq.billable_sale_rate_pct)}</td>
+                        <td className="py-3.5 px-4 text-right font-semibold text-text-main">{currencyPrefix}{formatTableNumber(seq.total_revenue)}</td>
+                        <td className="py-3.5 px-4 text-right font-bold text-action bg-selected">{currencyPrefix}{fixed(seq.rev_per_lead, 2)}</td>
                       </tr>
                     );
                   })}
@@ -351,101 +260,49 @@ export default function ConsumerReentry() {
           ) : (
             <div className="p-5 h-72 min-h-[288px] w-full">
               {!sequenceEconomics.length ? (
-                <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
-                  <span className="font-medium text-slate-600 mb-1">No sequential entry observations recorded.</span>
-                  <span className="text-[11px] text-slate-400">Try adjusting your filters or date range.</span>
+                <div className="h-full w-full flex flex-col items-center justify-center text-xs text-text-muted bg-surface-subtle rounded-lg border border-dashed border-border p-4">
+                  <span className="font-medium text-text-sec mb-1">No sequential entry observations recorded.</span>
+                  <span className="text-[11px] text-text-muted">Try adjusting your filters or date range.</span>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
                   <AreaChart data={sequenceEconomics} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
                     <defs>
                       <linearGradient id="colorSeqRpc" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#315BCB" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#315BCB" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="var(--cx-data-rpc)" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="var(--cx-data-rpc)" stopOpacity={0}/>
                       </linearGradient>
                       <linearGradient id="colorSeqSale" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#059669" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#059669" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="var(--cx-data-sales)" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="var(--cx-data-sales)" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="entry_stage" tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" unit="%" axisLine={false} tickLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border-subtle)" />
+                    <XAxis dataKey="entry_stage" tick={{ fontSize: 10, fill: 'var(--cx-text-secondary)' }} stroke="var(--cx-border)" axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: 'var(--cx-text-secondary)' }} stroke="var(--cx-border)" unit="%" axisLine={false} tickLine={false} />
                     <Tooltip
                       content={({ active, payload, label }) => {
                         if (!active || !payload?.length) return null;
-                        return (
-                          <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg p-3 text-xs min-w-[190px] ring-1 ring-black/5 dark:ring-white/5 font-mono">
-                            <div className="font-semibold text-slate-800 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1 mb-2 font-mono">
-                              Entry: {label}
-                            </div>
-                            <div className="space-y-1.5">
-                              {payload.map((entry: any, i: number) => (
-                                <div key={i} className="flex items-center justify-between gap-3">
-                                  <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 font-sans">
-                                    <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ backgroundColor: entry.stroke || entry.color }} />
-                                    <span>{entry.name}</span>
-                                  </span>
-                                  <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">
-                                    {formatPercent(entry.value)}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
+                        return <ChartTooltip title={`Entry: ${label}`} rows={payload.map((entry: any) => ({ label: String(entry.name), value: formatPercent(entry.value), color: String(entry.stroke || entry.color || entry.fill || 'var(--cx-text-secondary)') }))} />;
                       }}
                     />
                     <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                    <Area type="monotone" dataKey="rpc_rate_pct" name="RPC Rate %" stroke="#315BCB" strokeWidth={2} fillOpacity={1} fill="url(#colorSeqRpc)" connectNulls={true} isAnimationActive={false} />
-                    <Area type="monotone" dataKey="billable_sale_rate_pct" name="Sale Rate %" stroke="#059669" strokeWidth={2} fillOpacity={1} fill="url(#colorSeqSale)" connectNulls={true} isAnimationActive={false} />
+                    <Area type="monotone" dataKey="rpc_rate_pct" name="RPC Rate %" stroke="var(--cx-data-rpc)" strokeWidth={2} fillOpacity={1} fill="url(#colorSeqRpc)" connectNulls={true} isAnimationActive={false} />
+                    <Area type="monotone" dataKey="billable_sale_rate_pct" name="Sale Rate %" stroke="var(--cx-data-sales)" strokeWidth={2} fillOpacity={1} fill="url(#colorSeqSale)" connectNulls={true} isAnimationActive={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               )}
             </div>
           )}
-        </div>
+        </ChartFrame>
       )}
 
       {isAdmin && activeTab === 'sample' && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div>
-              <h3 className="text-base font-semibold text-slate-900">Highest-Value Multi-Lead Consumers</h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Top repeat consumers ranked by recorded revenue across retained entries.
-              </p>
-            </div>
-            <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5 text-xs">
-              <button
-                type="button"
-                onClick={() => setSampleView('table')}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 font-medium rounded ${
-                  sampleView === 'table'
-                    ? 'bg-white text-blue-700 shadow-2xs font-semibold'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <TableIcon size={12} /> Table
-              </button>
-              <button
-                type="button"
-                onClick={() => setSampleView('graph')}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 font-medium rounded ${
-                  sampleView === 'graph'
-                    ? 'bg-white text-blue-700 shadow-2xs font-semibold'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <BarChart2 size={12} /> Graph
-              </button>
-            </div>
-          </div>
-
+        <ChartFrame title="Highest-Value Multi-Lead Consumers" subtitle="Repeat consumers ranked by recorded revenue across retained entries." scope={<ReportingScopeSummary />} controls={<ConsumerViewControls view={sampleView} onChange={setSampleView} />}>
           {sampleView === 'table' ? (
             <div className="overflow-x-auto">
-              <VisualTable visual={{id:'consumers.sample',data:(repeatConsumersSample)}} className="w-full text-left text-sm text-slate-700">
-                <thead className="bg-slate-50/80 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+              <VisualTable visual={{id:'consumers.sample',data:(repeatConsumersSample)}} className="w-full text-left text-sm text-text-sec">
+                <thead className="bg-surface-subtle text-xs font-semibold text-text-sec uppercase tracking-wider border-b border-border">
                   <tr>
                     <th className="py-3 px-4">Consumer ID</th>
                     <th className="py-3 px-4 text-center">Recorded Leads</th>
@@ -458,26 +315,26 @@ export default function ConsumerReentry() {
                     <th className="py-3 px-4 text-right">Recorded Revenue</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 font-mono text-xs">
+                <tbody className="divide-y divide-border-subtle font-sans tabular-nums text-xs">
                   {repeatConsumersSample.map((c: any, idx: number) => (
-                    <tr key={idx} className="hover:bg-slate-50">
-                      <td className="py-3 px-4 font-sans font-medium text-slate-900">{c.consumer_id}</td>
+                    <tr key={idx} className="hover:bg-surface-subtle">
+                      <td className="py-3 px-4 font-sans font-medium text-text-main">{c.consumer_id}</td>
                       <td className="py-3 px-4 text-center">
-                        <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold">{c.lead_count}</span>
+                        <span className="px-2 py-0.5 rounded bg-selected text-action font-semibold">{c.lead_count}</span>
                       </td>
-                      <td className="py-3 px-4 text-center text-slate-700">{c.unique_source_count}</td>
-                      <td className="py-3 px-4 text-center text-slate-700">{c.unique_vendor_count}</td>
-                      <td className="py-3 px-4 text-center text-slate-700">{c.transaction_count}</td>
-                      <td className="py-3 px-4 text-slate-600">{c.first_lead_date?.value || c.first_lead_date || 'N/A'}</td>
-                      <td className="py-3 px-4 text-slate-600">{c.latest_lead_date?.value || c.latest_lead_date || 'N/A'}</td>
+                      <td className="py-3 px-4 text-center text-text-sec">{c.unique_source_count}</td>
+                      <td className="py-3 px-4 text-center text-text-sec">{c.unique_vendor_count}</td>
+                      <td className="py-3 px-4 text-center text-text-sec">{c.transaction_count}</td>
+                      <td className="py-3 px-4 text-text-sec">{c.first_lead_date?.value || c.first_lead_date || 'N/A'}</td>
+                      <td className="py-3 px-4 text-text-sec">{c.latest_lead_date?.value || c.latest_lead_date || 'N/A'}</td>
                       <td className="py-3 px-4 text-center">
                         {c.has_billable_sale ? (
-                          <span className="px-2.5 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-700">Yes</span>
+                          <span className="px-2.5 py-0.5 rounded text-xs font-semibold bg-selected text-text-main">Yes</span>
                         ) : (
-                          <span className="px-2.5 py-0.5 rounded text-xs text-slate-400">No</span>
+                          <span className="px-2.5 py-0.5 rounded text-xs text-text-muted">No</span>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-right font-bold text-slate-900">{currencyPrefix}{formatTableNumber(c.total_revenue)}</td>
+                      <td className="py-3 px-4 text-right font-bold text-text-main">{currencyPrefix}{formatTableNumber(c.total_revenue)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -486,54 +343,39 @@ export default function ConsumerReentry() {
           ) : (
             <div className="p-5 h-72 w-full">
               {!repeatConsumersSample.length ? (
-                <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
-                  <span className="font-medium text-slate-600 mb-1">No repeat consumer sample observations recorded.</span>
-                  <span className="text-[11px] text-slate-400">Try adjusting your filters or date range.</span>
+                <div className="h-full w-full flex flex-col items-center justify-center text-xs text-text-muted bg-surface-subtle rounded-lg border border-dashed border-border p-4">
+                  <span className="font-medium text-text-sec mb-1">No repeat consumer sample observations recorded.</span>
+                  <span className="text-[11px] text-text-muted">Try adjusting your filters or date range.</span>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
                   <BarChart data={repeatConsumersSample} margin={{ top: 10, right: 30, left: 10, bottom: 30 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="consumer_id" tick={{ fontSize: 9, fill: '#64748b' }} stroke="#cbd5e1" interval={0} angle={-25} textAnchor="end" height={45} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" axisLine={false} tickLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border-subtle)" />
+                    <XAxis dataKey="consumer_id" tick={{ fontSize: 9, fill: 'var(--cx-text-secondary)' }} stroke="var(--cx-border)" interval={0} angle={-25} textAnchor="end" height={45} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: 'var(--cx-text-secondary)' }} stroke="var(--cx-border)" axisLine={false} tickLine={false} />
                     <Tooltip
                       content={({ active, payload, label }) => {
                         if (!active || !payload?.length) return null;
-                        return (
-                          <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg p-3 text-xs min-w-[200px] ring-1 ring-black/5 dark:ring-white/5 font-mono">
-                            <div className="font-semibold text-slate-800 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1 mb-2">
-                              Consumer: {label}
-                            </div>
-                            <div className="space-y-1.5">
-                              {payload.map((entry: any, i: number) => {
-                                const isRev = entry.dataKey === 'total_revenue';
-                                return (
-                                  <div key={i} className="flex items-center justify-between gap-3">
-                                    <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 font-sans">
-                                      <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ backgroundColor: entry.fill || entry.color }} />
-                                      <span>{isRev ? 'Recorded Revenue' : 'Recorded Leads'}</span>
-                                    </span>
-                                    <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">
-                                      {isRev ? `${currencyPrefix}${formatTableNumber(entry.value)}` : formatTableNumber(entry.value)}
-                                    </span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
+                        return <ChartTooltip title={`Consumer: ${label}`} rows={payload.map((entry: any) => ({ label: entry.dataKey === 'total_revenue' ? 'Recorded Revenue' : 'Recorded Leads', value: entry.dataKey === 'total_revenue' ? `${currencyPrefix}${formatTableNumber(entry.value)}` : formatTableNumber(entry.value), color: String(entry.stroke || entry.color || entry.fill || 'var(--cx-text-secondary)') }))} />;
                       }}
                     />
                     <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                    <Bar dataKey="total_revenue" name="Recorded Revenue" fill="#17744A" radius={[3, 3, 0, 0]} isAnimationActive={false} />
-                    <Bar dataKey="lead_count" name="Recorded Leads" fill="#4F5FB7" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                    <Bar dataKey="total_revenue" name="Recorded Revenue" fill="var(--cx-text-secondary)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                    <Bar dataKey="lead_count" name="Recorded Leads" fill="var(--cx-data-fetched)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
             </div>
           )}
-        </div>
+        </ChartFrame>
       )}
     </AnalyticsPageLayout>
   );
+}
+
+function ConsumerViewControls({ view, onChange }: { view: 'table' | 'graph'; onChange: (view: 'table' | 'graph') => void }) {
+  return <div className="cx-segmented-control" role="group" aria-label="Consumer evidence view">
+    <button type="button" aria-pressed={view === 'table'} onClick={() => onChange('table')}><TableIcon size={12} aria-hidden="true" />Table</button>
+    <button type="button" aria-pressed={view === 'graph'} onClick={() => onChange('graph')}><BarChart2 size={12} aria-hidden="true" />Graph</button>
+  </div>;
 }

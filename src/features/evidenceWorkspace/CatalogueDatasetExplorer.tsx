@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ArrowUpRight, Search } from 'lucide-react';
 import type { DatasetSummary } from '../../../server/analytics/warehouse/warehouseAnalytics';
 import { formatTableNumber } from '../../lib/formatters';
+import ChartFrame from '../../shared/visuals/ChartFrame';
 import InspectorHost, { type InspectorContent } from '../../shared/evidence/InspectorHost';
 
 /** Catalogue geometry only: registered objects are not source records or live coverage. */
@@ -20,8 +21,8 @@ export default function CatalogueDatasetExplorer({ datasets, onBrowse, selectedD
   const rows = useMemo(() => datasets.filter(d => `${d.project}.${d.dataset}`.toLowerCase().includes(search.trim().toLowerCase()))
     .slice().sort((a, b) => sort === 'name' ? `${a.project}.${a.dataset}`.localeCompare(`${b.project}.${b.dataset}`) : b.totalObjects - a.totalObjects), [datasets, search, sort]);
   const maximum = Math.max(1, ...datasets.map(d => d.totalObjects));
-  return <section className="cx-command-panel cx-catalogue-explorer" aria-label="Registered datasets">
-    <header className="cx-admin-panel-heading"><div><h2>Registered datasets</h2><p>Compare saved catalogue entries, then open their schema. Bars represent object counts, not leads, source rows or connectivity.</p></div></header>
+  return <ChartFrame title="Registered datasets" subtitle="Saved catalogue object counts; no source records are read." className="cx-catalogue-explorer"
+    scope={<span>{scope?.clientLabel || scope?.clientId || 'Workspace not supplied'} · Saved catalogue; analytical dates do not bound this inventory.</span>}>
     <div className="cx-admin-toolbar">
       <label className="cx-admin-search"><Search size={15} aria-hidden="true" /><span className="sr-only">Search datasets</span><input aria-label="Search datasets" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search project or dataset…" /></label>
       <label>Order<select value={sort} onChange={e => setSort(e.target.value as typeof sort)}><option value="objects">Most registered objects</option><option value="name">Dataset name</option></select></label>
@@ -36,7 +37,7 @@ export default function CatalogueDatasetExplorer({ datasets, onBrowse, selectedD
       </table>
     </div>
     {!rows.length && <p className="cx-admin-empty">{datasets.length ? 'No registered datasets match this search.' : 'No datasets were returned in this catalogue.'}</p>}
-    <p className="cx-admin-footnote">A larger catalogue is not evidence of a healthier or more complete feed.</p>
+    <p className="cx-admin-footnote">Bars represent object counts, not leads, source rows or connectivity. A larger catalogue is not evidence of a healthier or more complete feed.</p>
     {active && <InspectorHost open onClose={() => setInspected(null)} content={{
       type: 'custom', title: `${active.project}.${active.dataset}`, value: active.totalObjects, unit: 'registered objects', scope,
       definition: {
@@ -57,5 +58,5 @@ export default function CatalogueDatasetExplorer({ datasets, onBrowse, selectedD
       </dl><p>Snapshot and generated-at timestamps describe catalogue metadata; neither establishes source freshness.</p>
       <button type="button" className="cx-admin-text-button" aria-label={`Browse ${active.project}.${active.dataset} schema`} onClick={() => { setInspected(null); onBrowse(active); }}>Browse schema <ArrowUpRight size={13} aria-hidden="true" /></button></div>,
     }} />}
-  </section>;
+  </ChartFrame>;
 }

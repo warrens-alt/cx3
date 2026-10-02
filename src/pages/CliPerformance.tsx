@@ -267,19 +267,19 @@ export default function CliPerformance() {
     const contacts = parseInt(s.contactCount, 10) || 0;
     const sales = parseInt(s.saleCount, 10) || 0;
     const stages: Array<{ stage: string; count: number; pct: number; color: string }> = [
-      { stage: 'Total Calls', count: calls, pct: 100, color: '#315BCB' },
+      { stage: 'Total Calls', count: calls, pct: 100, color: 'var(--cx-data-dialled)' },
     ];
     if (s.answeredCount !== null) {
       const answered = parseInt(s.answeredCount, 10) || 0;
-      stages.push({ stage: 'Answered', count: answered, pct: calls > 0 ? Number(((answered / calls) * 100).toFixed(1)) : 0, color: '#4F84DC' });
+      stages.push({ stage: 'Answered', count: answered, pct: calls > 0 ? Number(((answered / calls) * 100).toFixed(1)) : 0, color: 'var(--cx-neutral)' });
     }
     stages.push(
-      { stage: 'Right Party Contact', count: contacts, pct: calls > 0 ? Number(((contacts / calls) * 100).toFixed(1)) : 0, color: '#2563EB' },
-      { stage: 'Sales Recorded', count: sales, pct: calls > 0 ? Number(((sales / calls) * 100).toFixed(1)) : 0, color: '#059669' },
+      { stage: 'Right Party Contact', count: contacts, pct: calls > 0 ? Number(((contacts / calls) * 100).toFixed(1)) : 0, color: 'var(--cx-data-rpc)' },
+      { stage: 'Sales Recorded', count: sales, pct: calls > 0 ? Number(((sales / calls) * 100).toFixed(1)) : 0, color: 'var(--cx-data-sales)' },
     );
     if (s.activations !== null) {
       const activations = parseInt(s.activations, 10) || 0;
-      stages.push({ stage: 'Activations', count: activations, pct: calls > 0 ? Number(((activations / calls) * 100).toFixed(1)) : 0, color: '#10B981' });
+      stages.push({ stage: 'Activations', count: activations, pct: calls > 0 ? Number(((activations / calls) * 100).toFixed(1)) : 0, color: 'var(--cx-data-activation)' });
     }
     return stages;
   }, [data?.summary]);
@@ -293,7 +293,7 @@ export default function CliPerformance() {
     <AnalyticsPageLayout className="cx-cli-page" title="Caller ID" header={<OperationalPageHeader
           eyebrow="Contact"
           title="Caller ID"
-          description="Compare outbound caller-ID delivery, RPC, conversation depth and recorded downstream outcomes without inventing unavailable telephony fields."
+          description="Caller-ID delivery, contact and recorded outcomes."
           status={isImported ? 'IMPORTED_REPORT' : isSchemaUnavailable ? 'SCHEMA_GAP' : data?.metadata.validationStatus || 'NOT_VERIFIED'}
           statusLabel="CLI source"
           actions={

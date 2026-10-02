@@ -1,3 +1,4 @@
+import TelemetryRail from '../shared/visuals/TelemetryRail';
 import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
 import React from 'react';
 import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, GitBranch, GitFork, Route } from 'lucide-react';
@@ -23,7 +24,7 @@ export default function RoutingIntelligence() {
     <AnalyticsPageLayout className="cx-routing-page" title="Routing" header={<OperationalPageHeader
           eyebrow="Routing"
           title="Routing"
-          description="Understand routing depth, partner handoffs, repeated delivery journeys and the records that fail to produce a matched vendor transaction."
+          description="Routing depth, partner handoffs and unmatched transactions."
           status="NOT_VERIFIED"
           statusLabel="Legacy routing analytics"
           actions={
@@ -41,7 +42,7 @@ export default function RoutingIntelligence() {
           const { overview, depthBreakdown = [], partnerHandoff = [], topRoutePaths = [], missingSample = [] } = data;
           return (
             <>
-              <section className="cx-command-metrics cx-routing-metrics">
+              <TelemetryRail label="RoutingIntelligence key measures">
                 <article className="cx-command-metric flex flex-col justify-between">
                   <div>
                     <span>Routed leads</span>
@@ -111,7 +112,7 @@ export default function RoutingIntelligence() {
                     </Link>
                   </div>
                 </article>
-              </section>
+              </TelemetryRail>
 
               <div className="cx-analytics-visual-grid">
                 <VolumeRateComboChart
@@ -238,10 +239,10 @@ export default function RoutingIntelligence() {
                 ) : <div className="cx-command-empty"><CheckCircle2 size={17}/>No unmatched routing sample was returned for this scope.</div>}
               </section>
 
-              <section className="cx-command-shortcuts">
-                <Link to={scoped('/exceptions')}><AlertTriangle size={16}/><span><strong>Exceptions</strong><small>Review operational populations needing attention</small></span><ArrowRight size={14}/></Link>
-                <Link to={scoped('/lead-explorer')}><Clock3 size={16}/><span><strong>Explore leads</strong><small>Inspect record-level timelines</small></span><ArrowRight size={14}/></Link>
-              </section>
+              <nav className="cx-next-analyses" aria-label="Next analyses"><strong>Next analyses</strong>
+                <Link to={scoped('/exceptions')}><AlertTriangle size={16}/><span><strong>Exceptions</strong></span><ArrowRight size={14}/></Link>
+                <Link to={scoped('/lead-explorer')}><Clock3 size={16}/><span><strong>Explore leads</strong></span><ArrowRight size={14}/></Link>
+              </nav>
             </>
           );
         })()}

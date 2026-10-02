@@ -2,6 +2,8 @@ import React, { useDeferredValue, useMemo, useState } from 'react';
 import { ShieldCheck, Layers3, Palette, ArrowUpRight, ArrowDownRight, Minus, Download, Filter, Clock3, X, Table as TableIcon, BarChart2, Search, ArrowRight } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
+import TelemetryRail from '../shared/visuals/TelemetryRail';
+import ChartTooltip from '../shared/visuals/ChartTooltip';
 import ReportingScopeBar from '../shared/reporting/ReportingScopeBar';
 import { DataState } from '../components/DataState';
 import VettingChart from '../components/visuals/VettingChart';
@@ -51,14 +53,14 @@ function Scorecard({title,rows,report}:{title:string;rows:VettingGroup[];report:
             )}
           </div>
         </label>
-        <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
+        <div className="cx-segmented-control">
           <button
             type="button"
             onClick={() => setViewMode('table')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium rounded-md transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs tabular-nums font-medium rounded-md transition-all ${
               viewMode === 'table'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                ? 'bg-[var(--cx-selected-bg)] text-action'
+                : 'text-text-sec hover:text-text-main hover:bg-surface-subtle'
             }`}
           >
             <TableIcon className="w-3.5 h-3.5" />
@@ -67,10 +69,10 @@ function Scorecard({title,rows,report}:{title:string;rows:VettingGroup[];report:
           <button
             type="button"
             onClick={() => setViewMode('graph')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium rounded-md transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs tabular-nums font-medium rounded-md transition-all ${
               viewMode === 'graph'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                ? 'bg-[var(--cx-selected-bg)] text-action'
+                : 'text-text-sec hover:text-text-main hover:bg-surface-subtle'
             }`}
           >
             <BarChart2 className="w-3.5 h-3.5" />
@@ -90,12 +92,12 @@ function Scorecard({title,rows,report}:{title:string;rows:VettingGroup[];report:
         <div className="vetting-pagination"><button type="button" onClick={()=>setPage(n=>Math.max(0,n-1))} disabled={!pageIndex}>Previous groups</button><span>{matches.length?`${pageIndex*25+1}–${Math.min(pageIndex*25+25,matches.length)}`:'0'} of {matches.length} · exports include all {rows.length} groups</span><button type="button" onClick={()=>setPage(n=>n+1)} disabled={(pageIndex+1)*25>=matches.length}>Next groups</button></div>
       </>
     ) : (
-      <div className="p-4 bg-white rounded-lg border border-slate-200 mt-3">
+      <div className="pt-4 mt-3">
         <div className="h-[320px] min-h-[320px] w-full">
           {!matches.length ? (
-            <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
-              <span className="font-medium text-slate-600 mb-1">No matching vetting groups to graph.</span>
-              <span className="text-[11px] text-slate-400">Try adjusting your scorecard search.</span>
+            <div className="h-full w-full flex flex-col items-center justify-center text-xs text-text-mute bg-surface-subtle rounded-lg border border-dashed border-border p-4">
+              <span className="font-medium text-text-sec mb-1">No matching vetting groups to graph.</span>
+              <span className="text-[11px] text-text-mute">Try adjusting your scorecard search.</span>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
@@ -109,39 +111,22 @@ function Scorecard({title,rows,report}:{title:string;rows:VettingGroup[];report:
                 }))}
                 margin={{ top: 20, right: 30, left: 10, bottom: 50 }}
               >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" angle={-20} textAnchor="end" height={50} interval={0} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} stroke="#cbd5e1" tickFormatter={(v) => Number(v).toLocaleString()} axisLine={false} tickLine={false} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-surface-subtle)" />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--cx-text-muted)' }} stroke="var(--cx-border)" angle={-20} textAnchor="end" height={50} interval={0} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: 'var(--cx-text-muted)' }} stroke="var(--cx-border)" tickFormatter={(v) => Number(v).toLocaleString()} axisLine={false} tickLine={false} />
                 <Tooltip
                   content={({ active, payload, label }) => {
                     if (!active || !payload?.length) return null;
-                    return (
-                      <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg p-3 text-xs min-w-[190px] ring-1 ring-black/5 dark:ring-white/5 font-mono">
-                        <div className="font-semibold text-slate-800 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1 mb-2">
-                          {label}
-                        </div>
-                        <div className="space-y-1.5">
-                          {payload.map((entry: any, idx: number) => (
-                            <div key={idx} className="flex items-center justify-between gap-3">
-                              <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 font-sans">
-                                <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ backgroundColor: entry.fill }} />
-                                <span>{entry.name}</span>
-                              </span>
-                              <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">
-                                {Number(entry.value || 0).toLocaleString()}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
+                    return <ChartTooltip title={label} rows={payload.map((entry: any) => ({
+                      label: entry.name, color: entry.fill, value: Number(entry.value || 0).toLocaleString(),
+                    }))} />;
                   }}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                <Bar dataKey="leads" name="Included Leads" fill="#4F5FB7" radius={[3, 3, 0, 0]} isAnimationActive={false} />
-                <Bar dataKey="delivered" name="Delivered" fill="#0E7490" radius={[3, 3, 0, 0]} isAnimationActive={false} />
-                <Bar dataKey="called" name="Dialled" fill="#7153A3" radius={[3, 3, 0, 0]} isAnimationActive={false} />
-                <Bar dataKey="sales" name="Sales" fill="#426D80" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="leads" name="Included Leads" fill="var(--cx-data-fetched)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="delivered" name="Delivered" fill="var(--cx-data-delivered)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="called" name="Dialled" fill="var(--cx-data-dialled)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+                <Bar dataKey="sales" name="Sales" fill="var(--cx-data-sales)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -150,9 +135,12 @@ function Scorecard({title,rows,report}:{title:string;rows:VettingGroup[];report:
     )}
   </details>;
 }
+function VettingScopeNote({ report }: { report: VettingReport }) {
+  return <span className="cx-compact-scope-text">Qualification capture: {report.scope?.startDate || 'Not supplied'} – {report.scope?.endDate || 'Not supplied'} · Class: {report.scope?.classValue || 'All'} · Colour: {report.scope?.colourValue || 'All'}</span>;
+}
 function Movement({report,section}:{report:VettingReport;section:'class'|'colour'}){
   const changes=classMovement(report,section);
-  return <VettingChart title={`${section==='class'?'Class':'Colour'} mix: current vs previous`} description={`Same ${report.scope?.days ?? 0}-day capture windows and filters. Different follow-up time can affect outcomes. Missing categories in a complete returned window have a measured count of zero.`}
+  return <VettingChart scopeNote={<VettingScopeNote report={report} />} title={`${section==='class'?'Class':'Colour'} mix: current vs previous`} description={`Same ${report.scope?.days ?? 0}-day capture windows and filters. Different follow-up time can affect outcomes. Missing categories in a complete returned window have a measured count of zero.`}
     rows={changes.map(c=>({...c,label:c.key}))} series={[{key:'current',label:'Current Included Leads'},{key:'previous',label:'Previous Included Leads'}]} initial="column"/>;
 }
 function Matrix({report,measure,onSelect}:{report:VettingReport;measure:string;onSelect:(c:string,k:string)=>void}){
@@ -228,7 +216,7 @@ export default function Vetting(){
       <p className="vetting-response-scope"><strong>Included leads: {exactLabel(data?.current?.leads)}</strong><span>Selected class: {classValue||'All'} · Selected colour: {colourValue||'All'} · Current vs {data?.scope?.previousStart || '—'}–{data?.scope?.previousEnd || '—'}</span></p>
       {(!data?.fields?.leadClass?.available||!data?.fields?.leadColour?.available)&&<div className="vetting-warning" role="status">{!data?.fields?.leadClass?.available?'Class field unavailable. ':''}{!data?.fields?.leadColour?.available?'Colour field unavailable. ':''}Result coverage remains unavailable; missing mappings are not measured failed leads.</div>}
       {tab==='overview'&&<>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 my-3">
+        <TelemetryRail label="Qualification measures">
           {([
             ['leads', 'Included Leads', 'classes'],
             ['classRecorded', 'Class Result Recorded', 'classes'],
@@ -256,31 +244,31 @@ export default function Vetting(){
               />
             );
           })}
-        </div>
-        <div className="vetting-two"><VettingChart title="Class lead distribution" description="Distinct included leads by recorded class. U is retained as a class code, not re-labelled missing or qualified." rows={chartRows(classes)} series={[{key:'leads',label:'Included Leads'}]} disjoint initial="pie" onSelect={setClassValue}/>
-          <VettingChart title="Colour lead distribution" description="Named colours, absent results and unmapped outcomes are separate, mutually exclusive groups." rows={chartRows(colours)} series={[{key:'leads',label:'Included Leads'}]} disjoint initial="donut" onSelect={setColourValue}/></div>
-        <VettingChart title="Capture and vetting coverage trend" description="Capture-dated included leads and their currently recorded classifications. This is not the count of vetting events performed on those dates." rows={trend} series={[{key:'leads',label:'Included Leads'},{key:'classRecorded',label:'Class Result Recorded'},{key:'namedColour',label:'Recognised Colour'}]} ordered initial="line"/>
-        <div className="vetting-two"><VettingChart title="Class outcome comparison" description={selectedMeasure.label+'. Source evidence is not proof that class caused conversion.'} rows={chartRows(classes)} series={[{key:measure,label:selectedMeasure.label}]} unit={selectedMeasure.unit} onSelect={setClassValue}/>
-          <VettingChart title="Colour outcome comparison" description={selectedMeasure.label+'. Failed or missing results are not assigned a colour.'} rows={chartRows(colours)} series={[{key:measure,label:selectedMeasure.label}]} unit={selectedMeasure.unit} onSelect={setColourValue}/></div>
+        </TelemetryRail>
+        <div className="vetting-two"><VettingChart scopeNote={data && <VettingScopeNote report={data} />} title="Class lead distribution" description="Distinct included leads by recorded class. U is retained as a class code, not re-labelled missing or qualified." rows={chartRows(classes)} series={[{key:'leads',label:'Included Leads'}]} disjoint initial="pie" onSelect={setClassValue}/>
+          <VettingChart scopeNote={data && <VettingScopeNote report={data} />} title="Colour lead distribution" description="Named colours, absent results and unmapped outcomes are separate, mutually exclusive groups." rows={chartRows(colours)} series={[{key:'leads',label:'Included Leads'}]} disjoint initial="donut" onSelect={setColourValue}/></div>
+        <VettingChart scopeNote={data && <VettingScopeNote report={data} />} title="Capture and vetting coverage trend" description="Capture-dated included leads and their currently recorded classifications. This is not the count of vetting events performed on those dates." rows={trend} series={[{key:'leads',label:'Included Leads'},{key:'classRecorded',label:'Class Result Recorded'},{key:'namedColour',label:'Recognised Colour'}]} ordered initial="line"/>
+        <div className="vetting-two"><VettingChart scopeNote={data && <VettingScopeNote report={data} />} title="Class outcome comparison" description={selectedMeasure.label+'. Source evidence is not proof that class caused conversion.'} rows={chartRows(classes)} series={[{key:measure,label:selectedMeasure.label}]} unit={selectedMeasure.unit} onSelect={setClassValue}/>
+          <VettingChart scopeNote={data && <VettingScopeNote report={data} />} title="Colour outcome comparison" description={selectedMeasure.label+'. Failed or missing results are not assigned a colour.'} rows={chartRows(colours)} series={[{key:measure,label:selectedMeasure.label}]} unit={selectedMeasure.unit} onSelect={setColourValue}/></div>
       </>}
       {(tab==='classes'||tab==='colours')&&<>
-        <div className="vetting-two"><VettingChart title={tab==='classes'?'Class mix':'Colour mix'} description="Complete included-lead distribution. Select a slice or exact category to filter the complete report." rows={chartRows(tab==='classes'?classes:colours)} series={[{key:'leads',label:'Included Leads'}]} disjoint initial="donut" onSelect={tab==='classes'?setClassValue:setColourValue}/>
-          <VettingChart title="Downstream evidence by classification" description={`${selectedMeasure.label}. All selected HLC outcomes are counted once per included lead.`} rows={chartRows(tab==='classes'?classes:colours)} series={[{key:measure,label:selectedMeasure.label}]} unit={selectedMeasure.unit} initial="bar"/></div>
+        <div className="vetting-two"><VettingChart scopeNote={data && <VettingScopeNote report={data} />} title={tab==='classes'?'Class mix':'Colour mix'} description="Complete included-lead distribution. Select a slice or exact category to filter the complete report." rows={chartRows(tab==='classes'?classes:colours)} series={[{key:'leads',label:'Included Leads'}]} disjoint initial="donut" onSelect={tab==='classes'?setClassValue:setColourValue}/>
+          <VettingChart scopeNote={data && <VettingScopeNote report={data} />} title="Downstream evidence by classification" description={`${selectedMeasure.label}. All selected HLC outcomes are counted once per included lead.`} rows={chartRows(tab==='classes'?classes:colours)} series={[{key:measure,label:selectedMeasure.label}]} unit={selectedMeasure.unit} initial="bar"/></div>
         <Movement report={data} section={tab==='classes'?'class':'colour'}/>
-        <VettingChart title="Selected classification over time" description="Use the class/colour selectors above to isolate a category. Empty source periods are not manufactured. Outcome shares use the included leads in each capture period." rows={trend} series={[{key:measure,label:selectedMeasure.label}]} unit={selectedMeasure.unit} ordered initial="line"/>
+        <VettingChart scopeNote={data && <VettingScopeNote report={data} />} title="Selected classification over time" description="Use the class/colour selectors above to isolate a category. Empty source periods are not manufactured. Outcome shares use the included leads in each capture period." rows={trend} series={[{key:measure,label:selectedMeasure.label}]} unit={selectedMeasure.unit} ordered initial="line"/>
         <Scorecard title={tab==='classes'?'Class leads':'Colour leads'} rows={tab==='classes'?classes:colours} report={data}/>
       </>}
       {tab==='matrix'&&<><Matrix report={data} measure={measure} onSelect={choose}/><Scorecard title="Class by colour cross-tab" rows={selectedGroups(data,'matrix')} report={data}/></>}
       {tab==='sources'&&<>
         <label className="vetting-breakdown-select">Break down by<select aria-label="Vetting segment dimension" value={sourceAxis} onChange={e=>setSourceAxis(e.target.value as any)}><option value="source">Lead source</option><option value="vendor">HLC vendor</option></select></label>
         <p className="vetting-warning">{sourceAxis==='vendor'?'A lead can appear under several vendors. Vendor totals must not be summed into unique leads. Each vendor’s outcome counts use only its own HLC records.':'Source/class and source/colour pairs partition the selected included leads; each returned pair remains a separate point.'}</p>
-        <div className="vetting-two"><VettingChart title="Segment × class performance" description={selectedMeasure.label} rows={chartRows(sourceClassRows)} series={[{key:measure,label:selectedMeasure.label}]} unit={selectedMeasure.unit}/><VettingChart title="Segment × colour performance" description={selectedMeasure.label} rows={chartRows(sourceColourRows)} series={[{key:measure,label:selectedMeasure.label}]} unit={selectedMeasure.unit}/></div>
+        <div className="vetting-two"><VettingChart scopeNote={data && <VettingScopeNote report={data} />} title="Segment × class performance" description={selectedMeasure.label} rows={chartRows(sourceClassRows)} series={[{key:measure,label:selectedMeasure.label}]} unit={selectedMeasure.unit}/><VettingChart scopeNote={data && <VettingScopeNote report={data} />} title="Segment × colour performance" description={selectedMeasure.label} rows={chartRows(sourceColourRows)} series={[{key:measure,label:selectedMeasure.label}]} unit={selectedMeasure.unit}/></div>
         <Scorecard title={`${sourceAxis} class breakdown`} rows={sourceClassRows} report={data}/><Scorecard title={`${sourceAxis} colour breakdown`} rows={sourceColourRows} report={data}/>
       </>}
       {tab==='coverage'&&<>
-        <VettingChart title="Capture-to-vetting delay" description="Elapsed seconds, using non-negative source timestamps no later than query time. Median and 90th percentile use exact warehouse percentile calculations, not business-hours adjustment." rows={['Class','Colour'].map(kind=>({label:kind,...(data?.timing || []).find(r=>r.kind===kind)}))} series={[{key:'meanSeconds',label:'Mean Seconds'},{key:'medianSeconds',label:'Median Seconds'},{key:'p90Seconds',label:'90th Percentile Seconds'}]} unit="seconds" initial="column"/>
-        <div className="vetting-two"><VettingChart title="Class timestamp quality" description="These counts are source timestamp conditions, not a pass/fail score. Absent fields remain unavailable." rows={(['classTimed','classBeforeCapture','classInvalidTime','classFutureTime'] as VettingMetric[]).map(k=>({label:VETTING_METRICS[k],count:data?.current?.[k]}))} series={[{key:'count',label:'Included Leads'}]}/>
-          <VettingChart title="Colour timestamp quality" description="A colour-vetting result can be present without a usable completion timestamp." rows={(['colourTimed','colourBeforeCapture','colourInvalidTime','colourFutureTime'] as VettingMetric[]).map(k=>({label:VETTING_METRICS[k],count:data?.current?.[k]}))} series={[{key:'count',label:'Included Leads'}]}/></div>
+        <VettingChart scopeNote={data && <VettingScopeNote report={data} />} title="Capture-to-vetting delay" description="Elapsed seconds, using non-negative source timestamps no later than query time. Median and 90th percentile use exact warehouse percentile calculations, not business-hours adjustment." rows={['Class','Colour'].map(kind=>({label:kind,...(data?.timing || []).find(r=>r.kind===kind)}))} series={[{key:'meanSeconds',label:'Mean Seconds'},{key:'medianSeconds',label:'Median Seconds'},{key:'p90Seconds',label:'90th Percentile Seconds'}]} unit="seconds" initial="column"/>
+        <div className="vetting-two"><VettingChart scopeNote={data && <VettingScopeNote report={data} />} title="Class timestamp quality" description="These counts are source timestamp conditions, not a pass/fail score. Absent fields remain unavailable." rows={(['classTimed','classBeforeCapture','classInvalidTime','classFutureTime'] as VettingMetric[]).map(k=>({label:VETTING_METRICS[k],count:data?.current?.[k]}))} series={[{key:'count',label:'Included Leads'}]}/>
+          <VettingChart scopeNote={data && <VettingScopeNote report={data} />} title="Colour timestamp quality" description="A colour-vetting result can be present without a usable completion timestamp." rows={(['colourTimed','colourBeforeCapture','colourInvalidTime','colourFutureTime'] as VettingMetric[]).map(k=>({label:VETTING_METRICS[k],count:data?.current?.[k]}))} series={[{key:'count',label:'Included Leads'}]}/></div>
         <section className="vetting-diagnostics enterprise-card"><h2>Source quality before report filters</h2><p>Capture-window inspection precedes class, colour, source and vendor selections. Conflicting lead projections are excluded instead of choosing an arbitrary record.</p>{(data?.diagnostics || []).map(d=><article key={d.period}><h3>{d.period==='current'?'Current capture window':'Previous capture window'}</h3><dl>{[['Source rows',d.sourceRows],['Missing-ID rows excluded',d.missingIdRows],['Conflicting lead IDs',d.conflictingLeads],['Conflicting rows excluded',d.conflictingRows],['Repeated rows collapsed',d.duplicateRowsCollapsed],['Eligible unique leads before filters',d.eligibleUniqueLeads]].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{exactLabel(value)}</dd></div>)}</dl></article>)}</section>
         <Scorecard title="Raw class results" rows={selectedGroups(data,'rawClass')} report={data}/><Scorecard title="Raw colour-vetting results" rows={selectedGroups(data,'rawColour')} report={data}/>
       </>}

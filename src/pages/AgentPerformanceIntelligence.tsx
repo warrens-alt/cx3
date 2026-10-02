@@ -1,3 +1,6 @@
+import ChartFrame from '../shared/visuals/ChartFrame';
+import ReportingScopeSummary from '../shared/reporting/ReportingScopeSummary';
+import TelemetryRail from '../shared/visuals/TelemetryRail';
 import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
 import { ReportSkeleton } from '../components/OperationalState';
 import TablePreview from '../shared/reporting/TablePreview';
@@ -100,7 +103,7 @@ export default function AgentPerformanceIntelligence() {
     <AnalyticsPageLayout className="cx-agent-page" title="Agent activity" header={<OperationalPageHeader
           eyebrow="Contact"
           title="Agent activity"
-          description="Observed dialler calls and call outcomes by agent. CX3 does not assign performance scores or tiers."
+          description="Recorded calls and outcomes by agent."
           status={data?.rankingStatus || 'NOT_VERIFIED'}
           statusLabel="Ranking status"
         />} scope={<OffernetFilterBar
@@ -115,7 +118,7 @@ export default function AgentPerformanceIntelligence() {
 
         {data && (
           <>
-            <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6" aria-label="Agent performance metrics">
+            <TelemetryRail label="Agent performance metrics">
               <UnifiedMetricCard
                 label="Agents Observed"
                 value={totals.agents.toLocaleString()}
@@ -151,11 +154,10 @@ export default function AgentPerformanceIntelligence() {
                 onInspect={() => setAudit({ type: 'metric', title: 'Sale calls in returned roster', value: formatTableNumber(totals.sales), scope: auditScope, definition: { meaning: 'Sum of recorded sale call counts across the displayed agent/vendor roster. The contextual sold-RPC rate uses calls marked both RPC and sale.', grain: 'Call event', dateBasis: 'Call start date', nullMeaning: 'Missing call outcomes remain unavailable.' }, provenance: suppliedProvenance(data) })}
                 inspectLabel="Inspect evidence"
               />
-            </section>
+            </TelemetryRail>
 
             <AuditMetadata grain="Call event" dateBasis="Call start date" validationStatus={suppliedProvenance(data).validationStatus} />
-            <section className="cx-command-panel cx-agent-comparison" aria-label="Agent comparison">
-              <div className="cx-viz-toolbar">
+            <ChartFrame title="Agent activity comparison" className="cx-agent-comparison" scope={<><ReportingScopeSummary />{search && <span className="cx-compact-scope-text">Displayed roster search: {search} · {filtered.length} matching rows</span>}</>} header={<div className="cx-viz-toolbar">
                 <div>
                   <span className="cx-command-section-kicker">Compare roster</span>
                   <h2>Agent activity comparison</h2>
@@ -166,8 +168,8 @@ export default function AgentPerformanceIntelligence() {
                   <button type="button" aria-pressed={agentMetric === 'contactRate'} data-active={agentMetric === 'contactRate'} onClick={() => setAgentMetric('contactRate')}>RPC rate</button>
                   <button type="button" aria-pressed={agentMetric === 'saleRate'} data-active={agentMetric === 'saleRate'} onClick={() => setAgentMetric('saleRate')}>Sold RPC / RPC</button>
                 </div>
-              </div>
-              <EvidenceBars
+              </div>}>
+              <EvidenceBars hideHeading
                 title={agentMetric === 'calls' ? 'Recorded calls by agent' : agentMetric === 'contactRate' ? 'RPC / calls by agent' : 'Sold RPC / RPC by agent'}
                 description="Top 12 displayed agent/vendor rows for the selected metric. Select a row to inspect its supplied count or rate evidence."
                 items={agentComparison}
@@ -178,11 +180,11 @@ export default function AgentPerformanceIntelligence() {
                   if (item) setAudit(agentAudit(item.sourceRow, agentMetric, auditScope, data));
                 }}
               />
-            </section>
+            </ChartFrame>
 
             <VolumeRateComboChart
               title="Agent call volume and RPC rate"
-              subtitle="Top observed agent/vendor groups by call volume. This is descriptive and does not assign performance scores."
+              subtitle="Top observed agent/vendor groups by call volume. This is descriptive and does not assign performance scores or tiers."
               data={[...filtered].sort((a, b) => b.totalCalls - a.totalCalls).slice(0, 12).map(row => ({
                 label: row.vendor ? `${row.agentId} · ${row.vendor}` : row.agentId,
                 calls: row.totalCalls,
