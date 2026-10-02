@@ -1,3 +1,9 @@
+import InvestigationContextBar from '../features/investigation/InvestigationContextBar';
+import DriverAnalysis from '../features/investigation/DriverAnalysis';
+import EvidenceConfidence from '../features/investigation/EvidenceConfidence';
+import EvidenceTray, { useEvidenceTray } from '../features/investigation/EvidenceTray';
+import InvestigationAI from '../features/investigation/InvestigationAI';
+import { investigationPath, investigationRequest, clearInvestigationParams } from '../features/investigation/investigationModel';
 import { ReportSkeleton } from '../components/OperationalState';
 import { ReportActions } from '../shared/reporting/ReportPresentation';
 import { useOperationalData } from '../lib/useOperationalData';
@@ -28,7 +34,6 @@ const fmt = (value: number | string | null | undefined) => formatTableNumber(val
 
 export default function Exceptions() {
   const scoped = useScopedNavigationTarget();
-  const controls = useOperatingControls();
   const { selectedClient } = useClient();
   const { isAdmin } = useAuth();
   const { startDate, endDate, filters } = useFilters();
@@ -37,27 +42,37 @@ export default function Exceptions() {
   useEffect(() => setAudit(null), [selectedClient, startDate, endDate, filters]);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { pin, items: pinnedEvidence } = useEvidenceTray();
+  const activeDrill = searchParams.get('drill');
+  const activeMetric = searchParams.get('investigationMetric');
+  const showOverview = !activeDrill && !activeMetric;
+  const controls = useOperatingControls(showOverview);
+  const startInvestigation = (drill: string) => navigate(investigationPath('/investigate', searchParams, { drill, drillValue: null, investigationMetric: null, search: null }));
 
   const { data, loading, error, loadData } = useOperationalData<OverviewData>('Exceptions', {
     clientId: selectedClient,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
     ...extractOffernetFilters(filters),
-  }, fetchOverview);
+  }, fetchOverview, showOverview);
 
   const queue = useOperationalData<ExceptionAnalyticsData>('exception-populations', {
     clientId: selectedClient, startDate: startDate || undefined, endDate: endDate || undefined,
     ...extractOffernetFilters(filters),
+    ...investigationRequest(searchParams),
   }, fetchExceptions);
+
+  const selectedException = !queue.error ? queue.data?.exceptions.find(item => item.id === activeDrill) : undefined;
 
   const recordLink = (drill: string, drillValue?: string, extra?: Record<string, string>) => {
     const next = new URLSearchParams(searchParams);
     next.delete('drill');
     next.delete('drillValue');
     next.delete('search');
+    next.delete('leadId');
     next.set('drill', drill);
     if (drillValue) next.set('drillValue', drillValue);
-    if (extra) Object.entries(extra).forEach(([key, value]) => next.set(key, value));
+    if (extra) Object.entries(extra).forEach(([key, value]) => next.set(({ vendor: 'segmentVendor', source: 'segmentSource', grade: 'segmentGrade' } as Record<string, string>)[key] || key, value));
     if (selectedClient && !next.has('clientId')) next.set('clientId', selectedClient);
     if (startDate && !next.has('startDate')) next.set('startDate', startDate);
     if (endDate && !next.has('endDate')) next.set('endDate', endDate);
@@ -83,21 +98,34 @@ export default function Exceptions() {
       <div className="cx-command-content">
         <header className="cx-command-hero">
           <div>
-            <span className="cx-command-eyebrow">Operational inbox</span>
-            <h1>Exceptions</h1>
-            <p>Current populations that require investigation or operational follow-up in the selected scope.</p>
+            <h1>Investigation inbox</h1>
+            <p>Find a signal, diagnose the affected population, and follow its records to supporting evidence.</p>
           </div>
           <ReportActions aboutContent={<p>Operational rules: {queue.data?.validationStatus || data?.validationStatus || 'NOT_VERIFIED'}</p>} />
 </header>
-      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), queue.loadData(true), controls.refetch()]); }} />
-        <nav className="cx-viz-jump-nav" aria-label="Investigation sections"><a href="#exception-workbench">Exception workbench</a><a href="#exception-backlog">Backlog & vendors</a></nav>
+      <OffernetFilterBar onRefresh={async () => { await Promise.all([queue.loadData(true), ...(showOverview ? [loadData(true), controls.refetch()] : [])]); }} />
+        <div className="cx-investigation-workflow" aria-label="Investigation workflow">{['Signal', 'Diagnose', 'Segment', 'Records', 'Evidence', 'Conclusion'].map(step => <span key={step}>{step}</span>)}</div>
+        <InvestigationContextBar evidenceCount={pinnedEvidence.length} populationCount={selectedException?.count} validationStatus={queue.data?.validationStatus} loading={queue.loading} receivedAt={queue.receivedAt} />
+        <nav className="cx-investigation-starts" aria-label="Start an investigation">
+          <Link to={investigationPath('/investigate', clearInvestigationParams(searchParams), { investigationMetric: 'fetchedLeads', search: null })}>What changed?<ArrowRight size={14}/></Link>
+          <Link to={investigationPath('/investigate', clearInvestigationParams(searchParams), { drill: 'awaiting-first-dial', search: null })}>Where are leads getting stuck?<ArrowRight size={14}/></Link>
+          <a href="#exception-workbench">Which exceptions need attention?<ArrowRight size={14}/></a>
+          <Link to={investigationPath('/investigate', clearInvestigationParams(searchParams), { investigationMetric: 'leadToSaleRate', search: null })}>Which vendor or source contributes most?<ArrowRight size={14}/></Link>
+          {isAdmin && <Link to={investigationPath('/lead-explorer', clearInvestigationParams(searchParams), { search: null })}>Find a specific lead<ArrowRight size={14}/></Link>}
+          <Link to={investigationPath('/data-integrity', searchParams)}>Can I trust this evidence?<ArrowRight size={14}/></Link>
+        </nav>
+        {(activeDrill || activeMetric) && <><DriverAnalysis exceptionData={activeMetric ? undefined : queue.data} exceptionError={queue.error} onPin={item => pin(item, { validationStatus: queue.data?.validationStatus || 'NOT_VERIFIED' })} />
+          {isAdmin && <p className="mb-4"><Link className="cx-button-primary" to={investigationPath('/lead-explorer', searchParams)}>Inspect affected records<ArrowRight size={14}/></Link></p>}
+          <EvidenceConfidence />
+        </>}
+        <nav className="cx-viz-jump-nav" aria-label="Investigation sections"><a href="#exception-workbench">Exception workbench</a>{!(activeDrill || activeMetric) && <a href="#exception-backlog">Backlog & vendors</a>}</nav>
 
         {(error || queue.error) && <div role="alert" className="cx-command-error"><AlertTriangle size={17} />{error || queue.error}</div>}
         {(!data && !queue.data && (loading || queue.loading)) ? (
           <ReportSkeleton label="Loading exception populations" metricCount={3} />
         ) : (
           <>
-            <section className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6" aria-label="Exceptions summary metrics">
+            {!(activeDrill || activeMetric) && <section className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6" aria-label="Exceptions summary metrics">
               <UnifiedMetricCard
                 label="Active Exception Types"
                 value={queue.loading && !queue.data ? '…' : queue.error || !queue.data ? 'Unavailable' : ordered.length}
@@ -124,7 +152,7 @@ export default function Exceptions() {
                 onInspect={() => setAudit({ type: 'metric', title: '15-minute response SLA', value: formatPercent(data?.sla?.complianceRate), scope: auditScope, definition: { meaning: 'Delivered leads dialled within the configured response target, as reported by the existing SLA measure.', dateBasis: 'Lead capture cohort', nullMeaning: 'Unavailable SLA evidence is not zero compliance.' }, provenance: suppliedProvenance(data), reportPath: '/speed-to-lead', detailLimitation: 'This aggregate does not supply a matching compliance record drill or ratio component counts.' })}
                 inspectLabel="Inspect evidence"
               />
-            </section>
+            </section>}
 
             <AuditMetadata grain="Distinct lead per exception" dateBasis="Lead capture cohort" validationStatus={queue.data?.validationStatus} />
             {queue.loading && !queue.data ? (
@@ -134,6 +162,8 @@ export default function Exceptions() {
               </div>
             ) : ordered.length > 0 ? (
               !queue.error && <ExceptionWorkbench key={JSON.stringify([selectedClient, startDate, endDate, filters])}
+                onInvestigate={item => startInvestigation(item.id)}
+                activeId={activeDrill || undefined}
                 onInspect={item => setAudit(exceptionAudit(item, auditScope, queue.data))}
                 items={ordered} isAdmin={isAdmin} populationNote={queue.data?.populationNote}
                 evidenceHref={id => isAdmin ? recordLink(id) : scoped('/data-integrity')} />
@@ -141,7 +171,7 @@ export default function Exceptions() {
               <div className="cx-command-empty" role="status">No configured operational exception currently has an affected population.</div>
             ) : null}
 
-            {controls.data && <ContactGovernancePanel
+            {!(activeDrill || activeMetric) && controls.data && <ContactGovernancePanel
               data={controls.data}
               highAttemptHref={isAdmin ? recordLink('high-attempt-no-rpc') : undefined}
               oneCallHref={isAdmin ? recordLink('one-call-only') : undefined}
@@ -164,7 +194,7 @@ export default function Exceptions() {
                 <ExportAnalysisButton filename="exception_populations" rows={[
                   ['Exception', 'Count', 'Previous cohort', 'Absolute change', 'Change (%)', 'Severity', 'Definition'],
                   ...(queue.data.exceptions || []).map(item => [item.title, item.count, item.previousCount, item.absoluteChange, item.percentageChange, item.severity, item.detail]),
-                ]} definitions={queue.data.populationNote} validationStatus={queue.data.validationStatus} />
+                ]} definitions={`${queue.data.populationNote} Investigation narrowing: ${JSON.stringify(investigationRequest(searchParams))}. Queue populations retain independent exception predicates.`} validationStatus={queue.data.validationStatus} />
               </div>}
               {queue.loading && !queue.data ? (
                 <div className="cx-command-loading">Loading exact exception populations…</div>
@@ -202,7 +232,7 @@ export default function Exceptions() {
             </section>
 
             </details>
-            <div id="exception-backlog" className="cx-command-grid cx-command-grid-backlog">
+            {!(activeDrill || activeMetric) && <div id="exception-backlog" className="cx-command-grid cx-command-grid-backlog">
               <section className="cx-command-panel">
                 <header>
                   <div>
@@ -248,9 +278,11 @@ export default function Exceptions() {
                   </div>
                 )}
               </section>
-            </div>
+            </div>}
           </>
         )}
+        <EvidenceTray />
+        <InvestigationAI />
       </div>
       <InspectorHost open={Boolean(audit)} onClose={() => setAudit(null)} content={audit} />
     </div>

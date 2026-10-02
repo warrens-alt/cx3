@@ -291,19 +291,20 @@ export const ROUTE_MANIFEST: RouteItem[] = [
   // --- INVESTIGATE ---
   {
     id: 'exceptions',
-    name: 'Exceptions queue',
-    path: '/exceptions',
+    name: 'Investigation inbox',
+    path: '/investigate',
     description: 'Operational queues needing investigation: backlog, uncontacted, undialled.',
     area: 'investigate',
     icon: AlertTriangle,
     scopePolicy: 'operational',
     isPrimaryTab: true,
-    searchTerms: ['backlog', 'attention', 'missing dispositions'],
+    searchTerms: ['backlog', 'attention', 'missing dispositions', 'exceptions', 'investigation inbox'],
+    urlAliases: ['/exceptions'],
     legacySection: 'exceptions',
   },
   {
     id: 'lead-explorer',
-    name: 'Explore leads',
+    name: 'Record explorer',
     path: '/lead-explorer',
     description: 'Inspect exact lead records, timeline events, and drill populations.',
     area: 'investigate',
@@ -317,7 +318,7 @@ export const ROUTE_MANIFEST: RouteItem[] = [
   },
   {
     id: 'data-integrity',
-    name: 'Data integrity',
+    name: 'Data confidence',
     path: '/data-integrity',
     description: 'Source feed status, completeness, mapping health, and freshness.',
     area: 'investigate',
@@ -505,7 +506,7 @@ export const BUSINESS_AREAS: BusinessArea[] = [
   {
     id: 'investigate',
     name: 'Investigate',
-    landingPath: '/exceptions',
+    landingPath: '/investigate',
     icon: AlertTriangle,
     description: 'Operational exception queues, record-level drilldowns, and source integrity.',
     primaryTabs: ROUTE_MANIFEST.filter(r => r.area === 'investigate' && r.isPrimaryTab),

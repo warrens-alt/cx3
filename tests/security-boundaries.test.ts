@@ -98,7 +98,7 @@ test('record drill-down remains admin-only and drill populations are allow-liste
   assert.match(api, /analyticsRouter\.get\('\/offernet\/raw-leads', requireAdmin/);
   assert.match(analytics, /Unsupported drill-down population/);
   for (const drill of ['awaiting-first-dial', 'missing-disposition', 'unactivated-sales', 'sla-breach', 'backlog-age', 'funnel-loss', 'funnel-stage', 'lead-age', 'high-attempt-no-rpc', 'one-call-only']) {
-    assert.ok(analytics.includes(`case '${drill}':`), `missing drill allow-list entry: ${drill}`);
+    assert.ok(analytics.includes(`case '${drill}':`) || analytics.includes(`'${drill}':`), `missing shared drill allow-list entry: ${drill}`);
   }
 });
 

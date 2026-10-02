@@ -19,7 +19,7 @@ export function operationalFilterValues(input: Filters | undefined, path: string
   if (['/offernet/campaigns', '/offernet/commercial', '/offernet/marketing-attribution', '/offernet/marketing-root-cause'].includes(path)) {
     for (const dimension of ['campaign', 'channel', 'adset']) allowed.add(dimension);
   }
-  if (path === '/offernet/agent-performance' || path.startsWith('/offernet/lead-timeline/')) {
+  if (path === '/offernet/agent-performance') {
     allowed.clear(); allowed.add('vendor');
     if (path === '/offernet/agent-performance') allowed.add('agent');
   }

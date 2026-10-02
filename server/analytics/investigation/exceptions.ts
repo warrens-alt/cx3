@@ -5,7 +5,9 @@ import { buildFilterClause } from '../common/scope';
 import type { OffernetQueryParams } from '../common/types';
 import type { ExceptionAnalyticsData } from '../../../contracts/exceptionAnalytics';
 import { matchedPeriodWindow, compareMetric } from '../../../contracts/periodComparison';
-import { EXCEPTION_DEFINITIONS, exceptionPredicate } from './exceptionPredicates';
+import { EXCEPTION_DEFINITIONS, exceptionPredicate, buildInvestigationPredicate } from './exceptionPredicates';
+import { buildQualifiedInvestigationEvidence } from './records';
+import { normalizeOperationalParams } from '../../offernetScope';
 import { currentAnalyticsScope } from '../../analyticsContext';
 
 const pendingExceptions = new Map<string, Promise<ExceptionAnalyticsData>>();
@@ -25,16 +27,26 @@ export async function getExceptionAnalytics(params: OffernetQueryParams): Promis
   return pending;
 }
 
-async function loadExceptionAnalytics(params: OffernetQueryParams): Promise<ExceptionAnalyticsData> {
+async function loadExceptionAnalytics(input: OffernetQueryParams): Promise<ExceptionAnalyticsData> {
+  const { params } = normalizeOperationalParams(input, '/offernet/exceptions');
+  // Validate the active drill, but each queue entry keeps its own qualification.
+  // Applying the active predicate to every entry would mislabel overlapping populations.
+  buildInvestigationPredicate(params, {});
   const config = getClientConfig(params.clientId);
   const comparison = matchedPeriodWindow(params.startDate, params.endDate);
   const scope = comparison ? { ...params, startDate: comparison.previous.startDate } : params;
-  const { queryParams } = buildFilterClause(scope);
+  const queueScope = { ...scope, drill: undefined, drillValue: undefined };
+  const { queryParams } = buildFilterClause(queueScope);
+  const narrowing = buildInvestigationPredicate(queueScope, queryParams);
+  const searchedEvidence = params.search ? buildQualifiedInvestigationEvidence(queueScope) : undefined;
+  if (searchedEvidence) Object.assign(queryParams, searchedEvidence.queryParams);
   const [rows] = await getBigQueryClient(config.bigQueryProject).query({
-    query: `WITH ${operationalLeadCtes(scope)}, populations AS (
+    query: `${searchedEvidence ? searchedEvidence.qualifiedSql : `WITH ${operationalLeadCtes(queueScope)}`}, populations AS (
       SELECT m.vendor, m.source, ${comparison ? "IF(DATE(m.fetched_ts, @exceptionTimezone) >= @currentStartDate, 'current', 'previous')" : "'current'"} AS comparison_period,
         [${EXCEPTION_DEFINITIONS.map(item => `STRUCT('${item.id}' AS id, (${exceptionPredicate(item.id)}) AS affected)`).join(',\n')} ] AS exceptions
       FROM operational_leads m
+      ${searchedEvidence ? 'JOIN qualified_evidence search_match USING (lead_id)' : ''}
+      ${narrowing ? `WHERE ${narrowing}` : ''}
     )
     SELECT comparison_period, e.id, vendor, source, COUNT(*) AS affected_count
     FROM populations CROSS JOIN UNNEST(exceptions) e
@@ -49,7 +61,7 @@ async function loadExceptionAnalytics(params: OffernetQueryParams): Promise<Exce
     const breakdown = (dimension: 'vendor' | 'source') => {
       const groups = new Map<string, number>();
       for (const row of current) {
-        const name = String(row[dimension] || 'Unknown');
+        const name = String(row[dimension] ?? (dimension === 'vendor' ? 'Unknown' : '')).trim() || 'Unrecorded';
         groups.set(name, (groups.get(name) || 0) + Number(row.affected_count || 0));
       }
       return [...groups].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));

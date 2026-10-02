@@ -1,5 +1,29 @@
 # ConversionX frontend inventory and verification map
 
+## Current investigation workspace — 2 October 2026
+
+The investigation routes now share an analytical context and evidence workflow. This section supersedes the historical investigation/timeline and navigation descriptions below; the generated [surface inventory](SURFACE-INVENTORY.md) remains authoritative for mounted routes.
+
+| Surface | Current implementation and interaction |
+| --- | --- |
+| `/investigate`, `/exceptions` | `Exceptions` is the Investigation inbox. Start from measured exceptions or supported metric changes; context, descriptive drivers, current concentration, evidence coverage, optional scoped AI and the local evidence tray remain together. |
+| `/lead-explorer` and retained aliases | Record explorer uses `InvestigationRecordList` presets and factual inclusion reasons, with a persistent `LeadDossier`. Global filters, the original drill and additive segment scope are preserved. Pagination/selection reset on scope changes. |
+| Selected lead dossier | Summary, Journey, Calls, Outcomes, Evidence and Source tabs. `LeadJourney`, `buildLedgerTimeline`, and `LeadSourceEvidence` are reused. Source access is admin-only; aggregate calls are explicitly not an attempt history. |
+| `/data-integrity` | Data confidence retains investigation context and explains the tenant-owned source observation boundary. Contextual `EvidenceConfidence` uses the same existing API and status presentation. |
+| `/lead-ledger` | Administrator source/analytical evidence remains available for compatibility and deeper inspection. Dossier source evidence reuses its formatting. |
+| Shared drivers | `DriverAnalysis` renders matched dates, exact returned values, descriptive contribution bars and accessible exact tables. `RootCauseDrawer` delegates to it. Unsupported metrics, dates and record-search scopes do not receive fallback metric analysis. |
+| Shared local evidence | `InvestigationEvidenceProvider` and `EvidenceTray` retain pin scope/provenance locally, clear across workspace/session boundaries, and use existing CSV export utilities. |
+| Shared AI | `InvestigationAI` is an optional, scope-confirmed synthesis surface. Deterministic population results, validation, references and limitations remain visible. |
+
+The context bar distinguishes reporting scope, global filters, investigation predicate and additive narrowing. Narrowing uses `segmentVendor`, `segmentSource`, `segmentGrade`, and delivery-to-first-dial `segmentLeadAge`; these are ANDed with existing globals and the original drill. Session-only dossier selection is not serialized as a lead ID. Back/forward navigation derives the context from the URL and stale responses are hidden for a different request/session.
+
+Primary navigation now separates Operations, Investigate, Evidence & Audit, and Administration. The Investigate tabs are Investigation inbox, Record explorer (admin), and Data confidence; Evidence & Audit contains Evidence reports, Lead ledger (admin), and Vendor evidence. `/exceptions` and existing record/trust aliases remain compatible.
+
+New focused regression coverage includes `investigation-drivers.test.ts` (exact metrics, matched comparison, narrowing, noncausal language and role-safe links), investigation model/reason tests, dossier interaction tests, navigation presentation, and the updated full frontend acceptance harness. Fixture tests are synthetic and do not establish live BigQuery correctness or production authentication.
+
+## Historical frontend audit — 21 September 2026
+
+
 Recorded 21 September 2026. The local frontend baseline was `1f8340d1e6291a7177e9ccd679c9c927755be641`, including the three previously committed audit changes above remote main `7285e7a4b9ae2a6e7c3008bbfc40cd6920691639`. This inventory describes mounted functionality, not a certification of warehouse results.
 
 The browser flow under test is: a scoped route opens → meaningful fixture content renders → local chart/table or inspector controls change the intended view → exact values, query scope and focus are retained. The Browser plugin was not available; the pinned Playwright browser harness was used. No live warehouse data or authentication bypass is involved.

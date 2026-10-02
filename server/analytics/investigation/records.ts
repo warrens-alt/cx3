@@ -5,26 +5,15 @@ import { RequestError } from '../../bigquery/filters';
 import { validTimestampSql } from '../../bigquery/integrity';
 import { buildFilterClause } from '../common/scope';
 import { operationalLeadCtes } from '../common/leadMetrics';
-import { exceptionPredicate } from './exceptionPredicates';
+import { buildInvestigationPredicate } from './exceptionPredicates';
+import { investigationScopeReason } from '../../../contracts/investigation';
 import { METRIC_REGISTRY_VERSION } from '../../../contracts/metricRegistry';
 import { normalizeOperationalParams } from '../../offernetScope';
 import type { OffernetQueryParams } from '../common/types';
 
-const LIFECYCLE_SEGMENT_DIMENSIONS = ['vendor', 'source', 'grade'] as const;
-type LifecycleSegmentDimension = typeof LIFECYCLE_SEGMENT_DIMENSIONS[number];
-
-function isLifecycleSegmentDimension(dimension: string): dimension is LifecycleSegmentDimension {
-  return (LIFECYCLE_SEGMENT_DIMENSIONS as readonly string[]).includes(dimension);
-}
-
-function lifecycleSegmentPredicate(dimension: LifecycleSegmentDimension): string {
-  return `COALESCE(NULLIF(TRIM(m.${dimension}), ''), 'Unrecorded') = @lifecycleSegmentValue`;
-}
-
-export async function getRawLeads(params: OffernetQueryParams) {
+export function buildQualifiedInvestigationEvidence(params: OffernetQueryParams, leadId?: string) {
   const { params: normalizedParams, effectiveFilters, filterValues } = normalizeOperationalParams(params, '/offernet/raw-leads');
   const clientConfig = getClientConfig(normalizedParams.clientId);
-  const client = getBigQueryClient(clientConfig.bigQueryProject);
   const limit = Math.min(Math.max(Number(normalizedParams.limit) || 50, 10), 200);
   const offset = Math.max(Number(normalizedParams.offset) || 0, 0);
   const { whereSql, queryParams } = buildFilterClause(normalizedParams);
@@ -45,111 +34,11 @@ export async function getRawLeads(params: OffernetQueryParams) {
     queryParams.search = `%${normalizedParams.search}%`;
   }
 
-  // These predicates share the exact lead grain and normalized timestamps used by the widgets.
-  const timing = 'TIMESTAMP_DIFF(m.first_call_ts, m.delivered_ts, SECOND)';
-  const wait = 'TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), m.delivered_ts, SECOND)';
-  let drillCondition = '';
-  if (normalizedParams.drill) {
-    const value = normalizedParams.drillValue || '';
-    let condition: string | undefined = exceptionPredicate(normalizedParams.drill);
-    if (!condition) switch (normalizedParams.drill) {
-      case 'awaiting-first-dial': condition = 'm.is_delivered AND NOT m.is_dialled'; break;
-      case 'missing-disposition': condition = 'm.is_dialled AND NOT m.has_disposition'; break;
-      case 'unactivated-sales': condition = 'm.is_sale AND NOT m.is_activated AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), m.sale_ts, DAY) > 14'; break;
-      case 'high-attempt-no-rpc': condition = 'm.recorded_call_count >= 5 AND m.is_rpc IS FALSE'; break;
-      case 'one-call-only': condition = 'm.is_dialled AND m.recorded_call_count = 1'; break;
-      case 'sla-breach': condition = `m.is_delivered AND ((m.is_dialled AND ${timing} > 900) OR (NOT m.is_dialled AND ${wait} > 900))`; break;
-      case 'backlog-age': {
-        const buckets: Record<string, string> = {
-          '0–15m': `${wait} BETWEEN 0 AND 900`,
-          '15–30m': `${wait} > 900 AND ${wait} <= 1800`,
-          '30–60m': `${wait} > 1800 AND ${wait} <= 3600`,
-          '1–6h': `${wait} > 3600 AND ${wait} <= 21600`,
-          '6–12h': `${wait} > 21600 AND ${wait} <= 43200`,
-          '12–24h': `${wait} > 43200 AND ${wait} <= 86400`,
-          '24h+': `${wait} > 86400`,
-        };
-        if (!buckets[value]) throw new RequestError('Unsupported backlog drill bucket', 422);
-        condition = `m.is_delivered AND NOT m.is_dialled AND ${buckets[value]}`;
-        break;
-      }
-      case 'funnel-stage': condition = ({ fetched: 'TRUE', delivered: 'm.is_delivered', dialled: 'm.is_dialled', rpc: 'm.is_rpc', sales: 'm.is_sale', activated: 'm.is_activated' } as Record<string, string>)[value]; break;
-      case 'delivery-age':
-      case 'lead-age': {
-        const timing = normalizedParams.drill === 'lead-age' ? 'TIMESTAMP_DIFF(m.first_call_ts, m.fetched_ts, SECOND)' : 'TIMESTAMP_DIFF(m.first_call_ts, m.delivered_ts, SECOND)';
-        const buckets: Record<string, string> = {
-          'Invalid timing': `${timing} < 0`,
-          '0–5m': `${timing} BETWEEN 0 AND 300`,
-          '0–15m': `${timing} BETWEEN 0 AND 900`,
-          '5–15m': `${timing} > 300 AND ${timing} <= 900`,
-          '15–30m': `${timing} > 900 AND ${timing} <= 1800`,
-          '30–60m': `${timing} > 1800 AND ${timing} <= 3600`,
-          '1–3h': `${timing} > 3600 AND ${timing} <= 10800`,
-          '3–6h': `${timing} > 10800 AND ${timing} <= 21600`,
-          '6–12h': `${timing} > 21600 AND ${timing} <= 43200`,
-          '12–24h': `${timing} > 43200 AND ${timing} <= 86400`,
-          '1–6h': `${timing} > 3600 AND ${timing} <= 21600`,
-          '6–24h': `${timing} > 21600 AND ${timing} <= 86400`,
-          '24h+': `${timing} > 86400`,
-        };
-        condition = value === 'Not delivered' ? 'NOT m.is_delivered' : value === 'Undialled' ? (normalizedParams.drill === 'lead-age' ? 'NOT m.is_dialled' : 'm.is_delivered AND NOT m.is_dialled') : buckets[value] ? `m.is_dialled AND ${buckets[value]}` : undefined;
-        break;
-      }
-      case 'funnel-loss': condition = ({
-        'fetched-to-delivered': 'NOT m.is_delivered',
-        'delivered-to-dialled': 'm.is_delivered AND NOT m.is_dialled',
-        'dialled-to-rpc': 'm.is_dialled AND (m.is_rpc IS FALSE OR m.is_rpc IS NULL)',
-        'rpc-to-sales': 'm.is_rpc AND NOT m.is_sale',
-        'sales-to-activated': 'm.is_sale AND NOT m.is_activated',
-      } as Record<string, string>)[value]; break;
-      case 'call-effort': {
-        const buckets: Record<string, string> = {
-          '0 calls': 'm.recorded_call_count = 0',
-          '1 call': 'm.recorded_call_count = 1',
-          '2 calls': 'm.recorded_call_count = 2',
-          '3 calls': 'm.recorded_call_count = 3',
-          '4 calls': 'm.recorded_call_count = 4',
-          '5+ calls': 'm.recorded_call_count >= 5',
-          'Unrecorded': 'm.recorded_call_count IS NULL',
-        };
-        const bucketCondition = buckets[value];
-        if (!bucketCondition) throw new RequestError(`Unsupported call effort bucket: ${value}`, 422);
-        condition = bucketCondition;
-        break;
-      }
-      case 'lifecycle-segment': {
-        const colonIndex = value.indexOf(':');
-        if (colonIndex === -1) throw new RequestError('Invalid lifecycle segment drill value format', 422);
-        const dimension = value.slice(0, colonIndex).trim().toLowerCase();
-        const segmentValue = value.slice(colonIndex + 1).trim();
-        if (!isLifecycleSegmentDimension(dimension)) {
-          throw new RequestError(`Unsupported lifecycle segment dimension: ${dimension}`, 422);
-        }
-        if (!segmentValue) throw new RequestError('Missing lifecycle segment value', 422);
-        queryParams.lifecycleSegmentValue = segmentValue;
-        condition = lifecycleSegmentPredicate(dimension);
-        break;
-      }
-      case 'lifecycle-vendor':
-      case 'lifecycle-source':
-      case 'lifecycle-grade': {
-        const dimension = normalizedParams.drill.replace('lifecycle-', '');
-        const segmentValue = value.trim();
-        if (!isLifecycleSegmentDimension(dimension)) {
-          throw new RequestError(`Unsupported lifecycle segment dimension: ${dimension}`, 422);
-        }
-        if (!segmentValue) throw new RequestError('Missing lifecycle segment value', 422);
-        queryParams.lifecycleSegmentValue = segmentValue;
-        condition = lifecycleSegmentPredicate(dimension);
-        break;
-      }
-      default: throw new RequestError('Unsupported drill-down population', 422);
-    }
-    if (!condition) throw new RequestError(`Unsupported ${normalizedParams.drill} drill`, 422);
-    drillCondition = `AND (${condition})`;
-  }
+  const predicate = buildInvestigationPredicate(normalizedParams, queryParams);
+  const drillCondition = predicate ? `AND (${predicate})` : '';
 
-  const query = `
+  if (leadId !== undefined) queryParams.investigationLeadId = leadId;
+  const qualifiedSql = `
     WITH scoped_leads AS (
       SELECT l.* REPLACE (
         ARRAY(SELECT AS STRUCT h.* FROM UNNEST(l.hlc_details) h
@@ -188,11 +77,19 @@ export async function getRawLeads(params: OffernetQueryParams) {
     ${whereSql}
     ${searchCondition}
     ${drillCondition}
+    ${leadId === undefined ? '' : 'AND l.lead_id = @investigationLeadId'}
     QUALIFY ROW_NUMBER() OVER (
       PARTITION BY l.lead_id
       ORDER BY ${validTimestampSql('hlc.delivered')} DESC NULLS LAST, hlc.transaction_id ASC NULLS LAST
     ) = 1
-    ),
+    )`;
+  return { qualifiedSql, queryParams, normalizedParams, effectiveFilters, filterValues, clientConfig, limit, offset };
+}
+
+export async function getRawLeads(params: OffernetQueryParams) {
+  const { qualifiedSql, queryParams, normalizedParams, effectiveFilters, filterValues, clientConfig, limit, offset } = buildQualifiedInvestigationEvidence(params);
+  const client = getBigQueryClient(clientConfig.bigQueryProject);
+  const query = `${qualifiedSql},
     evidence_stats AS (
       SELECT COUNT(*) AS total_count FROM qualified_evidence
     ),
@@ -303,7 +200,8 @@ export async function getRawLeads(params: OffernetQueryParams) {
     );
   }
 
-  const cleanRows = pageRows.map(({ fetched_ts, full_evidence_total, ...r }: any) => r);
+  const investigationReason = investigationScopeReason(normalizedParams);
+  const cleanRows = pageRows.map(({ fetched_ts, full_evidence_total, ...r }: any) => ({ ...r, ...(investigationReason ? { investigationReason } : {}) }));
   const metricId = normalizedParams.drill === 'funnel-stage' && normalizedParams.drillValue === 'delivered'
     ? 'delivered_leads'
     : normalizedParams.drill === 'funnel-stage' && normalizedParams.drillValue === 'fetched'
@@ -318,6 +216,10 @@ export async function getRawLeads(params: OffernetQueryParams) {
     drill: normalizedParams.drill || null,
     drillValue: normalizedParams.drillValue || null,
     search: normalizedParams.search || null,
+    segmentVendor: normalizedParams.segmentVendor || null,
+    segmentSource: normalizedParams.segmentSource || null,
+    segmentGrade: normalizedParams.segmentGrade || null,
+    segmentLeadAge: normalizedParams.segmentLeadAge || null,
     clientId: normalizedParams.clientId,
     startDate: normalizedParams.startDate || null,
     endDate: normalizedParams.endDate || null,

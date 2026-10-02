@@ -52,7 +52,9 @@ export const ClientProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [ready, setReady] = useState(false);
   const activeLoad = useRef<AbortController | null>(null);
   const resolvedClientRef = useRef<string | null>(null);
-  const clientConfig = selectAuthorizedClient(clients, searchParams.get('clientId'), previousClient) as ClientConfig | null;
+  const clientConfig = (searchParams.getAll('clientId').length > 1
+    ? null
+    : selectAuthorizedClient(clients, searchParams.get('clientId'), previousClient)) as ClientConfig | null;
   const selectedClient = clientConfig?.id || '';
 
   const loadConfig = useCallback(async () => {
@@ -118,7 +120,8 @@ export const ClientProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [clients, setSearchParams]);
 
   useEffect(() => {
-    if (!ready || !selectedClient) return;
+    // Ambiguous URL identity requires an explicit workspace choice; never collapse it to a fallback tenant.
+    if (!ready || !selectedClient || searchParams.getAll('clientId').length > 1) return;
     const isClientTransition = resolvedClientRef.current !== null && resolvedClientRef.current !== selectedClient;
     resolvedClientRef.current = selectedClient;
     setPreviousClient(selectedClient);

@@ -1,18 +1,21 @@
 import React, { useId, useMemo, useRef, useState } from 'react';
 import CopyEvidenceButton from '../../shared/evidence/CopyEvidenceButton';
 import { buildLedgerTimeline, type LedgerTimelineEvent } from './timeline';
+import type { LeadTimelineData } from '../../lib/offernetClient';
 
 type Props = {
   row: Readonly<Record<string, unknown>>;
   validationStatus?: string;
-  onViewSource: (fields: string[]) => void;
+  onViewSource?: (fields: string[]) => void;
+  sourceEvents?: LeadTimelineData['events'];
+  onPinEvent?: (event: LedgerTimelineEvent) => void;
 };
 const dateLabel = (timestamp: string) => new Date(timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 const timeLabel = (timestamp: string) => new Date(timestamp).toLocaleTimeString('en-GB', { hour12: false, timeZone: 'UTC' });
 const valueText = (value: unknown) => value == null || value === '' ? 'Unavailable' : String(value);
 
 /** Uses the selected, already-loaded analytical row. Interactions are local state only. */
-export default function LeadJourney({ row, validationStatus, onViewSource }: Props) {
+export default function LeadJourney({ row, validationStatus, onViewSource, sourceEvents, onPinEvent }: Props) {
   const journey = useMemo(() => buildLedgerTimeline(row), [row]);
   const [mode, setMode] = useState<'journey' | 'events'>('journey');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -50,7 +53,7 @@ export default function LeadJourney({ row, validationStatus, onViewSource }: Pro
       setMode(next); document.getElementById(`${id}-${next}-tab`)?.focus();
     }}>{(['journey', 'events'] as const).map(value => <button key={value} type="button" role="tab" id={`${id}-${value}-tab`} aria-selected={mode === value} aria-controls={`${id}-${value}-panel`} tabIndex={mode === value ? 0 : -1} onClick={() => setMode(value)}>{value === 'journey' ? 'Journey' : 'Events'}</button>)}</div>
 
-    {!journey.timedEvents.length && <div className="cx-journey-empty"><h3>Timeline unavailable</h3><p>This lead has source records, but the current dataset does not provide enough timestamped lifecycle evidence to construct a chronological timeline.</p><button type="button" className="cx-button-secondary" onClick={() => onViewSource([])}>View source evidence</button></div>}
+    {!journey.timedEvents.length && <div className="cx-journey-empty"><h3>Timeline unavailable</h3><p>This lead has source records, but the current dataset does not provide enough timestamped lifecycle evidence to construct a chronological timeline.</p>{onViewSource && <button type="button" className="cx-button-secondary" onClick={() => onViewSource([])}>View source evidence</button>}</div>}
     <section role="tabpanel" id={`${id}-journey-panel`} aria-labelledby={`${id}-journey-tab`} hidden={mode !== 'journey'} tabIndex={0}>
       {journey.timedEvents.length > 0 ? <>
         <ol className="cx-journey-spine" aria-label="Recorded lifecycle milestones">{journey.milestones.map((event, index) => {
@@ -68,7 +71,7 @@ export default function LeadJourney({ row, validationStatus, onViewSource }: Pro
         <p>Individual timestamps unavailable. RPC attempt number unavailable.</p>
         <p>{journey.calls.limitation}</p>
         <dl>{journey.calls.evidenceFields.map(field => <div key={field.label}><dt>{field.label}</dt><dd>{valueText(field.value)}</dd></div>)}</dl>
-        <button type="button" className="cx-button-secondary" onClick={() => onViewSource(['HLC Total Calls', 'HLC First Call Date', 'HLC Last Call Date', 'HLC Last Dialer Status', 'HLC RPC'])}>View call source fields</button>
+        {onViewSource && <button type="button" className="cx-button-secondary" onClick={() => onViewSource(['HLC Total Calls', 'HLC First Call Date', 'HLC Last Call Date', 'HLC Last Dialer Status', 'HLC RPC'])}>View call source fields</button>}
       </details>
       <dl className="cx-journey-outcomes">{journey.outcomes.map(outcome => <div key={outcome.kind}><dt>{outcome.title}</dt><dd>{outcome.state === 'recorded' ? 'Recorded' : outcome.state === 'not-recorded' ? 'Not recorded in returned evidence' : 'Evidence unavailable'}</dd></div>)}</dl>
     </section>
@@ -79,8 +82,10 @@ export default function LeadJourney({ row, validationStatus, onViewSource }: Pro
       {journey.untimedEvents.length > 0 && <section className="cx-journey-undated"><h3>Timestamp unavailable</h3><p>These recorded outcomes have no known chronological order.</p><ul>{journey.untimedEvents.map(event => <li key={event.id}>{eventButton(event)}</li>)}</ul></section>}
     </section>
 
+    {sourceEvents && <details className="cx-journey-context"><summary>Supporting source milestones ({sourceEvents.length})</summary><p>Scoped warehouse milestones retain their original transaction evidence. They are separate from the lead-level journey and do not establish a complete call history.</p><ol className="cx-dossier-source-events">{sourceEvents.map((event, index) => <li key={`${event.stage}-${event.timestamp}-${index}`}><strong>{event.title}</strong><time>{event.timestamp || 'Timestamp unavailable'}</time><p>{event.details}</p></li>)}</ol></details>}
+
     <section ref={evidence} className="cx-journey-evidence" id={`${id}-evidence`} aria-label="Selected event evidence" tabIndex={-1}>
-      {selected ? <><p className="cx-ledger-eyebrow">EVENT EVIDENCE</p><h3>{selected.title}</h3><p>{selected.timestamp ? `${dateLabel(selected.timestamp)} · ${timeLabel(selected.timestamp)} UTC` : 'Timestamp unavailable'} · {validation}</p><p>{selected.description}</p><dl>{selected.evidenceFields.map(field => <div key={field.label}><dt>{field.label}</dt><dd>{valueText(field.value)}</dd></div>)}</dl><div className="cx-journey-evidence-actions"><button type="button" className="cx-button-secondary" onClick={() => onViewSource(selected.sourceFields)}>View source fields</button><CopyEvidenceButton value={copy} label="Copy evidence" /></div><p className="cx-journey-caption">Normalised fields are shown above. Source evidence retains original field names and separate source records; a source match is not reconciliation.</p></> : <p>Select a milestone to inspect its supporting evidence.</p>}
+      {selected ? <><p className="cx-ledger-eyebrow">EVENT EVIDENCE</p><h3>{selected.title}</h3><p>{selected.timestamp ? `${dateLabel(selected.timestamp)} · ${timeLabel(selected.timestamp)} UTC` : 'Timestamp unavailable'} · {validation}</p><p>{selected.description}</p><dl>{selected.evidenceFields.map(field => <div key={field.label}><dt>{field.label}</dt><dd>{valueText(field.value)}</dd></div>)}</dl><div className="cx-journey-evidence-actions">{onViewSource && <button type="button" className="cx-button-secondary" onClick={() => onViewSource(selected.sourceFields)}>View source fields</button>}{onPinEvent && <button type="button" className="cx-button-secondary" onClick={() => onPinEvent(selected)}>Pin timeline event</button>}<CopyEvidenceButton value={copy} label="Copy evidence" /></div><p className="cx-journey-caption">Normalised fields are shown above. Source evidence retains original field names and separate source records; a source match is not reconciliation.</p></> : <p>Select a milestone to inspect its supporting evidence.</p>}
     </section>
 
     {journey.anomalies.length > 0 && <section className="cx-journey-anomalies" aria-label="Timeline anomalies"><h3>Timestamp anomalies</h3>{journey.anomalies.map((anomaly, index) => <p key={index}><strong>{anomaly.field}</strong>: {valueText(anomaly.value)} — {anomaly.message}</p>)}</section>}

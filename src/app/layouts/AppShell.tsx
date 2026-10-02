@@ -1,3 +1,5 @@
+import '../../styles/investigationWorkspace.css';
+import { InvestigationEvidenceProvider } from '../../features/investigation/EvidenceTray';
 import { AuditModeControl } from '../../shared/evidence/AuditMode';
 import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
@@ -134,7 +136,7 @@ export default function AppShell({ children }: AppShellProps) {
   };
 
   return (
-    <div
+    <InvestigationEvidenceProvider><div
       className="cx-app"
       data-density={density}
       data-device={device.type}
@@ -412,6 +414,6 @@ export default function AppShell({ children }: AppShellProps) {
           <CommandPalette isOpen onClose={() => setCommand(false)} />
         </Suspense>
       )}
-    </div>
+    </div></InvestigationEvidenceProvider>
   );
 }

@@ -1,0 +1,79 @@
+{
+  "environment": {
+    "origin": "http://127.0.0.1:4197",
+    "synthetic": true,
+    "browserPlugin": "Browser plugin not available; Playwright fallback"
+  },
+  "results": [
+    {
+      "label": "Inbox to exception to segment to record preserves scope",
+      "status": "PASS"
+    },
+    {
+      "label": "Dossier tabs, journey evidence, pins and focus return",
+      "status": "PASS"
+    },
+    {
+      "label": "light 1440px selected record has no page overflow",
+      "status": "PASS"
+    },
+    {
+      "label": "dark 1440px selected record has no page overflow",
+      "status": "PASS"
+    },
+    {
+      "label": "light 820px selected record has no page overflow",
+      "status": "PASS"
+    },
+    {
+      "label": "dark 820px selected record has no page overflow",
+      "status": "PASS"
+    },
+    {
+      "label": "light 390px selected record has no page overflow",
+      "status": "PASS"
+    },
+    {
+      "label": "dark 390px selected record has no page overflow",
+      "status": "PASS"
+    },
+    {
+      "label": "Admin source evidence remains embedded",
+      "status": "PASS"
+    },
+    {
+      "label": "Non-admin receives inbox aggregates and no record requests",
+      "status": "PASS"
+    },
+    {
+      "label": "Empty evidence remains empty and NOT_VERIFIED visible",
+      "status": "PASS"
+    },
+    {
+      "label": "Request error shown without stale records",
+      "status": "PASS"
+    },
+    {
+      "label": "Large population keeps stable pagination and selection clears on scope change",
+      "status": "PASS"
+    },
+    {
+      "label": "Back navigation restores analytical narrowing",
+      "status": "PASS"
+    },
+    {
+      "label": "Inbox scope and drivers render in both themes at desktop and mobile",
+      "status": "PASS"
+    },
+    {
+      "label": "AI rejects a broad response and renders only exact echoed scope",
+      "status": "PASS"
+    },
+    {
+      "label": "Evidence export retains original scope, reasons and conclusion notes",
+      "status": "PASS"
+    }
+  ],
+  "errors": [],
+  "warnings": []
+}

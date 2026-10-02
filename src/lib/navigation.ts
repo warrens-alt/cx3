@@ -46,7 +46,7 @@ const LEGACY_PAGE_TITLES: Record<string, string> = {
   '/speed-to-lead': 'Speed to lead',
   '/cli-performance': 'Caller ID performance',
   '/commercial': 'Spend & commercial',
-  '/exceptions': 'Exceptions',
+  '/investigate': 'Investigation inbox',
 };
 
 const LEGACY_PAGE_DESCRIPTIONS: Record<string, string> = {
@@ -66,7 +66,7 @@ const LEGACY_PAGE_DESCRIPTIONS: Record<string, string> = {
   '/sales-activation': 'Which recorded sales activate and which are still waiting?',
   '/commercial': 'What spend and commercial outcomes are actually evidenced?',
   '/reconciliation': 'Which commercial populations and values do not reconcile?',
-  '/exceptions': 'Which recorded populations need investigation?',
+  '/investigate': 'Which recorded populations need investigation?',
   '/lead-explorer': 'Inspect the exact records and timelines behind a number.',
   '/data-integrity': 'Are source feeds complete, mapped and fresh enough to interpret?',
   '/warehouse': 'Analytics across all Google Cloud projects, BigQuery datasets, and tables.',
@@ -97,7 +97,7 @@ const CORE_CATALOGUE_PATHS = [
   '/sales-activation',
   '/commercial',
   '/reconciliation',
-  '/exceptions',
+  '/investigate',
   '/lead-explorer',
   '/lead-ledger',
   '/data-integrity',
@@ -129,7 +129,7 @@ const primaryPaths = [
   '/contact-strategy',
   '/sales-activation',
   '/commercial',
-  '/exceptions',
+  '/investigate',
   '/admin',
 ];
 
@@ -160,14 +160,14 @@ export const OPERATIONAL_ROUTES: string[] = Array.from(
 
 export function isOperationalRoute(pathname: string): boolean {
   const canonical =
-    ({ '/': '/overview', '/users': '/access-control', '/settings': '/admin' } as Record<string, string>)[pathname] ||
+    ({ '/': '/overview', '/users': '/access-control', '/settings': '/admin', '/exceptions': '/investigate' } as Record<string, string>)[pathname] ||
     pathname;
   return OPERATIONAL_ROUTES.includes(canonical) || OPERATIONAL_ROUTES.includes(pathname);
 }
 
 export function navigationPage(pathname: string): NavigationPage | undefined {
   const canonical =
-    ({ '/': '/overview', '/users': '/access-control', '/settings': '/admin' } as Record<string, string>)[pathname] ||
+    ({ '/': '/overview', '/users': '/access-control', '/settings': '/admin', '/exceptions': '/investigate' } as Record<string, string>)[pathname] ||
     pathname;
   return NAVIGATION_PAGES.find(page => page.path === canonical);
 }

@@ -26,6 +26,15 @@ export const UNIVERSAL_SCOPE_PARAMS = new Set([
   'agent',
 ]);
 
+export const INVESTIGATION_SCOPE_PARAMS = new Set([
+  'drill', 'drillValue', 'investigationMetric',
+  'segmentVendor', 'segmentSource', 'segmentGrade', 'segmentLeadAge',
+]);
+
+export const INVESTIGATION_PATHS = new Set([
+  '/investigate', '/exceptions', '/lead-explorer', '/data-integrity', '/ai-insights', '/lead-ledger',
+]);
+
 // Explore / Lead drill down parameters (compatible report-local state)
 export const EXPLORE_REPORT_PARAMS = new Set([
   'search',
@@ -33,7 +42,6 @@ export const EXPLORE_REPORT_PARAMS = new Set([
   'drillValue',
   'page',
   'pageSize',
-  'leadId',
 ]);
 
 // Vendor dispositions local parameters
@@ -76,7 +84,11 @@ export function getAllowedParamsForTarget(targetPath: string, targetQuery?: stri
 
   // 3. Lead Explorer and Lead Ledger (inspecting exact lead records, ledger, and drilldowns)
   if (targetPath === '/lead-explorer' || targetPath === '/lead-ledger') {
-    return new Set([...UNIVERSAL_SCOPE_PARAMS, ...EXPLORE_REPORT_PARAMS]);
+    return new Set([...UNIVERSAL_SCOPE_PARAMS, ...INVESTIGATION_SCOPE_PARAMS, ...EXPLORE_REPORT_PARAMS]);
+  }
+
+  if (INVESTIGATION_PATHS.has(targetPath)) {
+    return new Set([...UNIVERSAL_SCOPE_PARAMS, ...INVESTIGATION_SCOPE_PARAMS]);
   }
 
   // 4. Contact strategy with vendor dispositions tab

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildLeadLedgerExport } from '../src/lib/leadLedgerExport';
-import { LEAD_EVIDENCE_AUDIT_COLUMNS, serializeCsv } from '../src/lib/analysisExport';
+import { LEAD_EVIDENCE_AUDIT_COLUMNS, INVESTIGATION_NARROWING_AUDIT_COLUMNS, serializeCsv } from '../src/lib/analysisExport';
 import { LEAD_LEDGER_COLUMNS } from '../src/lib/leadLedgerValues';
 import { downloadCsv } from '../src/lib/formatters';
 
@@ -22,7 +22,7 @@ function result() {
 test('Ledger export retains its 17 columns then appends the canonical result-bound evidence context', () => {
   const report = result();
   const output = buildLeadLedgerExport(report);
-  assert.deepEqual(output.headers, [...LEAD_LEDGER_COLUMNS, ...LEAD_EVIDENCE_AUDIT_COLUMNS]);
+  assert.deepEqual(output.headers, [...LEAD_LEDGER_COLUMNS, ...LEAD_EVIDENCE_AUDIT_COLUMNS, ...INVESTIGATION_NARROWING_AUDIT_COLUMNS]);
   assert.deepEqual(output.leadIds, ['001', '002']);
   assert.equal(output.totalCount, 3);
   assert.equal(output.returnedRowCount, 2);
@@ -129,9 +129,9 @@ test('Ledger download uses the production serializer and retains exact rows, esc
   assert.equal(blobs.length, 1);
   assert.deepEqual(Array.from(new Uint8Array(await blobs[0].arrayBuffer()).slice(0, 3)), [239, 187, 191]);
   const parsed = parseDownload(await blobs[0].text());
-  assert.deepEqual(parsed[0], [...LEAD_LEDGER_COLUMNS, ...LEAD_EVIDENCE_AUDIT_COLUMNS]);
+  assert.deepEqual(parsed[0], [...LEAD_LEDGER_COLUMNS, ...LEAD_EVIDENCE_AUDIT_COLUMNS, ...INVESTIGATION_NARROWING_AUDIT_COLUMNS]);
   assert.equal(parsed.length, 3);
-  assert.ok(parsed.every(row => row.length === 39));
+  assert.ok(parsed.every(row => row.length === LEAD_LEDGER_COLUMNS.length + LEAD_EVIDENCE_AUDIT_COLUMNS.length + INVESTIGATION_NARROWING_AUDIT_COLUMNS.length));
   const at = (row: number, field: string) => parsed[row][parsed[0].indexOf(field)];
   assert.deepEqual(parsed.slice(1).map(row => row[0]), ['001', '002']);
   assert.equal(at(1, 'Offershop Source'), "'=1+1");

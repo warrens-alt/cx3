@@ -5,10 +5,12 @@ import type { OffernetQueryParams } from '../common/types';
 import { operationalLeadCtes } from '../common/leadMetrics';
 import { matchedPeriodWindow } from '../../../contracts/periodComparison';
 import { buildFilterClause } from '../common/scope';
+import { buildInvestigationPredicate, driverFirstDialAgeSql } from './exceptionPredicates';
 
 // Deterministic root-cause decomposition for matched periods.
 // Dimensions are reduced to one value per lead so each dimension reconciles to the selected metric.
 export async function getRootCauseAnalysis(params: OffernetQueryParams) {
+  if (params.search) throw new RequestError('Root-cause analysis does not support record-text search', 422);
   const allowedMetrics = new Set(['fetchedLeads', 'deliveryRate', 'dialRate', 'contactRate', 'leadToSaleRate', 'activationRate']);
   const metric = params.metric || 'leadToSaleRate';
   if (!allowedMetrics.has(metric)) throw new RequestError('Unsupported root-cause metric', 422);
@@ -27,10 +29,12 @@ export async function getRootCauseAnalysis(params: OffernetQueryParams) {
     previousStartDate, previousEndDate, rootCauseTimezone: config.timezone,
   };
 
+  const investigationPredicate = buildInvestigationPredicate(params, queryParams, 'm');
   const query = `
     WITH ${operationalLeadCtes(expandedScope)}, lead_level AS (
-      SELECT *, DATE(fetched_ts, @rootCauseTimezone) AS fetched_date, delivered_ts AS first_delivery_ts
-      FROM operational_leads
+      SELECT m.*, DATE(m.fetched_ts, @rootCauseTimezone) AS fetched_date, m.delivered_ts AS first_delivery_ts
+      FROM operational_leads m
+      ${investigationPredicate ? `WHERE ${investigationPredicate}` : ''}
     ),
     periodized AS (
       SELECT
@@ -40,33 +44,22 @@ export async function getRootCauseAnalysis(params: OffernetQueryParams) {
           WHEN fetched_date BETWEEN @previousStartDate AND @previousEndDate THEN 'previous'
           ELSE NULL
         END AS period,
-        CASE
-          WHEN first_delivery_ts IS NULL THEN 'Not delivered'
-          WHEN first_call_ts IS NULL THEN 'Undialled'
-          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) < 0 THEN 'Invalid timing'
-          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) <= 300 THEN '0–5m'
-          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) <= 900 THEN '5–15m'
-          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) <= 1800 THEN '15–30m'
-          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) <= 3600 THEN '30–60m'
-          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) <= 21600 THEN '1–6h'
-          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) <= 86400 THEN '6–24h'
-          ELSE '24h+'
-        END AS lead_age
+        ${driverFirstDialAgeSql('lead_level')} AS lead_age
       FROM lead_level
     ),
     dimensional AS (
-      SELECT period, 'vendor' AS dimension, vendor AS segment,
+      SELECT period, 'vendor' AS dimension, COALESCE(NULLIF(TRIM(vendor), ''), 'Unrecorded') AS segment,
         COUNT(*) AS fetched, COUNTIF(is_delivered) AS delivered, COUNTIF(is_dialled) AS dialled,
         COUNTIF(is_rpc) AS rpc, COUNTIF(is_sale) AS sales, COUNTIF(is_activated) AS activated, COUNTIF(is_dialled AND is_rpc IS NULL) AS unknown_rpc
-      FROM periodized WHERE period IS NOT NULL GROUP BY period, vendor
+      FROM periodized WHERE period IS NOT NULL GROUP BY period, 3
       UNION ALL
-      SELECT period, 'source', source,
+      SELECT period, 'source', COALESCE(NULLIF(TRIM(source), ''), 'Unrecorded'),
         COUNT(*), COUNTIF(is_delivered), COUNTIF(is_dialled), COUNTIF(is_rpc), COUNTIF(is_sale), COUNTIF(is_activated), COUNTIF(is_dialled AND is_rpc IS NULL)
-      FROM periodized WHERE period IS NOT NULL GROUP BY period, source
+      FROM periodized WHERE period IS NOT NULL GROUP BY period, 3
       UNION ALL
-      SELECT period, 'grade', grade,
+      SELECT period, 'grade', COALESCE(NULLIF(TRIM(grade), ''), 'Unrecorded'),
         COUNT(*), COUNTIF(is_delivered), COUNTIF(is_dialled), COUNTIF(is_rpc), COUNTIF(is_sale), COUNTIF(is_activated), COUNTIF(is_dialled AND is_rpc IS NULL)
-      FROM periodized WHERE period IS NOT NULL GROUP BY period, grade
+      FROM periodized WHERE period IS NOT NULL GROUP BY period, 3
       UNION ALL
       SELECT period, 'leadAge', lead_age,
         COUNT(*), COUNTIF(is_delivered), COUNTIF(is_dialled), COUNTIF(is_rpc), COUNTIF(is_sale), COUNTIF(is_activated), COUNTIF(is_dialled AND is_rpc IS NULL)

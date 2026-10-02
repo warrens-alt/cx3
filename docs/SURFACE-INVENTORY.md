@@ -25,6 +25,7 @@
 | `/warehouse-analytics` | WarehouseAnalytics |
 | `/reports` | VersionedReports |
 | `/vendors` | VendorPerformance |
+| `/investigate` | Exceptions |
 | `/exceptions` | Exceptions |
 | `/reconciliation` | CommercialReconciliation |
 | `/vetting` | Vetting |

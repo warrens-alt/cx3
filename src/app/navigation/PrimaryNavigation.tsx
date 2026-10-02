@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { BRAND } from '../../../contracts/naming';
 import { navigationTarget } from '../../lib/presentation';
-import { getAreaForPath, getRouteItem, BUSINESS_AREAS } from '../routeManifest';
+import { getAreaForPath, getRouteItem, BUSINESS_AREAS, ROUTE_MANIFEST } from '../routeManifest';
 import { useClient } from '../../lib/ClientContext';
 import { useAuth } from '../../lib/AuthContext';
 import ReviewLauncher from '../../components/ReviewLauncher';
@@ -53,8 +53,13 @@ export default function PrimaryNavigation({
         ? 'Sales, conversion & ageing'
         : area.id === 'commercial'
         ? 'Spend, revenue & attribution'
-        : 'Exceptions, records & data quality',
+        : 'Populations, records & data confidence',
   }));
+
+  const investigationItems = (paths: string[]) => paths.flatMap(path => {
+    const route = ROUTE_MANIFEST.find(item => item.path === path);
+    return route && (!route.adminOnly || isAdmin) ? [{ id: route.id, name: route.name, path: route.path, icon: route.icon, desc: route.description }] : [];
+  });
 
   return (
     <aside className="cx-sidebar">
@@ -104,13 +109,14 @@ export default function PrimaryNavigation({
       <nav aria-label="Main navigation" className="cx-navigation cx-navigation-simple flex-1">
         {[
           { name: 'Operations', items: businessNavItems.filter(item => item.id !== 'investigate') },
-          { name: 'Investigate', items: businessNavItems.filter(item => item.id === 'investigate') },
+          { name: 'Investigate', items: investigationItems(['/investigate', '/lead-explorer', '/data-integrity']) },
+          { name: 'Evidence & Audit', items: investigationItems(['/reports', '/lead-ledger', '/vendors']) },
         ].map(group => <section key={group.name} aria-label={group.name}>
           <div className="cx-nav-section-label">{group.name}</div>
           <ul>
             {group.items.map(item => {
               const Icon = item.icon;
-              const isCurrentArea = currentArea.id === item.id;
+              const isCurrentArea = group.name === 'Operations' && currentArea.id === item.id;
               const isExactPage = currentRoute?.path === item.path;
               return (
                 <li key={item.id}>
@@ -119,14 +125,14 @@ export default function PrimaryNavigation({
                       to={navigationTarget(item.path, location.pathname, location.search)}
                       aria-current={isExactPage ? 'page' : isCurrentArea ? 'location' : undefined}
                       data-current-section={isCurrentArea || undefined}
-                      data-navigation-area={item.id}
+                      data-navigation-area={getAreaForPath(item.path).id}
                       onClick={onClose}
                       className="cx-nav-link"
                       title={item.desc}
                       aria-description={item.desc}
                     >
                       <Icon size={16} aria-hidden="true" />
-                      <span className="cx-nav-copy"><strong>{item.name}</strong><small className={isCurrentArea ? undefined : 'sr-only'}>{item.desc}</small></span>
+                      <span className="cx-nav-copy"><strong>{item.name}</strong><small className={isCurrentArea || isExactPage ? undefined : 'sr-only'}>{item.desc}</small></span>
                     </Link>
                   </div>
                 </li>

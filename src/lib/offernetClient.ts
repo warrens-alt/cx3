@@ -835,6 +835,12 @@ export interface SourceObservabilityData {
 }
 
 export interface AiInsightsData {
+  scope?: { clientId: string; startDate?: string | null; endDate?: string | null; filters?: Record<string, unknown>; drill?: string | null; drillValue?: string | null; metric?: string | null; search?: string | null; segmentVendor?: string | null; segmentSource?: string | null; segmentGrade?: string | null; segmentLeadAge?: string | null; dateBasis: string; countingGrain: string };
+  populationCount?: number | null;
+  generatedAt?: string;
+  metricReferences?: string[];
+  limitations?: string[];
+  requestedQuestion?: string | null;
   source: string;
   model?: string;
   status?: string;
@@ -883,6 +889,10 @@ export interface GoogleApiStatusData {
 }
 
 export interface RawLeadsData {
+  segmentVendor?: string | null;
+  segmentSource?: string | null;
+  segmentGrade?: string | null;
+  segmentLeadAge?: string | null;
   rows: Array<Record<string, any>>;
   totalCount?: number | null;
   limit: number;
@@ -1340,4 +1350,3 @@ export async function fetchAuthoritativeMetrics(
   inFlightRequests.set(url, fetchPromise);
   return fetchPromise;
 }
-

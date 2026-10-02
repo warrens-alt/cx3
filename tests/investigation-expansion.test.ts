@@ -77,7 +77,7 @@ test('root-cause retains every segment, uses normalized lead grain, and reconcil
   t.mock.method(client, 'query', async options => { query = options.query; return [rows]; });
   const result = await getRootCauseAnalysis(scope);
   assert.equal(result.metric.delta, -10);
-  assert.match(query, /DATE\(fetched_ts, @rootCauseTimezone\)/);
+  assert.match(query, /DATE\(m\.fetched_ts, @rootCauseTimezone\)/);
   assert.match(query, /operational_leads/);
   for (const dimension of result.dimensions) {
     assert.equal(dimension.segments.length, 15);

@@ -1,4 +1,8 @@
 import { downloadCsv } from './formatters';
+import type { InvestigationNarrowing } from '../../contracts/investigation';
+
+const INVESTIGATION_SEGMENT_KEYS = ['segmentVendor', 'segmentSource', 'segmentGrade', 'segmentLeadAge'] as const;
+type ReturnedNarrowing = { [K in keyof InvestigationNarrowing]: string | null | undefined };
 
 export type AnalysisCell = string | number | boolean | null | undefined;
 
@@ -66,6 +70,7 @@ export interface LeadEvidenceExportResult {
     search: string | null;
     predicate: string | null;
     investigationLabel?: string | null;
+    narrowing: ReturnedNarrowing;
     timezone: string;
     dateBasis: string;
     metricId: string;
@@ -100,6 +105,9 @@ export const LEAD_EVIDENCE_COLUMNS = [
   'Sale',
   'Activated',
   'Revenue',
+  'Why included',
+  'Inclusion reason code',
+  'Inclusion reason detail',
 ] as const;
 
 export const LEAD_EVIDENCE_AUDIT_COLUMNS = [
@@ -127,6 +135,8 @@ export const LEAD_EVIDENCE_AUDIT_COLUMNS = [
   'Detail truncated',
 ] as const;
 
+export const INVESTIGATION_NARROWING_AUDIT_COLUMNS = ['Investigation vendor', 'Investigation source', 'Investigation grade', 'Investigation first-dial age'] as const;
+
 export function serializeCsv(rows: AnalysisCell[][]): string {
   const quote = (val: any) => {
     if (val === null || val === undefined) return '""';
@@ -149,6 +159,10 @@ export function buildLeadEvidenceExport(
     offset?: number;
     drill?: string | null;
     drillValue?: string | null;
+    segmentVendor?: string | null;
+    segmentSource?: string | null;
+    segmentGrade?: string | null;
+    segmentLeadAge?: string | null;
     search?: string | null;
     clientId?: string;
     startDate?: string | null;
@@ -278,6 +292,17 @@ export function buildLeadEvidenceExport(
     throw new Error('Cannot export lead evidence: drillValue must be a string or null');
   }
 
+  // Additive segments come only from returned scope. Older responses retain unknown scope,
+  // distinct from an explicit null confirming that a dimension was not narrowed.
+  const narrowing: ReturnedNarrowing = {};
+  for (const key of INVESTIGATION_SEGMENT_KEYS) {
+    const value = key in result ? result[key] : result.metadata?.[key];
+    if (value !== undefined && value !== null && (typeof value !== 'string' || !value.trim())) {
+      throw new Error(`Cannot export lead evidence: ${key} must be a nonblank string, null or unavailable`);
+    }
+    narrowing[key] = value;
+  }
+
   // Machine-readable investigation predicate is derived from result; context.investigation may accompany as a label but not replace it
   const predicate = drill ? (drillValue ? `${drill}=${drillValue}` : drill) : null;
   const investigationLabel = context.investigationLabel || context.investigation || (drill ? (drillValue ? `${drill}: ${drillValue}` : drill) : null);
@@ -345,12 +370,17 @@ export function buildLeadEvidenceExport(
   const definitions = `Administrator record export. ${predicateDesc}Current page ${pageNum} (${result.rows.length} records${totalDesc}); ${popDesc}; one row per scoped lead.`;
 
   const headers = [...LEAD_EVIDENCE_COLUMNS];
-  const auditHeaders = [...LEAD_EVIDENCE_AUDIT_COLUMNS];
+  const auditHeaders = [...LEAD_EVIDENCE_AUDIT_COLUMNS, ...INVESTIGATION_NARROWING_AUDIT_COLUMNS];
   const combinedHeaders = [...headers, ...auditHeaders];
 
   const leadIds: string[] = [];
+  const recordedFlag = (value: unknown) => value === true ? 'Yes' : value === false ? 'No' : 'Unavailable';
   const dataRows: AnalysisCell[][] = result.rows.map(row => {
     leadIds.push(String(row.lead_id));
+    const reason = row.investigationReason;
+    if (reason != null && (typeof reason !== 'object' || typeof reason.code !== 'string' || !reason.code.trim() || typeof reason.label !== 'string' || !reason.label.trim() || (reason.detail !== undefined && typeof reason.detail !== 'string'))) {
+      throw new Error('Cannot export lead evidence: malformed returned inclusion reason');
+    }
     return [
       row.lead_id,
       row.consumer_id !== null && row.consumer_id !== undefined ? row.consumer_id : '—',
@@ -362,11 +392,14 @@ export function buildLeadEvidenceExport(
       row.first_call_time || '—',
       row.total_calls !== null && row.total_calls !== undefined ? row.total_calls : '—',
       row.last_dialer_status || 'Unavailable',
-      row.dialled ? 'Yes' : 'No',
-      row.contacted === null || row.contacted === undefined ? 'Unavailable' : row.contacted ? 'Yes' : 'No',
-      row.sale ? 'Yes' : 'No',
-      row.activated ? 'Yes' : 'No',
+      recordedFlag(row.dialled),
+      recordedFlag(row.contacted),
+      recordedFlag(row.sale),
+      recordedFlag(row.activated),
       row.revenue !== null && row.revenue !== undefined ? row.revenue : null,
+      reason?.label || 'Unavailable',
+      reason?.code || null,
+      reason?.detail || null,
     ];
   });
 
@@ -393,6 +426,7 @@ export function buildLeadEvidenceExport(
     generatedAt,
     sourceCutoff ?? 'Unavailable',
     isTruncated,
+    ...INVESTIGATION_SEGMENT_KEYS.map(key => narrowing[key] === undefined ? 'Unavailable' : narrowing[key] === null ? 'No narrowing' : narrowing[key]),
   ];
 
   const fullRows: AnalysisCell[][] = [
@@ -425,6 +459,7 @@ export function buildLeadEvidenceExport(
       search,
       predicate,
       investigationLabel: investigationLabel || null,
+      narrowing,
       timezone,
       dateBasis,
       metricId,

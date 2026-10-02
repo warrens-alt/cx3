@@ -170,7 +170,7 @@ function requireAdminForRecordExport(req: Request, res: Response, next: NextFunc
 analyticsRouter.get('/export', requireAdminForRecordExport, asyncRoute(async (req, res) => {
   const format = scalarString(req.query.format, 'format') || 'csv';
   if (!['csv', 'json'].includes(format)) throw new RequestError('Unsupported export format');
-  if (req.query.segment || req.query.chartBucket || req.query.metrics) throw new RequestError('Use explicit supported filters for chart exports; unsupported drill-down parameters are not ignored', 422);
+  if (['segment', 'chartBucket', 'metrics', 'drill', 'drillValue', 'investigationMetric', 'segmentVendor', 'segmentSource', 'segmentGrade', 'segmentLeadAge'].some(key => req.query[key] !== undefined)) throw new RequestError('Use the investigation record export for scoped evidence; this export endpoint cannot apply investigation drill or segment parameters', 422);
   const result = await exportData({ ...res.locals.scope, grain: scalarString(req.query.grain, 'grain') || 'lead',
     search: scalarString(req.query.search, 'search', 200), format, limit: boundedInteger(req.query.limit, 10000, 50000, 1) });
   if (process.env.CX_ENABLE_AUDIT_LOG === 'true') {
@@ -204,16 +204,29 @@ function buildOffernetQueryParams(req: Request, res: Response): offernetAnalytic
   const values = operationalFilterValues(scope.filters, req.path);
   const effectiveFilters = canonicalOperationalFilters(values);
   scope.filters = effectiveFilters;
+  const investigationString = (name: string, maxLength?: number) => {
+    const queryValue = scalarString(req.query[name], name, maxLength);
+    const bodyValue = req.method === 'GET' ? undefined : scalarString(req.body?.[name], name, maxLength);
+    if (queryValue !== undefined && bodyValue !== undefined && queryValue !== bodyValue) {
+      throw new RequestError(`Conflicting ${name} investigation scope between query and body`, 422);
+    }
+    return bodyValue ?? queryValue;
+  };
   return {
     clientId: scope.clientId,
     startDate: scope.startDate,
     endDate: scope.endDate,
     ...values,
     filters: effectiveFilters,
-    search: scalarString(req.query.search, 'search', 200),
-    drill: scalarString(req.query.drill, 'drill'),
-    drillValue: scalarString(req.query.drillValue, 'drillValue'),
-    metric: scalarString(req.query.metric, 'metric'),
+    search: investigationString('search', 200),
+    question: scalarString(req.method === 'GET' ? req.query.question : req.body?.question ?? req.query.question, 'question', 1000),
+    drill: investigationString('drill'),
+    drillValue: investigationString('drillValue'),
+    segmentVendor: investigationString('segmentVendor', 200),
+    segmentSource: investigationString('segmentSource', 200),
+    segmentGrade: investigationString('segmentGrade', 200),
+    segmentLeadAge: investigationString('segmentLeadAge', 100),
+    metric: investigationString('metric'),
     limit: boundedInteger(req.query.limit, 50, 200, 10),
     offset: boundedInteger(req.query.offset, 0, 100000),
   };
@@ -376,7 +389,7 @@ analyticsRouter.get('/offernet/lead-timeline/:leadId', requireAdmin, cacheRespon
   const data = await singleFlight(
     res,
     'offernet-lead-timeline',
-    { leadId, clientId: params.clientId, vendor: params.vendor },
+    { leadId, ...params },
     () => offernetAnalytics.getLeadTimeline(leadId, params)
   );
   res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
@@ -464,6 +477,21 @@ analyticsRouter.post('/google/ask', asyncRoute(async (req, res) => {
     throw new RequestError('question is required as a non-empty string', 400);
   }
   const params = buildOffernetQueryParams(req, res);
+  // Legacy Q&A may still receive investigation scope from API callers. Reuse the
+  // exact aggregate-only path instead of supplying unrelated queue/warehouse data.
+  if (offernetAnalytics.isInvestigationScopedRequest({ ...params, question: undefined })) {
+    const scoped = await offernetAnalytics.getAiInsightsAnalytics({ ...params, question });
+    if (!('scope' in scoped)) throw new RequestError('Investigation synthesis did not confirm the requested scope', 502);
+    return res.json({ success: true, data: {
+      answer: `${scoped.executiveSummary}\n\n${scoped.strategicFocus}`,
+      model: scoped.model || 'deterministic-fallback',
+      citations: scoped.metricReferences,
+      scope: scoped.scope,
+      source: scoped.source,
+      validationStatus: scoped.validationStatus,
+      limitations: scoped.limitations,
+    } });
+  }
   const client = getClientConfig(params.clientId);
   const [queue, change, warehouse] = await Promise.all([
     offernetAnalytics.getExceptionAnalytics(params),
