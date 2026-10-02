@@ -1,0 +1,59 @@
+{
+  "synthetic": true,
+  "results": [
+    {
+      "label": "Saved definitions load lazily and preserve exact scope in creation",
+      "status": "PASS"
+    },
+    {
+      "label": "Opening a saved definition replaces unrelated current filters and search",
+      "status": "PASS"
+    },
+    {
+      "label": "Rename uses stored revision and retains all definition scope",
+      "status": "PASS"
+    },
+    {
+      "label": "Saved controls light 1440px have no page overflow",
+      "status": "PASS"
+    },
+    {
+      "label": "Saved controls dark 1440px have no page overflow",
+      "status": "PASS"
+    },
+    {
+      "label": "Saved controls light 820px have no page overflow",
+      "status": "PASS"
+    },
+    {
+      "label": "Saved controls dark 820px have no page overflow",
+      "status": "PASS"
+    },
+    {
+      "label": "Saved controls light 390px have no page overflow",
+      "status": "PASS"
+    },
+    {
+      "label": "Saved controls dark 390px have no page overflow",
+      "status": "PASS"
+    },
+    {
+      "label": "Workspace changes isolate definitions and disclosure state",
+      "status": "PASS"
+    },
+    {
+      "label": "Delete submits latest revision and removes only the saved definition",
+      "status": "PASS"
+    },
+    {
+      "label": "Unconfigured storage and request failure remain distinct from empty",
+      "status": "PASS"
+    },
+    {
+      "label": "Private search prevents saving without broadening the view",
+      "status": "PASS"
+    }
+  ],
+  "errors": [],
+  "warnings": []
+}
