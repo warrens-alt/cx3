@@ -899,3 +899,25 @@ test('reduction: Commercial Why changed requires returned comparison, eligible s
     }finally{app.close();}
   }
 });
+
+
+test('visual catalogue controls never turn missing analytics into chart values',async()=>{
+  const app=await mount('/visuals'+scope);try{
+    await app.wait(()=>app.text().includes('No analytical dataset is connected'));
+    assert.match(app.text(),/No plottable values/);
+    assert.doesNotMatch(app.text(),/Verified Sales|Range:|Selected Point/);
+    assert.equal(app.find('.cx-viz-canvas'),undefined);
+    const before=[...app.w.__fixture.requests];
+    const select=app.find('select','Catalogue measure');
+    assert.ok(select);
+    select.value='sales';select.dispatchEvent(new app.w.Event('change',{bubbles:true}));
+    for(const kind of ['bar','line','area','donut','column']){
+      await app.click('button',kind);
+      assert.equal(app.find('button',kind).getAttribute('aria-pressed'),'true');
+      assert.match(app.text(),/No plottable values/);
+      assert.equal(app.find('.cx-viz-canvas'),undefined);
+    }
+    assert.equal(select.value,'sales');
+    assert.deepEqual([...app.w.__fixture.requests],before,'Presentation controls cannot fetch or fabricate analytical data');
+  }finally{app.close();}
+});

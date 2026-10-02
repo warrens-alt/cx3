@@ -241,7 +241,8 @@ test('record exports and CLI mutations respect admin-only governance', () => {
   assert.match(api, /analyticsRouter\.post\('\/cli-performance\/import', requireAdmin/);
   assert.match(api, /analyticsRouter\.post\('\/cli-performance\/load-sample', requireAdmin/);
   assert.match(api, /analyticsRouter\.delete\('\/cli-performance\/import', requireAdmin/);
-  assert.match(api, /ENABLE_CLI_SAMPLE_DATA/);
+  assert.match(api, /if \(process\.env\.NODE_ENV === 'production'\) \{\s*throw new RequestError\('Benchmark CLI sample data is disabled in production', 403\)/);
+  assert.doesNotMatch(api, /process\.env\.ENABLE_CLI_SAMPLE_DATA/);
 });
 
 test('CLI analytics never synthesize missing production metrics', () => {

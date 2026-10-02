@@ -1,9 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { BarChart3, LineChart, PieChart, Activity, SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import VisualPlot from '../components/visuals/VisualPlot';
-import { useFilters } from '../lib/FilterContext';
-import { useClient } from '../lib/ClientContext';
 import { useDevice } from '../hooks/useDevice';
 import type { VisualKind, Measure, VisualPoint } from '../lib/visuals/model';
 
@@ -11,13 +9,11 @@ const MEASURES: Measure[] = [
   { id: 'leads', label: 'Captured Leads', unit: 'records' },
   { id: 'deliveries', label: 'Delivered Episodes', unit: 'records' },
   { id: 'calls', label: 'Call Attempts', unit: 'records' },
-  { id: 'sales', label: 'Verified Sales', unit: 'records' },
+  { id: 'sales', label: 'Recorded Sales', unit: 'records' },
   { id: 'activations', label: 'Activated Policies', unit: 'records' },
 ];
 
 export default function VisualWorkspace() {
-  const { startDate, endDate } = useFilters();
-  const { clientId } = useClient();
   const device = useDevice();
   const [kind, setKind] = useState<VisualKind>('column');
   const [selectedMeasure, setSelectedMeasure] = useState<string>('leads');
@@ -34,34 +30,32 @@ export default function VisualWorkspace() {
     return 380;
   }, [device.isMobile, device.isTablet, device.orientation]);
 
-  // Demo synthetic points representing active tenant range
-  const points: VisualPoint[] = useMemo(() => {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return days.map((day, i) => ({
-      key: `d-${i}`,
-      label: day,
-      value: Math.floor(120 + Math.sin(i) * 60 + i * 20),
-      exact: String(Math.floor(120 + Math.sin(i) * 60 + i * 20)),
-      categoryKey: day,
-    }));
-  }, [measure]);
+  // This catalogue has no connected analytical dataset. Never manufacture chart values.
+  const points: VisualPoint[] = [];
 
   return (
     <div className="cx-page space-y-4 sm:space-y-6 p-3 sm:p-6">
       <PageHeader
-        title="Visual Analytics Workspace"
-        subtitle="Dynamic chart exploration across multidimensional business dimensions and telemetry."
+        title="Visual Workspace"
+        subtitle="Chart presentation catalogue. No analytical dataset is connected to this page."
         badges={[
           { label: `Chart: ${kind}`, variant: 'neutral' },
-          { label: `Range: ${startDate} to ${endDate}`, variant: 'neutral' },
+          { label: 'Analytics unavailable', variant: 'neutral' },
         ]}
       />
+
+      <section className="enterprise-card p-3 sm:p-4 space-y-2" aria-label="Visual catalogue evidence" data-state="unavailable">
+        <h2 className="text-sm font-semibold">Analytics unavailable</h2>
+        <p className="text-sm">No measurements are available in this catalogue. The controls select chart presentation only; they do not query a workspace or reporting period.</p>
+        <p className="text-sm">Use the existing analytical pages for returned observations and their source evidence. Missing values remain unavailable.</p>
+      </section>
 
       <div className="enterprise-card p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <SlidersHorizontal className="w-4 h-4 text-slate-500 shrink-0" />
           <span className="text-xs font-semibold text-slate-700">Measure:</span>
           <select
+            aria-label="Catalogue measure"
             value={selectedMeasure}
             onChange={(e) => setSelectedMeasure(e.target.value)}
             className="text-xs bg-white border border-slate-200 rounded px-2.5 py-1.5 font-medium text-slate-800 min-h-[34px] flex-1 sm:flex-initial"
@@ -76,6 +70,8 @@ export default function VisualWorkspace() {
           {(['column', 'bar', 'line', 'area', 'donut'] as VisualKind[]).map((k) => (
             <button
               key={k}
+              type="button"
+              aria-pressed={kind === k}
               onClick={() => setKind(k)}
               className={`px-2.5 sm:px-3 py-1 text-xs font-medium rounded capitalize transition shrink-0 min-h-[30px] ${
                 kind === k ? 'bg-white shadow-xs text-blue-700 font-semibold' : 'text-slate-600 hover:text-slate-900'

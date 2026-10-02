@@ -646,7 +646,7 @@ analyticsRouter.post('/cli-performance/import', requireAdmin, asyncRoute(async (
 }));
 
 analyticsRouter.post('/cli-performance/load-sample', requireAdmin, asyncRoute(async (req, res) => {
-  if (process.env.NODE_ENV === 'production' && process.env.ENABLE_CLI_SAMPLE_DATA !== 'true') {
+  if (process.env.NODE_ENV === 'production') {
     throw new RequestError('Benchmark CLI sample data is disabled in production', 403);
   }
   const scope = res.locals.scope;

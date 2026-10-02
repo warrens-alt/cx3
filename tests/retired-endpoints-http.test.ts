@@ -84,6 +84,25 @@ for (const role of ['viewer', 'analyst', 'admin'] as const) {
   });
 }
 
+test('production refuses synthetic CLI loading even with the former opt-in flag and administrator authority', async context => {
+  const identity = profile('admin');
+  await withApi(context, [identity], async base => {
+    const response = await fetch(`${base}/api/analytics/cli-performance/load-sample`, {
+      method: 'POST', headers: { ...auth(identity), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientId: 'mtn' }),
+    });
+    assert.equal(response.status, 403);
+    assert.match((await response.json()).error, /Synthetic reports cannot be loaded.*production/);
+    // The earlier archive router already refuses production. Its secondary
+    // analytics handler must retain the same boundary if mounted independently.
+    const { analyticsRouter } = await import('../server/api');
+    const route = analyticsRouter.stack.find(layer => layer.route?.path === '/cli-performance/load-sample')!.route;
+    const error: any = await new Promise(resolve => route.stack.at(-1).handle({}, {}, resolve));
+    assert.equal(error.status, 403);
+    assert.match(error.message, /sample data is disabled in production/);
+  }, { ENABLE_CLI_SAMPLE_DATA: 'true' });
+});
+
 test('spoofed UID or email cannot select an identity or invoke user storage', async context => {
   const identity = profile('viewer');
   await withApi(context, [identity], async (base, reads) => {

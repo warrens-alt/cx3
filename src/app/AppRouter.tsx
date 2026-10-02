@@ -28,7 +28,6 @@ export const OverviewPage = React.lazy(() => safeImport(() => import('../feature
 export const JourneyPage = React.lazy(() => safeImport(() => import('../features/journey/JourneyPage')));
 export const ContactPage = React.lazy(() => safeImport(() => import('../features/contact/ContactPage')));
 export const SpeedPage = React.lazy(() => safeImport(() => import('../features/contact/SpeedPage')));
-export const ExecutiveOverview = React.lazy(() => safeImport(() => import('../pages/ExecutiveOverview')));
 export const FunnelIntelligence = React.lazy(() => safeImport(() => import('../pages/FunnelIntelligence')));
 export const SpeedToLeadIntelligence = React.lazy(() => safeImport(() => import('../pages/SpeedToLeadIntelligence')));
 export const ContactStrategyIntelligence = React.lazy(() => safeImport(() => import('../pages/ContactStrategyIntelligence')));
