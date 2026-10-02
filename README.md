@@ -96,6 +96,22 @@ The deployed hostname must also be present in Firebase Authentication **Authoriz
 
 If deploying behind Google IAP instead, use `CX_AUTH_MODE=iap` with `IAP_AUDIENCE` and `CX_ACCESS_POLICY_JSON`; do not enable both identity models implicitly.
 
+## Saved investigation storage
+
+Saved investigations store personal definitions and rerun current observations when opened.
+They exclude records, lead IDs, private search text, evidence pins, conclusions and results.
+Storage remains explicitly unconfigured until the deployment selects an approved private backend.
+The Investigation workspace remains usable in that state.
+
+For Node/Google Cloud, set `CX_SAVED_ANALYSES_STORAGE_PROVIDER=gcs` and
+`CX_SAVED_ANALYSES_BUCKET`. Use the approved runtime identity or the dedicated server secret
+`CX_SAVED_ANALYSES_CREDENTIALS`; never put credentials in `VITE_*` variables.
+The bucket must enforce public access prevention and uniform bucket-level access.
+For the optional Cloudflare runtime, use `CX_SAVED_ANALYSES_STORAGE_PROVIDER=r2`, an explicit native `SAVED_ANALYSES`
+binding and `CX_SAVED_ANALYSES_R2_PRIVATE_CONFIRMED=true` after reviewing bucket privacy.
+There is no memory, CLI-storage or warehouse-credential fallback and no automatic provisioning.
+See [.env.example](.env.example) and [activation and verification requirements](docs/SAVED-INVESTIGATIONS.md).
+
 ## Demo mode
 
 `/overview?mode=demo` is a separate client-only synthetic workspace. It does not make live analytics or BigQuery requests and should never be interpreted as validated business performance.
