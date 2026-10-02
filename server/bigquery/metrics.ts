@@ -129,12 +129,12 @@ export const METRIC_DEFINITIONS = {
   },
   total_calls: {
     definition: "Total dials made across all leads",
-    numerator: "SUM(IFNULL(total_calls, 0))",
+    numerator: "CASE WHEN COUNTIF(total_calls IS NULL) > 0 THEN NULL ELSE SUM(total_calls) END",
     denominator: "N/A"
   },
   calls_per_called_lead: {
     definition: "Total Calls / Dialed Leads",
-    numerator: "SUM(IFNULL(total_calls, 0))",
+    numerator: "CASE WHEN COUNTIF(total_calls IS NULL) > 0 THEN NULL ELSE SUM(total_calls) END",
     denominator: "COUNTIF(has_call = true)"
   },
   one_call_leads: {
@@ -286,7 +286,7 @@ export const METRIC_DEFINITIONS = {
     costMetricFormula: "Spend / Premium Collections",
     waterfallMetricFormula: "(Premium Collections / Sales) * 100",
     definition: "Recurring or premium subscription amounts collected.",
-    numerator: "SUM(IFNULL(total_revenue, 0))",
+    numerator: "CASE WHEN COUNTIF(total_revenue IS NULL) > 0 THEN NULL ELSE SUM(total_revenue) END",
     denominator: "N/A"
   },
   // Item 49 - Lifetime Value
@@ -296,22 +296,22 @@ export const METRIC_DEFINITIONS = {
     reportValue: "Lifetime Value",
     costMetric: "CLTV",
     metric: "Return On Customer Life Time Value",
-    costMetricFormula: "Total Revenue collected / Customer Total Acquisition Cost",
+    costMetricFormula: "Source-recorded revenue / approved acquisition cost (unavailable without a cost contract)",
     waterfallMetricFormula: "Customer Life Time Revenue / Customer Total Acquisition Cost",
     revenueMetric: "ROAS",
     costOfRevenueMetricFormula: "Customer Life Time Revenue / Customer Total Acquisition Cost",
     definition: "Total expected or realized value generated across customer lifespan.",
-    numerator: "SUM(IFNULL(total_revenue, 0))",
+    numerator: "CASE WHEN COUNTIF(total_revenue IS NULL) > 0 THEN NULL ELSE SUM(total_revenue) END",
     denominator: "COUNT(DISTINCT lead_id)"
   },
   revenue: {
     definition: "Total Sales value",
-    numerator: "SUM(IFNULL(total_revenue, 0))",
+    numerator: "CASE WHEN COUNTIF(total_revenue IS NULL) > 0 THEN NULL ELSE SUM(total_revenue) END",
     denominator: "N/A"
   },
   revenue_per_lead: {
     definition: "Total Sales value / Fetched Leads",
-    numerator: "SUM(IFNULL(total_revenue, 0))",
+    numerator: "CASE WHEN COUNTIF(total_revenue IS NULL) > 0 THEN NULL ELSE SUM(total_revenue) END",
     denominator: "COUNT(DISTINCT lead_id)"
   },
   duplicate_leads: {

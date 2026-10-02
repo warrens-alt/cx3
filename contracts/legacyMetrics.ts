@@ -28,7 +28,7 @@ const core = {
   sales: metric('sales', L.sales, sale, L.sales),
   sales_with_revenue: metric('sales_with_revenue', L.billable_sales, 'COUNTIF(has_billable_sale = true)', L.billable_sales, 'N/A', null, 'records', 'Leads with a sale and positive matched recorded revenue. This does not establish sale delivery, contractual billability, invoicing or collection.'),
   activations: metric('activations', L.activations, 'COUNTIF(has_activation = true)', L.activations),
-  revenue: metric('revenue', L.revenue, 'SUM(IFNULL(total_revenue, 0))', L.revenue, 'N/A', null, 'currency', 'Expected or recorded revenue from the legacy source model; not verified approved, invoiced or collected value.'),
+  revenue: metric('revenue', L.revenue, 'CASE WHEN COUNTIF(total_revenue IS NULL) > 0 THEN NULL ELSE SUM(total_revenue) END', L.revenue, 'N/A', null, 'currency', 'Source-recorded revenue, withheld when any transaction key, value or currency evidence is incomplete; does not certify invoiced or collected amounts.'),
   delivery_rate: metric('delivery_rate', L.delivery_rate, 'COUNTIF(has_delivery = true)', L.delivered, lead, L.leads, 'percent'),
   dial_rate: metric('dial_rate', L.dial_rate, dial, L.called, lead, L.leads, 'percent'),
   call_coverage: metric('call_coverage', L.call_coverage, dial, L.called, 'COUNTIF(has_delivery = true)', L.delivered, 'percent', 'Ratio of dialled lead flags to delivered lead flags. Unlike v2 delivery coverage, this legacy ratio does not independently enforce a common episode population.'),
@@ -37,11 +37,11 @@ const core = {
   lead_to_sale_rate: metric('lead_to_sale_rate', L.lead_to_sale_rate, sale, L.sales, lead, L.leads, 'percent'),
   billable_sale_rate: metric('billable_sale_rate', L.billable_sale_rate, 'COUNTIF(has_billable_sale = true)', L.billable_sales, sale, L.sales, 'percent'),
   activation_rate: metric('activation_rate', L.activation_rate, 'COUNTIF(has_activation = true)', L.activations, sale, L.sales, 'percent'),
-  revenue_per_lead: metric('revenue_per_lead', L.revenue_per_lead, 'SUM(IFNULL(total_revenue, 0))', L.revenue, lead, L.leads, 'currency'),
-  revenue_per_sale: metric('revenue_per_sale', L.revenue_per_sale, 'SUM(IFNULL(total_revenue, 0))', L.revenue, sale, L.sales, 'currency'),
-  total_calls: metric('total_calls', L.total_calls, 'SUM(IFNULL(total_calls, 0))', L.total_calls),
-  calls_per_lead: metric('calls_per_lead', L.calls_per_lead, 'SUM(IFNULL(total_calls, 0))', L.total_calls, lead, L.leads, 'calls_per_lead'),
-  calls_per_called_lead: metric('calls_per_called_lead', L.calls_per_called_lead, 'SUM(IFNULL(total_calls, 0))', L.total_calls, dial, L.called, 'calls_per_lead'),
+  revenue_per_lead: metric('revenue_per_lead', L.revenue_per_lead, 'CASE WHEN COUNTIF(total_revenue IS NULL) > 0 THEN NULL ELSE SUM(total_revenue) END', L.revenue, lead, L.leads, 'currency'),
+  revenue_per_sale: metric('revenue_per_sale', L.revenue_per_sale, 'CASE WHEN COUNTIF(total_revenue IS NULL) > 0 THEN NULL ELSE SUM(total_revenue) END', L.revenue, sale, L.sales, 'currency'),
+  total_calls: metric('total_calls', L.total_calls, 'CASE WHEN COUNTIF(total_calls IS NULL) > 0 THEN NULL ELSE SUM(total_calls) END', L.total_calls),
+  calls_per_lead: metric('calls_per_lead', L.calls_per_lead, 'CASE WHEN COUNTIF(total_calls IS NULL) > 0 THEN NULL ELSE SUM(total_calls) END', L.total_calls, lead, L.leads, 'calls_per_lead'),
+  calls_per_called_lead: metric('calls_per_called_lead', L.calls_per_called_lead, 'CASE WHEN COUNTIF(total_calls IS NULL) > 0 THEN NULL ELSE SUM(total_calls) END', L.total_calls, dial, L.called, 'calls_per_lead'),
   one_call_leads: metric('one_call_leads', L.one_call_leads, 'COUNTIF(total_calls = 1)', L.one_call_leads),
   repeat_call_leads: metric('repeat_call_leads', L.repeat_call_leads, 'COUNTIF(total_calls > 1)', L.repeat_call_leads),
 };
@@ -67,15 +67,15 @@ export const LEGACY_METRICS: Record<string, LegacyMetricDefinition> = {
   duplicate_leads: unavailable('duplicate_leads','Duplicate Leads','Requires a validated duplicate classification; failed validation is not necessarily duplication.'),
   duplicate_rate: unavailable('duplicate_rate','Duplicate Lead Rate','Requires duplicate leads / evaluated leads; unavailable does not mean zero.'),
 };
-/** These expression strings are unchanged from the existing dynamic query engine. */
+/** These expression strings match the dynamic query engine, including completeness guards. */
 export const EXPLORER_EXPRESSIONS: Record<string, string> = {
   leads: 'COUNT(*)', delivered: 'COUNTIF(has_delivery)', called: 'COUNTIF(has_call)', rpcs: 'COUNTIF(has_rpc)',
-  sales: 'COUNTIF(has_sale)', billable_sales: 'COUNTIF(has_billable_sale)', activations: 'COUNTIF(has_activation)', revenue: 'SUM(total_revenue)',
+  sales: 'COUNTIF(has_sale)', billable_sales: 'COUNTIF(has_billable_sale)', activations: 'COUNTIF(has_activation)', revenue: 'CASE WHEN COUNTIF(total_revenue IS NULL) > 0 THEN NULL ELSE SUM(total_revenue) END',
   delivery_rate: '100 * SAFE_DIVIDE(COUNTIF(has_delivery), COUNT(*))', dial_rate: '100 * SAFE_DIVIDE(COUNTIF(has_call), COUNT(*))',
   call_coverage: '100 * SAFE_DIVIDE(COUNTIF(has_call), COUNTIF(has_delivery))', rpc_rate: '100 * SAFE_DIVIDE(COUNTIF(has_rpc), COUNTIF(has_call))',
   sale_rate: '100 * SAFE_DIVIDE(COUNTIF(has_sale), COUNTIF(has_call))', lead_to_sale_rate: '100 * SAFE_DIVIDE(COUNTIF(has_sale), COUNT(*))',
   billable_sale_rate: '100 * SAFE_DIVIDE(COUNTIF(has_billable_sale), COUNTIF(has_sale))', activation_rate: '100 * SAFE_DIVIDE(COUNTIF(has_activation), COUNTIF(has_sale))',
-  revenue_per_lead: 'SAFE_DIVIDE(SUM(total_revenue), COUNT(*))', revenue_per_sale: 'SAFE_DIVIDE(SUM(total_revenue), COUNTIF(has_sale))', calls_per_lead: 'SAFE_DIVIDE(SUM(total_calls), COUNT(*))',
+  revenue_per_lead: 'SAFE_DIVIDE(CASE WHEN COUNTIF(total_revenue IS NULL) > 0 THEN NULL ELSE SUM(total_revenue) END, COUNT(*))', revenue_per_sale: 'SAFE_DIVIDE(CASE WHEN COUNTIF(total_revenue IS NULL) > 0 THEN NULL ELSE SUM(total_revenue) END, COUNTIF(has_sale))', calls_per_lead: 'SAFE_DIVIDE(CASE WHEN COUNTIF(total_calls IS NULL) > 0 THEN NULL ELSE SUM(total_calls) END, COUNT(*))',
 };
 const keys: Record<string,string> = { leads:'total_leads', delivered:'delivered_leads', called:'called_leads', billable_sales:'sales_with_revenue' };
 export const EXPLORER_METRICS = Object.keys(EXPLORER_EXPRESSIONS).map(id => {

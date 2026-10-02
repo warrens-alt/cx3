@@ -1,3 +1,4 @@
+import { completeRevenueSumSql } from '../../analytics/common/leadMetrics';
 import { getBigQueryClient } from '../client';
 import { getClientConfig } from '../config';
 import { getBaseSemanticLayer } from '../views';
@@ -51,7 +52,7 @@ export async function getCohortStats(params: BaseQueryParams & { cohortType?: st
       COUNTIF(has_sale = true) as sales,
       COUNTIF(has_billable_sale = true) as billable_sales,
       COUNTIF(has_activation = true) as activations,
-      SUM(total_revenue) as revenue,
+      ${completeRevenueSumSql('total_revenue')} as revenue,
       COUNTIF(total_revenue IS NULL) AS missing_revenue_leads,
       ${missingTiming} AS missing_event_timestamps,
       ${maturationExpr}

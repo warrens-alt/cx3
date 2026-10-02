@@ -11,7 +11,7 @@ export const getAllowedDimensions = (timezone: string): Record<string, string> =
     source: "IFNULL(source, 'Unknown')", vendor: "IFNULL(vendor, 'Unknown')", medium: "IFNULL(medium, 'Unknown')",
     hour: `LPAD(CAST(EXTRACT(HOUR FROM DATETIME(capture_timestamp, '${timezone}')) AS STRING), 2, '0')`,
     weekday: `CAST(EXTRACT(DAYOFWEEK FROM DATETIME(capture_timestamp, '${timezone}')) AS STRING)`,
-    calls_bucket: "CASE WHEN total_calls IS NULL OR total_calls = 0 THEN '0' WHEN total_calls <= 5 THEN CAST(total_calls AS STRING) WHEN total_calls <= 10 THEN '6-10' ELSE '11+' END",
+    calls_bucket: "CASE WHEN total_calls IS NULL THEN 'Unrecorded' WHEN total_calls = 0 THEN '0' WHEN total_calls <= 5 THEN CAST(total_calls AS STRING) WHEN total_calls <= 10 THEN '6-10' ELSE '11+' END",
     response_bucket: `CASE WHEN first_call_timestamp IS NULL THEN 'Uncalled' WHEN first_call_timestamp < capture_timestamp THEN 'Invalid chronology'
       WHEN TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, SECOND) <= 300 THEN '0–5m'
       WHEN TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, SECOND) <= 900 THEN '>5–15m'
@@ -22,12 +22,12 @@ export const getAllowedDimensions = (timezone: string): Record<string, string> =
 };
 export const ALLOWED_METRICS: Record<string, string> = {
   leads: 'COUNT(*)', delivered: 'COUNTIF(has_delivery)', called: 'COUNTIF(has_call)', rpcs: 'COUNTIF(has_rpc)',
-  sales: 'COUNTIF(has_sale)', billable_sales: 'COUNTIF(has_billable_sale)', activations: 'COUNTIF(has_activation)', revenue: 'SUM(total_revenue)',
+  sales: 'COUNTIF(has_sale)', billable_sales: 'COUNTIF(has_billable_sale)', activations: 'COUNTIF(has_activation)', revenue: 'CASE WHEN COUNTIF(total_revenue IS NULL) > 0 THEN NULL ELSE SUM(total_revenue) END',
   delivery_rate: '100 * SAFE_DIVIDE(COUNTIF(has_delivery), COUNT(*))', dial_rate: '100 * SAFE_DIVIDE(COUNTIF(has_call), COUNT(*))',
   call_coverage: '100 * SAFE_DIVIDE(COUNTIF(has_call), COUNTIF(has_delivery))', rpc_rate: '100 * SAFE_DIVIDE(COUNTIF(has_rpc), COUNTIF(has_call))',
   sale_rate: '100 * SAFE_DIVIDE(COUNTIF(has_sale), COUNTIF(has_call))', lead_to_sale_rate: '100 * SAFE_DIVIDE(COUNTIF(has_sale), COUNT(*))',
   billable_sale_rate: '100 * SAFE_DIVIDE(COUNTIF(has_billable_sale), COUNTIF(has_sale))', activation_rate: '100 * SAFE_DIVIDE(COUNTIF(has_activation), COUNTIF(has_sale))',
-  revenue_per_lead: 'SAFE_DIVIDE(SUM(total_revenue), COUNT(*))', revenue_per_sale: 'SAFE_DIVIDE(SUM(total_revenue), COUNTIF(has_sale))', calls_per_lead: 'SAFE_DIVIDE(SUM(total_calls), COUNT(*))',
+  revenue_per_lead: 'SAFE_DIVIDE(CASE WHEN COUNTIF(total_revenue IS NULL) > 0 THEN NULL ELSE SUM(total_revenue) END, COUNT(*))', revenue_per_sale: 'SAFE_DIVIDE(CASE WHEN COUNTIF(total_revenue IS NULL) > 0 THEN NULL ELSE SUM(total_revenue) END, COUNTIF(has_sale))', calls_per_lead: 'SAFE_DIVIDE(CASE WHEN COUNTIF(total_calls IS NULL) > 0 THEN NULL ELSE SUM(total_calls) END, COUNT(*))',
 };
 interface DynamicParams { clientId: string; metric: string; dimension: string; secondaryDimension?: string; startDate?: string; endDate?: string; filters?: Filters; }
 const pct = (a: number, b: number) => b ? Number((100 * a / b).toFixed(1)) : null;
@@ -47,16 +47,16 @@ export async function executeDynamicQuery(params: DynamicParams) {
   const query = `${getBaseSemanticLayer(client)} SELECT ${dimensions[params.dimension]} AS dim1${dim2}, ${ALLOWED_METRICS[params.metric]} AS value,
     COUNT(*) AS sample_size, COUNT(*) AS full_leads, COUNTIF(has_delivery) AS full_delivered, COUNTIF(has_call) AS full_called,
     COUNTIF(has_rpc) AS full_rpcs, COUNTIF(has_sale) AS full_sales, COUNTIF(has_billable_sale) AS full_billable_sales,
-    COUNTIF(has_activation) AS full_activations, SUM(total_revenue) AS full_revenue
+    COUNTIF(has_activation) AS full_activations, CASE WHEN COUNTIF(total_revenue IS NULL) > 0 THEN NULL ELSE SUM(total_revenue) END AS full_revenue
     FROM vw_leads ${sql} GROUP BY 1${params.secondaryDimension ? ', 2' : ''}
     ORDER BY ${temporal ? 'dim1' : 'value DESC, dim1'} LIMIT 1001`;
   const start = Date.now(), [job] = await bq.createQueryJob({ query, params: queryParams }), [rows] = await job.getQueryResults();
   return { success: true, data: rows.slice(0, 1000).map((r: any) => {
-    const l = Number(r.full_leads), d = Number(r.full_delivered), c = Number(r.full_called), rpc = Number(r.full_rpcs), s = Number(r.full_sales), b = Number(r.full_billable_sales), a = Number(r.full_activations), rev = Number(r.full_revenue) || 0;
+    const l = Number(r.full_leads), d = Number(r.full_delivered), c = Number(r.full_called), rpc = Number(r.full_rpcs), s = Number(r.full_sales), b = Number(r.full_billable_sales), a = Number(r.full_activations), rev = finiteOrNull(r.full_revenue);
     return { dim1: r.dim1, dim2: r.dim2, value: finiteOrNull(r.value), sampleSize: Number(r.sample_size),
       fullFunnel: { leads: l, delivered: d, called: c, rpcs: rpc, sales: s, billableSales: b, activations: a, revenue: rev,
         deliveryRate: pct(d, l), callRate: pct(c, l), rpcRate: pct(rpc, c), saleRate: pct(s, c), leadToSaleRate: pct(s, l),
-        billableSaleRate: pct(b, s), activationRate: pct(a, s), revPerLead: l ? rev / l : null } };
+        billableSaleRate: pct(b, s), activationRate: pct(a, s), revPerLead: l && rev !== null ? rev / l : null } };
   }), metadata: { durationMs: Date.now() - start, bytesBilled: job.metadata.statistics?.query?.totalBytesBilled ?? null,
     metric: params.metric, dimension: params.dimension, secondaryDimension: params.secondaryDimension, truncated: rows.length > 1000,
     rateUnit: 'percent', appliedFilters: scope.filters, attribution: 'selected_vendor_transactions', dateBasis: 'lead_capture_cohort' } };

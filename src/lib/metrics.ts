@@ -315,7 +315,7 @@ export const METRICS: Record<string, MetricDefinition> = {
     waterfallMetricFormula: "(Premium Collections / Sales) * 100",
     canonicalName: "Premium Collections",
     definition: "Recurring premium payments transacted.",
-    numerator: "SUM(IFNULL(total_revenue, 0))",
+    numerator: "CASE WHEN COUNTIF(total_revenue IS NULL) > 0 THEN NULL ELSE SUM(total_revenue) END",
     denominator: "N/A",
     source: "vw_commercial_events"
   },
@@ -326,19 +326,19 @@ export const METRICS: Record<string, MetricDefinition> = {
     reportValue: "Lifetime Value",
     costMetric: "CLTV",
     metric: "Return On Customer Life Time Value",
-    costMetricFormula: "Total Revenue collected / Customer Total Acquisition Cost",
+    costMetricFormula: "Source-recorded revenue / approved acquisition cost (unavailable without a cost contract)",
     waterfallMetricFormula: "Customer Life Time Revenue / Customer Total Acquisition Cost",
     revenueMetric: "ROAS",
     costOfRevenueMetricFormula: "Customer Life Time Revenue / Customer Total Acquisition Cost",
     canonicalName: "Lifetime Value",
     definition: "Lifetime customer revenue relative to acquisition cost.",
-    numerator: "SUM(IFNULL(total_revenue, 0))",
+    numerator: "CASE WHEN COUNTIF(total_revenue IS NULL) > 0 THEN NULL ELSE SUM(total_revenue) END",
     denominator: "COUNT(DISTINCT lead_id)",
     source: "vw_commercial_events"
   },
   revenue: {
     definition: "Total Sales value",
-    numerator: "SUM(IFNULL(total_revenue, 0))",
+    numerator: "CASE WHEN COUNTIF(total_revenue IS NULL) > 0 THEN NULL ELSE SUM(total_revenue) END",
     denominator: "N/A",
     canonicalName: "Total Sales value",
     source: "vw_commercial_events"

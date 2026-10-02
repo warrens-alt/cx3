@@ -1,7 +1,9 @@
 import { getBigQueryClient } from './client';
 import { getClientConfig } from './config';
-import { getBaseSemanticLayer } from './views';
+import { getBaseSemanticLayer, completeLegacyRevenueSumSql } from './views';
 import { METRIC_DEFINITIONS } from './metrics';
+import { completeRevenueSumSql } from '../analytics/common/leadMetrics';
+import { numberOrNull as nullableNumber, ratioOrNull, percentOrNull } from '../analytics/common/metrics';
 
 export interface BaseQueryParams {
   clientId: string;
@@ -133,7 +135,7 @@ export async function getOverviewStats(params: BaseQueryParams) {
       COUNTIF(has_billable_sale = true) as billable_sales,
       COUNTIF(has_sale = true AND has_billable_sale = false) as unbilled_sales,
       COUNTIF(has_activation = true) as activations,
-      SUM(total_revenue) as revenue,
+      CAST(NULL AS NUMERIC) as revenue,
       SUM(total_transactions) as transactions,
       SUM(total_calls) as calls_total,
       COUNTIF(hospital_applied_inconsistent = true) as inconsistent_leads
@@ -152,7 +154,7 @@ export async function getOverviewStats(params: BaseQueryParams) {
       COUNTIF(has_call = true) as called,
       COUNTIF(has_sale = true) as sales,
       COUNTIF(has_billable_sale = true) as billable_sales,
-      SUM(total_revenue) as revenue
+      CAST(NULL AS NUMERIC) as revenue
     FROM vw_leads
     ${sql}
     GROUP BY date
@@ -166,7 +168,7 @@ export async function getOverviewStats(params: BaseQueryParams) {
       source,
       COUNT(DISTINCT lead_id) as leads,
       COUNTIF(has_billable_sale = true) as billable_sales,
-      SUM(total_revenue) as revenue
+      CAST(NULL AS NUMERIC) as revenue
     FROM vw_leads
     ${sql}
     GROUP BY source
@@ -199,28 +201,19 @@ export async function getOverviewStats(params: BaseQueryParams) {
   const billableSales = Number(data.billable_sales) || 0;
   const unbilledSales = Number(data.unbilled_sales) || 0;
   const activations = Number(data.activations) || 0;
-  const revenue = Number(data.revenue) || 0;
+  const revenue = null;
   const transactions = Number(data.transactions) || 0;
   const callsTotal = Number(data.calls_total) || 0;
   const inconsistentLeads = Number(data.inconsistent_leads) || 0;
   
-  let spend = 0;
-  if (client.semanticMappings.tables.marketing) {
-    let spendSql = '';
-    const spendParams = {};
-    if (params.startDate) { spendSql += ` CAST(date AS STRING) >= @startDate `; (spendParams as any)['startDate'] = params.startDate; }
-    if (params.endDate) { spendSql += (spendSql ? ' AND ' : '') + ` CAST(date AS STRING) <= @endDate `; (spendParams as any)['endDate'] = params.endDate; }
-    if (spendSql) spendSql = 'WHERE ' + spendSql;
-    
-    const spendQuery = `SELECT SUM(budget) as spend FROM \`${client.semanticMappings.tables.marketing}\` ${spendSql}`;
-    try {
-      const [spendRows] = await bq.query({ query: spendQuery, params: spendParams });
-      spend = Number(spendRows[0]?.spend) || 0;
-    } catch (e) {
-      spend = 0;
-    }
-  }
-  
+  // This legacy model has no approved spend grain or canonical revenue key/currency contract.
+  // Recorded finance remains available through the maintained OfferNet analytical services.
+  const spend = null;
+  const financialEvidence = {
+    status: 'UNAVAILABLE',
+    reason: 'Legacy financial totals lack the canonical transaction identity, duplicate, currency and completeness contract. Budget is not observed spend.',
+  };
+
   const trend = trendRows.map((r: any) => ({
     date: r.date,
     leads: Number(r.leads) || 0,
@@ -229,14 +222,14 @@ export async function getOverviewStats(params: BaseQueryParams) {
     called: Number(r.called) || 0,
     sales: Number(r.sales) || 0,
     billableSales: Number(r.billable_sales) || 0,
-    revenue: Number(r.revenue) || 0
+    revenue: null
   }));
 
   const sources = sourcesRows.map((r: any) => ({
     source: r.source || 'Unknown',
     leads: Number(r.leads) || 0,
     billableSales: Number(r.billable_sales) || 0,
-    revenue: Number(r.revenue) || 0
+    revenue: null
   }));
 
   // Generate dynamic attention items
@@ -250,19 +243,6 @@ export async function getOverviewStats(params: BaseQueryParams) {
     actionPath: string;
     actionLabel: string;
   }> = [];
-
-  if (unbilledSales > 0) {
-    attentionItems.push({
-      id: 'unbilled_sales',
-      title: 'Unbilled Sales (Revenue Leakage)',
-      severity: 'critical',
-      magnitude: `${unbilledSales} sale events generated R0 revenue`,
-      affected: `${((unbilledSales / Math.max(1, sales)) * 100).toFixed(1)}% of total sales`,
-      reason: 'Sale flagged in Vicidial / HLC status with zero attributed ledger revenue in activations.',
-      actionPath: '/outcomes',
-      actionLabel: 'Investigate Outcomes'
-    });
-  }
 
   const missingHandoffCount = routedLeads - handoffLeads;
   if (missingHandoffCount > 0 && routedLeads > 0) {
@@ -306,20 +286,21 @@ export async function getOverviewStats(params: BaseQueryParams) {
     revenue,
     transactions,
     callsTotal,
-    deliveryRate: leads > 0 ? Number(((delivered / leads) * 100).toFixed(1)) : 0,
-    callCoverage: delivered > 0 ? Number(((called / delivered) * 100).toFixed(1)) : 0,
-    rpcRate: called > 0 ? Number(((rpcs / called) * 100).toFixed(1)) : 0,
-    saleRate: called > 0 ? Number(((sales / called) * 100).toFixed(1)) : 0,
-    leadToSaleRate: leads > 0 ? Number(((sales / leads) * 100).toFixed(1)) : 0,
-    billableSaleRate: sales > 0 ? Number(((billableSales / sales) * 100).toFixed(1)) : 0,
-    activationRate: billableSales > 0 ? Number(((activations / billableSales) * 100).toFixed(1)) : 0,
-    revenuePerLead: leads > 0 ? Number((revenue / leads).toFixed(2)) : 0,
-    revenuePerBillableSale: billableSales > 0 ? Number((revenue / billableSales).toFixed(2)) : 0,
+    deliveryRate: percentOrNull(delivered, leads, 1),
+    callCoverage: percentOrNull(called, delivered, 1),
+    rpcRate: percentOrNull(rpcs, called, 1),
+    saleRate: percentOrNull(sales, called, 1),
+    leadToSaleRate: percentOrNull(sales, leads, 1),
+    billableSaleRate: percentOrNull(billableSales, sales, 1),
+    activationRate: percentOrNull(activations, billableSales, 1),
+    revenuePerLead: null,
+    revenuePerBillableSale: null,
     callsPerLead: leads > 0 ? Number((callsTotal / leads).toFixed(2)) : 0,
     callsPerCalledLead: called > 0 ? Number((callsTotal / called).toFixed(2)) : 0,
     spend,
-    cpa: leads > 0 ? Number((spend / leads).toFixed(2)) : 0,
-    roas: spend > 0 ? Number(((revenue / spend) * 100).toFixed(1)) : 0,
+    financialEvidence,
+    cpa: null,
+    roas: null,
     trend,
     sources,
     attentionItems,
@@ -330,7 +311,7 @@ export async function getOverviewStats(params: BaseQueryParams) {
       rpcs: 'RELIABLE',
       sales: 'RELIABLE',
       billableSales: 'RELIABLE',
-      revenue: 'RELIABLE'
+      revenue: 'UNAVAILABLE'
     }
   };
 }
@@ -351,7 +332,7 @@ export async function getFunnelStats(params: BaseQueryParams) {
       ${METRIC_DEFINITIONS.sales.numerator} as sale,
       COUNTIF(has_billable_sale = true) as billable_sale,
       ${METRIC_DEFINITIONS.activations.numerator} as activated,
-      SUM(IFNULL(total_revenue, 0)) as revenue
+      ${completeRevenueSumSql('total_revenue')} as revenue
     FROM vw_leads
     ${sql}
   `;
@@ -369,14 +350,14 @@ export async function getFunnelStats(params: BaseQueryParams) {
   const activated = Number(stats.activated) || 0;
 
   return [
-    { stage: 'Fetched Leads', count: captured, rate: 100, itemNo: 22, costMetric: 'CPL.Fetched' },
-    { stage: 'Standardised Leads', count: valid, rate: captured > 0 ? Number(((valid / captured) * 100).toFixed(1)) : 0, itemNo: 23, costMetric: 'CPL.Standardised' },
-    { stage: 'Delivered Leads', count: delivered, rate: valid > 0 ? Number(((delivered / valid) * 100).toFixed(1)) : 0, itemNo: 33, costMetric: 'CPL.Delivered' },
-    { stage: 'Dialed Leads', count: called, rate: delivered > 0 ? Number(((called / delivered) * 100).toFixed(1)) : 0, itemNo: 37, costMetric: 'CPL.Dialed' },
-    { stage: 'Right Party Contact', count: rpc, rate: called > 0 ? Number(((rpc / called) * 100).toFixed(1)) : 0, itemNo: 39, costMetric: 'CP.RPC' },
-    { stage: 'Sales', count: sale, rate: rpc > 0 ? Number(((sale / rpc) * 100).toFixed(1)) : 0, itemNo: 40, costMetric: 'CP.Sale' },
-    { stage: 'Delivered Sales', count: billableSale, rate: sale > 0 ? Number(((billableSale / sale) * 100).toFixed(1)) : 0, itemNo: 45, costMetric: 'CPS.Delivered' },
-    { stage: 'Activated Sales', count: activated, rate: billableSale > 0 ? Number(((activated / billableSale) * 100).toFixed(1)) : 0, itemNo: 46, costMetric: 'CPS.Activated' }
+    { stage: 'Fetched Leads', count: captured, rate: captured > 0 ? 100 : null, itemNo: 22, costMetric: 'CPL.Fetched' },
+    { stage: 'Standardised Leads', count: valid, rate: percentOrNull(valid, captured, 1), itemNo: 23, costMetric: 'CPL.Standardised' },
+    { stage: 'Delivered Leads', count: delivered, rate: percentOrNull(delivered, valid, 1), itemNo: 33, costMetric: 'CPL.Delivered' },
+    { stage: 'Dialed Leads', count: called, rate: percentOrNull(called, delivered, 1), itemNo: 37, costMetric: 'CPL.Dialed' },
+    { stage: 'Right Party Contact', count: rpc, rate: percentOrNull(rpc, called, 1), itemNo: 39, costMetric: 'CP.RPC' },
+    { stage: 'Sales', count: sale, rate: percentOrNull(sale, rpc, 1), itemNo: 40, costMetric: 'CP.Sale' },
+    { stage: 'Delivered Sales', count: billableSale, rate: percentOrNull(billableSale, sale, 1), itemNo: 45, costMetric: 'CPS.Delivered' },
+    { stage: 'Activated Sales', count: activated, rate: percentOrNull(activated, billableSale, 1), itemNo: 46, costMetric: 'CPS.Activated' }
   ];
 }
 
@@ -471,11 +452,11 @@ export async function getCallPerformanceStats(params: BaseQueryParams) {
     SELECT
       ${METRIC_DEFINITIONS.called_leads.numerator} as calledLeads,
       ${METRIC_DEFINITIONS.delivered_leads.numerator} as deliveredLeads,
-      ${METRIC_DEFINITIONS.total_calls.numerator} as totalCalls,
+      CASE WHEN COUNTIF(total_calls IS NULL) > 0 THEN NULL ELSE SUM(total_calls) END as totalCalls,
       ${METRIC_DEFINITIONS.one_call_leads.numerator} as oneCallLeads,
       ${METRIC_DEFINITIONS.repeat_call_leads.numerator} as repeatCallLeads,
-      SUM(IFNULL(total_call_duration_seconds, 0)) as totalDurationSeconds,
-      AVG(NULLIF(total_call_duration_seconds, 0)) as avgDurationSeconds
+      CASE WHEN COUNTIF(total_call_duration_seconds IS NULL) > 0 THEN NULL ELSE SUM(total_call_duration_seconds) END as totalDurationSeconds,
+      AVG(total_call_duration_seconds) as avgDurationSeconds
     FROM vw_leads
     ${leadsSql}
   `;
@@ -484,6 +465,7 @@ export async function getCallPerformanceStats(params: BaseQueryParams) {
     ${getBaseSemanticLayer(client)}
     SELECT
       CASE 
+        WHEN total_calls IS NULL THEN 'Unrecorded'
         WHEN total_calls = 1 THEN '1 Call'
         WHEN total_calls = 2 THEN '2 Calls'
         WHEN total_calls = 3 THEN '3 Calls'
@@ -492,12 +474,12 @@ export async function getCallPerformanceStats(params: BaseQueryParams) {
         ELSE '0 Calls'
       END as bucket,
       COUNT(DISTINCT lead_id) as current_leads,
-      COUNT(DISTINCT lead_id) as previous_leads,
+      CAST(NULL AS INT64) as previous_leads,
       COUNTIF(has_rpc = true) as rpc_count,
       COUNTIF(has_sale = true) as sale_count,
       COUNTIF(has_activation = true) as activation_count,
-      SUM(IFNULL(total_revenue, 0)) as total_revenue,
-      SUM(IFNULL(total_call_duration_seconds, 0)) as bucket_duration_seconds
+      ${completeRevenueSumSql('total_revenue')} as total_revenue,
+      CASE WHEN COUNTIF(total_call_duration_seconds IS NULL) > 0 THEN NULL ELSE SUM(total_call_duration_seconds) END as bucket_duration_seconds
     FROM vw_leads
     ${leadsSql}
     GROUP BY bucket
@@ -510,7 +492,7 @@ export async function getCallPerformanceStats(params: BaseQueryParams) {
       COUNT(DISTINCT lead_id) as volume,
       COUNTIF(has_rpc = true) as rpc_count,
       COUNTIF(has_sale = true) as sale_count,
-      SUM(IFNULL(total_revenue, 0)) as revenue
+      ${completeRevenueSumSql('total_revenue')} as revenue
     FROM vw_leads
     ${leadsSql ? leadsSql + ' AND' : 'WHERE'} first_call_timestamp IS NOT NULL
     GROUP BY hour
@@ -534,7 +516,7 @@ export async function getCallPerformanceStats(params: BaseQueryParams) {
       COUNT(DISTINCT lead_id) as volume,
       COUNTIF(has_rpc = true) as rpc_count,
       COUNTIF(has_sale = true) as sale_count,
-      SUM(IFNULL(total_revenue, 0)) as revenue
+      ${completeRevenueSumSql('total_revenue')} as revenue
     FROM vw_leads
     ${leadsSql ? leadsSql + ' AND' : 'WHERE'} first_call_timestamp IS NOT NULL
     GROUP BY day_num, day_name
@@ -548,12 +530,12 @@ export async function getCallPerformanceStats(params: BaseQueryParams) {
       COALESCE(vendor, 'Unknown') as vendor,
       COUNT(DISTINCT lead_id) as total_leads,
       COUNTIF(total_calls > 0) as called_leads,
-      SUM(total_calls) as total_calls,
+      CASE WHEN COUNTIF(call_count_anchor AND total_calls IS NULL) > 0 THEN NULL ELSE SUM(total_calls) END as total_calls,
       COUNTIF(total_calls = 1) as one_call_leads,
       COUNTIF(rpc = true) as rpc_count,
       COUNTIF(sale = true) as sale_count,
       COUNTIF(activation = true) as activation_count,
-      SUM(IFNULL(revenue, 0)) as total_revenue
+      ${completeLegacyRevenueSumSql('revenue')} as total_revenue
     FROM vw_lead_vendor_transactions
     ${txSql ? txSql + ' AND' : 'WHERE'} vendor IS NOT NULL
     GROUP BY vendor
@@ -568,7 +550,7 @@ export async function getCallPerformanceStats(params: BaseQueryParams) {
       COUNT(DISTINCT transaction_id) as volume,
       COUNTIF(rpc = true) as rpc_count,
       COUNTIF(sale = true) as sale_count,
-      SUM(IFNULL(revenue, 0)) as total_revenue
+      ${completeLegacyRevenueSumSql('revenue')} as total_revenue
     FROM vw_lead_vendor_transactions
     ${txSql ? txSql + ' AND' : 'WHERE'} total_calls > 0
     GROUP BY disposition
@@ -586,17 +568,17 @@ export async function getCallPerformanceStats(params: BaseQueryParams) {
   ] = await Promise.all([
     bq.query({ query: summaryQuery, params: leadsParams }),
     bq.query({ query: bucketsQuery, params: leadsParams }),
-    bq.query({ query: hourlyQuery, params: leadsParams }).catch(() => [[]]),
-    bq.query({ query: dayOfWeekQuery, params: leadsParams }).catch(() => [[]]),
-    bq.query({ query: vendorQuery, params: txParams }).catch(() => [[]]),
-    bq.query({ query: dispositionQuery, params: txParams }).catch(() => [[]])
+    bq.query({ query: hourlyQuery, params: leadsParams }),
+    bq.query({ query: dayOfWeekQuery, params: leadsParams }),
+    bq.query({ query: vendorQuery, params: txParams }),
+    bq.query({ query: dispositionQuery, params: txParams })
   ]);
   
   const summary = summaryRows[0] || {};
   const calledLeads = Number(summary.calledLeads) || 0;
-  const totalCalls = Number(summary.totalCalls) || 0;
-  const totalDurationSec = Number(summary.totalDurationSeconds) || 0;
-  const avgDurationSec = Number(summary.avgDurationSeconds) || 0;
+  const totalCalls = nullableNumber(summary.totalCalls);
+  const totalDurationSec = nullableNumber(summary.totalDurationSeconds);
+  const avgDurationSec = nullableNumber(summary.avgDurationSeconds);
   
   const formatSecToMinSec = (sec: number) => {
     if (!sec || sec <= 0) return '0m 0s';
@@ -605,20 +587,21 @@ export async function getCallPerformanceStats(params: BaseQueryParams) {
     return `${mins}m ${remainingSecs}s`;
   };
 
-  const bucketOrder = ['1 Call', '2 Calls', '3 Calls', '4 Calls', '5+ Calls'];
+  const bucketOrder = ['Unrecorded', '0 Calls', '1 Call', '2 Calls', '3 Calls', '4 Calls', '5+ Calls'];
   const chart = bucketOrder.map(b => {
-    const row = bucketRows.find((r: any) => r.bucket === b) || { current: 0, current_leads: 0, previous: 0, previous_leads: 0, rpc_count: 0, sale_count: 0, activation_count: 0, total_revenue: 0, bucket_duration_seconds: 0 };
+    const row = bucketRows.find((r: any) => r.bucket === b) || { current: 0, current_leads: 0, previous: null, previous_leads: null, rpc_count: 0, sale_count: 0, activation_count: 0, total_revenue: 0, bucket_duration_seconds: 0 };
     const current = Number(row.current ?? row.current_leads) || 0;
     return {
       bucket: b,
       current,
-      previous: Number(row.previous ?? row.previous_leads) || 0,
-      rpc: current > 0 ? Number(((Number(row.rpc_count) / current) * 100).toFixed(1)) : 0,
-      sale: current > 0 ? Number(((Number(row.sale_count) / current) * 100).toFixed(1)) : 0,
-      activation: current > 0 ? Number(((Number(row.activation_count) / current) * 100).toFixed(1)) : 0,
-      revPerLead: current > 0 ? Number((Number(row.total_revenue) / current).toFixed(2)) : 0,
-      totalRevenue: Number(row.total_revenue) || 0,
-      avgDurationSec: current > 0 ? Math.round(Number(row.bucket_duration_seconds || 0) / current) : 0
+      previous: nullableNumber(row.previous ?? row.previous_leads),
+      rpc: percentOrNull(Number(row.rpc_count), current, 1),
+      saleCount: Number(row.sale_count || 0),
+      sale: percentOrNull(Number(row.sale_count), current, 1),
+      activation: percentOrNull(Number(row.activation_count), current, 1),
+      revPerLead: ratioOrNull(nullableNumber(row.total_revenue), current, 2),
+      totalRevenue: nullableNumber(row.total_revenue),
+      avgDurationSec: ratioOrNull(row.bucket_duration_seconds, current, 0)
     };
   });
 
@@ -631,9 +614,9 @@ export async function getCallPerformanceStats(params: BaseQueryParams) {
       hour: hourNum,
       label,
       volume: vol,
-      rpcRate: vol > 0 ? Number(((Number(r.rpc_count) / vol) * 100).toFixed(1)) : 0,
-      saleRate: vol > 0 ? Number(((Number(r.sale_count) / vol) * 100).toFixed(1)) : 0,
-      revenue: Number(r.revenue) || 0
+      rpcRate: percentOrNull(Number(r.rpc_count), vol, 1),
+      saleRate: percentOrNull(Number(r.sale_count), vol, 1),
+      revenue: nullableNumber(r.revenue)
     };
   });
 
@@ -645,28 +628,28 @@ export async function getCallPerformanceStats(params: BaseQueryParams) {
     return {
       day: dayName,
       volume: vol,
-      rpcRate: vol > 0 ? Number(((Number(r.rpc_count) / vol) * 100).toFixed(1)) : 0,
-      saleRate: vol > 0 ? Number(((Number(r.sale_count) / vol) * 100).toFixed(1)) : 0,
-      revenue: Number(r.revenue) || 0
+      rpcRate: percentOrNull(Number(r.rpc_count), vol, 1),
+      saleRate: percentOrNull(Number(r.sale_count), vol, 1),
+      revenue: nullableNumber(r.revenue)
     };
   });
 
   // Vendor efficiency
   const vendors = (vendorRows || []).map((r: any) => {
     const called = Number(r.called_leads) || 0;
-    const calls = Number(r.total_calls) || 0;
+    const calls = nullableNumber(r.total_calls);
     return {
       vendor: r.vendor,
       totalLeads: Number(r.total_leads) || 0,
       calledLeads: called,
       totalCalls: calls,
-      avgCallsPerLead: called > 0 ? Number((calls / called).toFixed(1)) : 0,
-      oneCallRate: called > 0 ? Number(((Number(r.one_call_leads) / called) * 100).toFixed(1)) : 0,
-      rpcRate: called > 0 ? Number(((Number(r.rpc_count) / called) * 100).toFixed(1)) : 0,
-      saleRate: called > 0 ? Number(((Number(r.sale_count) / called) * 100).toFixed(1)) : 0,
-      activationRate: called > 0 ? Number(((Number(r.activation_count) / called) * 100).toFixed(1)) : 0,
-      revenue: Number(r.total_revenue) || 0,
-      revPerLead: called > 0 ? Number((Number(r.total_revenue) / called).toFixed(2)) : 0
+      avgCallsPerLead: ratioOrNull(calls, called, 1),
+      oneCallRate: percentOrNull(Number(r.one_call_leads), called, 1),
+      rpcRate: percentOrNull(Number(r.rpc_count), called, 1),
+      saleRate: percentOrNull(Number(r.sale_count), called, 1),
+      activationRate: percentOrNull(Number(r.activation_count), called, 1),
+      revenue: nullableNumber(r.total_revenue),
+      revPerLead: ratioOrNull(nullableNumber(r.total_revenue), called, 2)
     };
   });
 
@@ -677,32 +660,32 @@ export async function getCallPerformanceStats(params: BaseQueryParams) {
     return {
       disposition: r.disposition,
       volume: vol,
-      share: totalDispVolume > 0 ? Number(((vol / totalDispVolume) * 100).toFixed(1)) : 0,
-      rpcRate: vol > 0 ? Number(((Number(r.rpc_count) / vol) * 100).toFixed(1)) : 0,
-      saleRate: vol > 0 ? Number(((Number(r.sale_count) / vol) * 100).toFixed(1)) : 0,
-      revenue: Number(r.total_revenue) || 0
+      share: percentOrNull(vol, totalDispVolume, 1),
+      rpcRate: percentOrNull(Number(r.rpc_count), vol, 1),
+      saleRate: percentOrNull(Number(r.sale_count), vol, 1),
+      revenue: nullableNumber(r.total_revenue)
     };
   });
 
   // Calculate fatigue waste: dials in 5+ bucket that yielded no sale or rpc
   const bucket5 = chart.find(b => b.bucket === '5+ Calls');
   const highDialLeads = bucket5 ? bucket5.current : 0;
-  const highDialSales = bucket5 ? Math.round((bucket5.current * bucket5.sale) / 100) : 0;
+  const highDialSales = bucket5 ? bucket5.saleCount : 0;
   const highDialUnconverted = Math.max(0, highDialLeads - highDialSales);
 
   return {
     calledLeads,
     deliveredLeads: Number(summary.deliveredLeads) || 0,
     totalCalls,
-    avgCalls: calledLeads > 0 ? (totalCalls / calledLeads).toFixed(1) : '0.0',
+    avgCalls: ratioOrNull(totalCalls, calledLeads, 1),
     oneCallLeads: Number(summary.oneCallLeads) || 0,
-    oneCallRate: calledLeads > 0 ? ((Number(summary.oneCallLeads) / calledLeads) * 100).toFixed(1) : '0.0',
+    oneCallRate: calledLeads > 0 ? ((Number(summary.oneCallLeads) / calledLeads) * 100).toFixed(1) : null,
     repeatCallLeads: Number(summary.repeatCallLeads) || 0,
-    repeatCallRate: calledLeads > 0 ? ((Number(summary.repeatCallLeads) / calledLeads) * 100).toFixed(1) : '0.0',
+    repeatCallRate: calledLeads > 0 ? ((Number(summary.repeatCallLeads) / calledLeads) * 100).toFixed(1) : null,
     totalDurationSeconds: totalDurationSec,
-    totalDurationHours: (totalDurationSec / 3600).toFixed(1),
-    avgDurationSec: Math.round(avgDurationSec),
-    avgDuration: avgDurationSec > 0 ? formatSecToMinSec(avgDurationSec) : 'N/A', 
+    totalDurationHours: ratioOrNull(totalDurationSec, 3600, 1),
+    avgDurationSec: avgDurationSec === null ? null : Math.round(avgDurationSec),
+    avgDuration: avgDurationSec !== null ? formatSecToMinSec(avgDurationSec) : 'N/A', 
     medianDuration: 'N/A', 
     highDialUnconverted,
     chart,
@@ -729,8 +712,8 @@ export async function getSourcesStats(params: BaseQueryParams) {
       COUNTIF(has_sale = true) as sale_count,
       COUNTIF(has_billable_sale = true) as billable_sale_count,
       COUNTIF(has_activation = true) as activation_count,
-      SUM(IFNULL(total_revenue, 0)) as total_revenue,
-      SUM(IFNULL(total_calls, 0)) as total_calls
+      ${completeRevenueSumSql('total_revenue')} as total_revenue,
+      CASE WHEN COUNTIF(total_calls IS NULL) > 0 THEN NULL ELSE SUM(total_calls) END as total_calls
     FROM vw_leads
     ${sql}
     GROUP BY source
@@ -748,30 +731,30 @@ export async function getSourcesStats(params: BaseQueryParams) {
     const sales = Number(r.sale_count) || 0;
     const billableSales = Number(r.billable_sale_count) || 0;
     const activations = Number(r.activation_count) || 0;
-    const revenue = Number(r.total_revenue) || 0;
+    const revenue = nullableNumber(r.total_revenue);
 
     return {
       source: r.source || 'Unknown',
       leads: current,
-      share: totalLeads > 0 ? Number(((current / totalLeads) * 100).toFixed(1)) : 0,
+      share: percentOrNull(current, totalLeads, 1),
       delivered: deliv,
-      delivery: current > 0 ? Number(((deliv / current) * 100).toFixed(1)) : 0,
-      deliveryRate: current > 0 ? Number(((deliv / current) * 100).toFixed(1)) : 0,
+      delivery: percentOrNull(deliv, current, 1),
+      deliveryRate: percentOrNull(deliv, current, 1),
       called: called,
-      callRate: current > 0 ? Number(((called / current) * 100).toFixed(1)) : 0,
-      callCoverage: deliv > 0 ? Number(((called / deliv) * 100).toFixed(1)) : 0,
+      callRate: percentOrNull(called, current, 1),
+      callCoverage: percentOrNull(called, deliv, 1),
       rpcs: rpcs,
-      rpcRate: called > 0 ? Number(((rpcs / called) * 100).toFixed(1)) : 0,
+      rpcRate: percentOrNull(rpcs, called, 1),
       sales: sales,
-      saleRate: called > 0 ? Number(((sales / called) * 100).toFixed(1)) : 0,
-      leadToSaleRate: current > 0 ? Number(((sales / current) * 100).toFixed(1)) : 0,
+      saleRate: percentOrNull(sales, called, 1),
+      leadToSaleRate: percentOrNull(sales, current, 1),
       billableSales: billableSales,
-      billableSaleRate: sales > 0 ? Number(((billableSales / sales) * 100).toFixed(1)) : 0,
+      billableSaleRate: percentOrNull(billableSales, sales, 1),
       activations: activations,
-      activationRate: billableSales > 0 ? Number(((activations / billableSales) * 100).toFixed(1)) : 0,
+      activationRate: percentOrNull(activations, billableSales, 1),
       revenue: revenue,
-      revPerLead: current > 0 ? Number((revenue / current).toFixed(2)) : 0,
-      revPerSale: sales > 0 ? Number((revenue / sales).toFixed(2)) : 0
+      revPerLead: ratioOrNull(revenue, current, 2),
+      revPerSale: ratioOrNull(revenue, sales, 2)
     };
   });
 }
@@ -793,7 +776,7 @@ export async function getQualityStats(params: BaseQueryParams) {
       COUNTIF(has_sale = true) as sales,
       COUNTIF(has_billable_sale = true) as billable_sales,
       COUNTIF(has_activation = true) as activations,
-      SUM(IFNULL(total_revenue, 0)) as revenue
+      ${completeRevenueSumSql('total_revenue')} as revenue
     FROM vw_leads
     ${sql}
   `;
@@ -809,7 +792,7 @@ export async function getQualityStats(params: BaseQueryParams) {
       COUNTIF(has_sale = true) as sales,
       COUNTIF(has_billable_sale = true) as billable_sales,
       COUNTIF(has_activation = true) as activations,
-      SUM(IFNULL(total_revenue, 0)) as revenue
+      ${completeRevenueSumSql('total_revenue')} as revenue
     FROM vw_leads
     ${sql}
     GROUP BY grade
@@ -819,7 +802,7 @@ export async function getQualityStats(params: BaseQueryParams) {
   
   const [[rows], [gradeRows]] = await Promise.all([
     bq.query({ query, params: queryParams }),
-    bq.query({ query: breakdownQuery, params: queryParams }).catch(() => [[]])
+    bq.query({ query: breakdownQuery, params: queryParams })
   ]);
   
   const stats = rows[0] || { total: 0, passed: 0, failed: 0 };
@@ -835,25 +818,25 @@ export async function getQualityStats(params: BaseQueryParams) {
     const s = Number(r.sales) || 0;
     const b = Number(r.billable_sales) || 0;
     const a = Number(r.activations) || 0;
-    const rev = Number(r.revenue) || 0;
+    const rev = nullableNumber(r.revenue);
 
     return {
       grade: r.grade,
       leads: l,
       delivered: d,
-      deliveryRate: l > 0 ? Number(((d / l) * 100).toFixed(1)) : 0,
+      deliveryRate: percentOrNull(d, l, 1),
       called: c,
-      callRate: l > 0 ? Number(((c / l) * 100).toFixed(1)) : 0,
+      callRate: percentOrNull(c, l, 1),
       rpcs: rpc,
-      rpcRate: c > 0 ? Number(((rpc / c) * 100).toFixed(1)) : 0,
+      rpcRate: percentOrNull(rpc, c, 1),
       sales: s,
-      saleRate: l > 0 ? Number(((s / l) * 100).toFixed(1)) : 0,
+      saleRate: percentOrNull(s, l, 1),
       billableSales: b,
-      billableSaleRate: s > 0 ? Number(((b / s) * 100).toFixed(1)) : 0,
+      billableSaleRate: percentOrNull(b, s, 1),
       activations: a,
-      activationRate: s > 0 ? Number(((a / s) * 100).toFixed(1)) : 0,
+      activationRate: percentOrNull(a, s, 1),
       revenue: rev,
-      revPerLead: l > 0 ? Number((rev / l).toFixed(2)) : 0
+      revPerLead: ratioOrNull(rev, l, 2)
     };
   });
 
@@ -863,14 +846,14 @@ export async function getQualityStats(params: BaseQueryParams) {
     failed,
     grades: [
       { name: 'Passed Vetting', value: passed, color: '#10b981' },
-      { name: 'Failed / Duplicate', value: failed, color: '#f43f5e' }
+      { name: 'Failed vetting', value: failed, color: '#f43f5e' }
     ],
     vetting: [
-      { name: 'Duplicate', value: failed, color: '#f43f5e' },
+      { name: 'Failed vetting', value: failed, color: '#f43f5e' },
       { name: 'Valid', value: passed, color: '#10b981' }
     ],
-    passRate: total > 0 ? Number(((passed / total) * 100).toFixed(1)) : 0,
-    avgScore: 'A-',
+    passRate: percentOrNull(passed, total, 1),
+    avgScore: null,
     fullFunnelSummary: {
       leads: total,
       passed,
@@ -881,14 +864,14 @@ export async function getQualityStats(params: BaseQueryParams) {
       sales: Number(stats.sales) || 0,
       billableSales: Number(stats.billable_sales) || 0,
       activations: Number(stats.activations) || 0,
-      revenue: Number(stats.revenue) || 0,
-      deliveryRate: total > 0 ? Number(((Number(stats.delivered) / total) * 100).toFixed(1)) : 0,
-      callRate: total > 0 ? Number(((Number(stats.called) / total) * 100).toFixed(1)) : 0,
-      rpcRate: Number(stats.called) > 0 ? Number(((Number(stats.rpcs) / Number(stats.called)) * 100).toFixed(1)) : 0,
-      saleRate: total > 0 ? Number(((Number(stats.sales) / total) * 100).toFixed(1)) : 0,
-      billableSaleRate: Number(stats.sales) > 0 ? Number(((Number(stats.billable_sales) / Number(stats.sales)) * 100).toFixed(1)) : 0,
-      activationRate: Number(stats.sales) > 0 ? Number(((Number(stats.activations) / Number(stats.sales)) * 100).toFixed(1)) : 0,
-      revPerLead: total > 0 ? Number((Number(stats.revenue) / total).toFixed(2)) : 0
+      revenue: nullableNumber(stats.revenue),
+      deliveryRate: percentOrNull(Number(stats.delivered), total, 1),
+      callRate: percentOrNull(Number(stats.called), total, 1),
+      rpcRate: percentOrNull(Number(stats.rpcs), Number(stats.called), 1),
+      saleRate: percentOrNull(Number(stats.sales), total, 1),
+      billableSaleRate: percentOrNull(Number(stats.billable_sales), Number(stats.sales), 1),
+      activationRate: percentOrNull(Number(stats.activations), Number(stats.sales), 1),
+      revPerLead: ratioOrNull(nullableNumber(stats.revenue), total, 2)
     },
     fullFunnelByGrade,
     chart: fullFunnelByGrade.map(g => ({
@@ -898,8 +881,8 @@ export async function getQualityStats(params: BaseQueryParams) {
       sale: g.sales
     })),
     reasons: [
-      { reason: 'Duplicate Record', count: failed, percentage: total > 0 ? Number(((failed / total) * 100).toFixed(1)) : 0 },
-      { reason: 'Standard Passed', count: passed, percentage: total > 0 ? Number(((passed / total) * 100).toFixed(1)) : 0 }
+      { reason: 'Failed vetting', count: failed, percentage: percentOrNull(failed, total, 1) },
+      { reason: 'Standard Passed', count: passed, percentage: percentOrNull(passed, total, 1) }
     ]
   };
 }
@@ -920,7 +903,7 @@ export async function getSpeedToLeadStats(params: BaseQueryParams) {
         sale,
         is_billable_sale,
         activation,
-        IFNULL(revenue, 0) as rev
+        revenue as rev, revenue_duplicate_collapsed
       FROM vw_lead_vendor_transactions
       ${sql ? sql + ' AND' : 'WHERE'} delivery_timestamp IS NOT NULL
         AND first_call_timestamp IS NOT NULL
@@ -938,28 +921,28 @@ export async function getSpeedToLeadStats(params: BaseQueryParams) {
       COUNTIF(stl_minutes <= 5 AND sale = true) as bucket_1_sale,
       COUNTIF(stl_minutes <= 5 AND is_billable_sale = true) as bucket_1_billable,
       COUNTIF(stl_minutes <= 5 AND activation = true) as bucket_1_activation,
-      SUM(CASE WHEN stl_minutes <= 5 THEN rev ELSE 0 END) as bucket_1_revenue,
+      ${completeLegacyRevenueSumSql('IF(stl_minutes <= 5, rev, 0)')} as bucket_1_revenue,
       
       COUNTIF(stl_minutes > 5 AND stl_minutes <= 15) as bucket_2_leads,
       COUNTIF(stl_minutes > 5 AND stl_minutes <= 15 AND rpc = true) as bucket_2_rpc,
       COUNTIF(stl_minutes > 5 AND stl_minutes <= 15 AND sale = true) as bucket_2_sale,
       COUNTIF(stl_minutes > 5 AND stl_minutes <= 15 AND is_billable_sale = true) as bucket_2_billable,
       COUNTIF(stl_minutes > 5 AND stl_minutes <= 15 AND activation = true) as bucket_2_activation,
-      SUM(CASE WHEN stl_minutes > 5 AND stl_minutes <= 15 THEN rev ELSE 0 END) as bucket_2_revenue,
+      ${completeLegacyRevenueSumSql('IF(stl_minutes > 5 AND stl_minutes <= 15, rev, 0)')} as bucket_2_revenue,
       
       COUNTIF(stl_minutes > 15 AND stl_minutes <= 60) as bucket_3_leads,
       COUNTIF(stl_minutes > 15 AND stl_minutes <= 60 AND rpc = true) as bucket_3_rpc,
       COUNTIF(stl_minutes > 15 AND stl_minutes <= 60 AND sale = true) as bucket_3_sale,
       COUNTIF(stl_minutes > 15 AND stl_minutes <= 60 AND is_billable_sale = true) as bucket_3_billable,
       COUNTIF(stl_minutes > 15 AND stl_minutes <= 60 AND activation = true) as bucket_3_activation,
-      SUM(CASE WHEN stl_minutes > 15 AND stl_minutes <= 60 THEN rev ELSE 0 END) as bucket_3_revenue,
+      ${completeLegacyRevenueSumSql('IF(stl_minutes > 15 AND stl_minutes <= 60, rev, 0)')} as bucket_3_revenue,
       
       COUNTIF(stl_minutes > 60) as bucket_4_leads,
       COUNTIF(stl_minutes > 60 AND rpc = true) as bucket_4_rpc,
       COUNTIF(stl_minutes > 60 AND sale = true) as bucket_4_sale,
       COUNTIF(stl_minutes > 60 AND is_billable_sale = true) as bucket_4_billable,
       COUNTIF(stl_minutes > 60 AND activation = true) as bucket_4_activation,
-      SUM(CASE WHEN stl_minutes > 60 THEN rev ELSE 0 END) as bucket_4_revenue
+      ${completeLegacyRevenueSumSql('IF(stl_minutes > 60, rev, 0)')} as bucket_4_revenue
     FROM stl_data
   `;
   
@@ -967,167 +950,37 @@ export async function getSpeedToLeadStats(params: BaseQueryParams) {
   const stats = rows[0] || {};
   const total = Number(stats.total_called) || 0;
 
-  const buildBucket = (label: string, leads: number, rpcCount: number, saleCount: number, billableCount: number, actCount: number, rev: number) => ({
+  const buildBucket = (label: string, leads: number, rpcCount: number, saleCount: number, billableCount: number, actCount: number, rev: number | null) => ({
     bucket: label,
     leads,
     rpcCount,
-    rpc: leads > 0 ? Number(((rpcCount / leads) * 100).toFixed(1)) : 0,
+    rpc: percentOrNull(rpcCount, leads, 1),
     saleCount,
-    sale: leads > 0 ? Number(((saleCount / leads) * 100).toFixed(1)) : 0,
+    sale: percentOrNull(saleCount, leads, 1),
     billableCount,
-    billableRate: saleCount > 0 ? Number(((billableCount / saleCount) * 100).toFixed(1)) : 0,
+    billableRate: percentOrNull(billableCount, saleCount, 1),
     actCount,
-    activation: saleCount > 0 ? Number(((actCount / saleCount) * 100).toFixed(1)) : 0,
+    activation: percentOrNull(actCount, saleCount, 1),
     revenue: rev,
-    revPerLead: leads > 0 ? Number((rev / leads).toFixed(2)) : 0
+    revPerLead: ratioOrNull(rev, leads, 2)
   });
   
   return {
     metrics: [
       { name: 'Capture to Delivery', avg: stats.avg_c2d != null ? (stats.avg_c2d < 1 ? '< 1m' : `${Math.round(stats.avg_c2d)}m`) : 'N/A', median: 'N/A', p75: 'N/A', p90: 'N/A', p95: 'N/A' },
-      { name: 'Delivery to First Call', avg: stats.avg_stl ? `${Math.round(stats.avg_stl)}m` : 'N/A', median: 'N/A', p75: 'N/A', p90: 'N/A', p95: 'N/A' },
+      { name: 'Delivery to First Call', avg: stats.avg_stl != null ? `${Math.round(stats.avg_stl)}m` : 'N/A', median: 'N/A', p75: 'N/A', p90: 'N/A', p95: 'N/A' },
     ],
     buckets: [
-      buildBucket('< 5m', Number(stats.bucket_1_leads) || 0, Number(stats.bucket_1_rpc) || 0, Number(stats.bucket_1_sale) || 0, Number(stats.bucket_1_billable) || 0, Number(stats.bucket_1_activation) || 0, Number(stats.bucket_1_revenue) || 0),
-      buildBucket('5-15m', Number(stats.bucket_2_leads) || 0, Number(stats.bucket_2_rpc) || 0, Number(stats.bucket_2_sale) || 0, Number(stats.bucket_2_billable) || 0, Number(stats.bucket_2_activation) || 0, Number(stats.bucket_2_revenue) || 0),
-      buildBucket('15-60m', Number(stats.bucket_3_leads) || 0, Number(stats.bucket_3_rpc) || 0, Number(stats.bucket_3_sale) || 0, Number(stats.bucket_3_billable) || 0, Number(stats.bucket_3_activation) || 0, Number(stats.bucket_3_revenue) || 0),
-      buildBucket('> 1h', Number(stats.bucket_4_leads) || 0, Number(stats.bucket_4_rpc) || 0, Number(stats.bucket_4_sale) || 0, Number(stats.bucket_4_billable) || 0, Number(stats.bucket_4_activation) || 0, Number(stats.bucket_4_revenue) || 0),
+      buildBucket('< 5m', Number(stats.bucket_1_leads) || 0, Number(stats.bucket_1_rpc) || 0, Number(stats.bucket_1_sale) || 0, Number(stats.bucket_1_billable) || 0, Number(stats.bucket_1_activation) || 0, nullableNumber(stats.bucket_1_revenue)),
+      buildBucket('5-15m', Number(stats.bucket_2_leads) || 0, Number(stats.bucket_2_rpc) || 0, Number(stats.bucket_2_sale) || 0, Number(stats.bucket_2_billable) || 0, Number(stats.bucket_2_activation) || 0, nullableNumber(stats.bucket_2_revenue)),
+      buildBucket('15-60m', Number(stats.bucket_3_leads) || 0, Number(stats.bucket_3_rpc) || 0, Number(stats.bucket_3_sale) || 0, Number(stats.bucket_3_billable) || 0, Number(stats.bucket_3_activation) || 0, nullableNumber(stats.bucket_3_revenue)),
+      buildBucket('> 1h', Number(stats.bucket_4_leads) || 0, Number(stats.bucket_4_rpc) || 0, Number(stats.bucket_4_sale) || 0, Number(stats.bucket_4_billable) || 0, Number(stats.bucket_4_activation) || 0, nullableNumber(stats.bucket_4_revenue)),
     ]
   };
 }
 
-export async function getCohortStats(params: BaseQueryParams & { cohortType?: string; metricType?: string }) {
-  const client = getClientConfig(params.clientId);
-  const bq = getBigQueryClient(client.bigQueryProject);
-  const { sql, queryParams } = buildWhereClause(params, 'vw_leads');
-  
-  const cohortType = params.cohortType || 'weekly';
-  const metricType = params.metricType || 'sale';
-
-  let cohortExpr = `FORMAT_DATE('%Y-W%W', capture_date)`;
-  if (cohortType === 'daily') {
-    cohortExpr = `CAST(capture_date AS STRING)`;
-  } else if (cohortType === 'monthly') {
-    cohortExpr = `FORMAT_DATE('%Y-%m', capture_date)`;
-  }
-
-  let maturationExpr = `
-    COUNTIF(has_sale = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 0) as m_d0,
-    COUNTIF(has_sale = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 1) as m_d1,
-    COUNTIF(has_sale = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 3) as m_d3,
-    COUNTIF(has_sale = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 7) as m_d7,
-    COUNTIF(has_sale = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 14) as m_d14,
-    COUNTIF(has_sale = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 30) as m_d30
-  `;
-
-  if (metricType === 'call_coverage') {
-    maturationExpr = `
-      COUNTIF(has_call = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 0) as m_d0,
-      COUNTIF(has_call = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 1) as m_d1,
-      COUNTIF(has_call = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 3) as m_d3,
-      COUNTIF(has_call = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 7) as m_d7,
-      COUNTIF(has_call = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 14) as m_d14,
-      COUNTIF(has_call = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 30) as m_d30
-    `;
-  } else if (metricType === 'rpc') {
-    maturationExpr = `
-      COUNTIF(has_rpc = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 0) as m_d0,
-      COUNTIF(has_rpc = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 1) as m_d1,
-      COUNTIF(has_rpc = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 3) as m_d3,
-      COUNTIF(has_rpc = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 7) as m_d7,
-      COUNTIF(has_rpc = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 14) as m_d14,
-      COUNTIF(has_rpc = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 30) as m_d30
-    `;
-  } else if (metricType === 'activation') {
-    maturationExpr = `
-      COUNTIF(has_activation = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 0) as m_d0,
-      COUNTIF(has_activation = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 1) as m_d1,
-      COUNTIF(has_activation = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 3) as m_d3,
-      COUNTIF(has_activation = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 7) as m_d7,
-      COUNTIF(has_activation = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 14) as m_d14,
-      COUNTIF(has_activation = true AND TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 30) as m_d30
-    `;
-  } else if (metricType === 'revenue') {
-    maturationExpr = `
-      SUM(CASE WHEN TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 0 THEN IFNULL(total_revenue, 0) ELSE 0 END) as m_d0,
-      SUM(CASE WHEN TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 1 THEN IFNULL(total_revenue, 0) ELSE 0 END) as m_d1,
-      SUM(CASE WHEN TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 3 THEN IFNULL(total_revenue, 0) ELSE 0 END) as m_d3,
-      SUM(CASE WHEN TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 7 THEN IFNULL(total_revenue, 0) ELSE 0 END) as m_d7,
-      SUM(CASE WHEN TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 14 THEN IFNULL(total_revenue, 0) ELSE 0 END) as m_d14,
-      SUM(CASE WHEN TIMESTAMP_DIFF(first_call_timestamp, capture_timestamp, DAY) <= 30 THEN IFNULL(total_revenue, 0) ELSE 0 END) as m_d30
-    `;
-  }
-
-  const query = `
-    ${getBaseSemanticLayer(client)}
-    SELECT
-      ${cohortExpr} as cohort,
-      COUNT(DISTINCT lead_id) as size,
-      COUNTIF(has_delivery = true) as delivered,
-      COUNTIF(has_call = true) as called,
-      COUNTIF(has_rpc = true) as rpcs,
-      COUNTIF(has_sale = true) as sales,
-      COUNTIF(has_billable_sale = true) as billable_sales,
-      COUNTIF(has_activation = true) as activations,
-      SUM(IFNULL(total_revenue, 0)) as revenue,
-      ${maturationExpr}
-    FROM vw_leads
-    ${sql}
-    GROUP BY cohort
-    ORDER BY cohort DESC
-    LIMIT 16
-  `;
-  
-  const [rows] = await bq.query({ query, params: queryParams });
-  return rows.map((r: any) => {
-    const size = Number(r.size) || 0;
-    const delivered = Number(r.delivered) || 0;
-    const called = Number(r.called) || 0;
-    const rpcs = Number(r.rpcs) || 0;
-    const sales = Number(r.sales) || 0;
-    const billableSales = Number(r.billable_sales) || 0;
-    const activations = Number(r.activations) || 0;
-    const revenue = Number(r.revenue) || 0;
-
-    const calcMetric = (val: any) => {
-      if (val === null || val === undefined) return null;
-      const num = Number(val) || 0;
-      if (metricType === 'revenue') {
-        return size > 0 ? Number((num / size).toFixed(2)) : 0;
-      }
-      return size > 0 ? Number(((num / size) * 100).toFixed(1)) : 0;
-    };
-
-    return {
-      cohort: r.cohort || 'Unknown',
-      size,
-      delivered,
-      deliveryRate: size > 0 ? Number(((delivered / size) * 100).toFixed(1)) : 0,
-      called,
-      callRate: size > 0 ? Number(((called / size) * 100).toFixed(1)) : 0,
-      callCoverage: delivered > 0 ? Number(((called / delivered) * 100).toFixed(1)) : 0,
-      rpcs,
-      rpcRate: called > 0 ? Number(((rpcs / called) * 100).toFixed(1)) : 0,
-      sales,
-      saleRate: called > 0 ? Number(((sales / called) * 100).toFixed(1)) : 0,
-      leadToSaleRate: size > 0 ? Number(((sales / size) * 100).toFixed(1)) : 0,
-      billableSales,
-      billableSaleRate: sales > 0 ? Number(((billableSales / sales) * 100).toFixed(1)) : 0,
-      activations,
-      activationRate: billableSales > 0 ? Number(((activations / billableSales) * 100).toFixed(1)) : 0,
-      revenue,
-      revPerLead: size > 0 ? Number((revenue / size).toFixed(2)) : 0,
-      metrics: {
-        d0: calcMetric(r.m_d0),
-        d1: calcMetric(r.m_d1),
-        d3: calcMetric(r.m_d3),
-        d7: calcMetric(r.m_d7),
-        d14: calcMetric(r.m_d14),
-        d30: calcMetric(r.m_d30)
-      }
-    };
-  });
-}
+// Keep the live API on the tested cohort implementation, including timestamp and null contracts.
+export { getCohortStats } from './legacy/cohorts';
 
 export async function getTimeseriesStats(params: BaseQueryParams) {
   const client = getClientConfig(params.clientId);
@@ -1148,7 +1001,7 @@ export async function getTimeseriesStats(params: BaseQueryParams) {
   return rows.map((r: any) => ({
     date: r.date,
     current: Number(r.current_val) || 0,
-    comparison: 0
+    comparison: null
   }));
 }
 
@@ -1173,7 +1026,7 @@ export async function getLeads(params: BaseQueryParams & { limit?: number; offse
         WHEN has_delivery = true THEN 'Delivered'
         ELSE 'Captured'
       END as status,
-      IFNULL(CAST(total_revenue AS STRING), '$0') as value,
+      CAST(total_revenue AS STRING) as value,
       'Valid' as quality
     FROM vw_leads
     ${sql}
@@ -1229,14 +1082,8 @@ export async function getFilterOptions(params: BaseQueryParams) {
   
   try {
     const [[rows], [vendorRows]] = await Promise.all([
-      bq.query({ query, params: dateParams }).catch(err => {
-        console.warn('Filter options metadata query error:', err.message);
-        return [[]];
-      }),
-      bq.query({ query: vendorQuery, params: dateParams }).catch(err => {
-        console.warn('Vendor options query error:', err.message);
-        return [[]];
-      })
+      bq.query({ query, params: dateParams }),
+      bq.query({ query: vendorQuery, params: dateParams })
     ]);
     
     const sources = new Set<string>();
@@ -1259,136 +1106,8 @@ export async function getFilterOptions(params: BaseQueryParams) {
       vettings: Array.from(vettings).sort(),
     };
   } catch (err: any) {
-    console.error('Failed in getFilterOptions:', err.message);
-    return {
-      sources: [],
-      mediums: [],
-      vendors: [],
-      grades: [],
-      vettings: [],
-    };
+    throw err;
   }
-}
-
-export async function getAcquisitionStats(params: BaseQueryParams) {
-  const client = getClientConfig(params.clientId);
-  if (!client.semanticMappings.tables.marketing) {
-    return { data: [], summary: { spend: 0, leads: 0, cpa: 0 } };
-  }
-  
-  const bq = getBigQueryClient(client.bigQueryProject);
-  
-  let clauses = [];
-  const queryParams: any = {};
-  if (params.startDate) {
-    clauses.push(`CAST(date AS STRING) >= @startDate`);
-    queryParams.startDate = params.startDate;
-  }
-  if (params.endDate) {
-    clauses.push(`CAST(date AS STRING) <= @endDate`);
-    queryParams.endDate = params.endDate;
-  }
-  const sql = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
-
-  const query = `
-    SELECT 
-      CAST(date AS STRING) as date,
-      channel,
-      SUM(budget) as spend,
-      SUM(impressions) as impressions,
-      SUM(clicks) as clicks,
-      SUM(actions_lead) as leads
-    FROM \`${client.semanticMappings.tables.marketing}\`
-    ${sql}
-    GROUP BY date, channel
-    ORDER BY date DESC
-    LIMIT 500
-  `;
-
-  const { sql: leadsSql, queryParams: leadsParams } = buildWhereClause(params, 'vw_leads');
-  const downstreamQuery = `
-    ${getBaseSemanticLayer(client)}
-    SELECT
-      COUNT(DISTINCT lead_id) as total_leads,
-      COUNTIF(has_delivery = true) as total_delivered,
-      COUNTIF(has_call = true) as total_called,
-      COUNTIF(has_rpc = true) as total_rpcs,
-      COUNTIF(has_sale = true) as total_sales,
-      COUNTIF(has_billable_sale = true) as total_billable_sales,
-      COUNTIF(has_activation = true) as total_activations,
-      SUM(IFNULL(total_revenue, 0)) as total_revenue
-    FROM vw_leads
-    ${leadsSql}
-  `;
-  
-  const [[rows], [downstreamRows]] = await Promise.all([
-    bq.query({ query, params: queryParams }),
-    bq.query({ query: downstreamQuery, params: leadsParams }).catch(() => [[]])
-  ]);
-  
-  const ds = downstreamRows?.[0] || {};
-  const delivered = Number(ds.total_delivered) || 0;
-  const called = Number(ds.total_called) || 0;
-  const rpcs = Number(ds.total_rpcs) || 0;
-  const sales = Number(ds.total_sales) || 0;
-  const billableSales = Number(ds.total_billable_sales) || 0;
-  const activations = Number(ds.total_activations) || 0;
-  const revenue = Number(ds.total_revenue) || 0;
-
-  const summary = rows.reduce((acc: any, row: any) => {
-    acc.spend += (Number(row.spend) || 0);
-    acc.leads += (Number(row.leads) || 0);
-    acc.impressions += (Number(row.impressions) || 0);
-    acc.clicks += (Number(row.clicks) || 0);
-    return acc;
-  }, { spend: 0, leads: 0, impressions: 0, clicks: 0 });
-  
-  // Downstream funnel attachments to summary
-  summary.fetchedLeads = Number(ds.total_leads) || 0;
-  summary.delivered = delivered;
-  summary.called = called;
-  summary.rpcs = rpcs;
-  summary.sales = sales;
-  summary.billableSales = billableSales;
-  summary.activations = activations;
-  summary.revenue = revenue;
-
-  if (summary.leads > 0) summary.cpa = summary.spend / summary.leads;
-  summary.cpl = summary.leads > 0 ? summary.spend / summary.leads : 0;
-  summary.cplFetched = summary.fetchedLeads > 0 ? summary.spend / summary.fetchedLeads : summary.cpl;
-  summary.cplDelivered = delivered > 0 ? summary.spend / delivered : 0;
-  summary.cplDialed = called > 0 ? summary.spend / called : 0;
-  summary.cpRpc = rpcs > 0 ? summary.spend / rpcs : 0;
-  summary.cpSale = sales > 0 ? summary.spend / sales : 0;
-  summary.cpsDelivered = billableSales > 0 ? summary.spend / billableSales : 0;
-  summary.cpsActivated = activations > 0 ? summary.spend / activations : 0;
-  summary.roas = summary.spend > 0 ? Number(((revenue / summary.spend) * 100).toFixed(1)) : 0;
-  
-  const campaignsMap = new Map();
-  rows.forEach(r => {
-    const c = r.campaign || 'Unknown';
-    if (!campaignsMap.has(c)) {
-      campaignsMap.set(c, { campaign: c, channel: r.channel, spend: 0, impressions: 0, clicks: 0, leads: 0 });
-    }
-    const camp = campaignsMap.get(c);
-    camp.spend += Number(r.spend);
-    camp.impressions += Number(r.impressions);
-    camp.clicks += Number(r.clicks);
-    camp.leads += Number(r.leads);
-  });
-
-  const campaigns = Array.from(campaignsMap.values()).map(c => ({
-    ...c,
-    ctr: c.impressions > 0 ? (c.clicks / c.impressions) * 100 : 0,
-    cpc: c.clicks > 0 ? c.spend / c.clicks : 0,
-    cpa: c.leads > 0 ? c.spend / c.leads : 0
-  })).sort((a, b) => b.spend - a.spend);
-
-  return { 
-    summary, 
-    timeseries: rows,
-    campaigns
-  };
 }
 
 export async function getOutcomesStats(params: BaseQueryParams) {
@@ -1401,7 +1120,7 @@ export async function getOutcomesStats(params: BaseQueryParams) {
     ${getBaseSemanticLayer(client)}
     SELECT
       COUNTIF(has_activation = true) as total_activations,
-      SUM(total_revenue) as total_revenue
+      ${completeRevenueSumSql('total_revenue')} as total_revenue
     FROM vw_leads
     ${sql}
   `;
@@ -1411,7 +1130,7 @@ export async function getOutcomesStats(params: BaseQueryParams) {
     SELECT
       CAST(DATE(capture_timestamp) AS STRING) as date,
       COUNTIF(has_activation = true) as activations,
-      SUM(total_revenue) as revenue
+      ${completeRevenueSumSql('total_revenue')} as revenue
     FROM vw_leads
     ${sql}
     GROUP BY date
@@ -1423,7 +1142,7 @@ export async function getOutcomesStats(params: BaseQueryParams) {
     SELECT
       source,
       COUNTIF(has_activation = true) as activations,
-      SUM(total_revenue) as total_revenue
+      ${completeRevenueSumSql('total_revenue')} as total_revenue
     FROM vw_leads
     ${sql}
     GROUP BY source
@@ -1436,7 +1155,7 @@ export async function getOutcomesStats(params: BaseQueryParams) {
     SELECT
       COALESCE(vendor, 'Unknown') as vendor,
       COUNTIF(activation = true) as activations,
-      SUM(IFNULL(revenue, 0)) as total_revenue
+      ${completeLegacyRevenueSumSql('revenue')} as total_revenue
     FROM vw_lead_vendor_transactions
     ${vendorTxSql ? vendorTxSql + ' AND' : 'WHERE'} vendor IS NOT NULL
     GROUP BY vendor
@@ -1453,11 +1172,11 @@ export async function getOutcomesStats(params: BaseQueryParams) {
     bq.query({ query: summaryQuery, params: queryParams }),
     bq.query({ query: timeseriesQuery, params: queryParams }),
     bq.query({ query: sourcesQuery, params: queryParams }),
-    bq.query({ query: vendorsQuery, params: vendorTxParams }).catch(() => [[]])
+    bq.query({ query: vendorsQuery, params: vendorTxParams })
   ]);
 
   return {
-    summary: summaryRows[0] || { total_activations: 0, total_revenue: 0 },
+    summary: summaryRows[0] || { total_activations: 0, total_revenue: null },
     timeseries: timeseriesRows || [],
     sources: sourcesRows || [],
     vendors: vendorsRows || []
@@ -1542,8 +1261,8 @@ export async function getRoutingIntelligenceStats(params: BaseQueryParams) {
         COUNT(DISTINCT CASE WHEN routing_depth > 0 AND total_transactions = 0 THEN lead_id END) as missing_handoff_leads,
         COUNT(DISTINCT CASE WHEN routing_depth > 0 AND has_sale THEN lead_id END) as routed_sale_leads,
         COUNT(DISTINCT CASE WHEN routing_depth > 0 AND has_billable_sale THEN lead_id END) as routed_billable_sale_leads,
-        SUM(CASE WHEN routing_depth > 0 THEN total_revenue ELSE 0 END) as routed_revenue,
-        SUM(total_revenue) as total_revenue,
+        ${completeRevenueSumSql('IF(routing_depth > 0, total_revenue, 0)')} as routed_revenue,
+        ${completeRevenueSumSql('total_revenue')} as total_revenue,
         AVG(CASE WHEN routing_depth > 0 THEN routing_depth END) as avg_routing_depth
       FROM vw_leads
       ${leadsSql}
@@ -1589,8 +1308,8 @@ export async function getRoutingIntelligenceStats(params: BaseQueryParams) {
       SAFE_DIVIDE(COUNT(CASE WHEN has_rpc THEN 1 END), COUNT(*)) * 100 as rpc_rate_pct,
       SAFE_DIVIDE(COUNT(CASE WHEN has_sale THEN 1 END), COUNT(*)) * 100 as sale_rate_pct,
       SAFE_DIVIDE(COUNT(CASE WHEN has_billable_sale THEN 1 END), COUNT(*)) * 100 as billable_sale_rate_pct,
-      SUM(total_revenue) as total_revenue,
-      SAFE_DIVIDE(SUM(total_revenue), COUNT(*)) as rev_per_lead
+      ${completeRevenueSumSql('total_revenue')} as total_revenue,
+      SAFE_DIVIDE(${completeRevenueSumSql('total_revenue')}, COUNT(*)) as rev_per_lead
     FROM vw_leads
     ${leadsSql}
     GROUP BY depth_bucket, routing_depth
@@ -1614,7 +1333,7 @@ export async function getRoutingIntelligenceStats(params: BaseQueryParams) {
         COUNT(DISTINCT CASE WHEN t.delivery_timestamp IS NOT NULL THEN r.lead_id END) as delivered_leads,
         COUNT(DISTINCT CASE WHEN t.sale THEN r.lead_id END) as sale_leads,
         COUNT(DISTINCT CASE WHEN t.is_billable_sale THEN r.lead_id END) as billable_sale_leads,
-        SUM(t.revenue) as total_revenue,
+        ${completeLegacyRevenueSumSql('t.revenue', 't.revenue_duplicate_collapsed')} as total_revenue,
         AVG(TIMESTAMP_DIFF(t.delivery_timestamp, r.ror_timestamp, SECOND)) as avg_handoff_latency_sec
       FROM filtered_ror r
       LEFT JOIN vw_lead_vendor_transactions t ON r.lead_id = t.lead_id
@@ -1659,8 +1378,8 @@ export async function getRoutingIntelligenceStats(params: BaseQueryParams) {
       SAFE_DIVIDE(COUNT(CASE WHEN l.has_call THEN 1 END), COUNT(*)) * 100 as call_pct,
       SAFE_DIVIDE(COUNT(CASE WHEN l.has_sale THEN 1 END), COUNT(*)) * 100 as sale_pct,
       SAFE_DIVIDE(COUNT(CASE WHEN l.has_billable_sale THEN 1 END), COUNT(*)) * 100 as billable_sale_pct,
-      SUM(l.total_revenue) as total_revenue,
-      SAFE_DIVIDE(SUM(l.total_revenue), COUNT(*)) as rev_per_lead
+      ${completeRevenueSumSql('l.total_revenue')} as total_revenue,
+      SAFE_DIVIDE(${completeRevenueSumSql('l.total_revenue')}, COUNT(*)) as rev_per_lead
     FROM lead_paths p
     JOIN vw_leads l ON p.lead_id = l.lead_id
     GROUP BY p.route_path, p.partner_count
@@ -1731,9 +1450,9 @@ export async function getConsumerReentryStats(params: BaseQueryParams) {
         COUNT(DISTINCT CASE WHEN lead_count >= 2 AND has_sale THEN consumer_id END) as repeat_consumers_with_sale,
         COUNT(DISTINCT CASE WHEN lead_count = 1 AND has_billable_sale THEN consumer_id END) as single_consumers_with_billable_sale,
         COUNT(DISTINCT CASE WHEN lead_count >= 2 AND has_billable_sale THEN consumer_id END) as repeat_consumers_with_billable_sale,
-        SUM(CASE WHEN lead_count = 1 THEN total_revenue ELSE 0 END) as single_consumer_revenue,
-        SUM(CASE WHEN lead_count >= 2 THEN total_revenue ELSE 0 END) as repeat_consumer_revenue,
-        SUM(total_revenue) as total_revenue
+        ${completeRevenueSumSql('IF(lead_count = 1, total_revenue, 0)')} as single_consumer_revenue,
+        ${completeRevenueSumSql('IF(lead_count >= 2, total_revenue, 0)')} as repeat_consumer_revenue,
+        ${completeRevenueSumSql('total_revenue')} as total_revenue
       FROM vw_consumers
       ${consumersSql}
     )
@@ -1777,9 +1496,9 @@ export async function getConsumerReentryStats(params: BaseQueryParams) {
       SAFE_DIVIDE(COUNT(DISTINCT CASE WHEN has_sale THEN consumer_id END), COUNT(DISTINCT consumer_id)) * 100 as sale_rate_pct,
       COUNT(DISTINCT CASE WHEN has_billable_sale THEN consumer_id END) as consumers_with_billable_sale,
       SAFE_DIVIDE(COUNT(DISTINCT CASE WHEN has_billable_sale THEN consumer_id END), COUNT(DISTINCT consumer_id)) * 100 as billable_sale_rate_pct,
-      SUM(total_revenue) as total_revenue,
-      SAFE_DIVIDE(SUM(total_revenue), COUNT(DISTINCT consumer_id)) as rev_per_consumer,
-      SAFE_DIVIDE(SUM(total_revenue), SUM(lead_count)) as rev_per_lead
+      ${completeRevenueSumSql('total_revenue')} as total_revenue,
+      SAFE_DIVIDE(${completeRevenueSumSql('total_revenue')}, COUNT(DISTINCT consumer_id)) as rev_per_consumer,
+      SAFE_DIVIDE(${completeRevenueSumSql('total_revenue')}, SUM(lead_count)) as rev_per_lead
     FROM vw_consumers
     ${consumersSql}
     GROUP BY lead_tier
@@ -1818,8 +1537,8 @@ export async function getConsumerReentryStats(params: BaseQueryParams) {
       SAFE_DIVIDE(COUNT(CASE WHEN has_rpc THEN 1 END), COUNT(*)) * 100 as rpc_rate_pct,
       SAFE_DIVIDE(COUNT(CASE WHEN has_sale THEN 1 END), COUNT(*)) * 100 as sale_rate_pct,
       SAFE_DIVIDE(COUNT(CASE WHEN has_billable_sale THEN 1 END), COUNT(*)) * 100 as billable_sale_rate_pct,
-      SUM(total_revenue) as total_revenue,
-      SAFE_DIVIDE(SUM(total_revenue), COUNT(*)) as rev_per_lead
+      ${completeRevenueSumSql('total_revenue')} as total_revenue,
+      SAFE_DIVIDE(${completeRevenueSumSql('total_revenue')}, COUNT(*)) as rev_per_lead
     FROM consumer_lead_orders
     GROUP BY entry_stage, lead_sequence
     ORDER BY lead_sequence ASC
@@ -1882,15 +1601,15 @@ export async function getOutcomeQualityStats(params: BaseQueryParams) {
       COUNT(CASE WHEN is_billable_sale THEN 1 END) as billable_sales,
       COUNT(CASE WHEN sale AND NOT is_billable_sale THEN 1 END) as unbilled_sales,
       COUNT(CASE WHEN activation THEN 1 END) as total_activations,
-      SUM(revenue) as total_revenue,
+      ${completeLegacyRevenueSumSql('revenue')} as total_revenue,
       SAFE_DIVIDE(COUNT(CASE WHEN is_billable_sale THEN 1 END), COUNT(CASE WHEN sale THEN 1 END)) * 100 as billable_conversion_pct,
       SAFE_DIVIDE(COUNT(CASE WHEN is_billable_sale THEN 1 END), COUNT(CASE WHEN sale THEN 1 END)) * 100 as billable_sale_ratio_pct,
       SAFE_DIVIDE(COUNT(CASE WHEN sale AND NOT is_billable_sale THEN 1 END), COUNT(CASE WHEN sale THEN 1 END)) * 100 as revenue_leakage_pct,
       SAFE_DIVIDE(COUNT(CASE WHEN sale AND NOT is_billable_sale THEN 1 END), COUNT(CASE WHEN sale THEN 1 END)) * 100 as revenue_leakage_rate_pct,
-      SAFE_DIVIDE(SUM(revenue), COUNT(CASE WHEN is_billable_sale THEN 1 END)) as avg_revenue_per_billable_sale,
-      SAFE_DIVIDE(SUM(revenue), COUNT(CASE WHEN is_billable_sale THEN 1 END)) as avg_rev_per_billable_sale,
-      SAFE_DIVIDE(SUM(revenue), COUNT(DISTINCT lead_id)) as avg_revenue_per_lead,
-      SAFE_DIVIDE(SUM(revenue), COUNT(DISTINCT lead_id)) as rev_per_lead
+      SAFE_DIVIDE(${completeLegacyRevenueSumSql('revenue')}, COUNT(CASE WHEN is_billable_sale THEN 1 END)) as avg_revenue_per_billable_sale,
+      SAFE_DIVIDE(${completeLegacyRevenueSumSql('revenue')}, COUNT(CASE WHEN is_billable_sale THEN 1 END)) as avg_rev_per_billable_sale,
+      SAFE_DIVIDE(${completeLegacyRevenueSumSql('revenue')}, COUNT(DISTINCT lead_id)) as avg_revenue_per_lead,
+      SAFE_DIVIDE(${completeLegacyRevenueSumSql('revenue')}, COUNT(DISTINCT lead_id)) as rev_per_lead
     FROM vw_lead_vendor_transactions
     ${sql}
   `;
@@ -1908,10 +1627,10 @@ export async function getOutcomeQualityStats(params: BaseQueryParams) {
       COUNT(CASE WHEN is_billable_sale THEN 1 END) as billable_sales,
       COUNT(CASE WHEN sale AND NOT is_billable_sale THEN 1 END) as unbilled_sales,
       COUNT(CASE WHEN activation THEN 1 END) as activations,
-      SUM(revenue) as total_revenue,
+      ${completeLegacyRevenueSumSql('revenue')} as total_revenue,
       SAFE_DIVIDE(COUNT(CASE WHEN is_billable_sale THEN 1 END), COUNT(CASE WHEN sale THEN 1 END)) * 100 as billable_conversion_pct,
-      SAFE_DIVIDE(SUM(revenue), COUNT(DISTINCT lead_id)) as rev_per_lead,
-      SAFE_DIVIDE(SUM(revenue), COUNT(transaction_id)) as rev_per_transaction
+      SAFE_DIVIDE(${completeLegacyRevenueSumSql('revenue')}, COUNT(DISTINCT lead_id)) as rev_per_lead,
+      SAFE_DIVIDE(${completeLegacyRevenueSumSql('revenue')}, COUNT(transaction_id)) as rev_per_transaction
     FROM vw_lead_vendor_transactions
     ${sql}
     GROUP BY vendor, normalised_status_family
@@ -1982,8 +1701,8 @@ export async function getRevettingStats(params: BaseQueryParams) {
       SAFE_DIVIDE(COUNT(CASE WHEN has_sale THEN 1 END), COUNT(*)) * 100 as sale_rate_pct,
       SAFE_DIVIDE(COUNT(CASE WHEN has_billable_sale THEN 1 END), COUNT(*)) * 100 as billable_sale_rate_pct,
       SAFE_DIVIDE(COUNT(CASE WHEN has_activation THEN 1 END), COUNT(*)) * 100 as activation_rate_pct,
-      SUM(total_revenue) as total_revenue,
-      SAFE_DIVIDE(SUM(total_revenue), COUNT(*)) as rev_per_lead
+      ${completeRevenueSumSql('total_revenue')} as total_revenue,
+      SAFE_DIVIDE(${completeRevenueSumSql('total_revenue')}, COUNT(*)) as rev_per_lead
     FROM vw_leads
     ${sql}
     GROUP BY is_revetted
@@ -1998,8 +1717,8 @@ export async function getRevettingStats(params: BaseQueryParams) {
       COUNT(DISTINCT lead_id) as leads,
       SAFE_DIVIDE(COUNT(CASE WHEN has_sale THEN 1 END), COUNT(*)) * 100 as sale_rate_pct,
       SAFE_DIVIDE(COUNT(CASE WHEN has_billable_sale THEN 1 END), COUNT(*)) * 100 as billable_sale_rate_pct,
-      SUM(total_revenue) as total_revenue,
-      SAFE_DIVIDE(SUM(total_revenue), COUNT(*)) as rev_per_lead
+      ${completeRevenueSumSql('total_revenue')} as total_revenue,
+      SAFE_DIVIDE(${completeRevenueSumSql('total_revenue')}, COUNT(*)) as rev_per_lead
     FROM vw_leads
     ${sql}
     GROUP BY vetting, is_revetted
@@ -2041,7 +1760,7 @@ export async function getDataTrustStats(params: BaseQueryParams) {
       SAFE_DIVIDE(COUNT(CASE WHEN is_billable_sale THEN 1 END), COUNT(*)) * 100 as coverage_billable_sale_pct,
       SAFE_DIVIDE(COUNT(CASE WHEN activation THEN 1 END), COUNT(*)) * 100 as coverage_activation_pct,
       SAFE_DIVIDE(COUNT(CASE WHEN revenue > 0 THEN 1 END), COUNT(*)) * 100 as coverage_revenue_pct,
-      SUM(revenue) as total_revenue
+      ${completeLegacyRevenueSumSql('revenue')} as total_revenue
     FROM vw_lead_vendor_transactions
     ${sql}
     GROUP BY vendor
@@ -2115,8 +1834,8 @@ export async function getMultiVendorStats(params: BaseQueryParams) {
       SAFE_DIVIDE(COUNT(CASE WHEN has_rpc THEN 1 END), COUNT(*)) * 100 as rpc_rate_pct,
       SAFE_DIVIDE(COUNT(CASE WHEN has_sale THEN 1 END), COUNT(*)) * 100 as sale_rate_pct,
       SAFE_DIVIDE(COUNT(CASE WHEN has_billable_sale THEN 1 END), COUNT(*)) * 100 as billable_sale_rate_pct,
-      SUM(total_revenue) as total_revenue,
-      SAFE_DIVIDE(SUM(total_revenue), COUNT(*)) as rev_per_lead
+      ${completeRevenueSumSql('total_revenue')} as total_revenue,
+      SAFE_DIVIDE(${completeRevenueSumSql('total_revenue')}, COUNT(*)) as rev_per_lead
     FROM vw_leads
     ${sql}
     GROUP BY vendor_count_bucket, vendor_count

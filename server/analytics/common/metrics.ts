@@ -2,9 +2,9 @@
 // Strictly fail-closed: missing evidence or zero denominators must NEVER become false measured zeros.
 
 export function numberOrNull(value: unknown): number | null {
-  if (value === null || value === undefined || value === '') return null;
+  if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) return null;
   const num = typeof value === 'number' ? value : Number(value);
-  if (isNaN(num)) return null;
+  if (!Number.isFinite(num)) return null;
   return num;
 }
 

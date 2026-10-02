@@ -353,7 +353,7 @@ export default function CliPerformance() {
                 <p className="text-sm text-slate-700 leading-relaxed">
                   The configured physical call insights table{' '}
                   <code className="bg-amber-100/70 px-1 py-0.5 rounded font-mono text-xs">{data.sourceStatus.table}</code>{' '}
-                  was audited. While it contains <strong>{data.sourceStatus.totalColumnsFound || 24} fields</strong> including call timestamps, campaign IDs, agent IDs, durations, and RPC/Sale flags,{' '}
+                  was audited. While it contains <strong>{formatTableNumber(data.sourceStatus.totalColumnsFound)} fields</strong> including call timestamps, campaign IDs, agent IDs, durations, and RPC/Sale flags,{' '}
                   <strong>it does not expose an outbound CLI (Caller ID presentation) column</strong>.
                 </p>
                 <div className="p-3 bg-white/80 rounded border border-amber-200 text-xs text-slate-600 space-y-1">
