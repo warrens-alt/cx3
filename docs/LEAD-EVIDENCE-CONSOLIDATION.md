@@ -62,3 +62,12 @@ parity. Commit migration separately from retirement. Only then remove mounted us
 and imports of the duplicate analytical Ledger and its old workspace wrapper,
 update specific tests to canonical behavior, and remove selectors with no remaining
 consumers. Contracts, SQL, metrics, source mappings and permissions are untouched.
+
+## Completed gate
+
+The migration/parity commit is `4fd4703`. Separate retirement commit `9a8b2d5`
+removes the duplicate analytical page, old source-workspace wrapper, unused router
+export and the old Ledger/Investigation record stylesheet owners. Active styles
+are owned by `leadEvidence.css`; reusable source, timeline, coverage and export
+primitives remain. See [final QA](qa/lead-evidence/README.md) for the final checks,
+request counts, accessibility and explicit live-evidence limitations.

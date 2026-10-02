@@ -1,16 +1,42 @@
-# LeadLedger source explorer and 63-column export
+# Lead Evidence source mode and 63-column export
 
 ## Entry point
 
-Open `/lead-ledger` and choose **Source ledger & complete export**. The existing
-17-column analytical ledger remains available under **Existing analytical ledger**;
-its queries, exports and metric definitions are unchanged.
+Open `/lead-explorer?view=source` for **Source Evidence** in the canonical
+**Lead Evidence** workspace. Existing `/lead-ledger` bookmarks redirect there,
+preserving valid tenant, dates, filters, case context and source view parameters.
+Legacy `search` is retained and copied to `sourceSearch` if the latter is absent,
+so the two manual search meanings remain visible when switching modes.
+
+Population (`view=population`, the default) uses normalized analytical lead rows.
+Its Full analytical preset retains the useful 17-column presentation. Source
+Evidence retains original source/vendor rows and their separate grain; its rows
+are not normalized into a universal analytical table. Navigation has one Lead
+Evidence destination. After migration commit `4fd4703`, the prior analytical page,
+source workspace, standalone Ledger styles and unused router import were retired;
+`/lead-ledger` remains a compatibility redirect. `LeadJourney`,
+`LeadSourceEvidence`, `LedgerFieldCoverage`, `EvidenceExportPreflight`, timeline
+and download helpers remain active in the canonical workspace.
 
 The source explorer uses the selected tenant, explicit fetched start/end dates
 (maximum 366 days), source/medium/vendor/grade/vetting/identity-validation filters,
 lead ID/consumer ID/source search, and 25/50/100-lead pages. Unsupported analytical
 filters return 422 rather than being silently ignored. It is administrator-only,
 behind the existing authenticated tenant boundary.
+
+`sourceSearch` and `sourceMode=configured|rich` are local URL-backed source state.
+The source browser sends the former as the existing API's `search`; analytical
+Population `search` stays independent. Neither mode/preset/source-search state is
+a global reporting filter. A selected lead and source field focus stay in session
+state and are never serialized simply to hand off between modes. Private searches
+or identity filters cannot create shareable audit/investigation links.
+
+Both modes use the same Lead Dossier. Source mode reuses its already-returned
+source lead/report; Population's Source tab loads the replica lazily and requires
+an exact returned lead identity. An explicit analytical lookup from a source-only
+selection must establish the matching analytical row before handoff. Call counters
+remain aggregates, unavailable analytical data stays unavailable, and an identity
+match does not establish reconciliation or qualification of every source row.
 
 ## Source selection and deployment
 

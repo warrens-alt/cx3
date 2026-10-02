@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { ROUTE_MANIFEST, BUSINESS_AREAS } from '../src/app/routeManifest';
+import { buildLeadLedgerDestination } from '../src/app/navigation/ScopePreservingRedirect';
 
 const read = (path: string) => fs.readFileSync(path, 'utf8');
 
@@ -12,8 +13,12 @@ const blcSource = read('server/blc/router.ts');
 const savedAnalysisSource = read('server/savedAnalyses/router.ts');
 
 function routeTarget(element: string) {
+  if (/<LeadLedgerCompatibilityRedirect\b/.test(element)) return `redirect → ${buildLeadLedgerDestination('')}`;
   const nav = element.match(/<(?:Navigate|ScopePreservingRedirect)\s+to="([^"]+)"/);
-  if (nav) return `redirect → ${nav[1]}`;
+  if (nav) {
+    const view = element.match(/extraParams=\{\{\s*view:\s*['"]([^'"]+)['"]/);
+    return `redirect → ${nav[1]}${view ? `${nav[1].includes('?') ? '&' : '?'}view=${view[1]}` : ''}`;
+  }
   if (/cx-route-error/.test(element)) return 'inline 404';
   const component = element.match(/<([A-Z][A-Za-z0-9_]*)\b/);
   if (component) return component[1];

@@ -35,12 +35,12 @@
 | `/cohorts` | Cohorts |
 | `/access-control` | UserManagement |
 | `/users` | UserManagement |
-| `/lead-ledger` | LeadLedger |
+| `/lead-ledger` | redirect → /lead-explorer?view=source |
 | `/offershop-flow` | OffershopProcessObservability |
 | `/admin` | SettingsPage |
 | `/validation` | AdminValidation |
 | `/insights` | redirect → /overview |
-| `/explore` | redirect → /lead-explorer |
+| `/explore` | redirect → /lead-explorer?view=population |
 | `/acquisition` | redirect → /campaigns |
 | `/lead-performance` | redirect → /funnel |
 | `/call-performance` | redirect → /contact-strategy |
@@ -52,10 +52,10 @@
 | `/data-quality` | redirect → /data-integrity |
 | `/data-coverage` | redirect → /data-integrity |
 | `/audit` | redirect → /data-integrity |
-| `/explorer` | redirect → /lead-explorer |
+| `/explorer` | redirect → /lead-explorer?view=population |
 | `/settings` | redirect → /admin |
 | `/calls` | redirect → /contact-strategy |
-| `/leads` | redirect → /lead-explorer |
+| `/leads` | redirect → /lead-explorer?view=population |
 | `/deal-flow` | redirect → /offershop-flow |
 | `/process-flow` | redirect → /offershop-flow |
 | `/platform-insights` | redirect → /campaigns |
@@ -83,11 +83,10 @@ Area → page → section. See [frontend design architecture](FRONTEND-DESIGN-AR
 | `/commercial` | Commercial overview | Commercial | Authenticated workspace access |
 | `/reconciliation` | Reconciliation | Commercial | Authenticated workspace access |
 | `/investigate` | Investigation inbox | Investigate | Authenticated workspace access |
-| `/lead-explorer` | Record explorer | Investigate | Administrator only |
+| `/lead-explorer` | Lead Evidence | Investigate | Administrator only |
 | `/data-integrity` | Data confidence | Investigate | Authenticated workspace access |
 | `/reports` | Evidence reports | Investigate | Authenticated workspace access |
 | `/vendors` | Vendor evidence | Investigate | Authenticated workspace access |
-| `/lead-ledger` | Lead ledger | Investigate | Administrator only |
 | `/admin` | Settings | Settings & Admin | Authenticated workspace access |
 | `/access-control` | Access control | Settings & Admin | Administrator only |
 | `/warehouse` | Cloud warehouse | Settings & Admin | Authenticated workspace access |

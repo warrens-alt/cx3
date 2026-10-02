@@ -1,5 +1,11 @@
 # Investigation workspace verification — 2 October 2026
 
+The current record workspace is Lead Evidence. Its canonical modes, shared
+Dossier, request/privacy regressions, retired duplicate Ledger UI and five-width
+light/dark verification are recorded in [Lead Evidence QA](../lead-evidence/README.md).
+The Investigation browser suite was rerun through the canonical workspace and
+passed all 17 checks. The historical results below retain their original scope.
+
 For the subsequent consolidation, active workspace stages, current-view refresh,
 access-change selection clearing and new responsive evidence, see
 [the consolidation QA record](../consolidation/README.md). Counts below describe the

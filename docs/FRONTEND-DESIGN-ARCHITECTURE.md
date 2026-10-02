@@ -24,7 +24,7 @@ metadata/actions to `PageHeader`; `PageShell` supplies the page boundary. Local
 section switches and disclosures retain their existing component/query lifetimes.
 
 Overview leads with outcomes, performance and meaningful changes, followed by
-attention and supporting detail. The Investigation and Record Explorer layouts
+attention and supporting detail. The Investigation and Lead Evidence Population layouts
 retain their six-stage workflow, with a compact context summary and one mounted
 evidence subtree that adapts to the available width. These layouts reuse the
 existing models, scope, predicates, export utilities and evidence states.
@@ -74,7 +74,8 @@ backend gate. Presentation visibility does not grant authority.
 | `src/styles/reporting.css` | Page/header layout, scope controls, shared metric/panel surfaces, sections, disclosures and table foundations. |
 | `src/styles/visuals.css` | Shared plots, legends, tooltips and lifecycle visuals. |
 | `src/styles/overview.css` | Overview composition and its local outcome, trend, attention and journey presentation. |
-| Feature styles | Investigation workspace, ledger, audit evidence and domain visual layouts that have actual feature consumers. |
+| Feature styles | Investigation workspace, source evidence, audit evidence and domain visual layouts that have actual feature consumers. |
+| `src/features/leadEvidence/leadEvidence.css` | Active Population/Source Evidence browser, canonical dossier and reused source/journey presentation. Duplicate Ledger/workspace stylesheet owners were retired after migration commit `4fd4703`. |
 | `index.css`, `globals.css`, `product.css` | Retained application foundations and shared controls; canonical shell/reporting rules were extracted rather than layered over them. |
 | Remaining integration styles | Existing guided/domain/cross-app rules with live consumers; they are not an alternative owner for canonical shell selectors. |
 
@@ -105,6 +106,35 @@ compared the live shell and page primitives with their duplicate CSS selectors.
 The cleanup does not claim that every legacy selector or compatibility component
 has disappeared. Remaining consumers are preserved rather than silently weakening
 tests or removing analytical capability.
+
+## Lead Evidence ownership — 2 October 2026
+
+The canonical `/lead-explorer` entry exports `LeadEvidenceWorkspace`. It composes
+Population and Source Evidence through accessible URL-backed mode tabs, owns
+session-local selection/focus, and mounts only the active population browser.
+`LeadPopulationBrowser` owns analytical rows, preset columns, bounded pagination
+and page evidence exports. `LeadSourceBrowser` owns original replica rows, source
+coverage/mode/search, query provenance and complete-query exports. These response
+models and evidence grains remain distinct.
+
+Both browsers select `LeadDossier`, with Summary, Journey, Calls, Outcomes, Audit
+and Source tabs. Reused `LeadJourney` and `LeadSourceEvidence` retain supplied
+milestones and original records. Source-only selection requires explicit exact
+analytical lookup before handoff; an identity match does not certify reconciliation.
+Mode/preset changes are local presentation state, while dates, filters, case,
+search and access boundaries fence stale selection and data.
+
+The manifest has one **Lead Evidence** destination. `/lead-ledger` is a compatibility
+redirect to `view=source`, retaining both original analytical `search` and copied
+legacy `sourceSearch` when needed. Explorer aliases open `view=population`.
+`view`, `preset`, `sourceSearch` and `sourceMode` never become global filters.
+Supporting-record audit actions open Population; explicit source actions open
+Source Evidence. Private manual searches cannot be shared or saved as definitions.
+After migration commit `4fd4703`, the duplicate analytical Ledger page, old source
+workspace, standalone Ledger/Investigation record stylesheets and unused router
+import were retired. Source, journey, field-coverage, preflight, timeline and
+download helpers remain active in the canonical workspace. See the
+[consolidation map](LEAD-EVIDENCE-CONSOLIDATION.md).
 
 ## Size baseline and verification boundary
 
@@ -152,7 +182,7 @@ chooses **Load supporting preview**. Only then is the existing `raw-leads` drill
 requested at its existing ten-row minimum, displaying at most five masked rows,
 with the exact supported drill and scope. Preview
 identifiers are masked and never certify completeness. Full record inspection
-uses existing Record Explorer authorization and predicate semantics. Private
+uses existing analytical record authorization and predicate semantics. Private
 search/identity-filter scope cannot be copied as a shareable audit link.
 
 Coverage composition requires declared mutually exclusive populations at the

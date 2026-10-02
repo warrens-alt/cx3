@@ -1,0 +1,85 @@
+{
+  "synthetic": true,
+  "date": "2026-10-02",
+  "base": "24c1a11e3ba48e4fa24e49f8d51e73d7363fa3ae",
+  "automated": {
+    "tests": 1235,
+    "passed": 1234,
+    "failed": 0,
+    "skipped": 1,
+    "skipReason": "Existing Firestore Emulator-gated suite",
+    "npmCi": "passed",
+    "lint": "passed",
+    "surfaceInventory": "passed",
+    "build": "passed",
+    "verify": "passed"
+  },
+  "browserSuites": [
+    {
+      "suite": "broad",
+      "scenarios": 147,
+      "passed": 147,
+      "failed": 0,
+      "workflowChecks": null
+    },
+    {
+      "suite": "audit",
+      "scenarios": 56,
+      "passed": 56,
+      "failed": 0,
+      "workflowChecks": null
+    },
+    {
+      "suite": "investigation",
+      "scenarios": 17,
+      "passed": 17,
+      "failed": 0,
+      "workflowChecks": null
+    },
+    {
+      "suite": "journey",
+      "scenarios": 6,
+      "passed": 6,
+      "failed": 0,
+      "workflowChecks": null
+    },
+    {
+      "suite": "workspace",
+      "scenarios": 10,
+      "passed": 10,
+      "failed": 0,
+      "workflowChecks": 80
+    }
+  ],
+  "leadEvidenceViewports": [
+    [
+      1440,
+      1000
+    ],
+    [
+      1024,
+      1000
+    ],
+    [
+      820,
+      1180
+    ],
+    [
+      390,
+      844
+    ],
+    [
+      320,
+      844
+    ]
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "liveReconciliationEstablished": false,
+  "evidenceOutsideCheckout": true,
+  "codeRevision": "4da4a2b",
+  "migrationRevision": "4fd4703",
+  "retirementRevision": "9a8b2d5"
+}

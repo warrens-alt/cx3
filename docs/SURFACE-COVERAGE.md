@@ -6,7 +6,15 @@ Audit date: 21 September 2026. Every reachable React route in `src/App.tsx` and 
 
 ## Current investigation coverage — 2 October 2026
 
-The maintained inbox is `/investigate`; `/exceptions` resolves to the same `Exceptions` implementation. Record explorer is `/lead-explorer`, Data confidence remains `/data-integrity`, and Lead Ledger remains `/lead-ledger`. These surfaces preserve compatible reporting scope and visible investigation context. Historical route descriptions below are audit history; use the generated inventory for current mounted targets.
+The maintained inbox is `/investigate`; `/exceptions` resolves to the same `Exceptions` implementation. Lead Evidence is `/lead-explorer`, with analytical Population (default, `view=population`) and original Source Evidence (`view=source`) modes. `/lead-ledger` is a compatibility redirect to Source Evidence; Explorer aliases open Population. Data confidence remains `/data-integrity`. These surfaces preserve compatible reporting scope and visible investigation context. Historical route descriptions below are audit history; use the generated inventory for current mounted targets.
+
+`LeadEvidenceWorkspace` owns the mode and one session-local dossier selection;
+`LeadPopulationBrowser` and `LeadSourceBrowser` retain separate data grains and
+mount only when active. `view`, `preset`, `sourceSearch` and `sourceMode` are local
+view keys, never global filters. Both manual search scopes block sharing/persistence
+when private. After migration commit `4fd4703`, the duplicate Ledger page and
+source workspace, standalone styles and unused router import were retired. Source,
+journey, field-coverage, preflight, timeline and download helpers remain active.
 
 | API or boundary | Current investigation behaviour |
 | --- | --- |
@@ -14,7 +22,7 @@ The maintained inbox is `/investigate`; `/exceptions` resolves to the same `Exce
 | `GET /api/analytics/offernet/root-cause` | Existing exact metric allowlist and equal-length period decomposition, now intersected with shared investigation drill/narrowing. Explicit dates required; record-text search rejected. Source/grade/vendor grouping and narrowing share blank normalization. |
 | `GET /api/analytics/offernet/raw-leads` | Existing admin/tenant protections, shared qualification and deterministic page ordering. Structured `investigationReason` is returned from the same supported predicate family; limit/offset and export boundaries remain intact. |
 | `GET /api/analytics/offernet/lead-timeline/:leadId` | Admin-only. The lead must qualify within the same reporting and investigation scope. Late results cannot replace a newer selected dossier. No fabricated attempt-level evidence. |
-| Lead Ledger replica/source API | Existing admin and tenant access. The dossier qualifies the lead first and shows source records with their own scope/provenance; raw source rows are not relabelled as an independently qualified exception population. |
+| Lead Ledger replica/source API | Existing admin and tenant access through Source Evidence or the lazy Population dossier Source tab. Original rows keep their own scope/provenance. A source identity needs an explicit exact analytical match before analytical handoff; raw source rows are not relabelled as an independently qualified exception population. |
 | `GET /api/analytics/offernet/data-integrity` | Reused by contextual evidence confidence. Source-wide ownership/observation checks are disclosed separately from selected-cohort completeness; unavailable/unverified statuses are preserved. |
 | `GET /api/analytics/offernet/ai-insights` | Existing deterministic/model synthesis receives exact investigation predicate, segments and applicable search. Scope echo must match before display; references, model/source, validation and limitations remain visible. |
 | Local evidence tray | No persistence endpoint or backend. Pins retain their original evidence scope and provenance, clear with session/workspace changes, and export through the existing CSV utility. |

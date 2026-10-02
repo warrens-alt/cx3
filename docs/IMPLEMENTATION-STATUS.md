@@ -1,5 +1,56 @@
 # Implementation status — 2 October 2026
 
+## Lead Evidence consolidation
+
+This presentation consolidation fetched `origin/main` and confirmed actual HEAD
+at `24c1a11e3ba48e4fa24e49f8d51e73d7363fa3ae`, with no subsequent remote commits.
+The current mounted workspace is `LeadEvidenceWorkspace`, exported through the
+existing `/lead-explorer` entry. Population is the default (`view=population`);
+Source Evidence uses `view=source`. `/lead-ledger` is a scope-preserving Source
+compatibility redirect. The retained `/explore`, `/explorer` and `/leads` aliases
+open Population. Navigation and command search expose one **Lead Evidence**
+destination, retaining legacy record/explorer/ledger search vocabulary.
+
+Population reuses Record Explorer's analytical scope, investigation qualification,
+factual inclusion reasons, returned counts, drivers/confidence/AI and page evidence
+export. Investigation, Journey, Contact, Outcomes and Full analytical presets reuse
+the loaded rows; Full analytical retains the 17-column analytical presentation.
+The browser supplies 25/50/100 page sizes, first/previous/next/last controls and lead
+ID copy. Source Evidence keeps the source replica/coverage APIs, configured and
+approved rich sources, original multiple rows, 63-field compatibility, query job
+provenance, complete source CSV and its explicit preflight/failure boundaries.
+
+Both modes select the same Lead Dossier with Summary, Journey, Calls, Outcomes,
+Audit and Source tabs. Population/source grains and query caches remain separate.
+Only the active population browser mounts. Source-only selection does not load an
+analytical population until explicit exact-match lookup; an identity match alone
+does not certify reconciliation. Selected identities and source field focus remain
+session-local. URL `view`, `preset`, `sourceSearch` and `sourceMode` are local view
+state, rather than reporting filters. Analytical `search` remains distinct. Both
+private searches block shareable audit/investigation links and saved definitions.
+
+The migration was committed as `4fd4703` before retiring the duplicate
+`src/pages/LeadLedger.tsx`, old `LeadLedgerWorkspace`, `ledger.css`,
+`investigationRecords.css` and unused router import. The compatibility route
+remains a redirect. Reusable `LeadJourney`, `LeadSourceEvidence`,
+`LedgerFieldCoverage`, `EvidenceExportPreflight`, timeline and download helpers
+remain active in the canonical workspace. The
+[consolidation map](LEAD-EVIDENCE-CONSOLIDATION.md) records ownership and the
+retirement gate. Dated verification reports below keep their original test counts
+and revision scope.
+
+No backend queries, API semantics, metrics, lifecycle qualification, numerator or
+denominator contracts, source mappings, revenue meaning, tenant isolation or
+permissions changed. Synthetic UI checks do not establish live source parity.
+
+Final verification is recorded in [Lead Evidence QA](qa/lead-evidence/README.md):
+`npm run verify` passes with 1,235 tests (1,234 passed, zero failed, one existing
+Firestore Emulator-gated skip), inventory checking and production build. Browser
+checks pass 147 broad, 56 Audit, 17 Investigation, six Journey scenarios, and ten
+Lead Evidence light/dark scenarios containing 80 workflow checks across all five
+requested widths. The dossier heading and portaled Audit modal remain unobscured
+by retained sticky reporting/Investigation context.
+
 ## Visual Audit Evidence
 
 This pass fetched `origin/main` and confirmed HEAD and the remote at
