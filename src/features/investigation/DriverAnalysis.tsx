@@ -8,6 +8,7 @@ import { extractOffernetFilters, useFilters } from '../../lib/FilterContext';
 import { formatTableNumber } from '../../lib/formatters';
 import { fetchExceptions, fetchMarketingRootCause, fetchRootCause, type ExceptionAnalyticsData, type MarketingRootCauseData, type RootCauseData } from '../../lib/offernetClient';
 import { driverMetricKind, driverScope, driverSegmentLink, type DriverDimension } from './driverAnalysisModel';
+import type { InvestigationAnalysisSummary } from './useInvestigationAnalysis';
 import '../../styles/investigationDrivers.css';
 
 export interface DriverEvidenceItem {
@@ -26,6 +27,9 @@ interface DriverAnalysisProps {
   exceptionError?: string | null;
   onInspect?: () => void;
   onPin?: (item: DriverEvidenceItem) => void;
+  summaryScopeKey?: string;
+  refreshToken?: number;
+  onSummary?: (summary: InvestigationAnalysisSummary) => void;
 }
 interface AnalysisResult {
   key: string;
@@ -80,7 +84,7 @@ export function DriverBreakdown({ label, rows, unit, compared, concentration, re
   </>;
 }
 
-export default function DriverAnalysis({ metric: suppliedMetric, metricLabel, exceptionData, exceptionError, onInspect, onPin }: DriverAnalysisProps) {
+export default function DriverAnalysis({ metric: suppliedMetric, metricLabel, exceptionData, exceptionError, onInspect, onPin, summaryScopeKey, refreshToken = 0, onSummary }: DriverAnalysisProps) {
   const { selectedClient, ready: workspaceReady, error: workspaceError } = useClient();
   const { isAdmin } = useAuth();
   const { startDate, endDate, filters, filterError } = useFilters();
@@ -96,7 +100,7 @@ export default function DriverAnalysis({ metric: suppliedMetric, metricLabel, ex
   useEffect(() => subscribeToAnalyticalSession(next => { setSessionKey(next); setResult(null); }), []);
   const scope = driverScope(params);
   const request = JSON.stringify({ clientId: selectedClient, startDate: startDate || undefined, endDate: endDate || undefined, ...extractOffernetFilters(filters), ...scope, ...(metric ? { metric } : {}) });
-  const requestKey = JSON.stringify([request, search, filterError, exceptionData !== undefined, sessionKey]);
+  const requestKey = JSON.stringify([request, search, filterError, exceptionData !== undefined, sessionKey, refreshToken]);
   const unavailable = workspaceError || (workspaceReady === false ? 'Workspace evidence is not ready for this investigation.' : null) || (filterError ? 'Correct the reporting filters before analysing this population.'
     : search ? 'Driver analysis is unavailable while record-text search is active. Clear the search to compare the complete investigation population.'
     : metric && !kind ? `A matched-period breakdown is unavailable for ${metricLabel || metric}. This metric has no supported decomposition.`
@@ -140,9 +144,20 @@ export default function DriverAnalysis({ metric: suppliedMetric, metricLabel, ex
   const ready = Boolean(operational || marketing?.metric || exception);
   const valueSuffix = operational?.metric.kind === 'rate' || marketing?.metric?.unit === 'pp' ? '%' : marketing?.metric?.unit === 'currency' ? ' R' : '';
   const methodology = operational?.methodology || marketing?.methodology || exceptions?.comparisonReason || '';
+  const dimensionLabel = dimension?.label;
+  const severity = exception?.severity;
+  useEffect(() => {
+    if (summaryScopeKey && onSummary) onSummary({
+      scopeKey: summaryScopeKey, state: error ? 'unavailable' : ready ? 'available' : 'loading',
+      detail: error || methodology, current: error || !ready ? 'Unavailable' : `${number(current)}${current != null ? valueSuffix : ''}`,
+      previous: error || !ready ? 'Unavailable' : `${number(previous)}${previous != null ? valueSuffix : ''}`,
+      change: error || !ready ? 'Unavailable' : signed(delta, unit), validationStatus: error ? 'NOT_VERIFIED' : status,
+      dimension: dimensionLabel, severity,
+    });
+  }, [summaryScopeKey, onSummary, error, ready, methodology, current, previous, delta, unit, valueSuffix, status, dimensionLabel, severity]);
   const pin = (row?: BreakdownRow) => onPin?.({ kind: row ? operational ? 'driver' : 'segment' : exception ? 'exception' : 'metric', label: row ? `${dimension?.label}: ${row.name}` : title, value: row ? operational ? `${signed(row.contribution, unit)} contribution` : `${number(row.current)}${valueSuffix}` : `${number(current)}${valueSuffix}`, definition: row ? `${dimension?.label} breakdown of ${title}. Current ${number(row.current)}${row.current != null ? valueSuffix : ''}; previous ${number(row.previous)}${row.previous != null ? valueSuffix : ''}. ${operational ? `Share of delta: ${row.shareOfDelta == null ? 'Unavailable' : `${number(row.shareOfDelta)}%`}. ` : ''}Descriptive evidence; no causal claim.` : exception?.detail || methodology, provenance: exception ? '/api/analytics/offernet/exceptions' : marketing ? '/api/analytics/offernet/marketing-root-cause' : '/api/analytics/offernet/root-cause', identifier: row ? `${dimension?.key}:${row.name}` : metric || drill || '', observedAt: operational?.generatedAt || marketing?.generatedAt || exceptions?.generatedAt });
 
-  return <section className="cx-driver-analysis" aria-labelledby={headingId} aria-busy={!error && !ready}>
+  return <section id={summaryScopeKey ? 'investigation-diagnose' : undefined} tabIndex={summaryScopeKey ? -1 : undefined} className="cx-driver-analysis" aria-labelledby={headingId} aria-busy={!error && !ready}>
     <header><div><p className="cx-driver-eyebrow">Where is it happening?</p><h2 id={headingId}>{title}</h2></div>{ready && <span className="cx-driver-status">{status}</span>}</header>
     {error ? <p className="cx-driver-note" role={activeResult?.error ? 'alert' : undefined}>{error}</p> : !ready ? <p className="cx-driver-note" role="status">Loading the scoped population breakdown…</p> : <>
       <div className="cx-driver-summary"><div><span>Current</span><strong>{number(current)}{current != null ? valueSuffix : ''}</strong><small>{currentWindow ? `${currentWindow.startDate} → ${currentWindow.endDate}` : 'Current reporting scope'}</small></div><div><span>Matched previous</span><strong>{number(previous)}{previous != null ? valueSuffix : ''}</strong><small>{previousWindow ? `${previousWindow.startDate} → ${previousWindow.endDate}` : 'Comparison unavailable'}</small></div><div><span>Change</span><strong>{signed(delta, unit)}</strong><small>{exception ? `Affected distinct leads · Percentage change: ${exception.percentageChange == null ? 'Unavailable' : `${signed(exception.percentageChange)}%`}` : 'Returned metric difference'}</small></div>{onPin && <button type="button" className="cx-driver-pin" onClick={() => pin()}><Pin size={13} aria-hidden="true" /> Pin evidence</button>}</div>
