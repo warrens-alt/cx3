@@ -69,3 +69,17 @@ export function buildDossierAuditEvidence(row?: InvestigationLead, result?: RawL
     ],
   };
 }
+
+/** Source column availability is metadata, not row-population completeness.
+ * An exact loaded pair establishes only the identity relationship. */
+export function buildSourceRelationship(lead: LedgerLead, report?: LedgerReplicaReport, analyticalLeadId?: string): EvidenceTraceNode[] {
+  const coverage = report?.metadata.coverage;
+  const matched = Boolean(lead.leadId && analyticalLeadId && lead.leadId === analyticalLeadId);
+  return [
+    { key: 'records', type: 'source', label: 'Original source rows', value: lead.records.length, state: lead.records.length ? 'observed' : 'unavailable', detail: 'Every returned source row remains separate, including multiple rows for one identity.' },
+    { key: 'fields', type: 'field', label: 'Source column availability', value: coverage ? `${coverage.available.length} available · ${coverage.missing.length} unavailable` : null, state: coverage ? coverage.missing.length ? 'partial' : 'mapped' : 'unavailable', detail: 'Available columns do not establish populated fields or population completeness.' },
+    { key: 'identity', type: 'normalization', label: 'Source identity', value: lead.leadId || null, state: lead.leadId ? 'observed' : 'unavailable', detail: lead.leadId ? 'Returned source identifier; identity equality alone does not establish reconciliation.' : 'Source identity is incomplete. Original records remain inspectable without inventing a lead identity.' },
+    { key: 'analytical', type: 'display', label: 'Analytical relationship', value: matched ? '1 exact analytical lead loaded' : 'Exact analytical match not loaded', state: matched ? 'observed' : 'unavailable', detail: matched ? `${lead.records.length} original rows and one analytical row share an identifier. Their grains and qualification remain separate.` : 'An analytical match requires an explicit exact lookup in the current authorized population.' },
+    { key: 'reconciliation', type: 'reconciliation', label: 'Independent source reconciliation', value: null, state: 'not_verified', detail: 'No independent source comparison is supplied for this record relationship.' },
+  ];
+}

@@ -6,6 +6,8 @@ import OverviewChanges from './components/OverviewChanges';
 import FirstCallResponse from './components/FirstCallResponse';
 import { STAGE_METRIC_IDS } from '../../shared/evidence/auditPresentation';
 import React, { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useScopedNavigationTarget } from '../../hooks/useScopedNavigationTarget';
 import { RefreshCw, Settings2, ChevronDown } from 'lucide-react';
 import { useOverviewModel, type RootMetric } from './model/useOverviewModel';
 import { useFilters } from '../../lib/FilterContext';
@@ -27,6 +29,8 @@ import OverviewCommercialPanel from '../../components/OverviewCommercialPanel';
 import { lifecycleVisualAudit } from '../evidenceWorkspace/metricVisualAudit';
 
 export default function OverviewPage() {
+  const navigate = useNavigate();
+  const scoped = useScopedNavigationTarget();
   const { filters } = useFilters();
   const {
     data,
@@ -183,7 +187,7 @@ export default function OverviewPage() {
           <div className="cx-overview-primary">
             <PerformanceTrend data={data.dailyTrends} comparisonWindow={data.comparisonWindow} />
             <OverviewChanges changes={meaningfulChanges} hasComparison={hasComparison}
-              comparisonWindow={data.comparisonWindow} onInvestigate={investigate} />
+              comparisonWindow={data.comparisonWindow} onInvestigate={metric => navigate(scoped(`/investigate?investigationMetric=${encodeURIComponent(metric)}`))} />
           </div>
 
           <div className="cx-overview-secondary">

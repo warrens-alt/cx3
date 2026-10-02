@@ -7,6 +7,7 @@ import FirstCallResponse from '../src/features/overview/components/FirstCallResp
 import OverviewChanges from '../src/features/overview/components/OverviewChanges';
 import OutcomeStrip from '../src/features/overview/components/OutcomeStrip';
 import JourneySummary, { type FunnelStageItem } from '../src/features/overview/components/JourneySummary';
+import AttentionList from '../src/features/overview/components/AttentionList';
 import type { InspectorContent } from '../src/shared/evidence/InspectorHost';
 
 const route = '/overview?clientId=synthetic-a&startDate=2026-09-22&endDate=2026-09-28&vendor=Synthetic%20vendor';
@@ -202,5 +203,44 @@ test('Overview What changed preserves supplied deltas and gates investigation on
     assert.deepEqual([...app.container.querySelectorAll('strong')].map(value => value.textContent), ['0%', '-4.2pp']);
     for (const button of app.container.querySelectorAll('button')) await app.click(button);
     assert.deepEqual(calls, ['fetchedLeads', 'deliveryRate']);
+  });
+});
+
+test('Overview exceptions open scoped Investigation for both roles and only attach supported predicates', async () => {
+  await withRenderedComponent(async app => {
+    const items = [
+      { id: 'awaiting-first-dial', title: 'Awaiting first dial', detail: 'Returned pending population', value: 0, severity: 'medium' as const, path: '/speed-to-lead' },
+      { id: 'unsupported-check', title: 'Unregistered check', detail: 'No supported predicate', value: 4, severity: 'low' as const, path: '/lead-explorer' },
+    ];
+    for (const isAdmin of [true, false]) {
+      await app.render(React.createElement(AttentionList, { items, isAdmin }));
+      const links = [...app.container.querySelectorAll<HTMLAnchorElement>('.cx-attention-row')].map(link => new URL(link.href, 'https://synthetic.invalid'));
+      assert.equal(links[0].pathname, '/investigate');
+      assert.equal(links[0].searchParams.get('drill'), 'awaiting-first-dial');
+      assert.equal(links[0].searchParams.get('clientId'), 'synthetic-a');
+      assert.equal(links[0].searchParams.get('startDate'), '2026-09-22');
+      assert.equal(links[0].searchParams.get('endDate'), '2026-09-28');
+      assert.equal(links[0].searchParams.get('vendor'), 'Synthetic vendor');
+      assert.equal(links[1].pathname, '/investigate');
+      assert.equal(links[1].searchParams.has('drill'), false);
+      assert.equal(app.container.querySelector('a[href*="lead-explorer"]'), null);
+    }
+  });
+});
+
+test('missing Overview attention and nonfinite changes remain unavailable instead of a healthy or zero state', async () => {
+  await withRenderedComponent(async app => {
+    await app.render(React.createElement(AttentionList, { isAdmin: true }));
+    assert.match(app.container.textContent!, /Exception evidence unavailable/);
+    assert.doesNotMatch(app.container.textContent!, /View all \(0\)|within normal|No affected exceptions/);
+    await app.render(React.createElement(AttentionList, { isAdmin: true, items: [] }));
+    assert.match(app.container.textContent!, /No affected exceptions returned/);
+    assert.doesNotMatch(app.container.textContent!, /within normal operational thresholds/);
+    await app.render(React.createElement(OverviewChanges, { hasComparison: true, onInvestigate() {}, changes: [
+      { label: 'Missing delta', value: null, metric: 'fetchedLeads', unit: '%' },
+      { label: 'Invalid delta', value: Number.NaN, metric: 'deliveryRate', unit: 'pp' },
+    ] }));
+    assert.equal(app.container.querySelector('button'), null);
+    assert.match(app.container.textContent!, /Outcome changes are unavailable/);
   });
 });

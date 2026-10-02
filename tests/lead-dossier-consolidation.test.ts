@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { analyseLedgerLead, LEDGER_HEADERS, type LedgerReplicaReport } from '../contracts/leadLedgerReplica';
-import { buildDossierAuditEvidence } from '../src/features/investigation/dossierAuditEvidence';
+import { buildDossierAuditEvidence, buildSourceRelationship } from '../src/features/investigation/dossierAuditEvidence';
 import type { RawLeadsData } from '../src/lib/offernetClient';
 
 const leadId = 'PRIVATE-DOSSIER-IDENTITY';
@@ -33,6 +33,18 @@ test('source-only audit cannot derive normalized qualifications or reconciliatio
   assert.ok(evidence.qualifications.every(item => item.value === 'Qualification not supplied'));
   assert.equal(evidence.trace.find(item => item.key === 'normalized')?.value, null);
   assert.equal(evidence.trace.find(item => item.key === 'reconciliation')?.state, 'not_verified');
+});
+
+test('source relationship separates row count, column availability, exact identity and reconciliation', () => {
+  const matched = buildSourceRelationship(lead, report, leadId);
+  assert.equal(matched.find(item => item.key === 'records')?.value, 2);
+  assert.match(String(matched.find(item => item.key === 'fields')?.value), /63 available/);
+  assert.equal(matched.find(item => item.key === 'fields')?.state, 'mapped');
+  assert.match(matched.find(item => item.key === 'fields')!.detail!, /do not establish populated fields/);
+  assert.equal(matched.find(item => item.key === 'analytical')?.value, '1 exact analytical lead loaded');
+  assert.equal(matched.find(item => item.key === 'reconciliation')?.state, 'not_verified');
+  for (const identity of [undefined, 'OTHER']) assert.equal(buildSourceRelationship(lead, report, identity).find(item => item.key === 'analytical')?.state, 'unavailable');
+  assert.equal(buildSourceRelationship({ ...lead, leadId: '' }, report, leadId).find(item => item.key === 'identity')?.state, 'unavailable');
 });
 
 const bundle = await build({
@@ -75,6 +87,7 @@ test('source mode supplies one canonical dossier and reuses all original records
     assert.equal(app.w.document.querySelector('[data-raw-field="HLC Revenue Generated"] dd').textContent, '1234567890.123456789');
     assert.equal(app.w.document.querySelectorAll('[data-source-highlight="true"]').length, 2);
     assert.equal(app.w.__dossier.loads.length, 0);
+    assert.match(app.w.document.querySelector('[aria-label="Source and analytical relationship"]').textContent, /2.*63 available.*Exact analytical match not loaded.*Not verified/);
     assert.equal(app.w.document.querySelector('.cx-dossier-tabs').textContent, 'SummaryJourneyCallsOutcomesAuditSource');
     await app.click('Journey');
     assert.match(app.text(), /Normalized analytical evidence is unavailable/);
@@ -82,6 +95,21 @@ test('source mode supplies one canonical dossier and reuses all original records
     await app.click('Audit');
     assert.ok(app.w.document.querySelector('[aria-label="Selected evidence lineage"]'));
     assert.match(app.text(), /Independent reconciliation.*Not verified/);
+    assert.equal(app.w.__dossier.loads.length, 0);
+  } finally { app.close(); }
+});
+
+test('Summary exposes independent lifecycle evidence and Outcomes retain the exact returned amount', async () => {
+  const exactRow = { ...row, revenue: '1234567890.123456789' };
+  const app = await mount({ row: exactRow, result: { ...result, rows: [exactRow] } });
+  try {
+    const stages = app.w.document.querySelectorAll('[data-evidence-stage]');
+    assert.equal(stages.length, 6);
+    assert.match(stages[2].textContent, /Timing anomaly.*Excluded from qualified progression/);
+    assert.match(stages[4].textContent, /Unavailable/);
+    assert.match(stages[5].textContent, /Not recorded.*Qualification not supplied/);
+    await app.click('Outcomes');
+    assert.match(app.text(), /R 1234567890\.123456789/);
     assert.equal(app.w.__dossier.loads.length, 0);
   } finally { app.close(); }
 });

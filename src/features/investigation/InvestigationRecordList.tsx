@@ -4,6 +4,7 @@ import { ledgerCalls, ledgerOutcome, ledgerValidation } from '../../lib/leadLedg
 import { formatAuditValue } from '../../shared/evidence/auditVisualModel';
 import { buildLedgerTimeline, formatLedgerDuration } from '../leadLedger/timeline';
 import type { RawLeadsData } from '../../lib/offernetClient';
+import LeadEvidenceSummary from './LeadEvidenceSummary';
 
 export type InvestigationLead = RawLeadsData['rows'][number];
 export type InvestigationRecordPreset = 'investigation' | 'journey' | 'contact' | 'outcomes' | 'full';
@@ -29,7 +30,7 @@ export function leadDelay(row: InvestigationLead) {
   return duration < 0 ? 'Timing anomaly' : formatLedgerDuration(duration);
 }
 
-function recordedRevenue(value: unknown) {
+export function recordedRevenue(value: unknown) {
   if (typeof value === 'number') return Number.isFinite(value) ? `R ${formatAuditValue(value)}` : 'Unavailable';
   if (typeof value !== 'string' || !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(value.trim())) return 'Unavailable';
   return `R ${value}`;
@@ -39,7 +40,7 @@ const suppliedField = (...values: unknown[]) => evidenceText(values.find(value =
 
 type Column = { key: string; label: string; value: (row: InvestigationLead) => React.ReactNode };
 const columnMap: Record<string, Column> = {
-  lead: { key: 'lead', label: 'Lead / current state', value: row => <><strong className="cx-record-id">{row.lead_id}</strong><small>{buildLedgerTimeline(row).currentStage?.title || 'Stage unavailable'}</small></> },
+  lead: { key: 'lead', label: 'Lead / current state', value: row => <div className="cx-record-evidence-identity"><strong className="cx-record-id">{row.lead_id}</strong><small>{buildLedgerTimeline(row).currentStage?.title || 'Stage unavailable'}</small><LeadEvidenceSummary row={row} compact /></div> },
   reason: { key: 'reason', label: 'Why included', value: () => null },
   vendor: { key: 'vendor', label: 'Vendor', value: row => evidenceText(row.vendor) },
   source: { key: 'source', label: 'Source', value: row => suppliedField(row.source, row.offershop_source) },

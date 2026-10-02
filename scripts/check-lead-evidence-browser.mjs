@@ -56,6 +56,8 @@ try {
         assert.equal(await page.getByRole('tablist', { name: 'Lead Evidence modes' }).count(), 1);
         const values = await requests(page);
         assert.equal(count(values, '/raw-leads'), 1); assert.equal(count(values, 'source'), 0); assert.equal(count(values, '/lead-timeline/'), 0);
+        assert.ok(await page.locator('.cx-lead-evidence-summary[data-compact=true]:visible').count() > 0);
+        assert.equal(await page.locator('.cx-lead-evidence-summary[data-compact=true]:visible').first().locator('[data-evidence-stage]').count(), 6);
         await overflow(page);
       });
       await check('All presentation presets reuse rows; full table scrolls internally', async () => {
@@ -83,6 +85,8 @@ try {
         await page.waitForFunction(() => window.__fixture.requests.some(value => value.includes('/lead-timeline/')));
         const before = await requests(page);
         await dossier.locator('.cx-dossier-body[data-section=summary]').scrollIntoViewIfNeeded();
+        assert.equal(await dossier.locator('[data-evidence-stage]').count(), 6);
+        assert.match(await dossier.locator('.cx-lead-evidence-summary').innerText(), /Recorded lifecycle.*Calls:.*Attempt-level timestamps/s);
         await settle(page); await shot('population-summary');
         await dossier.getByRole('tab', { name: 'Summary', exact: true }).focus(); await page.keyboard.press('ArrowRight');
         assert.equal(await dossier.locator('.cx-dossier-tabs').getByRole('tab', { name: 'Journey', exact: true }).evaluate(element => element === document.activeElement), true);
@@ -105,6 +109,8 @@ try {
         await dossier.locator('.cx-ledger-raw-record').first().waitFor({ state: 'attached' });
         await dossier.getByText('View all 63 raw source fields', { exact: true }).click();
         assert.equal(await dossier.locator('.cx-ledger-raw-record').count(), 2);
+        const relationship = dossier.getByRole('region', { name: 'Source and analytical relationship', exact: true });
+        assert.match(await relationship.innerText(), /2.*Source column availability.*1 exact analytical lead loaded.*Not verified/s);
         assert.equal(await dossier.locator('[data-raw-field]').count(), 126);
         const source = (await requests(page)).find(value => /\/lead-ledger\/replica\?/.test(value));
         const query = new URL(source, origin).searchParams;

@@ -55,6 +55,40 @@ try {
     assert.equal(requests.filter(url => url.includes('/offernet/exceptions')).length, 1);
     assert.equal(requests.filter(url => /\/offernet\/(overview|operating-controls)/.test(url)).length, 0);
   });
+  await check('Overview anomalies and changes enter Investigation with exact scope and no selected identity', async () => {
+    const scoped = scope + '&vendor=Synthetic%20vendor&source=synthetic-source&selectedLeadId=PRIVATE-SELECTED';
+    await page.goto(origin + '/overview' + scoped);
+    await page.getByRole('link', { name: 'Investigate Awaiting first dial: 20 affected leads', exact: true }).click();
+    await waitStage('signal', 'Current 20');
+    let query = new URL(page.url()).searchParams;
+    assert.equal(new URL(page.url()).pathname, '/investigate');
+    assert.equal(query.get('drill'), 'awaiting-first-dial');
+    assert.equal(query.get('vendor'), 'Synthetic vendor');
+    assert.equal(query.get('source'), 'synthetic-source');
+    assert.equal(query.has('selectedLeadId'), false);
+    assert.equal((await page.evaluate(() => window.__fixture.requests)).some(url => url.includes('raw-leads')), false);
+    await page.goto(origin + '/overview' + scoped);
+    await page.getByRole('heading', { name: 'What changed?', exact: true }).waitFor();
+    await page.evaluate(async () => {
+      const data = window.__fixture.payloads['/api/analytics/offernet/overview'];
+      data.comparison = { fetchedDelta: 20, deliveryRateDelta: null, dialRateDelta: null, contactRateDelta: null, saleRateDelta: null, activationRateDelta: null };
+      data.comparisonWindow = { startDate: '2026-09-27', endDate: '2026-09-27' };
+      await window.__fixture.refresh();
+    });
+    await page.getByRole('button', { name: 'Investigate Lead volume change: +20%', exact: true }).click();
+    await waitStage('signal', 'Current 120');
+    query = new URL(page.url()).searchParams;
+    assert.equal(new URL(page.url()).pathname, '/investigate');
+    assert.equal(query.get('investigationMetric'), 'fetchedLeads');
+    assert.equal(query.get('clientId'), 'synthetic-a');
+    assert.equal(query.get('startDate'), '2026-09-28');
+    assert.equal(query.get('endDate'), '2026-09-28');
+    assert.equal(query.get('vendor'), 'Synthetic vendor');
+    assert.equal(query.get('source'), 'synthetic-source');
+    assert.equal(query.has('selectedLeadId'), false);
+    assert.equal(await page.getByRole('dialog').count(), 0);
+    await visit(); await waitStage('signal', 'Current 20');
+  });
   await check('Narrowing and browser back/forward retain predicate and reporting scope', async () => {
     await page.locator('[aria-label="Vendor exact breakdown"] a').first().click();
     await page.getByRole('button', { name: /Open dossier for lead/ }).first().waitFor();

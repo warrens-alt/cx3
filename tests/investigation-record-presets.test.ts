@@ -54,6 +54,10 @@ test('Investigation retains the supplied inclusion reason and removes the metada
   assert.equal([...doc.querySelectorAll('select option')].some(element => element.textContent === 'Source'), false);
   const missing = render('investigation', [{ ...lead, investigationReason: null }]);
   assert.match(missing.querySelector('tbody')!.textContent!, /Inclusion explanation unavailable/);
+  assert.equal(doc.querySelectorAll('tbody [data-evidence-stage]').length, 6);
+  assert.match(doc.querySelector('tbody [data-evidence-stage="rpc"]')!.getAttribute('aria-label')!, /Not recorded/);
+  assert.match(doc.querySelector('tbody [data-evidence-stage="sale"]')!.getAttribute('aria-label')!, /Unavailable/);
+  assert.equal(render('full').querySelector('[data-evidence-stage]'), null, 'Full analytical retains its exact original table presentation');
 });
 
 const bundle = await build({
