@@ -5,6 +5,7 @@ import { useAnalyticsData } from '../lib/useAnalyticsData';
 import { fetchWarehouseTables } from '../lib/warehouseClient';
 import { buildValidationReferenceCsv, type ValidationReferenceEvidence } from '../../contracts/validationEvidence';
 import { Download, RefreshCw } from 'lucide-react';
+import ReconciliationReadiness from '../features/trust/components/ReconciliationReadiness';
 import {
   EXPORT_MANIFEST_EVIDENCE,
   OBSERVED_EXPORT_FAILURES,
@@ -117,6 +118,7 @@ export default function AdminValidation() {
   ] as const;
 
   return <AnalyticsPageLayout className="cx-validation-page" title="Validation suite" description="Inspect historical reference values and registered schema references. Independent live reconciliation has not been performed.">
+    <ReconciliationReadiness />
     <section className="cx-command-panel p-5 space-y-2" aria-label="Validation boundary">
       <h2 className="text-base font-semibold">Independent validation not established</h2>
       <p>{data?.message || 'Independent live reconciliation has not been performed.'} Reference values are not proof of current warehouse accuracy, access, financial reconciliation, or tenant isolation.</p>
