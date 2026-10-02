@@ -20,9 +20,10 @@ export function warehouseSchemaPath(source: string | null | undefined, clientId:
 
 /** Return navigation is presentation only, restricted to the originating analysis route. */
 export function warehouseAnalysisReturn(value: string | null): string | null {
-  if (!value || !value.startsWith('/data-integrity') || value.startsWith('//')) return null;
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return null;
   const parsed = new URL(value, 'https://audit.invalid');
-  if (parsed.origin !== 'https://audit.invalid' || parsed.pathname !== '/data-integrity') return null;
+  const origins = new Set(['/data-integrity', '/evidence', '/evidence/sources', '/evidence/metrics', '/evidence/reconciliation']);
+  if (parsed.origin !== 'https://audit.invalid' || !origins.has(parsed.pathname)) return null;
   return scopedViewPath(parsed.pathname, parsed.search);
 }
 

@@ -64,6 +64,11 @@ const origin = `http://127.0.0.1:${server.address().port}`;
 const { chromium } = await import(process.env.CX_PLAYWRIGHT_MODULE || 'playwright');
 const browser = await chromium.launch({ headless: true, ...(process.env.CX_CHROMIUM_EXECUTABLE ? { executablePath: process.env.CX_CHROMIUM_EXECUTABLE } : {}) });
 const results = [];
+const canonical = process.env.CX_QA_CANONICAL === 'true';
+const reportRoute = canonical ? '/evidence/releases' : '/reports';
+const vendorRoute = canonical ? '/evidence/vendors' : '/vendors';
+const reconciliationRoute = canonical ? '/commercial/reconciliation' : '/reconciliation';
+const routeSlug = route => route.slice(1).replaceAll('/', '-');
 try {
   for (const theme of ['light', 'dark']) for (const width of [1440, 1024, 820, 390, 320]) {
     const context = await browser.newContext({ viewport: { width, height: width === 820 ? 1180 : width < 640 ? 844 : 1000 }, colorScheme: theme, reducedMotion: 'reduce', acceptDownloads: true });
@@ -91,10 +96,13 @@ try {
     const overflow = async () => { const size = await page.evaluate(() => ({ width: innerWidth, doc: document.documentElement.scrollWidth, main: document.querySelector('main').clientWidth, scroll: document.querySelector('main').scrollWidth })); assert.ok(size.doc <= size.width + 1 && size.scroll <= size.main + 1, JSON.stringify(size)); };
     const shot = async name => { const filename = `${name}-${theme}-${width}.png`; await page.screenshot({ path: path.join(output, filename) }); record.screenshots.push(filename); };
     try {
-      await page.goto(`${origin}/reports?clientId=synthetic-a&startDate=${scope.startDate}&endDate=${scope.endDate}`);
+      await page.goto(`${origin}${reportRoute}?clientId=synthetic-a&startDate=${scope.startDate}&endDate=${scope.endDate}`);
       await page.getByRole('button', { name: 'Run report', exact: true }).waitFor();
       await check('Page identity, no automatic execution, responsive controls', async () => {
-        assert.equal(await page.title(), 'Evidence reports · ConversionX');
+        assert.equal(await page.title(), 'Releases & replay · ConversionX');
+        assert.equal(new URL(page.url()).pathname, reportRoute);
+        assert.ok((await page.locator('main').innerText()).length > 100);
+        assert.equal(await page.locator('vite-error-overlay, nextjs-portal').count(), 0);
         assert.equal(await page.locator('html').getAttribute('data-theme'), theme);
         assert.equal(await page.evaluate(() => window.__fixture.requests.filter(value => value === '/api/reporting').length), 0);
         await overflow();
@@ -131,11 +139,11 @@ try {
         assert.equal(parsed.request.tenantId, 'synthetic-a'); assert.equal(parsed.totals[0].value, '9007199254740993'); assert.equal(parsed.evidence.independentlyReconciled, 'NOT_VERIFIED');
       });
       await check('Unsupported private scope prevents execution', async () => {
-        await page.evaluate(() => window.__fixture.navigate('/reports?clientId=synthetic-a&startDate=2026-09-01&endDate=2026-09-02&search=private-record'));
+        await page.evaluate(route => window.__fixture.navigate(route + '?clientId=synthetic-a&startDate=2026-09-01&endDate=2026-09-02&search=private-record'), reportRoute);
         await page.getByText(/This URL includes record/).waitFor(); assert.equal(await page.getByRole('button', { name: 'Run report', exact: true }).isDisabled(), true);
         assert.equal(await page.locator('.cx-report-result').count(), 0); await overflow();
       });
-      for (const route of ['/vendors', '/reconciliation']) {
+      for (const route of [vendorRoute, reconciliationRoute]) {
         await check(`${route}: historical release reaches every execution and exact values retain precision`, async () => {
         await page.goto(`${origin}${route}?clientId=synthetic-a&startDate=${scope.startDate}&endDate=${scope.endDate}&release=${historicalRelease.releaseId}`);
         await page.waitForFunction(() => window.__fixture.requestDetails.some(item => item.url === '/api/reporting' && item.method === 'POST'));
@@ -156,10 +164,10 @@ try {
         await table.evaluate(element => { element.scrollLeft = element.scrollWidth; });
         assert.ok(await table.evaluate(element => element.scrollLeft > 0), 'Wide exact table is independently scrollable');
         await table.evaluate(element => { element.scrollLeft = 0; });
-        await page.locator('h1').scrollIntoViewIfNeeded(); await shot(route.slice(1) + '-historical-exact');
-        await table.scrollIntoViewIfNeeded(); await shot(route.slice(1) + '-historical-table');
+        await page.locator('h1').scrollIntoViewIfNeeded(); await shot(routeSlug(route) + '-historical-exact');
+        await table.scrollIntoViewIfNeeded(); await shot(routeSlug(route) + '-historical-table');
         assert.ok(text.includes('Supporting frozen records are unavailable in this interface.'));
-        if (route === '/reconciliation') {
+        if (route === reconciliationRoute) {
           await page.getByText('View period changes and reconciliation methodology', { exact: true }).click();
           const methodology = page.locator('.cx-commercial-controls');
           assert.ok((await methodology.innerText()).includes('does not expose agreement versions'));
@@ -177,16 +185,16 @@ try {
             await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
           });
           const values = await tooltip.locator('.cx-chart-tooltip-value').allTextContents();
-          const expected = route === '/vendors' ? '9,007,199,254,740,993' : 'R9,007,199,254,740,993.123456789';
-          assert.equal(values.length, route === '/vendors' ? 4 : 2);
+          const expected = route === vendorRoute ? '9,007,199,254,740,993' : 'R9,007,199,254,740,993.123456789';
+          assert.equal(values.length, route === vendorRoute ? 4 : 2);
           assert.ok(values.every(value => value === expected), JSON.stringify(values));
           const bounds = await tooltip.evaluate(element => { const rect = element.getBoundingClientRect(); return { left: rect.left, right: rect.right, viewport: innerWidth, clipped: [...element.querySelectorAll('.cx-chart-tooltip-value')].some(value => value.scrollWidth > value.clientWidth + 1) }; });
           assert.ok(bounds.left >= 0 && bounds.right <= bounds.viewport && !bounds.clipped, JSON.stringify(bounds));
           assert.ok((await panel.innerText()).includes('Axes and bar lengths are approximate.'));
-          await overflow(); await shot(route.slice(1) + '-graph-exact-tooltip');
+          await overflow(); await shot(routeSlug(route) + '-graph-exact-tooltip');
         });
       }
-      for (const route of ['/reports', '/vendors', '/reconciliation']) {
+      for (const route of [reportRoute, vendorRoute, reconciliationRoute]) {
         await check(`${route}: repeated release identity is rejected before reporting access`, async () => {
           await page.goto(`${origin}${route}?clientId=synthetic-a&startDate=${scope.startDate}&endDate=${scope.endDate}&release=${release.releaseId}&release=${historicalRelease.releaseId}`);
           await page.getByText('Choose one explicit reporting release.', { exact: true }).first().waitFor();
@@ -198,7 +206,7 @@ try {
           await page.getByText(/This URL includes record/).first().waitFor();
           await page.waitForLoadState('networkidle');
           assert.equal(await page.evaluate(() => window.__fixture.requests.filter(value => value === '/api/reporting').length), 0);
-          if (route === '/reports') assert.equal(await page.getByRole('button', { name: 'Run report', exact: true }).isDisabled(), true);
+          if (route === reportRoute) assert.equal(await page.getByRole('button', { name: 'Run report', exact: true }).isDisabled(), true);
           await overflow();
         });
       }

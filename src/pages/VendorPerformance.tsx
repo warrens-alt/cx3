@@ -42,7 +42,7 @@ function exportCsv(headers: string[], rows: (string | null | undefined)[][], fil
   setTimeout(() => URL.revokeObjectURL(href), 1000);
 }
 
-export default function VendorPerformance() {
+export default function VendorPerformance({ embedded = false }: { embedded?: boolean } = {}) {
   const workspace = useEvidenceWorkspace({ metrics: METRICS, grouping: 'vendor', comparisons: true });
   const leadTotals = useEvidenceWorkspace({ metrics: LEAD_METRICS, grouping: 'none', comparisons: true });
   const filterScope = useFilters();
@@ -121,7 +121,7 @@ export default function VendorPerformance() {
   const missingReleaseReason=workspace.catalogue.data&&!workspace.catalogue.data.available?workspace.catalogue.data.reason:null;
 
   return <div className="cx-page cx-ops-page">
-    <header className="cx-page-header"><div><p className="cx-ops-eyebrow">Management workspace</p><h1 className="text-page-title">Vendor evidence</h1><p>Compare vendor supply, delivery, observed calling, recorded outcomes and commercial stages from one approved evidence release.</p></div><a className="cx-button-secondary" href="#vendor-table">Review vendor evidence <ArrowRight size={15}/></a></header>
+    <header className="cx-page-header"><div><p className="cx-ops-eyebrow">Immutable release</p>{embedded ? <h2 className="text-page-title">Vendor evidence</h2> : <h1 className="text-page-title">Vendor evidence</h1>}<p>Compare vendor supply, delivery, observed calling, recorded outcomes and commercial stages from one approved evidence release.</p></div><a className="cx-button-secondary" href="#vendor-table">Review vendor evidence <ArrowRight size={15}/></a></header>
     <EvidenceScopeBar releaseId={workspace.release?.releaseId} cutoff={workspace.release?.cutoff} busy={workspace.current.isFetching}/>
     <WorkspaceState loading={loading} error={error} missingRelease={missingReleaseReason} scopeError={workspace.scopeError} retry={()=>{void workspace.catalogue.refetch();void workspace.current.refetch();}}/>
 

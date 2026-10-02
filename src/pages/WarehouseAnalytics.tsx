@@ -20,7 +20,7 @@ const labels: Record<Tab, string> = { overview: 'Source catalogue', pull: 'Read 
 const loadCatalogue = (scope: Record<string, unknown>, force = false, signal?: AbortSignal) => fetchWarehouseOverview(String(scope.clientId), force, signal);
 const loadTables = (scope: Record<string, unknown>, force = false, signal?: AbortSignal) => fetchWarehouseTables({ clientId: String(scope.clientId) }, force, signal);
 
-export default function WarehouseAnalytics() {
+export default function WarehouseAnalytics({ embedded = false }: { embedded?: boolean } = {}) {
   const { selectedClient } = useClient();
   const [params, setParams] = useSearchParams();
   const scoped = useScopedNavigationTarget();
@@ -48,7 +48,7 @@ export default function WarehouseAnalytics() {
   const inspect = (table: { project: string; dataset: string; tableName: string }) => setParams(old => {
     const out = new URLSearchParams(old); out.set('tab', 'pull'); out.set('project', table.project); out.set('dataset', table.dataset); out.set('table', table.tableName); return out;
   });
-  return <AnalyticsPageLayout className="cx-warehouse-truth cx-evidence-workspace" title="Cloud warehouse" description="Registered sources, saved schemas and explicit source reads.">
+  return <AnalyticsPageLayout className="cx-warehouse-truth cx-evidence-workspace" title="Cloud warehouse" header={embedded ? <div className="cx-workspace-panel-intro"><h2>Warehouse evidence</h2><p>Registered sources, saved schemas and explicit source reads.</p></div> : undefined} description="Registered sources, saved schemas and explicit source reads.">
     {(sourceName || backToAnalysis) && <section className="cx-warehouse-audit-context" aria-label="Analysis source context">
       <div><span className="cx-command-section-kicker">Analysis source</span><h2>{sourceName || 'Source catalogue'}</h2>
         {tab === 'tables' && sourceName && <p role="status">{!sourceTarget ? 'An exact table selection requires the supplied project, dataset and table identifiers.' : tablesQuery.loading ? 'Checking the exact identifier against the registered catalogue…' : tablesQuery.error ? 'Catalogue registration could not be checked because the catalogue request failed.' : tablesQuery.data ? selectedTable ? 'This exact object is registered. Registration does not confirm access to current records.' : 'No exact registered object was returned for this identifier. A different source has not been substituted.' : 'Catalogue registration has not been checked.'}</p>}

@@ -15,7 +15,7 @@ import ReportExecutionWorkspace from '../features/evidenceWorkspace/ReportExecut
 import ReportReplay from '../features/evidenceWorkspace/ReportReplay';
 import '../styles/evidenceWorkspaces.css';
 
-export default function VersionedReports() {
+export default function VersionedReports({ embedded = false }: { embedded?: boolean } = {}) {
   const { clientId } = useClient();
   const scoped = useScopedNavigationTarget();
   const sessionKey = getAnalyticalSessionKey();
@@ -29,7 +29,7 @@ export default function VersionedReports() {
   });
   const release = !error && !isLoading ? data?.release : undefined;
   const isAvailable = data?.status === 'AVAILABLE' && !!release;
-  return <AnalyticsPageLayout className="cx-reports-evidence-page" title="Evidence reports" header={<PageHeader title="Evidence reports" subtitle="Immutable published release evidence: follow its audit checks, frozen source snapshots and technical manifest. Operational analytics remain separate." badges={[
+  return <AnalyticsPageLayout className="cx-reports-evidence-page" title="Evidence reports" header={embedded ? <div className="cx-workspace-panel-intro"><h2>Releases and replay</h2><p>Immutable execution, source snapshots and signed reproduction evidence.</p><p>{isLoading ? 'Checking registry' : error ? 'Registry unavailable' : isAvailable ? release.status : 'No published release'} · Tenant: {clientId}</p></div> : <PageHeader title="Evidence reports" subtitle="Immutable published release evidence: follow its audit checks, frozen source snapshots and technical manifest. Operational analytics remain separate." badges={[
       { label: isLoading ? 'Checking registry' : error ? 'Registry unavailable' : isAvailable ? release.status : 'No published release', variant: 'neutral' },
       { label: `Tenant: ${clientId}`, variant: 'neutral' },
     ]} />}>

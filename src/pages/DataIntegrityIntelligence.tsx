@@ -35,14 +35,31 @@ import '../styles/journeyContactVisuals.css';
 import '../styles/trustQualityVisuals.css';
 import '../styles/evidenceWorkspaces.css';
 import '../styles/evidenceMatrix.css';
+import EvidenceStateGuide from '../workspaces/evidence/EvidenceStateGuide';
+import EvidenceLineageExplorer from '../workspaces/evidence/EvidenceLineageExplorer';
+import ReconciliationReadiness from '../features/trust/components/ReconciliationReadiness';
 
-export default function DataIntegrityIntelligence() {
-  const [section, setSection] = useState('overview');
+type IntegritySection = 'overview' | 'sources' | 'metrics' | 'reconciliation';
+function IntegritySections({ controlled, ...props }: React.ComponentProps<typeof ReportSections> & { controlled: boolean }) {
+  if (!controlled) return <ReportSections {...props} />;
+  const content = (id: string) => props.sections.find(section => section.id === id)?.content;
+  return <div className="cx-evidence-active-lens">
+    {content(props.value)}
+    {props.value === 'sources' && <details className="cx-report-disclosure"><summary>Source intake and operational diagnostics</summary>{content('diagnostics')}</details>}
+    {props.value === 'metrics' && <details className="cx-report-disclosure"><summary>All metric definitions</summary>{content('definitions')}</details>}
+    {props.value === 'reconciliation' && <>{content('issues')}<ReconciliationReadiness /></>}
+  </div>;
+}
+
+export default function DataIntegrityIntelligence({ embedded = false, section: controlledSection, onSectionChange }: { embedded?: boolean; section?: IntegritySection; onSectionChange?: (section: string) => void } = {}) {
+  const [localSection, setLocalSection] = useState('overview');
+  const section = controlledSection || localSection;
+  const setSection = (next: string) => controlledSection && onSectionChange ? onSectionChange(next) : setLocalSection(next);
   const scoped = useScopedNavigationTarget();
   const location = useLocation();
   const { selectedClient } = useClient();
   const { isAdmin } = useAuth();
-  const controls = useOperatingControls();
+  const controls = useOperatingControls(!controlledSection || controlledSection === 'sources');
   const { startDate, endDate, filters } = useFilters();
 
   const { data, loading, error, loadData } = useOperationalData<DataIntegrityData>('DataIntegrityIntelligence', {
@@ -63,12 +80,14 @@ export default function DataIntegrityIntelligence() {
   const gaps = groups.measured.filter(check => check.discrepancyCount != null && check.discrepancyCount > 0);
 
   return (
-    <AnalyticsPageLayout className="cx-trust-workspace" ariaLabel="Data integrity workspace" title="Data confidence" description={<>See which measured discrepancies and source limitations need investigation.</>} actions={<ReportActions />} scope={<OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />}>
+    <AnalyticsPageLayout className="cx-trust-workspace" ariaLabel="Data integrity workspace" title="Data confidence" header={embedded ? <div className="cx-workspace-panel-intro"><h2>{section === 'overview' ? 'Evidence overview' : section === 'sources' ? 'Source evidence' : section === 'metrics' ? 'Metric definitions and lineage' : 'Reconciliation evidence'}</h2><p>See which measured discrepancies and source limitations need investigation.</p></div> : undefined} description={<>See which measured discrepancies and source limitations need investigation.</>} actions={<ReportActions />} scope={<OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), ...(!controlledSection || controlledSection === 'sources' ? [controls.refetch()] : [])]); }} />}>
 
         {error && <div role="alert" className="cx-command-error"><AlertTriangle size={16}/>{error}</div>}
         {loading && !data && <ReportSkeleton label="Loading data integrity" metricCount={3} />}
 
-        <ReportSections label="Data integrity sections" value={section} onChange={setSection} sections={[
+        {(section === 'overview' || section === 'reconciliation') && <EvidenceStateGuide data={data} />}
+        {section === 'metrics' && <EvidenceLineageExplorer scope={auditScope} onInspect={inspect} />}
+        <IntegritySections controlled={Boolean(controlledSection)} label="Data integrity sections" value={section} onChange={setSection} sections={[
           { id: 'overview', label: 'Overview', content: data && <><TelemetryRail className="cx-integrity-summary" label="Data integrity overview metrics">
               <UnifiedMetricCard label="Checks with measured gaps" value={gaps.length} note="Returned checks with a positive gap count" auditContent={{ type: 'custom', title: 'Checks with measured gaps', value: gaps.length, scope: auditScope, definition: { meaning: 'Returned measured checks with a positive discrepancy count.', grain: 'Returned check entries', calculation: 'Count of measured checks with discrepancyCount greater than zero. This is not an affected-record total; check populations can overlap.' }, provenance: { validationStatus: data.validationStatus }, detailLimitation: 'Inspect individual integrity checks for their returned counts and limitations. No affected-record predicate is supplied.' }} onInspect={() => setSection('issues')} inspectLabel="Inspect issues" />
               <UnifiedMetricCard label="Evidence limitations" value={groups.limitations.length} note="Checks with unavailable or unverified evidence" auditContent={{ type: 'custom', title: 'Evidence limitations', value: groups.limitations.length, scope: auditScope, definition: { meaning: 'Returned checks whose measured count or evidence state is unavailable or unverified.', grain: 'Returned check entries', calculation: 'Count of checks in the evidence-limitations group. A supplied zero is retained when the check contract is incomplete.' }, provenance: { validationStatus: data.validationStatus }, detailLimitation: 'No exact supporting record population is supplied for this summary.' }} onInspect={() => setSection('issues')} inspectLabel="Inspect limitations" />
@@ -134,8 +153,8 @@ export default function DataIntegrityIntelligence() {
 
             </details>
 </> },
-          { id: 'metrics', label: 'Metric evidence', content: data && <MetricEvidenceHub scope={auditScope} sources={data.sources} onInspect={inspect} /> },
-          { id: 'reconciliation', label: 'Reconciliation', content: data && <IntegrityReconciliationBoundary /> },
+          { id: 'metrics', label: 'Metric evidence', content: <MetricEvidenceHub scope={auditScope} sources={data?.sources} onInspect={inspect} /> },
+          { id: 'reconciliation', label: 'Reconciliation', content: <IntegrityReconciliationBoundary /> },
           { id: 'definitions', label: 'Definitions', content: <MetricDefinitions scope={auditScope} onInspect={inspect} /> },
           { id: 'diagnostics', label: 'Diagnostics', content: <>
             {data && <><details className="cx-report-disclosure"><summary>Audit context</summary>            <section key={JSON.stringify(auditScope)} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6" aria-label="Data integrity summary metrics">

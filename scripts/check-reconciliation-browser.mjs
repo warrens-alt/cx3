@@ -38,7 +38,9 @@ const origin = `http://127.0.0.1:${server.address().port}`;
 const { chromium } = await import(process.env.CX_PLAYWRIGHT_MODULE || 'playwright');
 const browser = await chromium.launch({ headless: true, ...(process.env.CX_CHROMIUM_EXECUTABLE ? { executablePath: process.env.CX_CHROMIUM_EXECUTABLE } : {}) });
 const query = new URLSearchParams({ clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate }).toString();
-const route = `/validation?${query}`;
+const canonical = process.env.CX_QA_CANONICAL === 'true';
+const baseRoute = canonical ? '/evidence/reconciliation' : '/validation';
+const route = `${baseRoute}?${query}`;
 const results = [];
 const requests = page => page.evaluate(() => [...window.__fixture.requests]);
 const settle = page => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
@@ -77,7 +79,7 @@ try {
     try {
       await page.goto(origin + route); await panel.waitFor(); await page.waitForLoadState('networkidle'); await settle(page);
       await check('Page identity, meaningful content, theme, overlays and initial state', async () => {
-        assert.equal(new URL(page.url()).pathname, '/validation'); assert.match(await page.title(), /Validation.* · ConversionX$/);
+        assert.equal(new URL(page.url()).pathname, baseRoute); assert.match(await page.title(), canonical ? /^Reconciliation · ConversionX$/ : /Validation.* · ConversionX$/);
         assert.equal(await page.locator('html').getAttribute('data-theme'), theme); assert.ok((await page.locator('main').innerText()).length > 100);
         assert.equal(await page.locator('vite-error-overlay, nextjs-portal').count(), 0);
         assert.match(await panel.innerText(), /Not run/); await overflow(); await shot('reconciliation-initial');
