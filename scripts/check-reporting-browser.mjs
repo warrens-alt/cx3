@@ -135,7 +135,8 @@ try {
         await page.getByText(/This URL includes record/).waitFor(); assert.equal(await page.getByRole('button', { name: 'Run report', exact: true }).isDisabled(), true);
         assert.equal(await page.locator('.cx-report-result').count(), 0); await overflow();
       });
-      for (const route of ['/vendors', '/reconciliation']) await check(`${route}: historical release reaches every execution and exact values retain precision`, async () => {
+      for (const route of ['/vendors', '/reconciliation']) {
+        await check(`${route}: historical release reaches every execution and exact values retain precision`, async () => {
         await page.goto(`${origin}${route}?clientId=synthetic-a&startDate=${scope.startDate}&endDate=${scope.endDate}&release=${historicalRelease.releaseId}`);
         await page.waitForFunction(() => window.__fixture.requestDetails.some(item => item.url === '/api/reporting' && item.method === 'POST'));
         await page.waitForFunction(() => document.querySelector('main').textContent.includes('9,007,199,254,740,993'));
@@ -157,7 +158,34 @@ try {
         await table.evaluate(element => { element.scrollLeft = 0; });
         await page.locator('h1').scrollIntoViewIfNeeded(); await shot(route.slice(1) + '-historical-exact');
         await table.scrollIntoViewIfNeeded(); await shot(route.slice(1) + '-historical-table');
-      });
+        assert.ok(text.includes('Supporting frozen records are unavailable in this interface.'));
+        if (route === '/reconciliation') {
+          await page.getByText('View period changes and reconciliation methodology', { exact: true }).click();
+          const methodology = page.locator('.cx-commercial-controls');
+          assert.ok((await methodology.innerText()).includes('does not expose agreement versions'));
+          assert.ok((await methodology.innerText()).includes('does not expose the agreement, eligibility or effective-date evidence'));
+        }
+        });
+        await check(`${route}: graph tooltip preserves original exact values without overflow`, async () => {
+          const panel = page.locator('.cx-ops-table-card');
+          await panel.getByRole('button', { name: 'Graph', exact: true }).click();
+          const bar = panel.locator('.recharts-bar-rectangle').first();
+          await bar.waitFor(); await bar.hover();
+          const tooltip = panel.locator('.cx-chart-tooltip'); await tooltip.waitFor({ state: 'visible' });
+          await tooltip.locator('..').evaluate(async element => {
+            await Promise.all(element.getAnimations({ subtree: true }).map(animation => animation.finished.catch(() => {})));
+            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          });
+          const values = await tooltip.locator('.cx-chart-tooltip-value').allTextContents();
+          const expected = route === '/vendors' ? '9,007,199,254,740,993' : 'R9,007,199,254,740,993.123456789';
+          assert.equal(values.length, route === '/vendors' ? 4 : 2);
+          assert.ok(values.every(value => value === expected), JSON.stringify(values));
+          const bounds = await tooltip.evaluate(element => { const rect = element.getBoundingClientRect(); return { left: rect.left, right: rect.right, viewport: innerWidth, clipped: [...element.querySelectorAll('.cx-chart-tooltip-value')].some(value => value.scrollWidth > value.clientWidth + 1) }; });
+          assert.ok(bounds.left >= 0 && bounds.right <= bounds.viewport && !bounds.clipped, JSON.stringify(bounds));
+          assert.ok((await panel.innerText()).includes('Axes and bar lengths are approximate.'));
+          await overflow(); await shot(route.slice(1) + '-graph-exact-tooltip');
+        });
+      }
       for (const route of ['/reports', '/vendors', '/reconciliation']) {
         await check(`${route}: repeated release identity is rejected before reporting access`, async () => {
           await page.goto(`${origin}${route}?clientId=synthetic-a&startDate=${scope.startDate}&endDate=${scope.endDate}&release=${release.releaseId}&release=${historicalRelease.releaseId}`);

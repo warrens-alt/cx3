@@ -170,10 +170,10 @@ export default function CommercialReconciliation() {
 
       <details className="cx-evidence-disclosure"><summary>View period changes and reconciliation methodology</summary>
       <TelemetryRail label="Commercial stage changes">{kpis.map(item => <article key={item.id} className="cx-command-metric"><span>{item.label}</span><strong>{item.change == null ? 'Unavailable' : `${item.change}%`}</strong><small>{item.comparison}</small><p>{item.note}</p><button type="button" className="cx-button-quiet" onClick={item.onInspect}>Inspect</button></article>)}</TelemetryRail>
-      <p className="cx-viz-footnote">Reversals reduce the relevant stage and remain visible in supporting ledger evidence.</p>
+      <p className="cx-viz-footnote">Reversals contribute signed changes to the relevant stage. Individual ledger events are unavailable in this aggregate view.</p>
       <section className="cx-commercial-controls">
-        <article className="enterprise-card"><span>Agreement / rate card</span><strong>Evidence field available</strong><p>Commercial evidence exposes the recorded agreement version. No rate-card registry has been approved, so rates are not recalculated.</p></article>
-        <article className="enterprise-card"><span>Effective-date eligibility</span><strong>Contract foundation ready</strong><p>Deterministic vendor, currency, product, grade, event and effective-date resolution rejects overlapping versions.</p></article>
+        <article className="enterprise-card" data-status="unavailable"><span>Agreement / rate card</span><strong>Unavailable</strong><p>This aggregate interface does not expose agreement versions or rate-card evidence. It does not recalculate rates.</p></article>
+        <article className="enterprise-card" data-status="unavailable"><span>Effective-date eligibility</span><strong>Unavailable</strong><p>This aggregate interface does not expose the agreement, eligibility or effective-date evidence needed to verify a commercial rate.</p></article>
         <article className="enterprise-card" data-status="unavailable"><span>Invoice matching</span><strong>Unavailable</strong><p>No approved invoice identity is present in the commercial fact contract. Invoiced stage events are not called matched invoices.</p></article>
         <article className="enterprise-card" data-status="unavailable"><span>Collection matching</span><strong>Unavailable</strong><p>No approved collection identity is present. Collected ledger deltas remain distinct from bank settlement evidence.</p></article>
       </section>
@@ -184,7 +184,7 @@ export default function CommercialReconciliation() {
           <div>
             <p className="cx-ops-eyebrow">Vendor reconciliation</p>
             <h2>Commercial stage table</h2>
-            <p>Exact values grouped by vendor. Selecting a value opens records from the same release and execution.</p>
+            <p>Exact values grouped by vendor. Selecting a value opens its aggregate evidence, definition and release lineage. Supporting frozen records are unavailable in this interface.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="inline-flex rounded-md border border-border bg-surface-subtle p-0.5 text-xs">
@@ -312,28 +312,32 @@ export default function CommercialReconciliation() {
             {!filtered.length&&<p role="status" className="cx-ops-empty">No vendors matched the local search. No warehouse request was rerun.</p>}
           </>
         ) : (
-          <div className="p-4 h-72 min-h-[288px] w-full">
+          <div className="p-4 w-full">
+            <p className="text-xs text-text-sec mb-3">Axes and bar lengths are approximate. Tooltips and the table retain exact values.</p>
             {!filtered.length ? (
               <div className="h-full w-full flex flex-col items-center justify-center text-xs text-text-muted bg-surface-subtle rounded-lg border border-dashed border-border p-4">
                 <span className="font-medium text-text-sec mb-1">No vendors matched the search query.</span>
                 <span className="text-[11px] text-text-muted">Try adjusting your filter or vendor name search.</span>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
+              <ResponsiveContainer width="100%" height={260} minWidth={0} debounce={60}>
                 <BarChart data={filtered.slice(0, 15).map(row => ({
                   vendor: row.group,
                   sales: chartCoordinate(available(row.metrics.sale_events)),
                   invoiced: chartCoordinate(available(row.metrics.invoiced_value)),
                   collected: chartCoordinate(available(row.metrics.collected_value)),
+                  exact: { invoiced: format(row.metrics.invoiced_value), collected: format(row.metrics.collected_value) },
                 }))} margin={{ top: 10, right: 30, left: 10, bottom: 35 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border-subtle)" />
                   <XAxis dataKey="vendor" tick={{ fontSize: 9, fill: 'var(--cx-text-secondary)' }} stroke="var(--cx-border)" interval={0} angle={-25} textAnchor="end" height={45} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: 'var(--cx-text-secondary)' }} stroke="var(--cx-border)" axisLine={false} tickLine={false} tickFormatter={v => `${currency} ${Number(v).toLocaleString()}`} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--cx-text-secondary)' }} stroke="var(--cx-border)" axisLine={false} tickLine={false} tickFormatter={v => `${currency} ${Number(v).toLocaleString(undefined,{notation:'compact',maximumFractionDigits:1})}`} />
                   <Tooltip
                     filterNull={false}
+                    position={{ x: 0 }}
+                    wrapperStyle={{ maxWidth: '100%', zIndex: 10 }}
                     content={({ active, payload, label }) => {
                       if (!active || !payload?.length) return null;
-                      return <ChartTooltip title={`Vendor: ${label}`} rows={payload.map(entry => ({ label: String(entry.name), value: entry.value == null ? 'Unavailable' : `${currency} ${Number(entry.value).toLocaleString()}`, color: String(entry.fill || 'var(--cx-text-secondary)') }))} />;
+                      return <ChartTooltip title={`Vendor: ${label}`} rows={payload.map(entry => ({ label: String(entry.name), value: entry.payload.exact[String(entry.dataKey)] ?? 'Unavailable', color: String(entry.fill || 'var(--cx-text-secondary)') }))} />;
                     }}
                   />
                   <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
@@ -349,7 +353,7 @@ export default function CommercialReconciliation() {
       <section className="enterprise-card cx-commercial-evidence-note">
         <h2>What this reconciliation does—and does not—prove</h2>
         <div>
-          <p><strong>Supported:</strong> signed expected, approved, invoiced and collected ledger events, linked to a recorded sale and grouped by vendor.</p>
+          <p><strong>Supported:</strong> frozen aggregates of signed expected, approved, invoiced and collected stage changes, grouped by vendor, with declared metric definitions and release lineage. Individual ledger events and sale links are unavailable in this interface.</p>
           <p><strong>Not supported:</strong> authoritative profit, cost allocation, invoice-document matching or bank settlement matching. Those remain unavailable until approved contracts and identities exist.</p>
         </div>
       </section>

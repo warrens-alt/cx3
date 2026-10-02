@@ -18,6 +18,7 @@ import MetricRail from '../components/operations/MetricRail';
 import ExactBarChart from '../components/operations/ExactBarChart';
 import EvidenceInspector, { type EvidenceSelection } from '../components/operations/EvidenceInspector';
 import { VisualTable } from '../components/visuals/DataVisual';
+import ChartTooltip from '../shared/visuals/ChartTooltip';
 
 const METRICS = ['delivered_episodes','called_episodes','call_attempts','call_coverage','sale_events','activation_events','sale_activation_rate','expected_value','approved_value','invoiced_value','collected_value'];
 const LEAD_METRICS = ['fetched_leads'];
@@ -214,7 +215,7 @@ export default function VendorPerformance() {
           </article>
         </div>
       </section>
-      <section className="cx-ops-secondary-grid"><div className="enterprise-card cx-ops-breakdown"><header><div><h2>Source mix · {selectedCurrent?.group}</h2><p>Delivery episodes grouped by source for the selected vendor.</p></div></header>{!sourceRequest?<p role="status">Source mix is unavailable until a vendor with a recorded identity is selected.</p>:sourceReport.isLoading?<p role="status">Calculating source mix…</p>:sourceReport.error?<p role="alert">Source mix unavailable — this section could not be calculated.</p>:<ExactBarChart data={pivotReportGroups(sourceReport.data).slice(0,8).map(row=>({id:row.key,label:row.group,value:availableValue(row.metrics.delivered_episodes),formatted:format(row.metrics.delivered_episodes)}))} title={`Delivery source mix · ${selectedCurrent?.group}`} description="Source groups use the same selected-period release and vendor population." empty={`No delivery sources recorded for ${selectedCurrent?.group ?? 'selected vendor'}.`}/>}</div>
+      <section className="cx-ops-secondary-grid"><div className="enterprise-card cx-ops-breakdown"><header><div><h2>Source mix · {selectedCurrent?.group}</h2><p>Delivery episodes grouped by source for the selected vendor.</p></div></header>{!sourceRequest?<p role="status">Source mix is unavailable until a vendor with a recorded identity is selected.</p>:sourceReport.isLoading?<p role="status">Calculating source mix…</p>:sourceReport.error?<p role="alert">Source mix unavailable — this section could not be calculated.</p>:<ExactBarChart data={pivotReportGroups(sourceReport.data).slice(0,8).map(row=>({id:row.key,label:row.group,value:availableValue(row.metrics.delivered_episodes),formatted:format(row.metrics.delivered_episodes)}))} title={`Delivery source mix · ${selectedCurrent?.group}`} description="Source groups use the same selected-period release and vendor population." empty={`No source breakdown was returned for ${selectedCurrent?.group ?? 'selected vendor'}. Source mix is unavailable.`}/>}</div>
         <div className="enterprise-card cx-ops-coverage">
           <h2>Class and colour coverage</h2>
           <p className="cx-ops-unavailable"><Info size={18}/>Unavailable in the approved release contract. Class and colour fields are not attached to the versioned lead fact, so no vendor split is inferred from legacy rows.</p>
@@ -230,7 +231,7 @@ export default function VendorPerformance() {
           </div>
         </div>
       </section>
-      <section id="vendor-table" className="enterprise-card cx-ops-table-card"><header><div><p className="cx-ops-eyebrow">Vendor evidence</p><h2>Performance table</h2><p>Exact snapshot-bound values. Select a vendor or inspect the supporting records for any measured value.</p></div>
+      <section id="vendor-table" className="enterprise-card cx-ops-table-card"><header><div><p className="cx-ops-eyebrow">Vendor evidence</p><h2>Performance table</h2><p>Exact snapshot-bound values. Select a vendor or inspect an aggregate value, its definition and release lineage. Supporting frozen records are unavailable in this interface.</p></div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-md border border-border bg-surface-subtle p-0.5 text-xs">
             <button
@@ -306,48 +307,33 @@ export default function VendorPerformance() {
             <footer><span>Page {Math.min(page+1,pageCount)} of {pageCount}</span><div><button type="button" className="cx-button-secondary" disabled={page===0} onClick={()=>setPage(old=>old-1)}>Previous</button><button type="button" className="cx-button-secondary" disabled={page+1>=pageCount} onClick={()=>setPage(old=>old+1)}>Next</button></div></footer>
           </>
         ) : (
-          <div className="p-4 h-72 min-h-[288px] w-full">
+          <div className="p-4 w-full">
+            <p className="text-xs text-text-sec mb-3">Axes and bar lengths are approximate. Tooltips and the table retain exact values.</p>
             {!matching.length ? (
               <div className="h-full w-full flex flex-col items-center justify-center text-xs text-text-muted bg-surface-subtle/50 rounded-md border border-dashed border-border p-4">
                 <span className="font-medium text-text-sec mb-1">No vendor groups matched the search query.</span>
                 <span className="text-[11px] text-text-muted">Try clearing the search input to view vendor metrics.</span>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
+              <ResponsiveContainer width="100%" height={260} minWidth={0} debounce={60}>
                 <BarChart data={matching.slice(0, 12).map(r => ({
                   vendor: r.group,
                   delivered: chartCoordinate(availableValue(r.metrics.delivered_episodes)),
                   called: chartCoordinate(availableValue(r.metrics.called_episodes)),
                   sales: chartCoordinate(availableValue(r.metrics.sale_events)),
                   activations: chartCoordinate(availableValue(r.metrics.activation_events)),
+                  exact: { delivered: format(r.metrics.delivered_episodes), called: format(r.metrics.called_episodes), sales: format(r.metrics.sale_events), activations: format(r.metrics.activation_events) },
                 }))} margin={{ top: 10, right: 30, left: 10, bottom: 35 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border)" />
                   <XAxis dataKey="vendor" tick={{ fontSize: 9, fill: 'var(--cx-text-secondary)' }} stroke="var(--cx-border)" interval={0} angle={-25} textAnchor="end" height={45} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: 'var(--cx-text-secondary)' }} stroke="var(--cx-border)" axisLine={false} tickLine={false} tickFormatter={v => Number(v).toLocaleString()} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--cx-text-secondary)' }} stroke="var(--cx-border)" axisLine={false} tickLine={false} tickFormatter={v => Number(v).toLocaleString(undefined,{notation:'compact',maximumFractionDigits:1})} />
                   <Tooltip
                     filterNull={false}
+                    position={{ x: 0 }}
+                    wrapperStyle={{ maxWidth: '100%', zIndex: 10 }}
                     content={({ active, payload, label }) => {
                       if (!active || !payload?.length) return null;
-                      return (
-                        <div className="bg-surface/95 backdrop-blur-md border border-border rounded-md shadow-[var(--cx-shadow-md)] p-3 text-xs min-w-[190px]  font-mono">
-                          <div className="font-semibold text-text-main border-b border-border-subtle dark:border-border pb-1 mb-2 font-mono">
-                            Vendor: {label}
-                          </div>
-                          <div className="space-y-1.5">
-                            {payload.map((entry: any, idx: number) => (
-                              <div key={idx} className="flex items-center justify-between gap-3">
-                                <span className="flex items-center gap-1.5 text-text-sec dark:text-text-muted font-sans">
-                                  <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ backgroundColor: entry.fill }} />
-                                  <span>{entry.name}</span>
-                                </span>
-                                <span className="font-bold text-text-main tabular-nums">
-                                  {entry.value == null ? 'Unavailable' : Number(entry.value).toLocaleString()}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
+                      return <ChartTooltip title={`Vendor: ${label}`} rows={payload.map(entry => ({ label: String(entry.name), value: entry.payload.exact[String(entry.dataKey)] ?? 'Unavailable', color: String(entry.fill || 'var(--cx-text-secondary)') }))} />;
                     }}
                   />
                   <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
