@@ -1,148 +1,36 @@
 import React from 'react';
-import { Clock3, ArrowRight } from 'lucide-react';
+import { Clock3 } from 'lucide-react';
+import TelemetryRail from '../../../shared/visuals/TelemetryRail';
 import { lifecyclePresentation, conceptIcons } from '../../../shared/visuals/lifecyclePresentation';
 import type { AdaptedSalesActivation } from '../model/salesActivationAdapter';
 import { formatWorkspaceCurrency } from '../model/salesActivationAdapter';
 import { formatTableNumber, formatPercent } from '../../../lib/formatters';
 
+type OutcomeMetric = 'sales' | 'activations' | 'unactivated' | 'revenue';
 interface SalesOutcomeSummaryProps {
   model: AdaptedSalesActivation;
-  onInspect: (metricKey: 'sales' | 'activations' | 'unactivated' | 'revenue') => void;
+  onInspect: (metricKey: OutcomeMetric) => void;
+  /** The outcome map already presents populations on the maintained Sales page. */
+  contextOnly?: boolean;
 }
 
-export default function SalesOutcomeSummary({ model, onInspect }: SalesOutcomeSummaryProps) {
+export default function SalesOutcomeSummary({ model, onInspect, contextOnly = false }: SalesOutcomeSummaryProps) {
   const { summary } = model;
-
-  return (
-    <section className="cx-command-metrics cx-outcome-metrics" aria-label="Outcome summary">
-      {/* 1. Recorded Sales */}
-      <article
-        className="cx-command-metric cx-metric-card hover:border-action/40 transition-colors flex flex-col justify-between"
-        aria-label="Recorded sales summary"
-      >
-        <div>
-          <div className="flex items-center justify-between text-text-sec">
-            <span className="font-semibold text-xs text-text-sec ">Recorded sales</span>
-            <lifecyclePresentation.sales.Icon size={16} style={{ color: lifecyclePresentation.sales.color }} aria-hidden="true" />
-          </div>
-          <button
-            type="button"
-            onClick={() => onInspect('sales')}
-            className="cx-metric-primary text-left block hover:text-action transition-colors my-1.5 cursor-pointer w-full"
-            aria-label="Inspect recorded sales" title="Inspect recorded sales"
-          >
-            <strong className="text-2xl font-bold font-sans tabular-nums tracking-tight text-text-main block">
-              {formatTableNumber(summary.totalSales)}
-            </strong>
-          </button>
-          <div className="text-xs text-text-mute mt-1">
-            <span>Observed sale events in intake cohort</span>
-          </div>
-        </div>
-
-        <ArrowRight className="cx-metric-chevron" size={14} aria-hidden="true" />
-      </article>
-
-      {/* 2. Recorded Activations */}
-      <article
-        className="cx-command-metric cx-metric-card hover:border-data-activation/40 transition-colors flex flex-col justify-between"
-        aria-label="Recorded activations summary"
-      >
-        <div>
-          <div className="flex items-center justify-between text-text-sec">
-            <span className="font-semibold text-xs text-text-sec ">Recorded activations</span>
-            <lifecyclePresentation.activated.Icon size={16} style={{ color: lifecyclePresentation.activated.color }} aria-hidden="true" />
-          </div>
-          <button
-            type="button"
-            onClick={() => onInspect('activations')}
-            className="cx-metric-primary text-left block hover:text-data-activation transition-colors my-1.5 cursor-pointer w-full"
-            aria-label="Inspect recorded activations" title="Inspect recorded activations"
-          >
-            <strong className="text-2xl font-bold font-sans tabular-nums tracking-tight text-text-main block">
-              {formatTableNumber(summary.totalActivations)}
-            </strong>
-          </button>
-          <div className="text-xs text-text-mute mt-1">
-            <span>
-              {summary.activationRatio !== null ? (
-                <span className="font-semibold text-data-activation">
-                  {formatPercent(summary.activationRatio)}
-                </span>
-              ) : '—'}{' '}
-              activation / sale ratio
-            </span>
-          </div>
-        </div>
-
-        <ArrowRight className="cx-metric-chevron" size={14} aria-hidden="true" />
-      </article>
-
-      {/* 3. Sales Without Recorded Activation */}
-      <article
-        className="cx-command-metric cx-metric-card hover:border-semantic-warn/40 transition-colors flex flex-col justify-between"
-        aria-label="Sales without recorded activation summary"
-      >
-        <div>
-          <div className="flex items-center justify-between text-text-sec">
-            <span className="font-semibold text-xs text-text-sec ">Sales without activation</span>
-            <Clock3 size={16} className="text-semantic-warn" />
-          </div>
-          <button
-            type="button"
-            onClick={() => onInspect('unactivated')}
-            className="cx-metric-primary text-left block hover:text-semantic-warn transition-colors my-1.5 cursor-pointer w-full"
-            aria-label="Inspect unactivated sales" title="Inspect unactivated sales"
-          >
-            <strong className="text-2xl font-bold font-sans tabular-nums tracking-tight text-text-main block">
-              {summary.salesWithoutActivation !== null ? formatTableNumber(summary.salesWithoutActivation) : '—'}
-            </strong>
-          </button>
-          <div className="text-xs text-text-mute mt-1">
-            <span>
-              {summary.validPendingActivation !== null ? `${formatTableNumber(summary.validPendingActivation)} pending queue` : 'Unavailable'}
-              {summary.invalidFutureSales > 0 ? ` • ${summary.invalidFutureSales} future error` : ''}
-            </span>
-          </div>
-        </div>
-
-        <ArrowRight className="cx-metric-chevron" size={14} aria-hidden="true" />
-      </article>
-
-      {/* 4. Source-Recorded Revenue & Completeness */}
-      <article
-        className="cx-command-metric cx-metric-card hover:border-action/40 transition-colors flex flex-col justify-between"
-        aria-label="Source-recorded revenue summary"
-      >
-        <div>
-          <div className="flex items-center justify-between text-text-sec">
-            <span className="font-semibold text-xs text-text-sec ">Source-recorded revenue</span>
-            <conceptIcons.commercial size={16} className="text-text-sec" aria-hidden="true" />
-          </div>
-          <button
-            type="button"
-            onClick={() => onInspect('revenue')}
-            className="cx-metric-primary text-left block hover:text-action transition-colors my-1.5 cursor-pointer w-full"
-            aria-label="Inspect recorded revenue" title="Inspect recorded revenue"
-          >
-            <strong className="text-2xl font-bold font-sans tabular-nums tracking-tight text-text-main block">
-              {formatWorkspaceCurrency(summary.realizedRevenue, summary.currency)}
-            </strong>
-          </button>
-          <div className="text-xs text-text-mute mt-1">
-            <span>
-              {summary.salesWithRecordedRevenue !== null ? `${formatTableNumber(summary.salesWithRecordedRevenue)} with revenue` : '—'}
-              {' • '}
-              {formatTableNumber(summary.unbilledSales)} zero
-              {' • '}
-              {formatTableNumber(summary.unrecordedRevenueSales)} missing
-            </span>
-          </div>
-        </div>
-
-        <ArrowRight className="cx-metric-chevron" size={14} aria-hidden="true" />
-      </article>
-    </section>
-  );
+  const metrics = [
+    { ...lifecyclePresentation.sales, key: 'sales' as const, label: 'Recorded sales', aria: 'Recorded sales summary', value: formatTableNumber(summary.totalSales), note: 'Observed sale events in intake cohort' },
+    { ...lifecyclePresentation.activated, key: 'activations' as const, label: 'Recorded activations', aria: 'Recorded activations summary', value: formatTableNumber(summary.totalActivations), note: `${formatPercent(summary.activationRatio)} activation / sale ratio` },
+    { key: 'unactivated' as const, label: 'Sales without activation', aria: 'Sales without recorded activation summary', value: summary.salesWithoutActivation == null ? '—' : formatTableNumber(summary.salesWithoutActivation), note: summary.validPendingActivation == null ? 'Queue unavailable' : `${formatTableNumber(summary.validPendingActivation)} pending · ${formatTableNumber(summary.invalidFutureSales)} future anomalies`, Icon: Clock3, color: 'var(--cx-warning)' },
+    { key: 'revenue' as const, label: 'Source-recorded revenue', aria: 'Source-recorded revenue summary', value: formatWorkspaceCurrency(summary.realizedRevenue, summary.currency), note: 'Source value · not invoice or cash evidence', Icon: conceptIcons.commercial, color: 'var(--cx-text-secondary)' },
+  ];
+  return <TelemetryRail label={contextOnly ? 'Sales timing and value context' : 'Outcome summary'} className="cx-sales-telemetry">
+    {(contextOnly ? metrics.filter(item => item.key === 'revenue') : metrics).map(item => <article key={item.key} className="cx-command-metric" aria-label={item.aria}>
+      <span className="cx-sales-telemetry-label"><item.Icon size={15} aria-hidden="true" style={{ color: item.color }} />{item.key === 'sales' ? 'Recorded sales' : item.key === 'activations' ? 'Recorded activations' : item.label}</span>
+      <button type="button" className="cx-metric-primary" onClick={() => onInspect(item.key)} aria-label={`Inspect ${item.key === 'revenue' ? 'recorded revenue' : item.key === 'unactivated' ? 'unactivated sales' : item.key === 'sales' ? 'recorded sales' : 'recorded activations'}`}><strong>{item.value}</strong></button>
+      <small>{item.note}</small>
+    </article>)}
+    {contextOnly && <>
+      <article className="cx-command-metric"><span className="cx-sales-telemetry-label">Median time to sale</span><strong className="cx-metric-primary">{model.timing.medianTimeToSale}</strong><small>Recorded timing evidence</small></article>
+      <article className="cx-command-metric"><span className="cx-sales-telemetry-label">Median time to activation</span><strong className="cx-metric-primary">{model.timing.medianTimeToActivation}</strong><small>Recorded timing evidence</small></article>
+    </>}
+  </TelemetryRail>;
 }
-

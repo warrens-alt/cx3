@@ -1,3 +1,5 @@
+import ChartTooltip from '../shared/visuals/ChartTooltip';
+import TelemetryRail from '../shared/visuals/TelemetryRail';
 import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
 import { ReportSkeleton } from '../components/OperationalState';
 import TablePreview from '../shared/reporting/TablePreview';
@@ -123,7 +125,7 @@ export default function VendorLeadQuality() {
   );
 
   return (
-    <AnalyticsPageLayout className="cx-trust-workspace" ariaLabel="Vendor quality workspace" title="Vendor quality" description={<>Compare operational execution and test whether lead-quality signals are associated with better downstream outcomes.</>} actions={<ReportActions>
+    <AnalyticsPageLayout className="cx-trust-workspace" ariaLabel="Vendor quality workspace" title="Vendor quality" description={<>Compare vendor execution and downstream evidence.</>} actions={<ReportActions>
             <Link to={scoped('/campaigns')} className="cx-button-secondary">Campaigns & spend</Link>
             <Link to={scoped('/commercial')} className="cx-button-secondary">Commercial</Link>
 </ReportActions>} scope={<OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />}>
@@ -134,7 +136,7 @@ export default function VendorLeadQuality() {
         {data && (
           <>
             {vendorSummary && (
-              <section className="grid grid-cols-1 sm:grid-cols-2 gap-3" aria-label="Vendor performance summary">
+              <TelemetryRail label="Vendor performance summary" className="cx-vendor-telemetry">
                 <UnifiedMetricCard
                   label="Lead counts across vendor groups"
                   value={formatTableNumber(vendorSummary.totalLeads)}
@@ -143,10 +145,8 @@ export default function VendorLeadQuality() {
                   inspectLabel="Inspect evidence"
                 />
 
-                <div className="cx-control-note">
-                  Combined rates and latency are not supplied for this population. Compare the returned vendor measures below; subgroup rates and medians do not establish a portfolio result.
-                </div>
-              </section>
+                <p className="cx-vendor-scope-note">Vendor groups may overlap. Portfolio rates and latency are unavailable.</p>
+              </TelemetryRail>
             )}
 
             <AuditMetadata grain="Lead within vendor group" dateBasis="Lead intake cohort" validationStatus={suppliedProvenance(data).validationStatus} />
@@ -204,15 +204,12 @@ export default function VendorLeadQuality() {
                         content={({ active, payload }) => {
                           if (!active || !payload?.length) return null;
                           const point = payload[0].payload;
-                          return (
-                            <div className="cx-performance-tooltip">
-                              <strong>{point.vendor}</strong>
-                              <span>{fmt(point.volume)} leads</span>
-                              <span>{point.firstDialMinutes}m median first dial</span>
-                              <span>{formatPercent(point.rpcRate)} RPC / dialled</span>
-                              <span>{formatPercent(point.saleRate)} sale / RPC</span>
-                            </div>
-                          );
+                          return <ChartTooltip title={point.vendor} rows={[
+                            { label: 'Fetched leads', value: fmt(point.volume) },
+                            { label: 'Median first dial', value: `${point.firstDialMinutes}m` },
+                            { label: 'RPC / dialled', value: formatPercent(point.rpcRate) },
+                            { label: 'Sale / RPC', value: formatPercent(point.saleRate) },
+                          ]} />;
                         }}
                       />
                       <Scatter data={scatter} fill="var(--cx-action)" />
@@ -303,7 +300,7 @@ function QualityOutcome({
           <h2>{title}</h2>
           <p>{description}</p>
         </div>
-        <BarChart3 size={16} className="text-slate-400" />
+        <BarChart3 size={16} className="text-text-muted" />
       </header>
       <div className="cx-quality-outcomes">
         <div className="cx-quality-head">

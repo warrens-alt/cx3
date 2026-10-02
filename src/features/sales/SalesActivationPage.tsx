@@ -60,37 +60,37 @@ export default function SalesActivationPage() {
   } = useSalesActivationModel();
 
   return (
-    <AnalyticsPageLayout className="cx-sales-page" ariaLabel="Sales & activation workspace" title="Sales & activation" description={<>Recorded sales, independent activation evidence and post-sale ageing for the selected intake cohort.</>} actions={<ReportActions aboutContent={<div className="space-y-3 text-xs text-slate-600 leading-relaxed">
+    <AnalyticsPageLayout className="cx-sales-page" ariaLabel="Sales & activation workspace" title="Sales & activation" description={<>Recorded sales, activation evidence and post-sale ageing.</>} actions={<ReportActions aboutContent={<div className="space-y-3 text-xs text-text-sec leading-relaxed">
             <section className="space-y-1">
-              <h3 className="font-semibold text-slate-900">Operational Cohort Scope</h3>
+              <h3 className="font-semibold text-text-main">Operational Cohort Scope</h3>
               <p>
                 The reporting period filters by <strong>lead intake date</strong> (when the lead was fetched/ingested), not the event timestamp of the subsequent sale or activation. This cohort-based structure allows accurate end-to-end conversion tracking for a cohort of leads, avoiding survival bias.
               </p>
             </section>
 
             <section className="space-y-1">
-              <h3 className="font-semibold text-slate-900">Independent Counts & Ratios</h3>
+              <h3 className="font-semibold text-text-main">Independent Counts & Ratios</h3>
               <p>
                 <strong>Recorded sales</strong> and <strong>Recorded activations</strong> are counted independently within the selected intake cohort. The displayed activation rate is an <em>independent-count ratio</em> (<code>activations / sales</code>), not a conditional transition assumption. Every activation is not assumed to have originated from a sale recorded in the exact same grain.
               </p>
             </section>
 
             <section className="space-y-1">
-              <h3 className="font-semibold text-slate-900">Sales Without Recorded Activation</h3>
+              <h3 className="font-semibold text-text-main">Sales Without Recorded Activation</h3>
               <p>
                 Calculated strictly from the observed population where <code>is_sale AND NOT is_activated</code> via the non-overlapping completed-day ageing queue (0–3d, 4–7d, 8–14d, 15–30d, 30d+, and future anomalies). It is <strong>never</strong> calculated as a naive subtraction of totalSales − totalActivations. Missing data remains unavailable.
               </p>
             </section>
 
             <section className="space-y-1">
-              <h3 className="font-semibold text-slate-900">Source-Recorded Revenue Interpretation</h3>
+              <h3 className="font-semibold text-text-main">Source-Recorded Revenue Interpretation</h3>
               <p>
                 Recorded revenue represents the sum of available source values, including explicit real zero amounts. Sales missing revenue are tracked separately and not defaulted to zero. Source-recorded revenue does not certify billable, invoiced, collected, or earned revenue.
               </p>
             </section>
 
             <section className="space-y-1">
-              <h3 className="font-semibold text-slate-900">Withheld Maturation Curve</h3>
+              <h3 className="font-semibold text-text-main">Withheld Maturation Curve</h3>
               <p>
                 Maturation curves require an independently validated event-level join model. To preserve evidentiary integrity, ConversionX deliberately withholds synthetic extrapolation or unverified maturation curves until event-level activation models are certified.
               </p>
@@ -114,41 +114,17 @@ export default function SalesActivationPage() {
         {/* Page Header */}
 
         {/* Operational Context Sub-Bar */}
-        <div className="bg-surface-subtle border border-border rounded-lg p-2.5 px-3.5 flex flex-wrap items-center justify-between gap-3 text-xs text-text-sec">
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-text-sec">Date basis:</span>
-              <span className="text-text-main font-mono text-[11px]">
-                Operational intake cohort (lead intake date)
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-text-sec">Timezone:</span>
-              <span className="text-text-main font-mono text-[11px]">
-                {model?.methodology.timezone || 'Workspace standard (UTC)'}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-text-sec">Currency:</span>
-              <span className="text-text-main font-mono text-[11px]">
-                {model?.summary.currency || 'Not specified'}
-              </span>
-            </div>
-          </div>
-
-          <div className="text-[11px] text-text-mute">
-            Intake window filtering: does not truncate delayed post-sale activation events
-          </div>
-        </div>
+        <details className="cx-sales-scope-detail"><summary>Intake cohort · {model?.summary.currency || 'Currency unavailable'}</summary>
+          <p>The reporting period selects lead intake dates; delayed sales and activations stay within that cohort.</p>
+          <dl><div><dt>Date basis</dt><dd>Operational intake cohort</dd></div><div><dt>Timezone</dt><dd>{model?.methodology.timezone || 'Workspace standard (UTC)'}</dd></div><div><dt>Currency</dt><dd>{model?.summary.currency || 'Not specified'}</dd></div></dl>
+        </details>
 
         {/* Independent source evidence remains available when the cohort query is unavailable. */}
 
 
         {/* Error State */}
         {error && (
-          <div className="cx-command-error flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs">
+          <div className="cx-command-error flex items-center gap-2 p-3 bg-negative-bg border border-negative rounded-lg text-negative text-xs">
             <AlertTriangle size={16} className="shrink-0" />
             <span>{error}</span>
           </div>
@@ -164,6 +140,7 @@ export default function SalesActivationPage() {
           <div className="space-y-6">
             {/* 1. Principal Outcomes Summary */}
             <SalesOutcomeSummary
+              contextOnly
               model={model}
               onInspect={handleInspectSummaryMetric}
             />
@@ -184,6 +161,7 @@ export default function SalesActivationPage() {
 
             {/* 4. Segment Outcomes (Vendor / Source / Grade) */}
             <SalesSegmentComparison
+              key={JSON.stringify(scope)}
               model={model}
               activeDimension={activeDimension}
               onSelectDimension={setActiveDimension}
@@ -208,13 +186,13 @@ export default function SalesActivationPage() {
 
             </details>
             {/* 6. Connected Navigation Shortcuts */}
-            <section className="cx-command-shortcuts grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+            <section className="cx-command-shortcuts cx-sales-shortcuts">
               <Link
                 to={scoped('/commercial')}
-                className="enterprise-card p-3 flex items-center justify-between hover:bg-surface-subtle transition-colors rounded-lg border border-border"
+                className="cx-sales-shortcut"
               >
                 <div className="flex items-center gap-2.5">
-                  <DollarSign size={18} className="text-purple-600" />
+                  <DollarSign size={18} className="text-text-sec" />
                   <div>
                     <strong className="text-xs font-semibold text-text-main block">Spend & commercial</strong>
                     <small className="text-[11px] text-text-sec">Relate observed media spend to recorded outcomes</small>
@@ -225,7 +203,7 @@ export default function SalesActivationPage() {
 
               <Link
                 to={scoped('/funnel')}
-                className="enterprise-card p-3 flex items-center justify-between hover:bg-surface-subtle transition-colors rounded-lg border border-border"
+                className="cx-sales-shortcut"
               >
                 <div className="flex items-center gap-2.5">
                   <PackageCheck size={18} className="text-brand-primary" />
@@ -239,7 +217,7 @@ export default function SalesActivationPage() {
 
               <Link
                 to={scoped('/lead-explorer')}
-                className="enterprise-card p-3 flex items-center justify-between hover:bg-surface-subtle transition-colors rounded-lg border border-border"
+                className="cx-sales-shortcut"
               >
                 <div className="flex items-center gap-2.5">
                   <Search size={18} className="text-semantic-pos" />

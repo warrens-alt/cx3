@@ -1,7 +1,9 @@
 import React from 'react';
-import { Clock3, CircleDollarSign, ShieldCheck } from 'lucide-react';
+import { Clock3, CircleDollarSign } from 'lucide-react';
 import type { AdaptedSalesActivation } from '../model/salesActivationAdapter';
 import { formatTableNumber, formatPercent } from '../../../lib/formatters';
+import ChartFrame from '../../../shared/visuals/ChartFrame';
+import ReportingScopeSummary from '../../../shared/reporting/ReportingScopeSummary';
 import OutcomeBranchMap from '../../../shared/visuals/OutcomeBranchMap';
 import { lifecyclePresentation } from '../../../shared/visuals/lifecyclePresentation';
 
@@ -12,11 +14,7 @@ interface SalesOutcomeMapProps {
 
 export default function SalesOutcomeMap({ model, onInspect }: SalesOutcomeMapProps) {
   const { summary } = model;
-  return <section className="cx-sales-evidence-map enterprise-card" aria-label="Outcome evidence map">
-    <header><div><span className="cx-command-section-kicker">Outcome evidence map</span>
-      <h2>What is recorded after sale</h2>
-      <p>This view does not imply that every population is a nested transition. Select a population to inspect its exact evidence.</p>
-    </div><ShieldCheck size={18} aria-hidden="true" /></header>
+  return <ChartFrame title="What is recorded after sale" subtitle="Independent populations · select to inspect" className="cx-sales-evidence-map cx-analytical-canvas" scope={<ReportingScopeSummary />} footer={<details className="cx-chart-methodology"><summary>Outcome methodology</summary><p>This view does not imply that every population is a nested transition. Recorded sales, activations, and revenue evidence remain independently observed populations within the selected intake cohort.</p></details>}>
     <OutcomeBranchMap
       anchor={{ key: 'sales', label: 'Recorded sales', value: formatTableNumber(summary.totalSales), detail: 'Observed sale population in the intake cohort', Icon: lifecyclePresentation.sales.Icon, color: lifecyclePresentation.sales.color }}
       branches={[
@@ -26,5 +24,5 @@ export default function SalesOutcomeMap({ model, onInspect }: SalesOutcomeMapPro
       ]}
       onSelect={key => onInspect(key as Parameters<typeof onInspect>[0])}
     />
-  </section>;
+  </ChartFrame>;
 }

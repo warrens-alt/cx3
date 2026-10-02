@@ -37,15 +37,15 @@ export default function SalesTimingAndCoverage({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* 1. Fulfilment Timing Panel */}
         <section className="enterprise-card cx-analytics-card p-4">
-          <header className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <header className="flex items-center justify-between pb-3 border-b border-border-subtle">
             <div>
               <span className="cx-command-section-kicker">Fulfilment velocity</span>
-              <h2 className="text-sm font-semibold text-slate-900">Outcome latency</h2>
-              <p className="text-xs text-slate-500">
+              <h2 className="text-sm font-semibold text-text-main">Outcome latency</h2>
+              <p className="text-xs text-text-sec">
                 Elapsed duration between intake, sale event, and activation.
               </p>
             </div>
-            <Clock3 size={16} className="text-slate-400" />
+            <Clock3 size={16} className="text-text-muted" />
           </header>
 
           <div className="grid grid-cols-2 gap-3 pt-3">
@@ -87,15 +87,15 @@ export default function SalesTimingAndCoverage({
 
         {/* 2. Maturation Policy & Limitation Panel */}
         <section className="enterprise-card cx-analytics-card p-4">
-          <header className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <header className="flex items-center justify-between pb-3 border-b border-border-subtle">
             <div>
               <span className="cx-command-section-kicker">Cohort maturation</span>
-              <h2 className="text-sm font-semibold text-slate-900">Maturation status & disclosure</h2>
-              <p className="text-xs text-slate-500">
+              <h2 className="text-sm font-semibold text-text-main">Maturation status & disclosure</h2>
+              <p className="text-xs text-text-sec">
                 Independent activation event join verification.
               </p>
             </div>
-            <PackageCheck size={16} className="text-slate-400" />
+            <PackageCheck size={16} className="text-text-muted" />
           </header>
 
           <div className="pt-3 space-y-2">
@@ -110,7 +110,7 @@ export default function SalesTimingAndCoverage({
                 </p>
               </div>
             </div>
-            <p className="text-[11px] text-slate-500 leading-relaxed">
+            <p className="text-[11px] text-text-sec leading-relaxed">
               Recent sales cohorts cannot be judged against historical benchmarks until event-level joins are proven. No synthetic extrapolation or fabricated D7/D14 curve is displayed.
             </p>
           </div>
@@ -120,7 +120,7 @@ export default function SalesTimingAndCoverage({
       {/* 3. Optional On-Demand Operating Controls Panel */}
       <section className="enterprise-card cx-analytics-card">
         <header
-          className="flex items-center justify-between p-3.5 cursor-pointer hover:bg-slate-50/70 transition-colors"
+          className="flex items-center justify-between p-3.5 cursor-pointer hover:bg-surface-subtle transition-colors"
           onClick={onToggleOperatingControls}
           role="button"
           tabIndex={0}
@@ -148,9 +148,9 @@ export default function SalesTimingAndCoverage({
         </header>
 
         {operatingControlsExpanded && (
-          <div className="p-4 border-t border-slate-100 bg-slate-50/40">
+          <div className="p-4 border-t border-border-subtle bg-surface-subtle">
             {controlsLoading && (
-              <div className="py-6 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+              <div className="py-6 text-center text-xs text-text-sec flex items-center justify-center gap-2">
                 <div className="cx-command-spinner" /> Loading operating controls…
               </div>
             )}
@@ -165,7 +165,7 @@ export default function SalesTimingAndCoverage({
               </div>
             )}
             {!controlsLoading && !controlsError && !controlsData && (
-              <div className="py-4 text-center text-xs text-slate-400">
+              <div className="py-4 text-center text-xs text-text-muted">
                 No active operating control limits configured for this tenant.
               </div>
             )}

@@ -1,3 +1,4 @@
+import TelemetryRail from '../shared/visuals/TelemetryRail';
 import AcquisitionFlow from '../features/campaigns/AcquisitionFlow';
 import '../styles/acquisitionEvidenceVisuals.css';
 import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
@@ -89,7 +90,7 @@ export default function CampaignIntelligence() {
   const canCompare = Boolean(startDate && endDate && data?.comparison && !loading && !error);
 
   return (
-    <AnalyticsPageLayout className="cx-campaign-page" title="Acquisition" description={<>Observed platform delivery and spend from the approved marketing API-table contract for the selected tenant.</>} actions={<ReportActions />} scope={<OffernetFilterBar
+    <AnalyticsPageLayout className="cx-campaign-page" title="Acquisition" description={<>Observed platform delivery, engagement and spend.</>} actions={<ReportActions />} scope={<OffernetFilterBar
         onRefresh={() => loadData(true)}
         showVendorFilter={false}
         showSourceFilter={false}
@@ -103,16 +104,15 @@ export default function CampaignIntelligence() {
           <>
             {data.denominatorDiagnostics?.some(item => item.missingRows > 0) && <div className="cx-control-note" role="status">Platform metrics with missing or invalid observations are unavailable: {data.denominatorDiagnostics.filter(item => item.missingRows > 0).map(item => `${item.metric}: ${item.missingRows} of ${item.rows} rows`).join('; ')}. Their derived ratios are withheld.</div>}
             {summary && (
-              <section className="cx-command-metrics cx-media-metrics" aria-label="Media performance summary">
+              <TelemetryRail label="Media performance summary">
                 <MediaMetricCard label="Recorded media spend" value={money(summary.spend)} note="Approved API-table spend" delta={data.comparison?.spendDeltaPct} metric="spend" canCompare={canCompare} onInspect={() => setAudit(campaignAudit(data, summary, 'spend', auditScope))} onInvestigate={metric => setRootMetric(metric)} />
                 <MediaMetricCard label="Platform CPL" value={money(summary.cpl)} note="Spend / platform lead events" delta={data.comparison?.cplDeltaPct} metric="cpl" canCompare={canCompare} onInspect={() => setAudit(campaignAudit(data, summary, 'cpl', auditScope))} onInvestigate={metric => setRootMetric(metric)} />
                 <MediaMetricCard label="CPC" value={money(summary.cpc)} note="Spend / clicks" delta={data.comparison?.cpcDeltaPct} metric="cpc" canCompare={canCompare} onInspect={() => setAudit(campaignAudit(data, summary, 'cpc', auditScope))} onInvestigate={metric => setRootMetric(metric)} />
                 <MediaMetricCard label="CPM" value={money(summary.cpm)} note="Spend / 1,000 impressions" delta={data.comparison?.cpmDeltaPct} metric="cpm" canCompare={canCompare} onInspect={() => setAudit(campaignAudit(data, summary, 'cpm', auditScope))} onInvestigate={metric => setRootMetric(metric)} />
-                <MediaMetricCard label="Platform lead events" value={num(summary.leads)} note={`${formatPercent(summary.ctr)} CTR · ${num(summary.clicks)} clicks`} delta={data.comparison?.leadsDeltaPct} metric="leads" canCompare={canCompare} onInspect={() => setAudit(campaignAudit(data, summary, 'leads', auditScope))} onInvestigate={metric => setRootMetric(metric)} />
-              </section>
+              </TelemetryRail>
             )}
 
-            <AcquisitionFlow data={data} />
+            <AcquisitionFlow data={data} actions={summary && <><button type="button" className="cx-button-quiet" onClick={() => setAudit(campaignAudit(data, summary, 'leads', auditScope))}>Inspect lead events</button>{canCompare && Number.isFinite(data.comparison?.leadsDeltaPct) && <button type="button" className="cx-button-quiet" onClick={() => setRootMetric('leads')}>Why events changed</button>}</>} />
 
             <AuditMetadata grain={data.grainDiagnostics?.fields?.join(" × ")} dateBasis="Marketing reporting date" validationStatus={suppliedProvenance(data).validationStatus} />
             <details className="cx-evidence-disclosure"><summary>View reach and engagement evidence</summary>
@@ -324,7 +324,7 @@ export default function CampaignIntelligence() {
                   <h2>Financial measurement: {data.status || 'PARTIAL'}</h2>
                   <p>{data.reason}</p>
                 </div>
-                <ShieldCheck size={17} className="text-slate-400"/>
+                <ShieldCheck size={17} className="text-text-muted"/>
               </header>
               <div className="cx-spend-source">
                 <div><span>Spend field</span><strong>{data.spendSource?.column || 'Unavailable'}</strong></div>
