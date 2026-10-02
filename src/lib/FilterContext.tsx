@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { duplicateInvestigationScopeKeys, resetAmbiguousInvestigationUrlScope, validateInvestigationUrlScope } from '../../contracts/investigation';
 import { validateFilters, type FilterCondition, type Filters } from '../../contracts/filters';
 export type { FilterCondition };
 export type UniversalFilters = Filters;
@@ -28,6 +29,7 @@ function cleanString(val: unknown): string | undefined {
 }
 
 export function readFilters(params: URLSearchParams): Filters {
+  validateInvestigationUrlScope(params);
   let result: Filters = {};
   const encoded = params.get('filters');
   if (encoded) {
@@ -144,7 +146,13 @@ export function FilterProvider({ children }: { children: React.ReactNode }) {
     return next; 
   }, { replace: true });
 
-  const resetScope = () => clearFilters();
+  const resetScope = () => setParams(previous => {
+    if (duplicateInvestigationScopeKeys(previous).length) return resetAmbiguousInvestigationUrlScope(previous);
+    // Preserve the established reset behaviour for ordinary, unambiguous reporting selections.
+    const next = new URLSearchParams(previous);
+    for (const key of ['startDate', 'endDate', 'filters', ...SUPPORTED_STANDALONE_KEYS]) next.delete(key);
+    return next;
+  }, { replace: true });
 
   const get = (key: string) => {
     const cond = parsed.filters[key];
