@@ -2,10 +2,13 @@ import express from 'express';
 import compression from 'compression';
 import type { Application, Request, Response, NextFunction } from 'express';
 import type { CliArchiveBackend } from './cliImports/archive';
+import type { SavedInvestigationBackend } from './savedAnalyses/repository';
 
 export interface ApiMountOptions {
   /** Runtime-owned archive binding; defaults to the existing GCS configuration on Node. */
   cliArchiveBackend?: () => CliArchiveBackend | null;
+  /** Separate, explicitly configured durable storage for personal investigation definitions. */
+  savedAnalysisBackend?: () => SavedInvestigationBackend | null;
 }
 
 /**
@@ -20,6 +23,7 @@ export async function mountApi(app: Application, options: ApiMountOptions = {}) 
   const { createLeadLedgerRouter } = await import('./leadLedger/router');
   const { createBlcRouter } = await import('./blc/router');
   const { createCliImportRouter } = await import('./cliImports/router');
+  const { createSavedInvestigationRouter } = await import('./savedAnalyses/router');
   const { authenticate } = await import('./security');
   const { apiErrorHandler } = await import('./apiErrors');
   const { analyticalConcurrency, apiAuditLog, requestContext, sameOriginRequests, securityHeaders } = await import('./httpGuards');
@@ -56,6 +60,7 @@ export async function mountApi(app: Application, options: ApiMountOptions = {}) 
   }, apiAuditLog, authMiddleware, sameOriginRequests());
 
   const concurrency = analyticalConcurrency();
+  app.use('/api/saved-analyses', concurrency, createSavedInvestigationRouter(options.savedAnalysisBackend));
   app.use('/api/reporting', concurrency, createReportingRouter());
   app.use('/api/analytics', concurrency, (_req, res, next) => {
     res.setHeader('X-Analytics-Status', 'UNVERIFIED');
