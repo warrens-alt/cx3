@@ -48,7 +48,7 @@ test('journey separates independent counts from transition intersections', () =>
   const html = render(React.createElement(JourneyProgression, { stages, transitions, onInspectStage:()=>{},onInspectTransition:()=>{} }));
   assert.match(html, /width:25%/); assert.match(html, /width:100%/);
   assert.match(html, /width:30%/); assert.match(html, /3 of 10 with both events/);
-  assert.match(html, /Non-nested: the next-stage total includes leads outside this prior stage/);
+  assert.match(html, /Non-nested: downstream recorded events also exist outside this qualified transition\./);
   assert.match(html, /aria-label="Inspect Sales: 40"/);
   assert.match(html, /Inspect RPC to Sale: 7 without progression/);
 });
