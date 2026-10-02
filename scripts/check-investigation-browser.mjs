@@ -37,6 +37,8 @@ await page.addInitScript(({ exception }) => {
 const text = () => page.locator('body').innerText();
 const waitText = value => page.getByText(value, { exact: false }).first().waitFor();
 const step = name => page.locator(`nav[aria-label="Investigation workflow"] [data-stage="${name}"]`);
+const stageDescription = name => step(name).evaluate(element => document.getElementById(element.getAttribute('aria-describedby'))?.textContent || '');
+const waitStage = (name, value) => page.waitForFunction(({ name, value }) => document.querySelector(`[data-stage="${name}"]`)?.textContent.includes(value), { name, value });
 const check = async (name, action) => { await action(); checks.push({ name, passed: true }); console.log(`PASS: ${name}`); };
 const visit = async (url = '/investigate' + scope + '&drill=awaiting-first-dial') => { await page.goto(origin + url); await page.getByRole('navigation', { name: 'Investigation workflow', exact: true }).waitFor(); };
 const settle = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
@@ -44,7 +46,7 @@ let failure;
 try {
   await check('Page identity, meaningful screen and six accessible stages', async () => {
     await visit(); assert.equal(await page.title(), 'Investigation inbox · Offernet');
-    await waitText('Current 20'); assert.equal(await page.locator('[data-stage]').count(), 6);
+    await waitStage('signal', 'Current 20'); assert.equal(await page.locator('[data-stage]').count(), 6);
     assert.match(await text(), /NOT_VERIFIED/); assert.equal(await step('diagnose').getAttribute('aria-current'), 'step');
     assert.equal(await page.locator('vite-error-overlay').count(), 0);
   });
@@ -58,15 +60,15 @@ try {
     await page.getByRole('button', { name: /Open dossier for lead/ }).first().waitFor();
     assert.equal(new URL(page.url()).searchParams.get('segmentVendor'), 'Synthetic vendor');
     assert.equal(new URL(page.url()).searchParams.get('drill'), 'awaiting-first-dial');
-    assert.match(await step('segment').innerText(), /Synthetic vendor/);
-    await page.goBack(); await waitText('Current 20'); assert.equal(new URL(page.url()).searchParams.has('segmentVendor'), false);
+    assert.match(await stageDescription('segment'), /Synthetic vendor/);
+    await page.goBack(); await waitStage('signal', 'Current 20'); assert.equal(new URL(page.url()).searchParams.has('segmentVendor'), false);
     await page.goForward(); await page.getByRole('button', { name: /Open dossier for lead/ }).first().waitFor();
     assert.equal(new URL(page.url()).searchParams.get('segmentVendor'), 'Synthetic vendor');
   });
   await check('Record dossier stays session-only and returns keyboard focus', async () => {
     const trigger = page.getByRole('button', { name: /Open dossier for lead/ }).first();
     await trigger.click(); await page.getByRole('complementary', { name: /Lead dossier for/ }).waitFor();
-    assert.match(await step('records').innerText(), /Lead dossier open/);
+    assert.match(await stageDescription('records'), /Lead dossier open/);
     assert.equal(new URL(page.url()).searchParams.has('leadId'), false);
     for (const tab of ['Journey', 'Evidence', 'Source', 'Overview']) { const button = page.getByRole('tab', { name: tab, exact: true }); if (await button.count()) await button.click(); }
     await page.getByRole('button', { name: 'Close lead dossier' }).click();
@@ -77,8 +79,8 @@ try {
     await page.getByRole('button', { name: 'Pin lead evidence', exact: true }).click();
     await step('conclusion').click(); await page.getByLabel('Analyst conclusion · not validation').fill('Synthetic analyst note: further evidence required.');
     await page.getByLabel('What remains unknown?').fill('Call evidence unavailable.');
-    assert.match(await step('conclusion').innerText(), /Analyst note exists.*open questions recorded/s);
-    assert.match(await step('evidence').innerText(), /1 session observation pinned.*NOT_VERIFIED/s);
+    assert.match(await stageDescription('conclusion'), /Analyst note exists.*open questions recorded/s);
+    assert.match(await stageDescription('evidence'), /1 session observation pinned.*NOT_VERIFIED/s);
     assert.match(await page.locator('.cx-investigation-tray').innerText(), /Synthetic vendor/);
     const download = page.waitForEvent('download'); await page.getByRole('button', { name: 'Export pinned evidence' }).click();
     const csv = await readFile(await (await download).path(), 'utf8'); assert.match(csv, /NOT_VERIFIED/); assert.match(csv, /Synthetic analyst note/);
@@ -98,7 +100,8 @@ try {
     await page.getByRole('button', { name: 'Close lead dossier' }).click();
     await page.getByPlaceholder('Lead ID, consumer ID, vendor, source or disposition').fill('SYNTHETIC-CONSUMER');
     await page.getByRole('button', { name: 'Search', exact: true }).click();
-    await waitText('1 matching leads'); assert.equal(new URL(page.url()).searchParams.get('search'), 'SYNTHETIC-CONSUMER');
+    await waitStage('records', '1 matching leads'); assert.equal(new URL(page.url()).searchParams.get('search'), 'SYNTHETIC-CONSUMER');
+    await page.locator('.cx-investigation-definition > summary').click();
     await page.getByRole('button', { name: 'Clear investigation', exact: true }).click();
     const params = new URL(page.url()).searchParams;
     assert.equal(params.has('drill'), false); assert.equal(params.has('segmentVendor'), false); assert.equal(params.get('clientId'), 'synthetic-a');
@@ -114,18 +117,18 @@ try {
     await page.evaluate(() => window.__fixture.setAccess({ nonAdmin: false }));
     await page.getByRole('button', { name: /Open dossier for lead/ }).first().waitFor();
     assert.equal(await page.getByRole('complementary', { name: /Lead dossier for/ }).count(), 0);
-    assert.match(await step('evidence').innerText(), /0 session observations/);
+    assert.match(await stageDescription('evidence'), /0 session observations/);
   });
   await check('Workspace switch clears local selection and pinned evidence', async () => {
     await page.getByRole('button', { name: /Open dossier for lead/ }).first().click();
     await page.getByRole('button', { name: 'Pin lead evidence', exact: true }).click();
     await page.evaluate(scope => window.__fixture.navigate('/lead-explorer' + scope.replace('synthetic-a', 'synthetic-b')), scope);
-    await page.waitForURL('**/*clientId=synthetic-b*'); await waitText('0 session observations');
+    await page.waitForURL('**/*clientId=synthetic-b*'); await waitStage('evidence', '0 session observations');
     assert.equal(await page.getByRole('complementary', { name: /Lead dossier for/ }).count(), 0);
   });
   await check('Empty and failed record populations remain distinct from zero and unavailable source evidence', async () => {
     await page.evaluate(() => { window.__fixture.payloads['/api/analytics/offernet/raw-leads'] = { rows: [], totalCount: 0, limit: 50, offset: 0, validationStatus: 'NOT_VERIFIED' }; window.__fixture.navigate('/lead-explorer?clientId=synthetic-a&source=Empty'); });
-    await waitText('No matching records'); assert.match(await step('records').innerText(), /No matching records/);
+    await waitText('No matching records'); assert.match(await stageDescription('records'), /No matching records/);
     await page.evaluate(() => { window.__fixture.fail = ['raw-leads']; window.__fixture.navigate('/lead-explorer?clientId=synthetic-a&source=Failed'); });
     await waitText('Record evidence unavailable'); assert.match(await text(), /Synthetic request failure/);
   });
@@ -175,10 +178,10 @@ try {
   });
   await check('Current-view refresh updates the active driver once and keeps inactive overview idle', async () => {
     for (const route of ['/investigate', '/lead-explorer']) {
-      await visit(route + scope + '&investigationMetric=fetchedLeads'); await waitText('Current 120');
+      await visit(route + scope + '&investigationMetric=fetchedLeads'); await waitStage('signal', 'Current 120');
       const before = await page.evaluate(() => window.__fixture.requests.filter(url => url.includes('/offernet/root-cause')).length);
       await page.evaluate(() => { window.__fixture.payloads['/api/analytics/offernet/root-cause'].metric.currentValue = 121; });
-      await page.getByRole('button', { name: 'Refresh current view', exact: true }).click(); await waitText('Current 121');
+      await page.getByRole('button', { name: 'Refresh current view', exact: true }).click(); await waitStage('signal', 'Current 121');
       const requests = await page.evaluate(() => window.__fixture.requests);
       assert.equal(requests.filter(url => url.includes('/offernet/root-cause')).length, before + 1);
       assert.equal(requests.filter(url => /\/offernet\/(overview|operating-controls)/.test(url)).length, 0);

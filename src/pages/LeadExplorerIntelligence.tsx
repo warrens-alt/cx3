@@ -1,8 +1,10 @@
+import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
+import InvestigationEvidenceWorkspace from '../features/investigation/InvestigationEvidenceWorkspace';
 import InvestigationWorkflow from '../features/investigation/InvestigationWorkflow';
 import { useInvestigationAnalysis } from '../features/investigation/useInvestigationAnalysis';
 import DriverAnalysis from '../features/investigation/DriverAnalysis';
 import EvidenceConfidence from '../features/investigation/EvidenceConfidence';
-import EvidenceTray, { useEvidenceTray } from '../features/investigation/EvidenceTray';
+import { useEvidenceTray } from '../features/investigation/EvidenceTray';
 import InvestigationAI from '../features/investigation/InvestigationAI';
 import { investigationLabel } from '../features/investigation/investigationModel';
 import { ReportActions } from '../shared/reporting/ReportPresentation';
@@ -177,24 +179,14 @@ export default function LeadExplorerIntelligence() {
   const shownEnd = isCurrentClientData && data ? page * pageSize + data.rows.length : 0;
   const totalCountText = isCurrentClientData && data?.totalCount != null ? ` of ${formatTableNumber(data.totalCount)}` : '';
 
-  if (!isAdmin) return <div className="cx-command-page"><div className="cx-command-content"><h1>Record explorer</h1><p role="status">Record access is restricted to authorised administrators. Aggregate investigation evidence remains available in the investigation inbox.</p></div></div>;
+  if (!isAdmin) return <AnalyticsPageLayout title="Record explorer"><p role="status">Record access is restricted to authorised administrators. Aggregate investigation evidence remains available in the investigation inbox.</p></AnalyticsPageLayout>;
 
   return (
-    <div className="cx-command-page">
-
-
-      <div className="cx-command-content">
-        <header className="cx-command-hero">
-          <div>
-            <span className="cx-command-eyebrow">Investigate</span>
-            <h1>Record explorer</h1>
-            <p>Follow an affected population from its inclusion reason to lifecycle, outcomes and source evidence.</p>
-          </div>
-                  <ReportActions />
-</header>
-      <OffernetFilterBar onRefresh={() => { analysis.refresh(); return loadData(true); }} onExportCsv={isExportAvailable ? () => { if (data) setExportReview({ scopeKey, result: data }); } : undefined} />
-
+    <AnalyticsPageLayout title="Record explorer" description="Follow an affected population from its inclusion reason to lifecycle, outcomes and source evidence."
+      actions={<ReportActions />}
+      scope={<OffernetFilterBar onRefresh={() => { analysis.refresh(); return loadData(true); }} onExportCsv={isExportAvailable ? () => { if (data) setExportReview({ scopeKey, result: data }); } : undefined} />}>
         <InvestigationWorkflow analysis={analysis.summary} recordsLoaded={isCurrentClientData && !error} requestError={error} evidenceCount={pinnedEvidence.length} populationCount={data?.totalCount} validationStatus={data?.validationStatus || data?.metadata?.validationStatus} dateBasis={data?.dateBasis || data?.metadata?.dateBasis} countingGrain={data?.countingGrain || data?.metadata?.countingGrain} loading={loading} receivedAt={receivedAt} selectedLead={selectedLead} onClearLead={closeTimeline} />
+        <InvestigationEvidenceWorkspace confidence={<EvidenceConfidence />}>
         {investigation && <DriverAnalysis summaryScopeKey={analysis.scopeKey} refreshToken={analysis.refreshToken} onSummary={analysis.onSummary} onPin={item => pin(item, { validationStatus: data?.validationStatus || 'NOT_VERIFIED' })} />}
         {error && <div className="cx-command-error" role="alert"><AlertTriangle size={17} /><span>{error}</span></div>}
         {exportError && <div className="cx-command-error" role="alert"><AlertTriangle size={17} /><span>{exportError}</span></div>}
@@ -242,16 +234,14 @@ export default function LeadExplorerIntelligence() {
         </section>
         {selection && !error && <LeadDossier onPin={item => pin({ ...item, kind: item.type }, { validationStatus: data?.validationStatus || 'NOT_VERIFIED' })} key={scopeKey + selectedLead} id={dossierId} row={selection.row} result={selection.result} investigation={investigation} scopeKey={scopeKey} timeline={timelineData} loading={timelineLoading} error={timelineError} onClose={closeTimeline} segmentVendor={segmentVendor || undefined} />}
         </div>
-        <EvidenceConfidence />
-        <EvidenceTray />
         <InvestigationAI />
-      </div>
+        </InvestigationEvidenceWorkspace>
 
       <EvidenceExportPreflight open={Boolean(exportReview && exportReview.scopeKey === scopeKey && exportReview.result === data && isExportAvailable)} onClose={() => setExportReview(null)} onConfirm={handleExportCsv} fields={data ? returnedEvidenceFields(data) : []}>
         <strong>Current returned page · analytical lead evidence CSV</strong>
         <p>Exports {data?.rows.length ?? 0} returned rows with reporting-scope and page audit fields. Pagination limits still apply; this action does not fetch the remaining matching records.</p>
       </EvidenceExportPreflight>
 
-    </div>
+    </AnalyticsPageLayout>
   );
 }

@@ -1,9 +1,11 @@
+import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
+import InvestigationEvidenceWorkspace from '../features/investigation/InvestigationEvidenceWorkspace';
 import InvestigationWorkflow from '../features/investigation/InvestigationWorkflow';
 import InvestigationQuickStarts from '../features/investigation/InvestigationQuickStarts';
 import { useInvestigationAnalysis } from '../features/investigation/useInvestigationAnalysis';
 import DriverAnalysis from '../features/investigation/DriverAnalysis';
 import EvidenceConfidence from '../features/investigation/EvidenceConfidence';
-import EvidenceTray, { useEvidenceTray } from '../features/investigation/EvidenceTray';
+import { useEvidenceTray } from '../features/investigation/EvidenceTray';
 import InvestigationAI from '../features/investigation/InvestigationAI';
 import SavedInvestigations from '../features/investigation/SavedInvestigations';
 import { investigationPath, investigationRequest } from '../features/investigation/investigationModel';
@@ -97,25 +99,17 @@ export default function Exceptions() {
   );
 
   return (
-    <div className="cx-command-page cx-trust-workspace" aria-label="Investigate workspace">
-
-      <div className="cx-command-content">
-        <header className="cx-command-hero">
-          <div>
-            <h1>Investigation inbox</h1>
-            <p>Find a signal, diagnose the affected population, and follow its records to supporting evidence.</p>
-          </div>
-          <ReportActions aboutContent={<p>Operational rules: {queue.data?.validationStatus || data?.validationStatus || 'NOT_VERIFIED'}</p>} />
-</header>
-      <OffernetFilterBar onRefresh={async () => { analysis.refresh(); await Promise.all([queue.loadData(true), ...(showOverview ? [loadData(true), controls.refetch()] : [])]); }} />
+    <AnalyticsPageLayout title="Investigation inbox" description="Find a signal, diagnose the affected population, and follow its records to supporting evidence."
+      ariaLabel="Investigate workspace" className="cx-trust-workspace"
+      actions={<ReportActions aboutContent={<p>Operational rules: {queue.data?.validationStatus || data?.validationStatus || 'NOT_VERIFIED'}</p>} />}
+      scope={<OffernetFilterBar onRefresh={async () => { analysis.refresh(); await Promise.all([queue.loadData(true), ...(showOverview ? [loadData(true), controls.refetch()] : [])]); }} />}>
         <InvestigationWorkflow analysis={analysis.summary} requestError={activeMetric ? analysis.summary?.state === 'unavailable' ? analysis.summary.detail : null : queue.error} evidenceCount={pinnedEvidence.length} populationCount={selectedException?.count} validationStatus={activeMetric ? analysis.summary?.validationStatus : queue.data?.validationStatus} loading={activeMetric ? !analysis.summary || analysis.summary.state === 'loading' : queue.loading} receivedAt={activeMetric ? undefined : queue.receivedAt} />
+        <InvestigationEvidenceWorkspace confidence={activeDrill || activeMetric ? <EvidenceConfidence /> : undefined}>
         <SavedInvestigations />
-        <InvestigationQuickStarts />
+        <details className="cx-investigation-new-signal" open={!activeDrill && !activeMetric}><summary>{activeDrill || activeMetric ? 'Start another investigation' : 'Start an investigation'}</summary><InvestigationQuickStarts /></details>
         {(activeDrill || activeMetric) && <><DriverAnalysis summaryScopeKey={analysis.scopeKey} refreshToken={analysis.refreshToken} onSummary={analysis.onSummary} exceptionData={activeMetric ? undefined : queue.data} exceptionError={queue.error} onPin={item => pin(item, { validationStatus: queue.data?.validationStatus || 'NOT_VERIFIED' })} />
           {isAdmin && <p className="mb-4"><Link className="cx-button-primary" to={investigationPath('/lead-explorer', searchParams)}>Inspect affected records<ArrowRight size={14}/></Link></p>}
-          <EvidenceConfidence />
         </>}
-        <nav className="cx-viz-jump-nav" aria-label="Investigation sections"><a href="#exception-workbench">Exception workbench</a>{!(activeDrill || activeMetric) && <a href="#exception-backlog">Backlog & vendors</a>}</nav>
 
         {(error || queue.error) && <div role="alert" className="cx-command-error"><AlertTriangle size={17} />{error || queue.error}</div>}
         {(!data && !queue.data && (loading || queue.loading)) ? (
@@ -278,10 +272,9 @@ export default function Exceptions() {
             </div>}
           </>
         )}
-        <EvidenceTray />
         <InvestigationAI />
-      </div>
+        </InvestigationEvidenceWorkspace>
       <InspectorHost open={Boolean(audit)} onClose={() => setAudit(null)} content={audit} />
-    </div>
+    </AnalyticsPageLayout>
   );
 }

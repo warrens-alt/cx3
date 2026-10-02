@@ -47,7 +47,7 @@ async function mount(route='/lead-explorer?'+query, fixture:Record<string,unknow
   const errors:string[]=[];const console=new VirtualConsole();console.on('jsdomError',(error:Error)=>{if(!error.message.includes('navigation'))errors.push(error.message)});console.on('error',(...args:unknown[])=>errors.push(args.map(String).join(' ')));
   const dom=new JSDOM('<!doctype html><div id="root"></div>',{url:'https://test.invalid',runScripts:'outside-only',pretendToBeVisual:true,virtualConsole:console});const w=dom.window as any;
   Object.assign(w,{Response,Request,Headers,AbortController,TextEncoder,TextDecoder,ReadableStream,structuredClone,ResizeObserver:class{observe(){}unobserve(){}disconnect(){}},__fixture:{initialRoute:route,...fixture}});
-  w.matchMedia=(q:string)=>({matches:false,media:q,addEventListener(){},removeEventListener(){}});w.HTMLElement.prototype.scrollIntoView=()=>{};w.HTMLElement.prototype.scrollTo=()=>{};w.scrollTo=()=>{};
+  w.matchMedia=(q:string)=>({matches:fixture.desktopViewport===true && q==='(min-width: 1380px)',media:q,addEventListener(){},removeEventListener(){}});w.HTMLElement.prototype.scrollIntoView=()=>{};w.HTMLElement.prototype.scrollTo=()=>{};w.scrollTo=()=>{};
   const wait=async(check:()=>unknown)=>{for(let i=0;i<150;i++){if(check())return;await new Promise(r=>setTimeout(r,20));}throw new Error(w.document.body.textContent?.slice(0,2000)+' '+errors.join(';'));};
   const find=(selector:string,text='')=>[...w.document.querySelectorAll(selector)].find((el:any)=>(el.getAttribute('aria-label')||el.textContent||'').includes(text)) as any;
   w.eval(script);await wait(()=>find(waitForRecords ? 'button' : '[aria-label="Investigation workflow"]',waitForRecords ? 'Open dossier for lead' : ''));
@@ -99,6 +99,14 @@ test('six-stage workspace uses returned scope and driver values without adding a
   const app=await mount('/investigate?'+query,{payloads:exceptions},false);try{
     await app.wait(()=>stage(app,'signal')?.textContent.includes('Current 7'));
     assert.deepEqual([...app.w.document.querySelectorAll('[data-stage]')].map((el:any)=>el.dataset.stage),['signal','diagnose','segment','records','evidence','conclusion']);
+    const rail=app.find('[aria-label="Investigation workflow"]');
+    assert.equal(rail.closest('[aria-label="Investigation context"]').getAttribute('data-compact'),'true');
+    for (const link of rail.querySelectorAll('[data-stage]')) {
+      const description=app.w.document.getElementById(link.getAttribute('aria-describedby'));
+      assert.ok(description?.textContent, 'Every compact step retains an accessible description of its true state');
+      assert.equal(description.className,'sr-only');
+      assert.equal(link.querySelectorAll('.cx-investigation-stage-title').length,1);
+    }
     assert.match(stage(app,'signal').textContent,/previous Unavailable.*change Unavailable.*medium severity/);
     assert.match(stage(app,'segment').textContent,/Source: Source A/);
     assert.equal(stage(app,'segment').getAttribute('aria-current'),'step');
@@ -111,6 +119,8 @@ test('six-stage workspace uses returned scope and driver values without adding a
     assert.equal(requests.filter(url=>url.includes('/exceptions?')).length,1,'Header and driver must reuse the queue response');
     assert.equal(requests.filter(url=>/raw-leads|lead-timeline|root-cause|offernet\/overview|operating-controls|ai-insights/.test(url)).length,0);
     assert.equal(requests.filter(url=>url.includes('/data-integrity?')).length,1);
+    assert.equal(app.find('.cx-investigation-new-signal').open,false);
+    stage(app,'signal').click();await app.wait(()=>app.find('.cx-investigation-new-signal').open);
     stage(app,'diagnose').click();await app.wait(()=>stage(app,'diagnose').getAttribute('aria-current')==='step');
     stage(app,'segment').click();await app.wait(()=>app.w.document.activeElement?.id==='investigation-segment');
     assert.equal(new URL(app.w.__fixture.location,'https://test.invalid').searchParams.get('segmentSource'),'Source A');
@@ -124,6 +134,47 @@ test('six-stage workspace uses returned scope and driver values without adding a
     assert.match(stage(app,'evidence').textContent,/NOT_VERIFIED/);
     assert.equal(requests.length,requestCount,'Stage navigation and notes must not request analytics');
     assert.match(app.find('#investigation-evidence-tray').textContent,/No pinned observations support a conclusion yet/);
+  }finally{app.close()}
+});
+
+test('evidence disclosure reuses one mounted tray and confidence view while preserving pins, notes and request counts',async()=>{
+  const app=await mount('/lead-explorer?'+query,{payloads:exceptions});try{
+    const tray=app.find('#investigation-evidence-tray');
+    const confidence=app.find('[aria-label="Evidence confidence for this question"]');
+    assert.equal(tray.open,false,'Small viewport starts with a disclosure');
+    assert.equal(app.w.document.querySelectorAll('#investigation-evidence-tray').length,1);
+    assert.equal(app.w.document.querySelectorAll('[aria-label="Evidence confidence for this question"]').length,1);
+    assert.equal(confidence.closest('.cx-investigation-evidence-panel'),tray.closest('.cx-investigation-evidence-panel'));
+    app.find('button','Open dossier for lead').click();await app.wait(()=>app.find('button','Pin lead evidence'));
+    app.find('button','Pin lead evidence').click();await app.wait(()=>stage(app,'evidence').textContent.includes('1 session observation'));
+    stage(app,'conclusion').click();await app.wait(()=>tray.open && app.w.document.activeElement?.id==='investigation-conclusion');
+    input(app,app.find('textarea'),'Retained analyst note without certification.');
+    await app.wait(()=>stage(app,'conclusion').textContent.includes('Analyst note exists'));
+    const requests=app.w.__fixture.requests.length;
+    tray.open=false;tray.dispatchEvent(new app.w.Event('toggle'));await app.wait(()=>!tray.open);
+    tray.open=true;tray.dispatchEvent(new app.w.Event('toggle'));await app.wait(()=>tray.open);
+    assert.equal(app.find('#investigation-evidence-tray'),tray);
+    assert.equal(app.find('[aria-label="Evidence confidence for this question"]'),confidence);
+    assert.equal(app.find('textarea').value,'Retained analyst note without certification.');
+    assert.match(tray.textContent,/1 pinned observation/);
+    assert.equal(app.w.__fixture.requests.length,requests,'Collapsing presentation must not remount query-owning children');
+    assert.equal(app.w.document.querySelector('[aria-label="Investigation sections"]'),null);
+  }finally{app.close()}
+});
+
+test('large-desktop evidence rail starts expanded with exactly one evidence state and source query',async()=>{
+  const app=await mount('/investigate?'+query,{payloads:exceptions,desktopViewport:true},false);try{
+    await app.wait(()=>stage(app,'signal').textContent.includes('Current 7'));
+    assert.equal(app.find('#investigation-evidence-tray').open,true);
+    assert.equal(app.w.document.querySelectorAll('.cx-investigation-evidence-workspace').length,1);
+    assert.equal(app.w.document.querySelectorAll('#investigation-conclusion').length,1);
+    assert.equal(app.w.__fixture.requests.filter((url:string)=>url.includes('/data-integrity?')).length,1);
+    assert.equal(app.find('.cx-investigation-definition').open,false,'Detailed provenance is progressively disclosed');
+    assert.match(app.find('.cx-investigation-summary-status').textContent,/NOT_VERIFIED/);
+    app.find('.cx-investigation-definition').open=true;
+    app.find('button','Change scope').click();
+    await app.wait(()=>app.find('.cx-scope-toggle').getAttribute('aria-expanded')==='true');
+    assert.equal(app.w.document.activeElement,app.find('.cx-scope-toggle'));
   }finally{app.close()}
 });
 

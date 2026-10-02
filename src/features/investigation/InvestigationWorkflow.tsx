@@ -1,4 +1,4 @@
-import React, { useEffect, type ComponentProps } from 'react';
+import React, { useEffect, useId, type ComponentProps } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../lib/AuthContext';
 import { formatTableNumber } from '../../lib/formatters';
@@ -28,6 +28,9 @@ function focusStage(stage: InvestigationStage) {
   }
   requestAnimationFrame(() => {
     const target = document.getElementById(stageTargets[stage]);
+    for (let ancestor = target?.parentElement; ancestor; ancestor = ancestor.parentElement) {
+      if (ancestor instanceof HTMLDetailsElement) ancestor.open = true;
+    }
     target?.focus({ preventScroll: true });
     target?.scrollIntoView({ block: 'start', behavior: 'auto' });
   });
@@ -44,6 +47,7 @@ export default function InvestigationWorkflow({ analysis, recordsLoaded = false,
   const [params] = useSearchParams();
   const { isAdmin } = useAuth();
   const model = useInvestigationModel();
+  const descriptionId = useId();
   const { items, notes } = useEvidenceTray();
   const active = Boolean(model.drill || model.metric);
   const current = currentInvestigationStage(location.pathname, location.hash, active, model.segments.length > 0);
@@ -78,13 +82,12 @@ export default function InvestigationWorkflow({ analysis, recordsLoaded = false,
     const destination = stage === 'records' ? '/lead-explorer' : stage === 'signal' || stage === 'diagnose' ? '/investigate' : location.pathname;
     return `${investigationPath(destination, params)}#${stageTargets[stage]}`;
   };
-  return <InvestigationContextBar {...context} validationStatus={status}>
-    <p className="cx-investigation-progress" aria-live="polite">{active ? 'Signal selected' : 'Select a signal'} → {model.segments.length ? `narrowed by ${model.segments.map(segment => segment.label.toLowerCase()).join(', ')}` : 'reporting scope retained'} → {items.length} pinned → {conclusion ? 'analyst conclusion recorded' : 'conclusion incomplete'}</p>
-    <nav className="cx-investigation-workflow" aria-label="Investigation workflow"><ol>{stages.map((stage, index) => <li key={stage.key} data-current={stage.key === current}>
-      {stage.available ? <Link data-stage={stage.key} to={href(stage.key)} aria-current={stage.key === current ? 'step' : undefined} onClick={() => focusStage(stage.key)}>
-        <span className="cx-investigation-stage-title"><span aria-hidden="true">{index + 1}</span>{stage.label}{stage.key === current && <small>Current</small>}</span><span className="cx-investigation-stage-detail">{stage.detail}</span>
-      </Link> : <span data-stage={stage.key} aria-disabled="true"><span className="cx-investigation-stage-title"><span aria-hidden="true">{index + 1}</span>{stage.label}</span><span className="cx-investigation-stage-detail">{stage.detail}</span></span>}
+  const rail = <nav className="cx-investigation-workflow" aria-label="Investigation workflow"><ol>{stages.map((stage, index) => <li key={stage.key} data-current={stage.key === current}>
+      {stage.available ? <Link data-stage={stage.key} to={href(stage.key)} aria-label={stage.label} aria-describedby={`${descriptionId}-${stage.key}`} aria-current={stage.key === current ? 'step' : undefined} onClick={() => focusStage(stage.key)}>
+        <span className="cx-investigation-stage-title"><span aria-hidden="true">{index + 1}</span>{stage.label}</span><span id={`${descriptionId}-${stage.key}`} className="sr-only">{stage.detail}</span>
+      </Link> : <span data-stage={stage.key} aria-disabled="true" aria-label={stage.label} aria-describedby={`${descriptionId}-${stage.key}`}><span className="cx-investigation-stage-title"><span aria-hidden="true">{index + 1}</span>{stage.label}</span><span id={`${descriptionId}-${stage.key}`} className="sr-only">{stage.detail}</span></span>}
     </li>)}</ol></nav>
-    <p className="cx-investigation-support-boundary">Evidence sufficiency has not been established. Source coverage does not certify this population. Pins retain their original scopes; analyst conclusions remain notes, separate from validation.</p>
+  return <InvestigationContextBar {...context} validationStatus={status} compact leading={rail}>
+    <div className="cx-investigation-progress" aria-live="polite"><span>{items.length} pinned {items.length === 1 ? 'observation' : 'observations'} · {conclusion ? 'Analyst note exists' : 'Conclusion incomplete'}{unknowns ? ' · Open questions recorded' : ''}</span><span className="cx-investigation-current-detail"><strong>{stages.find(stage => stage.key === current)?.label}:</strong> {stages.find(stage => stage.key === current)?.detail}</span></div>
   </InvestigationContextBar>;
 }
