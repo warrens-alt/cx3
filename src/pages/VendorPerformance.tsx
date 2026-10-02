@@ -9,6 +9,7 @@ import { METRIC_BY_ID, type MetricResult, type ReportResult } from '../../contra
 import { formatReportValue } from '../lib/reportPreflight';
 import { exactMovement, metricValue, pivotReportGroups } from '../lib/evidenceWorkspace';
 import { createEvidenceReport } from '../lib/reportingClient';
+import { getAnalyticalSessionKey } from '../lib/analyticalSession';
 import { useEvidenceWorkspace } from '../lib/useEvidenceWorkspace';
 import { useFilters } from '../lib/FilterContext';
 import EvidenceScopeBar from '../components/operations/EvidenceScopeBar';
@@ -82,7 +83,7 @@ export default function VendorPerformance() {
   const selectedCurrent=rows.find(row=>row.key===selectedVendor), selectedPrevious=previousRows.find(row=>row.key===selectedVendor);
   const sourceVendor=selectedCurrent?.rawGroup;
   const sourceRequest=useMemo(()=>sourceVendor!==undefined&&sourceVendor!==null?{...workspace.request,grouping:'source' as const,filters:{...workspace.request.filters,vendor:[sourceVendor]}}:null,[workspace.request,sourceVendor]);
-  const sourceReport=useQuery<ReportResult>({queryKey:['vendor-source-breakdown',workspace.release?.releaseId,sourceRequest],queryFn:({signal})=>createEvidenceReport(sourceRequest!,workspace.release!.releaseId,signal),enabled:!!sourceRequest&&!!workspace.release&&!workspace.scopeError,retry:false,staleTime:Infinity});
+  const sourceReport=useQuery<ReportResult>({queryKey:['vendor-source-breakdown',getAnalyticalSessionKey(),workspace.release?.releaseId,sourceRequest],queryFn:({signal})=>createEvidenceReport(sourceRequest!,workspace.release!.releaseId,signal),enabled:!!sourceRequest&&!!workspace.release?.execution&&!workspace.scopeError,retry:false,staleTime:Infinity});
   const format=(metric:MetricResult|null|undefined)=>metric?formatReportValue(metric,currency):'Unavailable';
   const total=(id:string)=>metricValue(report,id), previousTotal=(id:string)=>metricValue(previous,id);
 

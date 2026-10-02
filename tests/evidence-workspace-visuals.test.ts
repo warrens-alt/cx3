@@ -78,11 +78,12 @@ test('AI display does not fabricate model identity or successful engine status',
   assert.ok(page.includes("{data?.model || 'Not reported'}"));
   assert.ok(page.includes("askGeminiAnalytics(promptToAsk, queryParams)"));
 });
-test('reports retain the existing query key, endpoint function and unavailable executor boundary', () => {
+test('reports retain the existing query key and endpoint while composing the immutable executor', () => {
   const page = read('src/pages/VersionedReports.tsx');
-  assert.ok(page.includes("['versioned-reports', sessionKey, clientId]"));
-  assert.ok(page.includes('fetchReportingCatalogue(clientId, signal)'));
-  assert.ok(page.includes('501 unavailable'));
+  assert.ok(page.includes("['versioned-reports', sessionKey, clientId, requestedRelease, releases.length]"));
+  assert.ok(page.includes('fetchReportingCatalogue(clientId, signal, requestedRelease)'));
+  assert.ok(page.includes('ReportExecutionWorkspace'));
+  assert.ok(page.includes('does not independently reconcile'));
 });
 test('settings and warehouse keep runtime calls and permission guard intact', () => {
   const reader = read('src/components/warehouse/WarehouseDataPuller.tsx');
