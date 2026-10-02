@@ -24,6 +24,7 @@ import InspectorHost, { type InspectorContent } from '../shared/evidence/Inspect
 import { AuditMetadata } from '../shared/evidence/AuditMode';
 import { suppliedProvenance } from '../features/evidenceWorkspace/secondaryAudit';
 import CommercialEvidenceBridge from '../features/commercial/CommercialEvidenceBridge';
+import { commercialNodeAudit } from '../features/commercial/commercialAudit';
 import CommercialEvidenceMap, { type CommercialEvidenceItem } from '../features/commercial/CommercialEvidenceMap';
 
 export default function CommercialIntelligence() {
@@ -60,7 +61,7 @@ export default function CommercialIntelligence() {
     },
     {
       label: 'Recorded operational revenue',
-      state: baseline.revenue != null ? 'available' : (data.revenueReason ? 'incomplete' : 'unavailable'),
+      state: baseline.revenue != null ? 'available' : 'unavailable',
       detail: baseline.revenue != null ? 'Source-recorded operational value is available; this is not invoice or cash settlement evidence.' : (data.revenueReason || 'Recorded revenue evidence is unavailable for this scope.'),
     },
     {
@@ -102,13 +103,13 @@ export default function CommercialIntelligence() {
             change={item.metric && canCompareMedia && item.available ? item.metric === 'spend' ? data.mediaComparison?.spendDeltaPct : data.mediaComparison?.cplDeltaPct : undefined}
             isPositiveGood={false}
             onWhyChanged={item.metric && canCompareMedia && item.available && Number.isFinite(item.metric === 'spend' ? data.mediaComparison?.spendDeltaPct : data.mediaComparison?.cplDeltaPct) ? () => setRootMetric(item.metric) : undefined}
-            auditContent={{ type: 'metric', title: item.label, value: item.value, scope: auditScope, definition: { meaning: item.note, dateBasis: item.metric ? 'Marketing reporting date' : 'Operational capture cohort / approved matched marketing population', nullMeaning: 'Unavailable financial evidence is not zero and budget is never substituted.' }, provenance: { ...suppliedProvenance(data), ...(item.metric && data.media.spendSourceTable ? { source: data.media.spendSourceTable } : {}) }, ...(item.metric === 'cpl' ? { numeratorCount: baseline.mediaSpend, numeratorLabel: 'Observed media spend', denominatorCount: data.media.platformLeads, denominatorLabel: 'Platform lead events' } : {}), reportPath: item.path, detailLimitation: 'A matching record-level drill is not supplied for this commercial aggregate.' }} />)}
-        </TelemetryRail><CommercialEvidenceBridge data={data} currency={currency} /><details className="cx-evidence-disclosure"><summary>View period comparison and attribution detail</summary><TelemetryRail label="Commercial source values">
+            auditContent={commercialNodeAudit(data, item.metric === 'spend' ? 'spend' : item.metric === 'cpl' ? 'cpl' : item.label === 'Recorded revenue' ? 'cohortRevenue' : item.label === 'Attributed spend / sale' ? 'cps' : 'revenueSpend', auditScope, currency)} />)}
+        </TelemetryRail><CommercialEvidenceBridge data={data} currency={currency} scope={auditScope} onInspect={node => setAudit(commercialNodeAudit(data, node, auditScope, currency))} /><details className="cx-evidence-disclosure"><summary>View period comparison and attribution detail</summary><TelemetryRail label="Commercial source values">
           {metrics.filter((_, index) => index === 0 || index === 2).map(item => <UnifiedMetricCard key={item.label} label={item.label} value={item.value} note={item.note}
             change={item.metric && canCompareMedia && item.available ? data.mediaComparison?.spendDeltaPct : undefined}
             isPositiveGood={false}
             onWhyChanged={item.metric && canCompareMedia && item.available && Number.isFinite(data.mediaComparison?.spendDeltaPct) ? () => setRootMetric(item.metric) : undefined}
-            auditContent={{ type: 'metric', title: item.label, value: item.value, scope: auditScope, definition: { meaning: item.note, dateBasis: item.metric ? 'Marketing reporting date' : 'Operational capture cohort / approved matched marketing population', nullMeaning: 'Unavailable financial evidence is not zero and budget is never substituted.' }, provenance: { ...suppliedProvenance(data), ...(item.metric && data.media.spendSourceTable ? { source: data.media.spendSourceTable } : {}) }, reportPath: item.path, detailLimitation: 'A matching record-level drill is not supplied for this commercial aggregate.' }} />)}
+            auditContent={commercialNodeAudit(data, item.metric === 'spend' ? 'spend' : item.metric === 'cpl' ? 'cpl' : item.label === 'Recorded revenue' ? 'cohortRevenue' : item.label === 'Attributed spend / sale' ? 'cps' : 'revenueSpend', auditScope, currency)} />)}
         </TelemetryRail><section className="cx-command-panel cx-commercial-summary-detail" aria-label="Commercial matched-period changes">
           <header><div><h2>Previous-period comparison</h2><p>{data.attributionComparison?.reason}</p></div></header>
           <div className="cx-commercial-ratios">
@@ -151,7 +152,7 @@ export default function CommercialIntelligence() {
             change={item.metric && canCompareMedia && item.available ? item.metric === 'spend' ? data.mediaComparison?.spendDeltaPct : data.mediaComparison?.cplDeltaPct : undefined}
             isPositiveGood={false}
             onWhyChanged={item.metric && canCompareMedia && item.available && Number.isFinite(item.metric === 'spend' ? data.mediaComparison?.spendDeltaPct : data.mediaComparison?.cplDeltaPct) ? () => setRootMetric(item.metric) : undefined}
-            auditContent={{ type: 'metric', title: item.label, value: item.value, scope: auditScope, definition: { meaning: item.note, dateBasis: item.metric ? 'Marketing reporting date' : 'Operational capture cohort / approved matched marketing population', nullMeaning: 'Unavailable financial evidence is not zero and budget is never substituted.' }, provenance: { ...suppliedProvenance(data), ...(item.metric && data.media.spendSourceTable ? { source: data.media.spendSourceTable } : {}) }, ...(item.metric === 'cpl' ? { numeratorCount: baseline.mediaSpend, numeratorLabel: 'Observed media spend', denominatorCount: data.media.platformLeads, denominatorLabel: 'Platform lead events' } : {}), reportPath: item.path, detailLimitation: 'A matching record-level drill is not supplied for this commercial aggregate.' }} />)}
+            auditContent={commercialNodeAudit(data, item.metric === 'spend' ? 'spend' : item.metric === 'cpl' ? 'cpl' : item.label === 'Recorded revenue' ? 'cohortRevenue' : item.label === 'Attributed spend / sale' ? 'cps' : 'revenueSpend', auditScope, currency)} />)}
         </TelemetryRail>        <div className="cx-command-grid cx-commercial-grid">
           <section className="cx-command-panel"><header><div><span className="cx-command-section-kicker">Media efficiency</span><h2>Observed cost metrics</h2><p>Platform costs use marketing denominators. Funnel costs require approved matching keys. {economics?.reason}</p></div></header><div className="cx-commercial-ratios">
             {[

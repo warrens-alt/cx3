@@ -147,6 +147,10 @@
 .cx-commercial-lineage>.cx-attribution-boundary>div{width:100%;padding:10px 6px;background:var(--cx-surface);border-radius:6px}
 .cx-commercial-lineage>.cx-attribution-boundary small{font-size:10px}
 .cx-commercial-lineage+.cx-commercial-missing-inputs{padding:0 0 12px}
+.cx-sales-audit-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.cx-sales-audit-actions button>span{font-weight:400;color:var(--cx-text-secondary)}
+.cx-commercial-lineage .cx-audit-evidence-control{margin-top:12px}
+.cx-commercial-missing-inputs .cx-audit-evidence-control{margin-top:8px}
 @media(max-width:900px){
  .cx-commercial-lineage{grid-template-columns:minmax(0,1fr);gap:18px;padding-top:0}
  .cx-commercial-lineage>article,.cx-commercial-lineage>.cx-attribution-boundary{grid-column:1;grid-row:auto}

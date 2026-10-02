@@ -27,6 +27,7 @@ export default function SalesOutcomeSummary({ model, onInspect, contextOnly = fa
       <span className="cx-sales-telemetry-label"><item.Icon size={15} aria-hidden="true" style={{ color: item.color }} />{item.key === 'sales' ? 'Recorded sales' : item.key === 'activations' ? 'Recorded activations' : item.label}</span>
       <button type="button" className="cx-metric-primary" onClick={() => onInspect(item.key)} aria-label={`Inspect ${item.key === 'revenue' ? 'recorded revenue' : item.key === 'unactivated' ? 'unactivated sales' : item.key === 'sales' ? 'recorded sales' : 'recorded activations'}`}><strong>{item.value}</strong></button>
       <small>{item.note}</small>
+      <button type="button" className="cx-audit-evidence-control" onClick={() => onInspect(item.key)} aria-label={`Audit evidence: ${item.label}`}>Audit evidence</button>
     </article>)}
     {contextOnly && <>
       <article className="cx-command-metric"><span className="cx-sales-telemetry-label">Median time to sale</span><strong className="cx-metric-primary">{model.timing.medianTimeToSale}</strong><small>Recorded timing evidence</small></article>

@@ -28,6 +28,7 @@ import ActivationAgeing from './components/ActivationAgeing';
 import SalesSegmentComparison from './components/SalesSegmentComparison';
 import SalesTimingAndCoverage from './components/SalesTimingAndCoverage';
 import BlcReportingPanel from './components/BlcReportingPanel';
+import { salesVisualAudit } from '../evidenceWorkspace/metricVisualAudit';
 
 export default function SalesActivationPage() {
   const {
@@ -150,6 +151,7 @@ export default function SalesActivationPage() {
             <SalesOutcomeMap
               model={model}
               onInspect={handleInspectSummaryMetric}
+              onInspectActivationRatio={() => handleInspectSummaryMetric('activationRatio')}
             />
 
             {/* 3. Unified Activation Ageing Region */}
@@ -238,7 +240,7 @@ export default function SalesActivationPage() {
       <InspectorHost
         open={Boolean(inspectorContent)}
         onClose={() => setInspectorContent(null)}
-        content={salesAudit(inspectorContent, rawData)}
+        content={salesVisualAudit(salesAudit(inspectorContent, rawData), rawData)}
       />
     </AnalyticsPageLayout>
   );

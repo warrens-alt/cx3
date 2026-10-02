@@ -10,9 +10,10 @@ import { lifecyclePresentation } from '../../../shared/visuals/lifecyclePresenta
 interface SalesOutcomeMapProps {
   model: AdaptedSalesActivation;
   onInspect: (metric: 'sales' | 'activations' | 'unactivated' | 'revenue') => void;
+  onInspectActivationRatio?: () => void;
 }
 
-export default function SalesOutcomeMap({ model, onInspect }: SalesOutcomeMapProps) {
+export default function SalesOutcomeMap({ model, onInspect, onInspectActivationRatio }: SalesOutcomeMapProps) {
   const { summary } = model;
   return <ChartFrame title="What is recorded after sale" subtitle="Independent populations · select to inspect" className="cx-sales-evidence-map cx-analytical-canvas" scope={<ReportingScopeSummary />} footer={<details className="cx-chart-methodology"><summary>Outcome methodology</summary><p>This view does not imply that every population is a nested transition. Recorded sales, activations, and revenue evidence remain independently observed populations within the selected intake cohort.</p></details>}>
     <OutcomeBranchMap
@@ -24,5 +25,9 @@ export default function SalesOutcomeMap({ model, onInspect }: SalesOutcomeMapPro
       ]}
       onSelect={key => onInspect(key as Parameters<typeof onInspect>[0])}
     />
+    <div className="cx-sales-audit-actions" aria-label="Outcome audit evidence">
+      {(['sales', 'activations', 'unactivated', 'revenue'] as const).map(key => <button key={key} type="button" className="cx-audit-evidence-control" onClick={() => onInspect(key)} aria-label={`Audit evidence: ${key === 'sales' ? 'Recorded sales' : key === 'activations' ? 'Recorded activations' : key === 'unactivated' ? 'Sales without recorded activation' : 'Source-recorded revenue'}`}>Audit evidence <span>· {key === 'sales' ? 'Sales' : key === 'activations' ? 'Activations' : key === 'unactivated' ? 'Awaiting activation' : 'Revenue'}</span></button>)}
+      {onInspectActivationRatio && <button type="button" className="cx-audit-evidence-control" onClick={onInspectActivationRatio} aria-label="Audit evidence: Activations / recorded sales">Audit evidence <span>· Activation / sale ratio</span></button>}
+    </div>
   </ChartFrame>;
 }

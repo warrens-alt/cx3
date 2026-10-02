@@ -80,10 +80,13 @@ export function useSalesActivationModel() {
     }
   };
 
-  const handleInspectSummaryMetric = (metricKey: 'sales' | 'activations' | 'unactivated' | 'revenue') => {
+  const handleInspectSummaryMetric = (metricKey: 'sales' | 'activations' | 'activationRatio' | 'unactivated' | 'revenue') => {
     if (!model) return;
 
     switch (metricKey) {
+      case 'activationRatio':
+        setInspectorContent({ type: 'metric', metricId: 'activation_rate', title: 'Activations / recorded sales', value: model.summary.activationRatio === null ? '—' : `${model.summary.activationRatio.toFixed(1)}%`, numeratorCount: model.summary.totalActivations, numeratorLabel: 'Recorded activations', denominatorCount: model.summary.totalSales, denominatorLabel: 'Recorded sales', definition: { meaning: 'Independent recorded activation population divided by the recorded sale population in the selected intake cohort.', calculation: 'Recorded activations / recorded sales × 100', limitations: ['This is an independent-count ratio, not a conditional sale-to-activation transition.'] }, scope: { clientId: selectedClient, startDate: startDate || undefined, endDate: endDate || undefined, filters }, reportPath: '/sales-activation', detailLimitation: 'No linked record population is inferred from this ratio. Use each outcome count to inspect its existing stage population.' });
+        break;
       case 'sales':
         setInspectorContent({
           type: 'metric',
