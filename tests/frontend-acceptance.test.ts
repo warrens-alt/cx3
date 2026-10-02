@@ -56,7 +56,7 @@ test('navigation uses destination scope policies and preserves repeated workspac
 });
 
 test('quick navigation opens Lead Ledger by keyboard and retains reporting scope',async()=>{
-  const app=await mount('/lead-explorer'+scope+'&workspace=alpha&workspace=beta&drill=old&search=old');try{
+  const app=await mount('/lead-explorer'+scope+'&workspace=alpha&workspace=beta&drill=awaiting-first-dial&search=old');try{
     await app.click('button','Find a page');
     await app.wait(()=>app.find('input','Search pages and navigation'));
     const input=app.find('input','Search pages and navigation');
@@ -70,7 +70,7 @@ test('quick navigation opens Lead Ledger by keyboard and retains reporting scope
     assert.equal(params.get('startDate'),'2026-09-28');
     assert.equal(params.get('endDate'),'2026-09-28');
     assert.deepEqual(params.getAll('workspace'),['alpha','beta']);
-    assert.equal(params.get('drill'),null);
+    assert.equal(params.get('drill'),'awaiting-first-dial');
     assert.equal(params.get('search'),null);
   }finally{app.close();}
 });
@@ -211,17 +211,17 @@ test('consumer and agent inspection remain available without unrelated decomposi
 
 test('root-cause contribution region preserves record links, scope and keyboard focus',async()=>{
   const app=await mount('/__fixture/root-cause'+scope);try{
-    await app.wait(()=>app.find('[aria-label="Vendor contribution evidence"]'));
-    const region=app.find('[aria-label="Vendor contribution evidence"]');
+    await app.wait(()=>app.find('[aria-label="Vendor exact breakdown"]'));
+    const region=app.find('[aria-label="Vendor exact breakdown"]');
     assert.equal(region.getAttribute('tabindex'),'0');
     region.focus();assert.equal(app.w.document.activeElement===region,true);
-    assert.match(region.textContent,/Contribution.*20 leads/);
-    assert.match(app.text(),/Explaining metric: Fetched leads.*fetchedLeads/);
-    assert.match(app.text(),/Returned contribution breakdown/);
+    assert.match(region.textContent,/Descriptive contribution.*20 leads/);
+    assert.match(app.text(),/Fetched leads/);
+    assert.match(app.text(),/matched periods do not establish a cause/);
     assert.doesNotMatch(app.text(),/Returned residual|fully explained/i);
     const link=region.querySelector('a');assert.ok(link);
     const target=new URL(link.href);
-    assert.equal(target.searchParams.get('vendor'),'Synthetic vendor with a long descriptive name');
+    assert.equal(target.searchParams.get('segmentVendor'),'Synthetic vendor with a long descriptive name');
     assert.equal(target.searchParams.get('startDate'),'2026-09-28');
   }finally{app.close();}
 });
@@ -290,26 +290,26 @@ test('explorer distinguishes absent outcomes from explicit false',async()=>{
     await app.wait(()=>app.text().includes('SYNTHETIC-LEAD-0001'));
     const rows=[...app.w.document.querySelectorAll('tbody tr')] as any[];
     assert.match(rows[0].textContent,/Unavailable/);
-    assert.match(rows[1].textContent,/No/);
+    assert.match(rows[1].textContent,/Not recorded/);
   }finally{app.close();}
 });
 
-test('Explorer scope round trips clear the open timeline and reset its page',async()=>{
+test('Explorer scope round trips clear the open dossier and reset its page',async()=>{
   const app=await mount('/lead-explorer'+scope);try{
     await app.wait(()=>app.text().includes('SYNTHETIC-LEAD-0001'));
     await app.click('button','Next');
     await app.wait(()=>app.text().includes('SYNTHETIC-LEAD-0051'));
-    await app.click('button[title="Open lead timeline"]');
-    await app.wait(()=>app.find('[role="dialog"]'));
+    await app.click('button[aria-label="Open dossier for lead SYNTHETIC-LEAD-0051"]');
+    await app.wait(()=>app.find('.cx-lead-dossier'));
     app.w.__fixture.navigate('/lead-explorer?clientId=synthetic-a&startDate=2026-09-27&endDate=2026-09-28');
-    await app.wait(()=>!app.find('[role="dialog"]'));
+    await app.wait(()=>!app.find('.cx-lead-dossier'));
     await app.wait(()=>app.w.__fixture.requests.some((r:string)=>r.includes('raw-leads')&&r.includes('startDate=2026-09-27')));
     assert.ok(app.w.__fixture.requests.filter((r:string)=>r.includes('raw-leads')&&r.includes('startDate=2026-09-27')).every((r:string)=>r.includes('offset=0')));
     assert.equal(app.w.__fixture.requests.some((r:string)=>r.includes('lead-timeline')&&r.includes('startDate=2026-09-27')),false);
     app.w.__fixture.navigate('/lead-explorer'+scope);
     await app.wait(()=>app.w.__fixture.location==='/lead-explorer'+scope);
     await new Promise(r=>setTimeout(r,70));
-    assert.equal(Boolean(app.find('[role="dialog"]')),false);
+    assert.equal(Boolean(app.find('.cx-lead-dossier')),false);
     await app.wait(()=>app.text().includes('SYNTHETIC-LEAD-0001'));
     assert.equal(app.find('button','Previous').disabled,true);
   }finally{app.close();}

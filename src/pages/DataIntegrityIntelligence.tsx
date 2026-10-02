@@ -1,3 +1,4 @@
+import InvestigationContextBar from '../features/investigation/InvestigationContextBar';
 import { ReportSkeleton } from '../components/OperationalState';
 import { ReportActions } from '../shared/reporting/ReportPresentation';
 import { useOperationalData } from '../lib/useOperationalData';
@@ -58,7 +59,7 @@ export default function DataIntegrityIntelligence() {
       <div className="cx-command-content">
         <header className="cx-command-hero flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1>Data integrity</h1>
+            <h1>Data confidence</h1>
             <p>See which measured discrepancies and source limitations need investigation.</p>
           </div>
           <div>

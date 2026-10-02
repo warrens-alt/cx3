@@ -5,12 +5,14 @@ import type { ExceptionPopulation } from '../../../../contracts/exceptionAnalyti
 import { formatTableNumber, formatPercent } from '../../../lib/formatters';
 import EvidenceBars, { evidenceBarWidth } from '../../../shared/visuals/EvidenceBars';
 
-export default function ExceptionWorkbench({ items, evidenceHref, isAdmin, populationNote, onInspect }: {
+export default function ExceptionWorkbench({ items, evidenceHref, isAdmin, populationNote, onInspect, onInvestigate, activeId }: {
   items: ExceptionPopulation[];
   evidenceHref: (id: string) => To;
   isAdmin: boolean;
   populationNote?: string;
   onInspect?: (item: ExceptionPopulation) => void;
+  onInvestigate?: (item: ExceptionPopulation) => void;
+  activeId?: string;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -19,7 +21,7 @@ export default function ExceptionWorkbench({ items, evidenceHref, isAdmin, popul
     const filtered = items.filter(item => `${item.title} ${item.severity}`.toLowerCase().includes(search.trim().toLowerCase()));
     return order === 'count' ? [...filtered].sort((a, b) => b.count - a.count) : filtered;
   }, [items, search, order]);
-  const selected = visible.find(item => item.id === selectedId) || visible[0];
+  const selected = visible.find(item => item.id === (selectedId || activeId)) || visible[0];
   const maximum = Math.max(0, ...items.map(item => item.count));
   return <section id="exception-workbench" className="cx-trust-panel cx-exception-workbench" aria-labelledby="exception-workbench-title">
     <header className="cx-trust-heading"><div><h2 id="exception-workbench-title">Choose an exception. Follow the evidence.</h2>
@@ -42,6 +44,7 @@ export default function ExceptionWorkbench({ items, evidenceHref, isAdmin, popul
       <div className="cx-exception-selected" aria-label="Selected exception evidence" aria-live="polite">
         {selected ? <><header className="cx-trust-heading"><div><span className="cx-trust-meta">Selected exception</span><h3>{selected.title}</h3></div>
           {onInspect ? <button type="button" className="cx-button-secondary" onClick={() => onInspect(selected)}>Inspect evidence</button> : <Link to={evidenceHref(selected.id)} className="cx-trust-link">{isAdmin ? 'Inspect records' : 'Open data integrity'}<ArrowUpRight size={14} aria-hidden="true" /></Link>}</header>
+          {onInvestigate && <button type="button" className="cx-button-primary" onClick={() => onInvestigate(selected)}>Start investigation<ArrowUpRight size={14} aria-hidden="true" /></button>}
           <p>{selected.detail}</p>
           <dl className="cx-exception-periods"><div><dt>Current cohort</dt><dd>{formatTableNumber(selected.count)}</dd></div><div><dt>Previous cohort</dt><dd>{formatTableNumber(selected.previousCount)}</dd></div>
             <div><dt>Count change</dt><dd>{selected.absoluteChange == null ? 'Unavailable' : `${selected.absoluteChange > 0 ? '+' : ''}${formatTableNumber(selected.absoluteChange)}`}</dd></div>

@@ -1,3 +1,4 @@
+import { investigationLabel } from '../src/features/investigation/investigationModel';
 import { navigationTarget } from '../src/lib/presentation';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -148,16 +149,24 @@ test('shared dialogs trap focus, restore focus and lock background scrolling', (
   assert.match(hook, /previousFocus\.focus/);
 });
 
-test('root-cause and lead timeline dialogs use shared accessibility behavior', () => {
+test('remaining analysis dialogs use shared accessibility and Explorer uses a focusable dossier', () => {
   for (const path of [
     'src/components/RootCauseDrawer.tsx',
     'src/components/MarketingRootCauseDrawer.tsx',
-    'src/pages/LeadExplorerIntelligence.tsx',
   ]) {
     const source = read(path);
     assert.match(source, /useDialogAccessibility/);
     assert.match(source, /aria-modal="true"/);
   }
+  const explorer = read('src/pages/LeadExplorerIntelligence.tsx');
+  const dossier = read('src/features/investigation/LeadDossier.tsx');
+  assert.match(explorer, /<LeadDossier/);
+  assert.match(explorer, /requestAnimationFrame/);
+  assert.match(explorer, /getClientRects/);
+  assert.match(dossier, /<aside[^>]*tabIndex=\{-1\}/);
+  assert.match(dossier, /role="tablist"/);
+  assert.match(dossier, /aria-controls/);
+  assert.doesNotMatch(dossier, /aria-modal="true"/);
 });
 
 test('legacy lead timeline request carries the selected workspace scope', () => {
@@ -214,7 +223,7 @@ test('mobile and in-page operational navigation preserve reporting scope', () =>
   assert.match(mobile, /navigationTarget\('\/overview', location\.pathname, location\.search\)/);
   assert.match(mobile, /navigationTarget\('\/funnel', location\.pathname, location\.search\)/);
   assert.match(mobile, /navigationTarget\('\/contact-strategy', location\.pathname, location\.search\)/);
-  assert.match(mobile, /navigationTarget\('\/exceptions', location\.pathname, location\.search\)/);
+  assert.match(mobile, /navigationTarget\('\/investigate', location\.pathname, location\.search\)/);
 
   for (const path of [
     'src/pages/ExecutiveOverview.tsx',
@@ -301,10 +310,11 @@ test('contact strategy exposes observed effort controls without prescriptive red
   assert.match(page, /descriptive, not a recommended stop-threshold model/);
 });
 
-test('Explore labels OfferNet contact-governance drill populations', () => {
+test('Explore uses shared labels for OfferNet contact-governance drill populations', () => {
   const explorer = read('src/pages/LeadExplorerIntelligence.tsx');
-  assert.match(explorer, /'high-attempt-no-rpc': '5\+ recorded calls without RPC'/);
-  assert.match(explorer, /'one-call-only': 'Exactly one recorded call'/);
+  assert.match(explorer, /investigationLabel\(params\)/);
+  assert.equal(investigationLabel(new URLSearchParams({ drill: 'high-attempt-no-rpc' })), '5+ calls without RPC');
+  assert.equal(investigationLabel(new URLSearchParams({ drill: 'one-call-only' })), 'One-call-only leads');
 });
 
 test('funnel source and grade views show delivery-to-sale progression', () => {
@@ -700,7 +710,8 @@ test('R2 closeout: useOverviewModel invalidates inspectorContent on date/filter 
 });
 
 test('R2 closeout: InspectorHost binds content.scope to search query params', async () => {
-  const { buildScopeSearch } = await import('../src/shared/evidence/InspectorHost');
+  const { buildScopeSearch } = await import('../src/shared/evidence/auditPresentation');
+  assert.match(read('src/shared/evidence/InspectorHost.tsx'), /export \{ buildScopeSearch \} from '\.\/auditPresentation'/);
   const search = buildScopeSearch({
     clientId: 'tenant-a',
     startDate: '2026-09-01',
@@ -713,10 +724,12 @@ test('R2 closeout: InspectorHost binds content.scope to search query params', as
   assert.match(search, /vendor=CallForce/);
 });
 
-test('R2 closeout: LeadExplorerIntelligence supports lifecycle-segment drill and displays formatted investigation label', () => {
+test('Explorer supports lifecycle-segment drill values through the shared investigation label contract', () => {
   const explorer = read('src/pages/LeadExplorerIntelligence.tsx');
-  assert.match(explorer, /'lifecycle-segment':\s*'Lifecycle segment population'/);
-  assert.match(explorer, /Lifecycle segment \(\$\{dimLabel\}\):\s*\$\{val\}/);
+  assert.match(explorer, /drillValue: drillValue \|\| undefined/);
+  assert.match(explorer, /investigationLabel\(params\)/);
+  assert.equal(investigationLabel(new URLSearchParams({ drill: 'lifecycle-segment', drillValue: 'vendor:BLC' })), 'Lifecycle segment · vendor:BLC');
+  assert.equal(investigationLabel(new URLSearchParams({ drill: 'lifecycle-segment', drillValue: 'source:Paid:Social' })), 'Lifecycle segment · source:Paid:Social');
 });
 
 test('R2 targeted fixes: InspectorHost binds dialogRef to useDialogAccessibility with dialog semantics and backdrop dismiss', () => {

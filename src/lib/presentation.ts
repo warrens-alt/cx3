@@ -1,4 +1,4 @@
-import { buildPreservedDestination, UNIVERSAL_SCOPE_PARAMS, SETTINGS_SCOPE_PARAMS, RELEASE_SCOPE_PARAMS } from '../app/navigation/ScopePreservingRedirect';
+import { buildPreservedDestination, UNIVERSAL_SCOPE_PARAMS, SETTINGS_SCOPE_PARAMS, RELEASE_SCOPE_PARAMS, INVESTIGATION_PATHS, INVESTIGATION_SCOPE_PARAMS } from '../app/navigation/ScopePreservingRedirect';
 export type TableDensity = 'comfortable' | 'compact';
 export const DENSITY_KEY = 'cx.presentation.density.v1';
 export function safeDensity(value: unknown): TableDensity { return value === 'compact' ? 'compact' : 'comfortable'; }
@@ -28,7 +28,9 @@ export function navigationTarget(target: string, currentPath: string, search: st
   const targetIsRelease = targetPath === '/reports' || targetPath === '/vendors';
   const allowed = sourceIsRelease && !targetIsRelease ? SETTINGS_SCOPE_PARAMS
     : sourceIsRelease && targetIsRelease ? RELEASE_SCOPE_PARAMS
-    : UNIVERSAL_SCOPE_PARAMS;
+    : INVESTIGATION_PATHS.has(currentPath) && INVESTIGATION_PATHS.has(targetPath)
+      ? new Set([...UNIVERSAL_SCOPE_PARAMS, ...INVESTIGATION_SCOPE_PARAMS])
+      : UNIVERSAL_SCOPE_PARAMS;
   // Keep repeated scope parameters intact; only explicit destination parameters replace them.
   const scope = new URLSearchParams();
   for (const [key, value] of current) if (allowed.has(key)) scope.append(key, value);

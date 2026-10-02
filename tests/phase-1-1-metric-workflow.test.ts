@@ -10,7 +10,7 @@ import { getBigQueryClient } from '../server/bigquery/client';
 import { getClientConfig } from '../server/bigquery/config';
 import { configuredSourceTable } from '../server/analytics/common/warehouse';
 import { AUTHORITATIVE_METRICS, METRIC_REGISTRY_VERSION } from '../contracts/metricRegistry';
-import { buildLeadEvidenceExport, scopedAnalysisRows, serializeCsv, LEAD_EVIDENCE_COLUMNS, LEAD_EVIDENCE_AUDIT_COLUMNS } from '../src/lib/analysisExport';
+import { buildLeadEvidenceExport, scopedAnalysisRows, serializeCsv, LEAD_EVIDENCE_COLUMNS, LEAD_EVIDENCE_AUDIT_COLUMNS, INVESTIGATION_NARROWING_AUDIT_COLUMNS } from '../src/lib/analysisExport';
 import { apiErrorHandler } from '../server/apiErrors';
 
 function createTestApiApp(role = 'admin', tenant = 'default_tenant', denyAuth = false) {
@@ -1133,7 +1133,7 @@ test('Phase 1.1: Deterministic 55-lead case with pagination, tie-breaks, out-of-
   assert.equal(exportFetchedP2.populationStatus, 'PARTIAL');
   assert.equal(exportFetchedP2.isTruncated, true);
   assert.equal(exportFetchedP2.exportScopeLabel, 'CURRENT PAGE (PARTIAL POPULATION)');
-  assert.ok(exportFetchedP2.rows[1][exportFetchedP2.rows[1].length - 14].toString().includes('Current page 2 (5 records of 55 in scope)'));
+  assert.ok(exportFetchedP2.rows[1][exportFetchedP2.headers.indexOf('Metric definitions')].toString().includes('Current page 2 (5 records of 55 in scope)'));
 
   // First partial-page export: Fetched Page 1 (50 records of 55)
   const exportFetchedP1 = buildLeadEvidenceExport(fetchedP1, {
@@ -1399,9 +1399,9 @@ test('Phase 1.1: Complete HTTP -> Frontend Adapter -> Download Path with byte-le
 
     // Parse actual CSV bytes
     const parsedCsv = parseCsvBytes(csvBytes);
-    assert.equal(parsedCsv.headers.length, 37, 'Must contain 15 data headers + 22 audit headers');
-    assert.deepEqual(parsedCsv.headers.slice(0, 15), [...LEAD_EVIDENCE_COLUMNS]);
-    assert.deepEqual(parsedCsv.headers.slice(15), [...LEAD_EVIDENCE_AUDIT_COLUMNS]);
+    assert.equal(parsedCsv.headers.length, LEAD_EVIDENCE_COLUMNS.length + LEAD_EVIDENCE_AUDIT_COLUMNS.length + INVESTIGATION_NARROWING_AUDIT_COLUMNS.length, 'Must contain record, inclusion and full scope audit headers');
+    assert.deepEqual(parsedCsv.headers.slice(0, LEAD_EVIDENCE_COLUMNS.length), [...LEAD_EVIDENCE_COLUMNS]);
+    assert.deepEqual(parsedCsv.headers.slice(LEAD_EVIDENCE_COLUMNS.length), [...LEAD_EVIDENCE_AUDIT_COLUMNS, ...INVESTIGATION_NARROWING_AUDIT_COLUMNS]);
     assert.equal(parsedCsv.rows.length, 3, 'Must contain exactly 3 data rows');
 
     // Exact lead IDs and deterministic order
@@ -1410,19 +1410,19 @@ test('Phase 1.1: Complete HTTP -> Frontend Adapter -> Download Path with byte-le
     assert.equal(parsedCsv.rows[2][0], 'lead-08');
 
     // Audit fields in row 0
-    assert.equal(parsedCsv.rows[0][15], 'default_tenant', 'Scope client');
-    assert.equal(parsedCsv.rows[0][16], '2026-09-01', 'Period start');
-    assert.equal(parsedCsv.rows[0][17], '2026-09-15', 'Period end');
-    assert.ok(parsedCsv.rows[0][18].includes('"vendor":{"operator":"equals","value":"V1"}'), 'Applied filters vendor');
-    assert.ok(parsedCsv.rows[0][18].includes('"source":{"operator":"equals","value":"Affiliate"}'), 'Applied filters source');
-    assert.equal(parsedCsv.rows[0][20], 'funnel-stage=delivered', 'Investigation predicate');
-    assert.equal(parsedCsv.rows[0][21], 'Africa/Johannesburg', 'Reporting timezone');
-    assert.equal(parsedCsv.rows[0][22], 'intake_cohort', 'Date basis');
-    assert.equal(parsedCsv.rows[0][24], 'delivered_leads', 'Canonical metric');
-    assert.equal(parsedCsv.rows[0][25], METRIC_REGISTRY_VERSION, 'Definition version');
-    assert.equal(parsedCsv.rows[0][26], 'lead', 'Counting grain');
-    assert.equal(parsedCsv.rows[0][27], '3', 'Population total');
-    assert.equal(parsedCsv.rows[0][32], 'COMPLETE', 'Population status');
+    assert.equal(parsedCsv.rows[0][parsedCsv.headers.indexOf('Scope client')], 'default_tenant', 'Scope client');
+    assert.equal(parsedCsv.rows[0][parsedCsv.headers.indexOf('Period start')], '2026-09-01', 'Period start');
+    assert.equal(parsedCsv.rows[0][parsedCsv.headers.indexOf('Period end')], '2026-09-15', 'Period end');
+    assert.ok(parsedCsv.rows[0][parsedCsv.headers.indexOf('Filters')].includes('"vendor":{"operator":"equals","value":"V1"}'), 'Applied filters vendor');
+    assert.ok(parsedCsv.rows[0][parsedCsv.headers.indexOf('Filters')].includes('"source":{"operator":"equals","value":"Affiliate"}'), 'Applied filters source');
+    assert.equal(parsedCsv.rows[0][parsedCsv.headers.indexOf('Investigation predicate')], 'funnel-stage=delivered', 'Investigation predicate');
+    assert.equal(parsedCsv.rows[0][parsedCsv.headers.indexOf('Reporting timezone')], 'Africa/Johannesburg', 'Reporting timezone');
+    assert.equal(parsedCsv.rows[0][parsedCsv.headers.indexOf('Date basis')], 'intake_cohort', 'Date basis');
+    assert.equal(parsedCsv.rows[0][parsedCsv.headers.indexOf('Canonical metric')], 'delivered_leads', 'Canonical metric');
+    assert.equal(parsedCsv.rows[0][parsedCsv.headers.indexOf('Definition version')], METRIC_REGISTRY_VERSION, 'Definition version');
+    assert.equal(parsedCsv.rows[0][parsedCsv.headers.indexOf('Counting grain')], 'lead', 'Counting grain');
+    assert.equal(parsedCsv.rows[0][parsedCsv.headers.indexOf('Population total')], '3', 'Population total');
+    assert.equal(parsedCsv.rows[0][parsedCsv.headers.indexOf('Population status')], 'COMPLETE', 'Population status');
 
     // 2. Equivalent encoded filters produce identical effective scope
     recordedQueries.length = 0;

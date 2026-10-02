@@ -69,6 +69,7 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
     return false;
   };
 
+  const moreLabel = activeArea.id === 'investigate' ? 'Evidence & Audit' : 'More analyses';
   const isMoreViewActive = moreViews.some(v => isCurrent(v.path));
 
   return (
@@ -106,7 +107,7 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
               data-current-section={isMoreViewActive || undefined}
               className="cx-area-more-trigger inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer"
             >
-              <span>More analyses</span>
+              <span>{moreLabel}</span>
               <ChevronDown size={13} aria-hidden="true" className={`transition-transform duration-150 ${moreOpen ? 'rotate-180' : ''}`} />
             </button>
 
@@ -115,9 +116,9 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
                 id="area-more-menu"
                 className="cx-area-more-menu absolute right-0 mt-1.5 rounded-lg shadow-sm bg-surface border border-border py-1.5 z-50 text-xs"
                 role="group"
-                aria-label="More analyses"
+                aria-label={moreLabel}
               >
-                <p className="cx-area-more-heading">More {activeArea.name} analysis</p>
+                <p className="cx-area-more-heading">{activeArea.id === 'investigate' ? moreLabel : `More ${activeArea.name} analysis`}</p>
                 {moreViews.map(view => {
                   const active = isCurrent(view.path);
                   return (

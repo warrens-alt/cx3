@@ -145,6 +145,7 @@ export default function AppRouter() {
           <Route path="/warehouse-analytics" element={<WarehouseAnalytics key={selectedClient} />} />
           <Route path="/reports" element={<VersionedReports key={selectedClient} />} />
           <Route path="/vendors" element={<VendorPerformance key={selectedClient} />} />
+          <Route path="/investigate" element={<Exceptions key={selectedClient} />} />
           <Route path="/exceptions" element={<Exceptions key={selectedClient} />} />
           <Route path="/reconciliation" element={<CommercialReconciliation key={selectedClient} />} />
           <Route path="/vetting" element={<Vetting key={selectedClient} />} />

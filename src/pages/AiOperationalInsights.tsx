@@ -1,3 +1,7 @@
+import { useSearchParams } from 'react-router-dom';
+import InvestigationAI from '../features/investigation/InvestigationAI';
+import { investigationRequest, matchesInvestigationResponse } from '../features/investigation/investigationModel';
+import InvestigationContextBar from '../features/investigation/InvestigationContextBar';
 import { ReportActions } from '../shared/reporting/ReportPresentation';
 import React, { useState, useRef, useEffect } from 'react';
 import { useOperationalData } from '../lib/useOperationalData';
@@ -38,22 +42,31 @@ export default function AiOperationalInsights() {
   const { selectedClient, clientConfig } = useClient();
   const { startDate, endDate, filters } = useFilters();
 
+  const [investigationParams] = useSearchParams();
+  const investigationScope = investigationRequest(investigationParams);
+  const activeInvestigation = Object.keys(investigationScope).length > 0 || investigationParams.has('investigationMetric') || investigationParams.has('search');
   const queryParams = {
     clientId: selectedClient,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
     ...extractOffernetFilters(filters),
+    ...investigationScope,
+    metric: investigationParams.get('investigationMetric') || undefined,
+    ...(activeInvestigation ? { question: 'Summarise the supplied evidence for this investigation.', search: investigationParams.get('search') || undefined } : {}),
   };
 
-  const { data, loading, error, loadData } = useOperationalData<AiInsightsData>(
+  const { data: responseData, loading, error: responseError, loadData } = useOperationalData<AiInsightsData>(
     'AiOperationalInsights',
     queryParams,
     fetchAiInsights
   );
+  const scopeMismatch = activeInvestigation && responseData && !matchesInvestigationResponse(responseData, queryParams);
+  const data = scopeMismatch ? null : responseData;
+  const error = scopeMismatch ? 'The response did not confirm this investigation scope. No broader synthesis is shown.' : responseError;
 
   const [question, setQuestion] = useState('');
   const [asking, setAsking] = useState(false);
-  const resultScope = JSON.stringify([selectedClient, startDate, endDate, filters]);
+  const resultScope = JSON.stringify(queryParams);
   const requestVersion = useRef(0);
   const currentResultScope = useRef(resultScope);
   currentResultScope.current = resultScope;
@@ -97,6 +110,7 @@ export default function AiOperationalInsights() {
         <header className="cx-command-hero"><div><span className="cx-command-eyebrow">Operational analysis</span><h1>AI insights & evidence</h1><p>Review the returned briefing, explore its findings and inspect supplied metric references before acting.</p></div><Cpu size={24} aria-hidden="true" />          <ReportActions />
 </header>
       <OffernetFilterBar onRefresh={() => loadData(true)} />
+        <InvestigationContextBar validationStatus={data?.validationStatus} />
         <dl className="cx-ai-provenance" aria-label="Briefing provenance"><div><dt>Source</dt><dd>{data?.source || 'Not reported'}</dd></div><div><dt>Reported model</dt><dd>{data?.model || 'Not reported'}</dd></div><div><dt>Response status</dt><dd>{data?.status || 'Not reported'}</dd></div><div><dt>Validation</dt><dd>{data?.validationStatus || 'NOT_VERIFIED'}</dd></div></dl>
         {data && <nav className="cx-admin-section-nav" aria-label="AI insight sections"><a href="#ai-briefing">Briefing</a><a href="#ai-findings">Findings & evidence</a><a href="#ai-question">Ask a question</a></nav>}
 
@@ -184,10 +198,10 @@ export default function AiOperationalInsights() {
               </div>
             </section>
 
-            <InsightWorkbench key={JSON.stringify([selectedClient, startDate, endDate, filters])} insights={data.insights} severity={severityFilter} onSeverity={setSeverityFilter} />
+            <InsightWorkbench key={JSON.stringify([selectedClient, startDate, endDate, filters, investigationScope])} insights={data.insights} severity={severityFilter} onSeverity={setSeverityFilter} />
 
             {/* Interactive "Ask Gemini Analytics" Section */}
-            <section id="ai-question" className="cx-ai-question enterprise-card p-6 space-y-4 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+            {activeInvestigation ? <InvestigationAI /> : <section id="ai-question" className="cx-ai-question enterprise-card p-6 space-y-4 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
               <div className="flex items-center gap-2">
                 <MessageSquare size={17} className="text-blue-600 dark:text-blue-400" />
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
@@ -291,7 +305,7 @@ export default function AiOperationalInsights() {
                   )}
                 </div>
               )}
-            </section>
+            </section>}
 
           </>
         ) : null}

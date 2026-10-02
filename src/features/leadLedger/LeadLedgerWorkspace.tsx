@@ -1,14 +1,16 @@
 import React, { lazy, Suspense, useEffect, useId, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useClient } from '../../lib/ClientContext';
 import { defaultDateRange, useFilters } from '../../lib/FilterContext';
 import { OffernetFilterBar } from '../../components/OffernetFilterBar';
 import { type LedgerCell, type LedgerCoverage, type LedgerLead, type LedgerReplicaReport } from '../../../contracts/leadLedgerReplica';
 import { ReportActions } from '../../shared/reporting/ReportPresentation';
 import { receiveLedgerCsv } from './download';
-import { LEDGER_RAW_FIELD_GROUPS } from './fieldGroups';
+import LeadEvidence from './LeadSourceEvidence';
 import EvidenceExportPreflight, { returnedEvidenceFields } from './EvidenceExportPreflight';
+import InvestigationContextBar from '../investigation/InvestigationContextBar';
+import { INVESTIGATION_KEYS, investigationPath } from '../investigation/investigationModel';
 import './ledger.css';
 
 type SourceFocus = { tenant: string; leadId: string; fields: string[] };
@@ -16,74 +18,11 @@ type SourceFocus = { tenant: string; leadId: string; fields: string[] };
 const AnalyticalLedger = lazy(() => import('../../pages/LeadLedger'));
 const number = (value: number) => value.toLocaleString('en-ZA');
 const text = (value: LedgerCell | undefined) => value == null || value === '' ? 'Not recorded' : String(value);
-const issueText = (value: string) => value.replace(/_/g, ' ').toLowerCase();
 async function json<T>(url: string, signal: AbortSignal): Promise<T> {
   const response = await fetch(url, { signal, credentials: 'same-origin' });
   const body = await response.json();
   if (!response.ok || body?.success !== true) throw new Error(body?.error || `Request failed (${response.status}).`);
   return body.data as T;
-}
-function SourceFields({ raw, labels }: { raw: LedgerLead['records'][number]['raw']; labels: readonly string[] }) {
-  return <dl className="cx-ledger-evidence">{labels.map(label => <div key={label}><dt>{label}</dt><dd>{text(raw[label])}</dd></div>)}</dl>;
-}
-function RecordHeading({ record, index }: { record: LedgerLead['records'][number]; index: number }) {
-  return <h3><span>Source record {index + 1} · {text(record.raw['HLC Vendor'])}</span><small>Transaction {text(record.raw['HLC Transaction ID'])}</small></h3>;
-}
-function LeadEvidence({ lead, focusFields = [] }: { lead: LedgerLead; focusFields?: string[] }) {
-  const root = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!focusFields.length) return;
-    const frame = requestAnimationFrame(() => {
-      const target = root.current?.querySelector<HTMLElement>('[data-source-highlight="true"]');
-      if (target?.getClientRects().length) { target.focus({ preventScroll: true }); target.scrollIntoView({ block: 'nearest' }); }
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [focusFields]);
-  const first = lead.records[0]?.raw || {};
-  return <div ref={root} className="cx-ledger-inspector-sections">
-    <details className="cx-ledger-inspector-section" open>
-      <summary>Lead summary</summary>
-      <div className="cx-ledger-section-body"><p>Summary from the first returned source record. Other source records remain available below.</p><SourceFields raw={first} labels={['Lead ID', 'Consumer ID', 'Offershop Source', 'Fetched', 'Offershop Grade', 'Offershop Color Vetting']} /></div>
-    </details>
-    <details className="cx-ledger-inspector-section">
-      <summary>Journey / milestones</summary>
-      <div className="cx-ledger-section-body"><p>Snapshot milestones, not a complete call or status-change history. Naive timestamps are interpreted as UTC.</p>
-        {lead.records.map((record, index) => <article className="cx-ledger-record" key={index}>
-          <RecordHeading record={record} index={index} />
-          <ol className="cx-ledger-events">{record.events.filter(event => event.state !== 'missing').sort((a, b) => (a.timestamp || a.raw).localeCompare(b.timestamp || b.raw)).map(event => <li key={event.label}><strong>{event.label}</strong><span>{event.raw}</span><small>{event.state === 'observed' ? 'Recorded timestamp' : `${event.state} — excluded from observed events`}</small></li>)}</ol>
-          {!record.events.some(event => event.state !== 'missing') && <p>No non-placeholder milestones recorded.</p>}
-        </article>)}
-      </div>
-    </details>
-    <details className="cx-ledger-inspector-section">
-      <summary>Vendor evidence</summary>
-      <div className="cx-ledger-section-body"><p>Each source record is retained as reported, including repeated transaction keys. Missing outcome evidence is not a confirmed negative.</p>
-        {lead.records.map((record, index) => <article className="cx-ledger-record" key={index}><RecordHeading record={record} index={index} /><SourceFields raw={record.raw} labels={['HLC Status', 'HLC Last Dialer Status', 'HLC Total Calls', 'HLC RPC', 'HLC Sale', 'HLC Activated']} /></article>)}
-      </div>
-    </details>
-    <details className="cx-ledger-inspector-section">
-      <summary>Commercial evidence</summary>
-      <div className="cx-ledger-section-body"><p>Raw reported amounts are retained without rounding. Repeated lead totals are not additive; missing amounts remain unrecorded.</p>
-        {lead.records.map((record, index) => <article className="cx-ledger-record" key={index}><RecordHeading record={record} index={index} /><SourceFields raw={record.raw} labels={['HLC Revenue Generated', 'HLC CURRENCY', 'Total Revenue']} /></article>)}
-      </div>
-    </details>
-    <details className="cx-ledger-inspector-section">
-      <summary>Exceptions / warnings{lead.issues.length > 0 ? ` (${lead.issues.length} types)` : ''}</summary>
-      <div className="cx-ledger-section-body">
-        {lead.issues.length > 0 ? <p className="cx-ledger-warning">{lead.issues.map(issueText).join(' · ')}</p> : <p>No exception codes were supplied for this lead.</p>}
-        {lead.records.map((record, index) => record.issues.length > 0 && <article className="cx-ledger-record" key={index}><RecordHeading record={record} index={index} /><p className="cx-ledger-warning">{record.issues.map(issueText).join(' · ')}</p></article>)}
-      </div>
-    </details>
-    <details className="cx-ledger-inspector-section" open={focusFields.length > 0 || undefined}>
-      <summary>View all 63 raw source fields</summary>
-      <div className="cx-ledger-section-body"><p>Raw source value: exact returned content under its original field name. These are not necessarily canonical analytical fields. Source records are kept separate.</p>
-        {lead.records.map((record, index) => <article className="cx-ledger-record cx-ledger-raw-record" data-source-record={index} key={index}>
-          <RecordHeading record={record} index={index} />
-          {LEDGER_RAW_FIELD_GROUPS.map(group => <section className="cx-ledger-field-group" key={group.label}><h4>{group.label}</h4><dl className="cx-ledger-fields">{group.columns.map(column => <div key={column.label} data-raw-field={column.label} data-source-highlight={focusFields.includes(column.label)} tabIndex={focusFields.includes(column.label) ? -1 : undefined}><dt>{column.label}</dt><dd aria-label={`Raw source value for ${column.label}`}>{text(record.raw[column.label])}</dd></div>)}</dl></section>)}
-        </article>)}
-      </div>
-    </details>
-  </div>;
 }
 function LeadDetails({ lead, focusFields }: { lead: LedgerLead; focusFields?: string[] }) {
   const [expanded, setExpanded] = useState(Boolean(focusFields));
@@ -220,7 +159,8 @@ function SourceLedger({ sourceMode, setSourceMode, sourceFocus }: { sourceMode: 
 export default function LeadLedgerWorkspace() {
   const { selectedClient } = useClient();
   const [mode, setMode] = useState<'source' | 'analytical'>('source');
-  const [, setSearchParams] = useSearchParams();
+  const [investigationParams, setSearchParams] = useSearchParams();
+  const activeInvestigation = INVESTIGATION_KEYS.some(key => investigationParams.has(key));
   const [sourceFocus, setSourceFocus] = useState<SourceFocus | undefined>();
   const viewSource = (leadId: string, fields: string[]) => {
     setSourceFocus({ tenant: selectedClient, leadId, fields });
@@ -233,5 +173,5 @@ export default function LeadLedgerWorkspace() {
   };
   const [source, setSource] = useState({ tenant: selectedClient, mode: 'configured' });
   const sourceMode = source.tenant === selectedClient ? source.mode : 'configured';
-  return <div><nav className="cx-ledger-tabs" aria-label="Lead ledger views"><button type="button" aria-pressed={mode === 'source'} onClick={() => setMode('source')}><strong>Source evidence</strong><small>Original source-compatible records</small></button><button type="button" aria-pressed={mode === 'analytical'} onClick={() => setMode('analytical')}><strong>Operational analysis</strong><small>Normalised analytical view & timeline</small></button></nav>{mode === 'source' ? <SourceLedger key={selectedClient} sourceFocus={sourceFocus?.tenant === selectedClient ? sourceFocus : undefined} sourceMode={sourceMode} setSourceMode={value => setSource({ tenant: selectedClient, mode: value })} /> : <div className="cx-ledger-analytical"><Suspense fallback={<p role="status">Opening analytical ledger…</p>}><AnalyticalLedger onViewSource={viewSource} /></Suspense></div>}</div>;
+  return <div>{activeInvestigation && <><InvestigationContextBar dateBasis="Fetched source cohort" countingGrain="Separate lead/vendor source records" /><p className="cx-ledger-panel">This is the deeper source evidence layer. Reporting dates and global filters apply here; analytical investigation predicates and segments are shown as context and do not filter this raw-source table. Use the selected lead dossier to inspect source records for a qualified lead. <Link to={investigationPath('/lead-explorer', investigationParams)}>Return to affected records</Link></p></>}<nav className="cx-ledger-tabs" aria-label="Lead ledger views"><button type="button" aria-pressed={mode === 'source'} onClick={() => setMode('source')}><strong>Source evidence</strong><small>Original source-compatible records</small></button><button type="button" aria-pressed={mode === 'analytical'} onClick={() => setMode('analytical')}><strong>Operational analysis</strong><small>Normalised analytical view & timeline</small></button></nav>{mode === 'source' ? <SourceLedger key={selectedClient} sourceFocus={sourceFocus?.tenant === selectedClient ? sourceFocus : undefined} sourceMode={sourceMode} setSourceMode={value => setSource({ tenant: selectedClient, mode: value })} /> : <div className="cx-ledger-analytical"><Suspense fallback={<p role="status">Opening analytical ledger…</p>}><AnalyticalLedger onViewSource={viewSource} /></Suspense></div>}</div>;
 }

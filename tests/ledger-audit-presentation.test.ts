@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { buildAcceptanceFixture } from '../scripts/build-frontend-acceptance-fixture.mjs';
-import { LEDGER_HEADERS, ledgerCsvCell } from '../contracts/leadLedgerReplica';
+import { LEDGER_HEADERS, ledgerCsvCell, analyseLedgerLead } from '../contracts/leadLedgerReplica';
 import { buildLeadLedgerExport } from '../src/lib/leadLedgerExport';
 
 const output = await mkdtemp(path.join(tmpdir(), 'cx3-ledger-audit-'));
@@ -57,32 +57,33 @@ async function mount(route: string, options: any = {}) {
   return { w, text, find, wait, click, input, blobText, blobs, filenames, errors, close() { w.__fixture.unmount(); dom.window.close(); assert.deepEqual(errors, []); } };
 }
 
-test('Explorer source-evidence link preserves complete scope and submits only the existing source search', async () => {
+test('Explorer embeds exact source evidence and retains scope without putting the selected identifier in navigation', async () => {
   const filters = { vendor: { operator: 'in', values: ['Synthetic vendor', 'Other vendor'] }, grade: { operator: 'not_equals', value: 'D' } };
-  const query = scope + '&workspace=alpha&workspace=beta&filters=' + encodeURIComponent(JSON.stringify(filters)) + '&drill=awaiting-first-dial&drillValue=obsolete&search=SYNTHETIC-LEAD-0001';
+  const query = scope + '&workspace=alpha&workspace=beta&filters=' + encodeURIComponent(JSON.stringify(filters)) + '&drill=awaiting-first-dial&search=SYNTHETIC-LEAD-0001';
   const app = await mount('/lead-explorer' + query, { sourceLeadCount: 26 });
   try {
-    await app.wait(() => app.find('button', `Open timeline for lead ${leadId}`));
-    await app.click('button', `Open timeline for lead ${leadId}`);
-    await app.wait(() => app.find('a', 'Open source evidence'));
-    const link = app.find('a', 'Open source evidence');
-    const target = new URL(link.href);
-    assert.equal(target.pathname, '/lead-ledger');
-    assert.equal(target.searchParams.get('search'), leadId);
-    assert.equal(target.searchParams.get('clientId'), 'synthetic-a');
-    assert.equal(target.searchParams.get('startDate'), '2026-09-28');
-    assert.equal(target.searchParams.get('endDate'), '2026-09-28');
-    assert.deepEqual(target.searchParams.getAll('workspace'), ['alpha', 'beta']);
-    assert.deepEqual(JSON.parse(target.searchParams.get('filters')!), filters);
-    assert.equal(target.searchParams.has('drill'), false);
-    assert.equal(target.searchParams.has('drillValue'), false);
-    assert.equal(app.w.__fixture.requests.filter((request: string) => request.startsWith(replicaPath)).length, 0, 'Rendering a source link performs no source request');
-    await app.click('a', 'Open source evidence');
-    await app.wait(() => app.find('#ledger-search')?.value === leadId && app.find('.cx-ledger-source-table tbody tr'));
-    const expected = replicaPath + '?' + new URLSearchParams({ clientId: 'synthetic-a', startDate: '2026-09-28', endDate: '2026-09-28', filters: JSON.stringify(filters), sourceMode: 'configured', search: leadId, limit: '25', offset: '0' });
-    assert.deepEqual(Array.from(app.w.__fixture.requests.filter((request: string) => request.startsWith(replicaPath + '?'))), [expected], 'No intermediate unfiltered source query is issued');
-    assert.equal(app.find('.cx-ledger-source-table tbody').children.length, 1);
-    assert.match(app.text(), /not an exact-match or reconciliation claim/);
+    await app.wait(() => app.find('button', `Open dossier for lead ${leadId}`));
+    const location = app.w.__fixture.location;
+    await app.click('button', `Open dossier for lead ${leadId}`);
+    await app.wait(() => app.find('.cx-lead-dossier'));
+    assert.equal(app.w.document.activeElement, app.find('.cx-lead-dossier'));
+    assert.equal(app.w.__fixture.location, location, 'Selecting a private lead is session-only');
+    assert.equal(app.find('[role="dialog"][aria-label="Lead timeline"]'), undefined);
+    assert.equal(app.w.__fixture.requests.filter((request: string) => request.startsWith(replicaPath)).length, 0, 'Source data loads only when requested');
+    const timeline = app.w.__fixture.requests.find((request: string) => request.startsWith('/api/analytics/offernet/lead-timeline/'));
+    const timelineScope = new URL(timeline, 'https://synthetic.invalid').searchParams;
+    assert.equal(timelineScope.get('clientId'), 'synthetic-a');
+    assert.equal(timelineScope.get('startDate'), '2026-09-28');
+    assert.equal(timelineScope.get('endDate'), '2026-09-28');
+    assert.equal(timelineScope.get('drill'), 'awaiting-first-dial');
+    assert.deepEqual(JSON.parse(timelineScope.get('filters')!), filters);
+    await app.click('button', 'View source evidence');
+    await app.wait(() => app.find('.cx-lead-dossier .cx-ledger-inspector-sections'));
+    const expected = replicaPath + '?' + new URLSearchParams({ clientId: 'synthetic-a', startDate: '2026-09-28', endDate: '2026-09-28', filters: JSON.stringify({ ...filters, lead_id: { operator: 'equals', value: leadId } }), sourceMode: 'configured', search: leadId, limit: '25', offset: '0' });
+    assert.deepEqual(Array.from(app.w.__fixture.requests.filter((request: string) => request.startsWith(replicaPath + '?'))), [expected]);
+    assert.equal(app.w.__fixture.location, location);
+    assert.equal(app.find('.cx-lead-dossier').textContent.includes('SYNTHETIC-LEAD-0002'), false, 'Other substring matches are never displayed');
+    assert.match(app.find('.cx-lead-dossier').textContent, /Original source evidence.*NOT_VERIFIED/);
   } finally { app.close(); }
 });
 
@@ -243,14 +244,13 @@ test('Explorer review does not invent absent export metadata or bypass existing 
   } finally { app.close(); }
 });
 
-test('non-admin Explorer cannot expose the source-evidence action', async () => {
+test('non-admin Explorer fails closed without analytical record, timeline or source requests', async () => {
   const app = await mount('/lead-explorer' + scope, { nonAdmin: true });
   try {
-    await app.wait(() => app.find('button', `Open timeline for lead ${leadId}`));
-    await app.click('button', `Open timeline for lead ${leadId}`);
-    await app.wait(() => app.find('[role="dialog"][aria-label="Lead timeline"]'));
-    assert.equal(app.find('a', 'Open source evidence'), undefined);
-    assert.equal(app.w.__fixture.requests.some((request: string) => request.startsWith(replicaPath)), false);
+    await app.wait(() => app.text().includes('Record access is restricted'));
+    assert.equal(app.find('.cx-lead-dossier'), undefined);
+    assert.equal(app.find('button', 'View source evidence'), undefined);
+    assert.equal(app.w.__fixture.requests.some((request: string) => request.startsWith(replicaPath) || request.includes('/raw-leads') || request.includes('/lead-timeline')), false);
   } finally { app.close(); }
 });
 
@@ -274,5 +274,124 @@ test('partial source export retains its warning and existing available-fields ex
     const expected = replicaPath + '/export?' + new URLSearchParams({ clientId: 'synthetic-a', startDate: '2026-09-28', endDate: '2026-09-28', filters: '{}', sourceMode: 'configured', search: '', mode: 'available' });
     assert.deepEqual(Array.from(app.w.__fixture.requests.slice(before)), [expected]);
     assert.equal(app.blobs.length, 0);
+  } finally { app.close(); }
+});
+
+
+test('dossier reuses the loaded journey, preserves unavailable evidence and supports tabs and return focus', async () => {
+  const result = analyticalResult();
+  result.rows[0] = { ...result.rows[0], investigationReason: { code: 'AWAITING_FIRST_DIAL', label: 'Delivered · no recorded first dial' } } as typeof result.rows[0];
+  const app = await mount('/lead-explorer' + scope + '&drill=awaiting-first-dial', { payloads: { '/api/analytics/offernet/raw-leads': result } });
+  try {
+    await app.wait(() => app.find('button', 'Open dossier for lead SYNTHETIC-EXPORT'));
+    const trigger = await app.click('button', 'Open dossier for lead SYNTHETIC-EXPORT');
+    await app.wait(() => app.find('.cx-lead-dossier'));
+    assert.match(app.find('.cx-dossier-inclusion').textContent, /Delivered · no recorded first dial/);
+    assert.match(app.find('.cx-lead-dossier').textContent, /First dial timestampUnavailable/);
+    assert.match(app.find('.cx-lead-dossier').textContent, /NOT_VERIFIED/);
+    const summary = app.find('[role="tab"]', 'Summary');
+    summary.focus(); summary.dispatchEvent(new app.w.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    await app.wait(() => app.find('.cx-ledger-journey'));
+    assert.equal(app.w.document.activeElement, app.find('.cx-dossier-tabs [role="tab"]', 'Journey'));
+    assert.match(app.find('.cx-ledger-journey').textContent, /Timeline unavailable/);
+    await app.click('.cx-dossier-tabs [role="tab"]', 'Calls');
+    assert.match(app.find('.cx-dossier-body').textContent, /Individual attempt timestamps.*unavailable/);
+    assert.equal(app.find('.cx-dossier-body').querySelectorAll('.cx-journey-event').length, 0);
+    await app.click('button', 'Close lead dossier');
+    assert.equal(app.find('.cx-lead-dossier'), undefined);
+    assert.equal(app.w.document.activeElement, trigger);
+  } finally { app.close(); }
+});
+
+test('Explorer scope changes clear selection and pagination; stale timeline and source completions cannot leak', async () => {
+  const timelinePath = '/api/analytics/offernet/lead-timeline/SYNTHETIC-LEAD-0051';
+  const app = await mount('/lead-explorer' + scope + '&drill=awaiting-first-dial', { defer: [timelinePath, replicaPath] });
+  try {
+    await app.wait(() => app.find('button', `Open dossier for lead ${leadId}`));
+    await app.click('.cx-explorer-pagination button', 'Next');
+    await app.wait(() => app.find('button', 'Open dossier for lead SYNTHETIC-LEAD-0051'));
+    await app.click('button', 'Open dossier for lead SYNTHETIC-LEAD-0051');
+    await app.wait(() => app.w.__fixture.pending?.[timelinePath]);
+    await app.click('button', 'View source evidence');
+    await app.wait(() => app.w.__fixture.pending?.[replicaPath]);
+    app.w.__fixture.navigate('/lead-explorer?clientId=synthetic-b&startDate=2026-09-27&endDate=2026-09-28&drill=one-call-only&segmentVendor=Other');
+    await app.wait(() => app.find('.cx-explorer-pagination')?.textContent.includes('Page 1') && !app.find('.cx-lead-dossier'));
+    app.w.__fixture.pending[timelinePath](); app.w.__fixture.pending[replicaPath]();
+    await new Promise(resolve => setTimeout(resolve, 60));
+    assert.equal(app.find('.cx-lead-dossier'), undefined);
+    const newer = app.w.__fixture.requests.filter((request: string) => request.includes('/raw-leads') && request.includes('synthetic-b'));
+    assert.equal(newer.length, 1);
+    assert.equal(new URL(newer[0], 'https://synthetic.invalid').searchParams.get('offset'), '0');
+    assert.equal(new URL(newer[0], 'https://synthetic.invalid').searchParams.get('segmentVendor'), 'Other');
+  } finally { app.close(); }
+});
+
+test('Explorer search and clear controls preserve the correct investigation and reporting scope', async () => {
+  const app = await mount('/lead-explorer' + scope + '&drill=one-call-only&segmentGrade=A');
+  try {
+    await app.wait(() => app.find('button', `Open dossier for lead ${leadId}`));
+    const input = app.find('[aria-label="Search lead records"]');
+    await app.input(input, 'SYNTHETIC-LEAD-0002');
+    input.form.dispatchEvent(new app.w.Event('submit', { bubbles: true, cancelable: true }));
+    await app.wait(() => app.w.__fixture.location.includes('search=SYNTHETIC-LEAD-0002'));
+    let params = new URL(app.w.__fixture.location, 'https://synthetic.invalid').searchParams;
+    assert.equal(params.get('drill'), 'one-call-only'); assert.equal(params.get('segmentGrade'), 'A');
+    await app.click('.cx-explorer-search button', 'Clear');
+    await app.wait(() => !new URL(app.w.__fixture.location, 'https://synthetic.invalid').searchParams.has('search'));
+    params = new URL(app.w.__fixture.location, 'https://synthetic.invalid').searchParams;
+    assert.equal(params.get('drill'), 'one-call-only');
+    await app.click('button', 'Clear investigation');
+    await app.wait(() => !new URL(app.w.__fixture.location, 'https://synthetic.invalid').searchParams.has('drill'));
+    params = new URL(app.w.__fixture.location, 'https://synthetic.invalid').searchParams;
+    assert.equal(params.get('segmentGrade'), null); assert.equal(params.get('clientId'), 'synthetic-a'); assert.equal(params.get('startDate'), '2026-09-28'); assert.equal(params.get('endDate'), '2026-09-28');
+  } finally { app.close(); }
+});
+
+
+test('dossier source vendor narrowing distinguishes null and blank vendors and excludes unrelated warnings', async () => {
+  const result = analyticalResult();
+  const generatedAt = '2026-09-30T06:00:00Z';
+  const lead = analyseLedgerLead('selected', [
+    { 'Lead ID': 'SYNTHETIC-EXPORT', 'HLC Vendor': 'Keep', 'HLC Transaction ID': 'KEEP-TX', 'Fetched': '2026-09-28T09:00:00Z', 'HLC Total Calls': 0 },
+    { 'Lead ID': 'SYNTHETIC-EXPORT', 'HLC Vendor': null, 'HLC Transaction ID': 'NULL-VENDOR-TX', 'Fetched': '2026-09-28T09:00:00Z' },
+    { 'Lead ID': 'SYNTHETIC-EXPORT', 'HLC Vendor': '  ', 'HLC Transaction ID': 'BLANK-VENDOR-TX', 'Fetched': '2026-09-28T09:00:00Z' },
+    { 'Lead ID': 'SYNTHETIC-EXPORT', 'HLC Vendor': 'Excluded vendor', 'HLC Transaction ID': 'EXCLUDED-TX', 'Fetched': '2026-09-28T09:00:00Z', 'HLC First Call Date': 'invalid-time' },
+  ], Date.parse(generatedAt));
+  const source = { leads: [lead], metadata: { clientId: 'synthetic-a', startDate: '2026-09-28', endDate: '2026-09-28', validationStatus: 'NOT_VERIFIED', generatedAt, filters: {}, coverage: { source: 'Synthetic source', available: LEDGER_HEADERS, missing: [] }, hasMore: false } };
+  for (const [vendor, transaction] of [['Keep', 'KEEP-TX'], ['Unknown', 'NULL-VENDOR-TX'], ['Unrecorded', 'BLANK-VENDOR-TX']]) {
+    const app = await mount('/lead-explorer' + scope + '&drill=one-call-only&segmentVendor=' + vendor, { payloads: { '/api/analytics/offernet/raw-leads': result, [replicaPath]: source } });
+    try {
+      await app.wait(() => app.find('button', 'Open dossier for lead SYNTHETIC-EXPORT'));
+      await app.click('button', 'Open dossier for lead SYNTHETIC-EXPORT');
+      await app.click('button', 'View source evidence');
+      await app.wait(() => app.find('.cx-lead-dossier .cx-ledger-inspector-sections'));
+      const panel = app.find('.cx-dossier-body');
+      assert.equal(panel.querySelectorAll('.cx-ledger-raw-record').length, 1, `${vendor} retains only its source record`);
+      assert.equal(panel.querySelectorAll('[data-raw-field]').length, 63);
+      assert.equal(panel.querySelector('[data-raw-field="HLC Transaction ID"] dd').textContent, transaction);
+      assert.doesNotMatch(panel.textContent, /EXCLUDED-TX|Excluded vendor|invalid timestamp/);
+    } finally { app.close(); }
+  }
+});
+
+
+test('closing dossier restores focus to the visible table counterpart when a split-pane card becomes hidden', async () => {
+  const app = await mount('/lead-explorer' + scope);
+  try {
+    // Model the real responsive container transition: wide table before a
+    // selection, record cards in the narrower pane while the dossier is open.
+    const style = app.w.document.createElement('style');
+    style.textContent = '[data-has-selection="true"] .cx-investigation-table-wrap{display:none}[data-has-selection="false"] .cx-investigation-record-cards{display:none}';
+    app.w.document.head.appendChild(style);
+    await app.wait(() => app.find('button', `Open dossier for lead ${leadId}`));
+    await app.click('.cx-investigation-table-wrap button', `Open dossier for lead ${leadId}`);
+    await app.wait(() => app.find('.cx-lead-dossier'));
+    const cardTrigger = await app.click('.cx-investigation-record-cards button', 'Open dossier for lead SYNTHETIC-LEAD-0002');
+    assert.ok(cardTrigger.getClientRects().length, 'The card trigger is visible in the split pane');
+    await app.click('button', 'Close lead dossier');
+    const tableTrigger = app.find('.cx-investigation-table-wrap button', 'Open dossier for lead SYNTHETIC-LEAD-0002');
+    await app.wait(() => app.w.document.activeElement === tableTrigger);
+    assert.equal(cardTrigger.getClientRects().length, 0, 'The previous card trigger is now hidden');
+    assert.ok(tableTrigger.getClientRects().length, 'Focus lands on the visible equivalent lead');
   } finally { app.close(); }
 });

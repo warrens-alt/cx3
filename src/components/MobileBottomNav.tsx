@@ -66,10 +66,10 @@ export default function MobileBottomNav({ onOpenMenu, menuOpen = false }: Mobile
         </Link>
 
         <Link
-          to={navigationTarget('/exceptions', location.pathname, location.search)}
-          aria-current={isInvestigate ? (currentPath === '/exceptions' ? 'page' : 'location') : undefined}
+          to={navigationTarget('/investigate', location.pathname, location.search)}
+          aria-current={isInvestigate ? (currentPath === '/investigate' ? 'page' : 'location') : undefined}
           className={itemClass(isInvestigate)}
-          data-navigation-area={getAreaForPath('/exceptions').id}
+          data-navigation-area={getAreaForPath('/investigate').id}
         >
           <AlertTriangle size={18} aria-hidden="true" />
           <span>Investigate</span>

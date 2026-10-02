@@ -97,10 +97,10 @@ test('rendered sidebar separates Operations, Investigate and Administration with
     try {
       const nav = app.find('nav[aria-label="Main navigation"]');
       const sections = [...nav.querySelectorAll(':scope > section')] as Element[];
-      assert.deepEqual(sections.map(section => section.getAttribute('aria-label')), ['Operations', 'Investigate', 'Administration']);
-      assert.deepEqual(sections.map(section => section.querySelectorAll('a').length), [5, 1, admin ? 3 : 2]);
+      assert.deepEqual(sections.map(section => section.getAttribute('aria-label')), ['Operations', 'Investigate', 'Evidence & Audit', 'Administration']);
+      assert.deepEqual(sections.map(section => section.querySelectorAll('a').length), [5, admin ? 3 : 2, admin ? 3 : 2, admin ? 3 : 2]);
       assert.match(sections[0].textContent!, /Progression & acquisition/);
-      assert.match(sections[1].textContent!, /Exceptions, records & data quality/);
+      assert.match(sections[1].textContent!, /Investigation inbox/);
       assert.equal(nav.querySelector('a[href*="/funnel"]').getAttribute('aria-current'), 'location');
       assert.equal(Boolean(nav.querySelector('a[href*="/access-control"]')), admin);
       assert.equal(app.w.document.querySelectorAll('.cx-sidebar-review button').length, 1);
@@ -235,13 +235,13 @@ test('palette appearance group retains Dark theme keyboard action', async () => 
 });
 
 test('area identity follows canonical and aliased routes across navigation while report content stays unscoped', async () => {
-  for (const [route, area, current] of [
+  for (const [route, area, current, mobileCurrent] of [
     ['/insights', 'overview', 'page'],
     ['/acquisition', 'journey', 'location'],
     ['/calls', 'contact', 'page'],
     ['/outcomes', 'sales', 'page'],
     ['/reconciliation', 'commercial', 'location'],
-    ['/explorer', 'investigate', 'location'],
+    ['/explorer', 'investigate', 'page', 'location'],
     ['/settings', 'settings', 'page'],
     ['/validation', 'settings', 'location'],
     ['/ai-insights', 'overview', 'location'],
@@ -255,7 +255,7 @@ test('area identity follows canonical and aliased routes across navigation while
       assert.equal(app.find('.cx-area-nav').dataset.navigationArea, area, route);
       assert.equal(app.find('.cx-breadcrumb').dataset.navigationArea, area, route);
       assert.equal(app.find('.cx-mobile-nav-active').dataset.navigationArea, area, route);
-      if (area !== 'settings') assert.equal(app.find('.cx-mobile-nav-active').getAttribute('aria-current'), current, route);
+      if (area !== 'settings') assert.equal(app.find('.cx-mobile-nav-active').getAttribute('aria-current'), mobileCurrent || current, route);
       assert.ok(app.find('.cx-mobile-nav-active .cx-mobile-nav-dot[aria-hidden="true"]'));
       assert.equal(app.find('#main-content').closest('[data-navigation-area]'), null, 'Area identity must not cascade into report or scope content');
       assert.equal(app.find('.cx-app').getAttribute('data-navigation-area'), null);
