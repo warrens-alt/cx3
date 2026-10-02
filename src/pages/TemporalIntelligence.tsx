@@ -16,6 +16,8 @@ import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import { useOperatingControls } from '../hooks/useOperatingControls';
 import { CaptureTurnaroundPanel, OperatingWindowPanel } from '../components/OfferNetControlPanels';
 import { heatmapColors } from '../lib/heatmapColors';
+import { METRIC_REGISTRY_VERSION } from '../../contracts/metricRegistry';
+import { selectTemporalHeatmap } from '../lib/temporalPresentation';
 import { VolumeRateComboChart } from '../components/charts/OperationalVisuals';
 
 type MetricView = 'contactRate' | 'saleRate' | 'activationRate' | 'volume';
@@ -38,7 +40,7 @@ export default function TemporalIntelligence() {
   }, fetchTemporal);
 
   const selectedBasis = data?.timeBases?.find(b => b.basis === timeBasis);
-  const activeHeatmap = selectedBasis?.heatmap || data?.heatmap || [];
+  const activeHeatmap = selectTemporalHeatmap(data, timeBasis);
 
   const temporalSummary = useMemo(() => {
     if (!activeHeatmap.length) return null;
@@ -69,7 +71,7 @@ export default function TemporalIntelligence() {
       ...activeHeatmap.map(row => [row.dayName, `${row.hour}:00`, row.volume, row.dialled, row.rpcUnknownLeads, row.dialledRpcUnknownLeads, row.contactRate, row.saleRate, row.activationRate]),
       ['Event timestamp unrecorded', '', selectedBasis?.missingTimestampLeads],
     ];
-    downloadAnalysisCsv(`temporal_${timeBasis.toLowerCase().replaceAll(' ', '_')}_${selectedClient}_${startDate || 'all'}_${endDate || 'all'}`, rows, { clientId: selectedClient, startDate, endDate, filters, validationStatus: 'NOT_VERIFIED', definitions: `Selected capture cohort grouped by ${timeBasis.toLowerCase()} time in tenant timezone. Positive recorded RPC among qualified dialled / qualified dialled; recorded sales/leads; recorded activations/recorded sales (independent populations). Missing event timestamps are exported separately.` });
+    downloadAnalysisCsv(`temporal_${timeBasis.toLowerCase().replaceAll(' ', '_')}_${selectedClient}_${startDate || 'all'}_${endDate || 'all'}`, rows, { clientId: selectedClient, startDate, endDate, filters, validationStatus: 'NOT_VERIFIED', dateBasis: `Lead capture cohort grouped by recorded ${timeBasis.toLowerCase()} timestamp`, countingGrain: 'Distinct lead per recorded event time bucket', definitionVersion: METRIC_REGISTRY_VERSION, timezone: data.operatingContext?.timezone, definitions: `Selected capture cohort grouped by ${timeBasis.toLowerCase()} time in tenant timezone. Positive recorded RPC among qualified dialled / qualified dialled; recorded sales/leads; recorded activations/recorded sales (independent populations). Missing event timestamps are exported separately.` });
   };
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
