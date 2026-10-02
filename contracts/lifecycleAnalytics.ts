@@ -9,6 +9,7 @@ export interface LifecycleDiagnostics {
   period: MatchedPeriodWindow | null;
   comparisons: Record<string, MetricComparison>;
   transitions: LifecycleTransition[];
+  recordedEvidence?: { delivered: number | null; dialled: number | null; rpc: number | null };
   largestLeakage: LifecycleTransition | null;
   largestDeterioration: LifecycleTransition | null;
   segments: Record<string, LifecycleSegment[]>;

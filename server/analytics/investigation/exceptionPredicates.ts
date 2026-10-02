@@ -4,9 +4,9 @@ import { DRIVER_FIRST_DIAL_AGES } from '../../../contracts/investigation';
 
 /** Shared predicates keep queue counts and administrator record drills at identical lead grain. */
 export const EXCEPTION_DEFINITIONS = [
-  { id: 'awaiting-first-dial', title: 'Awaiting first dial', severity: 'medium', detail: 'Delivered leads without a recorded first dial.' },
-  { id: 'waiting-over-hour', title: 'Waiting longer than one hour', severity: 'high', detail: 'Delivered leads without a first dial more than 60 minutes after delivery.' },
-  { id: 'sla-breach', title: '15-minute first-dial breach', severity: 'high', detail: 'Delivery-to-first-dial exceeds 15 minutes, or undialled delivery age exceeds 15 minutes.' },
+  { id: 'awaiting-first-dial', title: 'Awaiting first dial', severity: 'medium', detail: 'Qualified delivered leads without a chronologically qualified first dial; recorded invalid dials remain visible.' },
+  { id: 'waiting-over-hour', title: 'Waiting longer than one hour', severity: 'high', detail: 'Qualified delivered leads without a qualified first dial more than 60 minutes after delivery.' },
+  { id: 'sla-breach', title: '15-minute first-dial breach', severity: 'high', detail: 'Qualified delivery-to-first-dial exceeds 15 minutes, or delivery age without a qualified dial exceeds 15 minutes.' },
   { id: 'missing-disposition', title: 'Missing disposition', severity: 'medium', detail: 'Dialled leads without a recorded dialler disposition.' },
   { id: 'zero-call-leads', title: 'Zero recorded calls', severity: 'medium', detail: 'Recorded cumulative call counter equals zero. Missing counters are excluded.' },
   { id: 'one-call-only', title: 'One-call-only leads', severity: 'low', detail: 'Dialled leads with exactly one recorded cumulative call.' },
@@ -76,12 +76,12 @@ export function buildInvestigationPredicate(params: OffernetQueryParams, queryPa
         condition = `m.is_delivered AND NOT m.is_dialled AND ${buckets[value]}`;
         break;
       }
-      case 'funnel-stage': condition = ({ fetched: 'TRUE', delivered: 'm.is_delivered', dialled: 'm.is_dialled', rpc: 'm.is_rpc', sales: 'm.is_sale', activated: 'm.is_activated' } as Record<string, string>)[value]; break;
+      case 'funnel-stage': condition = ({ fetched: 'TRUE', delivered: 'm.is_delivered', dialled: 'm.is_dialled', rpc: 'm.is_qualified_rpc', sales: 'm.is_sale', activated: 'm.is_activated' } as Record<string, string>)[value]; break;
       case 'delivery-age':
       case 'lead-age': {
         const timing = params.drill === 'lead-age' ? 'TIMESTAMP_DIFF(m.first_call_ts, m.fetched_ts, SECOND)' : `TIMESTAMP_DIFF(${alias}.first_call_ts, ${alias}.delivered_ts, SECOND)`;
         const buckets: Record<string, string> = {
-          'Invalid timing': `${timing} < 0`,
+          'Invalid timing': 'm.has_recorded_first_dial AND NOT m.is_dialled',
           '0–5m': `${timing} BETWEEN 0 AND 300`,
           '0–15m': `${timing} BETWEEN 0 AND 900`,
           '5–15m': `${timing} > 300 AND ${timing} <= 900`,
@@ -95,15 +95,15 @@ export function buildInvestigationPredicate(params: OffernetQueryParams, queryPa
           '6–24h': `${timing} > 21600 AND ${timing} <= 86400`,
           '24h+': `${timing} > 86400`,
         };
-        condition = value === 'Not delivered' ? 'NOT m.is_delivered' : value === 'Undialled' ? (params.drill === 'lead-age' ? 'NOT m.is_dialled' : 'm.is_delivered AND NOT m.is_dialled') : Object.hasOwn(buckets, value) ? `m.is_dialled AND ${buckets[value]}` : undefined;
+        condition = value === 'Not delivered' ? 'NOT m.is_delivered' : value === 'Undialled' ? (params.drill === 'lead-age' ? 'NOT m.has_recorded_first_dial' : 'm.is_delivered AND NOT m.has_recorded_first_dial') : Object.hasOwn(buckets, value) ? (value === 'Invalid timing' ? buckets[value] : `m.is_dialled AND ${buckets[value]}`) : undefined;
         break;
       }
       case 'funnel-loss': condition = ({
         'fetched-to-delivered': 'NOT m.is_delivered',
         'delivered-to-dialled': 'm.is_delivered AND NOT m.is_dialled',
         'dialled-to-rpc': 'm.is_dialled AND (m.is_rpc IS FALSE OR m.is_rpc IS NULL)',
-        'rpc-to-sales': 'm.is_rpc AND NOT m.is_sale',
-        'sales-to-activated': 'm.is_sale AND NOT m.is_activated',
+        'rpc-to-sales': 'm.is_qualified_rpc AND NOT m.has_qualified_rpc_sale',
+        'sales-to-activated': 'm.is_sale AND NOT m.is_qualified_activation',
       } as Record<string, string>)[value]; break;
       case 'call-effort': {
         const buckets: Record<string, string> = {
@@ -176,7 +176,7 @@ export function driverFirstDialAgeSql(alias = 'm'): string {
   return `CASE
     WHEN ${alias}.delivered_ts IS NULL THEN 'Not delivered'
     WHEN ${alias}.first_call_ts IS NULL THEN 'Undialled'
-    WHEN ${timing} < 0 THEN 'Invalid timing'
+    WHEN NOT ${alias}.is_dialled THEN 'Invalid timing'
     WHEN ${timing} <= 300 THEN '0–5m'
     WHEN ${timing} <= 900 THEN '5–15m'
     WHEN ${timing} <= 1800 THEN '15–30m'

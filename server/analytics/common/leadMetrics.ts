@@ -51,16 +51,20 @@ export function operationalLeadSelectSql(rawCteName: 'operational_raw' | 'curren
       MIN(first_call_ts) AS first_call_ts,
       MIN(sale_ts) AS sale_ts,
       MIN(activation_ts) AS activation_ts,
-      COUNTIF(delivered_ts IS NOT NULL) > 0 AS is_delivered,
-      COUNTIF(first_call_ts IS NOT NULL) > 0 AS is_dialled,
+      COUNTIF(delivered_ts IS NOT NULL) > 0 AS has_recorded_delivery,
+      COUNTIF(first_call_ts IS NOT NULL) > 0 AS has_recorded_first_dial,
       CASE WHEN COUNTIF(is_rpc) > 0 THEN TRUE WHEN COUNTIF(is_rpc IS NULL) > 0 THEN NULL ELSE FALSE END AS is_rpc,
+      COUNTIF(sale_ts IS NOT NULL) > 0 AS has_recorded_sale,
       COUNTIF(sale_ts IS NOT NULL) > 0 AS is_sale,
+      COUNTIF(activation_ts IS NOT NULL) > 0 AS has_recorded_activation,
       COUNTIF(activation_ts IS NOT NULL) > 0 AS is_activated,
       MAX(total_calls) AS recorded_call_count,
       COUNTIF(first_call_ts IS NOT NULL AND last_dialer_status IS NOT NULL) > 0 AS has_disposition
     FROM ${rawCteName}
     WHERE lead_id IS NOT NULL
     GROUP BY lead_id${byVendor ? ', vendor' : ''}
+    ), lifecycle_qualified AS (
+      SELECT lead_rollup.*, ${operationalLifecycleStateSql()} FROM lead_rollup
     ), financial_keys AS (
       SELECT lead_id, vendor, revenue_vendor, revenue_transaction_id,
         COUNT(*) AS source_rows,
@@ -80,10 +84,35 @@ export function operationalLeadSelectSql(rawCteName: 'operational_raw' | 'curren
         COUNTIF(value_variants > 1) AS conflicting_revenue_keys,
         SUM(IF(eligible, source_rows - 1, 0)) AS revenue_duplicate_rows_collapsed
       FROM financial_assessed GROUP BY ${keys}
-    ) SELECT lead_rollup.*, financial_totals.* EXCEPT(${keys})
-      FROM lead_rollup LEFT JOIN financial_totals USING (${keys})`;
+    ) SELECT lifecycle_qualified.*, financial_totals.* EXCEPT(${keys})
+      FROM lifecycle_qualified LEFT JOIN financial_totals USING (${keys})`;
 
 }
+
+/** Qualification never rewrites the recorded timestamps, outcome evidence or raw tri-state RPC.
+ * Missing predecessors cannot establish chronology. Earliest recorded events are assessed as recorded,
+ * rather than selecting a later convenient event to hide an anomaly. Sales and activations remain
+ * independent source-recorded populations; only transition intersections use qualified outcomes.
+ */
+export function operationalLifecycleStateSql(): string {
+  const delivered = '(delivered_ts >= fetched_ts) IS TRUE';
+  const dialled = '(delivered_ts >= fetched_ts AND first_call_ts >= fetched_ts AND first_call_ts >= delivered_ts) IS TRUE';
+  const sale = '(sale_ts >= fetched_ts) IS TRUE';
+  const activated = '(sale_ts >= fetched_ts AND activation_ts >= sale_ts) IS TRUE';
+  return `${delivered} AS is_delivered,
+      ${dialled} AS is_dialled,
+      (${dialled} AND is_rpc IS TRUE) AS is_qualified_rpc,
+      ${sale} AS is_qualified_sale,
+      ${activated} AS is_qualified_activation,
+      (${dialled} AND is_rpc IS TRUE AND ${sale} AND (sale_ts >= first_call_ts) IS TRUE) AS has_qualified_rpc_sale,
+      (delivered_ts < fetched_ts) IS TRUE AS delivery_before_capture,
+      (first_call_ts < fetched_ts) IS TRUE AS first_dial_before_capture,
+      (first_call_ts < delivered_ts) IS TRUE AS first_dial_before_delivery,
+      (sale_ts < fetched_ts) IS TRUE AS sale_before_capture,
+      (activation_ts < sale_ts) IS TRUE AS activation_before_sale`;
+}
+
+export const OPERATIONAL_LIFECYCLE_POLICY = 'cx.lifecycle.3.0.0: capture cohort; delivery requires delivery >= capture; dial requires qualified delivery and first dial >= delivery/capture; RPC requires qualified dial plus positive recorded evidence. Sales and activations remain independent recorded timestamps. Funnel intersections require ordered predecessors. Missing predecessors do not establish qualification.';
 
 /** An empty denominator is unavailable, while a measured zero numerator remains zero. */
 export function metricPercent(numerator: number, denominator: number, decimals = 1): number | null {

@@ -10,7 +10,7 @@ import {
 } from '../contracts/metricRegistry';
 
 test('authoritative metrics: contract specifications and integrity', () => {
-  assert.equal(METRIC_REGISTRY_VERSION, 'cx.metric.2.0.0');
+  assert.equal(METRIC_REGISTRY_VERSION, 'cx.metric.3.0.0');
 
   const metricKeys = Object.keys(AUTHORITATIVE_METRICS);
   assert.equal(metricKeys.length, 15, 'Must contain exactly 15 authoritative metric definitions');
@@ -37,7 +37,7 @@ test('authoritative metrics: contract specifications and integrity', () => {
     const metric = AUTHORITATIVE_METRICS[key];
     assert.ok(metric, `Metric ${key} must exist`);
     assert.equal(metric.id, key);
-    assert.equal(metric.version, 'cx.metric.2.0.0');
+    assert.equal(metric.version, 'cx.metric.3.0.0');
     assert.ok(metric.businessLabel, `${key} must have a businessLabel`);
     assert.ok(metric.technicalLabel, `${key} must have a technicalLabel`);
     assert.ok(metric.plainDefinition, `${key} must have a plainDefinition`);
@@ -130,7 +130,7 @@ test('GET /api/analytics/metrics/registry serves authoritative contracts', async
     const body = await res.json();
 
     assert.equal(body.success, true);
-    assert.equal(body.version, 'cx.metric.2.0.0');
+    assert.equal(body.version, 'cx.metric.3.0.0');
     assert.equal(body.totalMetrics, 15);
     assert.ok(body.data.fetched_leads);
     assert.ok(body.data.sales_per_fetched_rate);
@@ -153,7 +153,7 @@ test('GET /api/analytics/metrics/authoritative returns identical registry payloa
     const body = await res.json();
 
     assert.equal(body.success, true);
-    assert.equal(body.version, 'cx.metric.2.0.0');
+    assert.equal(body.version, 'cx.metric.3.0.0');
     assert.equal(body.totalMetrics, 15);
   } finally {
     server.closeAllConnections();

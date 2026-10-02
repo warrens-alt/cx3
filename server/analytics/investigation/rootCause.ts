@@ -50,23 +50,23 @@ export async function getRootCauseAnalysis(params: OffernetQueryParams) {
     dimensional AS (
       SELECT period, 'vendor' AS dimension, COALESCE(NULLIF(TRIM(vendor), ''), 'Unrecorded') AS segment,
         COUNT(*) AS fetched, COUNTIF(is_delivered) AS delivered, COUNTIF(is_dialled) AS dialled,
-        COUNTIF(is_rpc) AS rpc, COUNTIF(is_sale) AS sales, COUNTIF(is_activated) AS activated, COUNTIF(is_dialled AND is_rpc IS NULL) AS unknown_rpc
+        COUNTIF(is_qualified_rpc) AS rpc, COUNTIF(is_sale) AS sales, COUNTIF(is_activated) AS activated, COUNTIF(is_dialled AND is_rpc IS NULL) AS unknown_rpc
       FROM periodized WHERE period IS NOT NULL GROUP BY period, 3
       UNION ALL
       SELECT period, 'source', COALESCE(NULLIF(TRIM(source), ''), 'Unrecorded'),
-        COUNT(*), COUNTIF(is_delivered), COUNTIF(is_dialled), COUNTIF(is_rpc), COUNTIF(is_sale), COUNTIF(is_activated), COUNTIF(is_dialled AND is_rpc IS NULL)
+        COUNT(*), COUNTIF(is_delivered), COUNTIF(is_dialled), COUNTIF(is_qualified_rpc), COUNTIF(is_sale), COUNTIF(is_activated), COUNTIF(is_dialled AND is_rpc IS NULL)
       FROM periodized WHERE period IS NOT NULL GROUP BY period, 3
       UNION ALL
       SELECT period, 'grade', COALESCE(NULLIF(TRIM(grade), ''), 'Unrecorded'),
-        COUNT(*), COUNTIF(is_delivered), COUNTIF(is_dialled), COUNTIF(is_rpc), COUNTIF(is_sale), COUNTIF(is_activated), COUNTIF(is_dialled AND is_rpc IS NULL)
+        COUNT(*), COUNTIF(is_delivered), COUNTIF(is_dialled), COUNTIF(is_qualified_rpc), COUNTIF(is_sale), COUNTIF(is_activated), COUNTIF(is_dialled AND is_rpc IS NULL)
       FROM periodized WHERE period IS NOT NULL GROUP BY period, 3
       UNION ALL
       SELECT period, 'leadAge', lead_age,
-        COUNT(*), COUNTIF(is_delivered), COUNTIF(is_dialled), COUNTIF(is_rpc), COUNTIF(is_sale), COUNTIF(is_activated), COUNTIF(is_dialled AND is_rpc IS NULL)
+        COUNT(*), COUNTIF(is_delivered), COUNTIF(is_dialled), COUNTIF(is_qualified_rpc), COUNTIF(is_sale), COUNTIF(is_activated), COUNTIF(is_dialled AND is_rpc IS NULL)
       FROM periodized WHERE period IS NOT NULL GROUP BY period, lead_age
       UNION ALL
       SELECT period, 'overall', 'All',
-        COUNT(*), COUNTIF(is_delivered), COUNTIF(is_dialled), COUNTIF(is_rpc), COUNTIF(is_sale), COUNTIF(is_activated), COUNTIF(is_dialled AND is_rpc IS NULL)
+        COUNT(*), COUNTIF(is_delivered), COUNTIF(is_dialled), COUNTIF(is_qualified_rpc), COUNTIF(is_sale), COUNTIF(is_activated), COUNTIF(is_dialled AND is_rpc IS NULL)
       FROM periodized WHERE period IS NOT NULL GROUP BY period
     )
     SELECT * FROM dimensional
