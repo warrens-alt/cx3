@@ -6,7 +6,7 @@
 .cx-visual-workspace-body>header p{font-size:13px;line-height:1.6;max-width:70ch}
 .cx-visual-workspace :is(button,a,select,input):focus-visible{outline:2px solid var(--cx-focus,var(--cx-action));outline-offset:3px}
 .cx-viz-jump-nav{display:flex;gap:8px;flex-wrap:wrap;font-size:12px}
-.cx-viz-jump-nav a{padding:7px 12px;background:var(--cx-surface);border:1px solid var(--cx-border-subtle);border-radius:6px;color:var(--cx-text-secondary);text-decoration:none}
+.cx-viz-jump-nav a{padding:7px 12px;background:var(--cx-surface);border:1px solid var(--cx-border-subtle);border-radius:var(--cx-radius-control);color:var(--cx-text-secondary);text-decoration:none}
 .cx-viz-jump-nav a:hover{color:var(--cx-action);border-color:var(--cx-action)}
 .cx-visual-workspace section[id]{scroll-margin-top:140px}
 .cx-journey-visual-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:20px;align-items:start}
@@ -35,7 +35,7 @@
 .cx-viz-table tbody tr:hover td:first-child{background:var(--cx-selected-bg)}
 .cx-viz-table button{min-height:28px}
 .cx-segment-bar-label{white-space:normal;overflow-wrap:anywhere}
-.cx-segment-inspect{display:grid;place-items:center;min-width:28px;min-height:28px;border:0;border-radius:5px;background:var(--cx-surface-subtle);color:var(--cx-action);cursor:pointer}
+.cx-segment-inspect{display:grid;place-items:center;min-width:28px;min-height:28px;border:0;border-radius:var(--cx-radius-control);background:var(--cx-surface-subtle);color:var(--cx-action);cursor:pointer}
 .cx-journey-segments input:focus{width:inherit}
 @media(max-width:1100px){.cx-journey-visual-grid{grid-template-columns:1fr}.cx-evidence-bar-row{grid-template-columns:minmax(100px,.7fr) minmax(80px,1.4fr) minmax(70px,.4fr)}}
 @media(max-width:639px){

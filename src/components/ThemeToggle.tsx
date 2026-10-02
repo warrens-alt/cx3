@@ -34,7 +34,7 @@ export default function ThemeToggle({
   if (variant === 'segmented') {
     return (
       <div
-        className={`inline-flex items-center p-0.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-900/80 text-xs ${className}`}
+        className={`cx-segmented-control text-xs ${className}`}
         role="group"
         aria-label="Theme selector"
       >
@@ -47,10 +47,10 @@ export default function ThemeToggle({
               type="button"
               onClick={() => setTheme(t.id)}
               aria-pressed={isActive}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md font-medium transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-[var(--cx-radius-control)] font-medium transition-colors duration-150 ${
                 isActive
-                  ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-2xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  ? 'bg-[var(--cx-selected-bg)] text-action'
+                  : 'text-text-sec hover:text-text-main'
               }`}
             >
               <Icon size={13} aria-hidden="true" />
@@ -79,12 +79,12 @@ export default function ThemeToggle({
         aria-label={`Current theme: ${theme} (${resolvedTheme}). Switch to ${nextTheme} theme.`}
         title={`Theme: ${theme === 'system' ? 'System (' + resolvedTheme + ')' : theme}. Click to switch to ${nextTheme}, right-click for options.`}
       >
-        <ActiveIcon size={16} aria-hidden="true" className="transition-transform duration-200" />
+        <ActiveIcon size={16} aria-hidden="true" className="transition-transform duration-150" />
       </button>
 
       {menuOpen && (
         <div
-          className="absolute right-0 top-full mt-1.5 z-50 min-w-[140px] rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1 shadow-lg text-xs animate-in fade-in zoom-in-95 duration-100"
+          className="absolute right-0 top-full mt-1.5 z-50 min-w-[140px] rounded-[var(--cx-radius-md)] border border-border bg-surface p-1 shadow-[var(--cx-shadow-elevated)] text-xs animate-in fade-in zoom-in-95 duration-150"
           role="menu"
           aria-label="Theme options"
         >
@@ -101,17 +101,17 @@ export default function ThemeToggle({
                   setTheme(t.id);
                   setMenuOpen(false);
                 }}
-                className={`flex w-full items-center justify-between px-2.5 py-1.5 rounded-md font-medium transition-colors ${
+                className={`flex w-full items-center justify-between px-2.5 py-1.5 rounded-[var(--cx-radius-control)] font-medium transition-colors duration-150 ${
                   isCurrent
-                    ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 font-semibold'
-                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    ? 'bg-[var(--cx-selected-bg)] text-action font-semibold'
+                    : 'text-text-main hover:bg-surface-subtle'
                 }`}
               >
                 <div className="flex items-center gap-2">
                   <Icon size={14} aria-hidden="true" />
                   <span>{t.label}</span>
                 </div>
-                {isCurrent && <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400" />}
+                {isCurrent && <span className="w-1.5 h-1.5 rounded-full bg-action" />}
               </button>
             );
           })}

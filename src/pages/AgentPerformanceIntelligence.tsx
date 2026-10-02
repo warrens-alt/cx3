@@ -204,7 +204,7 @@ export default function AgentPerformanceIntelligence() {
                   <p>Summary totals cover the displayed roster: up to 100 agent/vendor groups with the most calls in the selected scope. {data.scope?.truncated ? 'Some groups are omitted by the display limit.' : ''}</p>
                   <p>{data.rankingReason} A dash marks unavailable call evidence; recorded zeros remain zero. {data.metricAvailabilityReason}</p>
                 </div>
-                <Users size={16} className="text-slate-400"/>
+                <Users size={16} className="text-text-muted"/>
               </header>
 
               <div className="cx-table-toolbar">
@@ -263,7 +263,7 @@ export default function AgentPerformanceIntelligence() {
                 </tbody></table>
               </div>
             </section>)}
-            {data.scope?.campaignReason && <p className="text-xs text-slate-500">{data.scope.campaignReason}</p>}
+            {data.scope?.campaignReason && <p className="text-xs text-text-sec">{data.scope.campaignReason}</p>}
             <section className="cx-command-shortcuts">
               <button type="button" onClick={handleExportCsv}><Download size={16}/><span><strong>Export agent activity</strong><small>Download the scoped roster</small></span></button>
               <Link to={scoped('/cli-performance')}><Users size={16}/><span><strong>CLI performance</strong><small>Inspect outbound caller-ID outcomes</small></span></Link>

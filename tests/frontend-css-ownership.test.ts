@@ -36,3 +36,14 @@ test('explicit theme selection drives Tailwind dark utilities independently of O
   const css = readFileSync('src/index.css', 'utf8');
   assert.match(css, /@custom-variant dark.*data-theme="dark"/);
 });
+
+test('shared application foundations resolve paint through the ConversionX palette', () => {
+  for (const file of ['src/index.css', 'src/styles/globals.css', 'src/styles/product.css', 'src/styles/reporting.css', 'src/styles/shell.css', 'src/shared/evidence/auditEvidence.css']) {
+    postcss.parse(readFileSync(file, 'utf8')).walkDecls(declaration => {
+      // Palette declarations are the source of colour; consumers must use them.
+      if (declaration.prop.startsWith('--')) return;
+      assert.doesNotMatch(declaration.value, /#[0-9a-f]{3,8}\b|\brgba?\(|\b(?:white|black)\b/i,
+        `${file}:${declaration.source?.start?.line} ${declaration.prop} bypasses the theme palette`);
+    });
+  }
+});

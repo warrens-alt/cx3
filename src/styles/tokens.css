@@ -29,12 +29,33 @@
   --cx-chart-category-7: #475569;
   --cx-chart-category-8: #0891B2;
 
+  /* The existing visual/Vetting palette retains its own hue order and hashes. */
+  --cx-visual-category-1: #315BCB;
+  --cx-visual-category-2: #0284C7;
+  --cx-visual-category-3: #059669;
+  --cx-visual-category-4: #D97706;
+  --cx-visual-category-5: #DC2626;
+  --cx-visual-category-6: #7C3AED;
+  --cx-visual-category-7: #DB2777;
+  --cx-visual-category-8: #475569;
+
   /* Action & Focus */
   --cx-action: #315BCB;
   --cx-action-hover: #2447AD;
   --cx-action-contrast: #FFFFFF;
   --cx-selected-bg: #EAF0FF;
   --cx-focus: #315BCB;
+
+  /* Opaque quantitative heatmap bins; numeric labels keep their own contrast. */
+  --cx-heatmap-1-bg: #EDF2FD;
+  --cx-heatmap-2-bg: #DCE6FC;
+  --cx-heatmap-3-bg: #BACDF4;
+  --cx-heatmap-4-bg: #8EADEB;
+  --cx-heatmap-5-bg: #4169C1;
+  --cx-heatmap-6-bg: #315BCB;
+  --cx-heatmap-low-ink: #17243B;
+  --cx-heatmap-high-ink: #FFFFFF;
+  --cx-heatmap-teal: var(--cx-data-delivered);
 
   /* The navigation shell stays graphite in both analytical themes. */
   --cx-shell-bg: #202226;
@@ -161,6 +182,7 @@
   --cx-shadow-drawer: -4px 0 24px -4px rgba(36, 39, 46, 0.16);
   --cx-shadow-card: none;
   --cx-shadow-elevated: var(--cx-shadow-md);
+  --cx-overlay-backdrop: rgb(17 19 23 / .5);
 
   /* Touch & Controls & Layout Math */
   --cx-control-height: 36px;
@@ -218,12 +240,31 @@
   --cx-chart-category-7: #CBD5E1;
   --cx-chart-category-8: #67E8F9;
 
+  --cx-visual-category-1: #60A5FA;
+  --cx-visual-category-2: #7DD3FC;
+  --cx-visual-category-3: #6EE7B7;
+  --cx-visual-category-4: #FCD34D;
+  --cx-visual-category-5: #FDA4AF;
+  --cx-visual-category-6: #C4B5FD;
+  --cx-visual-category-7: #F9A8D4;
+  --cx-visual-category-8: #CBD5E1;
+
   /* Action & Focus (Dark) */
   --cx-action: #8CA8F1;
   --cx-action-hover: #A8BCF6;
   --cx-action-contrast: #17191D;
   --cx-selected-bg: rgba(140, 168, 241, 0.12);
   --cx-focus: #8CA8F1;
+
+  --cx-heatmap-1-bg: #272D3D;
+  --cx-heatmap-2-bg: #303C58;
+  --cx-heatmap-3-bg: #3C5079;
+  --cx-heatmap-4-bg: #596FA0;
+  --cx-heatmap-5-bg: #8CA8F1;
+  --cx-heatmap-6-bg: #A8BCF6;
+  --cx-heatmap-low-ink: #FFFFFF;
+  --cx-heatmap-high-ink: #17191D;
+  --cx-heatmap-teal: #0E7490;
 
   /* Brand Blue (Dark) */
   --cx-brand-primary: #8CA8F1;
@@ -252,15 +293,15 @@
   --cx-area-admin-soft: var(--cx-surface-subtle);
 
   /* Quantitative Semantics (Dark) */
-  --cx-favourable: #10B981;
+  --cx-favourable: #34D399;
   --cx-favourable-bg: rgba(16, 185, 129, 0.14);
-  --cx-positive: #10B981;
+  --cx-positive: #34D399;
   --cx-positive-bg: rgba(16, 185, 129, 0.14);
-  --cx-unfavourable: #F43F5E;
+  --cx-unfavourable: #FDA4AF;
   --cx-unfavourable-bg: rgba(244, 63, 94, 0.14);
-  --cx-negative: #F43F5E;
+  --cx-negative: #FDA4AF;
   --cx-negative-bg: rgba(244, 63, 94, 0.14);
-  --cx-critical: #F43F5E;
+  --cx-critical: #FDA4AF;
   --cx-critical-bg: rgba(244, 63, 94, 0.14);
   --cx-warning: #F59E0B;
   --cx-warning-bg: rgba(245, 158, 11, 0.14);
@@ -272,7 +313,7 @@
   --cx-status-favorable-text: #34D399;
   --cx-status-favorable-border: #065F46;
   --cx-status-unfavorable-bg: rgba(244, 63, 94, 0.14);
-  --cx-status-unfavorable-text: #FB7185;
+  --cx-status-unfavorable-text: #FDA4AF;
   --cx-status-unfavorable-border: #881337;
   --cx-status-warning-bg: rgba(245, 158, 11, 0.14);
   --cx-status-warning-text: #FBBF24;
@@ -349,6 +390,8 @@
 
   --color-action: var(--cx-action);
   --color-action-hover: var(--cx-action-hover);
+  --color-action-soft: var(--cx-selected-bg);
+  --color-selected-bg: var(--cx-selected-bg);
   --color-brand-primary: var(--cx-brand-primary);
   --color-brand-hover: var(--cx-brand-hover);
   --color-brand-soft: var(--cx-brand-soft);

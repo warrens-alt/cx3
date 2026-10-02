@@ -13,7 +13,7 @@ export function AccessAuditLog({
   auditState,
 }: AccessAuditLogProps) {
   return (
-    <div className="bg-surface rounded-lg border border-border-subtle shadow-sm p-5 space-y-4">
+    <div className="bg-surface rounded-lg border border-border-subtle p-5 space-y-4">
       <div className="border-b border-border-subtle pb-3">
         <h2 className="text-sm font-bold text-text-main">Security & Access Audit Trail</h2>
         <p className="text-xs text-text-sec">

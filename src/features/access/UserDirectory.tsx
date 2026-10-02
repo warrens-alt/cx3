@@ -40,7 +40,7 @@ export function UserDirectory({
   onEditTenants,
 }: UserDirectoryProps) {
   return (
-    <div className="bg-surface rounded-lg border border-border-subtle shadow-sm overflow-hidden space-y-4 p-4 sm:p-5">
+    <div className="bg-surface rounded-lg border border-border-subtle overflow-hidden space-y-4 p-4 sm:p-5">
       {/* Controls bar */}
       <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
         <div className="relative flex-1 max-w-md">
@@ -51,7 +51,7 @@ export function UserDirectory({
             placeholder="Search users by name or email…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-border-strong rounded-lg text-xs sm:text-sm bg-surface text-text-main focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+            className="w-full pl-9 pr-4 py-2 border border-border-strong rounded-lg text-xs sm:text-sm bg-surface text-text-main focus:outline-none focus:ring-2 focus:ring-action focus:border-action"
           />
           {searchQuery && (
             <button
@@ -134,7 +134,7 @@ export function UserDirectory({
                   <tr
                     key={user.uid}
                     className={`hover:bg-surface-subtle transition-colors ${
-                      user.status === 'pending' ? 'bg-amber-50/30' : ''
+                      user.status === 'pending' ? 'bg-semantic-warn-bg' : ''
                     }`}
                   >
                     {/* User Identity */}
@@ -148,7 +148,7 @@ export function UserDirectory({
                             className="w-8 h-8 rounded-full border border-border-subtle shrink-0"
                           />
                         ) : (
-                          <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-selected-bg text-action font-bold flex items-center justify-center text-xs shrink-0">
                             {user.displayName?.charAt(0) || user.email.charAt(0).toUpperCase()}
                           </div>
                         )}
@@ -156,12 +156,12 @@ export function UserDirectory({
                           <div className="font-semibold text-text-main truncate flex items-center gap-1.5">
                             {user.displayName || 'Unnamed User'}
                             {isSelf && (
-                              <span className="px-1.5 py-0.2 bg-blue-100 text-blue-700 rounded text-[10px] font-medium">
+                              <span className="px-1.5 py-0.2 bg-selected-bg text-action rounded text-[10px] font-medium">
                                 You
                               </span>
                             )}
                             {isSuper && (
-                              <span className="px-1.5 py-0.2 bg-purple-100 text-purple-700 rounded text-[10px] font-medium">
+                              <span className="px-1.5 py-0.2 bg-selected-bg text-action rounded text-[10px] font-medium">
                                 Super Admin
                               </span>
                             )}
@@ -177,8 +177,8 @@ export function UserDirectory({
                     {/* Role */}
                     <td className="px-4 py-3.5">
                       {isSuper ? (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-purple-700 font-mono">
-                          <Shield className="w-3.5 h-3.5 text-purple-600" />
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-action">
+                          <Shield className="w-3.5 h-3.5 text-action" />
                           Admin
                         </span>
                       ) : (
@@ -199,20 +199,20 @@ export function UserDirectory({
                     {/* Status */}
                     <td className="px-4 py-3.5">
                       {user.status === 'active' && (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 font-mono">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-semantic-pos">
+                          <span className="w-1.5 h-1.5 rounded-full bg-semantic-pos" />
                           Active
                         </span>
                       )}
                       {user.status === 'pending' && (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 font-mono animate-pulse">
-                          <Clock className="w-3.5 h-3.5 text-amber-600" />
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-semantic-warn">
+                          <Clock className="w-3.5 h-3.5 text-semantic-warn" />
                           Pending Approval
                         </span>
                       )}
                       {user.status === 'suspended' && (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-700 font-mono">
-                          <UserX className="w-3.5 h-3.5 text-rose-600" />
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-semantic-neg">
+                          <UserX className="w-3.5 h-3.5 text-semantic-neg" />
                           Suspended
                         </span>
                       )}
@@ -222,7 +222,7 @@ export function UserDirectory({
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1.5 flex-wrap max-w-xs">
                         {!tenantScopeReported ? <span>Not reported</span> : hasAllTenants ? (
-                          <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-[11px] font-medium border border-blue-200">
+                          <span className="px-2 py-0.5 rounded bg-selected-bg text-action text-[11px] font-medium border border-action/30">
                             All Workspaces (*)
                           </span>
                         ) : (
@@ -243,7 +243,7 @@ export function UserDirectory({
                         <button
                           type="button"
                           onClick={() => onEditTenants(user)}
-                          className="text-[11px] text-blue-600 hover:text-blue-800 underline font-medium ml-1 cursor-pointer"
+                          className="text-[11px] text-action hover:text-action-hover underline font-medium ml-1 cursor-pointer"
                         >
                           Edit
                         </button>
@@ -268,7 +268,7 @@ export function UserDirectory({
                         <button
                           type="button"
                           onClick={() => handleApproveUser(user)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs shadow-sm transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded cx-button-primary font-medium text-xs transition-colors cursor-pointer"
                         >
                           <Check className="w-3.5 h-3.5" />
                           <span>Approve</span>
@@ -279,7 +279,7 @@ export function UserDirectory({
                         <button
                           type="button"
                           onClick={() => handleStatusChange(user, 'suspended')}
-                          className="px-2.5 py-1 rounded border border-border-strong hover:bg-rose-50 hover:text-rose-700 text-text-sec font-medium text-xs transition-colors cursor-pointer"
+                          className="px-2.5 py-1 rounded border border-border-strong hover:bg-semantic-neg-bg hover:text-semantic-neg text-text-sec font-medium text-xs transition-colors cursor-pointer"
                         >
                           Suspend
                         </button>
@@ -289,7 +289,7 @@ export function UserDirectory({
                         <button
                           type="button"
                           onClick={() => handleStatusChange(user, 'active')}
-                          className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs transition-colors cursor-pointer"
+                          className="px-2.5 py-1 rounded cx-button-primary font-medium text-xs transition-colors cursor-pointer"
                         >
                           Reactivate
                         </button>
@@ -300,7 +300,7 @@ export function UserDirectory({
                           type="button"
                           onClick={() => handleDeleteUser(user)}
                           title="Delete account"
-                          className="p-1 rounded text-text-mute hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer inline-block"
+                          className="p-1 rounded text-text-mute hover:text-semantic-neg hover:bg-semantic-neg-bg transition-colors cursor-pointer inline-block"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

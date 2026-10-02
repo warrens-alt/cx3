@@ -69,59 +69,59 @@ export const CliImportModal: React.FC<CliImportModalProps> = ({
     await onFileUpload(event);
   };
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--cx-overlay-backdrop)] p-4"
       onMouseDown={event => { if (event.currentTarget === event.target) onClose(); }}>
       <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Import VICIdial CLI Report"
-        className="bg-white rounded-lg shadow-xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4 animate-scaleUp">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2"><Upload size={18} className="text-[#315BCB]" /><span>Import VICIdial CLI Report</span></h3>
-          <button type="button" onClick={onClose} aria-label="Close dialog" className="text-slate-400 hover:text-slate-600 focus:outline-hidden focus:ring-2 focus:ring-[#315BCB] rounded-sm"><X size={18} /></button>
+        className="cx-cli-dialog bg-surface rounded-lg shadow-[var(--cx-shadow-elevated)] max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4 animate-scaleUp">
+        <div className="flex items-center justify-between border-b border-border-subtle pb-3">
+          <h3 className="text-base font-bold text-text-main flex items-center gap-2"><Upload size={18} className="text-action" /><span>Import VICIdial CLI Report</span></h3>
+          <button type="button" onClick={onClose} aria-label="Close dialog" className="text-text-mute hover:text-text-sec focus:outline-hidden focus:ring-2 focus:ring-action rounded-sm"><X size={18} /></button>
         </div>
-        <p className="text-xs text-slate-600 leading-relaxed">
+        <p className="text-xs text-text-sec leading-relaxed">
           Add a daily CLI export to the private archive for <strong>{clientConfig?.name || selectedClient}</strong>.
           Earlier dates are retained. Identical rows are skipped; conflicting replacements are rejected.
           These are imported reports, not a live dialler connection.
         </p>
-        <section aria-label="Private archive status" className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs space-y-2">
-          <strong className="flex items-center gap-2 text-slate-800"><Database size={15} />Private report archive</strong>
+        <section aria-label="Private archive status" className="rounded-lg border border-border-subtle bg-surface-sec p-3 text-xs space-y-2">
+          <strong className="flex items-center gap-2 text-text-main"><Database size={15} />Private report archive</strong>
           {!scoped || scoped.loading ? <p role="status">Checking storage and reporting history…</p> : scoped.error ?
-            <p role="alert" className="text-rose-800">{scoped.error}</p> : !status?.configured ?
+            <p role="alert" className="text-semantic-neg">{scoped.error}</p> : !status?.configured ?
               <p>Storage is not configured. Set <code>CX_CLI_IMPORT_BUCKET</code> on the server using approved private storage before uploading. No dialler access is needed.</p> : <>
                 <p>{status.rowCount.toLocaleString()} saved rows · {status.reportCount.toLocaleString()} accepted uploads · {status.dates.length} reporting dates</p>
                 <p>Latest report date: <strong>{status.latestReportDate || 'No reports yet'}</strong>. This is the date inside the report, not a live-data freshness guarantee.</p>
                 {!status.active && status.rowCount > 0 ? <p>Imported reporting is paused. Upload an existing or new report to resume; saved history remains intact.</p> : null}
               </>}
         </section>
-        {(uploadError || fileError) ? <div role="alert" className="bg-rose-50 border border-rose-200 text-rose-800 p-3 rounded text-xs">{fileError || uploadError}</div> : null}
-        {uploadSuccess ? <div role="status" className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3 rounded text-xs flex items-center gap-2"><CheckCircle2 size={16} /><span>{uploadSuccess} Duplicate uploads add no rows.</span></div> : null}
-        <label className="flex gap-2 items-start text-xs text-slate-700">
+        {(uploadError || fileError) ? <div role="alert" className="bg-semantic-neg-bg border border-semantic-neg/30 text-semantic-neg p-3 rounded text-xs">{fileError || uploadError}</div> : null}
+        {uploadSuccess ? <div role="status" className="bg-semantic-pos-bg border border-semantic-pos/30 text-semantic-pos p-3 rounded text-xs flex items-center gap-2"><CheckCircle2 size={16} /><span>{uploadSuccess} Duplicate uploads add no rows.</span></div> : null}
+        <label className="flex gap-2 items-start text-xs text-text-sec">
           <input type="checkbox" checked={confirmed} disabled={!ready || uploading}
             onChange={event => setApprovedTenant(event.target.checked ? selectedClient : null)} className="mt-0.5" />
-          <span>I am authorised to store and analyse this report in CX3, and its data belongs to <strong>{clientConfig?.name || selectedClient}</strong>. I will not upload a combined report containing other clients.</span>
+          <span>I am authorised to store and analyse this report in ConversionX, and its data belongs to <strong>{clientConfig?.name || selectedClient}</strong>. I will not upload a combined report containing other clients.</span>
         </label>
-        <div className="border-2 border-dashed border-slate-300 rounded-lg p-5 text-center space-y-2">
-          <FileSpreadsheet size={32} className="mx-auto text-slate-400" />
+        <div className="border-2 border-dashed border-control-border rounded-lg p-5 text-center space-y-2">
+          <FileSpreadsheet size={32} className="mx-auto text-text-mute" />
           <label className={`cx-button-primary text-xs py-1.5 px-3 inline-block ${canUpload ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}>
             <span>{uploading ? 'Saving report…' : 'Browse CSV File'}</span>
             <input ref={fileInputRef} type="file" accept=".csv,text/csv" onChange={handleFile} className="hidden" disabled={!canUpload} />
           </label>
-          <p className="text-[11px] text-slate-500">
-            Required: <code className="text-slate-700">report_date, cli_number, campaign_code, total_calls, contact_count, sale_count</code>.<br />
+          <p className="text-[11px] text-text-mute">
+            Required: <code className="text-text-sec">report_date, cli_number, campaign_code, total_calls, contact_count, sale_count</code>.<br />
             Optional aggregate metrics include ASR, answered calls, duration thresholds, vendor and average lead age. Missing values remain unavailable. Customer-level columns are rejected. Maximum CSV size: 48 KiB.
           </p>
         </div>
         {status?.imports.length ? <section aria-label="Recent CLI imports" className="text-xs space-y-2">
-          <h4 className="flex items-center gap-2 font-semibold text-slate-800"><History size={15} />Recent imports{status.historyTruncated ? ' (latest 20)' : ''}</h4>
-          <div className="max-h-40 overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-lg">
+          <h4 className="flex items-center gap-2 font-semibold text-text-main"><History size={15} />Recent imports{status.historyTruncated ? ' (latest 20)' : ''}</h4>
+          <div className="max-h-40 overflow-y-auto divide-y divide-border-subtle border border-border-subtle rounded-lg">
             {status.imports.map(receipt => <div key={receipt.id} className="p-2.5 space-y-1">
-              <p className="font-medium text-slate-800 break-words">{receipt.filename}</p>
-              <p className="text-slate-600">{receipt.startDate} → {receipt.endDate} · {receipt.insertedCount} new rows · {receipt.duplicateCount} duplicates skipped</p>
-              <p className="text-slate-500">Saved {new Date(receipt.importedAt).toLocaleString()}</p>
+              <p className="font-medium text-text-main break-words">{receipt.filename}</p>
+              <p className="text-text-sec">{receipt.startDate} → {receipt.endDate} · {receipt.insertedCount} new rows · {receipt.duplicateCount} duplicates skipped</p>
+              <p className="text-text-mute">Saved {new Date(receipt.importedAt).toLocaleString()}</p>
             </div>)}
           </div>
         </section> : null}
-        {(import.meta as any).env?.DEV === true && status?.configured === false ? <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 flex items-center justify-between gap-3">
-          <div><strong className="text-xs text-slate-900">Synthetic development dataset</strong><p className="text-[11px] text-slate-500">Never written to the private archive or treated as production evidence.</p></div>
+        {(import.meta as any).env?.DEV === true && status?.configured === false ? <div className="bg-surface-sec p-4 rounded-lg border border-border-subtle flex items-center justify-between gap-3">
+          <div><strong className="text-xs text-text-main">Synthetic development dataset</strong><p className="text-[11px] text-text-mute">Never written to the private archive or treated as production evidence.</p></div>
           <button type="button" onClick={onLoadSample} disabled={uploading} className="cx-button-secondary text-xs py-1.5 px-3 whitespace-nowrap flex items-center gap-1.5"><FileText size={13} /><span>Load sample</span></button>
         </div> : null}
         <div className="flex justify-end pt-2"><button type="button" onClick={onClose} className="cx-button-secondary text-xs py-1.5 px-4">Close</button></div>

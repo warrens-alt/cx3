@@ -52,13 +52,13 @@ export default function VisualWorkspace() {
 
       <div className="enterprise-card p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-          <SlidersHorizontal className="w-4 h-4 text-slate-500 shrink-0" />
-          <span className="text-xs font-semibold text-slate-700">Measure:</span>
+          <SlidersHorizontal className="w-4 h-4 text-text-mute shrink-0" />
+          <span className="text-xs font-semibold text-text-sec">Measure:</span>
           <select
             aria-label="Catalogue measure"
             value={selectedMeasure}
             onChange={(e) => setSelectedMeasure(e.target.value)}
-            className="text-xs bg-white border border-slate-200 rounded px-2.5 py-1.5 font-medium text-slate-800 min-h-[34px] flex-1 sm:flex-initial"
+            className="text-xs bg-surface border border-control-border rounded px-2.5 py-1.5 font-medium text-text-main min-h-[34px] flex-1 sm:flex-initial"
           >
             {MEASURES.map((m) => (
               <option key={m.id} value={m.id}>{m.label}</option>
@@ -66,7 +66,7 @@ export default function VisualWorkspace() {
           </select>
         </div>
 
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-1 bg-surface-sec p-1 rounded-lg overflow-x-auto scrollbar-none">
           {(['column', 'bar', 'line', 'area', 'donut'] as VisualKind[]).map((k) => (
             <button
               key={k}
@@ -74,7 +74,7 @@ export default function VisualWorkspace() {
               aria-pressed={kind === k}
               onClick={() => setKind(k)}
               className={`px-2.5 sm:px-3 py-1 text-xs font-medium rounded capitalize transition shrink-0 min-h-[30px] ${
-                kind === k ? 'bg-white shadow-xs text-blue-700 font-semibold' : 'text-slate-600 hover:text-slate-900'
+                kind === k ? 'bg-surface  text-action font-semibold' : 'text-text-sec hover:text-text-main'
               }`}
             >
               {k}
@@ -94,14 +94,14 @@ export default function VisualWorkspace() {
       </div>
 
       {inspectedPoint && (
-        <div className="enterprise-card p-3 sm:p-4 bg-blue-50 border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-blue-900">
+        <div className="enterprise-card p-3 sm:p-4 bg-selected-bg border-action/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-text-main">
           <div>
             <strong>Selected Point:</strong> {inspectedPoint.label} — <span>{measure.label}: </span>
             <span className="font-mono font-bold">{inspectedPoint.exact}</span>
           </div>
           <button
             onClick={() => setInspectedPoint(null)}
-            className="px-2.5 py-1 bg-white border border-blue-200 rounded text-blue-700 hover:bg-blue-100 self-start sm:self-auto min-h-[30px]"
+            className="cx-button-secondary self-start sm:self-auto"
           >
             Clear Selection
           </button>

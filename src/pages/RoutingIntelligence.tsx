@@ -177,7 +177,7 @@ export default function RoutingIntelligence() {
               <section className="cx-command-panel">
                 <header>
                   <div><span className="cx-command-section-kicker">Journey</span><h2>Most common route sequences</h2><p>Chronological partner paths ordered by observed volume.</p></div>
-                  <GitBranch size={16} className="text-slate-400"/>
+                  <GitBranch size={16} className="text-text-muted"/>
                 </header>
                 <div className="cx-route-paths">
                   {topRoutePaths.slice(0,12).map((row:any,index:number)=>(
@@ -203,7 +203,7 @@ export default function RoutingIntelligence() {
               <section className="cx-command-panel">
                 <header>
                   <div><span className="cx-command-section-kicker">Handoff</span><h2>Partner handoff matrix</h2><p>Routing volume, cascade delay and matched downstream transaction coverage.</p></div>
-                  <GitFork size={16} className="text-slate-400"/>
+                  <GitFork size={16} className="text-text-muted"/>
                 </header>
                 <div className="cx-performance-table-wrap">
                   <table className="cx-performance-table cx-routing-table">
@@ -227,7 +227,7 @@ export default function RoutingIntelligence() {
               <section className="cx-command-panel">
                 <header>
                   <div><span className="cx-command-section-kicker">Exceptions</span><h2>Routing records without matched transactions</h2><p>These records need investigation; absence from this sample is not evidence of complete reconciliation.</p></div>
-                  <AlertTriangle size={16} className="text-slate-400"/>
+                  <AlertTriangle size={16} className="text-text-muted"/>
                 </header>
                 {!isAdmin ? <div className="cx-command-empty">Individual routing records require administrator access.</div> : missingSample.length ? (
                   <div className="cx-performance-table-wrap">

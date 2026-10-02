@@ -74,13 +74,13 @@ export default function VettingChart({
           {description && <p className="text-xs text-[var(--cx-text-muted)] mt-0.5">{description}</p>}
         </div>
 
-        <div className="flex items-center gap-1 bg-[var(--cx-surface-subtle)] p-0.5 rounded text-[11px]">
+        <div className="cx-segmented-control text-[11px]">
           {(['bar', 'line', 'pie', 'donut'] as const).map((t) => (
             <button
               key={t}
               type="button" aria-pressed={activeChartType === t}
               onClick={() => setChartType(t)}
-              className={`px-2 py-0.5 rounded capitalize ${
+              className={`px-2 py-0.5 capitalize ${
                 activeChartType === t ? 'bg-[var(--cx-surface)] font-semibold text-[var(--cx-action)]' : 'text-[var(--cx-text-muted)] hover:text-[var(--cx-text)]'
               }`}
             >

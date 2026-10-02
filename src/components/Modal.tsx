@@ -23,7 +23,7 @@ export default function Modal({ id, open, isOpen, onClose, label, className = ''
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex ${isNavModal ? 'items-stretch justify-start p-0' : 'items-center justify-center p-3 sm:p-4'} bg-black/50 backdrop-blur-2xs transition-opacity duration-200`}
+      className={`fixed inset-0 z-50 flex ${isNavModal ? 'items-stretch justify-start p-0' : 'items-center justify-center p-3 sm:p-4'} bg-[var(--cx-overlay-backdrop)] backdrop-blur-2xs transition-opacity duration-150`}
       role="presentation"
     >
       <div className="fixed inset-0" onMouseDown={event => { event.preventDefault(); onClose?.(); }} aria-hidden="true" />
@@ -34,7 +34,7 @@ export default function Modal({ id, open, isOpen, onClose, label, className = ''
         role="dialog"
         aria-modal="true"
         aria-label={label || 'Dialog'}
-        className={`relative bg-white dark:bg-slate-900 ${isNavModal ? 'rounded-none shadow-2xl h-full max-h-[100dvh] w-[260px] max-w-[85vw]' : 'rounded-lg sm:rounded-xl shadow-xl max-w-2xl max-h-[90dvh] border border-slate-200 dark:border-slate-800'} overflow-hidden z-10 w-full flex flex-col ${className}`}
+        className={`relative bg-surface text-text-main ${isNavModal ? 'rounded-none shadow-[var(--cx-shadow-drawer)] h-full max-h-[100dvh] w-[260px] max-w-[85vw]' : 'rounded-[var(--cx-radius-card)] shadow-[var(--cx-shadow-elevated)] max-w-2xl max-h-[90dvh] border border-border'} overflow-hidden z-10 w-full flex flex-col ${className}`}
       >
         {children}
       </div>

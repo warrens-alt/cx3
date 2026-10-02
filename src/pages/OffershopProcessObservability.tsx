@@ -319,7 +319,7 @@ export default function OffershopProcessObservability() {
                             onClick={() => setSelectedStageDetail(familyKey as OffershopProcessFamily)}
                             className={`p-3.5 rounded-md border text-left cursor-pointer transition-all ${
                               isSelected
-                                ? 'bg-surface border-action  ring-1 ring-slate-900/10'
+                                ? 'bg-surface border-action  ring-1 ring-border/10'
                                 : 'bg-surface/80 border-border-subtle hover:border-border'
                             }`}
                           >
@@ -381,7 +381,7 @@ export default function OffershopProcessObservability() {
                               <th className="py-2.5 px-3 font-medium">Readiness</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100">
+                          <tbody className="divide-y divide-border">
                             {currentStage.nodes.map(node => (
                               <tr key={node.nodeId} className="hover:bg-surface-sec">
                                 <td className="py-2.5 px-3 font-mono font-semibold text-text-main whitespace-nowrap">{node.nodeId}</td>
@@ -443,7 +443,7 @@ export default function OffershopProcessObservability() {
                         <th className="py-2.5 px-3 font-medium">Key Exclusions & Notes</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-border">
                       {Object.values(data.partnerSummary).map(partner => {
                         const cfg = OFFERSHOP_PARTNER_CONFIGS[partner.partnerId];
                         return (
@@ -653,7 +653,7 @@ export default function OffershopProcessObservability() {
                         <th className="py-2.5 px-3 font-medium">Dependencies / Notes</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-border">
                       {filteredMatrixNodes.map(node => (
                         <tr key={node.nodeId} className="hover:bg-surface-sec">
                           <td className="py-2.5 px-3 font-mono font-semibold text-text-main whitespace-nowrap">{node.nodeId}</td>
@@ -712,7 +712,7 @@ export default function OffershopProcessObservability() {
                         <th className="py-2.5 px-3 font-medium">Technical Evidence & Blockers</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-border">
                       {data.tediFeedbackSummary.schedules.map((item, idx) => (
                         <tr key={idx} className="hover:bg-surface-sec">
                           <td className="py-2.5 px-3 font-semibold text-text-main uppercase">{item.partner.replace('_', ' ')}</td>
@@ -832,7 +832,7 @@ export default function OffershopProcessObservability() {
                   </div>
 
                   {simError && (
-                    <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded mb-4">
+                    <div className="p-3 bg-semantic-neg-bg border border-semantic-neg text-semantic-neg text-xs rounded mb-4">
                       {simError}
                     </div>
                   )}
@@ -881,7 +881,7 @@ export default function OffershopProcessObservability() {
                         <div className="p-3 bg-surface-sec rounded">
                           <span className="text-xs text-text-muted block mb-1">Simulated Volume Delta</span>
                           <strong className={`text-base font-mono tabular-nums ${
-                            simResult.simulatedChangePct == null ? 'text-text-sec' : simResult.simulatedChangePct >= 0 ? 'text-semantic-pos' : 'text-rose-700'
+                            simResult.simulatedChangePct == null ? 'text-text-sec' : simResult.simulatedChangePct >= 0 ? 'text-semantic-pos' : 'text-semantic-neg'
                           }`}>
                             {simResult.simulatedChangePct == null ? 'Unavailable — baseline required' : `${simResult.simulatedChangePct >= 0 ? '+' : ''}${simResult.simulatedChangePct}%`}
                           </strong>

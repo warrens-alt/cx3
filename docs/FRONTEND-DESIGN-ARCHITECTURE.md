@@ -177,6 +177,93 @@ and interaction behavior, not live warehouse completeness or production sign-in.
 Detailed results and screenshots were written outside the Git repository in the
 workspace's `conversionx-visual-qa-2026-10-02` directory.
 
+## ConversionX theme consistency — 2 October 2026
+
+This follow-up starts from `c47ac97` on main and completes the shared theme on
+active application surfaces. Graphite/silver navigation, pale light and charcoal
+dark reports, cobalt actions, the supplied logo, existing fonts and 4–8px radii
+remain the design system. Shared neutral paint, selection, focus, error/success
+states, controls, chart chrome and overlays now resolve through the existing
+ConversionX tokens rather than fixed light-mode utility colours or literal
+fallbacks. Ordinary analytical sections remain flat; elevation is reserved for
+menus, tooltips and drawers.
+
+The pass covers supporting records and metric lineage, Lead Evidence and export
+preflight, saved investigations, Contact/Journey/Sales evidence, active vendor,
+qualification, routing, agent, CLI, consumer, intake, validation, access-control,
+AI and visual workspaces. Existing style owners retain their responsibilities;
+there is no new blanket override sheet. Unmounted historical Contact, Funnel and
+Speed intelligence components remain untouched because their active routes use
+`ContactPage`, `JourneyPage` and `SpeedPage`.
+
+All six lifecycle identities and the original eight visual/Vetting category hues,
+order and category hashes remain distinct. Dark category variants raise contrast
+without changing series membership. Cohorts retain the original six intensity
+bins, scale, zero and unavailable distinctions; the pairs now follow the selected
+theme. The continuous Vetting matrix retains its original intensity calculation,
+alpha expression and threshold branch, with theme-aware teal and text paint.
+Semantic status hues keep their meanings and readable text on tinted surfaces.
+Settings thumbnails show the actual light/dark choices independently of the
+currently selected theme, and the browser theme colour follows the canvas token.
+
+Narrow intake source selectors and CLI source-gap messages wrap within their own
+containers. Nested metric-lineage drawers rise above mobile navigation while
+retaining their mounting, dismissal and focus behaviour. Coarse-pointer controls
+retain 44px targets. Intake styles load through the application entry so direct
+server-rendered component tests do not acquire a CSS module dependency.
+
+The change does not alter routes, queries, API contracts, calculations,
+denominators, filters, permissions, exports or session behaviour. Population and
+Source remain distinct grains in one Lead Evidence workspace and the canonical
+six-tab Dossier remains intact. AST comparison and focused behaviour tests check
+that the component edits are presentation-only; the exceptions are theme paint,
+stylesheet loading and display-brand spelling.
+
+### Consistency verification
+
+`npm run verify` completed successfully, including TypeScript lint, all tests,
+the generated surface inventory check and production build. The suite reports
+1,243 tests: **1,242 passed, zero failed, one skipped**. The existing Firestore
+access-lifecycle test requires its emulator and remains the single skip. Client,
+server and warehouse schema-export artifacts were built successfully.
+
+Token regressions now check small status text at 4.5:1 on each reporting surface,
+all six lifecycle and eight original visual category strokes at 3:1, emitted
+selection utilities and both heatmap palettes through the full intensity range.
+The existing CSS-ownership suite also rejects fixed paint in shared foundations.
+
+Browser QA uses the existing local Playwright/Chromium runtime because the
+Browser plugin is unavailable. The route matrix covers 1440, 1024, 820, 390 and
+320px in both themes; targeted final-build checks cover the changed edge states.
+
+| Browser suite | Passing evidence |
+| --- | --- |
+| Frontend convergence | 249 checks covered: 247 original passes plus two successful targeted rendered-state readiness retries; original results are preserved |
+| Shared controls, supporting records, lineage, vendor inspection, Vetting and BLC diagnostics | 28/28 scenarios; the 320px lineage hit-test confirms mobile navigation stays below the drawer |
+| Saved investigations, analytical/source export preflight, Contact evidence and continuous matrix | 40/40 checks in light/dark at 1440 and 390px |
+| Settings, Cohorts, scope controls and touch targets | 10/10 width/theme scenarios |
+| Utility and access states | 60/60 scenarios, combining passing baseline flows with four final CLI gap reruns at 320/390px in both themes |
+| Investigation | 17/17 checks |
+| Lead Evidence workspace | 10/10 scenarios, 80 workflow checks |
+
+Actual rendered original category strokes measure a minimum 3.186:1 in light and
+6.199:1 in dark. Cohort numeric labels measure at least 4.993:1; continuous matrix
+labels measure at least 4.91:1 in light and 5.53:1 in dark, including cells around
+the retained intensity threshold. Scope-apply and destructive-hover text retain
+at least 6.018:1 and 6.493:1 respectively in the targeted rendered checks.
+An additional 22/22 mobile matrix checks confirm internal horizontal scrolling
+and readable threshold cells. Screenshots were manually reviewed for paint,
+wrapping, clipping and readability. Final suites report zero runtime errors and
+zero console warnings/errors. The two broad retries retain their original route,
+scope, navigation, geometry and interaction assertions; only global network-idle
+readiness was replaced with the actual populated matrix/roster state.
+
+These checks use explicitly synthetic test fixtures and establish presentation
+and retained interaction behaviour, not live warehouse completeness or production
+sign-in. Evidence remains outside the repository in
+`conversionx-theme-consistency-qa-2026-10-02`; suite counts overlap and are not
+additive. Generated build and browser artifacts are not committed.
+
 ## Audit and retirement decisions
 
 The pre-edit audit traced direct JS/TS imports, CSS `@import`, the application and

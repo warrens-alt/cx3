@@ -28,14 +28,14 @@ export function AccessInviteEditor({
   handleCreateInviteSubmit,
 }: AccessInviteEditorProps) {
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-surface rounded-lg max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95">
+    <div className="fixed inset-0 z-50 bg-[var(--cx-overlay-backdrop)] backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="cx-access-editor bg-surface rounded-lg max-w-md w-full max-h-[calc(100dvh-32px)] overflow-y-auto border border-border-subtle p-6 shadow-[var(--cx-shadow-elevated)] space-y-5 animate-in fade-in zoom-in-95">
         <div className="flex items-center justify-between border-b border-border-subtle pb-3">
           <h3 className="font-bold text-base text-text-main">Pre-Authorize User</h3>
           <button
             type="button"
             onClick={() => setInviteModalOpen(false)}
-            className="text-text-mute hover:text-text-sec"
+            className="cx-icon-button text-text-mute hover:text-text-sec"
           >
             <X className="w-4 h-4" />
           </button>
@@ -79,7 +79,7 @@ export function AccessInviteEditor({
                     if (e.target.checked) setNewInviteTenants(['*']);
                     else setNewInviteTenants(['default_tenant']);
                   }}
-                  className="rounded text-blue-600"
+                  className="rounded text-action"
                 />
                 <span>All Workspaces (*)</span>
               </label>
@@ -96,7 +96,7 @@ export function AccessInviteEditor({
                           setNewInviteTenants((prev) => prev.filter((id) => id !== t.id));
                         }
                       }}
-                      className="rounded text-blue-600"
+                      className="rounded text-action"
                     />
                     <span>{t.name}</span>
                   </label>
@@ -108,14 +108,14 @@ export function AccessInviteEditor({
             <button
               type="button"
               onClick={() => setInviteModalOpen(false)}
-              className="px-3 py-2 rounded-lg border border-border-subtle text-text-sec font-medium hover:bg-surface-subtle cursor-pointer"
+              className="px-3 py-2 rounded-lg cx-button-secondary font-medium cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={inviteSubmitting}
-              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold cursor-pointer shadow-sm disabled:opacity-60"
+              className="px-4 py-2 rounded-lg cx-button-primary font-semibold cursor-pointer disabled:opacity-60"
             >
               {inviteSubmitting ? 'Saving…' : 'Save Pre-Authorization'}
             </button>
@@ -146,8 +146,8 @@ export function UserAccessEditor({
   handleSaveTenants,
 }: UserAccessEditorProps) {
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-surface rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+    <div className="fixed inset-0 z-50 bg-[var(--cx-overlay-backdrop)] backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="cx-access-editor bg-surface rounded-lg max-w-md w-full max-h-[calc(100dvh-32px)] overflow-y-auto border border-border-subtle p-6 shadow-[var(--cx-shadow-elevated)] space-y-4 animate-in fade-in zoom-in-95">
         <div className="flex items-center justify-between border-b border-border-subtle pb-3">
           <div>
             <h3 className="font-bold text-base text-text-main">Manage Workspace Scopes</h3>
@@ -156,7 +156,7 @@ export function UserAccessEditor({
           <button
             type="button"
             onClick={() => setEditingTenantsUser(null)}
-            className="text-text-mute hover:text-text-sec"
+            className="cx-icon-button text-text-mute hover:text-text-sec"
           >
             <X className="w-4 h-4" />
           </button>
@@ -171,7 +171,7 @@ export function UserAccessEditor({
                 if (e.target.checked) setSelectedTenants(['*']);
                 else setSelectedTenants(['default_tenant']);
               }}
-              className="rounded text-blue-600"
+              className="rounded text-action"
             />
             <span>Grant Full Access to All Workspaces (*)</span>
           </label>
@@ -196,7 +196,7 @@ export function UserAccessEditor({
                         setSelectedTenants((prev) => prev.filter((id) => id !== t.id));
                       }
                     }}
-                    className="rounded text-blue-600"
+                    className="rounded text-action"
                   />
                   <span>{t.name}</span>
                 </label>
@@ -209,7 +209,7 @@ export function UserAccessEditor({
           <button
             type="button"
             onClick={() => setEditingTenantsUser(null)}
-            className="px-3 py-2 rounded-lg border border-border-subtle text-text-sec font-medium hover:bg-surface-subtle cursor-pointer"
+            className="px-3 py-2 rounded-lg cx-button-secondary font-medium cursor-pointer"
           >
             Cancel
           </button>
@@ -217,7 +217,7 @@ export function UserAccessEditor({
             type="button"
             onClick={handleSaveTenants}
             disabled={tenantSubmitting}
-            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold cursor-pointer shadow-sm disabled:opacity-60"
+            className="px-4 py-2 rounded-lg cx-button-primary font-semibold cursor-pointer disabled:opacity-60"
           >
             {tenantSubmitting ? 'Saving…' : 'Update Client Access'}
           </button>

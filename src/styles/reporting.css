@@ -2,8 +2,8 @@
 
 .cx-applied-scope { flex-basis:100%; display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:2px; }
 .cx-legacy-bar .cx-applied-scope { color:var(--cx-muted); }
-.cx-filter-chip { min-height:28px; font-size:12px; font-weight:500; display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:6px; background:var(--cx-selected-bg, #EAF0FF); border:1px solid var(--cx-border, #D7DFEA); color:var(--cx-action, #315BCB); text-align:left; transition:all var(--cx-motion); }
-.cx-filter-chip:hover { background:var(--cx-brand-soft-hover); border-color:var(--cx-action-hover, #2447AD); color:var(--cx-action-hover, #2447AD); }
+.cx-filter-chip { min-height:28px; font-size:12px; font-weight:500; display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:6px; background:var(--cx-selected-bg); border:1px solid var(--cx-border); color:var(--cx-action); text-align:left; transition:all var(--cx-motion); }
+.cx-filter-chip:hover { background:var(--cx-brand-soft-hover); border-color:var(--cx-action-hover); color:var(--cx-action-hover); }
 .cx-legacy-bar>div { font-size:12px; }
 .cx-legacy-bar .cx-button-secondary { font-size:12.5px; min-height:36px; padding:0 12px; }
 .cx-multiselect { border:1px solid var(--cx-line); border-radius:8px; background:var(--cx-surface); }
@@ -34,8 +34,8 @@
 .cx-scope-custom-dates label { display: flex; flex-direction: column; gap: 3px; }
 .cx-scope-custom-dates label span {
   font-size:12px;
-  text-transform: uppercase;
-  letter-spacing: .08em;
+  text-transform: none;
+  letter-spacing: normal;
   font-weight: 700;
 }
 .cx-scope-custom-dates input {
@@ -355,15 +355,15 @@
 .cx-scope-controls .cx-scope-more:hover,
 .cx-scope-controls .cx-scopebar-actions button:hover:not(:disabled) {
   background: var(--cx-surface-subtle);
-  color: var(--cx-action, #2563EB);
+  color: var(--cx-action);
   border-color: var(--cx-action);
   transform: none;
   box-shadow: none;
 }
 .cx-scope-controls .cx-scope-more.is-open {
   background: var(--cx-selected-bg);
-  color: var(--cx-action, #2563EB);
-  border-color: var(--cx-action, #2563EB);
+  color: var(--cx-action);
+  border-color: var(--cx-action);
   font-weight: 600;
 }
 .cx-scope-controls .cx-scope-more strong {
@@ -373,8 +373,8 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--cx-action, #2563EB);
-  color: white;
+  background: var(--cx-action);
+  color: var(--cx-action-contrast);
   font-size: 10.5px;
   font-weight: 700;
   margin-left: 2px;
@@ -488,8 +488,8 @@
 .cx-scope-date-actions button[type="submit"] {
   border-color: var(--cx-action);
   background: var(--cx-action);
-  color: white;
-  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
+  color: var(--cx-action-contrast);
+  box-shadow: none;
 }
 .cx-scope-date-actions button[type="submit"]:hover {
   background: var(--cx-action-hover);

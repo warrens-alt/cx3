@@ -50,7 +50,7 @@ export default function SalesTimingAndCoverage({
 
           <div className="grid grid-cols-2 gap-3 pt-3">
             {/* Capture to Sale */}
-            <div className="bg-surface-subtle p-2.5 rounded-lg border border-border-subtle">
+            <div className="bg-surface-subtle p-2.5 rounded-md border border-border-subtle">
               <span className="text-[11px] font-semibold text-text-sec block">
                 Capture → Sale
               </span>
@@ -67,7 +67,7 @@ export default function SalesTimingAndCoverage({
             </div>
 
             {/* Sale to Activation */}
-            <div className="bg-surface-subtle p-2.5 rounded-lg border border-border-subtle">
+            <div className="bg-surface-subtle p-2.5 rounded-md border border-border-subtle">
               <span className="text-[11px] font-semibold text-text-sec block">
                 Sale → Activation
               </span>
@@ -99,13 +99,13 @@ export default function SalesTimingAndCoverage({
           </header>
 
           <div className="pt-3 space-y-2">
-            <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50/60 border border-amber-200/60 text-xs">
-              <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-2.5 p-3 rounded-md bg-semantic-warn-bg/60 border border-semantic-warn/60 text-xs">
+              <AlertCircle size={16} className="text-semantic-warn shrink-0 mt-0.5" />
               <div>
-                <strong className="text-amber-900 font-semibold block">
+                <strong className="text-semantic-warn font-semibold block">
                   Maturation model: {maturation.status}
                 </strong>
-                <p className="text-amber-800 text-[11px] mt-0.5 leading-relaxed">
+                <p className="text-semantic-warn text-[11px] mt-0.5 leading-relaxed">
                   {maturation.reason}
                 </p>
               </div>
@@ -155,7 +155,7 @@ export default function SalesTimingAndCoverage({
               </div>
             )}
             {controlsError && (
-              <div className="p-3 bg-red-50 text-red-700 text-xs rounded-md border border-red-200">
+              <div className="p-3 bg-semantic-neg-bg text-semantic-neg text-xs rounded-md border border-semantic-neg">
                 Failed to load operating controls: {controlsError}
               </div>
             )}

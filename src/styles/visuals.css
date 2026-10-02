@@ -428,7 +428,7 @@ button.cx-lifecycle-loss{color:var(--cx-action);cursor:pointer;min-height:32px}
 .cx-chart-frame-region { min-width:0; }
 .cx-chart-frame-region > :is(.cx-evidence-bars,.cx-analytics-card,.cx-lifecycle-path,.cx-commercial-evidence-bridge) { border:0;border-radius:0;padding:0;box-shadow:none;background:transparent; }
 .cx-chart-frame-footer { padding-top:14px;margin-top:20px;border-top:1px solid var(--cx-border-subtle);font-size:11px;color:var(--cx-text-secondary); }
-.cx-button-quiet { display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:32px;padding:5px 8px;border:0;border-radius:5px;background:transparent;color:var(--cx-text-secondary);font:inherit;font-size:12px;cursor:pointer; }
+.cx-button-quiet { display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:32px;padding:5px 8px;border:0;border-radius:var(--cx-radius-control);background:transparent;color:var(--cx-text-secondary);font:inherit;font-size:12px;cursor:pointer; }
 .cx-button-quiet:hover { background:var(--cx-surface-subtle);color:var(--cx-text); }
 .cx-button-quiet:focus-visible,.cx-chart-frame :is(button,select,a):focus-visible { outline:2px solid var(--cx-focus);outline-offset:3px; }
 .cx-chart-frame.is-focused { position:fixed;inset:16px;z-index:45;display:flex;flex-direction:column;max-height:calc(100dvh - 32px);overflow:auto;border-color:var(--cx-border);box-shadow:var(--cx-shadow-elevated);padding:24px 32px; }
@@ -487,10 +487,11 @@ button.cx-lifecycle-loss{color:var(--cx-action);cursor:pointer;min-height:32px}
 @media print { .cx-analytical-canvas { background-image:none; }.cx-chart-focus-toggle { display:none; }.cx-chart-frame.is-focused { position:static;max-height:none;overflow:visible;box-shadow:none; } }
 
 /* Canonical selected controls; ARIA and legacy selected state share one surface. */
-.cx-segmented-control { display:inline-flex;align-items:center;gap:2px;padding:3px;border:1px solid var(--cx-border-subtle);border-radius:6px;background:var(--cx-surface-subtle); }
-.cx-segmented-control button { display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:30px;padding:4px 10px;border:1px solid transparent;border-radius:4px;color:var(--cx-text-secondary);font-size:12px;font-weight:500;cursor:pointer;transition:background-color 150ms,color 150ms; }
+.cx-segmented-control { display:inline-flex;align-items:center;gap:2px;padding:3px;border:1px solid var(--cx-border-subtle);border-radius:var(--cx-radius-control);background:var(--cx-surface-subtle); }
+.cx-segmented-control button { display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:30px;padding:4px 10px;border:1px solid transparent;border-radius:var(--cx-radius-control);color:var(--cx-text-secondary);font-size:12px;font-weight:500;cursor:pointer;transition:background-color 150ms,color 150ms; }
 .cx-segmented-control button:hover { color:var(--cx-action);background:var(--cx-surface); }
 .cx-segmented-control button:is([data-active=true],[aria-pressed=true]) { background:var(--cx-selected-bg);color:var(--cx-action);font-weight:650;border-color:var(--cx-border);box-shadow:none; }
 .cx-segmented-control button:focus-visible { outline:2px solid var(--cx-focus);outline-offset:3px; }
+.cx-audit-column-group[aria-pressed="true"],.cx-audit-column-group[aria-pressed="true"]:hover { background:var(--cx-selected-bg);border-color:var(--cx-action);color:var(--cx-action); }
 @media(max-width:760px) { .cx-segmented-control { width:100%; }.cx-segmented-control button { flex:1; } }
 @media(prefers-reduced-motion:reduce) { .cx-segmented-control button { transition:none; } }

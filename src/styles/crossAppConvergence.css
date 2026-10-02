@@ -20,7 +20,7 @@
 :is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page,.cx-reconciliation-page,.vetting-page)
 :is(input,select){
   border-color:var(--cx-border);
-  border-radius:6px;
+  border-radius:var(--cx-radius-control);
 }
 :is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page,.cx-reconciliation-page,.vetting-page)
 :is(input,select):focus{
@@ -48,7 +48,7 @@ table thead th{
   color:var(--cx-text-secondary);
 }
 :is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page,.cx-reconciliation-page,.vetting-page)
-table tbody tr{transition:background-color .12s}
+table tbody tr{transition:background-color var(--cx-motion)}
 :is(.cx-cli-page,.cx-routing-page,.cx-cohorts-page,.cx-process-page,.cx-reconciliation-page,.vetting-page)
 table tbody tr:hover{background:var(--cx-selected-bg)}
 

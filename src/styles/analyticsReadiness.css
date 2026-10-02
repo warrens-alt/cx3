@@ -18,3 +18,14 @@
 .cx-readiness-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .cx-readiness button, .cx-readiness a { min-height: 44px; }
 .cx-readiness :is(button, a):focus-visible { outline: 2px solid var(--cx-focus); outline-offset: 3px; }
+
+/* Intake controls share the application form treatment, including narrow screens. */
+.cx-data-intake { min-width:0; }
+.cx-intake-source-field { min-width:0; width:100%; max-width:100%; }
+.cx-intake-source-field select { width:100%; }
+.cx-data-intake > header > div { min-width:0; max-width:100%; }
+.cx-data-intake :is(input:not([type="checkbox"]),select) { max-width:100%; min-height:40px; color:var(--cx-text); background:var(--cx-surface); border-color:var(--cx-control-border); border-radius:var(--cx-radius-control); }
+.cx-data-intake :is(button,a,input,select):focus-visible { outline:2px solid var(--cx-focus); outline-offset:3px; }
+.cx-data-intake :is(button,a) { min-height:36px; }
+@media(pointer:coarse) { .cx-data-intake :is(button,a,input:not([type="checkbox"]),select) { min-height:44px; } }
+@media(prefers-reduced-motion:reduce) { .cx-data-intake * { transition:none; animation:none; } }

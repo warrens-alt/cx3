@@ -47,8 +47,8 @@ export default function ConsumerReentry() {
   if (error || !data || !data.overview) {
     return (
       <AnalyticsPageLayout title={title} description={description} scope={scope}>
-        <div className="bg-surface rounded-xl border border-border p-8 text-center max-w-xl mx-auto my-12 shadow-sm">
-          <AlertCircle className="w-12 h-12 text-warning mx-auto mb-4" />
+        <div className="bg-surface rounded-lg border border-border p-8 text-center max-w-xl mx-auto my-12">
+          <AlertCircle className="w-12 h-12 text-semantic-warn mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-text-main mb-2">Unable to Load Consumer Re-entry Data</h2>
           <p className="text-text-sec text-sm mb-4">
             {error || 'The response did not include a consumer overview. Population size is unavailable.'}
@@ -239,7 +239,7 @@ export default function ConsumerReentry() {
                   {sequenceEconomics.map((seq: any, idx: number) => {
                     const isFirst = seq.entry_stage === '1st Entry';
                     return (
-                      <tr key={idx} className={isFirst ? 'bg-selected font-medium' : 'hover:bg-surface-subtle'}>
+                      <tr key={idx} className={isFirst ? 'bg-selected-bg font-medium' : 'hover:bg-surface-subtle'}>
                         <td className="py-3.5 px-4 font-sans font-semibold text-text-main">
                           {seq.entry_stage}
                         </td>
@@ -320,7 +320,7 @@ export default function ConsumerReentry() {
                     <tr key={idx} className="hover:bg-surface-subtle">
                       <td className="py-3 px-4 font-sans font-medium text-text-main">{c.consumer_id}</td>
                       <td className="py-3 px-4 text-center">
-                        <span className="px-2 py-0.5 rounded bg-selected text-action font-semibold">{c.lead_count}</span>
+                        <span className="px-2 py-0.5 rounded bg-selected-bg text-action font-semibold">{c.lead_count}</span>
                       </td>
                       <td className="py-3 px-4 text-center text-text-sec">{c.unique_source_count}</td>
                       <td className="py-3 px-4 text-center text-text-sec">{c.unique_vendor_count}</td>
@@ -329,7 +329,7 @@ export default function ConsumerReentry() {
                       <td className="py-3 px-4 text-text-sec">{c.latest_lead_date?.value || c.latest_lead_date || 'N/A'}</td>
                       <td className="py-3 px-4 text-center">
                         {c.has_billable_sale ? (
-                          <span className="px-2.5 py-0.5 rounded text-xs font-semibold bg-selected text-text-main">Yes</span>
+                          <span className="px-2.5 py-0.5 rounded text-xs font-semibold bg-selected-bg text-text-main">Yes</span>
                         ) : (
                           <span className="px-2.5 py-0.5 rounded text-xs text-text-muted">No</span>
                         )}

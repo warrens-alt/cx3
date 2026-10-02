@@ -95,7 +95,7 @@ function Scorecard({title,rows,report}:{title:string;rows:VettingGroup[];report:
       <div className="pt-4 mt-3">
         <div className="h-[320px] min-h-[320px] w-full">
           {!matches.length ? (
-            <div className="h-full w-full flex flex-col items-center justify-center text-xs text-text-mute bg-surface-subtle rounded-lg border border-dashed border-border p-4">
+            <div className="h-full w-full flex flex-col items-center justify-center text-xs text-text-mute bg-surface-subtle rounded-md border border-dashed border-border p-4">
               <span className="font-medium text-text-sec mb-1">No matching vetting groups to graph.</span>
               <span className="text-[11px] text-text-mute">Try adjusting your scorecard search.</span>
             </div>
@@ -152,7 +152,7 @@ function Matrix({report,measure,onSelect}:{report:VettingReport;measure:string;o
       <div role="row" className="vetting-matrix-row" style={{gridTemplateColumns:`155px repeat(${colours.length},minmax(100px,1fr))`}}><strong role="columnheader">Class / Colour</strong>{colours.map(c=><strong key={c} role="columnheader">{c}</strong>)}</div>
       {classes.slice(0,50).map(c=><div key={c} role="row" className="vetting-matrix-row" style={{gridTemplateColumns:`155px repeat(${colours.length},minmax(100px,1fr))`}}><strong role="rowheader">{c}</strong>{colours.map(k=>{
         const row=lookup.get(JSON.stringify([c,k])),value=row?(row as any)[measure]:null,intensity=value==null?0:Math.max(0,Math.min(1,Number(value)/max));
-        return <button key={k} role="gridcell" type="button" disabled={!row} aria-label={`Class ${c}, colour ${k}: ${value==null?'no measured value':exactLabel(value)}`} style={{background:`rgba(8,127,140,${.05+.8*intensity})`,color:intensity>.65?'white':'#17283d'}} onClick={()=>onSelect(c,k)}>{value===null?'—':exactLabel(value)}<small>{row?`${exactLabel(row.leads)} leads`:'No returned cell'}</small></button>;
+        return <button key={k} role="gridcell" type="button" disabled={!row} aria-label={`Class ${c}, colour ${k}: ${value==null?'no measured value':exactLabel(value)}`} style={{background:`color-mix(in srgb,var(--vetting-heatmap-fill) ${(.05+.8*intensity)*100}%,transparent)`,color:intensity>.65?'var(--vetting-heatmap-high-ink)':'var(--vetting-heatmap-low-ink)'}} onClick={()=>onSelect(c,k)}>{value===null?'—':exactLabel(value)}<small>{row?`${exactLabel(row.leads)} leads`:'No returned cell'}</small></button>;
       })}</div>)}
     </div></div>{classes.length>50&&<p>First 50 of {classes.length} class values are shown. Use the complete cross-tab scorecard for every value.</p>}{!rows.length&&<p className="vetting-empty">No class/colour cells were returned.</p>}
   </section>;

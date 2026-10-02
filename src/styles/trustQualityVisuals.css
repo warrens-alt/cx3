@@ -21,7 +21,7 @@
 .cx-trust-link{display:inline-flex;align-items:center;gap:5px;flex-shrink:0;color:var(--cx-action);font-size:12px;font-weight:550;line-height:1.6;border:0;background:none;cursor:pointer;text-decoration:none;text-align:left}
 .cx-trust-link:hover{text-decoration:underline}
 .cx-trust-link svg{flex-shrink:0}
-.cx-trust-status{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;line-height:1.4;padding:5px 8px;border:1px solid var(--cx-border-subtle);border-radius:5px;background:var(--cx-surface-subtle);color:var(--cx-text-secondary);white-space:normal;overflow-wrap:anywhere}
+.cx-trust-status{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;line-height:1.4;padding:5px 8px;border:1px solid var(--cx-border-subtle);border-radius:var(--cx-radius-control);background:var(--cx-surface-subtle);color:var(--cx-text-secondary);white-space:normal;overflow-wrap:anywhere}
 .cx-trust-status i{display:block;flex:0 0 5px;height:5px;background:currentColor;border-radius:50%}
 .cx-trust-status[data-tone="observed"]{background:color-mix(in srgb,var(--cx-action) 7%,var(--cx-surface));color:var(--cx-action);border-color:color-mix(in srgb,var(--cx-action) 15%,var(--cx-border-subtle))}
 .cx-trust-status[data-tone="attention"]{color:var(--cx-warning);background:color-mix(in srgb,var(--cx-warning) 7%,var(--cx-surface));border-color:color-mix(in srgb,var(--cx-warning) 18%,var(--cx-border-subtle))}
@@ -73,16 +73,16 @@
 .cx-trust-definition dd{font-size:13px;line-height:1.7;margin-top:5px;overflow-wrap:anywhere}
 .cx-trust-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 20px;border-block:1px solid var(--cx-border-subtle);background:var(--cx-surface-subtle)}
 .cx-trust-toolbar>label{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--cx-text-secondary)}
-.cx-trust-toolbar :is(select,input){font-size:12px;min-height:36px;padding:8px 10px;color:var(--cx-text);background:var(--cx-surface);border:1px solid var(--cx-border);border-radius:6px;max-width:100%;min-width:0}
+.cx-trust-toolbar :is(select,input){font-size:12px;min-height:36px;padding:8px 10px;color:var(--cx-text);background:var(--cx-surface);border:1px solid var(--cx-border);border-radius:var(--cx-radius-control);max-width:100%;min-width:0}
 .cx-trust-toolbar input{border:0;background:none;outline-offset:-2px;width:100%;padding:8px 0}
-.cx-trust-search{flex:1;max-width:320px;min-width:190px;background:var(--cx-surface);border:1px solid var(--cx-border);padding-inline:10px;border-radius:6px}
+.cx-trust-search{flex:1;max-width:320px;min-width:190px;background:var(--cx-surface);border:1px solid var(--cx-border);padding-inline:10px;border-radius:var(--cx-radius-control)}
 .cx-trust-search>svg{flex-shrink:0;color:var(--cx-text-muted)}
 .cx-trust-search button{padding:5px;border:0;background:none;color:var(--cx-text-secondary);cursor:pointer}
-.cx-trust-sort{min-height:36px;padding:8px 10px;font-size:12px;border:1px solid var(--cx-border);border-radius:6px;background:var(--cx-surface);color:var(--cx-text);cursor:pointer}
+.cx-trust-sort{min-height:36px;padding:8px 10px;font-size:12px;border:1px solid var(--cx-border);border-radius:var(--cx-radius-control);background:var(--cx-surface);color:var(--cx-text);cursor:pointer}
 .cx-exception-focus-grid{display:grid;grid-template-columns:minmax(220px,.75fr) minmax(0,1.8fr)}
 .cx-exception-selector{list-style:none;margin:0;padding:12px;display:flex;flex-direction:column;gap:8px;max-height:720px;overflow:auto;border-right:1px solid var(--cx-border-subtle)}
 .cx-exception-selector li{min-width:0}
-.cx-exception-selector button{display:block;width:100%;padding:14px;text-align:left;border:1px solid transparent;border-radius:7px;background:var(--cx-surface);color:var(--cx-text);cursor:pointer}
+.cx-exception-selector button{display:block;width:100%;padding:14px;text-align:left;border:1px solid transparent;border-radius:var(--cx-radius-control);background:var(--cx-surface);color:var(--cx-text);cursor:pointer}
 .cx-exception-selector button:hover{background:var(--cx-surface-subtle)}
 .cx-exception-selector button[aria-pressed="true"]{background:var(--cx-selected-bg);border-color:color-mix(in srgb,var(--cx-action) 35%,var(--cx-border-subtle))}
 .cx-exception-selector-heading{display:flex;align-items:start;justify-content:space-between;gap:10px}

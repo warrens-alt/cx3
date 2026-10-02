@@ -19,7 +19,7 @@ export default function BlcLifecycleCard({ source, reportHref }: Props) {
         <div>
           <div className="flex items-center gap-2">
             <h3 className="text-base font-semibold text-text-main">BLC Rubix / activation lifecycle</h3>
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 font-mono">
+            <span className="px-2 py-0.5 rounded-[var(--cx-radius-control)] text-[10px] font-bold bg-[var(--cx-selected-bg)] text-action">
               Power BI: ONLINE
             </span>
           </div>

@@ -76,7 +76,7 @@ export default function JourneySegments({
   }, [displayedRows, activeSort]);
 
   return (
-    <div className="cx-journey-segments bg-surface rounded-xl border border-border-subtle overflow-hidden space-y-4">
+    <div className="cx-journey-segments bg-surface rounded-md border border-border-subtle overflow-hidden space-y-4">
       {/* Header and Controls */}
       <div className="p-5 border-b border-border-subtle bg-surface-sec flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -90,7 +90,7 @@ export default function JourneySegments({
 
         <div className="flex flex-wrap items-center gap-3">
           {/* Dimension Selector */}
-          <div className="inline-flex rounded-lg border border-border-subtle p-0.5 bg-surface text-xs font-medium">
+          <div className="inline-flex rounded-md border border-border-subtle p-0.5 bg-surface text-xs font-medium">
             {(['vendor', 'source', 'grade'] as JourneyDimension[]).map((dim) => (
               <button
                 key={dim}
@@ -102,7 +102,7 @@ export default function JourneySegments({
                 }}
                 className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer capitalize ${
                   activeDimension === dim
-                    ? 'bg-brand-primary text-white shadow-2xs font-semibold'
+                    ? 'bg-brand-primary text-[var(--cx-action-contrast)]  font-semibold'
                     : 'text-text-sec hover:text-text-main'
                 }`}
               >
@@ -116,7 +116,7 @@ export default function JourneySegments({
             value={activeSort}
             onChange={(e) => setActiveSort(e.target.value as JourneySegmentSort)}
             aria-label="Sort lifecycle segments"
-            className="text-xs bg-surface border border-border-subtle rounded-lg px-2.5 py-1.5 text-text-main focus:outline-hidden focus:ring-1 focus:ring-brand-primary cursor-pointer"
+            className="text-xs bg-surface border border-border-subtle rounded-md px-2.5 py-1.5 text-text-main focus:outline-hidden focus:ring-1 focus:ring-brand-primary cursor-pointer"
           >
             {(Object.keys(SORT_LABELS) as JourneySegmentSort[]).map((sKey) => (
               <option key={sKey} value={sKey}>
@@ -134,7 +134,7 @@ export default function JourneySegments({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               aria-label={`Search ${activeDimension} segments`}
-              className="text-xs pl-8 pr-3 py-1.5 bg-surface border border-border-subtle rounded-lg w-36 sm:w-44 focus:w-56 transition-all focus:outline-hidden focus:ring-1 focus:ring-brand-primary"
+              className="text-xs pl-8 pr-3 py-1.5 bg-surface border border-border-subtle rounded-md w-36 sm:w-44 focus:w-56 transition-all focus:outline-hidden focus:ring-1 focus:ring-brand-primary"
             />
           </div>
         </div>
@@ -249,7 +249,7 @@ export default function JourneySegments({
           <button
             type="button"
             onClick={() => setShowAll((prev) => !prev)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border-subtle rounded-lg text-text-main hover:bg-surface-subtle font-medium transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border-subtle rounded-md text-text-main hover:bg-surface-subtle font-medium transition-colors cursor-pointer"
           >
             {showAll ? (
               <>

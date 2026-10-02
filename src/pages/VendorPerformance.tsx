@@ -124,13 +124,13 @@ export default function VendorPerformance() {
     <WorkspaceState loading={loading} error={error} missingRelease={missingReleaseReason} scopeError={workspace.scopeError} retry={()=>{void workspace.catalogue.refetch();void workspace.current.refetch();}}/>
 
     {missingReleaseReason && (
-      <section className="enterprise-card p-6 border-slate-200 bg-slate-50/70 space-y-4">
+      <section className="enterprise-card p-6 border-border bg-surface-subtle/70 space-y-4">
         <div className="flex items-start gap-3">
-          <Info className="w-5 h-5 text-[#315BCB] shrink-0 mt-0.5" />
+          <Info className="w-5 h-5 text-action shrink-0 mt-0.5" />
           <div className="space-y-2">
             <h2 className="font-semibold text-text-main text-base">Live Vendor Telemetry & BigQuery Data Checks</h2>
             <p className="text-sm text-text-sec">
-              While the immutable versioned release contract (<code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">CX_REPORTING_DATASET</code>) is unconfigured or awaiting release publication, you can explore live vendor transaction metrics directly in the operational tabs.
+              While the immutable versioned release contract (<code className="text-xs bg-surface-subtle px-1.5 py-0.5 rounded">CX_REPORTING_DATASET</code>) is unconfigured or awaiting release publication, you can explore live vendor transaction metrics directly in the operational tabs.
             </p>
             <div className="flex flex-wrap gap-2.5 pt-2">
               <Link to="/data-trust?tab=multivendor" className="cx-button-primary text-xs py-1.5 px-3 inline-flex items-center gap-1.5">
@@ -199,7 +199,7 @@ export default function VendorPerformance() {
             const isNeg = movement?.startsWith('-');
             const isZero = movement === '0.0' || movement === '0';
             const movementDisplay = movement === null ? 'No comparable value' : isNeg ? `${movement}% vs previous` : isZero ? '0.0% vs previous' : `+${movement}% vs previous`;
-            const movementClass = movement === null ? 'text-slate-400' : isNeg ? 'text-rose-600 font-medium' : isZero ? 'text-slate-500' : 'text-emerald-700 font-medium';
+            const movementClass = movement === null ? 'text-text-muted' : isNeg ? 'text-semantic-neg font-medium' : isZero ? 'text-text-sec' : 'text-semantic-pos font-medium';
             return <article key={id}>
               <span>{label}</span>
               <strong>{format(selectedCurrent?.metrics[id])}</strong>
@@ -223,7 +223,7 @@ export default function VendorPerformance() {
             <div><dt>Next evidence step</dt><dd>Approve lead classification fields and release reconciliation.</dd></div>
           </dl>
           <div className="pt-2">
-            <Link to="/vetting" className="cx-link-button text-xs inline-flex items-center gap-1 text-[#315EAD] font-medium hover:underline">
+            <Link to="/vetting" className="cx-link-button text-xs inline-flex items-center gap-1 text-action font-medium hover:underline">
               Explore legacy Class & Colour Vetting <ArrowRight size={12}/>
             </Link>
           </div>
@@ -231,14 +231,14 @@ export default function VendorPerformance() {
       </section>
       <section id="vendor-table" className="enterprise-card cx-ops-table-card"><header><div><p className="cx-ops-eyebrow">Vendor evidence</p><h2>Performance table</h2><p>Exact snapshot-bound values. Select a vendor or inspect the supporting records for any measured value.</p></div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-0.5 text-xs">
+          <div className="inline-flex rounded-md border border-border bg-surface-subtle p-0.5 text-xs">
             <button
               type="button"
               onClick={() => setVendorTableView('table')}
               className={`inline-flex items-center gap-1.5 px-2.5 py-1 font-medium rounded ${
                 vendorTableView === 'table'
-                  ? 'bg-white text-blue-700 shadow-2xs font-semibold'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-surface text-action  font-semibold'
+                  : 'text-text-sec hover:text-text-main'
               }`}
             >
               <TableIcon size={12} /> Table
@@ -248,8 +248,8 @@ export default function VendorPerformance() {
               onClick={() => setVendorTableView('graph')}
               className={`inline-flex items-center gap-1.5 px-2.5 py-1 font-medium rounded ${
                 vendorTableView === 'graph'
-                  ? 'bg-white text-blue-700 shadow-2xs font-semibold'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-surface text-action  font-semibold'
+                  : 'text-text-sec hover:text-text-main'
               }`}
             >
               <BarChart2 size={12} /> Graph
@@ -287,13 +287,13 @@ export default function VendorPerformance() {
                 <tr>
                   <th scope="col" aria-sort={sortMetric==='vendor'?(direction==='asc'?'ascending':'descending'):'none'}>
                     <button type="button" className="inline-flex items-center gap-1 font-semibold text-inherit hover:underline" onClick={()=>handleSort('vendor')}>
-                      Vendor {sortMetric==='vendor'?(direction==='desc'?<ArrowDown size={13} className="text-[#315EAD]"/>:<ArrowUp size={13} className="text-[#315EAD]"/>):<ArrowUpDown size={12} className="opacity-40"/>}
+                      Vendor {sortMetric==='vendor'?(direction==='desc'?<ArrowDown size={13} className="text-action"/>:<ArrowUp size={13} className="text-action"/>):<ArrowUpDown size={12} className="opacity-40"/>}
                     </button>
                   </th>
                   {TABLE_COLUMNS.filter(id=>visible.has(id)).map(id=>(
                     <th key={id} scope="col" aria-sort={sortMetric===id?(direction==='asc'?'ascending':'descending'):'none'}>
                       <button type="button" className="inline-flex items-center gap-1 font-semibold text-inherit hover:underline" onClick={()=>handleSort(id)}>
-                        {METRIC_BY_ID[id].label} {sortMetric===id?(direction==='desc'?<ArrowDown size={13} className="text-[#315EAD]"/>:<ArrowUp size={13} className="text-[#315EAD]"/>):<ArrowUpDown size={12} className="opacity-40"/>}
+                        {METRIC_BY_ID[id].label} {sortMetric===id?(direction==='desc'?<ArrowDown size={13} className="text-action"/>:<ArrowUp size={13} className="text-action"/>):<ArrowUpDown size={12} className="opacity-40"/>}
                       </button>
                     </th>
                   ))}
@@ -307,9 +307,9 @@ export default function VendorPerformance() {
         ) : (
           <div className="p-4 h-72 min-h-[288px] w-full">
             {!matching.length ? (
-              <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200 p-4">
-                <span className="font-medium text-slate-600 mb-1">No vendor groups matched the search query.</span>
-                <span className="text-[11px] text-slate-400">Try clearing the search input to view vendor metrics.</span>
+              <div className="h-full w-full flex flex-col items-center justify-center text-xs text-text-muted bg-surface-subtle/50 rounded-md border border-dashed border-border p-4">
+                <span className="font-medium text-text-sec mb-1">No vendor groups matched the search query.</span>
+                <span className="text-[11px] text-text-muted">Try clearing the search input to view vendor metrics.</span>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
@@ -320,26 +320,26 @@ export default function VendorPerformance() {
                   sales: chartCoordinate(availableValue(r.metrics.sale_events)),
                   activations: chartCoordinate(availableValue(r.metrics.activation_events)),
                 }))} margin={{ top: 10, right: 30, left: 10, bottom: 35 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="vendor" tick={{ fontSize: 9, fill: '#64748b' }} stroke="#cbd5e1" interval={0} angle={-25} textAnchor="end" height={45} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" axisLine={false} tickLine={false} tickFormatter={v => Number(v).toLocaleString()} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border)" />
+                  <XAxis dataKey="vendor" tick={{ fontSize: 9, fill: 'var(--cx-text-secondary)' }} stroke="var(--cx-border)" interval={0} angle={-25} textAnchor="end" height={45} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--cx-text-secondary)' }} stroke="var(--cx-border)" axisLine={false} tickLine={false} tickFormatter={v => Number(v).toLocaleString()} />
                   <Tooltip
                     filterNull={false}
                     content={({ active, payload, label }) => {
                       if (!active || !payload?.length) return null;
                       return (
-                        <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg p-3 text-xs min-w-[190px] ring-1 ring-black/5 dark:ring-white/5 font-mono">
-                          <div className="font-semibold text-slate-800 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1 mb-2 font-mono">
+                        <div className="bg-surface/95 backdrop-blur-md border border-border rounded-md shadow-[var(--cx-shadow-md)] p-3 text-xs min-w-[190px]  font-mono">
+                          <div className="font-semibold text-text-main border-b border-border-subtle dark:border-border pb-1 mb-2 font-mono">
                             Vendor: {label}
                           </div>
                           <div className="space-y-1.5">
                             {payload.map((entry: any, idx: number) => (
                               <div key={idx} className="flex items-center justify-between gap-3">
-                                <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 font-sans">
+                                <span className="flex items-center gap-1.5 text-text-sec dark:text-text-muted font-sans">
                                   <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ backgroundColor: entry.fill }} />
                                   <span>{entry.name}</span>
                                 </span>
-                                <span className="font-bold text-slate-900 dark:text-slate-100 tabular-nums">
+                                <span className="font-bold text-text-main tabular-nums">
                                   {entry.value == null ? 'Unavailable' : Number(entry.value).toLocaleString()}
                                 </span>
                               </div>

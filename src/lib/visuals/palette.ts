@@ -1,12 +1,12 @@
 export const CHART_PALETTE = [
-  '#315BCB', // primary blue
-  '#0284c7', // cyan
-  '#059669', // emerald
-  '#d97706', // amber
-  '#dc2626', // red
-  '#7c3aed', // violet
-  '#db2777', // pink
-  '#475569', // slate
+  'var(--cx-visual-category-1)', // primary blue
+  'var(--cx-visual-category-2)', // cyan
+  'var(--cx-visual-category-3)', // emerald
+  'var(--cx-visual-category-4)', // amber
+  'var(--cx-visual-category-5)', // red
+  'var(--cx-visual-category-6)', // violet
+  'var(--cx-visual-category-7)', // pink
+  'var(--cx-visual-category-8)', // slate
 ];
 
 const colourCache = new Map<string, string>();

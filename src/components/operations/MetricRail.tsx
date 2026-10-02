@@ -36,11 +36,11 @@ export default function MetricRail({ items }: MetricRailProps) {
           const text = isNeg ? `${item.change}%` : isZero ? '0.0%' : `+${item.change}%`;
           changeContent = (
             <span className={`inline-flex items-center gap-1 font-semibold text-[11px] px-1.5 py-0.5 rounded border ${
-              isNeg 
-                ? 'bg-rose-50 text-rose-700 border-rose-200/70' 
-                : isZero 
-                  ? 'bg-slate-100 text-slate-600 border-slate-200' 
-                  : 'bg-emerald-50 text-emerald-700 border-emerald-200/70'
+              isNeg
+                ? 'bg-semantic-neg-bg text-semantic-neg border-semantic-neg/30'
+                : isZero
+                  ? 'bg-surface-subtle text-text-sec border-border'
+                  : 'bg-semantic-pos-bg text-semantic-pos border-semantic-pos/30'
             }`}>
               {!isZero && (isNeg ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />)}
               {isZero && <Minus className="w-3 h-3" />}
@@ -52,11 +52,11 @@ export default function MetricRail({ items }: MetricRailProps) {
           const isFlat = item.change.direction === 'flat';
           changeContent = (
             <span className={`inline-flex items-center gap-1 font-semibold text-[11px] px-1.5 py-0.5 rounded border ${
-              isNeg 
-                ? 'bg-rose-50 text-rose-700 border-rose-200/70' 
-                : isFlat 
-                  ? 'bg-slate-100 text-slate-600 border-slate-200' 
-                  : 'bg-emerald-50 text-emerald-700 border-emerald-200/70'
+              isNeg
+                ? 'bg-semantic-neg-bg text-semantic-neg border-semantic-neg/30'
+                : isFlat
+                  ? 'bg-surface-subtle text-text-sec border-border'
+                  : 'bg-semantic-pos-bg text-semantic-pos border-semantic-pos/30'
             }`}>
               {item.change.direction === 'up' && <ArrowUp className="w-3 h-3" />}
               {item.change.direction === 'down' && <ArrowDown className="w-3 h-3" />}
@@ -70,15 +70,15 @@ export default function MetricRail({ items }: MetricRailProps) {
         const hasFooter = Boolean(item.onWhyChanged || item.onInspect || item.to);
 
         return (
-          <div 
-            key={item.id} 
+          <div
+            key={item.id}
             className={`enterprise-card p-3.5 sm:p-4 flex flex-col justify-between relative group hover:border-action/40 transition-all ${
               isLastOdd ? 'col-span-2 sm:col-span-1' : ''
             }`}
           >
             <div>
               <div className="flex items-center justify-between gap-1 mb-1">
-                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider line-clamp-1">
+                <span className="text-[11px] font-semibold text-text-sec uppercase tracking-wider line-clamp-1">
                   {item.label}
                 </span>
                 {item.note && (
@@ -89,12 +89,12 @@ export default function MetricRail({ items }: MetricRailProps) {
                       onClick={() => setActiveTooltip(old => old === item.id ? null : item.id)}
                       onMouseEnter={() => setActiveTooltip(item.id)}
                       onMouseLeave={() => setActiveTooltip(null)}
-                      className="text-slate-400 hover:text-slate-600 p-0.5 rounded transition-colors cursor-pointer"
+                      className="text-text-mute hover:text-text-sec p-0.5 rounded transition-colors cursor-pointer"
                     >
                       <Info className="w-3.5 h-3.5" />
                     </button>
                     {activeTooltip === item.id && (
-                      <div className="absolute right-0 top-6 z-30 w-52 p-2 bg-slate-900 text-white text-[11px] leading-relaxed rounded-md shadow-lg pointer-events-none fade-in">
+                      <div className="absolute right-0 top-6 z-30 w-52 p-2 bg-surface text-text-main border border-border text-[11px] leading-relaxed rounded-[var(--cx-radius-md)] shadow-[var(--cx-shadow-elevated)] pointer-events-none fade-in">
                         {item.note}
                       </div>
                     )}
@@ -102,16 +102,16 @@ export default function MetricRail({ items }: MetricRailProps) {
                 )}
               </div>
 
-              <div className="text-2xl sm:text-[26px] font-bold text-slate-900 mt-1 font-sans tabular-nums tracking-tight tabular-nums">
+              <div className="text-2xl sm:text-[26px] font-bold text-text-main mt-1 font-sans tabular-nums tracking-tight tabular-nums">
                 {item.value}
               </div>
             </div>
 
             {(changeContent || item.comparison) && (
-              <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 text-[11px]">
+              <div className="mt-2.5 pt-2 border-t border-border-subtle flex items-center justify-between gap-1 text-[11px]">
                 {changeContent || <span />}
                 {item.comparison && (
-                  <span className="text-slate-400 text-[10px] truncate max-w-[120px] text-right font-medium" title={item.comparison}>
+                  <span className="text-text-mute text-[10px] truncate max-w-[120px] text-right font-medium" title={item.comparison}>
                     {item.comparison}
                   </span>
                 )}

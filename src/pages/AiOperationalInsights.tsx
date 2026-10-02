@@ -112,7 +112,7 @@ export default function AiOperationalInsights() {
         {data && <nav className="cx-admin-section-nav" aria-label="AI insight sections"><a href="#ai-briefing">Briefing</a><a href="#ai-findings">Findings & evidence</a><a href="#ai-question">Ask a question</a></nav>}
 
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/40 dark:border-red-900 p-4 text-xs text-red-800 dark:text-red-300 flex items-center justify-between gap-2" role="alert">
+          <div className="rounded-lg border border-semantic-neg/30 bg-semantic-neg-bg p-4 text-xs text-semantic-neg flex items-center justify-between gap-2" role="alert">
             <div className="flex items-center gap-2">
               <AlertTriangle size={16} />
               <span>{error}</span>
@@ -120,7 +120,7 @@ export default function AiOperationalInsights() {
             <button
               type="button"
               onClick={() => loadData(true)}
-              className="text-red-900 dark:text-red-200 underline font-semibold hover:text-red-700 cursor-pointer"
+              className="text-semantic-neg underline font-semibold hover:text-semantic-neg cursor-pointer"
             >
               Retry
             </button>
@@ -135,17 +135,17 @@ export default function AiOperationalInsights() {
         ) : data ? (
           <>
             {/* Executive Synthesis Card */}
-            <section id="ai-briefing" className="cx-ai-briefing enterprise-card p-6 border-blue-100 dark:border-blue-900/50 bg-gradient-to-br from-white via-slate-50/50 to-blue-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/30">
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+            <section id="ai-briefing" className="cx-ai-briefing enterprise-card p-6 border-action/30">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-4 border-b border-border-subtle">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-md bg-blue-50 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                  <div className="w-7 h-7 rounded-md bg-selected-bg text-action flex items-center justify-center">
                     <Lightbulb size={16} />
                   </div>
                   <div>
-                    <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    <h2 className="text-sm font-semibold text-text-main">
                       Executive Operational Synthesis
                     </h2>
-                    <p className="text-[11px] text-slate-500 font-mono">
+                    <p className="text-[11px] text-text-mute font-mono">
                       Workspace: {clientConfig?.name || selectedClient} · {data.source}
                     </p>
                   </div>
@@ -155,9 +155,9 @@ export default function AiOperationalInsights() {
                   <button
                     type="button"
                     onClick={handleCopySummary}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer transition-colors shadow-2xs"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border border-border-subtle bg-surface text-text-sec hover:bg-surface-sec cursor-pointer transition-colors"
                   >
-                    {copied ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                    {copied ? <Check size={13} className="text-semantic-pos" /> : <Copy size={13} />}
                     <span>{copied ? 'Copied' : 'Copy briefing'}</span>
                   </button>
                   <ExportAnalysisButton
@@ -174,13 +174,13 @@ export default function AiOperationalInsights() {
 
               {/* Narrative Content */}
               <div className="mt-4 space-y-3">
-                <p className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-normal">
+                <p className="text-sm text-text-main leading-relaxed font-normal">
                   {data.executiveSummary || 'Operational metrics have been compiled across the selected date window.'}
                 </p>
 
                 {data.strategicFocus && (
-                  <div className="flex items-start gap-2.5 p-3 rounded-lg bg-blue-50/70 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/60 text-xs text-blue-900 dark:text-blue-200">
-                    <Lightbulb size={16} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                  <div className="flex items-start gap-2.5 p-3 rounded-lg bg-selected-bg border border-action/30 text-xs text-text-main">
+                    <Lightbulb size={16} className="text-action shrink-0 mt-0.5" />
                     <div>
                       <strong className="font-semibold block mb-0.5">Primary Operational Directive</strong>
                       <span>{data.strategicFocus}</span>
@@ -188,8 +188,8 @@ export default function AiOperationalInsights() {
                   </div>
                 )}
 
-                <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 pt-2 font-mono">
-                  <ShieldCheck size={14} className="text-blue-500 shrink-0" />
+                <div className="flex items-center gap-2 text-[11px] text-text-mute pt-2 font-mono">
+                  <ShieldCheck size={14} className="text-action shrink-0" />
                   <span>{data.reason}</span>
                 </div>
               </div>
@@ -198,13 +198,13 @@ export default function AiOperationalInsights() {
             <InsightWorkbench key={JSON.stringify([selectedClient, startDate, endDate, filters, investigationScope])} insights={data.insights} severity={severityFilter} onSeverity={setSeverityFilter} />
 
             {/* Interactive "Ask Gemini Analytics" Section */}
-            {activeInvestigation ? <InvestigationAI /> : <section id="ai-question" className="cx-ai-question enterprise-card p-6 space-y-4 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+            {activeInvestigation ? <InvestigationAI /> : <section id="ai-question" className="cx-ai-question enterprise-card p-6 space-y-4 border-border-subtle bg-surface">
               <div className="flex items-center gap-2">
-                <MessageSquare size={17} className="text-blue-600 dark:text-blue-400" />
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                <MessageSquare size={17} className="text-action" />
+                <h2 className="text-sm font-semibold text-text-main">
                   Ask Gemini Analytics
                 </h2>
-                <span className="text-[10px] text-slate-500 font-mono">
+                <span className="text-[10px] text-text-mute font-mono">
                   Grounded BigQuery Analysis
                 </span>
               </div>
@@ -220,16 +220,16 @@ export default function AiOperationalInsights() {
                     onKeyDown={e => e.key === 'Enter' && handleAskQuestion()}
                     placeholder="Ask about conversion bottlenecks, vendor SLA, or matched-period changes…"
                     disabled={asking}
-                    className="w-full pl-3.5 pr-24 py-2.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all placeholder:text-slate-400"
+                    className="w-full pl-3.5 pr-24 py-2.5 text-xs rounded-lg border border-border-subtle bg-surface-sec text-text-main focus:outline-hidden focus:ring-2 focus:ring-action focus:bg-surface transition-all placeholder:text-text-mute"
                   />
                   <button
                     type="button"
                     onClick={() => handleAskQuestion()}
                     disabled={asking || !question.trim()}
-                    className="absolute right-1.5 px-3 py-1.5 text-xs font-semibold rounded-md bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5 transition-all shadow-xs"
+                    className="absolute right-1.5 px-3 py-1.5 text-xs font-semibold rounded-md cx-button-primary disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5 transition-all"
                   >
                     {asking ? (
-                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <div className="w-3.5 h-3.5 border-2 border-[var(--cx-action-contrast)]/30 border-t-[var(--cx-action-contrast)] rounded-full animate-spin" />
                     ) : (
                       <Send size={13} />
                     )}
@@ -239,8 +239,8 @@ export default function AiOperationalInsights() {
 
                 {/* Preset Prompt Pills */}
                 <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                  <span className="text-[10.5px] text-slate-500 font-semibold mr-1 flex items-center gap-1">
-                    <HelpCircle size={12} className="text-blue-500" />
+                  <span className="text-[10.5px] text-text-mute font-semibold mr-1 flex items-center gap-1">
+                    <HelpCircle size={12} className="text-action" />
                     Suggested:
                   </span>
                   {QUICK_QUESTIONS.map((q, idx) => (
@@ -252,7 +252,7 @@ export default function AiOperationalInsights() {
                         handleAskQuestion(q);
                       }}
                       disabled={asking}
-                      className="text-[11px] px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 dark:hover:bg-blue-950/50 dark:hover:text-blue-300 dark:hover:border-blue-700 cursor-pointer transition-all shadow-2xs font-medium"
+                      className="text-[11px] px-2.5 py-1 rounded-md border border-border-subtle bg-surface text-text-sec hover:bg-selected-bg hover:text-action hover:border-action cursor-pointer transition-all font-medium"
                     >
                       {q}
                     </button>
@@ -262,7 +262,7 @@ export default function AiOperationalInsights() {
 
               {/* QA Error Alert */}
               {qaError && (
-                <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-xs text-red-700 dark:text-red-300 flex items-center gap-2">
+                <div className="p-3 rounded-lg bg-semantic-neg-bg border border-semantic-neg/30 text-xs text-semantic-neg flex items-center gap-2">
                   <AlertTriangle size={15} />
                   <span>{qaError}</span>
                 </div>
@@ -270,30 +270,30 @@ export default function AiOperationalInsights() {
 
               {/* QA Result Card */}
               {qaResult && (
-                <div className="p-4 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/40 dark:bg-blue-950/20 space-y-3 animate-in fade-in duration-200">
-                  <div className="flex items-center justify-between text-xs font-semibold text-blue-950 dark:text-blue-200">
+                <div className="p-4 rounded-lg border border-action/30 bg-selected-bg space-y-3 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between text-xs font-semibold text-text-main">
                     <div className="flex items-center gap-2">
-                      <Lightbulb size={14} className="text-blue-600 dark:text-blue-400" />
+                      <Lightbulb size={14} className="text-action" />
                       <span>Gemini Synthesis Response</span>
                     </div>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-selected-bg text-action">
                       {qaResult.model}
                     </span>
                   </div>
 
-                  <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line">
+                  <p className="text-xs text-text-main leading-relaxed whitespace-pre-line">
                     {qaResult.answer}
                   </p>
 
                   {qaResult.citations && qaResult.citations.length > 0 && (
-                    <div className="pt-2 border-t border-blue-100 dark:border-blue-900/40 space-y-1">
-                      <span className="text-[10.5px] font-semibold text-slate-500 uppercase tracking-wider block">
+                    <div className="pt-2 border-t border-action/30 space-y-1">
+                      <span className="text-[10.5px] font-semibold text-text-mute uppercase tracking-wider block">
                         Supplied metric references
                       </span>
                       <ul className="space-y-1">
                         {qaResult.citations.map((cite, i) => (
-                          <li key={i} className="text-[11px] font-mono text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
-                            <CheckCircle2 size={12} className="text-emerald-500 shrink-0" />
+                          <li key={i} className="text-[11px] font-mono text-text-sec flex items-center gap-1.5">
+                            <CheckCircle2 size={12} className="text-semantic-pos shrink-0" />
                             <span>{cite}</span>
                           </li>
                         ))}

@@ -182,13 +182,13 @@ export default function BlcReportingPanel() {
 
   return (
     <section
-      className="enterprise-card rounded-xl border border-border bg-surface shadow-xs transition-all overflow-hidden"
+      className="enterprise-card rounded-md border border-border bg-surface  transition-all overflow-hidden"
       aria-label="BLC source reporting and Power BI integration hub"
     >
       {/* Header Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-surface">
         <div className="flex items-start gap-3">
-          <div className="p-2 rounded-lg bg-[var(--cx-action)]/10 text-[var(--cx-action)] mt-0.5 shrink-0">
+          <div className="p-2 rounded-md bg-[var(--cx-action)]/10 text-[var(--cx-action)] mt-0.5 shrink-0">
             <Database size={20} aria-hidden="true" />
           </div>
           <div>
@@ -196,7 +196,7 @@ export default function BlcReportingPanel() {
               <h2 className="text-base font-bold text-text-main tracking-tight">
                 BLC Cross-Source Reporting &amp; Power BI Hub
               </h2>
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-action-soft text-action dark:bg-action-soft/60 dark:text-action border border-action">
                 Rubix &amp; BigQuery
               </span>
             </div>
@@ -208,7 +208,7 @@ export default function BlcReportingPanel() {
 
         <button
           type="button"
-          className="inline-flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md border border-border-subtle bg-surface hover:bg-surface-subtle text-text-main transition-colors shadow-2xs cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--cx-action)]"
+          className="inline-flex items-center gap-2 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md border border-border-subtle bg-surface hover:bg-surface-subtle text-text-main transition-colors  cursor-pointer focus-visible:outline-2 focus-visible:outline-[var(--cx-action)]"
           aria-expanded={expanded}
           aria-controls="blc-hub-content"
           onClick={() => setExpanded(prev => !prev)}
@@ -222,13 +222,13 @@ export default function BlcReportingPanel() {
         <div id="blc-hub-content" className="border-t border-border p-4 space-y-5 bg-surface-subtle/30">
           {/* Top Mode Selector Navigation */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
-            <div className="flex items-center gap-2 p-1 bg-surface rounded-lg border border-border-subtle shadow-2xs">
+            <div className="flex items-center gap-2 p-1 bg-surface rounded-md border border-border-subtle ">
               <button
                 type="button"
                 onClick={() => setMode('warehouse')}
                 className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors cursor-pointer ${
                   mode === 'warehouse'
-                    ? 'bg-[var(--cx-action)] text-white shadow-2xs'
+                    ? 'bg-[var(--cx-action)] text-[var(--cx-action-contrast)] '
                     : 'text-text-sec hover:text-text-main hover:bg-surface-subtle'
                 }`}
               >
@@ -241,7 +241,7 @@ export default function BlcReportingPanel() {
                 onClick={() => setMode('powerbi')}
                 className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors cursor-pointer ${
                   mode === 'powerbi'
-                    ? 'bg-[var(--cx-action)] text-white shadow-2xs'
+                    ? 'bg-[var(--cx-action)] text-[var(--cx-action-contrast)] '
                     : 'text-text-sec hover:text-text-main hover:bg-surface-subtle'
                 }`}
               >
@@ -254,7 +254,7 @@ export default function BlcReportingPanel() {
                 onClick={() => setMode('reconciliation')}
                 className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors cursor-pointer ${
                   mode === 'reconciliation'
-                    ? 'bg-[var(--cx-action)] text-white shadow-2xs'
+                    ? 'bg-[var(--cx-action)] text-[var(--cx-action-contrast)] '
                     : 'text-text-sec hover:text-text-main hover:bg-surface-subtle'
                 }`}
               >
@@ -294,7 +294,7 @@ export default function BlcReportingPanel() {
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md border border-border-subtle bg-surface hover:bg-surface-subtle text-text-main transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md border border-border-subtle bg-surface hover:bg-surface-subtle text-text-main transition-colors  disabled:opacity-50 cursor-pointer"
                     disabled={warehouseQuery.loading}
                     onClick={() => void warehouseQuery.loadData(true)}
                   >
@@ -303,7 +303,7 @@ export default function BlcReportingPanel() {
                   </button>
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md border border-border-subtle bg-surface hover:bg-surface-subtle text-text-main transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md border border-border-subtle bg-surface hover:bg-surface-subtle text-text-main transition-colors  disabled:opacity-50 cursor-pointer"
                     disabled={!warehouseUsable}
                     onClick={() => {
                       if (warehouseReport?.querySucceeded) {
@@ -321,12 +321,12 @@ export default function BlcReportingPanel() {
               </div>
 
               {/* Source Description & Physical Schema Card */}
-              <div className="bg-surface border border-border rounded-lg p-3 text-xs sm:text-sm space-y-1 shadow-2xs">
+              <div className="bg-surface border border-border rounded-md p-3 text-xs sm:text-sm space-y-1 ">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle pb-2 mb-2">
                   <span className="font-semibold text-text-main">
                     Physical Object: <code className="text-xs font-mono text-[var(--cx-action)]">{BLC_SOURCES[sourceId].table}</code>
                   </span>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-surface-subtle text-text-sec font-mono">
                     {BLC_SOURCES[sourceId].supportsSourceFilter ? 'Supports Source Filter' : 'No Source Partition Filter'}
                   </span>
                 </div>
@@ -347,7 +347,7 @@ export default function BlcReportingPanel() {
               )}
 
               {warehouseQuery.error && (
-                <div role="alert" className="p-4 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-xs sm:text-sm">
+                <div role="alert" className="p-4 rounded-md bg-semantic-neg-bg dark:bg-semantic-neg-bg/40 border border-semantic-neg text-semantic-neg text-xs sm:text-sm">
                   {warehouseQuery.error}
                 </div>
               )}
@@ -363,7 +363,7 @@ export default function BlcReportingPanel() {
                         : warehouseReport.status.replaceAll('_', ' ')}
                     </span>
                     <span className="text-text-muted" aria-hidden="true">·</span>
-                    <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">
+                    <span className="text-xs text-semantic-warn font-medium">
                       Not reconciled (freshness unverified)
                     </span>
                     <span className="text-text-muted" aria-hidden="true">·</span>
@@ -378,7 +378,7 @@ export default function BlcReportingPanel() {
                           [`Distinct ${warehouseReport.source.keyField} references`, warehouseReport.summary.distinctReferences],
                           ['Rows missing that reference', warehouseReport.summary.missingReferences],
                         ].map(([lbl, val]) => (
-                          <div key={lbl} className="p-3 rounded-lg border border-border-subtle bg-surface shadow-2xs">
+                          <div key={lbl} className="p-3 rounded-md border border-border-subtle bg-surface ">
                             <dt className="text-xs text-text-sec">{lbl}</dt>
                             <dd className="text-2xl font-bold tabular-nums text-text-main mt-1 font-mono">
                               {formatBlcCount(val)}
@@ -388,7 +388,7 @@ export default function BlcReportingPanel() {
                       </dl>
 
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                        <section className="bg-surface p-3.5 rounded-lg border border-border shadow-2xs">
+                        <section className="bg-surface p-3.5 rounded-md border border-border ">
                           <h3 className="text-xs sm:text-sm font-semibold text-text-main mb-2">
                             Source rows by {warehouseReport.source.breakdownField}
                           </h3>
@@ -413,7 +413,7 @@ export default function BlcReportingPanel() {
                                       </span>
                                       <div className="mt-1 h-1.5 w-full bg-surface-subtle rounded-full overflow-hidden" aria-hidden="true">
                                         <div
-                                          className="h-full bg-[var(--cx-action)] rounded-full transition-all duration-300"
+                                          className="h-full bg-[var(--cx-action)] rounded-full transition-all duration-150"
                                           style={{ width: relativeWidthBigInt(row.sourceRows, warehouseMaximum) }}
                                         />
                                       </div>
@@ -428,7 +428,7 @@ export default function BlcReportingPanel() {
                           </div>
                         </section>
 
-                        <section className="bg-surface p-3.5 rounded-lg border border-border shadow-2xs">
+                        <section className="bg-surface p-3.5 rounded-md border border-border ">
                           <h3 className="text-xs sm:text-sm font-semibold text-text-main mb-2">
                             Dated source rows timeline ({warehouseReport.source.dateField})
                           </h3>
@@ -460,7 +460,7 @@ export default function BlcReportingPanel() {
                       </div>
 
                       {/* Field Coverage Details */}
-                      <details className="border border-border rounded-lg bg-surface p-3">
+                      <details className="border border-border rounded-md bg-surface p-3">
                         <summary className="cursor-pointer text-xs sm:text-sm font-semibold text-text-main hover:text-[var(--cx-action)] transition-colors">
                           Field coverage ({warehouseReport.fieldCoverage.length} declared schema columns)
                         </summary>
@@ -501,30 +501,30 @@ export default function BlcReportingPanel() {
           {mode === 'powerbi' && (
             <div className="space-y-4">
               {/* Telemetry Architecture Strip */}
-              <div className="p-4 rounded-xl border border-indigo-200 dark:border-indigo-900 bg-indigo-50/50 dark:bg-indigo-950/20 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-200/60 dark:border-indigo-800 pb-2.5">
+              <div className="p-4 rounded-md border border-action bg-action-soft/50 dark:bg-action-soft/20 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-action/60 dark:border-action pb-2.5">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold uppercase tracking-wider text-indigo-900 dark:text-indigo-200">
+                    <span className="text-xs font-bold uppercase tracking-wider text-action">
                       Power BI Compatibility Transport
                     </span>
                     <span
                       className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
                         powerBiStatus?.status === 'ONLINE'
-                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300'
-                          : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-300'
+                          ? 'bg-semantic-pos-bg text-semantic-pos dark:bg-semantic-pos-bg/80 dark:text-semantic-pos'
+                          : 'bg-action-soft text-action dark:bg-action-soft/60 dark:text-action'
                       }`}
                     >
                       {powerBiStatus?.status || 'ONLINE / VERIFIED'}
                     </span>
                     {powerBiReport?.metadata.provenance && (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-surface-subtle text-text-sec font-mono">
                         {powerBiReport.metadata.provenance}
                       </span>
                     )}
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 font-mono flex items-center gap-1">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-semantic-warn-bg text-semantic-warn font-mono flex items-center gap-1">
                       <ShieldCheck size={11} />
                       Predicate: {RUBIX_COMPANY_PREDICATE}
                     </span>
@@ -538,30 +538,30 @@ export default function BlcReportingPanel() {
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
                   <div>
-                    <span className="text-[10px] text-indigo-800/70 dark:text-indigo-300/70 block">Entity</span>
-                    <strong className="text-slate-900 dark:text-slate-100 truncate block">{RUBIX_ENTITY}</strong>
+                    <span className="text-[10px] text-action/70 block">Entity</span>
+                    <strong className="text-text-main truncate block">{RUBIX_ENTITY}</strong>
                   </div>
                   <div>
-                    <span className="text-[10px] text-indigo-800/70 dark:text-indigo-300/70 block">Dataset ID</span>
-                    <strong className="text-slate-900 dark:text-slate-100 truncate block" title={RUBIX_DATASET_ID}>
+                    <span className="text-[10px] text-action/70 block">Dataset ID</span>
+                    <strong className="text-text-main truncate block" title={RUBIX_DATASET_ID}>
                       {RUBIX_DATASET_ID.slice(0, 14)}…
                     </strong>
                   </div>
                   <div>
-                    <span className="text-[10px] text-indigo-800/70 dark:text-indigo-300/70 block">Report ID</span>
-                    <strong className="text-slate-900 dark:text-slate-100 truncate block" title={RUBIX_REPORT_ID}>
+                    <span className="text-[10px] text-action/70 block">Report ID</span>
+                    <strong className="text-text-main truncate block" title={RUBIX_REPORT_ID}>
                       {RUBIX_REPORT_ID.slice(0, 14)}…
                     </strong>
                   </div>
                   <div>
-                    <span className="text-[10px] text-indigo-800/70 dark:text-indigo-300/70 block">Model ID</span>
-                    <strong className="text-slate-900 dark:text-slate-100 block">{RUBIX_MODEL_ID}</strong>
+                    <span className="text-[10px] text-action/70 block">Model ID</span>
+                    <strong className="text-text-main block">{RUBIX_MODEL_ID}</strong>
                   </div>
                 </div>
               </div>
 
               {/* Query & Dimension Controls */}
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-surface p-3.5 rounded-lg border border-border shadow-2xs">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-surface p-3.5 rounded-md border border-border ">
                 <div className="sm:col-span-1">
                   <label className="text-xs font-semibold text-text-sec block mb-1">
                     Power BI Query Type
@@ -653,7 +653,7 @@ export default function BlcReportingPanel() {
                     type="button"
                     onClick={() => loadPowerBiData(true)}
                     disabled={powerBiLoading}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-border-subtle bg-surface hover:bg-surface-subtle text-text-main transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-border-subtle bg-surface hover:bg-surface-subtle text-text-main transition-colors  disabled:opacity-50 cursor-pointer"
                   >
                     <RefreshCw size={13} className={powerBiLoading ? 'animate-spin' : ''} />
                     <span>Refresh Power BI</span>
@@ -670,7 +670,7 @@ export default function BlcReportingPanel() {
                         );
                       }
                     }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-border-subtle bg-surface hover:bg-surface-subtle text-text-main transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-border-subtle bg-surface hover:bg-surface-subtle text-text-main transition-colors  disabled:opacity-50 cursor-pointer"
                   >
                     <Download size={13} />
                     <span>Export JSON</span>
@@ -684,7 +684,7 @@ export default function BlcReportingPanel() {
 
               {/* Power BI Warnings & Unsupported Filter Banner */}
               {powerBiReport?.metadata.warnings && powerBiReport.metadata.warnings.length > 0 && (
-                <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300 text-xs flex items-start gap-2">
+                <div className="p-3 rounded-md bg-semantic-warn-bg dark:bg-semantic-warn-bg/40 border border-semantic-warn text-semantic-warn text-xs flex items-start gap-2">
                   <AlertCircle size={15} className="mt-0.5 shrink-0" />
                   <div className="space-y-1">
                     {powerBiReport.metadata.warnings.map((w, idx) => (
@@ -702,7 +702,7 @@ export default function BlcReportingPanel() {
               )}
 
               {powerBiError && (
-                <div className="p-4 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-xs">
+                <div className="p-4 rounded-md bg-semantic-neg-bg dark:bg-semantic-neg-bg/40 border border-semantic-neg text-semantic-neg text-xs">
                   {powerBiError}
                 </div>
               )}
@@ -712,7 +712,7 @@ export default function BlcReportingPanel() {
                 <div className="space-y-4">
                   {/* Summary Metric Cards */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="p-3.5 rounded-lg border border-border bg-surface shadow-2xs">
+                    <div className="p-3.5 rounded-md border border-border bg-surface ">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-text-sec block mb-1">
                         Total Reported Count
                       </span>
@@ -724,7 +724,7 @@ export default function BlcReportingPanel() {
                       </span>
                     </div>
 
-                    <div className="p-3.5 rounded-lg border border-border bg-surface shadow-2xs">
+                    <div className="p-3.5 rounded-md border border-border bg-surface ">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-text-sec block mb-1">
                         Distinct Teams
                       </span>
@@ -736,7 +736,7 @@ export default function BlcReportingPanel() {
                       </span>
                     </div>
 
-                    <div className="p-3.5 rounded-lg border border-border bg-surface shadow-2xs">
+                    <div className="p-3.5 rounded-md border border-border bg-surface ">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-text-sec block mb-1">
                         Distinct Segments
                       </span>
@@ -748,7 +748,7 @@ export default function BlcReportingPanel() {
                       </span>
                     </div>
 
-                    <div className="p-3.5 rounded-lg border border-border bg-surface shadow-2xs">
+                    <div className="p-3.5 rounded-md border border-border bg-surface ">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-text-sec block mb-1">
                         Distinct Agents
                       </span>
@@ -762,7 +762,7 @@ export default function BlcReportingPanel() {
                   </div>
 
                   {/* Rows Breakdown Table */}
-                  <div className="rounded-lg border border-border bg-surface overflow-hidden shadow-2xs">
+                  <div className="rounded-md border border-border bg-surface overflow-hidden ">
                     <div className="p-3 border-b border-border bg-surface-subtle flex items-center justify-between">
                       <h3 className="text-xs font-semibold text-text-main">
                         Power BI Data Breakdown: {QUERY_TYPE_LABELS[powerBiQueryType].label}
@@ -811,7 +811,7 @@ export default function BlcReportingPanel() {
                                     <span className="font-semibold text-text-main block">{dimensionLabel}</span>
                                     <div className="mt-1 h-1.5 w-full bg-surface-subtle rounded-full overflow-hidden" aria-hidden="true">
                                       <div
-                                        className="h-full bg-indigo-600 dark:bg-indigo-400 rounded-full transition-all duration-300"
+                                        className="h-full bg-action rounded-full transition-all duration-150"
                                         style={{ width: relativeWidth(row.count, powerBiMaxVal) }}
                                       />
                                     </div>
@@ -843,7 +843,7 @@ export default function BlcReportingPanel() {
                   </div>
 
                   {/* Governance & Query Audit Footnote */}
-                  <div className="text-[11px] text-text-sec bg-surface p-3 rounded-lg border border-border-subtle space-y-1">
+                  <div className="text-[11px] text-text-sec bg-surface p-3 rounded-md border border-border-subtle space-y-1">
                     <p>
                       <strong>Query Provenance &amp; Verification:</strong> Transport executed under public-report compatibility mode against Microsoft Power BI Analysis Services. All records are restricted to <code>company_name Contains &apos;ONtact&apos;</code>.
                     </p>
@@ -864,7 +864,7 @@ export default function BlcReportingPanel() {
               <div className="flex items-center justify-between border-b border-border pb-2">
                 <div>
                   <h3 className="text-sm font-bold text-text-main flex items-center gap-2">
-                    <Layers size={16} className="text-indigo-600" />
+                    <Layers size={16} className="text-action" />
                     Warehouse vs Power BI Cross-Source Reconciliation
                   </h3>
                   <p className="text-xs text-text-sec mt-0.5">
@@ -876,7 +876,7 @@ export default function BlcReportingPanel() {
                   type="button"
                   onClick={() => loadReconciliationData(true)}
                   disabled={reconciliationLoading}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-border-subtle bg-surface hover:bg-surface-subtle text-text-main transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-border-subtle bg-surface hover:bg-surface-subtle text-text-main transition-colors  disabled:opacity-50 cursor-pointer"
                 >
                   <RefreshCw size={13} className={reconciliationLoading ? 'animate-spin' : ''} />
                   <span>Re-run Reconciliation</span>
@@ -891,7 +891,7 @@ export default function BlcReportingPanel() {
               )}
 
               {reconciliationError && (
-                <div className="p-4 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-xs">
+                <div className="p-4 rounded-md bg-semantic-neg-bg dark:bg-semantic-neg-bg/40 border border-semantic-neg text-semantic-neg text-xs">
                   {reconciliationError}
                 </div>
               )}
@@ -899,19 +899,19 @@ export default function BlcReportingPanel() {
               {reconciliation && !reconciliationLoading && (
                 <div className="space-y-4">
                   {/* Status Banner */}
-                  <div className="p-4 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/30 flex items-start justify-between gap-3">
+                  <div className="p-4 rounded-md border border-semantic-warn bg-semantic-warn-bg/60 dark:bg-semantic-warn-bg/30 flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3">
-                      <CheckCircle2 size={18} className="text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                      <CheckCircle2 size={18} className="text-semantic-warn mt-0.5 shrink-0" />
                       <div>
                         <div className="flex items-center gap-2">
-                          <h4 className="text-xs sm:text-sm font-bold text-amber-900 dark:text-amber-200">
+                          <h4 className="text-xs sm:text-sm font-bold text-semantic-warn">
                             Reconciliation Status: {reconciliation.reconciliationStatus.replaceAll('_', ' ')}
                           </h4>
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 font-mono">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-semantic-warn-bg text-semantic-warn font-mono">
                             {reconciliation.variance.deltaCount == null ? 'Delta unavailable' : `Delta: ${reconciliation.variance.deltaCount} records`}
                           </span>
                         </div>
-                        <p className="text-xs text-amber-800 dark:text-amber-300 mt-1 leading-relaxed">
+                        <p className="text-xs text-semantic-warn mt-1 leading-relaxed">
                           {reconciliation.variance.explanation}
                         </p>
                       </div>
@@ -921,13 +921,13 @@ export default function BlcReportingPanel() {
                   {/* Side-by-Side Comparison Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* BigQuery Warehouse */}
-                    <div className="p-4 rounded-xl border border-border bg-surface shadow-2xs space-y-3">
+                    <div className="p-4 rounded-md border border-border bg-surface  space-y-3">
                       <div className="flex items-center justify-between border-b border-border-subtle pb-2">
                         <span className="text-xs font-bold text-text-main flex items-center gap-1.5">
-                          <Database size={14} className="text-emerald-600" />
+                          <Database size={14} className="text-semantic-pos" />
                           BigQuery Warehouse Register
                         </span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-mono">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-semantic-pos-bg text-semantic-pos font-mono">
                           {reconciliation.warehouseActivations.status}
                         </span>
                       </div>
@@ -941,7 +941,7 @@ export default function BlcReportingPanel() {
                         </div>
                         <div className="flex justify-between py-1 border-b border-border-subtle">
                           <span className="text-text-sec">Verified Bank Mandates</span>
-                          <strong className="font-mono text-emerald-600 dark:text-emerald-400 text-sm">
+                          <strong className="font-mono text-semantic-pos text-sm">
                             {formatTableNumber(reconciliation.warehouseActivations.verifiedMandates)}
                           </strong>
                         </div>
@@ -961,13 +961,13 @@ export default function BlcReportingPanel() {
                     </div>
 
                     {/* Upstream Power BI */}
-                    <div className="p-4 rounded-xl border border-border bg-surface shadow-2xs space-y-3">
+                    <div className="p-4 rounded-md border border-border bg-surface  space-y-3">
                       <div className="flex items-center justify-between border-b border-border-subtle pb-2">
                         <span className="text-xs font-bold text-text-main flex items-center gap-1.5">
-                          <BarChart3 size={14} className="text-indigo-600" />
+                          <BarChart3 size={14} className="text-action" />
                           Rubix Power BI Semantic Model
                         </span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-300 font-mono">
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-action-soft text-action font-mono">
                           {reconciliation.powerBiActivations.status}
                         </span>
                       </div>
@@ -981,7 +981,7 @@ export default function BlcReportingPanel() {
                         </div>
                         <div className="flex justify-between py-1 border-b border-border-subtle">
                           <span className="text-text-sec">Total Reported Activations</span>
-                          <strong className="font-mono text-indigo-600 dark:text-indigo-400 text-sm">
+                          <strong className="font-mono text-action text-sm">
                             {formatTableNumber(reconciliation.powerBiActivations.totalReported)}
                           </strong>
                         </div>
@@ -1002,7 +1002,7 @@ export default function BlcReportingPanel() {
                   </div>
 
                   {/* Audit Checkpoints */}
-                  <div className="p-4 rounded-xl border border-border bg-surface shadow-2xs space-y-2">
+                  <div className="p-4 rounded-md border border-border bg-surface  space-y-2">
                     <h4 className="text-xs font-bold text-text-main">
                       Reconciliation Audit &amp; Data Contract Checkpoints:
                     </h4>

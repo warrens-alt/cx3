@@ -1,5 +1,5 @@
-.cx-saved-investigations { margin:0 0 16px; border:1px solid var(--cx-border); border-radius:var(--cx-radius-card,8px); background:var(--cx-surface); color:var(--cx-ink); font-size:12px; min-width:0; }
-.cx-saved-investigations > summary { padding:12px 16px; cursor:pointer; font-weight:650; }
+.cx-saved-investigations { margin:0 0 16px; border:1px solid var(--cx-border); border-radius:var(--cx-radius-md); background:var(--cx-surface); color:var(--cx-ink); font-size:12px; min-width:0; }
+.cx-saved-investigations > summary { padding:12px 16px; min-height:44px; cursor:pointer; font-weight:650; line-height:1.6; }
 .cx-saved-investigations-body { padding:0 16px 14px; min-width:0; }
 .cx-saved-investigations p { margin:8px 0; color:var(--cx-text-secondary); line-height:1.6; overflow-wrap:anywhere; }
 .cx-saved-investigations h3 { margin:0; font-size:13px; font-weight:650; }
@@ -7,15 +7,25 @@
 .cx-saved-investigation-form-row { display:flex; align-items:end; gap:8px; margin-top:10px; }
 .cx-saved-investigations label { display:grid; gap:6px; min-width:0; font-weight:600; }
 .cx-saved-investigation-form-row label { flex:1; max-width:420px; }
-.cx-saved-investigations input { min-width:0; width:100%; padding:8px 10px; border:1px solid var(--cx-control-border); border-radius:6px; background:var(--cx-surface-subtle); color:var(--cx-ink); font-weight:400; }
+.cx-saved-investigations input { min-width:0; width:100%; min-height:36px; padding:8px 10px; border:1px solid var(--cx-control-border); border-radius:var(--cx-radius-control); background:var(--cx-surface-subtle); color:var(--cx-ink); font:inherit; font-weight:400; line-height:1.5; }
+.cx-saved-investigations input::placeholder { color:var(--cx-text-muted); }
+.cx-saved-investigations :is(input,button,summary):focus-visible { outline:2px solid var(--cx-focus); outline-offset:3px; }
+.cx-saved-investigations :is(.cx-button-primary,.cx-button-secondary,.cx-button-danger) { font-size:12px; }
 .cx-saved-investigations :disabled { cursor:not-allowed; opacity:.6; }
 .cx-saved-investigation-list-heading { display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; }
 .cx-saved-investigation-list-heading span,.cx-saved-investigation-description small { color:var(--cx-text-muted); }
 .cx-saved-investigation-list { list-style:none; margin:8px 0 0; padding:0; }
 .cx-saved-investigation-list li { display:flex; align-items:start; justify-content:space-between; gap:12px; padding:12px 0; border-top:1px solid var(--cx-border); }
 .cx-saved-investigation-description { flex:1; min-width:0; overflow-wrap:anywhere; }
+.cx-saved-investigation-description>strong { font-size:13px; font-weight:650; line-height:1.5; }
 .cx-saved-investigation-description p { margin:4px 0; }
+.cx-saved-investigation-description small { font-size:11px; line-height:1.6; }
 .cx-saved-investigation-actions { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
-.cx-saved-investigation-rename { display:grid; gap:8px; width:min(100%,320px); }
-.cx-saved-investigations [role="alert"],.cx-saved-investigation-limitation { border-left:3px solid var(--cx-border); padding-left:10px; }
+.cx-saved-investigation-rename { display:grid; gap:8px; width:min(100%,320px); padding-left:12px; border-left:2px solid var(--cx-action); }
+.cx-saved-investigation-scope { padding:9px 0; border-bottom:1px solid var(--cx-border-subtle); }
+.cx-saved-investigations [role="alert"] { padding:10px 12px; border:1px solid var(--cx-negative); border-radius:var(--cx-radius-control); background:var(--cx-negative-bg); color:var(--cx-negative); }
+.cx-saved-investigations [role="alert"] p { color:inherit; }
+.cx-saved-investigation-limitation { border-left:2px solid var(--cx-border-strong); padding-left:10px; }
+.cx-saved-investigations .cx-saved-investigation-notice { border-left:2px solid var(--cx-positive); padding-left:10px; color:var(--cx-positive); }
 @media(max-width:640px) { .cx-saved-investigations > summary { padding:12px; } .cx-saved-investigations-body { padding:0 12px 12px; } .cx-saved-investigation-form-row,.cx-saved-investigation-list li { align-items:stretch; flex-direction:column; } .cx-saved-investigation-form-row label { max-width:none; } .cx-saved-investigation-form-row > button { align-self:start; } .cx-saved-investigation-actions { justify-content:flex-start; } }
+@media(pointer:coarse) { .cx-saved-investigations input { min-height:44px; } }

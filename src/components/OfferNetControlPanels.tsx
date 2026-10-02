@@ -21,7 +21,7 @@ function UnavailableControlPanel({ title }: { title: string }) {
           <h2>{title}</h2>
           <p>The analytical response did not include the required measured fields for this scope.</p>
         </div>
-        <AlertTriangle size={16} className="text-slate-400"/>
+        <AlertTriangle size={16} className="text-text-mute"/>
       </header>
     </section>
   );
@@ -81,7 +81,7 @@ export function AttemptCoveragePanel({ data }: { data: OperatingControlsData }) 
           <h2>Recorded call-count coverage</h2>
           <p>Exclusive lead populations by the maximum valid recorded HLC call count. Zero calls requires an explicit 0; call count unrecorded is a separate population.</p>
         </div>
-        <PhoneCall size={16} className="text-slate-400"/>
+        <PhoneCall size={16} className="text-text-mute"/>
       </header>
       <div className="cx-performance-table-wrap">
         <table className="cx-performance-table">
@@ -124,7 +124,7 @@ export function CaptureTurnaroundPanel({ data }: { data: OperatingControlsData }
           <h2>Capture → first dial</h2>
           <p>Lead fetched/API-entry time to first recorded dial, kept separate from delivery → first dial.</p>
         </div>
-        <Clock3 size={16} className="text-slate-400"/>
+        <Clock3 size={16} className="text-text-mute"/>
       </header>
 
       <div className="cx-turnaround-kpis">
@@ -191,7 +191,7 @@ export function SlaBandsPanel({ data }: { data: OperatingControlsData }) {
           <h2>First-dial age bands</h2>
           <p>Delivery-to-first-dial populations with downstream RPC and sale yield.</p>
         </div>
-        <Clock3 size={16} className="text-slate-400"/>
+        <Clock3 size={16} className="text-text-mute"/>
       </header>
       <div className="cx-control-band-list">
         {slaBands.map(row => (
@@ -221,7 +221,7 @@ export function OperatingWindowPanel({ data }: { data: OperatingControlsData }) 
           <h2>Operating-hours comparison</h2>
           <p>{context ? formatOperatingWindow(context) : 'Operating-hours configuration is unavailable for this scope.'}</p>
         </div>
-        <Clock3 size={16} className="text-slate-400"/>
+        <Clock3 size={16} className="text-text-mute"/>
       </header>
       <div className="cx-control-window-grid">
         <article>
@@ -257,7 +257,7 @@ export function ActivationAgeingPanel({ data }: { data: OperatingControlsData })
           <h2>Unactivated sale ageing</h2>
           <p>Recorded sales without an activation timestamp, grouped by age since sale.</p>
         </div>
-        <ListChecks size={16} className="text-slate-400"/>
+        <ListChecks size={16} className="text-text-mute"/>
       </header>
       <div className="cx-control-ageing">
         {rows.map(row => (
@@ -282,7 +282,7 @@ export function VendorControlsPanel({ data }: { data: OperatingControlsData }) {
           <h2>Vendor contact governance</h2>
           <p>Speed, disposition completeness, call-count coverage and conversion by first recorded delivered vendor.</p>
         </div>
-        <ShieldCheck size={16} className="text-slate-400"/>
+        <ShieldCheck size={16} className="text-text-mute"/>
       </header>
       <div className="cx-performance-table-wrap">
         <table className="cx-performance-table cx-vendor-controls-table">
@@ -377,7 +377,7 @@ export function ContactGovernancePanel({
           <h2>Attempt & disposition exceptions</h2>
           <p>Populations repeatedly raised in OfferNet reviews: insufficient follow-up, excessive repeat effort and incomplete disposition evidence.</p>
         </div>
-        <AlertTriangle size={16} className="text-slate-400"/>
+        <AlertTriangle size={16} className="text-text-mute"/>
       </header>
       <div className="cx-attention-list">
         {rows.map(row => {
@@ -416,7 +416,7 @@ export function DataCompletenessPanel({ data }: { data: OperatingControlsData })
           <h2>Operational completeness</h2>
           <p>Concrete missing-field populations that affect routing, segmentation and performance interpretation.</p>
         </div>
-        <AlertTriangle size={16} className="text-slate-400"/>
+        <AlertTriangle size={16} className="text-text-mute"/>
       </header>
       <div className="cx-control-completeness">
         {items.map(([label, value]) => (

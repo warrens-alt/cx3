@@ -26,7 +26,7 @@ export function AccessPolicies({
   handleSavePolicies,
 }: AccessPoliciesProps) {
   return (
-    <div className="bg-surface rounded-lg border border-border-subtle shadow-sm p-6 max-w-2xl space-y-6">
+    <div className="bg-surface rounded-lg border border-border-subtle p-6 max-w-2xl space-y-6">
       <div className="border-b border-border-subtle pb-4">
         <h2 className="text-base font-bold text-text-main">Access Control & Registration Rules</h2>
         <p className="text-xs text-text-sec">
@@ -41,7 +41,7 @@ export function AccessPolicies({
               type="checkbox"
               checked={policyApproval}
               onChange={(e) => setPolicyApproval(e.target.checked)}
-              className="mt-1 h-4 w-4 rounded text-blue-600 focus:ring-blue-500 border-border-strong"
+              className="mt-1 h-4 w-4 rounded text-action focus:ring-action border-border-strong"
             />
             <div>
               <div className="font-semibold text-text-main">Require Admin Approval For New Sign-Ins</div>
@@ -83,12 +83,12 @@ export function AccessPolicies({
           <button
             type="submit"
             disabled={policySaving}
-            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-colors cursor-pointer shadow-sm disabled:opacity-60"
+            className="px-4 py-2 rounded-lg cx-button-primary font-semibold text-xs transition-colors cursor-pointer disabled:opacity-60"
           >
             {policySaving ? 'Saving Policies…' : 'Save Policies'}
           </button>
           {policySuccess && (
-            <span className="text-emerald-600 text-xs font-semibold flex items-center gap-1">
+            <span className="text-semantic-pos text-xs font-semibold flex items-center gap-1">
               <CheckCircle className="w-3.5 h-3.5" /> Policies updated successfully!
             </span>
           )}

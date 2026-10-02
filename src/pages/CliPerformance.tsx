@@ -336,29 +336,29 @@ export default function CliPerformance() {
 
         {/* Schema Gap Diagnostic Banner */}
         {isSchemaUnavailable && data?.sourceStatus && (
-          <section className="bg-amber-50/80 border border-amber-200 rounded-lg p-5 text-slate-800 shadow-sm" role="status">
+          <section className="cx-cli-source-gap bg-semantic-warn-bg border border-semantic-warn/30 rounded-lg p-5 text-text-main" role="status">
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-amber-100 rounded-md text-amber-800 shrink-0">
+              <div className="p-2 bg-semantic-warn-bg rounded-md text-semantic-warn shrink-0">
                 <AlertTriangle size={22} />
               </div>
               <div className="space-y-2 flex-1">
                 <div className="flex items-center justify-between flex-wrap gap-2">
-                  <h2 className="text-base font-semibold text-slate-900">
+                  <h2 className="text-base font-semibold text-text-main">
                     BigQuery Warehouse Telephony Audit: Outbound CLI Column Gap
                   </h2>
-                  <span className="text-xs font-mono bg-amber-100 text-amber-900 px-2 py-0.5 rounded border border-amber-300">
+                  <span className="text-xs font-mono bg-semantic-warn-bg text-semantic-warn px-2 py-0.5 rounded border border-semantic-warn/30">
                     {data.sourceStatus.table}
                   </span>
                 </div>
-                <p className="text-sm text-slate-700 leading-relaxed">
+                <p className="text-sm text-text-sec leading-relaxed">
                   The configured physical call insights table{' '}
-                  <code className="bg-amber-100/70 px-1 py-0.5 rounded font-mono text-xs">{data.sourceStatus.table}</code>{' '}
+                  <code className="bg-semantic-warn-bg px-1 py-0.5 rounded font-mono text-xs">{data.sourceStatus.table}</code>{' '}
                   was audited. While it contains <strong>{formatTableNumber(data.sourceStatus.totalColumnsFound)} fields</strong> including call timestamps, campaign IDs, agent IDs, durations, and RPC/Sale flags,{' '}
                   <strong>it does not expose an outbound CLI (Caller ID presentation) column</strong>.
                 </p>
-                <div className="p-3 bg-white/80 rounded border border-amber-200 text-xs text-slate-600 space-y-1">
+                <div className="p-3 bg-surface rounded border border-semantic-warn/30 text-xs text-text-sec space-y-1">
                   <p>
-                    <strong>System Integrity Protection:</strong> Rather than silently substituting unrelated columns or synthesizing misleading numbers, Conversion X isolates this schema gap visibly.
+                    <strong>System Integrity Protection:</strong> Rather than silently substituting unrelated columns or synthesizing misleading numbers, ConversionX isolates this schema gap visibly.
                   </p>
                   <p>
                     Administrators can upload an exported VICIdial CLI CSV report. Benchmark sample data is available only in development environments and is never loaded into production by default.
@@ -387,7 +387,7 @@ export default function CliPerformance() {
                     </button>
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-600 pt-2">Ask an administrator to configure a CLI source or upload a validated CLI report.</p>
+                  <p className="text-xs text-text-sec pt-2">Ask an administrator to configure a CLI source or upload a validated CLI report.</p>
                 )}
               </div>
             </div>
@@ -396,21 +396,21 @@ export default function CliPerformance() {
 
         {/* Loaded Report Provenance Banner */}
         {isImported && data?.sourceStatus && (
-          <div className="bg-blue-50/60 border border-blue-200 rounded-lg p-3 px-4 flex items-center justify-between flex-wrap gap-3 text-xs text-blue-900">
+          <div className="bg-selected-bg border border-action/30 rounded-lg p-3 px-4 flex items-center justify-between flex-wrap gap-3 text-xs text-text-main">
             <div className="flex items-center gap-2">
-              <CheckCircle2 size={16} className="text-blue-600 shrink-0" />
+              <CheckCircle2 size={16} className="text-action shrink-0" />
               <span>
                 <strong>Provenance Notice:</strong> Analysing imported dialler CLI report data (
                 {data.metadata.rowCount} active CLIs). Provenance is tagged as <code className="font-semibold">IMPORTED REPORT</code>.
               </span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-slate-500 font-mono text-[11px]">Model: {data.metadata.modelVersion}</span>
+              <span className="text-text-mute font-mono text-[11px]">Model: {data.metadata.modelVersion}</span>
               {isAdmin && (
                 <button
                   type="button"
                   onClick={handleClearImport}
-                  className="text-rose-600 font-medium hover:underline flex items-center gap-1"
+                  className="text-semantic-neg font-medium hover:underline flex items-center gap-1"
                 >
                   <X size={13} />
                   <span>Unload Report</span>
@@ -451,8 +451,8 @@ export default function CliPerformance() {
           />
         )}
 
-        {data?.diagnostics && <section className="rounded-lg border border-slate-200 bg-white p-4 space-y-4">
-          <div><h2 className="text-sm font-semibold text-slate-900">CLI call distribution and observed outcomes</h2><p className="text-xs text-slate-600 mt-1">{data.diagnostics.reason} Timezone: {data.diagnostics.timezone}. Trend: {data.diagnostics.trendStatus}.</p></div>
+        {data?.diagnostics && <section className="rounded-lg border border-border-subtle bg-surface p-4 space-y-4">
+          <div><h2 className="text-sm font-semibold text-text-main">CLI call distribution and observed outcomes</h2><p className="text-xs text-text-sec mt-1">{data.diagnostics.reason} Timezone: {data.diagnostics.timezone}. Trend: {data.diagnostics.trendStatus}.</p></div>
           <div className="overflow-x-auto"><table className="cx-performance-table"><thead><tr><th>CLI</th><th>Campaign</th><th>Vendor</th><th>Calls</th><th>RPC / call</th><th>Sales</th><th>Calls / sale</th><th>Evidence</th></tr></thead><tbody>
             {filteredRecords.map((row, index) => <tr key={`${row.cli}-${row.campaign}-${row.vendor}-${index}`}><th>{row.cli}</th><td>{row.campaign}</td><td>{row.vendor}</td><td>{row.totalCalls}</td><td>{row.contactRate === null ? 'Unavailable' : `${row.contactRate}%`}</td><td>{row.saleCount}</td><td>{row.callsPerSale ?? 'Unavailable'}</td><td>{Number(row.totalCalls) > 0 && Number(row.saleCount) === 0 ? 'Recorded calls, no sales' : 'Recorded call outcomes'}</td></tr>)}
           </tbody></table></div>
@@ -461,7 +461,7 @@ export default function CliPerformance() {
             ...filteredRecords.map(row => [row.cli, row.campaign, row.vendor, row.totalCalls, row.contactCount, row.saleCount, row.callsPerSale]),
           ]} />
           <h3 className="text-sm font-semibold">Hour and disposition evidence</h3>
-          <p className="text-xs text-slate-600">{data.diagnostics.breakdownsTruncated ? 'Display limit reached; groups shown below are partial.' : 'Observed CLI groups in the selected scope.'} Missing dispositions and hours remain unavailable.</p>
+          <p className="text-xs text-text-sec">{data.diagnostics.breakdownsTruncated ? 'Display limit reached; groups shown below are partial.' : 'Observed CLI groups in the selected scope.'} Missing dispositions and hours remain unavailable.</p>
           <div className="overflow-x-auto"><table className="cx-performance-table"><thead><tr><th>Dimension</th><th>Bucket</th><th>CLI</th><th>Calls</th><th>RPC</th><th>RPC / calls</th><th>Sales</th><th>Sale / calls</th></tr></thead><tbody>
             {data.diagnostics.breakdowns.map((row, index) => <tr key={`${row.dimension}-${row.bucket}-${row.cli}-${index}`}><th>{row.dimension}</th><td>{row.bucket ?? 'Unavailable'}</td><td>{row.cli}</td><td>{formatTableNumber(row.calls)}</td><td>{formatTableNumber(row.rpc)}</td><td>{formatRatioPercent(row.rpc, row.calls)}</td><td>{formatTableNumber(row.sales)}</td><td>{formatRatioPercent(row.sales, row.calls)}</td></tr>)}
           </tbody></table></div>

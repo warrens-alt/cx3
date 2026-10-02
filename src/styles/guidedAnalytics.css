@@ -51,4 +51,7 @@
 
 .cx-analysis-help { position: relative; }
 .cx-analysis-help-panel { position: fixed; top: 120px; right: 24px; z-index: 45; width: min(620px, calc(100vw - 48px)); max-height: min(680px, calc(100dvh - 144px)); display: flex; flex-direction: column; background: var(--cx-surface); border: 1px solid var(--cx-border); border-radius:var(--cx-radius-md); box-shadow: var(--cx-shadow-sm); }
+/* Nested modal drawers must escape the report menu's lower navigation layer. */
+.cx-report-more > div:has([role="dialog"][aria-modal="true"]),
+.cx-analysis-help-panel:has([role="dialog"][aria-modal="true"]) { z-index:var(--cx-layer-dialog); }
 @media (max-width: 1023px) { .cx-analysis-help-panel { position: fixed; inset: 116px 12px auto; width: auto; max-height: calc(100dvh - 196px); } }

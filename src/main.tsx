@@ -9,6 +9,7 @@ import { registerQueryClientForSessionIsolation } from './lib/analyticalSession'
 import './index.css';
 import './styles/product.css';
 import './styles/operatingControls.css';
+import './styles/analyticsReadiness.css';
 import './styles/reporting.css';
 import './styles/overview.css';
 import './styles/visuals.css';
@@ -51,7 +52,7 @@ function Fallback({ error, resetErrorBoundary }: any) {
         <button 
           type="button"
           onClick={chunkError ? () => { if (!attemptChunkRecovery(0)) window.location.reload(); } : resetErrorBoundary}
-          className="bg-primary-blue text-white px-4 py-2 rounded-md font-medium hover:bg-primary-blue-dark transition-colors whitespace-nowrap cursor-pointer"
+          className="cx-button-primary"
         >
           {chunkError ? 'Reload Application' : 'Try Again'}
         </button>

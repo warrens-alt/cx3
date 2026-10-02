@@ -69,7 +69,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     // Update theme-color meta tag
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
-      metaThemeColor.setAttribute('content', resolvedTheme === 'dark' ? '#0B111E' : '#FFFFFF');
+      const canvasColor = window.getComputedStyle(root).getPropertyValue('--cx-canvas').trim();
+      if (canvasColor) metaThemeColor.setAttribute('content', canvasColor);
     }
   }, [resolvedTheme]);
 

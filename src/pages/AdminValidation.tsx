@@ -149,10 +149,10 @@ export default function AdminValidation() {
     </section>}
     {activeTab === 'objects' && <section className="cx-command-panel p-5 space-y-2" aria-label="Warehouse catalogue">
       <h2 className="text-base font-semibold">Registered objects</h2><p>Saved schema registration does not establish live source access or row completeness.</p>
-      <div className="flex flex-wrap gap-3 my-4">
-        <label>Search returned catalogue <input aria-label="Search returned catalogue" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} /></label>
-        <label>Dataset <select value={datasetFilter} onChange={e=>setDatasetFilter(e.target.value)}><option value="all">All datasets</option>{[...new Set(warehouseTables.map(t=>t.dataset))].map(d=><option key={d}>{d}</option>)}</select></label>
-        <label>Object type <select value={typeFilter} onChange={e=>setTypeFilter(e.target.value)}><option value="all">All types</option>{[...new Set(warehouseTables.map(t=>t.tableType))].map(t=><option key={t}>{t}</option>)}</select></label>
+      <div className="cx-admin-toolbar flex flex-wrap gap-3 my-4">
+        <label className="flex flex-col gap-1 text-xs text-text-sec">Search returned catalogue <input className="min-h-10 max-w-full rounded border border-control-border bg-surface px-3 text-text-main focus:outline-hidden focus:ring-2 focus:ring-action" aria-label="Search returned catalogue" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} /></label>
+        <label className="flex flex-col gap-1 text-xs text-text-sec">Dataset <select className="min-h-10 max-w-full rounded border border-control-border bg-surface px-3 text-text-main focus:outline-hidden focus:ring-2 focus:ring-action" value={datasetFilter} onChange={e=>setDatasetFilter(e.target.value)}><option value="all">All datasets</option>{[...new Set(warehouseTables.map(t=>t.dataset))].map(d=><option key={d}>{d}</option>)}</select></label>
+        <label className="flex flex-col gap-1 text-xs text-text-sec">Object type <select className="min-h-10 max-w-full rounded border border-control-border bg-surface px-3 text-text-main focus:outline-hidden focus:ring-2 focus:ring-action" value={typeFilter} onChange={e=>setTypeFilter(e.target.value)}><option value="all">All types</option>{[...new Set(warehouseTables.map(t=>t.tableType))].map(t=><option key={t}>{t}</option>)}</select></label>
       </div>
       {loadingTables ? <p role="status">Loading catalogue…</p> : tablesError ? <p role="alert">Warehouse catalogue could not be loaded. Reopen this page to retry the existing catalogue read.</p> : <>
         <p>{filteredObjects.length} of {warehouseTables.length} returned objects match the local selection.</p>

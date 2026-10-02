@@ -11,6 +11,9 @@
 .cx-app .vetting-page select,
 .cx-app .vetting-page input { font-size:13px; min-height:44px; }
 .cx-app .vetting-page button { min-height:44px; }
+/* Matrix opacity and threshold stay continuous; ink roles follow the current canvas. */
+.vetting-matrix { --vetting-heatmap-fill:var(--cx-heatmap-teal); --vetting-heatmap-low-ink:var(--cx-text); --vetting-heatmap-high-ink:var(--cx-text); }
+.cx-app .vetting-matrix-row button small { color:inherit; }
 .cx-app .vetting-kpis { gap:0; border-block:1px solid var(--cx-border-subtle); }
 .cx-app .vetting-kpis article { background:transparent; box-shadow:none; border:0; border-radius:0; padding:12px; }
 .cx-app .vetting-kpis article>span { font-size:12px; letter-spacing:0; text-transform:none; }

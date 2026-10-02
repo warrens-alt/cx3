@@ -50,8 +50,8 @@ export function VisualTable<T = any>({
   return (
     <div className={`enterprise-card overflow-hidden ${className}`} aria-label={ariaLabel}>
       <div className="overflow-x-auto">
-        <div role="table" className="w-full text-left text-xs divide-y divide-slate-200 tabular-nums">
-          <div role="rowgroup" className="bg-slate-50 border-b border-slate-200 font-semibold text-slate-700">
+        <div role="table" className="w-full text-left text-xs divide-y divide-border tabular-nums">
+          <div role="rowgroup" className="bg-surface-subtle border-b border-border font-semibold text-text-main">
             <div role="row" className="flex items-center px-4 py-2.5 sm:py-3 transition-all duration-150">
               {columns.map((col) => (
                 <div
@@ -64,7 +64,7 @@ export function VisualTable<T = any>({
               ))}
             </div>
           </div>
-          <div role="rowgroup" className="divide-y divide-slate-100 bg-white">
+          <div role="rowgroup" className="divide-y divide-border-subtle bg-surface">
             {data.map((row, idx) => {
               const baseKey = getRowKey(row);
               const isSelected = selectedKey === baseKey;
@@ -74,14 +74,14 @@ export function VisualTable<T = any>({
                   role="row"
                   onClick={() => onRowClick && onRowClick(row)}
                   className={`flex items-center px-4 py-2.5 sm:py-3 transition-colors duration-150 ${
-                    onRowClick ? 'cursor-pointer hover:bg-slate-50/80 active:bg-slate-100' : ''
-                  } ${isSelected ? 'bg-blue-50/70 ring-1 ring-blue-400' : ''}`}
+                    onRowClick ? 'cursor-pointer hover:bg-surface-subtle active:bg-[var(--cx-selected-bg)]' : ''
+                  } ${isSelected ? 'bg-[var(--cx-selected-bg)] ring-1 ring-action' : ''}`}
                 >
                   {columns.map((col) => (
                     <div
                       key={col.key}
                       role="cell"
-                      className={`flex-1 ${col.align === 'right' ? 'text-right font-mono' : col.align === 'center' ? 'text-center' : 'text-left'}`}
+                      className={`flex-1 ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'}`}
                     >
                       {col.render ? col.render(row) : (row as any)[col.key] ?? '—'}
                     </div>
@@ -90,7 +90,7 @@ export function VisualTable<T = any>({
               );
             })}
             {data.length === 0 && (
-              <div role="row" className="px-4 py-8 text-center text-slate-400">
+              <div role="row" className="px-4 py-8 text-center text-text-mute">
                 {emptyMessage}
               </div>
             )}
@@ -108,7 +108,7 @@ export function DataVisual({ id, data, context, children }: any) {
 
   if (!data) {
     return (
-      <div className="p-4 text-xs text-slate-400 italic">
+      <div className="p-4 text-xs text-text-mute italic">
         No dataset records available for exploration.
       </div>
     );
@@ -132,8 +132,8 @@ export function DataVisual({ id, data, context, children }: any) {
   const renderDatasetTable = (title: string, list: any[]) => {
     if (!list || list.length === 0) {
       return (
-        <div key={title} className="p-3 bg-slate-50 border border-slate-200 rounded text-xs text-slate-500">
-          <strong className="block text-slate-700 capitalize mb-1">{title}</strong>
+        <div key={title} className="p-3 bg-surface-subtle border border-border rounded text-xs text-text-sec">
+          <strong className="block text-text-main capitalize mb-1">{title}</strong>
           No rows in this collection.
         </div>
       );
@@ -145,16 +145,16 @@ export function DataVisual({ id, data, context, children }: any) {
       : ['Value'];
 
     return (
-      <div key={title} className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-2xs my-3">
-        <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-          <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+      <div key={title} className="border border-border rounded-[var(--cx-radius-md)] overflow-hidden bg-surface my-3">
+        <div className="px-4 py-2 bg-surface-subtle border-b border-border flex items-center justify-between">
+          <span className="text-xs font-bold text-text-main uppercase tracking-wider">
             {title} ({list.length} {list.length === 1 ? 'row' : 'rows'})
           </span>
-          <span className="text-[10px] text-slate-400 font-mono">Dataset reference</span>
+          <span className="text-[10px] text-text-mute">Dataset reference</span>
         </div>
         <div className="overflow-x-auto max-h-64 overflow-y-auto">
           <table className="enterprise-table w-full text-xs text-left">
-            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold sticky top-0">
+            <thead className="bg-surface-subtle border-b border-border text-text-sec font-semibold sticky top-0">
               <tr>
                 {columns.map(col => (
                   <th key={col} className="py-2 px-3 whitespace-nowrap">
@@ -163,13 +163,13 @@ export function DataVisual({ id, data, context, children }: any) {
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 font-mono tabular-nums">
+            <tbody className="divide-y divide-border-subtle tabular-nums">
               {list.slice(0, 50).map((row, idx) => (
-                <tr key={idx} className="hover:bg-slate-50/70">
+                <tr key={idx} className="hover:bg-surface-subtle">
                   {columns.map(col => {
                     const cellVal = typeof row === 'object' && row !== null ? row[col] : row;
                     return (
-                      <td key={col} className="py-1.5 px-3 whitespace-nowrap text-slate-700">
+                      <td key={col} className="py-1.5 px-3 whitespace-nowrap text-text-main">
                         {formatCellValue(cellVal)}
                       </td>
                     );
@@ -180,7 +180,7 @@ export function DataVisual({ id, data, context, children }: any) {
           </table>
         </div>
         {list.length > 50 && (
-          <div className="px-4 py-1.5 bg-slate-50 text-[11px] text-slate-500 border-t border-slate-200 text-center font-sans">
+          <div className="px-4 py-1.5 bg-surface-subtle text-[11px] text-text-sec border-t border-border text-center font-sans">
             Showing first 50 rows of {list.length} total records
           </div>
         )}
@@ -200,11 +200,11 @@ export function DataVisual({ id, data, context, children }: any) {
   return (
     <div className="space-y-4 pt-2">
       {scalarEntries.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 bg-surface-subtle border border-border rounded-[var(--cx-radius-md)] text-xs tabular-nums">
           {scalarEntries.map(([k, v]) => (
             <div key={k} className="p-1">
-              <span className="text-[10px] text-slate-500 uppercase font-bold block">{k}</span>
-              <span className="font-semibold text-slate-800">{formatCellValue(v)}</span>
+              <span className="text-[10px] text-text-sec font-mono uppercase font-bold block">{k}</span>
+              <span className="font-semibold text-text-main">{formatCellValue(v)}</span>
             </div>
           ))}
         </div>
@@ -213,7 +213,7 @@ export function DataVisual({ id, data, context, children }: any) {
       {arrayEntries.map(([name, list]) => renderDatasetTable(name, list as any[]))}
 
       {arrayEntries.length === 0 && scalarEntries.length === 0 && (
-        <pre className="p-3 bg-slate-50 border border-slate-200 rounded text-xs font-mono overflow-auto max-h-48 text-slate-700">
+        <pre className="p-3 bg-surface-subtle border border-border rounded text-xs font-mono overflow-auto max-h-48 text-text-main">
           {JSON.stringify(data, null, 2)}
         </pre>
       )}

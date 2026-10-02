@@ -147,7 +147,7 @@ export default function Exceptions() {
 
             <AuditMetadata grain="Distinct lead per exception" dateBasis="Lead capture cohort" validationStatus={queue.data?.validationStatus} />
             {queue.loading && !queue.data ? (
-              <div className="cx-command-panel p-6 text-center text-slate-500 text-xs flex items-center justify-center gap-2">
+              <div className="cx-command-panel p-6 text-center text-text-mute text-xs flex items-center justify-center gap-2">
                 <div className="cx-command-spinner" />
                 Loading exception ranking chart…
               </div>
@@ -179,7 +179,7 @@ export default function Exceptions() {
                 </div>
               </header>
 
-              {queue.data && <div className="p-4 text-xs text-slate-600">
+              {queue.data && <div className="p-4 text-xs text-text-sec">
                 <p>{queue.data.comparisonReason}</p>
                 {queue.data.comparison && <p>Previous: {queue.data.comparison.previous.startDate} – {queue.data.comparison.previous.endDate} ({queue.data.comparison.days} days)</p>}
                 <ExportAnalysisButton filename="exception_populations" rows={[

@@ -18,7 +18,7 @@ export function AccessInvites({
   setInviteModalOpen,
 }: AccessInvitesProps) {
   return (
-    <div className="bg-surface rounded-xl border border-border-subtle shadow-sm p-5 space-y-4">
+    <div className="bg-surface rounded-lg border border-border-subtle p-5 space-y-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border-subtle pb-4">
         <div>
           <h2 className="text-sm font-bold text-text-main">Pre-Authorized Access Whitelist</h2>
@@ -29,7 +29,7 @@ export function AccessInvites({
         <button
           type="button"
           onClick={() => setInviteModalOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg cx-button-primary text-xs font-semibold cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>Add Email</span>
@@ -72,7 +72,7 @@ export function AccessInvites({
                   <button
                     type="button"
                     onClick={() => handleRevokeInvite(inv.id, inv.email)}
-                    className="text-xs text-rose-600 hover:text-rose-800 font-medium cursor-pointer"
+                    className="text-xs text-semantic-neg hover:text-semantic-neg font-medium cursor-pointer"
                   >
                     Revoke
                   </button>

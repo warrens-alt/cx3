@@ -45,13 +45,13 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
   onVendorChange,
 }) => {
   return (
-    <section aria-label="CLI Performance Records" className="bg-white rounded-lg border border-slate-200 p-4 shadow-sm space-y-3">
+    <section aria-label="CLI Performance Records" className="bg-surface rounded-lg border border-border-subtle p-4 space-y-3">
       {/* Table Toolbar */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2 flex-wrap flex-1 min-w-[260px]">
+        <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
           {/* CLI Search */}
-          <div className="relative flex-1 min-w-[200px]">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <div className="relative flex-1 min-w-[min(200px,100%)]">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-mute" />
             <input
               type="text"
               value={searchCli}
@@ -60,13 +60,13 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
                 setCurrentPage(1);
               }}
               placeholder="Search CLI number or campaign…"
-              className="w-full text-xs pl-8 pr-7 py-1.5 border border-slate-300 rounded bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#315BCB]"
+              className="w-full text-xs pl-8 pr-7 py-1.5 border border-control-border rounded bg-surface-sec focus:bg-surface focus:outline-none focus:ring-1 focus:ring-action"
             />
             {searchCli && (
               <button
                 type="button"
                 onClick={() => setSearchCli('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-text-mute hover:text-text-sec"
               >
                 <X size={12} />
               </button>
@@ -81,7 +81,7 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
                 setSelectedCampaign(e.target.value);
                 setCurrentPage(1);
               }}
-              className="text-xs border border-slate-300 rounded px-2.5 py-1.5 bg-slate-50 text-slate-700 min-h-[34px] max-w-full"
+              className="text-xs border border-control-border rounded px-2.5 py-1.5 bg-surface-sec text-text-sec min-h-[34px] max-w-full"
             >
               <option value="all">All Campaigns ({campaignOptions.length})</option>
               {campaignOptions.map(c => (
@@ -97,7 +97,7 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
             <select
               value={selectedVendor}
               onChange={e => onVendorChange(e.target.value)}
-              className="text-xs border border-slate-300 rounded px-2.5 py-1.5 bg-slate-50 text-slate-700 min-h-[34px] max-w-full"
+              className="text-xs border border-control-border rounded px-2.5 py-1.5 bg-surface-sec text-text-sec min-h-[34px] max-w-full"
             >
               <option value="all">All Vendors ({vendorOptions.length})</option>
               {vendorOptions.map(v => (
@@ -114,197 +114,197 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
       <div className="overflow-x-auto" role="region" aria-label="CLI performance records" tabIndex={0}>
         <table className="enterprise-table w-full text-xs">
           <thead>
-            <tr className="bg-slate-50 text-slate-700 border-b border-slate-200">
+            <tr className="bg-surface-sec text-text-sec border-b border-border-subtle">
               <th
                 scope="col"
                 onClick={() => handleSort('cli')}
-                className="cursor-pointer hover:bg-slate-100 px-3 py-2 text-left font-semibold"
+                className="cursor-pointer hover:bg-surface-sec px-3 py-2 text-left font-semibold"
               >
                 <div className="flex items-center gap-1">
                   <span>CLI Number</span>
-                  <ArrowUpDown size={11} className={sortField === 'cli' ? 'text-[#315BCB]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'cli' ? 'text-action' : 'text-text-mute'} />
                 </div>
               </th>
               <th
                 scope="col"
                 onClick={() => handleSort('campaign')}
-                className="cursor-pointer hover:bg-slate-100 px-3 py-2 text-left font-semibold"
+                className="cursor-pointer hover:bg-surface-sec px-3 py-2 text-left font-semibold"
               >
                 <div className="flex items-center gap-1">
                   <span>Campaign</span>
-                  <ArrowUpDown size={11} className={sortField === 'campaign' ? 'text-[#315BCB]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'campaign' ? 'text-action' : 'text-text-mute'} />
                 </div>
               </th>
               <th
                 scope="col"
                 onClick={() => handleSort('totalCalls')}
-                className="cursor-pointer hover:bg-slate-100 px-3 py-2 text-right font-semibold"
+                className="cursor-pointer hover:bg-surface-sec px-3 py-2 text-right font-semibold"
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>Total Calls</span>
-                  <ArrowUpDown size={11} className={sortField === 'totalCalls' ? 'text-[#315BCB]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'totalCalls' ? 'text-action' : 'text-text-mute'} />
                 </div>
               </th>
               <th
                 scope="col"
                 onClick={() => handleSort('distinctLeads')}
-                className="cursor-pointer hover:bg-slate-100 px-3 py-2 text-right font-semibold"
+                className="cursor-pointer hover:bg-surface-sec px-3 py-2 text-right font-semibold"
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>Dialed Leads</span>
-                  <ArrowUpDown size={11} className={sortField === 'distinctLeads' ? 'text-[#315BCB]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'distinctLeads' ? 'text-action' : 'text-text-mute'} />
                 </div>
               </th>
               <th
                 scope="col"
                 onClick={() => handleSort('asrRate')}
-                className="cursor-pointer hover:bg-slate-100 px-3 py-2 text-right font-semibold"
+                className="cursor-pointer hover:bg-surface-sec px-3 py-2 text-right font-semibold"
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>ASR %</span>
-                  <ArrowUpDown size={11} className={sortField === 'asrRate' ? 'text-[#315BCB]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'asrRate' ? 'text-action' : 'text-text-mute'} />
                 </div>
               </th>
               <th
                 scope="col"
                 onClick={() => handleSort('answeredRate')}
-                className="cursor-pointer hover:bg-slate-100 px-3 py-2 text-right font-semibold"
+                className="cursor-pointer hover:bg-surface-sec px-3 py-2 text-right font-semibold"
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>Answer %</span>
-                  <ArrowUpDown size={11} className={sortField === 'answeredRate' ? 'text-[#315BCB]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'answeredRate' ? 'text-action' : 'text-text-mute'} />
                 </div>
               </th>
               <th
                 scope="col"
                 onClick={() => handleSort('contactRate')}
-                className="cursor-pointer hover:bg-slate-100 px-3 py-2 text-right font-semibold text-[#315EAD]"
+                className="cursor-pointer hover:bg-surface-sec px-3 py-2 text-right font-semibold text-data-rpc"
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>RPC %</span>
-                  <ArrowUpDown size={11} className={sortField === 'contactRate' ? 'text-[#315BCB]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'contactRate' ? 'text-action' : 'text-text-mute'} />
                 </div>
               </th>
               <th
                 scope="col"
                 onClick={() => handleSort('saleCount')}
-                className="cursor-pointer hover:bg-slate-100 px-3 py-2 text-right font-semibold text-emerald-800"
+                className="cursor-pointer hover:bg-surface-sec px-3 py-2 text-right font-semibold text-data-sales"
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>Sales</span>
-                  <ArrowUpDown size={11} className={sortField === 'saleCount' ? 'text-[#315BCB]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'saleCount' ? 'text-action' : 'text-text-mute'} />
                 </div>
               </th>
               <th
                 scope="col"
                 onClick={() => handleSort('salePerCallRate')}
-                className="cursor-pointer hover:bg-slate-100 px-3 py-2 text-right font-semibold text-emerald-800"
+                className="cursor-pointer hover:bg-surface-sec px-3 py-2 text-right font-semibold text-data-sales"
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>Sale/Call %</span>
-                  <ArrowUpDown size={11} className={sortField === 'salePerCallRate' ? 'text-[#315BCB]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'salePerCallRate' ? 'text-action' : 'text-text-mute'} />
                 </div>
               </th>
               <th
                 scope="col"
                 onClick={() => handleSort('salePerContactRate')}
-                className="cursor-pointer hover:bg-slate-100 px-3 py-2 text-right font-semibold"
+                className="cursor-pointer hover:bg-surface-sec px-3 py-2 text-right font-semibold"
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>Sale/RPC %</span>
-                  <ArrowUpDown size={11} className={sortField === 'salePerContactRate' ? 'text-[#315BCB]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'salePerContactRate' ? 'text-action' : 'text-text-mute'} />
                 </div>
               </th>
               <th
                 scope="col"
                 onClick={() => handleSort('durationGe5mPct')}
-                className="cursor-pointer hover:bg-slate-100 px-3 py-2 text-right font-semibold"
+                className="cursor-pointer hover:bg-surface-sec px-3 py-2 text-right font-semibold"
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>&gt;= 5m %</span>
-                  <ArrowUpDown size={11} className={sortField === 'durationGe5mPct' ? 'text-[#315BCB]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'durationGe5mPct' ? 'text-action' : 'text-text-mute'} />
                 </div>
               </th>
               <th
                 scope="col"
                 onClick={() => handleSort('avgDurationSeconds')}
-                className="cursor-pointer hover:bg-slate-100 px-3 py-2 text-right font-semibold"
+                className="cursor-pointer hover:bg-surface-sec px-3 py-2 text-right font-semibold"
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>Avg Sec</span>
-                  <ArrowUpDown size={11} className={sortField === 'avgDurationSeconds' ? 'text-[#315BCB]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'avgDurationSeconds' ? 'text-action' : 'text-text-mute'} />
                 </div>
               </th>
               <th
                 scope="col"
                 onClick={() => handleSort('avgLeadAgeDays')}
-                className="cursor-pointer hover:bg-slate-100 px-3 py-2 text-right font-semibold"
+                className="cursor-pointer hover:bg-surface-sec px-3 py-2 text-right font-semibold"
               >
                 <div className="flex items-center justify-end gap-1">
                   <span>Lead Age</span>
-                  <ArrowUpDown size={11} className={sortField === 'avgLeadAgeDays' ? 'text-[#315BCB]' : 'text-slate-300'} />
+                  <ArrowUpDown size={11} className={sortField === 'avgLeadAgeDays' ? 'text-action' : 'text-text-mute'} />
                 </div>
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-border-subtle">
             {paginatedRecords.map(r => (
-              <tr key={r.cli} className="hover:bg-slate-50 transition-colors">
-                <td className="px-3 py-2.5 font-mono font-medium text-slate-900">
+              <tr key={r.cli} className="hover:bg-surface-sec transition-colors">
+                <td className="px-3 py-2.5 font-mono font-medium text-text-main">
                   <div className="flex items-center gap-1.5">
                     <span>{r.cli}</span>
                     {r.hasAnomalies && (
                       <span
                         title={r.anomalies.join('; ')}
-                        className="bg-amber-100 text-amber-800 text-[10px] px-1 rounded font-sans cursor-help"
+                        className="bg-semantic-warn-bg text-semantic-warn text-[10px] px-1 rounded font-sans cursor-help"
                       >
                         Flag
                       </span>
                     )}
                   </div>
                 </td>
-                <td className="px-3 py-2.5 text-slate-600 max-w-[160px] truncate" title={r.campaign}>
+                <td className="px-3 py-2.5 text-text-sec max-w-[160px] truncate" title={r.campaign}>
                   {r.campaign}
                 </td>
-                <td className="px-3 py-2.5 text-right font-mono text-slate-800">
+                <td className="px-3 py-2.5 text-right font-mono text-text-main">
                   {exactNumber(r.totalCalls)}
                 </td>
-                <td className="px-3 py-2.5 text-right font-mono text-slate-600">
+                <td className="px-3 py-2.5 text-right font-mono text-text-sec">
                   {exactNumber(r.distinctLeads)}
                 </td>
-                <td className="px-3 py-2.5 text-right font-mono text-slate-600">
-                  {r.asrRate ? `${r.asrRate}%` : <span className="text-slate-400">N/A</span>}
+                <td className="px-3 py-2.5 text-right font-mono text-text-sec">
+                  {r.asrRate ? `${r.asrRate}%` : <span className="text-text-mute">N/A</span>}
                 </td>
-                <td className="px-3 py-2.5 text-right font-mono text-slate-600">
-                  {r.answeredRate ? `${r.answeredRate}%` : <span className="text-slate-400">N/A</span>}
+                <td className="px-3 py-2.5 text-right font-mono text-text-sec">
+                  {r.answeredRate ? `${r.answeredRate}%` : <span className="text-text-mute">N/A</span>}
                 </td>
-                <td className="px-3 py-2.5 text-right font-mono font-semibold text-[#315EAD]">
+                <td className="px-3 py-2.5 text-right font-mono font-semibold text-data-rpc">
                   {r.contactRate === null ? 'Unavailable' : `${r.contactRate}%`}
                 </td>
-                <td className="px-3 py-2.5 text-right font-mono font-semibold text-emerald-800">
+                <td className="px-3 py-2.5 text-right font-mono font-semibold text-data-sales">
                   {exactNumber(r.saleCount)}
                 </td>
-                <td className="px-3 py-2.5 text-right font-mono font-semibold text-emerald-800">
+                <td className="px-3 py-2.5 text-right font-mono font-semibold text-data-sales">
                   {r.salePerCallRate === null ? 'Unavailable' : `${r.salePerCallRate}%`}
                 </td>
-                <td className="px-3 py-2.5 text-right font-mono text-slate-700">
-                  {r.salePerContactRate ? `${r.salePerContactRate}%` : <span className="text-slate-400">N/A</span>}
+                <td className="px-3 py-2.5 text-right font-mono text-text-sec">
+                  {r.salePerContactRate ? `${r.salePerContactRate}%` : <span className="text-text-mute">N/A</span>}
                 </td>
-                <td className="px-3 py-2.5 text-right font-mono text-slate-700">
+                <td className="px-3 py-2.5 text-right font-mono text-text-sec">
                   {r.durationGe5mPct === null ? 'Unavailable' : `${r.durationGe5mPct}%`}
                 </td>
-                <td className="px-3 py-2.5 text-right font-mono text-slate-600">
+                <td className="px-3 py-2.5 text-right font-mono text-text-sec">
                   {r.avgDurationSeconds === null ? 'Unavailable' : `${r.avgDurationSeconds}s`}
                 </td>
-                <td className="px-3 py-2.5 text-right font-mono text-slate-600">
-                  {r.avgLeadAgeDays ? `${r.avgLeadAgeDays}d` : <span className="text-slate-400">N/A</span>}
+                <td className="px-3 py-2.5 text-right font-mono text-text-sec">
+                  {r.avgLeadAgeDays ? `${r.avgLeadAgeDays}d` : <span className="text-text-mute">N/A</span>}
                 </td>
               </tr>
             ))}
 
             {!paginatedRecords.length && (
               <tr>
-                <td colSpan={13} className="text-center py-8 text-slate-400 text-xs">
+                <td colSpan={13} className="text-center py-8 text-text-mute text-xs">
                   No CLI records match the current filter selection.
                 </td>
               </tr>
@@ -315,7 +315,7 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
 
       {/* Pagination Controls */}
       {totalFiltered > 0 && (
-        <div className="flex items-center justify-between pt-3 text-xs text-slate-500 border-t border-slate-100 flex-wrap gap-2">
+        <div className="flex items-center justify-between pt-3 text-xs text-text-mute border-t border-border-subtle flex-wrap gap-2">
           <div>
             Showing {(currentPage - 1) * pageSize + 1} to{' '}
             {Math.min(currentPage * pageSize, totalFiltered)} of {totalFiltered} CLIs
@@ -328,7 +328,7 @@ export const CliRecordsTable: React.FC<CliRecordsTableProps> = ({
                 setPageSize(Number(e.target.value));
                 setCurrentPage(1);
               }}
-              className="border border-slate-200 rounded px-1.5 py-1 text-xs"
+              className="border border-border-subtle rounded px-1.5 py-1 text-xs"
             >
               <option value={10}>10</option>
               <option value={25}>25</option>

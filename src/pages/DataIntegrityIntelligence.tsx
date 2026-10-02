@@ -91,7 +91,7 @@ export default function DataIntegrityIntelligence() {
                 ['Check', 'Category', 'Status', 'Discrepancy count', 'Definition'],
                 ...data.checks.map(check => [check.checkName, check.category, check.status, check.discrepancyCount, check.detail]),
               ]} validationStatus={data.validationStatus} definitions={data.reason} /></div>
-              <header><div><span className="cx-command-section-kicker">Integrity</span><h2>Observed discrepancy checks</h2><p>{data.reason}</p></div><Database size={16} className="text-slate-400"/></header>
+              <header><div><span className="cx-command-section-kicker">Integrity</span><h2>Observed discrepancy checks</h2><p>{data.reason}</p></div><Database size={16} className="text-text-muted"/></header>
               <IntegrityAuditChecks key={JSON.stringify([selectedClient, startDate, endDate, filters])} data={data} scope={auditScope} />
             </section>
 
@@ -109,7 +109,7 @@ export default function DataIntegrityIntelligence() {
             <section className="cx-command-panel">
               <header>
                 <div><span className="cx-command-section-kicker">Sources</span><h2>Data source observability</h2><p>Source cards cover all tenant-owned records, independent of the selected capture cohort. Freshness is observed from timestamps; a freshness SLA is not inferred. Missing contracts are surfaced explicitly.</p></div>
-                <Clock3 size={16} className="text-slate-400"/>
+                <Clock3 size={16} className="text-text-muted"/>
               </header>
               <div className="cx-source-grid">
                 {(data.sources || []).map(source => source.key === 'activationLifecycle' ? (

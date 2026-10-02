@@ -31,7 +31,7 @@ export default function JourneyProgression({
 }: JourneyProgressionProps) {
   if ((!stages || stages.length === 0) && (!transitions || transitions.length === 0)) {
     return (
-      <div className="p-6 bg-surface rounded-xl border border-border-subtle text-center text-text-sec text-sm">
+      <div className="p-6 bg-surface rounded-md border border-border-subtle text-center text-text-sec text-sm">
         Lifecycle progression data is unavailable for the selected reporting period.
       </div>
     );
@@ -98,7 +98,7 @@ export default function JourneyProgression({
                       <td className="px-4 py-3 text-right cx-tabular font-semibold text-brand-primary">
                         {t.conversionRate !== null && t.conversionRate !== undefined ? formatPercent(t.conversionRate) : '—'}
                       </td>
-                      <td className="px-4 py-3 text-right cx-tabular font-medium text-amber-700 dark:text-amber-400">
+                      <td className="px-4 py-3 text-right cx-tabular font-medium text-semantic-warn">
                         {!isLostKnown ? '—' : hasLoss ? `−${formatTableNumber(t.lost as number)}` : '0'}
                       </td>
                       <td className="px-4 py-3 text-right cx-tabular text-text-sec">
@@ -111,12 +111,12 @@ export default function JourneyProgression({
                       </td>
                       <td className="px-4 py-3">
                         {t.status === 'NON_NESTED' ? (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-amber-500/10 text-amber-800 dark:text-amber-300">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-semantic-warn-bg/10 text-semantic-warn">
                             <AlertCircle size={11} />
                             Non-nested
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-800 dark:text-emerald-300">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-semantic-pos-bg/10 text-semantic-pos">
                             <CheckCircle2 size={11} />
                             Observed
                           </span>

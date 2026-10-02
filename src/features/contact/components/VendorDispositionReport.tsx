@@ -322,7 +322,7 @@ export default function VendorDispositionReport({
         <div
           role="alert"
           aria-live="polite"
-          className="p-3.5 bg-red-500/10 border border-red-500/30 rounded-xl text-xs text-red-700 dark:text-red-400 flex items-center justify-between gap-2"
+          className="p-3.5 bg-semantic-neg-bg/10 border border-semantic-neg/30 rounded-md text-xs text-semantic-neg flex items-center justify-between gap-2"
         >
           <div className="flex items-center gap-2">
             <AlertCircle size={15} className="shrink-0" />
@@ -332,7 +332,7 @@ export default function VendorDispositionReport({
             <button
               type="button"
               onClick={onClearExportError}
-              className="p-1 hover:bg-red-500/20 rounded cursor-pointer"
+              className="p-1 hover:bg-semantic-neg-bg/20 rounded cursor-pointer"
               aria-label="Dismiss export error"
             >
               <X size={13} />
@@ -362,7 +362,7 @@ export default function VendorDispositionReport({
                 value={tableSearch}
                 onChange={(e) => setTableSearch(e.target.value)}
                 aria-label="Search vendor summaries"
-                className="text-xs pl-8 pr-3 py-1.5 bg-surface border border-border-subtle rounded-lg w-36 sm:w-44 focus:outline-hidden focus:ring-1 focus:ring-brand-primary"
+                className="text-xs pl-8 pr-3 py-1.5 bg-surface border border-border-subtle rounded-md w-36 sm:w-44 focus:outline-hidden focus:ring-1 focus:ring-brand-primary"
               />
             </div>
 
@@ -370,7 +370,7 @@ export default function VendorDispositionReport({
               <button
                 type="button"
                 onClick={onExportSummaryTable}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border-subtle rounded-lg text-xs font-medium text-text-main hover:bg-surface-subtle transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border-subtle rounded-md text-xs font-medium text-text-main hover:bg-surface-subtle transition-colors cursor-pointer"
               >
                 <Download size={13} />
                 <span>Export table</span>

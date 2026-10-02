@@ -259,7 +259,7 @@ export default function UserManagement() {
   if (!isAdmin) {
     return (
       <div className="p-8 max-w-2xl mx-auto text-center space-y-4">
-        <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+        <div className="w-12 h-12 rounded-full bg-semantic-neg-bg text-semantic-neg flex items-center justify-center mx-auto">
           <Shield className="w-6 h-6" />
         </div>
         <h1 className="text-xl font-bold text-text-main">Administrator Access Required</h1>
@@ -271,7 +271,7 @@ export default function UserManagement() {
   }
 
   return (
-    <AnalyticsPageLayout className="cx-access-page" title="Access control" description="Manage authenticated Google accounts, role permissions, client tenant scopes, and access requests." actions={
+    <AnalyticsPageLayout className="cx-access-control-page" title="Access control" description="Manage authenticated Google accounts, role permissions, client tenant scopes, and access requests." actions={
       <button type="button" onClick={() => setInviteModalOpen(true)} className="cx-button-primary">
         <Plus className="w-4 h-4" /><span>Pre-Authorize User</span>
       </button>
@@ -280,22 +280,22 @@ export default function UserManagement() {
         <div
           className={`p-3 rounded-lg text-xs font-medium flex items-center justify-between transition-all ${
             actionNotice.type === 'success'
-              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-              : 'bg-rose-50 text-rose-800 border border-rose-200'
+              ? 'bg-semantic-pos-bg text-semantic-pos border border-semantic-pos/30'
+              : 'bg-semantic-neg-bg text-semantic-neg border border-semantic-neg/30'
           }`}
         >
           <div className="flex items-center gap-2">
             {actionNotice.type === 'success' ? (
-              <CheckCircle className="w-4 h-4 text-emerald-600" />
+              <CheckCircle className="w-4 h-4 text-semantic-pos" />
             ) : (
-              <AlertTriangle className="w-4 h-4 text-rose-600" />
+              <AlertTriangle className="w-4 h-4 text-semantic-neg" />
             )}
             <span>{actionNotice.message}</span>
           </div>
           <button
             type="button"
             onClick={() => setActionNotice(null)}
-            className="p-1 hover:bg-black/5 rounded cursor-pointer"
+            className="p-1 hover:bg-surface-sec rounded cursor-pointer"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -304,7 +304,7 @@ export default function UserManagement() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-surface p-4 rounded-lg border border-border-subtle shadow-2xs space-y-1 hover:border-border-strong transition-all">
+        <div className="bg-surface p-4 rounded-lg border border-border-subtle space-y-1 hover:border-border-strong transition-all">
           <div className="flex items-center justify-between text-text-sec text-[11px] font-semibold uppercase tracking-wider">
             <span>Total Accounts</span>
             <Users className="w-3.5 h-3.5 text-text-mute" />
@@ -313,12 +313,12 @@ export default function UserManagement() {
           <p className="text-[10.5px] text-text-sec font-sans">Registered Google accounts</p>
         </div>
 
-        <div className="bg-surface p-4 rounded-lg border border-border-subtle shadow-2xs space-y-1 hover:border-border-strong transition-all">
+        <div className="bg-surface p-4 rounded-lg border border-border-subtle space-y-1 hover:border-border-strong transition-all">
           <div className="flex items-center justify-between text-text-sec text-[11px] font-semibold uppercase tracking-wider">
             <span>Active Users</span>
-            <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
+            <UserCheck className="w-3.5 h-3.5 text-semantic-pos" />
           </div>
-          <div className="text-2xl font-bold text-emerald-600 font-sans tabular-nums">{loadingUsers ? '…' : directoryError ? 'Unavailable' : activeCount}</div>
+          <div className="text-2xl font-bold text-semantic-pos font-sans tabular-nums">{loadingUsers ? '…' : directoryError ? 'Unavailable' : activeCount}</div>
           <p className="text-[10.5px] text-text-sec font-sans">Currently authorized</p>
         </div>
 
@@ -327,20 +327,20 @@ export default function UserManagement() {
             setActiveTab('users');
             setStatusFilter('pending');
           }}
-          className={`bg-surface p-4 rounded-lg border shadow-2xs space-y-1 cursor-pointer transition-all ${
-            pendingCount > 0 ? 'border-amber-300 bg-amber-50/20 hover:border-amber-400' : 'border-border-subtle hover:border-border-strong'
+          className={`bg-surface p-4 rounded-lg border  space-y-1 cursor-pointer transition-all ${
+            pendingCount > 0 ? 'border-semantic-warn/30 bg-semantic-warn-bg hover:border-semantic-warn' : 'border-border-subtle hover:border-border-strong'
           }`}
         >
           <div className="flex items-center justify-between text-text-sec text-[11px] font-semibold uppercase tracking-wider">
             <span>Pending Approvals</span>
-            <Clock className={`w-3.5 h-3.5 ${pendingCount > 0 ? 'text-amber-500 animate-pulse' : 'text-text-mute'}`} />
+            <Clock className={`w-3.5 h-3.5 ${pendingCount > 0 ? 'text-semantic-warn animate-pulse' : 'text-text-mute'}`} />
           </div>
           <div className="flex items-center gap-2">
-            <span className={`text-2xl font-bold font-sans tabular-nums ${pendingCount > 0 ? 'text-amber-600' : 'text-text-main'}`}>
+            <span className={`text-2xl font-bold font-sans tabular-nums ${pendingCount > 0 ? 'text-semantic-warn' : 'text-text-main'}`}>
               {loadingUsers ? '…' : directoryError ? 'Unavailable' : pendingCount}
             </span>
             {pendingCount > 0 && (
-              <span className="px-1.5 py-0.5 text-[9.5px] font-semibold bg-amber-100 text-amber-800 rounded font-sans">
+              <span className="px-1.5 py-0.5 text-[9.5px] font-semibold bg-semantic-warn-bg text-semantic-warn rounded font-sans">
                 ACTION REQUIRED
               </span>
             )}
@@ -348,12 +348,12 @@ export default function UserManagement() {
           <p className="text-[10.5px] text-text-sec font-sans">Awaiting access grant</p>
         </button>
 
-        <div className="bg-surface p-4 rounded-lg border border-border-subtle shadow-2xs space-y-1 hover:border-border-strong transition-all">
+        <div className="bg-surface p-4 rounded-lg border border-border-subtle space-y-1 hover:border-border-strong transition-all">
           <div className="flex items-center justify-between text-text-sec text-[11px] font-semibold uppercase tracking-wider">
             <span>Administrators</span>
-            <Shield className="w-3.5 h-3.5 text-blue-500" />
+            <Shield className="w-3.5 h-3.5 text-action" />
           </div>
-          <div className="text-2xl font-bold text-blue-700 font-sans tabular-nums">{loadingUsers ? '…' : directoryError ? 'Unavailable' : adminCount}</div>
+          <div className="text-2xl font-bold text-action font-sans tabular-nums">{loadingUsers ? '…' : directoryError ? 'Unavailable' : adminCount}</div>
           <p className="text-[10.5px] text-text-sec font-sans">Full platform authority</p>
         </div>
       </div>
@@ -373,7 +373,7 @@ export default function UserManagement() {
           <Users className="w-4 h-4" />
           <span>User Directory ({directoryError ? 'Unavailable' : loadingUsers ? '…' : usersList.length})</span>
           {pendingCount > 0 && (
-            <span className="text-[11px] font-semibold text-amber-700 font-sans">
+            <span className="text-[11px] font-semibold text-semantic-warn font-sans">
               ({loadingUsers ? '…' : directoryError ? 'Unavailable' : pendingCount} pending)
             </span>
           )}

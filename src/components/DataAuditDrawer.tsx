@@ -66,14 +66,14 @@ export default function DataAuditDrawer({ isOpen, onClose, title, defaultGrain =
     <div className="flex flex-col max-h-[80dvh] min-w-0">
       <header className="flex items-start justify-between gap-3 p-4 sm:p-6 border-b border-border-subtle bg-surface-sec">
         <div className="min-w-0">
-          <h2 className="text-xl font-bold text-text-main flex items-center gap-2"><TableIcon className="w-5 h-5 text-[#315BCB] shrink-0" />{title}</h2>
+          <h2 className="text-xl font-bold text-text-main flex items-center gap-2"><TableIcon className="w-5 h-5 text-action shrink-0" />{title}</h2>
           <p className="text-sm text-text-sec mt-1">Supporting records · {clientConfig?.name} · capture dates {startDate} to {endDate}. Active and chart filters apply.</p>
         </div>
         <button type="button" onClick={onClose} aria-label="Close supporting records" className="cx-icon-button shrink-0"><X size={20} /></button>
       </header>
       <div className="p-4 border-b border-border-subtle flex flex-wrap items-end gap-4 text-sm">
         <label className="flex flex-col gap-1"><span className="font-medium">Record unit</span>
-          <select value={grain} onChange={event => setGrain(event.target.value)} className="bg-white border rounded px-3 py-2">
+          <select value={grain} onChange={event => setGrain(event.target.value)} className="bg-surface text-text-main border border-border rounded-[var(--cx-radius-control)] px-3 py-2">
             <option value="lead">Unique lead</option><option value="transaction">Lead × vendor transaction</option>
           </select>
         </label>
@@ -92,9 +92,9 @@ export default function DataAuditDrawer({ isOpen, onClose, title, defaultGrain =
           {query.metadata?.generatedAt && <p className="text-sm text-text-sec">Response generated: {String(query.metadata.generatedAt)}. Source freshness is not established by this timestamp.</p>}
           <fieldset className="flex flex-wrap gap-2"><legend className="text-sm font-semibold mb-2">Visible column groups</legend>
             {allGroups.map(group => <button key={group} type="button" aria-pressed={activeGroups.includes(group)} onClick={() => toggleGroup(group)}
-              className={`cx-button-secondary ${activeGroups.includes(group) ? 'bg-[#EDF5FC] border-[#315BCB] text-[#315EAD]' : ''}`}>{group}</button>)}
+              className="cx-button-secondary cx-audit-column-group">{group}</button>)}
           </fieldset>
-          <div className="border rounded-lg overflow-auto" tabIndex={0} role="region" aria-label="Supporting records table">
+          <div className="border border-border rounded-[var(--cx-radius-md)] overflow-auto" tabIndex={0} role="region" aria-label="Supporting records table">
             <VisualTable visual={{ id: 'legacy.audit', data }} initialView="table" className="w-full text-left border-collapse text-sm whitespace-nowrap">
               <thead className="bg-surface-sec"><tr>{columns.map(key => <th key={key} scope="col" className="p-3 font-semibold border-b">{key}</th>)}</tr></thead>
               <tbody>{data.slice(offset, offset + pageSize).map((row, index) => <tr key={`${row.lead_id ?? 'record'}-${row.transaction_id ?? offset + index}`} className="border-b border-border-subtle">

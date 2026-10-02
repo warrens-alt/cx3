@@ -204,7 +204,7 @@ export default function VendorOutcomeInspector({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-xs transition-opacity"
+      className="fixed inset-0 z-50 flex justify-end bg-[var(--cx-overlay-backdrop)] backdrop-blur-xs transition-opacity"
       role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -216,7 +216,7 @@ export default function VendorOutcomeInspector({
         role="dialog"
         aria-modal="true"
         aria-labelledby="vendor-inspector-title"
-        className="w-full max-w-3xl h-full bg-surface border-l border-border shadow-2xl flex flex-col overflow-y-auto animate-in slide-in-from-right duration-200"
+        className="w-full max-w-3xl h-full bg-surface border-l border-border shadow-[var(--cx-shadow-drawer)] flex flex-col overflow-y-auto animate-in slide-in-from-right duration-150"
       >
         {/* Header - stable across loading, success, error, and unavailable transitions */}
         <div className="p-6 border-b border-border bg-surface-sec sticky top-0 z-10">
@@ -224,7 +224,7 @@ export default function VendorOutcomeInspector({
             <div>
               {readinessStatus === 'not_represented' ? (
                 <div>
-                  <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400 text-xs font-semibold uppercase tracking-wider">
+                  <div className="flex items-center gap-1.5 text-semantic-warn text-xs font-semibold uppercase tracking-wider">
                     <AlertCircle size={14} />
                     <span>Inspection Unavailable</span>
                   </div>
@@ -373,10 +373,10 @@ export default function VendorOutcomeInspector({
         {readinessStatus === 'error' && (
           <div className="p-6 space-y-4 flex-1">
             <div
-              className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-xs text-text-main space-y-2"
+              className="p-4 bg-semantic-neg-bg/10 border border-semantic-neg/30 rounded-md text-xs text-text-main space-y-2"
               role="alert"
             >
-              <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-semibold">
+              <div className="flex items-center gap-2 text-semantic-neg font-semibold">
                 <AlertCircle size={16} />
                 <span>Failed to load vendor outcomes</span>
               </div>
@@ -387,7 +387,7 @@ export default function VendorOutcomeInspector({
                 <button
                   type="button"
                   onClick={onRetry}
-                  className="px-4 py-2 text-xs font-medium text-white bg-brand-primary rounded-md hover:bg-brand-hover transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                  className="px-4 py-2 text-xs font-medium text-[var(--cx-action-contrast)] bg-brand-primary rounded-md hover:bg-action-hover transition-colors cursor-pointer inline-flex items-center gap-1.5"
                 >
                   <RefreshCw size={12} />
                   <span>Retry request</span>
@@ -408,10 +408,10 @@ export default function VendorOutcomeInspector({
         {readinessStatus === 'unsupported' && (
           <div className="p-6 space-y-4 flex-1">
             <div
-              className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-text-main space-y-2"
+              className="p-4 bg-semantic-warn-bg/10 border border-semantic-warn/30 rounded-md text-xs text-text-main space-y-2"
               role="alert"
             >
-              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-semibold">
+              <div className="flex items-center gap-2 text-semantic-warn font-semibold">
                 <AlertCircle size={16} />
                 <span>Capability Unavailable</span>
               </div>
@@ -436,10 +436,10 @@ export default function VendorOutcomeInspector({
         {readinessStatus === 'not_represented' && (
           <div className="py-6 space-y-4 flex-1 px-6">
             <div
-              className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-text-main space-y-2"
+              className="p-4 bg-semantic-warn-bg/10 border border-semantic-warn/30 rounded-md text-xs text-text-main space-y-2"
               role="alert"
             >
-              <p className="font-semibold text-amber-800 dark:text-amber-300">
+              <p className="font-semibold text-semantic-warn">
                 The requested vendor &quot;{vendor}&quot; is not represented in the authorised report.
               </p>
               <p className="text-text-sec">
@@ -469,7 +469,7 @@ export default function VendorOutcomeInspector({
               <div
                 role="alert"
                 aria-live="polite"
-                className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-xs text-red-700 dark:text-red-400 flex items-center justify-between gap-2"
+                className="p-3 bg-semantic-neg-bg/10 border border-semantic-neg/30 rounded-md text-xs text-semantic-neg flex items-center justify-between gap-2"
               >
                 <div className="flex items-center gap-2">
                   <AlertCircle size={14} className="shrink-0" />
@@ -479,7 +479,7 @@ export default function VendorOutcomeInspector({
                   <button
                     type="button"
                     onClick={onClearExportError}
-                    className="p-1 hover:bg-red-500/20 rounded cursor-pointer"
+                    className="p-1 hover:bg-semantic-neg-bg/20 rounded cursor-pointer"
                     aria-label="Dismiss export error"
                   >
                     <X size={12} />
@@ -499,7 +499,7 @@ export default function VendorOutcomeInspector({
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     aria-label="Filter raw dispositions"
-                    className="w-full text-xs pl-8 pr-3 py-1.5 bg-surface border border-border-subtle rounded-lg text-text-main focus:outline-hidden focus:ring-1 focus:ring-brand-primary"
+                    className="w-full text-xs pl-8 pr-3 py-1.5 bg-surface border border-border-subtle rounded-md text-text-main focus:outline-hidden focus:ring-1 focus:ring-brand-primary"
                   />
                 </div>
 
@@ -507,7 +507,7 @@ export default function VendorOutcomeInspector({
                   value={groupFilter}
                   onChange={(e) => handleGroupSelect(e.target.value)}
                   aria-label="Filter by outcome group"
-                  className="text-xs bg-surface border border-border-subtle rounded-lg px-2.5 py-1.5 text-text-main focus:outline-hidden focus:ring-1 focus:ring-brand-primary cursor-pointer"
+                  className="text-xs bg-surface border border-border-subtle rounded-md px-2.5 py-1.5 text-text-main focus:outline-hidden focus:ring-1 focus:ring-brand-primary cursor-pointer"
                 >
                   <option value="ALL">All Outcome Groups</option>
                   {isUnknownGroup && (
@@ -528,7 +528,7 @@ export default function VendorOutcomeInspector({
                   <button
                     type="button"
                     onClick={() => onFilterReportByVendor(vendor)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border-subtle hover:bg-surface-subtle text-xs font-medium text-text-main rounded-lg transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border-subtle hover:bg-surface-subtle text-xs font-medium text-text-main rounded-md transition-colors cursor-pointer"
                     title={`Apply global vendor filter for ${vendor}`}
                   >
                     <Filter size={12} />
@@ -540,10 +540,10 @@ export default function VendorOutcomeInspector({
                   type="button"
                   disabled={filteredRows.length === 0}
                   onClick={handleTriggerExport}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
                     filteredRows.length === 0
                       ? 'bg-surface-subtle text-text-mute cursor-not-allowed border border-border-subtle'
-                      : 'bg-brand-primary text-white hover:bg-brand-hover cursor-pointer'
+                      : 'bg-brand-primary text-[var(--cx-action-contrast)] hover:bg-action-hover cursor-pointer'
                   }`}
                   title={
                     filteredRows.length === 0
@@ -561,7 +561,7 @@ export default function VendorOutcomeInspector({
             {isUnknownGroup && (
               <div
                 role="alert"
-                className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-800 dark:text-amber-300 flex items-center justify-between gap-2"
+                className="p-3 bg-semantic-warn-bg/10 border border-semantic-warn/30 rounded-md text-xs text-semantic-warn flex items-center justify-between gap-2"
               >
                 <div className="flex items-center gap-2">
                   <AlertCircle size={14} className="shrink-0" />
@@ -580,7 +580,7 @@ export default function VendorOutcomeInspector({
             )}
 
             {/* Raw Codes Table - Harmonized with CSV Export */}
-            <div className="bg-surface rounded-lg border border-border-subtle overflow-hidden">
+            <div className="bg-surface rounded-md border border-border-subtle overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
@@ -643,13 +643,13 @@ export default function VendorOutcomeInspector({
                               <span
                                 className={`inline-flex items-center gap-1 text-[11px] font-medium ${
                                   statusPres.status === 'APPROVED'
-                                    ? 'text-emerald-700 dark:text-emerald-400'
+                                    ? 'text-semantic-pos'
                                     : statusPres.status === 'UNMAPPED'
-                                    ? 'text-amber-700 dark:text-amber-400'
+                                    ? 'text-semantic-warn'
                                     : statusPres.status === 'MISSING'
-                                    ? 'text-red-700 dark:text-red-400'
+                                    ? 'text-semantic-neg'
                                     : statusPres.status === 'CONFLICTING'
-                                    ? 'text-amber-600 dark:text-amber-500'
+                                    ? 'text-semantic-warn'
                                     : 'text-text-mute'
                                 }`}
                               >
@@ -680,7 +680,7 @@ export default function VendorOutcomeInspector({
             </div>
 
             {/* Evidence Destination & Broader Scope Navigation */}
-            <div className="p-4 bg-surface-subtle/50 rounded-lg border border-border-subtle space-y-3">
+            <div className="p-4 bg-surface-subtle/50 rounded-md border border-border-subtle space-y-3">
               <div className="flex items-start gap-2">
                 <Info size={14} className="text-brand-primary shrink-0 mt-0.5" />
                 <div className="text-xs text-text-sec">
@@ -702,7 +702,7 @@ export default function VendorOutcomeInspector({
                   <Link
                     to={explorerPath}
                     onClick={onClose}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border-subtle text-text-main rounded-lg text-xs font-medium hover:bg-surface-subtle transition-colors shrink-0"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border-subtle text-text-main rounded-md text-xs font-medium hover:bg-surface-subtle transition-colors shrink-0"
                   >
                     <span>Open Broader Lead Explorer</span>
                     <ExternalLink size={12} />

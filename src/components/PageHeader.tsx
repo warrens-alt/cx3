@@ -43,8 +43,8 @@ export default function PageHeader({
           <div className="cx-page-badges">
             {badges.map((b, idx) => (
               <React.Fragment key={idx}>
-                {idx > 0 && <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">·</span>}
-                <span className={b.variant === 'success' ? 'text-emerald-700 dark:text-emerald-400 font-semibold' : 'text-slate-700 dark:text-slate-300 font-medium'}>
+                {idx > 0 && <span className="text-text-mute" aria-hidden="true">·</span>}
+                <span className={b.variant === 'success' ? 'text-semantic-pos font-semibold' : 'text-text-sec font-medium'}>
                   {b.label}
                 </span>
               </React.Fragment>

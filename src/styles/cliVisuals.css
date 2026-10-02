@@ -14,3 +14,16 @@
  .cx-cli-telemetry>:nth-child(2n){padding-right:0;border-inline-end:0}
  .cx-cli-telemetry>:nth-child(2n+1){padding-left:0}
 }
+
+/* Caller-ID records and dialogs retain the same themed control geometry. */
+.cx-cli-page :is(input:not([type="checkbox"]),select) { min-height:36px; max-width:100%; color:var(--cx-text); background:var(--cx-surface); border-color:var(--cx-control-border); border-radius:var(--cx-radius-control); }
+.cx-cli-dialog { max-height:calc(100dvh - 32px); overflow-y:auto; border:1px solid var(--cx-border); color:var(--cx-text); border-radius:var(--cx-radius-lg); }
+.cx-cli-page :is(button,a,input,select):focus-visible { outline:2px solid var(--cx-focus); outline-offset:3px; }
+.cx-cli-dialog > :first-child { gap:12px; }
+.cx-cli-dialog > :first-child > button { flex-shrink:0; }
+.cx-cli-source-gap > div > div:last-child { min-width:0; }
+.cx-cli-source-gap :is(code,span) { overflow-wrap:anywhere; }
+.cx-cli-source-gap button { max-width:100%; white-space:normal; }
+@media(max-width:639px) { .cx-cli-source-gap > div { flex-direction:column; gap:8px; } }
+@media(pointer:coarse) { .cx-cli-page :is(button,a,input:not([type="checkbox"]),select) { min-height:44px; } }
+@media(prefers-reduced-motion:reduce) { .cx-cli-page *, .cx-cli-dialog { transition:none; animation:none; } }

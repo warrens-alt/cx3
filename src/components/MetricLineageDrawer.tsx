@@ -58,8 +58,8 @@ export default function MetricLineageDrawer({ isOpen, onClose, title, lineage, m
 
   return (
     <>
-      <div className="fixed inset-0 bg-[#10283B]/20 backdrop-blur-sm z-40 transition-opacity" onMouseDown={onClose} aria-hidden="true" />
-      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`Metric lineage: ${title}`} className="fixed inset-y-0 right-0 w-full md:w-[440px] bg-surface border-l border-border-strong shadow-2xl z-50 flex flex-col transform transition-transform duration-300">
+      <div className="fixed inset-0 bg-[var(--cx-overlay-backdrop)] backdrop-blur-sm z-40 transition-opacity duration-150" onMouseDown={onClose} aria-hidden="true" />
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`Metric lineage: ${title}`} className="fixed inset-y-0 right-0 w-full md:w-[440px] bg-surface text-text-main border-l border-border-strong shadow-[var(--cx-shadow-drawer)] z-50 flex flex-col transform transition-transform duration-150">
         <div className="p-6 border-b border-border-subtle flex justify-between items-center bg-surface-sec">
           <div>
             <div className="flex items-center gap-2">
@@ -69,14 +69,14 @@ export default function MetricLineageDrawer({ isOpen, onClose, title, lineage, m
                 </span>
               )}
               {costMetric && (
-                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-700 font-semibold border border-amber-200">
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded-[var(--cx-radius-control)] bg-semantic-warn-bg text-semantic-warn font-semibold border border-[var(--cx-status-warning-border)]">
                   {costMetric}
                 </span>
               )}
             </div>
             <h2 className="text-section-title mt-1.5">{reportValue}</h2>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close metric lineage" className="p-2 hover:bg-border-subtle rounded-full text-text-sec hover:text-text-main transition-colors">
+          <button type="button" onClick={onClose} aria-label="Close metric lineage" className="p-2 hover:bg-surface-subtle rounded-[var(--cx-radius-control)] text-text-sec hover:text-text-main transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -122,7 +122,7 @@ export default function MetricLineageDrawer({ isOpen, onClose, title, lineage, m
               {waterfallFormula && (
                 <div className="bg-surface p-2.5 rounded border border-border-subtle text-xs">
                   <span className="text-text-mute block text-[10px] uppercase font-semibold mb-1">Waterfall Conversion Formula</span>
-                  <code className="font-mono text-[11px] text-emerald-700 block break-words">{waterfallFormula}</code>
+                  <code className="font-mono text-[11px] text-text-main block break-words">{waterfallFormula}</code>
                 </div>
               )}
 

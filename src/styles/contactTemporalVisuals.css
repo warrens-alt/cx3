@@ -45,7 +45,7 @@
 .cx-coverage-track>span{display:block;height:100%}
 .cx-coverage-track[data-state="unknown"]{border:1px dashed var(--cx-border);background:transparent}
 .cx-coverage-legend{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:10px}
-.cx-coverage-legend>div,.cx-coverage-legend>button{display:flex;align-items:flex-start;gap:10px;padding:12px 4px;border:0;border-radius:6px;background:none;text-align:left;font-size:12px;color:var(--cx-text-secondary);line-height:1.5;min-width:0}
+.cx-coverage-legend>div,.cx-coverage-legend>button{display:flex;align-items:flex-start;gap:10px;padding:12px 4px;border:0;border-radius:var(--cx-radius-control);background:none;text-align:left;font-size:12px;color:var(--cx-text-secondary);line-height:1.5;min-width:0}
 .cx-coverage-legend>button{cursor:pointer}
 .cx-coverage-legend>button:hover{background:var(--cx-surface-subtle)}
 .cx-coverage-legend svg{flex-shrink:0;margin-top:2px}
@@ -58,13 +58,13 @@
 .cx-vendor-composition-detail ul{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:14px}
 .cx-vendor-composition-detail li>strong{display:block;font-size:12px;margin-bottom:6px}
 .cx-vendor-composition-actions{display:flex;flex-wrap:wrap;gap:6px}
-.cx-vendor-composition-actions button{display:inline-flex;gap:6px;align-items:center;min-height:34px;padding:5px 8px;border:1px solid var(--cx-border-subtle);border-radius:6px;font-size:11px;text-align:left;color:var(--cx-text-secondary);background:var(--cx-surface)}
+.cx-vendor-composition-actions button{display:inline-flex;gap:6px;align-items:center;min-height:34px;padding:5px 8px;border:1px solid var(--cx-border-subtle);border-radius:var(--cx-radius-control);font-size:11px;text-align:left;color:var(--cx-text-secondary);background:var(--cx-surface)}
 .cx-vendor-composition-actions button:focus-visible{outline:2px solid var(--cx-action);outline-offset:2px}
 .cx-vendor-composition-actions i{width:8px;height:8px;border-radius:2px;flex:none}
 .cx-vendor-composition-actions b{font-variant-numeric:tabular-nums;color:var(--cx-text)}
 .cx-temporal-basis-control{display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--cx-text-secondary)}
 .cx-temporal-basis-control label{display:flex;align-items:center;gap:8px;font-weight:600}
-.cx-temporal-basis-control select{padding:7px 10px;border:1px solid var(--cx-border);border-radius:6px;color:var(--cx-text);background:var(--cx-surface)}
+.cx-temporal-basis-control select{padding:7px 10px;border:1px solid var(--cx-border);border-radius:var(--cx-radius-control);color:var(--cx-text);background:var(--cx-surface)}
 .cx-temporal-page .cx-temporal-hero{padding:20px;min-width:0;border-color:var(--cx-border)}
 .cx-temporal-page .cx-temporal-hero>header{padding:0 0 14px}
 .cx-temporal-page .cx-temporal-grid{display:grid;align-items:center;min-width:1040px;grid-template-columns:52px repeat(24,minmax(36px,1fr));gap:4px}
@@ -73,7 +73,7 @@
 .cx-temporal-page .cx-temporal-corner,.cx-temporal-page .cx-temporal-day{position:sticky;left:0;z-index:2;align-self:stretch;display:flex;align-items:center;background:var(--cx-surface)}
 .cx-temporal-page .cx-temporal-corner{z-index:3}
 .cx-temporal-page .cx-temporal-hour{text-align:center;color:var(--cx-text-muted)}
-.cx-temporal-page .cx-temporal-cell{display:grid;place-items:center;font-variant-numeric:tabular-nums;height:46px;min-height:34px;min-width:0;border-radius:3px;border:1px solid transparent;font-size:11px;font-weight:600;cursor:pointer;transition:box-shadow 140ms ease;background:var(--cx-surface-subtle);color:var(--cx-text)}
+.cx-temporal-page .cx-temporal-cell{display:grid;place-items:center;font-variant-numeric:tabular-nums;height:46px;min-height:34px;min-width:0;border-radius:3px;border:1px solid transparent;font-size:11px;font-weight:600;cursor:pointer;transition:box-shadow var(--cx-motion) ease;background:var(--cx-surface-subtle);color:var(--cx-text)}
 .cx-temporal-page [data-level="0"]{background:var(--cx-surface);color:var(--cx-text-secondary);border:1px solid var(--cx-border-subtle)}
 .cx-temporal-page [data-level="1"]{background:color-mix(in srgb,var(--cx-neutral) 10%,var(--cx-surface));color:var(--cx-text)}
 .cx-temporal-page [data-level="2"]{background:color-mix(in srgb,var(--cx-neutral) 20%,var(--cx-surface));color:var(--cx-text)}
