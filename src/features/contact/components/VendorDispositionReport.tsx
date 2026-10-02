@@ -1,4 +1,8 @@
 import React, { useState, useMemo } from 'react';
+import TelemetryRail from '../../../shared/visuals/TelemetryRail';
+import ChartFrame from '../../../shared/visuals/ChartFrame';
+import ReportingScopeSummary from '../../../shared/reporting/ReportingScopeSummary';
+import { AuditMetadata } from '../../../shared/evidence/AuditMode';
 import type { AuditScope } from '../../../shared/evidence/auditPresentation';
 import type { InspectorContent } from '../../../shared/evidence/InspectorHost';
 import {
@@ -188,49 +192,28 @@ export default function VendorDispositionReport({
   });
 
   return (
-    <div className="space-y-6">
+    <div className="cx-vendor-disposition-report">
       {/* 1. Mode Header & Mode Switcher */}
-      <div className="bg-surface rounded-xl border border-border-subtle p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="cx-vendor-mode-heading">
         <div>
-          <div className="flex items-center gap-1.5 text-xs">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-brand-primary">
-              Reporting Mode
-            </span>
-            <span className="text-text-muted" aria-hidden="true">·</span>
-            <span className="text-[11px] text-text-sec font-medium">
-              {data.countingGrain} grain · {data.dateBasis}
-            </span>
-          </div>
           <h2 className="text-lg font-bold text-text-main mt-1">
             {data.modeHeading}
           </h2>
-          <p className="text-xs text-text-sec mt-0.5">
-            {data.modeDescription}
-          </p>
+          <AuditMetadata grain={data.countingGrain} dateBasis={data.dateBasis} />
         </div>
 
-        <div className="inline-flex rounded-lg border border-border-subtle p-0.5 bg-surface text-xs font-medium shrink-0">
+        <div className="cx-segmented-control">
           <button
             type="button"
             onClick={() => onModeChange('lead_status')}
-            aria-pressed={!isCallMode}
-            className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
-              !isCallMode
-                ? 'bg-brand-primary text-white shadow-2xs font-semibold'
-                : 'text-text-sec hover:text-text-main'
-            }`}
+            aria-pressed={!isCallMode} data-active={!isCallMode}
           >
             Lead Status (Cohort)
           </button>
           <button
             type="button"
             onClick={() => onModeChange('call_records')}
-            aria-pressed={isCallMode}
-            className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
-              isCallMode
-                ? 'bg-brand-primary text-white shadow-2xs font-semibold'
-                : 'text-text-sec hover:text-text-main'
-            }`}
+            aria-pressed={isCallMode} data-active={isCallMode}
           >
             Call Records (Events)
           </button>
@@ -238,7 +221,7 @@ export default function VendorDispositionReport({
       </div>
 
       {/* 2. Summary KPI Cards */}
-      <section aria-label="Disposition summary statistics" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <TelemetryRail label="Disposition summary statistics">
         <UnifiedMetricCard
           label={isCallMode ? 'Total Calls' : 'Total Population'}
           auditContent={audit(isCallMode ? 'Total Calls' : 'Total Population', formatTableNumber(summary.totalEntities))}
@@ -274,71 +257,21 @@ export default function VendorDispositionReport({
           onInspect={() => onSelectVendor('ALL')}
           inspectLabel="Inspect all"
         />
-      </section>
+      </TelemetryRail>
 
-      {/* 3. Horizontal Stacked Bar Chart */}
-      <div className="bg-surface rounded-xl border border-border-subtle p-5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border-subtle">
-          <div>
-            <h3 className="text-xs font-semibold text-text-mute uppercase tracking-wider">
-              Vendor disposition composition
-            </h3>
-            <p className="text-xs text-text-sec mt-0.5">
-              Returned disposition groups across the top vendors by population. Select a segment to inspect the existing vendor evidence.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Count / Percent toggle */}
-            <div className="inline-flex rounded-lg border border-border-subtle p-0.5 bg-surface-sec text-xs font-medium">
-              <button
-                type="button"
-                onClick={() => setChartViewMode('percent')}
-                aria-pressed={chartViewMode === 'percent'}
-                className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
-                  chartViewMode === 'percent'
-                    ? 'bg-surface text-text-main shadow-2xs font-semibold'
-                    : 'text-text-mute hover:text-text-main'
-                }`}
-              >
-                % Share
-              </button>
-              <button
-                type="button"
-                onClick={() => setChartViewMode('count')}
-                aria-pressed={chartViewMode === 'count'}
-                className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
-                  chartViewMode === 'count'
-                    ? 'bg-surface text-text-main shadow-2xs font-semibold'
-                    : 'text-text-mute hover:text-text-main'
-                }`}
-              >
-                Exact Counts
-              </button>
-            </div>
-
-            {/* Export Outcome Comparison */}
-            {onExportOutcomeComparison && (
-              <button
-                type="button"
-                onClick={onExportOutcomeComparison}
-                className="inline-flex items-center gap-1.5 px-3 py-1 bg-surface border border-border-subtle rounded-lg text-xs font-medium text-text-sec hover:text-text-main transition-colors cursor-pointer"
-                title="Export outcome comparison CSV"
-              >
-                <Download size={12} />
-                <span>Export visual</span>
-              </button>
-            )}
-          </div>
-        </div>
-
+      <ChartFrame title="Vendor disposition composition" subtitle="Returned outcome groups · top vendors by population." scope={<ReportingScopeSummary />}
+        controls={<div className="cx-segmented-control" role="group" aria-label="Disposition chart measure">
+          <button type="button" onClick={() => setChartViewMode('percent')} aria-pressed={chartViewMode === 'percent'} data-active={chartViewMode === 'percent'}>% Share</button>
+          <button type="button" onClick={() => setChartViewMode('count')} aria-pressed={chartViewMode === 'count'} data-active={chartViewMode === 'count'}>Exact Counts</button>
+        </div>}
+        actions={onExportOutcomeComparison && <button type="button" onClick={onExportOutcomeComparison} className="cx-button-quiet"><Download size={13} aria-hidden="true" /> Export visual</button>}>
         <HorizontalStackedOutcomeChart
           data={chartViewMode === 'percent' ? displayedChartRows.filter(row => row.base > 0) : displayedChartRows}
           categoryKey="vendor"
           series={activeGroups.map((g) => ({
             key: g,
             label: APPROVED_DISPOSITION_GROUPS[g]?.label || g,
-            color: APPROVED_DISPOSITION_GROUPS[g]?.color || '#94a3b8',
+            color: APPROVED_DISPOSITION_GROUPS[g]?.color || 'var(--cx-neutral)',
           }))}
           isPercent={chartViewMode === 'percent'}
           onSelect={(vendor, group) => onSelectVendor(vendor, group)}
@@ -382,7 +315,7 @@ export default function VendorDispositionReport({
             </button>
           </div>
         )}
-      </div>
+      </ChartFrame>
 
       {/* Accessible Export Error Feedback */}
       {exportError && (
@@ -523,13 +456,13 @@ export default function VendorDispositionReport({
                     <td className="px-4 py-3 text-right cx-tabular text-text-sec">
                       {formatPercent(v.dispositionCoveragePct)}
                     </td>
-                    <td className="px-4 py-3 text-right cx-tabular font-semibold text-emerald-700 dark:text-emerald-400">
+                    <td className="px-4 py-3 text-right cx-tabular font-semibold text-text-main">
                       {formatPercent(v.mappingCoveragePct)}
                     </td>
                     <td className="px-4 py-3 text-right cx-tabular text-text-sec">
                       {formatTableNumber(v.rpcCount)}
                     </td>
-                    <td className="px-4 py-3 text-right cx-tabular font-bold text-brand-primary">
+                    <td className="px-4 py-3 text-right cx-tabular font-bold" style={{ color: 'var(--cx-data-sales)' }}>
                       {formatTableNumber(v.saleCount)}
                     </td>
                     <td className="px-4 py-3 text-right cx-tabular text-text-sec">
@@ -564,6 +497,10 @@ export default function VendorDispositionReport({
           </table>
         </div>
       </details>
+      <details className="cx-contact-evidence-disclosure"><summary>Disposition methodology and response context</summary><div className="cx-contact-methodology">
+        <p>{data.modeDescription}</p><p>{data.methodology}</p>
+        <dl><div><dt>Grain</dt><dd>{data.countingGrain}</dd></div><div><dt>Date basis</dt><dd>{data.dateBasis}</dd></div><div><dt>Timezone</dt><dd>{data.timezone || 'Unavailable'}</dd></div><div><dt>Response evaluated</dt><dd>{data.evaluatedAt || 'Unavailable'}</dd></div><div><dt>Definition version</dt><dd>{data.reportVersion || 'Unavailable'}</dd></div></dl>
+      </div></details>
     </div>
   );
 }

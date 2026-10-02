@@ -18,18 +18,6 @@
 .cx-speed-page .cx-performance-table thead th{position:sticky;top:0;z-index:2;background:var(--cx-surface-subtle);font-size:10px;text-transform:uppercase;letter-spacing:.035em}
 .cx-speed-page .cx-performance-table :is(td,th){font-variant-numeric:tabular-nums}
 
-.cx-temporal-page .cx-temporal-scroll{border:1px solid var(--cx-border-subtle);border-radius:8px;background:var(--cx-surface);overflow:auto;max-width:100%}
-.cx-temporal-page .cx-temporal-grid{min-width:980px}
-.cx-temporal-page .cx-temporal-corner,.cx-temporal-page .cx-temporal-day{position:sticky;left:0;z-index:2;background:var(--cx-surface)}
-.cx-temporal-page .cx-temporal-corner{z-index:3}
-.cx-temporal-page .cx-temporal-hour{font-size:10px;font-weight:650;color:var(--cx-text-muted)}
-.cx-temporal-page .cx-temporal-cell{min-width:35px;min-height:34px;border-radius:3px;font-size:10px;font-variant-numeric:tabular-nums;display:grid;place-items:center}
-.cx-temporal-page .cx-window-grid article{border-color:var(--cx-border-subtle);border-radius:8px;background:var(--cx-surface)}
-.cx-temporal-page .cx-performance-table-wrap{overflow:auto}
-.cx-temporal-page .cx-performance-table thead th{position:sticky;top:0;z-index:2;background:var(--cx-surface-subtle);font-size:10px;text-transform:uppercase;letter-spacing:.035em}
-.cx-temporal-page .cx-performance-table th:first-child,.cx-temporal-page .cx-performance-table td:first-child{position:sticky;left:0;background:var(--cx-surface);z-index:1}
-.cx-temporal-page .cx-performance-table thead th:first-child{z-index:3;background:var(--cx-surface-subtle)}
-
 .cx-agent-page .cx-agent-comparison{padding:16px}
 .cx-agent-page .cx-agent-comparison .cx-evidence-bars{border:0;padding:0}
 .cx-agent-page .cx-performance-table-wrap{overflow:auto}

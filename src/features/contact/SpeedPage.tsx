@@ -12,10 +12,12 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import ReportingScopeBar from '../../shared/reporting/ReportingScopeBar';
-import { OperationalError, ReportSkeleton } from '../../components/OperationalState';
+import { OperationalError } from '../../components/OperationalState';
 import { formatPercent, formatTableNumber } from '../../lib/formatters';
 import { VolumeRateComboChart } from '../../components/charts/OperationalVisuals';
 import UnifiedMetricCard from '../../components/UnifiedMetricCard';
+import TelemetryRail from '../../shared/visuals/TelemetryRail';
+import VisualSkeleton from '../../shared/visuals/VisualSkeleton';
 import EvidenceBars from '../../shared/visuals/EvidenceBars';
 import PercentileRail from '../../shared/visuals/PercentileRail';
 import { lifecyclePresentation } from '../../shared/visuals/lifecyclePresentation';
@@ -63,7 +65,7 @@ export default function SpeedPage() {
   const chartStage = selectedTiming?.scopeKey === auditScopeKey && data?.timingStages.includes(selectedTiming.stage) ? selectedTiming.stage : null;
 
   return (
-    <AnalyticsPageLayout className="cx-speed-page" title="Response speed" description={<>Understand how quickly leads are contacted and how downstream outcomes change as first-dial age increases.</>} actions={<ReportActions>
+    <AnalyticsPageLayout className="cx-speed-page" title="Response speed" description={<>First-dial latency, waiting leads and observed outcomes.</>} actions={<ReportActions>
           <Link
             to={scoped('/contact-strategy')}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-subtle bg-surface hover:bg-surface-subtle transition-colors text-xs font-medium text-text-sec hover:text-text-main shadow-xs"
@@ -107,13 +109,13 @@ export default function SpeedPage() {
 
       {/* Loading state */}
       {loading && !data && (
-        <ReportSkeleton label="Calculating latency distributions and first-dial SLA compliance" metricCount={4} />
+        <VisualSkeleton kind="bars" label="Loading first-dial latency evidence" />
       )}
 
       {data && (
         <React.Fragment key={auditScopeKey}>
           {/* KPI Strip */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <TelemetryRail label="Response speed summary">
             <UnifiedMetricCard
               label="Median First Dial"
               icon={Clock3}
@@ -159,11 +161,11 @@ export default function SpeedPage() {
               inspectLabel="Review SLA queues"
             />
 
-          </div>
+          </TelemetryRail>
 
-          <section className="cx-contact-hero cx-speed-story" aria-label="First-dial response story">
+          <section className="cx-speed-story" aria-label="First-dial response story">
             <LatencyDistribution rows={data.cohorts} />
-            <PercentileRail title="Delivery to first dial" description="Returned timing percentiles for the delivered cohort with measured first-dial latency."
+            <PercentileRail title="Delivery to first dial" description="Measured delivery → first-dial latency."
               unitLabel="s"
               points={[
                 { key: 'median', label: 'Median', value: primaryStage?.medianSec, displayValue: primaryStage?.median },
@@ -177,7 +179,7 @@ export default function SpeedPage() {
             <div className="p-5">
             <VolumeRateComboChart
               title="Lead age vs downstream outcomes"
-              subtitle="Lead volume is shown as bars; RPC, sale and activation rates remain descriptive associations."
+              subtitle="Observed rates by first-dial age."
               data={data.cohorts}
               xKey="cohort"
               volumeKey="leads"
@@ -191,15 +193,16 @@ export default function SpeedPage() {
             </div>
           </details>
 
-          <section className="cx-speed-latency-visual bg-surface rounded-xl border border-border-subtle">
-            <EvidenceBars title="Median latency by stage" description="Existing numeric timing evidence; exact reported durations remain in the table."
+          <details className="cx-contact-evidence-disclosure">
+            <summary>View exact lifecycle timing evidence</summary>
+          <section className="cx-speed-latency-visual">
+            <EvidenceBars title="Median latency by stage" description="Measured duration by lifecycle stage."
               items={data.timingStages.map((stage, index) => ({ key: `${stage.stage}-${index}`, label: stage.stage, value: stage.medianSec, displayValue: stage.median, detail: `P90 ${stage.p90 ?? 'Unavailable'}` }))}
               onSelect={key => { const stage = data.timingStages.find((item, index) => `${item.stage}-${index}` === key); if (stage) setSelectedTiming({ scopeKey: auditScopeKey, stage }); }}
               scaleNote="Longer bars mean a longer measured median duration. Missing numeric duration is unavailable; formatted durations are not parsed into new precision." />
           </section>
 
-          <details className="cx-contact-evidence-disclosure">
-            <summary>View exact lifecycle timing evidence</summary>
+
             <div className="p-4 border-b border-border-subtle bg-surface-sec flex items-center justify-between">
               <div>
                 <h3 className="text-xs font-semibold text-text-mute uppercase tracking-wider">
@@ -267,12 +270,14 @@ export default function SpeedPage() {
             <div className="p-4 space-y-2 text-xs text-text-sec">
               <p>Oldest undialled: <strong>{data.backlog?.oldestUndialled || 'Unavailable'}</strong> since delivery.</p>
               <p>{data.methodology || 'Timing statistics and cohort outcomes are presented as returned.'}</p>
+              <p>Latency cohorts use capture → first dial. Percentiles above use delivery → first dial; these are different measures. RPC, sale and activation rates describe associations, not a causal effect of response speed.</p>
+              <p>Missing values have no bar; recorded zero remains zero. Undialled leads and invalid timing remain separate from measured latency.</p>
             </div>
           </details>
 
           {/* Operating Controls */}
           <details
-              className="group bg-surface rounded-xl border border-border-subtle overflow-hidden transition-colors"
+              className="group cx-contact-evidence-disclosure"
               open={controlsExpanded}
               onToggle={(e) => setControlsExpanded(e.currentTarget.open)}
             >
@@ -303,52 +308,13 @@ export default function SpeedPage() {
               </div>
             </details>
 
-          {/* Contextual navigation shortcuts */}
-          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
-            <Link
-              to={scoped('/contact-strategy')}
-              className="p-3.5 bg-surface hover:bg-surface-subtle border border-border-subtle rounded-xl flex items-center justify-between group transition-colors shadow-2xs"
-            >
-              <div>
-                <span className="text-xs font-bold text-text-main block">Contact effort</span>
-                <span className="text-[11px] text-text-sec block mt-0.5">Call counts & attempt saturation</span>
-              </div>
-              <ArrowRight size={14} className="text-text-mute group-hover:text-brand-primary transition-colors" />
-            </Link>
-
-            <Link
-              to={scoped('/contact-strategy?tab=vendor_dispositions')}
-              className="p-3.5 bg-surface hover:bg-surface-subtle border border-border-subtle rounded-xl flex items-center justify-between group transition-colors shadow-2xs"
-            >
-              <div>
-                <span className="text-xs font-bold text-text-main block">Vendor outcomes</span>
-                <span className="text-[11px] text-text-sec block mt-0.5">Disposition mix & raw code mapping</span>
-              </div>
-              <ArrowRight size={14} className="text-text-mute group-hover:text-brand-primary transition-colors" />
-            </Link>
-
-            <Link
-              to={scoped('/exceptions')}
-              className="p-3.5 bg-surface hover:bg-surface-subtle border border-border-subtle rounded-xl flex items-center justify-between group transition-colors shadow-2xs"
-            >
-              <div>
-                <span className="text-xs font-bold text-text-main block">SLA exceptions</span>
-                <span className="text-[11px] text-text-sec block mt-0.5">Investigate overdue undialled leads</span>
-              </div>
-              <ArrowRight size={14} className="text-text-mute group-hover:text-brand-primary transition-colors" />
-            </Link>
-
-            <Link
-              to={scoped('/temporal')}
-              className="p-3.5 bg-surface hover:bg-surface-subtle border border-border-subtle rounded-xl flex items-center justify-between group transition-colors shadow-2xs"
-            >
-              <div>
-                <span className="text-xs font-bold text-text-main block">Time & day</span>
-                <span className="text-[11px] text-text-sec block mt-0.5">Dialling window patterns & timing heatmaps</span>
-              </div>
-              <ArrowRight size={14} className="text-text-mute group-hover:text-brand-primary transition-colors" />
-            </Link>
-          </section>
+          <nav className="cx-contact-next-analyses" aria-label="Next response analyses">
+            <span>Next analyses</span>
+            <Link to={scoped('/contact-strategy')}>Contact effort <ArrowRight size={13} aria-hidden="true" /></Link>
+            <Link to={scoped('/contact-strategy?tab=vendor_dispositions')}>Vendor outcomes <ArrowRight size={13} aria-hidden="true" /></Link>
+            <Link to={scoped('/exceptions')}>SLA exceptions <ArrowRight size={13} aria-hidden="true" /></Link>
+            <Link to={scoped('/temporal')}>Time & day <ArrowRight size={13} aria-hidden="true" /></Link>
+          </nav>
         </React.Fragment>
       )}
 

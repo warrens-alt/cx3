@@ -7,14 +7,14 @@ import { Link } from 'react-router-dom';
 import {
   PhoneCall,
   BarChart3,
-  Timer,
   Search,
   ArrowRight,
 } from 'lucide-react';
 import ReportingScopeBar from '../../shared/reporting/ReportingScopeBar';
 import InspectorHost from '../../shared/evidence/InspectorHost';
 import RootCauseDrawer from '../../components/RootCauseDrawer';
-import { OperationalError, ReportSkeleton } from '../../components/OperationalState';
+import VisualSkeleton from '../../shared/visuals/VisualSkeleton';
+import { OperationalError } from '../../components/OperationalState';
 import { formatTableNumber } from '../../lib/formatters';
 import { useScopedNavigationTarget } from '../../hooks/useScopedNavigationTarget';
 import { useContactModel } from './model/useContactModel';
@@ -118,20 +118,16 @@ export default function ContactPage() {
       : undefined;
 
   return (
-    <AnalyticsPageLayout className="cx-contact-visual-workspace" title="Contact effort" description={<>Examine observed call attempts, outcome yields, and vendor disposition distributions.</>} actions={<ReportActions />} scope={<ReportingScopeBar onRefresh={refreshAll} onExportCsv={handleExportCsv} />}>
+    <AnalyticsPageLayout className="cx-contact-visual-workspace" title="Contact effort" description={<>Recorded call effort and vendor outcomes.</>} actions={<ReportActions />} scope={<ReportingScopeBar onRefresh={refreshAll} onExportCsv={handleExportCsv} />}>
 
 <nav className="cx-report-secondary-actions" aria-label="Contact analyses">
           {/* Tab Switcher */}
-          <div className="inline-flex rounded-lg border border-border-subtle p-0.5 bg-surface text-xs font-medium">
+          <div className="cx-segmented-control">
             <button
               type="button"
               onClick={() => handleTabChange('call_counts')}
               aria-pressed={activeTab === 'call_counts'}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
-                activeTab === 'call_counts'
-                  ? 'bg-brand-primary text-white shadow-2xs font-semibold'
-                  : 'text-text-sec hover:text-text-main'
-              }`}
+              data-active={activeTab === 'call_counts'}
             >
               <PhoneCall size={13} />
               <span>Contact effort</span>
@@ -140,11 +136,7 @@ export default function ContactPage() {
               type="button"
               onClick={() => handleTabChange('vendor_dispositions')}
               aria-pressed={activeTab === 'vendor_dispositions'}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
-                activeTab === 'vendor_dispositions'
-                  ? 'bg-brand-primary text-white shadow-2xs font-semibold'
-                  : 'text-text-sec hover:text-text-main'
-              }`}
+              data-active={activeTab === 'vendor_dispositions'}
             >
               <BarChart3 size={13} />
               <span>Vendor outcomes</span>
@@ -175,7 +167,7 @@ export default function ContactPage() {
 
       {/* Loading state */}
       {loading && !hasData && (
-        <ReportSkeleton label="Loading contact strategy and disposition evidence" metricCount={4} />
+        <VisualSkeleton kind="bars" label="Loading contact strategy and disposition evidence" />
       )}
 
       {/* Main Content */}
@@ -204,52 +196,13 @@ export default function ContactPage() {
         />
       )}
 
-      {/* Contextual navigation shortcuts */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
-        <Link
-          to={scoped('/speed-to-lead')}
-          className="p-3.5 bg-surface hover:bg-surface-subtle border border-border-subtle rounded-xl flex items-center justify-between group transition-colors shadow-2xs"
-        >
-          <div>
-            <span className="text-xs font-bold text-text-main block">Response speed</span>
-            <span className="text-[11px] text-text-sec block mt-0.5">Diagnose latency & undialled backlog</span>
-          </div>
-          <ArrowRight size={14} className="text-text-mute group-hover:text-brand-primary transition-colors" />
-        </Link>
-
-        <Link
-          to={scoped('/cli-performance')}
-          className="p-3.5 bg-surface hover:bg-surface-subtle border border-border-subtle rounded-xl flex items-center justify-between group transition-colors shadow-2xs"
-        >
-          <div>
-            <span className="text-xs font-bold text-text-main block">Caller ID</span>
-            <span className="text-[11px] text-text-sec block mt-0.5">CLI numbers & pickup rates</span>
-          </div>
-          <ArrowRight size={14} className="text-text-mute group-hover:text-brand-primary transition-colors" />
-        </Link>
-
-        <Link
-          to={scoped('/agent-performance')}
-          className="p-3.5 bg-surface hover:bg-surface-subtle border border-border-subtle rounded-xl flex items-center justify-between group transition-colors shadow-2xs"
-        >
-          <div>
-            <span className="text-xs font-bold text-text-main block">Agent activity</span>
-            <span className="text-[11px] text-text-sec block mt-0.5">Agent call volume & contact rates</span>
-          </div>
-          <ArrowRight size={14} className="text-text-mute group-hover:text-brand-primary transition-colors" />
-        </Link>
-
-        <Link
-          to={scoped('/temporal')}
-          className="p-3.5 bg-surface hover:bg-surface-subtle border border-border-subtle rounded-xl flex items-center justify-between group transition-colors shadow-2xs"
-        >
-          <div>
-            <span className="text-xs font-bold text-text-main block">Time & day</span>
-            <span className="text-[11px] text-text-sec block mt-0.5">Capture and dialling window patterns</span>
-          </div>
-          <ArrowRight size={14} className="text-text-mute group-hover:text-brand-primary transition-colors" />
-        </Link>
-      </section>
+      <nav className="cx-contact-next-analyses" aria-label="Next contact analyses">
+        <span>Next analyses</span>
+        <Link to={scoped('/speed-to-lead')}>Response speed <ArrowRight size={13} aria-hidden="true" /></Link>
+        <Link to={scoped('/cli-performance')}>Caller ID <ArrowRight size={13} aria-hidden="true" /></Link>
+        <Link to={scoped('/agent-performance')}>Agent activity <ArrowRight size={13} aria-hidden="true" /></Link>
+        <Link to={scoped('/temporal')}>Time & day <ArrowRight size={13} aria-hidden="true" /></Link>
+      </nav>
 
       {/* Vendor Outcome Inspector Drawer - active only on vendor_dispositions tab with inspectVendor selection */}
       {isVendorDispositionsTab && inspectVendor && (

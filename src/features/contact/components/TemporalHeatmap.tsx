@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Clock3 } from 'lucide-react';
+import ChartFrame from '../../../shared/visuals/ChartFrame';
+import ReportingScopeSummary from '../../../shared/reporting/ReportingScopeSummary';
 import { formatPercent, formatTableNumber } from '../../../lib/formatters';
 import type { TemporalData } from '../../../lib/offernetClient';
 
@@ -37,8 +38,8 @@ export function operatingHourCoverage(context: TemporalData['operatingContext'],
   return overlap === 60 ? 'inside' : overlap > 0 ? 'partial' : 'outside';
 }
 
-export default function TemporalHeatmap({ rows, metric, basis, operatingContext }: {
-  rows: TemporalData['heatmap']; metric: TemporalMetric; basis: string; operatingContext?: TemporalData['operatingContext'];
+export default function TemporalHeatmap({ rows, metric, basis, operatingContext, controls }: {
+  rows: TemporalData['heatmap']; metric: TemporalMetric; basis: string; operatingContext?: TemporalData['operatingContext']; controls?: React.ReactNode;
 }) {
   const [selectedKey, setSelectedKey] = useState('Monday-0');
   const cells = new Map(rows.map(row => [`${row.dayName}-${row.hour}`, row]));
@@ -57,21 +58,22 @@ export default function TemporalHeatmap({ rows, metric, basis, operatingContext 
     if (next >= 0 && next < 168) event.currentTarget.closest('.cx-temporal-grid')?.querySelectorAll<HTMLButtonElement>('button')[next]?.focus();
   };
 
-  return <section className="cx-command-panel cx-temporal-hero" id="temporal-matrix" aria-label="Day and hour heatmap">
-    <header><div><span className="cx-command-section-kicker">Observed pattern</span><h2>Day × hour matrix</h2>
-      <p>{basis} time · {operatingContext?.timezone || 'Tenant timezone unavailable'}. {label} intensity is relative to the highest returned cell.</p></div><Clock3 size={18} aria-hidden="true" /></header>
+  return <div id="temporal-matrix"><ChartFrame className="cx-temporal-hero" title="Day × hour matrix"
+    subtitle={`${basis} time · ${operatingContext?.timezone || 'Tenant timezone unavailable'}`}
+    controls={controls} scope={<ReportingScopeSummary />}
+    footer="Arrow keys move between cells · exact observations below">
     <div className="cx-temporal-legend" aria-label="Heatmap legend">
       <span>Observed zero</span><i data-level="0" aria-hidden="true" />
       <span>Low</span>{[1, 2, 3, 4, 5].map(level => <i data-level={level} key={level} aria-hidden="true" />)}<span>{observedValues.length ? `${formatValue(maximum, metric)} max` : 'No observed values'}</span>
       <i data-empty="true" aria-hidden="true" /><span>Unavailable</span>
     </div>
-    <p className="cx-temporal-operating-note">{operatingAvailable ? <><span aria-hidden="true" className="cx-operating-key" /> Outline = configured operating hours ({operatingContext!.start}–{operatingContext!.end}, returned workdays). Dotted outline = partial hour.</> : 'Operating-hours overlay unavailable for the returned configuration.'}</p>
+    <p className="cx-temporal-operating-note">{operatingAvailable ? <><span aria-hidden="true" className="cx-operating-key" /> {operatingContext!.start}–{operatingContext!.end} operating hours · dotted edge = partial hour.</> : 'Operating-hours overlay unavailable.'}</p>
     <div className="cx-temporal-scroll" role="region" aria-label="Day and hour performance matrix. Use arrow keys to inspect adjacent cells." tabIndex={0}>
       <div className="cx-temporal-grid">
         <div className="cx-temporal-corner">Day / hour</div>
-        {hours.map(hour => <div key={hour} className="cx-temporal-hour">{String(hour).padStart(2, '0')}</div>)}
+        {hours.map(hour => <div key={hour} className="cx-temporal-hour" data-selected={Number(selectedHour) === hour} aria-label={`${hourLabel(hour)}${Number(selectedHour) === hour ? ' · selected hour' : ''}`}>{String(hour).padStart(2, '0')}</div>)}
         {days.map((day, dayIndex) => <React.Fragment key={day}>
-          <div className="cx-temporal-day">{day.slice(0, 3)}</div>
+          <div className="cx-temporal-day" data-selected={selectedDay === day} aria-label={`${day}${selectedDay === day ? ' · selected day' : ''}`}>{day.slice(0, 3)}</div>
           {hours.map(hour => {
             const key = `${day}-${hour}`;
             const row = cells.get(key);
@@ -80,6 +82,7 @@ export default function TemporalHeatmap({ rows, metric, basis, operatingContext 
             const text = `${day} ${hourLabel(hour)} · ${label}: ${formatValue(value, metric)} · Leads: ${formatTableNumber(row?.volume)} · RPC rate: ${formatPercent(row?.contactRate)} · Sale rate: ${formatPercent(row?.saleRate, 2)}`;
             return <button type="button" key={key} className="cx-temporal-cell" data-empty={intensity === null} data-level={intensity ?? undefined}
               data-operating={operatingHourCoverage(operatingContext, dayIndex + 1, hour)} data-selected={selectedKey === key}
+              data-selected-day={selectedDay === day} data-selected-hour={Number(selectedHour) === hour}
               aria-label={text} aria-pressed={selectedKey === key} title={text} tabIndex={selectedKey === key ? 0 : -1}
               onFocus={() => setSelectedKey(key)} onClick={() => setSelectedKey(key)} onKeyDown={event => moveCell(event, dayIndex * 24 + hour)}>
               {intensity === null ? '—' : metric === 'volume' ? formatTableNumber(value) : formatPercent(value, 0)}
@@ -88,14 +91,15 @@ export default function TemporalHeatmap({ rows, metric, basis, operatingContext 
         </React.Fragment>)}
       </div>
     </div>
-    <div className="cx-temporal-cell-detail" role="status" aria-live="polite">
-      <strong>{selectedDay} · {hourLabel(Number(selectedHour))}</strong>
-      <span>{label}: <b>{formatValue(selected?.[metric], metric)}</b></span>
-      <span>Leads: <b>{formatTableNumber(selected?.volume)}</b></span>
-      <span>RPC: <b>{formatPercent(selected?.contactRate)}</b></span>
-      <span>Sale: <b>{formatPercent(selected?.saleRate, 2)}</b></span>
-      <small>{selectedWindow === 'inside' ? 'Inside configured hours' : selectedWindow === 'partial' ? 'Partly overlaps configured hours' : selectedWindow === 'outside' ? 'Outside configured hours' : 'Operating window unavailable'}</small>
-    </div>
-    <p className="cx-viz-footnote">Arrow keys move across days and hours. Select a cell for exact returned values; the table below contains every returned observation.</p>
-  </section>;
+    <section className="cx-temporal-cell-detail" role="status" aria-live="polite" aria-label="Selected time window">
+      <div className="cx-temporal-selection-title"><span>Selected window</span><strong>{selectedDay} · {hourLabel(Number(selectedHour))}–{hourLabel((Number(selectedHour) + 1) % 24)}</strong><small>{basis} time · {operatingContext?.timezone || 'Timezone unavailable'}</small></div>
+      <dl>
+        <div><dt>Leads</dt><dd>{formatTableNumber(selected?.volume)}</dd></div>
+        <div><dt>RPC rate</dt><dd>{formatValue(selected?.contactRate, 'contactRate')}</dd></div>
+        <div><dt>Sale rate</dt><dd>{formatValue(selected?.saleRate, 'saleRate')}</dd></div>
+        {metric === 'activationRate' && <div><dt>Activation / sale</dt><dd>{formatValue(selected?.activationRate, 'activationRate')}</dd></div>}
+        <div><dt>Operating window</dt><dd>{selectedWindow === 'inside' ? 'Inside' : selectedWindow === 'partial' ? 'Partial hour' : selectedWindow === 'outside' ? 'Outside' : 'Unavailable'}</dd></div>
+      </dl>
+    </section>
+  </ChartFrame></div>;
 }

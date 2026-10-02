@@ -1,5 +1,6 @@
 import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
-import { ReportSkeleton } from '../components/OperationalState';
+import VisualSkeleton from '../shared/visuals/VisualSkeleton';
+import TelemetryRail from '../shared/visuals/TelemetryRail';
 import { downloadAnalysisCsv } from '../lib/analysisExport';
 import { useOperationalData } from '../lib/useOperationalData';
 import React, { useMemo, useState } from 'react';
@@ -86,17 +87,17 @@ export default function TemporalIntelligence() {
     <AnalyticsPageLayout className="cx-temporal-page" title="Time & day" header={<OperationalPageHeader
           eyebrow="Contact"
           title="Time & day"
-          description="See when captured lead volume, RPC and sale outcomes are concentrated in the tenant's local timezone without turning observed peaks into prescriptive calling rules."
+          description="Observed volume and outcomes by local day and hour."
 
         />} scope={<OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} onExportCsv={handleExportCsv} />}>
 
         {error && <div className="cx-command-error"><AlertTriangle size={17}/>{error}</div>}
-        {loading && !data && <ReportSkeleton label="Building day/hour matrix" metricCount={2} />}
+        {loading && !data && <VisualSkeleton kind="heatmap" label="Loading day and hour evidence" />}
 
         {data && (
           <>
             {temporalSummary && (
-              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6" aria-label="Temporal performance summary">
+              <TelemetryRail label="Temporal performance summary" className="cx-temporal-telemetry">
                 <UnifiedMetricCard
                   label="Recorded event volume"
                   icon={Calendar}
@@ -115,27 +116,25 @@ export default function TemporalIntelligence() {
                   inspectLabel="View volume map"
                 />
 
-                <div className="cx-control-note sm:col-span-2">Combined rates are not supplied for this time distribution. Compare the returned cell and time-bucket rates below using their stated denominators.</div>
-              </section>
+              </TelemetryRail>
             )}
 
-            <div className="cx-segmented-control" role="group" aria-label="Temporal metric">
+            <div className="cx-temporal-basis-control">
+              <label>Event time <select aria-label="Temporal event basis" value={timeBasis} onChange={e => setTimeBasis(e.target.value)}>{(data.timeBases?.length ? data.timeBases : [{ basis: 'Capture' }]).map(b => <option key={b.basis}>{b.basis}</option>)}</select></label>
+              <span>{formatTableNumber(selectedBasis?.missingTimestampLeads)} leads without this timestamp</span>
+            </div>
+            <TemporalHeatmap rows={activeHeatmap} metric={metricView} basis={timeBasis} operatingContext={data.operatingContext} controls={<div className="cx-segmented-control" role="group" aria-label="Temporal metric">
               <button type="button" data-active={metricView === 'contactRate'} aria-pressed={metricView === 'contactRate'} onClick={() => setMetricView('contactRate')}>RPC rate</button>
               <button type="button" data-active={metricView === 'saleRate'} aria-pressed={metricView === 'saleRate'} onClick={() => setMetricView('saleRate')}>Sale rate</button>
               <button type="button" data-active={metricView === 'activationRate'} aria-pressed={metricView === 'activationRate'} onClick={() => setMetricView('activationRate')}>Activation / sale</button>
               <button type="button" data-active={metricView === 'volume'} aria-pressed={metricView === 'volume'} onClick={() => setMetricView('volume')}>Volume</button>
-            </div>
-            <div className="cx-temporal-basis-control">
-              <label>Event time <select aria-label="Temporal event basis" value={timeBasis} onChange={e => setTimeBasis(e.target.value)}>{(data.timeBases?.length ? data.timeBases : [{ basis: 'Capture' }]).map(b => <option key={b.basis}>{b.basis}</option>)}</select></label>
-              <span>{formatTableNumber(selectedBasis?.missingTimestampLeads)} leads without this event timestamp · {formatTableNumber(selectedBasis?.cohortLeads)} leads in capture cohort</span>
-            </div>
-            <TemporalHeatmap rows={activeHeatmap} metric={metricView} basis={timeBasis} operatingContext={data.operatingContext} />
+            </div>} />
 
             <section id="temporal-peaks" className="cx-temporal-ranked-windows">
-              <EvidenceBars title="Observed high-contact windows" description={`${timeBasis} event windows ranked by returned RPC rate, with volume to support interpretation. These are observed associations, not calling recommendations.`}
+              <EvidenceBars title="Observed high-contact windows" description={`${timeBasis} windows ranked by returned RPC rate.`}
                 maximum={Math.max(100, ...observedWindows.map(row => row.contactRate!))}
                 items={observedWindows.map(row => ({ key: `${row.dayName}-${row.hour}`, label: `${row.dayName} · ${String(row.hour).padStart(2, '0')}:00`, value: row.contactRate, displayValue: formatPercent(row.contactRate), detail: `${formatTableNumber(row.volume)} leads · Sale ${formatPercent(row.saleRate, 2)}`, color: lifecyclePresentation.rpc.color }))}
-                scaleNote="Higher returned RPC rates may describe small populations. Each bar shows a supplied day/hour rate without pooling or estimating rates." />
+                scaleNote="Observed rates, not calling recommendations · compare the lead counts" />
             </section>
 
             <details className="cx-contact-evidence-disclosure">
@@ -182,15 +181,21 @@ export default function TemporalIntelligence() {
             </details>
             <details className="cx-contact-evidence-disclosure">
               <summary>Operating-hours evidence and methodology</summary>
-              <p className="p-4 text-xs text-text-sec">{data.methodology || 'Returned rates are descriptive associations in the tenant timezone.'}</p>
+              <div className="cx-contact-methodology"><p>{data.methodology || 'Returned rates are descriptive associations in the tenant timezone.'}</p>
+                <p>Combined rates are not supplied for this time distribution. Compare the returned cell and time-bucket rates using their stated denominators. Heatmap intensity is relative to the highest returned cell for the selected measure.</p>
+                <p>{formatTableNumber(selectedBasis?.cohortLeads)} leads in the selected capture cohort. Higher returned RPC rates may describe small populations; windows are ranked without pooling or estimating rates. These observations are not calling recommendations.</p>
+                <p>Operating outlines show the returned schedule. Dotted outlines indicate partly overlapping hours; they do not classify individual events. Unavailable configurations receive no overlay.</p>
+              </div>
               {controls.data && <OperatingWindowPanel data={controls.data} />}
               {controls.data && <CaptureTurnaroundPanel data={controls.data} />}
             </details>
 
-            <section className="cx-command-shortcuts">
-              <button type="button" onClick={handleExportCsv}><Download size={16}/><span><strong>Export matrix</strong><small>Download the current day/hour population</small></span></button>
-              <Link to={scoped('/speed-to-lead')}><Clock3 size={16}/><span><strong>Speed to lead</strong><small>Compare first-dial age with downstream outcomes</small></span></Link>
-            </section>
+            <nav className="cx-contact-next-analyses" aria-label="Next temporal analyses">
+              <span>Next analyses</span>
+              <Link to={scoped('/speed-to-lead')}>Response speed</Link>
+              <Link to={scoped('/contact-strategy')}>Contact effort</Link>
+              <button type="button" onClick={handleExportCsv}><Download size={13} aria-hidden="true" /> Export matrix</button>
+            </nav>
           </>
         )}
 

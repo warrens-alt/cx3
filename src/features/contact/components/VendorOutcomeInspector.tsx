@@ -235,7 +235,7 @@ export default function VendorOutcomeInspector({
               ) : (
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-brand-primary font-mono">
+                    <span className="text-[11px] font-semibold text-text-sec">
                       {isCallMode ? 'Call-Event Dispositions' : 'Lead-Status Dispositions'}
                     </span>
                     <span className="text-[11px] px-2 py-0.5 rounded bg-surface border border-border-subtle text-text-sec">
@@ -308,7 +308,7 @@ export default function VendorOutcomeInspector({
                 <span className="text-[11px] uppercase font-semibold text-text-mute block">
                   Mapping Coverage
                 </span>
-                <span className="text-lg font-bold text-emerald-700 dark:text-emerald-400 cx-tabular mt-0.5 block">
+                <span className="text-lg font-bold text-text-main cx-tabular mt-0.5 block">
                   {formatPercent(vendorSummary.mappingCoveragePct)}
                 </span>
               </div>
@@ -318,26 +318,26 @@ export default function VendorOutcomeInspector({
           {/* Consumed Report Metadata Context Strip - rendered in ready state */}
           {readinessStatus === 'ready' &&
             (effectiveDateBasis || effectiveGrain || effectiveVersion || effectiveEvaluatedAt) && (
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 pt-3 border-t border-border-subtle text-[11px] text-text-mute font-mono">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 pt-3 border-t border-border-subtle text-[11px] text-text-mute">
                 {effectiveDateBasis && (
                   <span>
-                    Date basis: <strong className="text-text-sec font-sans">{effectiveDateBasis}</strong>
+                    Date basis: <strong className="text-text-sec font-mono">{effectiveDateBasis}</strong>
                   </span>
                 )}
                 {effectiveGrain && (
                   <span>
-                    Grain: <strong className="text-text-sec font-sans">{effectiveGrain}</strong>
+                    Grain: <strong className="text-text-sec font-mono">{effectiveGrain}</strong>
                   </span>
                 )}
                 {effectiveVersion && (
                   <span>
-                    Version: <strong className="text-text-sec font-sans">{effectiveVersion}</strong>
+                    Version: <strong className="text-text-sec font-mono">{effectiveVersion}</strong>
                   </span>
                 )}
                 {effectiveEvaluatedAt && (
                   <span>
-                    Evaluated:{' '}
-                    <strong className="text-text-sec font-sans">
+                    Response evaluated:{' '}
+                    <strong className="text-text-sec font-mono">
                       {effectiveEvaluatedAt.replace('T', ' ').replace(/\..+/, '')}
                     </strong>
                   </span>
@@ -623,8 +623,8 @@ export default function VendorOutcomeInspector({
                               <span
                                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold"
                                 style={{
-                                  backgroundColor: `${groupConfig?.color || '#94a3b8'}20`,
-                                  color: groupConfig?.color || '#475569',
+                                  backgroundColor: `color-mix(in srgb, ${groupConfig?.color || 'var(--cx-neutral)'} 12%, transparent)`,
+                                  color: groupConfig?.color || 'var(--cx-text-secondary)',
                                 }}
                               >
                                 {r.approvedGroupLabel}
