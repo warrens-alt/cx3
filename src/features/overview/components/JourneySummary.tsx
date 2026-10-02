@@ -1,4 +1,5 @@
 import React from 'react';
+import { lifecyclePresentation, type LifecycleStage } from '../../../shared/visuals/lifecyclePresentation';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronRight, Info } from 'lucide-react';
 import { formatPercent, formatTableNumber } from '../../../lib/formatters';
@@ -53,12 +54,13 @@ export default function JourneySummary({ stages = [], funnelLeak, isAdmin, onIns
       {stages.length ? <ol className="cx-overview-lifecycle-rail" aria-label="Lifecycle stage progression">
         {stages.map((stage, index) => {
           const label = labelFor(stage);
+          const Icon = lifecyclePresentation[stage.key as LifecycleStage]?.Icon;
           const hasVolume = finite(stage.volume);
           const width = hasVolume && maxVolume > 0 ? Math.max(0, stage.volume / maxVolume * 100) : 0;
           const count = <>{formatTableNumber(stage.volume)}</>;
           return <li key={stage.key} data-series={stagePresentation[stage.key]?.series} data-stage={stage.key}>
             <div className="cx-overview-stage-heading">
-              <span>{index + 1}. {label}</span>
+              <span>{Icon && <Icon size={15} aria-hidden="true" />} {label}</span>
               {onInspectStage && <Info size={14} aria-hidden="true" />}
             </div>
             {onInspectStage ? <button type="button" className="cx-metric-primary cx-overview-stage-count" onClick={() => onInspectStage(stage, index)} aria-label={`Inspect ${label} evidence: ${formatTableNumber(stage.volume)}`}>{count}</button>

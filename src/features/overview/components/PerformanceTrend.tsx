@@ -8,6 +8,7 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts';
+import ChartTooltip from '../../../shared/visuals/ChartTooltip';
 import { Clock3 } from 'lucide-react';
 import { formatTableNumber } from '../../../lib/formatters';
 
@@ -82,15 +83,7 @@ interface TrendTooltipProps {
 function TrendTooltip({ active, payload, label, metricLabel }: TrendTooltipProps) {
   if (!active || !payload?.length) return null;
   const value = payload[0]?.value;
-  return (
-    <div className="cx-chart-tooltip">
-      <div className="cx-chart-tooltip-title">{label}</div>
-      <div className="cx-chart-tooltip-row">
-        <span className="cx-chart-tooltip-label">{metricLabel}:</span>
-        <span className="cx-chart-tooltip-value">{value != null ? formatTableNumber(value) : '—'}</span>
-      </div>
-    </div>
-  );
+  return <ChartTooltip title={label} rows={[{ label: metricLabel, value: value != null ? formatTableNumber(value) : 'Unavailable' }]} />;
 }
 
 export default function PerformanceTrend({ data = [], comparisonWindow }: PerformanceTrendProps) {
@@ -127,6 +120,7 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
         <div
           role="tablist"
           aria-label="Select metric to plot"
+          style={{ '--cx-active-series': currentConfig.color } as React.CSSProperties}
           className="cx-trend-tabs flex items-center gap-1 bg-surface-subtle p-1 rounded-lg border border-border-subtle text-xs"
         >
           {(Object.keys(METRIC_CONFIGS) as SelectableTrendMetric[]).map(key => (
@@ -160,6 +154,9 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border-subtle)" />
               <XAxis
                 dataKey="date"
+                minTickGap={48}
+                interval="preserveStartEnd"
+                tickFormatter={value => String(value).slice(5)}
                 tick={{ fill: 'var(--cx-text-muted)', fontSize: 12 }}
                 tickLine={false}
                 axisLine={{ stroke: 'var(--cx-border-subtle)' }}
@@ -173,13 +170,13 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
               />
               <Tooltip content={<TrendTooltip metricLabel={currentConfig.label} />} />
               <Line
-                type="monotone"
+                type="linear"
                 dataKey={activeMetric}
                 stroke={currentConfig.color}
                 strokeWidth={2.5}
                 dot={{ r: chartData.length === 1 ? 5 : 3, fill: currentConfig.color, strokeWidth: 2, stroke: 'var(--cx-surface)' }}
-                activeDot={{ r: 5, strokeWidth: 0 }}
-                connectNulls={true}
+                activeDot={{ r: 6, fill: currentConfig.color, stroke: 'var(--cx-surface)', strokeWidth: 2 }}
+                connectNulls={false}
                 isAnimationActive={false}
               />
             </LineChart>
@@ -191,6 +188,14 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
           </div>
         )}
       </div>
+
+      <details className="cx-report-disclosure cx-trend-evidence"><summary>View exact daily evidence</summary>
+        <div className="cx-viz-table-scroll" role="region" aria-label="Daily trend evidence" tabIndex={0}>
+          <table className="cx-viz-table"><caption className="sr-only">Returned daily observations for Overview outcomes.</caption><thead><tr><th scope="col">Date</th><th scope="col">Fetched</th><th scope="col">Delivered</th><th scope="col">Sales</th><th scope="col">Activations</th></tr></thead>
+            <tbody>{chartData.map((point, index) => <tr key={`${point.date}-${index}`}><th scope="row">{point.date}</th>{(['leads','delivered','sales','activations'] as const).map(key => <td key={key}>{point[key] == null ? 'Unavailable' : formatTableNumber(point[key])}</td>)}</tr>)}</tbody>
+          </table>
+        </div>
+      </details>
 
       {/* Comparison Context Footer */}
       <div className="pt-3 mt-2 border-t border-border-subtle flex items-center gap-1.5 text-xs text-text-mute">

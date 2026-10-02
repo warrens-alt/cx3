@@ -1,5 +1,8 @@
 import { AuditMetadata } from '../../../shared/evidence/AuditMode';
 import React from 'react';
+import { lifecyclePresentation } from '../../../shared/visuals/lifecyclePresentation';
+import MetricSparkline from '../../../shared/visuals/MetricSparkline';
+import { adaptDailyTrends } from './PerformanceTrend';
 import { Link } from 'react-router-dom';
 import { TrendingUp, TrendingDown, ArrowRight, Search, Inbox, Send, BadgeCheck, Zap } from 'lucide-react';
 import { formatPercent, formatTableNumber } from '../../../lib/formatters';
@@ -19,10 +22,10 @@ interface OutcomeStripProps {
 
 // Presentation only: keep each outcome aligned with the established chart series.
 const outcomePresentation = {
-  fetched_leads: { icon: Inbox, series: 'fetched' },
-  delivered_leads: { icon: Send, series: 'delivered' },
-  recorded_sales: { icon: BadgeCheck, series: 'sales' },
-  activations: { icon: Zap, series: 'activation' },
+  fetched_leads: { icon: lifecyclePresentation.fetched.Icon, metric: 'leads', series: 'fetched' },
+  delivered_leads: { icon: lifecyclePresentation.delivered.Icon, metric: 'delivered', series: 'delivered' },
+  recorded_sales: { icon: lifecyclePresentation.sales.Icon, metric: 'sales', series: 'sales' },
+  activations: { icon: lifecyclePresentation.activated.Icon, metric: 'activations', series: 'activation' },
 } as const;
 
 const fmt = (v: number | string | null | undefined) => formatTableNumber(v);
@@ -62,6 +65,7 @@ export default function OutcomeStrip({
   const scoped = useScopedNavigationTarget();
   const kpis = data.kpis;
   const comparison = data.comparison;
+  const trend = adaptDailyTrends(data.dailyTrends);
 
   const outcomes = [
     {
@@ -200,6 +204,7 @@ export default function OutcomeStrip({
             </div>
           </div>
 
+          <MetricSparkline label={item.label} color={`var(--cx-data-${presentation.series})`} points={trend.map(point => ({ date: point.date, value: point[presentation.metric] }))} />
           <AuditMetadata metricId={item.inspectContent.metricId} />
           <ArrowRight className="cx-metric-chevron" size={14} aria-hidden="true" />
           {hasComparison && item.id === 'fetched_leads' && onWhyChanged && Number.isFinite(item.delta) && <button type="button" className="cx-why-btn cx-metric-context-action" onClick={() => onWhyChanged(item.rootMetric)} title={`Investigate why ${item.label.toLowerCase()} changed`}>Why changed? <Search size={12} aria-hidden="true" /></button>}

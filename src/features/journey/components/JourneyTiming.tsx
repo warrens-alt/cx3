@@ -1,4 +1,6 @@
 import React from 'react';
+import EvidenceTimeline from '../../../shared/visuals/EvidenceTimeline';
+import { lifecyclePresentation } from '../../../shared/visuals/lifecyclePresentation';
 import { ArrowRight, Clock3, Timer } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -17,11 +19,11 @@ export default function JourneyTiming({ velocity, speedToLeadPath }: JourneyTimi
   if (!velocity) return null;
 
   const timingStages = [
-    { label: 'Capture → Delivery', value: velocity.fetchToDelivery, note: 'Routing and delivery' },
-    { label: 'Delivery → First Dial', value: velocity.deliveryToFirstDial, note: 'Dialler response' },
-    { label: 'First Dial → RPC', value: velocity.firstDialToContact, note: 'RPC timestamp unavailable' },
-    { label: 'First Dial → Sale', value: velocity.contactToSale, note: 'Recorded sale timing' },
-    { label: 'Sale → Activation', value: velocity.saleToActivation, note: 'Fulfilment timing' },
+    { stage: 'delivered' as const, label: 'Capture → Delivery', value: velocity.fetchToDelivery, note: 'Routing and delivery' },
+    { stage: 'dialled' as const, label: 'Delivery → First Dial', value: velocity.deliveryToFirstDial, note: 'Dialler response' },
+    { stage: 'rpc' as const, label: 'First Dial → RPC', value: velocity.firstDialToContact, note: 'RPC timestamp unavailable' },
+    { stage: 'sales' as const, label: 'First Dial → Sale', value: velocity.contactToSale, note: 'Recorded sale timing' },
+    { stage: 'activated' as const, label: 'Sale → Activation', value: velocity.saleToActivation, note: 'Fulfilment timing' },
   ];
 
   return (
@@ -46,34 +48,12 @@ export default function JourneyTiming({ velocity, speedToLeadPath }: JourneyTimi
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-        {timingStages.map((stage) => {
-          const isUnavailable = !stage.value || /^(unavailable|not recorded|[—–-])$/i.test(String(stage.value).trim());
-          return (
-            <div
-              key={stage.label}
-              data-evidence={isUnavailable ? 'unavailable' : 'returned'}
-              className={`p-3.5 rounded-lg border flex flex-col justify-between ${
-                isUnavailable
-                  ? 'bg-surface-subtle/50 border-border-subtle/60 text-text-mute'
-                  : 'bg-surface border-border-subtle text-text-main shadow-2xs'
-              }`}
-            >
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-text-mute block">
-                  {stage.label}
-                </span>
-                <span className="text-lg font-bold mt-1 block cx-tabular">
-                  {stage.value || 'Unavailable'}
-                </span>
-              </div>
-              <span className="text-[11px] text-text-sec mt-2 block">
-                {stage.note}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+      <EvidenceTimeline title="Returned lifecycle timing durations" events={timingStages.map(stage => ({
+        key: stage.stage, label: stage.label, value: stage.value || 'Unavailable', detail: stage.note,
+        state: !stage.value || /^(unavailable|not recorded|[—–-])$/i.test(String(stage.value).trim()) ? 'unavailable' : 'observed',
+        Icon: lifecyclePresentation[stage.stage].Icon, color: lifecyclePresentation[stage.stage].color,
+      }))} />
+      <p className="cx-viz-footnote">Each duration is a returned interval for its labelled event pair. Intervals use different eligible populations and are not additive.</p>
     </div>
   );
 }

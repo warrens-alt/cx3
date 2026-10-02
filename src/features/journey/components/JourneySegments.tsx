@@ -1,4 +1,4 @@
-import { evidenceBarWidth } from '../../../shared/visuals/EvidenceBars';
+import EvidenceBars, { evidenceBarWidth } from '../../../shared/visuals/EvidenceBars';
 import React, { useState, useMemo } from 'react';
 import { Search, ChevronDown, ChevronUp, ExternalLink, Filter } from 'lucide-react';
 import type { LifecycleSegment } from '../../../../contracts/lifecycleAnalytics';
@@ -140,36 +140,19 @@ export default function JourneySegments({
         </div>
       </div>
 
-      {/* Visual Rank Rail */}
-      <div className="px-5 py-2">
-        <div className="space-y-2">
-          {displayedRows.slice(0, 5).map((row) => {
-            const rawVal = row[activeSort];
-            const isPct = activeSort !== 'fetched';
-            const displayVal = isPct ? formatPercent(rawVal) : formatTableNumber(row.fetched);
-            const barWidth = evidenceBarWidth(rawVal, maxBarValue);
-
-            return (
-              <div key={row.key} className="cx-segment-bar-row flex items-center gap-3 text-xs">
-                <span className="cx-segment-bar-label w-28 sm:w-36 font-semibold text-text-main" title={row.key}>
-                  {row.key}
-                </span>
-                <div className="flex-1 h-2 bg-surface-subtle rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-brand-primary rounded-full transition-all duration-300"
-                    style={{ width: `${barWidth ?? 0}%` }}
-                    data-state={barWidth === null ? 'unknown' : barWidth === 0 ? 'zero' : 'observed'}
-                  />
-                </div>
-                <span className="w-20 text-right font-medium text-text-sec cx-tabular">{displayVal}</span>
-                {onInspectSegment && <button type="button" className="cx-segment-inspect" onClick={() => onInspectSegment(row, activeDimension)} aria-label={`Inspect ${row.key}`}><ExternalLink size={14} aria-hidden="true" /></button>}
-              </div>
-            );
-          })}
-        </div>
+      <div className="px-5">
+        <EvidenceBars title={`Compare ${activeDimension} segments`} description={SORT_LABELS[activeSort]}
+          maximum={maxBarValue}
+          items={displayedRows.map(row => ({ key: row.key, label: row.key, value: row[activeSort],
+            displayValue: activeSort === 'fetched' ? formatTableNumber(row.fetched) : formatPercent(row[activeSort]),
+            color: ({ fetched: 'var(--cx-data-fetched)', deliveryRate: 'var(--cx-data-delivered)', rpcRate: 'var(--cx-data-rpc)', saleRate: 'var(--cx-data-sales)', activationRate: 'var(--cx-data-activation)' })[activeSort] }))}
+          onSelect={onInspectSegment ? key => { const row = displayedRows.find(row => row.key === key); if (row) onInspectSegment(row, activeDimension); } : undefined}
+          scaleNote={activeSort === 'fetched' ? 'Ranked returned populations on a shared count scale.' : 'Bars use a 0–100% display scale; exact returned ratios are retained even when above 100%.'}
+        />
       </div>
 
       {/* Segment Evidence Table */}
+      <details className="cx-report-disclosure mx-5"><summary>View exact segment evidence</summary>
       <div className="cx-viz-table-scroll overflow-x-auto" role="region" aria-label="Segment comparison table" tabIndex={0}>
         <table className="cx-viz-table w-full text-left text-xs border-collapse">
           <thead>
@@ -252,6 +235,8 @@ export default function JourneySegments({
           </tbody>
         </table>
       </div>
+
+      </details>
 
       {/* Footer & Disclosure Controls */}
       <div className="p-4 border-t border-border-subtle bg-surface-sec flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-text-sec">

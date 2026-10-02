@@ -61,7 +61,7 @@ test('trend tablist exposes linked panels and only the selected tab is tabbable'
   const html = render(React.createElement(PerformanceTrend, { data: [] }));
   assert.equal((html.match(/role="tab"/g) || []).length, 3);
   assert.equal((html.match(/aria-selected="true"/g) || []).length, 1);
-  assert.equal((html.match(/tabindex="0"/gi) || []).length, 1);
+  assert.equal((html.match(/role="tab"[^>]*tabindex="0"/gi) || []).length, 1);
   assert.equal((html.match(/tabindex="-1"/gi) || []).length, 2);
   assert.match(html, /role="tabpanel"/);
   assert.match(html, /aria-controls=/);
@@ -99,6 +99,6 @@ test('canonical Overview styles stay scoped and preserve series, focus and reduc
   assert.match(css, /font-variant-numeric:tabular-nums/);
   assert.doesNotMatch(css, /font-family:[^;]*mono/);
   assert.doesNotMatch(css, /@import|https?:|url\(/);
-  assert.match(chart, /connectNulls=\{true\}/);
+  assert.match(chart, /connectNulls=\{false\}/);
   assert.match(chart, /isAnimationActive=\{false\}/);
 });

@@ -1,5 +1,5 @@
 import React from 'react';
-import EvidenceBars, { evidenceBarWidth } from '../../../shared/visuals/EvidenceBars';
+import LifecyclePath from '../../../shared/visuals/LifecyclePath';
 import { ArrowRight, ChevronRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import type { LifecycleTransition } from '../../../../contracts/lifecycleAnalytics';
 import { formatPercent, formatTableNumber } from '../../../lib/formatters';
@@ -39,41 +39,15 @@ export default function JourneyProgression({
 
   return (
     <div className="space-y-6">
-      <div className="cx-journey-visual-grid">
-        <EvidenceBars
-          title="Lead lifecycle populations"
-          description="Each stage is an independent observed population. Select a stage to inspect its evidence."
-          centered
-          items={stages.map(stage => ({ key: stage.key, label: stage.name, value: stage.volume,
-            color: `var(--cx-data-${stage.key === 'activated' ? 'activation' : stage.key})` }))}
-          onSelect={onInspectStage ? key => { const stage = stages.find(item => item.key === key); if (stage) onInspectStage(stage); } : undefined}
-          scaleNote="Widths use the same count scale. These populations do not form a guaranteed sequential funnel; a recorded sale does not prove a recorded RPC."
-        />
-        <section className="cx-transition-panel" aria-label="Transition coverage">
-          <header className="cx-viz-panel-heading"><div><h3>Transition coverage</h3><p>Within each prior-stage population: evidence of both events versus no recorded progression.</p></div></header>
-          <div className="cx-viz-legend"><span><i className="cx-legend-converted" />Both events</span><span><i className="cx-legend-gap" />No recorded progression</span></div>
-          {transitions.map(t => {
-            const width = evidenceBarWidth(t.converted, t.population);
-            const valid = width !== null && t.population > 0 && t.converted <= t.population;
-            const lossKey = LOSS_KEYS[`${t.from} → ${t.to}`];
-            return <article className="cx-transition-row" key={`${t.from}-${t.to}`}>
-              <div className="cx-transition-row-heading"><strong>{t.from} <ArrowRight size={12} aria-hidden="true" /> {t.to}</strong><span>{formatPercent(t.conversionRate)}</span></div>
-              <div className="cx-transition-track" aria-hidden="true" data-state={valid ? 'observed' : 'unknown'}>{valid && <span style={{ width: `${width}%` }} />}</div>
-              <div className="cx-transition-row-meta"><span>{formatTableNumber(t.converted)} of {formatTableNumber(t.population)} with both events</span>
-                {t.lost != null && t.lost > 0 && onInspectTransition && lossKey ?
-                  <button type="button" onClick={() => onInspectTransition(t.from, t.to, t.lost!, lossKey)} aria-label={`Inspect ${t.from} to ${t.to}: ${t.lost} without progression`}>{formatTableNumber(t.lost)} without progression <ChevronRight size={12} aria-hidden="true" /></button>
-                  : <span>{formatTableNumber(t.lost)} without progression</span>}
-              </div>
-              {t.status === 'NON_NESTED' && <p className="cx-viz-caution"><AlertCircle size={12} aria-hidden="true" />Non-nested: downstream recorded events also exist outside this qualified transition.</p>}
-            </article>;
-          })}
-          {!transitions.length && <p className="cx-viz-empty">Transition intersections are unavailable.</p>}
-        </section>
-      </div>
+      <LifecyclePath stages={stages} transitions={transitions}
+        onSelectStage={onInspectStage ? key => { const stage = stages.find(item => item.key === key); if (stage) onInspectStage(stage); } : undefined}
+        onSelectTransition={onInspectTransition ? (transition, key) => onInspectTransition(transition.from, transition.to, transition.lost!, key) : undefined}
+      />
 
       {/* 2. Transition Definitions Table */}
       {transitions.length > 0 && (
-        <div className="bg-surface rounded-xl border border-border-subtle overflow-hidden">
+        <details className="cx-report-disclosure">
+          <summary>View exact transition evidence</summary>
           <div className="px-5 py-3.5 border-b border-border-subtle bg-surface-sec flex items-center justify-between">
             <div>
               <h3 className="text-xs font-semibold text-text-mute uppercase tracking-wider">
@@ -165,7 +139,7 @@ export default function JourneyProgression({
               </tbody>
             </table>
           </div>
-        </div>
+        </details>
       )}
     </div>
   );

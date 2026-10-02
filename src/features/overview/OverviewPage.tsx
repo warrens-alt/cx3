@@ -1,3 +1,5 @@
+import LifecyclePath from '../../shared/visuals/LifecyclePath';
+import { lifecyclePresentation, type LifecycleStage } from '../../shared/visuals/lifecyclePresentation';
 import AnalyticsPageLayout from '../../components/AnalyticsPageLayout';
 import OverviewChanges from './components/OverviewChanges';
 import FirstCallResponse from './components/FirstCallResponse';
@@ -173,6 +175,12 @@ export default function OverviewPage() {
               Try a different period or remove a filter. Measured counts remain zero; rates without a population are unavailable.
             </OperationalEmpty>
           )}
+
+          <LifecyclePath title="Lifecycle overview" compact
+            stages={(data.funnelStages || []).filter(stage => stage.key in lifecyclePresentation).map(stage => ({ ...stage, key: stage.key as LifecycleStage }))}
+            transitions={data.lifecycle?.transitions}
+            onSelectStage={key => setInspectorContent({ type: 'stage', metricId: STAGE_METRIC_IDS[key], title: `${lifecyclePresentation[key].label} evidence`, value: formatTableNumber(data.funnelStages?.find(stage => stage.key === key)?.volume), reportPath: '/funnel', reportLabel: 'Explore full journey', recordDrill: { drill: 'funnel-stage', drillValue: key }, scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters } })}
+          />
 
           <div className="cx-overview-primary">
             <PerformanceTrend data={data.dailyTrends} comparisonWindow={data.comparisonWindow} />

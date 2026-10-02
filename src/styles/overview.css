@@ -115,3 +115,10 @@
   .cx-overview-lifecycle-disclosure > summary small { display:block; margin-left:0; }
 }
 @media (prefers-reduced-motion:reduce) { .cx-overview-page :is(.cx-outcome-card,.cx-trend-tabs button,.cx-attention-row) { transition:none; } }
+
+.cx-trend-tabs button[aria-selected="true"]{color:var(--cx-active-series);box-shadow:inset 0 -2px var(--cx-active-series)}
+.cx-trend-evidence{margin-top:14px}
+.cx-trend-evidence table{min-width:440px;width:100%;font-size:12px}
+.cx-trend-evidence :is(th,td){padding:9px 12px;border-bottom:1px solid var(--cx-border-subtle);text-align:right}
+.cx-trend-evidence :is(th,td):first-child{text-align:left}
+.cx-overview-page .cx-lifecycle-path{margin-bottom:4px}

@@ -259,6 +259,14 @@ export default function JourneyPage() {
             />
           </section>
 
+          {/* Region C: Operational Timing & Velocity */}
+          <section id="journey-timing" aria-labelledby="velocity-heading">
+            <h2 id="velocity-heading" className="sr-only">
+              Lifecycle Transition Velocity
+            </h2>
+            <JourneyTiming velocity={data.velocity} speedToLeadPath={scoped('/speed-to-lead')} />
+          </section>
+
           {/* Region B: Segment Comparison */}
           <section id="journey-segments" aria-labelledby="segments-heading">
             <h2 id="segments-heading" className="sr-only">
@@ -268,14 +276,6 @@ export default function JourneyPage() {
               segments={data.lifecycle?.segments}
               onInspectSegment={handleInspectSegment}
             />
-          </section>
-
-          {/* Region C: Operational Timing & Velocity */}
-          <section id="journey-timing" aria-labelledby="velocity-heading">
-            <h2 id="velocity-heading" className="sr-only">
-              Lifecycle Transition Velocity
-            </h2>
-            <JourneyTiming velocity={data.velocity} speedToLeadPath={scoped('/speed-to-lead')} />
           </section>
 
           {/* Region D: Matched Period & Diagnostics Control */}
