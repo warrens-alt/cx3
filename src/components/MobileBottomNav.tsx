@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, GitFork, PhoneCall, AlertTriangle, Menu } from 'lucide-react';
 import { navigationTarget } from '../lib/presentation';
-import { getAreaForPath } from '../app/routeManifest';
+import { getAreaForPath, getRouteItem } from '../app/routeManifest';
 
 interface MobileBottomNavProps {
   onOpenMenu: () => void;
@@ -11,11 +11,12 @@ interface MobileBottomNavProps {
 
 export default function MobileBottomNav({ onOpenMenu, menuOpen = false }: MobileBottomNavProps) {
   const location = useLocation();
-  const itemClass = (active: boolean) => `cx-mobile-nav-item flex flex-col items-center justify-center gap-[3px] min-h-12 text-[11px] leading-tight touch-manipulation ${active ? 'cx-mobile-nav-active text-action font-semibold' : 'text-text-sec'}`;
-  const dot = <span className="cx-mobile-nav-dot w-1 h-1 rounded-full bg-action" aria-hidden="true" />;
+  const itemClass = (active: boolean) => `cx-mobile-nav-item flex flex-col items-center justify-center gap-[3px] min-h-12 text-[11px] leading-tight touch-manipulation ${active ? 'cx-mobile-nav-active font-semibold' : 'text-text-sec'}`;
+  const dot = <span className="cx-mobile-nav-dot w-1 h-1 rounded-full" aria-hidden="true" />;
 
   const area = getAreaForPath(location.pathname);
   const currentArea = area.id;
+  const currentPath = getRouteItem(location.pathname)?.path;
   const contextArea = currentArea === 'sales' || currentArea === 'commercial' ? area : null;
   const ContextIcon = contextArea?.icon;
 
@@ -33,8 +34,9 @@ export default function MobileBottomNav({ onOpenMenu, menuOpen = false }: Mobile
       <div className="grid grid-cols-5 h-[58px] max-w-lg mx-auto">
         <Link
           to={navigationTarget('/overview', location.pathname, location.search)}
-          aria-current={isOverview ? 'page' : undefined}
+          aria-current={isOverview ? (currentPath === '/overview' ? 'page' : 'location') : undefined}
           className={itemClass(isOverview)}
+          data-navigation-area={getAreaForPath('/overview').id}
         >
           <LayoutDashboard size={18} aria-hidden="true" />
           <span>Overview</span>
@@ -43,8 +45,9 @@ export default function MobileBottomNav({ onOpenMenu, menuOpen = false }: Mobile
 
         <Link
           to={navigationTarget('/funnel', location.pathname, location.search)}
-          aria-current={isJourney ? (location.pathname === '/funnel' ? 'page' : 'location') : undefined}
+          aria-current={isJourney ? (currentPath === '/funnel' ? 'page' : 'location') : undefined}
           className={itemClass(isJourney)}
+          data-navigation-area={getAreaForPath('/funnel').id}
         >
           <GitFork size={18} aria-hidden="true" />
           <span>Journey</span>
@@ -53,8 +56,9 @@ export default function MobileBottomNav({ onOpenMenu, menuOpen = false }: Mobile
 
         <Link
           to={navigationTarget('/contact-strategy', location.pathname, location.search)}
-          aria-current={isContact ? (location.pathname === '/contact-strategy' ? 'page' : 'location') : undefined}
+          aria-current={isContact ? (currentPath === '/contact-strategy' ? 'page' : 'location') : undefined}
           className={itemClass(isContact)}
+          data-navigation-area={getAreaForPath('/contact-strategy').id}
         >
           <PhoneCall size={18} aria-hidden="true" />
           <span>Contact</span>
@@ -63,8 +67,9 @@ export default function MobileBottomNav({ onOpenMenu, menuOpen = false }: Mobile
 
         <Link
           to={navigationTarget('/exceptions', location.pathname, location.search)}
-          aria-current={isInvestigate ? (location.pathname === '/exceptions' ? 'page' : 'location') : undefined}
+          aria-current={isInvestigate ? (currentPath === '/exceptions' ? 'page' : 'location') : undefined}
           className={itemClass(isInvestigate)}
+          data-navigation-area={getAreaForPath('/exceptions').id}
         >
           <AlertTriangle size={18} aria-hidden="true" />
           <span>Investigate</span>
@@ -73,8 +78,9 @@ export default function MobileBottomNav({ onOpenMenu, menuOpen = false }: Mobile
 
         {contextArea && ContextIcon ? <Link
           to={navigationTarget(contextArea.landingPath, location.pathname, location.search)}
-          aria-current={location.pathname === contextArea.landingPath ? 'page' : 'location'}
+          aria-current={currentPath === contextArea.landingPath ? 'page' : 'location'}
           className={itemClass(true)}
+          data-navigation-area={contextArea.id}
         >
           <ContextIcon size={18} aria-hidden="true" />
           <span>{contextArea.id === 'sales' ? 'Sales' : 'Commercial'}</span>
@@ -87,6 +93,7 @@ export default function MobileBottomNav({ onOpenMenu, menuOpen = false }: Mobile
           aria-expanded={menuOpen}
           aria-controls={menuOpen ? 'mobile-navigation-dialog' : undefined}
           className={itemClass(isMore)}
+          data-navigation-area={area.id}
         >
           <Menu size={18} aria-hidden="true" />
           <span>More</span>

@@ -1,5 +1,5 @@
 import { ReportActions } from '../shared/reporting/ReportPresentation';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   BookOpen,
@@ -21,13 +21,13 @@ import { useClient } from '../lib/ClientContext';
 import { extractOffernetFilters, useFilters } from '../lib/FilterContext';
 import { fetchRawLeads, type RawLeadsData } from '../lib/offernetClient';
 import { useOperationalData } from '../lib/useOperationalData';
-import { LeadTimelineModal } from '../components/LeadTimelineModal';
+import LeadJourney from '../features/leadLedger/LeadJourney';
 import { downloadCsv, formatTableCurrency, formatTableNumber } from '../lib/formatters';
 import { buildLeadLedgerExport } from '../lib/leadLedgerExport';
 import { ledgerValidation, ledgerOutcome, ledgerCalls } from '../lib/leadLedgerValues';
 import EvidenceExportPreflight, { returnedEvidenceFields } from '../features/leadLedger/EvidenceExportPreflight';
 
-export default function LeadLedger() {
+export default function LeadLedger({ onViewSource }: { onViewSource: (leadId: string, fields: string[]) => void }) {
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
 
@@ -69,6 +69,18 @@ export default function LeadLedger() {
   const totalCount = data?.totalCount ?? null;
   const totalPages = totalCount == null ? null : Math.max(1, Math.ceil(totalCount / pageSize));
   const currentRows = data?.rows || [];
+  const selectedRow = !error ? currentRows.find(row => String(row.lead_id || '') === selectedLeadId) : undefined;
+  const inspectorId = useId();
+  const selectionButton = useRef<HTMLButtonElement | null>(null);
+  const inspectLead = (leadId: string, button: HTMLButtonElement) => {
+    selectionButton.current = button;
+    setSelectedLeadId(leadId);
+    requestAnimationFrame(() => {
+      const inspector = document.getElementById(inspectorId);
+      inspector?.focus({ preventScroll: true });
+      if (window.matchMedia('(max-width: 900px)').matches) inspector?.scrollIntoView({ block: 'start', behavior: 'instant' });
+    });
+  };
   useEffect(() => { setExportReview(null); }, [scopeKey, page, data, loading, error]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -266,7 +278,8 @@ export default function LeadLedger() {
           </div>
         </div>
 
-        {/* Main Table Container */}
+        {/* Existing analytical records with an inspector derived from the loaded row. */}
+        <div className="cx-ledger-operational-browser">
         <div className="rounded-lg border border-border-subtle bg-surface overflow-hidden shadow-xs">
           <div className="overflow-x-auto max-h-[680px]" role="region" aria-label="Analytical ledger records" tabIndex={0}>
             <table className="w-full text-left border-collapse enterprise-table">
@@ -323,13 +336,16 @@ export default function LeadLedger() {
                       : 'bg-surface-sec text-text-sec border-border-subtle';
 
                     return (
-                      <tr key={leadId || idx} className="hover:bg-blue-50/30 transition-colors">
+                      <tr key={leadId || idx} data-selected={selectedLeadId === leadId} className="hover:bg-blue-50/30 transition-colors">
                         {/* Lead ID */}
                         <td className="py-2 px-3 font-semibold text-text-main whitespace-nowrap">
                           <div className="flex items-center gap-1.5">
                             <button
                               type="button"
-                              onClick={() => setSelectedLeadId(leadId)}
+                              onClick={event => inspectLead(leadId, event.currentTarget)}
+                              aria-pressed={selectedLeadId === leadId}
+                              aria-controls={inspectorId}
+                              disabled={!leadId || loading}
                               className="text-[var(--cx-action)] hover:underline font-mono text-left cursor-pointer"
                               title="Inspect lead timeline"
                             >
@@ -431,7 +447,10 @@ export default function LeadLedger() {
                         <td className="py-2 px-3 text-center whitespace-nowrap">
                           <button
                             type="button"
-                            onClick={() => setSelectedLeadId(leadId)}
+                            onClick={event => inspectLead(leadId, event.currentTarget)}
+                              aria-pressed={selectedLeadId === leadId}
+                              aria-controls={inspectorId}
+                              disabled={!leadId || loading}
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium text-text-sec bg-surface-sec hover:bg-[var(--cx-action)] hover:text-white transition-colors"
                             title="Inspect Lead Timeline"
                           >
@@ -495,13 +514,12 @@ export default function LeadLedger() {
           </div>
         </div>
 
-        {/* Lead Timeline Modal */}
-        {selectedLeadId && (
-          <LeadTimelineModal
-            leadId={selectedLeadId}
-            onClose={() => setSelectedLeadId(null)}
-          />
-        )}
+        <aside className="cx-ledger-inspector cx-ledger-operational-inspector" id={inspectorId} aria-label="Selected operational lead" tabIndex={-1}>
+          {selectedRow ? <><header className="cx-ledger-inspector-heading"><div><p className="cx-ledger-eyebrow">SELECTED LEAD</p><h2>{selectedLeadId}</h2></div><button type="button" className="cx-button-secondary" aria-label="Clear selected operational lead" onClick={() => { setSelectedLeadId(null); selectionButton.current?.focus(); }}>Clear</button></header>
+            {loading ? <div className="cx-journey-loading" role="status"><span>Updating lead evidence…</span><div aria-hidden="true">● ─── ● ─── ●</div></div> : <LeadJourney key={selectedLeadId} row={selectedRow} validationStatus={data?.validationStatus} onViewSource={fields => onViewSource(selectedLeadId!, fields)} />}
+          </> : <div className="cx-ledger-inspector-empty"><p className="cx-ledger-eyebrow">LEAD JOURNEY</p><h2>Select a lead</h2><p>See recorded milestones, elapsed time and call evidence, then inspect the source fields.</p></div>}
+        </aside>
+        </div>
       </div>
     </div>
   );

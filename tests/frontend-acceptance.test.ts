@@ -256,20 +256,21 @@ test('analytical search submits exact existing query and shows matched rows',asy
   }finally{app.close();}
 });
 
-test('timeline reports missing milestone timestamps and returns keyboard focus',async()=>{
+test('loaded-row timeline reports unavailable evidence and returns keyboard focus',async()=>{
   const app=await mount('/lead-ledger'+scope);try{
     await app.click('button','Operational analysis');await app.wait(()=>app.find('input','Search analytical ledger'));
     await app.wait(()=>app.text().includes('SYNTHETIC-LEAD-0001'));
+    const requests=app.w.__fixture.requests.length;
     const trigger=await app.click('button[title="Inspect lead timeline"]');
-    await app.wait(()=>app.find('[role="dialog"]'));
-    await app.wait(()=>app.text().includes('Timestamp unavailable')||app.w.document.body.textContent.includes('Timestamp unavailable'));
-    const dialog=app.find('[role="dialog"]');
-    assert.match(dialog.textContent,/snapshot milestones/);
-    assert.match(dialog.textContent,/total calls not reported/);
-    assert.doesNotMatch(dialog.textContent,/undefined total/);
-    await app.wait(()=>dialog.contains(app.w.document.activeElement),'Dialog receives initial focus');
-    app.w.document.dispatchEvent(new app.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
-    await app.wait(()=>!app.find('[role="dialog"]'));
+    await app.wait(()=>app.find('.cx-ledger-journey'));
+    const inspector=app.find('[aria-label="Selected operational lead"]');
+    assert.match(inspector.textContent,/Evidence unavailable/);
+    assert.match(inspector.textContent,/count unavailable/);
+    assert.doesNotMatch(inspector.textContent,/undefined total/);
+    assert.equal(app.w.__fixture.requests.length,requests,'Already loaded row needs no timeline request');
+    await app.wait(()=>inspector.contains(app.w.document.activeElement),'Inspector receives initial focus');
+    await app.click('button','Clear selected operational lead');
+    await app.wait(()=>!app.find('.cx-ledger-journey'));
     await app.wait(()=>app.w.document.activeElement===trigger,'Focus returns to its trigger');
     assert.equal(app.w.document.activeElement===trigger,true,'Focus returns to its trigger');
   }finally{app.close();}

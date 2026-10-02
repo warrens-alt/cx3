@@ -198,6 +198,8 @@ test('palette area headings preserve option indexes, intent searches and admin v
       assert.equal(app.find('.cx-command-group-label').textContent, 'Suggested');
       const options = [...app.w.document.querySelectorAll('[role="option"]')] as HTMLElement[];
       assert.deepEqual(options.map(option => option.querySelector('strong')!.textContent), ['Overview', 'Lead journey', 'Contact centre', 'Sales & activation', 'Commercial', 'Investigate']);
+      assert.deepEqual(options.map(option => option.dataset.navigationArea), ['overview', 'journey', 'contact', 'sales', 'commercial', 'investigate']);
+      assert.ok(options.every(option => option.querySelector('.cx-command-area-icon[aria-hidden="true"]')));
       input.dispatchEvent(new app.w.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
       await app.wait(() => options[1].getAttribute('aria-selected') === 'true');
       assert.equal(input.getAttribute('aria-activedescendant'), options[1].id);
@@ -222,11 +224,57 @@ test('palette appearance group retains Dark theme keyboard action', async () => 
     const input = app.find('input', 'Search pages and navigation');
     await app.input(input, 'Dark theme');
     assert.equal(app.find('.cx-command-group-label').textContent, 'Display preferences');
+    assert.equal(app.find('[role="option"]').getAttribute('data-navigation-area'), null);
     input.dispatchEvent(new app.w.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
     await app.wait(() => app.find('[role="option"][aria-selected="true"]').textContent.includes('Dark Theme'));
     input.dispatchEvent(new app.w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     await app.wait(() => app.w.document.documentElement.dataset.theme === 'dark');
     assert.equal(app.w.__navigation.location, '/overview' + scope);
     assert.equal(app.find('[role="dialog"]'), undefined);
+  } finally { app.close(); }
+});
+
+test('area identity follows canonical and aliased routes across navigation while report content stays unscoped', async () => {
+  for (const [route, area, current] of [
+    ['/insights', 'overview', 'page'],
+    ['/acquisition', 'journey', 'location'],
+    ['/calls', 'contact', 'page'],
+    ['/outcomes', 'sales', 'page'],
+    ['/reconciliation', 'commercial', 'location'],
+    ['/explorer', 'investigate', 'location'],
+    ['/settings', 'settings', 'page'],
+    ['/validation', 'settings', 'location'],
+    ['/ai-insights', 'overview', 'location'],
+  ]) {
+    const app = await mount(route + scope, true);
+    try {
+      const selected = app.find('.cx-navigation a[aria-current]');
+      assert.equal(selected.dataset.navigationArea, area, route);
+      assert.equal(selected.getAttribute('aria-current'), current, route);
+      assert.ok(selected.querySelector('small:not(.sr-only)'), 'Current area description remains visible');
+      assert.equal(app.find('.cx-area-nav').dataset.navigationArea, area, route);
+      assert.equal(app.find('.cx-breadcrumb').dataset.navigationArea, area, route);
+      assert.equal(app.find('.cx-mobile-nav-active').dataset.navigationArea, area, route);
+      if (area !== 'settings') assert.equal(app.find('.cx-mobile-nav-active').getAttribute('aria-current'), current, route);
+      assert.ok(app.find('.cx-mobile-nav-active .cx-mobile-nav-dot[aria-hidden="true"]'));
+      assert.equal(app.find('#main-content').closest('[data-navigation-area]'), null, 'Area identity must not cascade into report or scope content');
+      assert.equal(app.find('.cx-app').getAttribute('data-navigation-area'), null);
+    } finally { app.close(); }
+  }
+});
+
+test('More analyses carries its parent area label and selected link semantics', async () => {
+  const app = await mount('/quality' + scope);
+  try {
+    const trigger = await app.click('button', 'More analyses');
+    assert.equal(trigger.dataset.currentSection, 'true');
+    assert.equal(app.find('.cx-area-more-heading').textContent, 'More Lead journey analysis');
+    const current = app.find('.cx-area-more-item[aria-current="page"]');
+    assert.match(current.textContent, /Vendor quality/);
+    assert.equal(current.closest('[data-navigation-area]').dataset.navigationArea, 'journey');
+    assert.ok(current.querySelector('.cx-area-more-indicator[aria-hidden="true"]'));
+    app.w.document.dispatchEvent(new app.w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await app.wait(() => !app.find('.cx-area-more-heading'));
+    assert.equal(app.w.document.activeElement, trigger);
   } finally { app.close(); }
 });

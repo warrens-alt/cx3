@@ -35,6 +35,22 @@
   --cx-primary-soft: #EAF0FF;
   --cx-primary-soft-hover: #DEE9FF;
 
+  /* Navigation identity only: separate from lifecycle and semantic status. */
+  --cx-area-overview: #315BCB;
+  --cx-area-journey: #4F46E5;
+  --cx-area-contact: #0F766E;
+  --cx-area-sales: #0369A1;
+  --cx-area-commercial: #7C3AED;
+  --cx-area-investigate: #475569;
+  --cx-area-admin: var(--cx-text-secondary);
+  --cx-area-overview-soft: color-mix(in srgb, var(--cx-area-overview) 7%, var(--cx-surface));
+  --cx-area-journey-soft: color-mix(in srgb, var(--cx-area-journey) 7%, var(--cx-surface));
+  --cx-area-contact-soft: color-mix(in srgb, var(--cx-area-contact) 7%, var(--cx-surface));
+  --cx-area-sales-soft: color-mix(in srgb, var(--cx-area-sales) 7%, var(--cx-surface));
+  --cx-area-commercial-soft: color-mix(in srgb, var(--cx-area-commercial) 7%, var(--cx-surface));
+  --cx-area-investigate-soft: color-mix(in srgb, var(--cx-area-investigate) 7%, var(--cx-surface));
+  --cx-area-admin-soft: var(--cx-surface-subtle);
+
   /* Quantitative Semantics */
   --cx-favourable: #17744A;
   --cx-favourable-bg: #EFFAF3;
@@ -168,6 +184,22 @@
   --cx-primary-hover: #60A5FA;
   --cx-primary-soft: rgba(59, 130, 246, 0.14);
   --cx-primary-soft-hover: rgba(59, 130, 246, 0.24);
+
+  /* Accessible navigation ink on dark surfaces, preserving each area family. */
+  --cx-area-overview: #93B4FF;
+  --cx-area-journey: #A5A3FF;
+  --cx-area-contact: #5EEAD4;
+  --cx-area-sales: #7DD3FC;
+  --cx-area-commercial: #C4B5FD;
+  --cx-area-investigate: #CBD5E1;
+  --cx-area-admin: var(--cx-text-secondary);
+  --cx-area-overview-soft: color-mix(in srgb, var(--cx-area-overview) 7%, var(--cx-surface));
+  --cx-area-journey-soft: color-mix(in srgb, var(--cx-area-journey) 7%, var(--cx-surface));
+  --cx-area-contact-soft: color-mix(in srgb, var(--cx-area-contact) 7%, var(--cx-surface));
+  --cx-area-sales-soft: color-mix(in srgb, var(--cx-area-sales) 7%, var(--cx-surface));
+  --cx-area-commercial-soft: color-mix(in srgb, var(--cx-area-commercial) 7%, var(--cx-surface));
+  --cx-area-investigate-soft: color-mix(in srgb, var(--cx-area-investigate) 7%, var(--cx-surface));
+  --cx-area-admin-soft: var(--cx-surface-subtle);
 
   /* Quantitative Semantics (Dark) */
   --cx-favourable: #10B981;
