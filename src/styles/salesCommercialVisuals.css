@@ -14,20 +14,6 @@
 .cx-commercial-evidence-map>header p{font-size:12px;line-height:1.55;color:var(--cx-text-secondary);margin-top:3px;max-width:760px}
 .cx-sales-evidence-map>header>svg{color:var(--cx-action);margin-top:2px}
 
-.cx-sales-evidence-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}
-.cx-sales-evidence-item{--evidence-color:var(--cx-data-sales);appearance:none;border:0;border-right:1px solid var(--cx-border-subtle);background:var(--cx-surface);padding:16px;text-align:left;cursor:pointer;min-width:0;transition:background-color .14s}
-.cx-sales-evidence-item:last-child{border-right:0}
-.cx-sales-evidence-item:hover{background:var(--cx-surface-subtle)}
-.cx-sales-evidence-item[data-tone="activation"]{--evidence-color:var(--cx-data-activation)}
-.cx-sales-evidence-item[data-tone="pending"]{--evidence-color:var(--cx-warning)}
-.cx-sales-evidence-item[data-tone="revenue"]{--evidence-color:var(--cx-semantic-purple,#7c3aed)}
-.cx-sales-evidence-item:focus-visible{outline:2px solid var(--cx-focus);outline-offset:-3px}
-.cx-sales-evidence-item-head{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.045em;color:var(--cx-text-secondary)}
-.cx-sales-evidence-icon{display:grid;place-items:center;width:26px;height:26px;border-radius:7px;color:var(--evidence-color);background:color-mix(in srgb,var(--evidence-color) 9%,var(--cx-surface))}
-.cx-sales-evidence-item>strong{display:block;margin-top:10px;font-size:27px;line-height:1;font-weight:720;letter-spacing:-.035em;color:var(--cx-text);font-variant-numeric:tabular-nums}
-.cx-sales-evidence-track{height:6px;background:var(--cx-surface-subtle);border-radius:999px;margin-top:12px;overflow:hidden}
-.cx-sales-evidence-track>span{display:block;height:100%;background:var(--evidence-color);border-radius:inherit;min-width:0}
-.cx-sales-evidence-item>small{display:block;margin-top:8px;font-size:11px;line-height:1.5;color:var(--cx-text-secondary)}
 
 .cx-sales-page .cx-outcome-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
 .cx-sales-page .cx-outcome-metrics .cx-command-metric{position:relative;overflow:hidden;border-top:2px solid var(--cx-data-sales)}
@@ -86,9 +72,6 @@
 .cx-commercial-page .cx-withheld-grid>div{border:1px dashed var(--cx-border);background:var(--cx-surface-subtle);border-radius:7px}
 
 @media(max-width:1180px){
-  .cx-sales-evidence-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .cx-sales-evidence-item:nth-child(2){border-right:0}
-  .cx-sales-evidence-item:nth-child(-n+2){border-bottom:1px solid var(--cx-border-subtle)}
   .cx-commercial-evidence-list{grid-template-columns:repeat(2,minmax(0,1fr))}
   .cx-commercial-evidence-row:nth-child(3n){border-right:1px solid var(--cx-border-subtle)}
   .cx-commercial-evidence-row:nth-child(2n){border-right:0}
@@ -97,9 +80,7 @@
   .cx-commercial-page .cx-commercial-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:700px){
-  .cx-sales-evidence-grid,.cx-commercial-evidence-list{grid-template-columns:1fr}
-  .cx-sales-evidence-item{border-right:0;border-bottom:1px solid var(--cx-border-subtle)}
-  .cx-sales-evidence-item:last-child{border-bottom:0}
+  .cx-commercial-evidence-list{grid-template-columns:1fr}
   .cx-commercial-evidence-row,.cx-commercial-evidence-row:nth-child(2n),.cx-commercial-evidence-row:nth-child(3n),.cx-commercial-evidence-row:nth-last-child(-n+3){border-right:0;border-bottom:1px solid var(--cx-border-subtle)}
   .cx-commercial-evidence-row:last-child{border-bottom:0}
   .cx-commercial-page .cx-commercial-metrics{grid-template-columns:1fr 1fr}
@@ -108,10 +89,10 @@
 @media(max-width:420px){
   .cx-commercial-page .cx-commercial-metrics{grid-template-columns:1fr}
   .cx-sales-evidence-map>header,.cx-commercial-evidence-map>header{padding:14px}
-  .cx-sales-evidence-item,.cx-commercial-evidence-row{padding:13px 14px}
+  .cx-commercial-evidence-row{padding:13px 14px}
 }
 @media(prefers-reduced-motion:reduce){
-  .cx-sales-evidence-item{transition:none}
+  .cx-sales-ageing-anomaly{transition:none}
 }
 
 /* Bound the attribution identifier while retaining every numeric column and full key. */
@@ -128,3 +109,39 @@
 
 @media(max-width:760px){.cx-sales-page .cx-outcome-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){.cx-sales-page .cx-outcome-metrics{grid-template-columns:1fr}}
+
+/* Sales composition uses shared branch and distribution primitives. */
+.cx-sales-ageing-histogram{padding:18px}
+.cx-sales-ageing-anomaly{display:flex;align-items:center;gap:12px;width:100%;padding:14px;margin-top:16px;border:1px dashed var(--cx-border);border-radius:8px;text-align:left;background:var(--cx-surface-subtle);color:var(--cx-text-secondary);cursor:pointer}
+.cx-sales-ageing-anomaly[data-state="anomaly"]{border-color:var(--cx-negative);color:var(--cx-negative);background:var(--cx-negative-bg)}
+.cx-sales-ageing-anomaly>span{flex:1;min-width:0}
+.cx-sales-ageing-anomaly strong,.cx-sales-ageing-anomaly small{display:block}
+.cx-sales-ageing-anomaly strong{font-size:12px}.cx-sales-ageing-anomaly small{font-size:11px;margin-top:3px}
+.cx-sales-ageing-anomaly>b{font-size:22px;font-variant-numeric:tabular-nums}
+.cx-sales-ageing-anomaly:focus-visible{outline:2px solid var(--cx-focus);outline-offset:3px}
+.cx-commercial-evidence-bridge{overflow:hidden;border:1px solid var(--cx-border-subtle);border-radius:10px;min-width:0}
+.cx-commercial-evidence-bridge>header{padding:18px;border-bottom:1px solid var(--cx-border-subtle)}
+.cx-commercial-evidence-bridge h2{font-size:17px;font-weight:680;color:var(--cx-text)}
+.cx-commercial-evidence-bridge header p{font-size:12px;color:var(--cx-text-secondary);margin-top:4px;line-height:1.5}
+.cx-commercial-bridge-columns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:18px;gap:16px}
+.cx-commercial-bridge-columns>article{min-width:0;border:1px solid var(--cx-border);padding:16px;border-radius:8px;background:var(--cx-surface)}
+.cx-commercial-bridge-columns>article[data-state="unavailable"]{border-style:dashed;background:var(--cx-surface-subtle)}
+.cx-commercial-bridge-columns h3{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:650;color:var(--cx-text);margin-bottom:18px}
+.cx-commercial-bridge-columns small,.cx-commercial-bridge-columns p{display:block;font-size:11px;line-height:1.55;color:var(--cx-text-secondary)}
+.cx-commercial-bridge-columns p{margin-top:16px}
+.cx-bridge-value-label{display:block;font-size:11px;color:var(--cx-text-secondary)}
+.cx-bridge-value{display:block;font-size:26px;line-height:1.3;letter-spacing:-.025em;font-variant-numeric:tabular-nums;margin:6px 0;color:var(--cx-text);overflow-wrap:anywhere}
+.cx-commercial-bridge-columns dl{display:grid;gap:10px;margin-top:18px}
+.cx-commercial-bridge-columns dl>div{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px}
+.cx-commercial-bridge-columns dt{color:var(--cx-text-secondary)}
+.cx-commercial-bridge-columns dd{font-variant-numeric:tabular-nums;font-weight:650;color:var(--cx-text);margin:0}
+.cx-commercial-bridge-columns .cx-bridge-lifecycle dt{display:flex;align-items:center;gap:7px}
+.cx-commercial-bridge-columns .cx-bridge-lifecycle dd{font-size:22px}
+.cx-commercial-missing-inputs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.6fr);gap:12px;padding:0 18px 18px}
+.cx-commercial-missing-inputs>div{display:flex;flex-direction:column;gap:5px;border:1px dashed var(--cx-border);border-radius:7px;padding:13px;color:var(--cx-text-secondary);background:var(--cx-surface-subtle);min-width:0}
+.cx-commercial-missing-inputs span{font-size:11px}.cx-commercial-missing-inputs strong{font-size:18px;font-variant-numeric:tabular-nums;color:var(--cx-text)}.cx-commercial-missing-inputs small{font-size:10px}
+.cx-commercial-not-calculable{position:relative}.cx-commercial-not-calculable>svg{position:absolute;right:10px;top:10px;color:var(--cx-text-muted)}
+.cx-commercial-not-calculable>span{padding-right:20px}
+.cx-commercial-evidence-bridge>.cx-viz-footnote{padding:0 18px 18px;margin:0}
+@media(max-width:900px){.cx-commercial-bridge-columns{grid-template-columns:1fr}.cx-commercial-missing-inputs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.cx-commercial-bridge-columns{padding:14px}.cx-commercial-missing-inputs{padding:0 14px 14px;grid-template-columns:1fr 1fr}.cx-commercial-not-calculable{grid-column:1/-1}.cx-sales-ageing-histogram{padding:14px}}

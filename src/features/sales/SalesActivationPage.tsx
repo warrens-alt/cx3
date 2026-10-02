@@ -60,7 +60,7 @@ export default function SalesActivationPage() {
   } = useSalesActivationModel();
 
   return (
-    <AnalyticsPageLayout className="cx-sales-page" ariaLabel="Sales & activation workspace" title="Sales & activation" description={<>Recorded outcomes for the selected operational intake cohort. Understand recorded sales, independently recorded activations, post-sale queue ageing, and source-recorded revenue.</>} actions={<ReportActions aboutContent={<div className="space-y-3 text-xs text-slate-600 leading-relaxed">
+    <AnalyticsPageLayout className="cx-sales-page" ariaLabel="Sales & activation workspace" title="Sales & activation" description={<>Recorded sales, independent activation evidence and post-sale ageing for the selected intake cohort.</>} actions={<ReportActions aboutContent={<div className="space-y-3 text-xs text-slate-600 leading-relaxed">
             <section className="space-y-1">
               <h3 className="font-semibold text-slate-900">Operational Cohort Scope</h3>
               <p>
@@ -144,7 +144,7 @@ export default function SalesActivationPage() {
         </div>
 
         {/* Independent source evidence remains available when the cohort query is unavailable. */}
-        <BlcReportingPanel />
+
 
         {/* Error State */}
         {error && (
@@ -196,6 +196,7 @@ export default function SalesActivationPage() {
             />
 
             {/* 5. Timing, Maturation & Operating Controls */}
+            <details className="cx-evidence-disclosure"><summary>View timing, maturation and operating evidence</summary>
             <SalesTimingAndCoverage
               model={model}
               operatingControlsExpanded={operatingControlsExpanded}
@@ -205,6 +206,7 @@ export default function SalesActivationPage() {
               controlsError={controls.error ? (controls.error as Error).message : null}
             />
 
+            </details>
             {/* 6. Connected Navigation Shortcuts */}
             <section className="cx-command-shortcuts grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
               <Link
@@ -251,6 +253,8 @@ export default function SalesActivationPage() {
             </section>
           </div>
         )}
+
+      <details className="cx-evidence-disclosure" open={!model}><summary>View independent BLC source evidence</summary><BlcReportingPanel /></details>
 
       {/* Inspector Host for Evidence Drawer */}
       <InspectorHost

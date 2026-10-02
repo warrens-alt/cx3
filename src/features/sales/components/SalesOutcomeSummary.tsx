@@ -1,5 +1,6 @@
 import React from 'react';
-import { BadgeCheck, CheckCircle2, Clock3, DollarSign, ArrowRight } from 'lucide-react';
+import { Clock3, DollarSign, ArrowRight } from 'lucide-react';
+import { lifecyclePresentation } from '../../../shared/visuals/lifecyclePresentation';
 import type { AdaptedSalesActivation } from '../model/salesActivationAdapter';
 import { formatWorkspaceCurrency } from '../model/salesActivationAdapter';
 import { formatTableNumber, formatPercent } from '../../../lib/formatters';
@@ -22,7 +23,7 @@ export default function SalesOutcomeSummary({ model, onInspect }: SalesOutcomeSu
         <div>
           <div className="flex items-center justify-between text-text-sec">
             <span className="font-semibold text-xs text-text-sec ">Recorded sales</span>
-            <BadgeCheck size={16} className="text-action" />
+            <lifecyclePresentation.sales.Icon size={16} style={{ color: lifecyclePresentation.sales.color }} aria-hidden="true" />
           </div>
           <button
             type="button"
@@ -50,7 +51,7 @@ export default function SalesOutcomeSummary({ model, onInspect }: SalesOutcomeSu
         <div>
           <div className="flex items-center justify-between text-text-sec">
             <span className="font-semibold text-xs text-text-sec ">Recorded activations</span>
-            <CheckCircle2 size={16} className="text-semantic-pos" />
+            <lifecyclePresentation.activated.Icon size={16} style={{ color: lifecyclePresentation.activated.color }} aria-hidden="true" />
           </div>
           <button
             type="button"

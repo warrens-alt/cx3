@@ -1,18 +1,8 @@
 import React from 'react';
-import { CategoryChartFrame, chartTooltipWrapperStyle } from '../../../components/charts/CategoryChartFrame';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from 'recharts';
-import { Clock3, AlertTriangle, Download, Info, ExternalLink } from 'lucide-react';
+import EvidenceBars from '../../../shared/visuals/EvidenceBars';
+import { Clock3, AlertTriangle, Download, ExternalLink } from 'lucide-react';
 import type { AdaptedAgeingBucket, AdaptedSalesActivation } from '../model/salesActivationAdapter';
-import { formatTableNumber, formatPercent, formatChartAxis } from '../../../lib/formatters';
+import { formatTableNumber, formatPercent } from '../../../lib/formatters';
 
 interface ActivationAgeingProps {
   model: AdaptedSalesActivation;
@@ -21,12 +11,12 @@ interface ActivationAgeingProps {
 }
 
 const BUCKET_COLORS: Record<string, string> = {
-  '0–3d': '#0F766E', // Fresh / Green-teal
-  '4–7d': '#2563EB', // Blue
-  '8–14d': '#D97706', // Amber warning
-  '15–30d': '#DC2626', // Red critical delay
-  '30d+': '#7F1D1D', // Dark red severe breach
-  'Invalid future sale': '#9333EA', // Purple anomaly
+  '0–3d': 'var(--cx-text-muted)',
+  '4–7d': 'var(--cx-text-secondary)',
+  '8–14d': 'color-mix(in srgb, var(--cx-warning) 65%, var(--cx-surface))',
+  '15–30d': 'color-mix(in srgb, var(--cx-warning) 85%, var(--cx-surface))',
+  '30d+': 'var(--cx-warning)',
+  'Invalid future sale': 'var(--cx-negative)',
 };
 
 export default function ActivationAgeing({
@@ -36,43 +26,6 @@ export default function ActivationAgeing({
 }: ActivationAgeingProps) {
   const { ageing } = model;
   const buckets = ageing.buckets;
-
-  const chartData = buckets.map((b) => ({
-    name: b.bucket,
-    sales: b.sales,
-    share: b.shareOfUnactivated,
-    raw: b,
-  }));
-
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (!active || !payload?.length) return null;
-    const item = payload[0]?.payload;
-    const bucket: AdaptedAgeingBucket = item?.raw;
-    if (!bucket) return null;
-
-    return (
-      <div className="cx-analytics-tooltip space-y-1.5">
-        <div className="font-semibold text-text-main flex items-center justify-between">
-          <span>{bucket.bucket}</span>
-          {bucket.isInvalidFuture && (
-            <span className="text-[11px] text-semantic-neg font-mono font-bold">
-              ANOMALY
-            </span>
-          )}
-        </div>
-        <p className="text-text-sec text-[11px] leading-tight">{bucket.description}</p>
-        <div className="pt-1 border-t border-border-subtle flex items-center justify-between text-text-main">
-          <span>Awaiting activation:</span>
-          <span className="font-bold text-text-main">{formatTableNumber(bucket.sales)} sales</span>
-        </div>
-        <div className="flex items-center justify-between text-text-mute text-[11px]">
-          <span>Share of backlog:</span>
-          <span>{bucket.shareOfUnactivated !== null ? formatPercent(bucket.shareOfUnactivated) : '—'}</span>
-        </div>
-        <div className="text-[11px] text-action font-medium pt-1">Click to open aggregate evidence</div>
-      </div>
-    );
-  };
 
   return (
     <section className="enterprise-card cx-analytics-card" aria-label="Activation ageing queue">
@@ -85,7 +38,7 @@ export default function ActivationAgeing({
           <h2 className="text-base font-semibold text-text-main">Sales awaiting activation by completed age</h2>
           <p className="text-xs text-text-sec">
             Non-overlapping completed-day age cohorts measured from recorded sale timestamp. Total unactivated:{' '}
-            <strong className="text-text-main">{formatTableNumber(ageing.totalUnactivated)}</strong>
+            <strong className="text-text-main">{model.summary.salesWithoutActivation == null ? 'Unavailable' : formatTableNumber(ageing.totalUnactivated)}</strong>
             {ageing.hasInvalidFuture && (
               <span className="text-semantic-neg ml-1.5 font-medium">
                 ({formatTableNumber(ageing.invalidFuture)} future timestamp anomaly)
@@ -107,52 +60,19 @@ export default function ActivationAgeing({
         </div>
       </header>
 
-      {/* Visual Bar Chart: Strictly chronological order */}
-      <div className="p-4 bg-surface-subtle">
-        <CategoryChartFrame title="Sales awaiting activation by completed age" height={256} minWidth={0}>{portal => (
-          <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
-            <BarChart
-              data={chartData}
-              margin={{ top: 12, right: 16, left: -10, bottom: 20 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border-subtle)" />
-              <XAxis
-                dataKey="name"
-                tick={{ fontSize: 11, fill: 'var(--cx-text-secondary)' }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: 'var(--cx-text-secondary)' }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={formatChartAxis}
-              />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--cx-surface-subtle)' }} portal={portal ?? undefined} wrapperStyle={chartTooltipWrapperStyle} isAnimationActive={false} />
-              <Bar
-                dataKey="sales"
-                name="Sales"
-                radius={[4, 4, 0, 0]}
-                maxBarSize={48}
-                isAnimationActive={false}
-                className="cursor-pointer"
-                onClick={(entry: any) => {
-                  const b = entry?.raw || entry?.payload?.raw;
-                  if (b) onInspectBucket(b);
-                }}
-              >
-                {chartData.map((entry) => (
-                  <Cell
-                    key={entry.name}
-                    fill={BUCKET_COLORS[entry.name] || '#315BCB'}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        )}</CategoryChartFrame>
+      <div className="cx-sales-ageing-histogram">
+        {model.summary.salesWithoutActivation == null ? <p className="cx-viz-empty">Activation queue evidence unavailable.</p> : <>
+          <EvidenceBars title="Completed-day distribution" description="Each recorded sale appears in one age cohort. Bar length shows the returned count; colour indicates age, not a performance target."
+            items={buckets.filter(bucket => !bucket.isInvalidFuture).map(bucket => ({ key: bucket.bucket, label: bucket.bucket, value: bucket.sales,
+              detail: bucket.shareOfUnactivated == null ? 'Share unavailable' : `${formatPercent(bucket.shareOfUnactivated)} of observed backlog`, color: BUCKET_COLORS[bucket.bucket] }))}
+            onSelect={key => { const bucket = buckets.find(item => item.bucket === key); if (bucket) onInspectBucket(bucket); }} />
+          {buckets.filter(bucket => bucket.isInvalidFuture).map(bucket => <button type="button" key={bucket.bucket} className="cx-sales-ageing-anomaly" data-state={bucket.sales > 0 ? 'anomaly' : 'zero'} onClick={() => onInspectBucket(bucket)}>
+            <AlertTriangle size={18} aria-hidden="true" /><span><strong>Future sale timestamps</strong><small>Chronology evidence, excluded from the completed-age distribution above</small></span><b>{formatTableNumber(bucket.sales)}</b>
+          </button>)}
+        </>}
       </div>
 
+      {model.summary.salesWithoutActivation != null && <details className="cx-evidence-disclosure"><summary>View exact ageing evidence</summary>
       {/* Precise Supporting Table in Unified Analytical Region */}
       <div className="cx-performance-table-wrap">
         <table className="cx-performance-table w-full text-left border-collapse">
@@ -171,15 +91,15 @@ export default function ActivationAgeing({
                 key={b.bucket}
                 onClick={() => onInspectBucket(b)}
                 className={`cursor-pointer transition-colors hover:bg-surface-subtle ${
-                  b.isInvalidFuture ? 'bg-semantic-neg-bg hover:bg-semantic-neg-bg' : ''
+                  b.isInvalidFuture && b.sales > 0 ? 'bg-semantic-neg-bg hover:bg-semantic-neg-bg' : ''
                 }`}
               >
                 <th className="py-2.5 px-3 text-xs font-semibold text-text-main flex items-center gap-2">
                   <span
                     className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
-                    style={{ background: BUCKET_COLORS[b.bucket] || '#315BCB' }}
+                    style={{ background: BUCKET_COLORS[b.bucket] || 'var(--cx-text-muted)' }}
                   />
-                  <span>{b.bucket}</span>
+                  <button type="button" onClick={event => { event.stopPropagation(); onInspectBucket(b); }} className="cx-admin-text-button" aria-label={`Inspect ${b.bucket} activation ageing`}>{b.bucket}</button>
                 </th>
                 <td className="py-2.5 px-3 text-xs text-text-sec">
                   {b.description}
@@ -191,7 +111,7 @@ export default function ActivationAgeing({
                   {b.shareOfUnactivated !== null ? formatPercent(b.shareOfUnactivated) : '—'}
                 </td>
                 <td className="py-2.5 px-3 text-xs text-right">
-                  {b.isInvalidFuture ? (
+                  {b.isInvalidFuture && b.sales > 0 ? (
                     <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-semantic-neg">
                       <AlertTriangle size={11} /> Timestamp error
                     </span>
@@ -211,14 +131,15 @@ export default function ActivationAgeing({
               <th className="py-2.5 px-3 text-xs">Total observed backlog</th>
               <td className="py-2.5 px-3 text-xs text-text-sec">Complete non-overlapping age queue</td>
               <td className="py-2.5 px-3 text-xs font-mono text-right">{formatTableNumber(ageing.totalUnactivated)}</td>
-              <td className="py-2.5 px-3 text-xs text-right">100.0%</td>
+              <td className="py-2.5 px-3 text-xs text-right">{ageing.totalUnactivated > 0 ? '100.0%' : '—'}</td>
               <td className="py-2.5 px-3 text-xs text-right text-text-sec">
-                {ageing.hasInvalidFuture ? `${formatTableNumber(ageing.invalidFuture)} anomalies` : 'Queue verified'}
+                {ageing.hasInvalidFuture ? `${formatTableNumber(ageing.invalidFuture)} anomalies` : 'No future timestamps recorded'}
               </td>
             </tr>
           </tfoot>
         </table>
       </div>
+      </details>}
     </section>
   );
 }

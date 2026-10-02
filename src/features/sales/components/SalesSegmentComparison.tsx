@@ -1,22 +1,11 @@
-import React, { useMemo } from 'react';
-import { CategoryAxisTick, CategoryChartFrame, categoryPlotWidth, chartTooltipWrapperStyle } from '../../../components/charts/CategoryChartFrame';
-import {
-  ComposedChart,
-  Bar,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
+import React, { useMemo, useState } from 'react';
+import EvidenceBars from '../../../shared/visuals/EvidenceBars';
+import { lifecyclePresentation } from '../../../shared/visuals/lifecyclePresentation';
 import {
   Layers,
   Search,
   Download,
   ExternalLink,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
 import type {
   AdaptedSalesActivation,
@@ -27,8 +16,6 @@ import { formatWorkspaceCurrency } from '../model/salesActivationAdapter';
 import {
   formatTableNumber,
   formatPercent,
-  formatRatioPercent,
-  formatChartAxis,
 } from '../../../lib/formatters';
 
 interface SalesSegmentComparisonProps {
@@ -54,6 +41,8 @@ export default function SalesSegmentComparison({
   onInspectRow,
   onExportSegment,
 }: SalesSegmentComparisonProps) {
+  const [measure, setMeasure] = useState<'sales' | 'activations' | 'activationRatio' | 'revenuePerSale'>('sales');
+  const measureLabels = { sales: 'Recorded sales', activations: 'Recorded activations', activationRatio: 'Activation / sale ratio', revenuePerSale: 'Recorded revenue / sale' };
   const currency = model.summary.currency;
   const allRows: AdaptedSegmentRow[] = model.segments[activeDimension] || [];
 
@@ -64,11 +53,15 @@ export default function SalesSegmentComparison({
     return allRows.filter((r) => r.name.toLowerCase().includes(term));
   }, [allRows, search]);
 
-  // Chart data: sort by sales descending and slice top N unless showAllInChart is true
+  // Presentation ranking uses only the selected returned measure.
   const chartRows = useMemo(() => {
-    const sorted = [...allRows].sort((a, b) => b.sales - a.sales);
+    const sorted = [...filteredRows].sort((a, b) => {
+      const av = a[measure], bv = b[measure];
+      if (av == null || bv == null) return av == null ? (bv == null ? 0 : 1) : -1;
+      return bv - av;
+    });
     return showAllInChart ? sorted : sorted.slice(0, 8);
-  }, [allRows, showAllInChart]);
+  }, [filteredRows, showAllInChart, measure]);
 
   // Table summary totals (sum over all active dimension rows, never mixing dimensions!)
   const totals = useMemo(() => {
@@ -124,7 +117,7 @@ export default function SalesSegmentComparison({
 
         <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
           {/* Dimension Selector Tabs */}
-          <div className="inline-flex rounded-lg border border-border p-0.5 bg-surface-subtle" role="tablist">
+          <div className="inline-flex rounded-lg border border-border p-0.5 bg-surface-subtle" role="group" aria-label="Sales segment dimension">
             {(['vendor', 'source', 'grade'] as const).map((dim) => {
               const label = dim === 'vendor' ? 'Vendors' : dim === 'source' ? 'Sources' : 'Grades';
               const active = activeDimension === dim;
@@ -132,8 +125,7 @@ export default function SalesSegmentComparison({
                 <button
                   key={dim}
                   type="button"
-                  role="tab"
-                  aria-selected={active}
+                  aria-pressed={active}
                   onClick={() => onSelectDimension(dim)}
                   className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
                     active
@@ -160,125 +152,21 @@ export default function SalesSegmentComparison({
         </div>
       </header>
 
-      {/* Comparison Chart */}
-      <div className="p-4 bg-surface-subtle border-b border-border-subtle">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-text-main">
-            Volume & activation ratio ({showAllInChart ? `All ${allRows.length}` : `Top ${chartRows.length} by sales`})
-          </span>
-          {allRows.length > 8 && (
-            <button
-              type="button"
-              onClick={onToggleShowAllInChart}
-              className="text-xs text-action hover:text-action-hover font-medium flex items-center gap-1 cursor-pointer"
-            >
-              {showAllInChart ? (
-                <>Show top 8 <ChevronUp size={13} /></>
-              ) : (
-                <>Show all {allRows.length} in chart <ChevronDown size={13} /></>
-              )}
-            </button>
-          )}
+      <div className="p-4 border-b border-border-subtle">
+        <div className="cx-viz-toolbar">
+          <label>Compare <select aria-label="Sales segment comparison measure" value={measure} onChange={event => setMeasure(event.target.value as typeof measure)}>
+            {Object.entries(measureLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select></label>
+          {filteredRows.length > 8 && <button type="button" className="cx-button-secondary" onClick={onToggleShowAllInChart}>{showAllInChart ? 'Show top 8' : `Show all ${filteredRows.length}`}</button>}
         </div>
-
-        {chartRows.length > 0 ? (
-          <CategoryChartFrame title="Sales and activation by segment" height={320} minWidth={categoryPlotWidth(chartRows.length, 144)} legend={[
-            { label: 'Recorded sales', color: 'var(--cx-data-sales)' },
-            { label: 'Recorded activations', color: 'var(--cx-data-activation)' },
-            { label: 'Activation / sale ratio (%)', color: 'var(--cx-action)' },
-          ]}>{portal => (
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
-              <ComposedChart
-                data={chartRows}
-                margin={{ top: 12, right: 24, left: -10, bottom: 12 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border-subtle)" />
-                <XAxis dataKey="name" tick={<CategoryAxisTick />} axisLine={false} tickLine={false} interval={0} height={38} />
-                <YAxis
-                  yAxisId="volume"
-                  tick={{ fontSize: 11, fill: 'var(--cx-text-secondary)' }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={formatChartAxis}
-                />
-                <YAxis
-                  yAxisId="rate"
-                  orientation="right"
-                  domain={[0, 100]}
-                  tick={{ fontSize: 11, fill: 'var(--cx-text-secondary)' }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(val) => `${val}%`}
-                />
-                <Tooltip cursor={{ stroke: 'var(--cx-border)' }} portal={portal ?? undefined} wrapperStyle={chartTooltipWrapperStyle} isAnimationActive={false}
-                  content={({ active, payload, label }: any) => {
-                    if (!active || !payload?.length) return null;
-                    const r: AdaptedSegmentRow = payload[0]?.payload;
-                    return (
-                      <div className="cx-analytics-tooltip space-y-1.5">
-                        <div className="font-semibold text-text-main border-b border-border-subtle pb-1 font-mono">{label}</div>
-                        <div className="flex items-center justify-between text-text-sec">
-                          <span>Recorded sales:</span>
-                          <b className="font-mono tabular-nums">{formatTableNumber(r.sales)}</b>
-                        </div>
-                        <div className="flex items-center justify-between text-emerald-700 dark:text-emerald-400">
-                          <span>Recorded activations:</span>
-                          <b className="font-mono tabular-nums">{formatTableNumber(r.activations)}</b>
-                        </div>
-                        <div className="flex items-center justify-between text-action">
-                          <span>Activation / sale:</span>
-                          <b className="font-mono tabular-nums">{r.activationRatio !== null ? formatPercent(r.activationRatio) : '—'}</b>
-                        </div>
-                        <div className="flex items-center justify-between text-text-main border-t border-border-subtle pt-1">
-                          <span>Source revenue:</span>
-                          <b className="font-mono tabular-nums">{formatWorkspaceCurrency(r.revenue, currency)}</b>
-                        </div>
-                        <div className="text-[11px] text-action font-medium pt-1 font-sans">
-                          Click row below to inspect segment evidence
-                        </div>
-                      </div>
-                    );
-                  }}
-                />
-
-                <Bar
-                  yAxisId="volume"
-                  dataKey="sales"
-                  name="Recorded sales"
-                  fill="var(--cx-data-sales)"
-                  radius={[3, 3, 0, 0]}
-                  maxBarSize={32}
-                  isAnimationActive={false}
-                />
-                <Bar
-                  yAxisId="volume"
-                  dataKey="activations"
-                  name="Recorded activations"
-                  fill="var(--cx-data-activation)"
-                  radius={[3, 3, 0, 0]}
-                  maxBarSize={32}
-                  isAnimationActive={false}
-                />
-                <Line
-                  yAxisId="rate"
-                  type="monotone"
-                  dataKey="activationRatio"
-                  name="Activation / sale ratio (%)"
-                  stroke="var(--cx-action)"
-                  strokeWidth={2}
-                  dot={{ r: 3, fill: 'var(--cx-surface)', strokeWidth: 2 }}
-                  activeDot={{ stroke: 'var(--cx-surface)' }}
-                  connectNulls={true}
-                  isAnimationActive={false}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          )}</CategoryChartFrame>
-        ) : (
-          <div className="py-8 text-center text-xs text-text-sec">
-            No segment records observed for {dimensionTitle.toLowerCase()}s in this reporting period.
-          </div>
-        )}
+        <EvidenceBars title={measureLabels[measure]} description={`${showAllInChart ? 'All' : 'Top 8'} matching ${dimensionTitle.toLowerCase()} groups by the selected returned measure. Select a row to inspect.`}
+          items={chartRows.map(row => ({ key: row.name, label: row.name, value: row[measure],
+            displayValue: measure === 'activationRatio' ? formatPercent(row.activationRatio) : measure === 'revenuePerSale' ? formatWorkspaceCurrency(row.revenuePerSale, currency) : formatTableNumber(row[measure]),
+            detail: `${formatTableNumber(row.sales)} sales · ${formatTableNumber(row.activations)} activations`,
+            color: measure === 'sales' ? lifecyclePresentation.sales.color : measure === 'activations' || measure === 'activationRatio' ? lifecyclePresentation.activated.color : 'var(--cx-text-secondary)',
+          }))}
+          onSelect={key => { const row = chartRows.find(item => item.name === key); if (row) onInspectRow(row); }}
+          scaleNote={measure === 'activationRatio' ? 'Independent-count ratios may exceed 100%. Bar length shares the largest displayed value; no nesting or conversion is assumed.' : 'Bars share the largest displayed value. Unavailable values remain separate from observed zero.'} />
       </div>
 
       {/* Table Toolbar / Search */}
@@ -287,6 +175,7 @@ export default function SalesSegmentComparison({
           <Search size={14} className="absolute left-2.5 top-2.5 text-text-muted" />
           <input
             type="text"
+            aria-label={`Filter ${dimensionTitle.toLowerCase()}s`}
             placeholder={`Filter ${dimensionTitle.toLowerCase()}s…`}
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
@@ -298,6 +187,7 @@ export default function SalesSegmentComparison({
         </div>
       </div>
 
+      <details className="cx-evidence-disclosure"><summary>View exact segment evidence</summary>
       {/* Exact Supporting Table */}
       <div role="region" aria-label="Sales segment evidence table" tabIndex={0} className="cx-sales-segment-scroll cx-performance-table-wrap">
         <table className="cx-performance-table cx-sales-segment-table w-full text-left border-collapse">
@@ -344,9 +234,7 @@ export default function SalesSegmentComparison({
                   )}
                 </td>
                 <td className="py-2.5 px-3 text-xs text-right">
-                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-action hover:text-action-hover">
-                    Inspect <ExternalLink size={10} />
-                  </span>
+                  <button type="button" className="cx-admin-text-button" onClick={event => { event.stopPropagation(); onInspectRow(row); }} aria-label={`Inspect ${row.name} sales evidence`}>Inspect <ExternalLink size={10} /></button>
                 </td>
               </tr>
             ))}
@@ -375,6 +263,7 @@ export default function SalesSegmentComparison({
           </tfoot>
         </table>
       </div>
+      </details>
     </section>
   );
 }
