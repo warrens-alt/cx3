@@ -1,6 +1,11 @@
 import type { RootCauseData } from '../../lib/offernetClient';
 
 export const OPERATIONAL_DRIVER_METRICS = ['fetchedLeads', 'deliveryRate', 'dialRate', 'contactRate', 'leadToSaleRate', 'activationRate'] as const;
+/** Exact existing registry identities for the operational root-cause measures. */
+export const OPERATIONAL_DRIVER_METRIC_IDS: Record<typeof OPERATIONAL_DRIVER_METRICS[number], string> = {
+  fetchedLeads: 'fetched_leads', deliveryRate: 'delivery_rate', dialRate: 'dial_rate',
+  contactRate: 'rpc_rate', leadToSaleRate: 'sales_per_fetched_rate', activationRate: 'activation_rate',
+};
 export const MARKETING_DRIVER_METRICS = ['spend', 'cpc', 'cpm', 'cpl', 'ctr', 'leads'] as const;
 export type DriverDimension = RootCauseData['dimensions'][number]['key'];
 export const DRIVER_SEGMENT_PARAMS: Record<DriverDimension, string> = {

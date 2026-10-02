@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { X, Pin } from 'lucide-react';
+import { X, Pin, Maximize2, Minimize2 } from 'lucide-react';
+import { useDialogAccessibility } from '../../hooks/useDialogAccessibility';
 import { useClient } from '../../lib/ClientContext';
 import { useFilters } from '../../lib/FilterContext';
 import { useAuth } from '../../lib/AuthContext';
@@ -85,7 +86,8 @@ export default function LeadDossier({ row, result, investigation, scopeKey, time
   const previousInitialTab = useRef(initialTab);
   useEffect(() => { if (previousInitialTab.current !== initialTab) { previousInitialTab.current = initialTab; setTab(initialTab); } }, [initialTab]);
   useEffect(() => { if (sourceFocusFields) setFocusFields(sourceFocusFields); }, [sourceFocusFields]);
-  const root = useRef<HTMLElement>(null);
+  const [focused, setFocused] = useState(false);
+  const root = useDialogAccessibility<HTMLElement>(focused, () => setFocused(false));
   const tabsId = useId();
   const visibleTabs = isAdmin ? tabs : tabs.filter(value => value !== 'Source');
   const activeTab = !isAdmin && tab === 'Source' ? 'Audit' : tab;
@@ -109,10 +111,10 @@ export default function LeadDossier({ row, result, investigation, scopeKey, time
   ];
   const source = (requested: string[]) => { if (!isAdmin) return; setFocusFields(requested); setTab('Source'); };
   const currentTimeline = analytical && timeline?.leadId === leadId ? timeline : null;
-  const pinEvent = (event: LedgerTimelineEvent) => onPin?.({ type: 'timeline-event', label: `${leadId} · ${event.title}`, value: event.timestamp || 'Timestamp unavailable', definition: event.description, identifier: leadId, observedAt: event.timestamp || undefined, provenance: event.evidenceFields.map(field => `${field.label}: ${evidenceText(field.value)}`) });
+  const pinEvent = (event: LedgerTimelineEvent) => onPin?.({ type: 'timeline-event', label: `${leadId} · ${event.title}`, value: event.timestamp || 'Timestamp unavailable', definition: event.description, identifier: `${leadId}:${event.id}`, observedAt: event.timestamp || undefined, provenance: event.evidenceFields.map(field => `${field.label}: ${evidenceText(field.value)}`) });
   const analyticalUnavailable = <><p>Normalized analytical evidence is unavailable for this source identity. Original source fields remain in Source; they are not substituted for analytical milestones, qualification, calls or outcomes.</p>{onRequestAnalytical && <button type="button" className="cx-button-secondary" disabled={analyticalLoading} onClick={onRequestAnalytical}>{analyticalLoading ? 'Loading analytical evidence…' : 'Load analytical evidence'}</button>}{analyticalLoading && <p role="status">Looking for an exact analytical lead match in the current population…</p>}{analyticalError && <p role="alert">{analyticalError}</p>}</>;
-  return <aside ref={root} id={id} className="cx-lead-dossier" tabIndex={-1} aria-label={isAdmin ? `Lead dossier for ${leadId || 'unresolved source lead'}` : 'Lead dossier'}>
-    <header className="cx-dossier-heading"><div><span className="cx-command-section-kicker">Lead dossier</span><h2>{isAdmin ? leadId || (sourceLead ? 'Unresolved source lead' : 'Lead identity unavailable') : 'Restricted evidence'}</h2>{isAdmin && <><p>{validation} · {analytical ? 'normalized lead evidence' : 'original source evidence'}</p><dl className="cx-dossier-identity">{identityFields.filter(([, value]) => value != null && value !== '').map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{evidenceText(value)}</dd></div>)}</dl></>}</div><button type="button" onClick={onClose} aria-label="Close lead dossier"><X size={17} /></button></header>
+  return <aside ref={root} id={id} className={`cx-lead-dossier${focused ? ' is-focused' : ''}`} role={focused ? 'dialog' : undefined} aria-modal={focused || undefined} tabIndex={-1} aria-label={isAdmin ? `Lead dossier for ${leadId || 'unresolved source lead'}` : 'Lead dossier'} onKeyDown={event => { if (event.key === 'Escape' && !focused && !document.querySelector('[role="dialog"][aria-modal="true"]')) { event.stopPropagation(); onClose(); } }}>
+    <header className="cx-dossier-heading"><div><span className="cx-command-section-kicker">Lead dossier</span><h2>{isAdmin ? leadId || (sourceLead ? 'Unresolved source lead' : 'Lead identity unavailable') : 'Restricted evidence'}</h2>{isAdmin && <><p>{validation} · {analytical ? 'normalized lead evidence' : 'original source evidence'}</p><dl className="cx-dossier-identity">{identityFields.filter(([, value]) => value != null && value !== '').map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{evidenceText(value)}</dd></div>)}</dl></>}</div><div className="cx-dossier-window-actions"><button type="button" onClick={() => setFocused(value => !value)} aria-label={focused ? 'Exit lead dossier focus' : 'Focus lead dossier'} aria-pressed={focused}>{focused ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button><button type="button" onClick={onClose} aria-label="Close lead dossier"><X size={17} /></button></div></header>
     {!isAdmin ? <p role="status">Lead evidence is restricted to authorised administrators.</p> : <>
     <div className="cx-dossier-inclusion"><strong>{analytical ? 'Why included' : 'Source population'}</strong><p>{reason}</p>{analytical?.row.investigationReason?.detail && <small>{analytical.row.investigationReason.detail}</small>}{onPin && analytical && <button type="button" className="cx-button-secondary" onClick={() => onPin({ type: 'lead', label: leadId, value: reason, definition: analytical.row.investigationReason?.detail || 'Returned investigation record', identifier: leadId, observedAt: analytical.result.generatedAt, provenance: returnedEvidenceFields(analytical.result).map(field => `${field.label}: ${field.value}`) })}><Pin size={13} />Pin lead evidence</button>}</div>
     <p className="cx-dossier-note">{analytical ? 'One normalized lead row' : 'No normalized lead row loaded'}{currentSourceLead ? ` · ${currentSourceLead.records.length} original source records` : ' · original source records not loaded'}. These evidence grains remain separate; matching identifiers do not establish reconciliation.</p>

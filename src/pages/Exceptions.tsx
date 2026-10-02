@@ -1,13 +1,12 @@
 import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
 import InvestigationEvidenceWorkspace from '../features/investigation/InvestigationEvidenceWorkspace';
 import InvestigationWorkflow from '../features/investigation/InvestigationWorkflow';
-import InvestigationQuickStarts from '../features/investigation/InvestigationQuickStarts';
+import InvestigationCaseRail from '../features/investigation/InvestigationCaseRail';
 import { useInvestigationAnalysis } from '../features/investigation/useInvestigationAnalysis';
 import DriverAnalysis from '../features/investigation/DriverAnalysis';
 import EvidenceConfidence from '../features/investigation/EvidenceConfidence';
 import { useEvidenceTray } from '../features/investigation/EvidenceTray';
 import InvestigationAI from '../features/investigation/InvestigationAI';
-import SavedInvestigations from '../features/investigation/SavedInvestigations';
 import { investigationPath, investigationRequest } from '../features/investigation/investigationModel';
 import { ReportSkeleton } from '../components/OperationalState';
 import { ReportActions } from '../shared/reporting/ReportPresentation';
@@ -99,14 +98,12 @@ export default function Exceptions() {
   );
 
   return (
-    <AnalyticsPageLayout title="Investigation inbox" description="Find a signal, diagnose the affected population, and follow its records to supporting evidence."
+    <AnalyticsPageLayout title="Investigate" description="Follow a signal through its population, records and evidence to an explicit analyst conclusion."
       ariaLabel="Investigate workspace" className="cx-trust-workspace"
       actions={<ReportActions aboutContent={<p>Operational rules: {queue.data?.validationStatus || data?.validationStatus || 'NOT_VERIFIED'}</p>} />}
       scope={<OffernetFilterBar onRefresh={async () => { analysis.refresh(); await Promise.all([queue.loadData(true), ...(showOverview ? [loadData(true), controls.refetch()] : [])]); }} />}>
         <InvestigationWorkflow analysis={analysis.summary} requestError={activeMetric ? analysis.summary?.state === 'unavailable' ? analysis.summary.detail : null : queue.error} evidenceCount={pinnedEvidence.length} populationCount={selectedException?.count} validationStatus={activeMetric ? analysis.summary?.validationStatus : queue.data?.validationStatus} loading={activeMetric ? !analysis.summary || analysis.summary.state === 'loading' : queue.loading} receivedAt={activeMetric ? undefined : queue.receivedAt} />
-        <InvestigationEvidenceWorkspace confidence={activeDrill || activeMetric ? <EvidenceConfidence /> : undefined}>
-        <div className="cx-investigation-case-tools"><SavedInvestigations />
-        <details className="cx-investigation-new-signal" open={!activeDrill && !activeMetric}><summary>{activeDrill || activeMetric ? 'Start another investigation' : 'Start an investigation'}</summary><InvestigationQuickStarts /></details></div>
+        <InvestigationEvidenceWorkspace confidence={activeDrill || activeMetric ? <EvidenceConfidence /> : undefined} signals={<InvestigationCaseRail signals={queue.error ? undefined : ordered} populationCount={selectedException?.count} validationStatus={activeMetric ? analysis.summary?.validationStatus : queue.data?.validationStatus} />}>
         {(activeDrill || activeMetric) && <><DriverAnalysis summaryScopeKey={analysis.scopeKey} refreshToken={analysis.refreshToken} onSummary={analysis.onSummary} exceptionData={activeMetric ? undefined : queue.data} exceptionError={queue.error} onPin={item => pin(item, { validationStatus: queue.data?.validationStatus || 'NOT_VERIFIED' })} />
           {isAdmin && <p className="mb-4"><Link className="cx-button-primary" to={investigationPath('/lead-explorer', searchParams)}>Inspect affected records<ArrowRight size={14}/></Link></p>}
         </>}
@@ -145,7 +142,7 @@ export default function Exceptions() {
               />
             </section>}
 
-            <AuditMetadata grain="Distinct lead per exception" dateBasis="Lead capture cohort" validationStatus={queue.data?.validationStatus} />
+            {showOverview && <><AuditMetadata grain="Distinct lead per exception" dateBasis="Lead capture cohort" validationStatus={queue.data?.validationStatus} />
             {queue.loading && !queue.data ? (
               <div className="cx-command-panel p-6 text-center text-text-mute text-xs flex items-center justify-center gap-2">
                 <div className="cx-command-spinner" />
@@ -160,7 +157,7 @@ export default function Exceptions() {
                 evidenceHref={id => isAdmin ? recordLink(id) : scoped('/data-integrity')} />
             ) : queue.data && !queue.error ? (
               <div className="cx-command-empty" role="status">No configured operational exception currently has an affected population.</div>
-            ) : null}
+            ) : null}</>}
 
             {!(activeDrill || activeMetric) && controls.data && <ContactGovernancePanel
               data={controls.data}

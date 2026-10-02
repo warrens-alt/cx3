@@ -61,7 +61,7 @@ test('evidence tray pins preserve scope across routes and clear at workspace bou
     Object.getOwnPropertyDescriptor(a.w.HTMLTextAreaElement.prototype,'value').set.call(note,'Evidence supports a review, not a causal claim.');
     note.dispatchEvent(new a.w.Event('input',{bubbles:true}));
     await a.wait(()=>a.find('textarea')?.value.includes('Evidence supports'));
-    a.w.__fixture.navigate('/data-integrity?'+query);await a.wait(()=>a.find('h1','Data'));
+    a.w.__fixture.navigate('/data-integrity?'+query);await a.wait(()=>a.find('h1','Evidence'));
     a.w.__fixture.navigate('/lead-explorer?'+query);await a.wait(()=>a.find('.cx-investigation-tray')?.textContent.includes('1 pinned'));
     assert.equal(a.find('textarea').value,'Evidence supports a review, not a causal claim.');
     a.w.__fixture.navigate('/lead-explorer?'+query.replace('synthetic-a','synthetic-b'));await a.wait(()=>a.find('.cx-investigation-tray')?.textContent.includes('0 pinned'));
@@ -75,6 +75,34 @@ test('context shows predicate and separate removable narrowing with NOT_VERIFIED
     const params=new URL(a.w.__fixture.location,'https://test.invalid').searchParams;assert.equal(params.get('drill'),'awaiting-first-dial');assert.equal(params.get('vendor'),'Vendor A');
     a.find('button','Clear investigation').click();await a.wait(()=>!new URL(a.w.__fixture.location,'https://test.invalid').searchParams.has('drill'));assert.equal(new URL(a.w.__fixture.location,'https://test.invalid').searchParams.get('vendor'),'Vendor A');
   }finally{a.close()}
+});
+test('dossier focus preserves its selected tab and query owners while distinct timeline pins remain distinct',async()=>{
+  const app=await mount();try{
+    app.w.HTMLElement.prototype.getClientRects=function(){return this.isConnected&&!this.closest('[hidden]')?[new app.w.DOMRect(0,0,100,30)]:[];};
+    app.find('button','Open dossier for lead').click();await app.wait(()=>app.find('.cx-lead-dossier'));
+    app.find('[role=tab]','Journey').click();await app.wait(()=>app.find('.cx-journey-spine'));
+    const dossier=app.find('.cx-lead-dossier');
+    const milestones=[...dossier.querySelectorAll('.cx-journey-spine .cx-journey-event')] as HTMLButtonElement[];
+    assert.ok(milestones.length>=2,'Fixture supplies at least two separate lifecycle milestones');
+    for(const milestone of milestones.slice(0,2)){
+      milestone.click();await app.wait(()=>app.find('button','Pin timeline event'));
+      app.find('button','Pin timeline event').click();
+    }
+    await app.wait(()=>app.find('#investigation-evidence-tray').textContent.includes('2 pinned observations'));
+    const identifiers=[...app.w.document.querySelectorAll('.cx-investigation-pin-list li details')].map((element:any)=>element.textContent.match(/Identifier: ([^ ]+)/)?.[1]);
+    assert.equal(new Set(identifiers).size,2,'Pin identity includes the timeline event, so a second milestone does not overwrite the first');
+    const before=[...app.w.__fixture.requests];
+    const focus=app.find('button','Focus lead dossier');focus.focus();focus.click();
+    await app.wait(()=>dossier.getAttribute('role')==='dialog');
+    assert.equal(dossier.getAttribute('aria-modal'),'true');
+    assert.match(dossier.querySelector('[role=tab][aria-selected=true]').textContent,/Journey/);
+    app.w.document.dispatchEvent(new app.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+    await app.wait(()=>!dossier.hasAttribute('role'));
+    assert.equal(app.find('.cx-lead-dossier'),dossier);
+    assert.equal(app.w.document.activeElement,focus);
+    assert.deepEqual([...app.w.__fixture.requests],before,'Focus uses the existing dossier and timeline subtree');
+    assert.equal(new URL(app.w.__fixture.location,'https://test.invalid').searchParams.has('leadId'),false);
+  }finally{app.close()}
 });
 test('contextual confidence never certifies an absent delivery source or unknown validation',async()=>{
   const a=await mount();try{await a.wait(()=>a.find('[aria-label="Evidence confidence for this question"]'));
@@ -119,8 +147,8 @@ test('six-stage workspace uses returned scope and driver values without adding a
     assert.equal(requests.filter(url=>url.includes('/exceptions?')).length,1,'Header and driver must reuse the queue response');
     assert.equal(requests.filter(url=>/raw-leads|lead-timeline|root-cause|offernet\/overview|operating-controls|ai-insights/.test(url)).length,0);
     assert.equal(requests.filter(url=>url.includes('/data-integrity?')).length,1);
-    assert.equal(app.find('.cx-investigation-new-signal').open,false);
-    stage(app,'signal').click();await app.wait(()=>app.find('.cx-investigation-new-signal').open);
+    assert.equal(app.find('.cx-investigation-case-rail').open,false);
+    stage(app,'signal').click();await app.wait(()=>app.find('.cx-investigation-case-rail').open);
     stage(app,'diagnose').click();await app.wait(()=>stage(app,'diagnose').getAttribute('aria-current')==='step');
     stage(app,'segment').click();await app.wait(()=>app.w.document.activeElement?.id==='investigation-segment');
     assert.equal(new URL(app.w.__fixture.location,'https://test.invalid').searchParams.get('segmentSource'),'Source A');
@@ -170,6 +198,11 @@ test('large-desktop evidence rail starts expanded with exactly one evidence stat
     assert.equal(app.w.document.querySelectorAll('#investigation-conclusion').length,1);
     assert.equal(app.w.__fixture.requests.filter((url:string)=>url.includes('/data-integrity?')).length,1);
     assert.equal(app.find('.cx-investigation-definition').open,false,'Detailed provenance is progressively disclosed');
+    assert.equal(app.find('.cx-investigation-case-rail').open,true);
+    assert.match(app.find('[aria-label="Active signal"]').textContent,/Awaiting first dial.*7 affected leads.*NOT_VERIFIED/);
+    assert.equal(app.w.document.querySelectorAll('[aria-label="Signals and case context"]').length,1);
+    assert.equal(app.w.document.querySelectorAll('.cx-investigation-comparison').length,1);
+    assert.equal(app.find('[data-period=previous] .cx-investigation-comparison-track i'),undefined);
     assert.match(app.find('.cx-investigation-summary-status').textContent,/NOT_VERIFIED/);
     app.find('.cx-investigation-definition').open=true;
     app.find('button','Change scope').click();

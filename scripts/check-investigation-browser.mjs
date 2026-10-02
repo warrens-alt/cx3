@@ -39,13 +39,13 @@ const waitText = value => page.getByText(value, { exact: false }).first().waitFo
 const step = name => page.locator(`nav[aria-label="Investigation workflow"] [data-stage="${name}"]`);
 const stageDescription = name => step(name).evaluate(element => document.getElementById(element.getAttribute('aria-describedby'))?.textContent || '');
 const waitStage = (name, value) => page.waitForFunction(({ name, value }) => document.querySelector(`[data-stage="${name}"]`)?.textContent.includes(value), { name, value });
-const check = async (name, action) => { await action(); checks.push({ name, passed: true }); console.log(`PASS: ${name}`); };
+const check = async (name, action) => { if (process.env.CX_BROWSER_QA_CHECK && !name.includes(process.env.CX_BROWSER_QA_CHECK)) return; await action(); checks.push({ name, passed: true }); console.log(`PASS: ${name}`); };
 const visit = async (url = '/investigate' + scope + '&drill=awaiting-first-dial') => { await page.goto(origin + url); await page.getByRole('navigation', { name: 'Investigation workflow', exact: true }).waitFor(); };
 const settle = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
 let failure;
 try {
   await check('Page identity, meaningful screen and six accessible stages', async () => {
-    await visit(); assert.equal(await page.title(), 'Investigation inbox · ConversionX');
+    await visit(); assert.equal(await page.title(), 'Investigate · ConversionX');
     await waitStage('signal', 'Current 20'); assert.equal(await page.locator('[data-stage]').count(), 6);
     assert.match(await text(), /NOT_VERIFIED/); assert.equal(await step('diagnose').getAttribute('aria-current'), 'step');
     assert.equal(await page.locator('vite-error-overlay').count(), 0);
@@ -119,8 +119,8 @@ try {
     const download = page.waitForEvent('download'); await page.getByRole('button', { name: 'Export pinned evidence' }).click();
     const csv = await readFile(await (await download).path(), 'utf8'); assert.match(csv, /NOT_VERIFIED/); assert.match(csv, /Synthetic analyst note/);
   });
-  await check('Responsive 1440/820/390 layouts in light/dark themes have no document overflow', async () => {
-    for (const theme of ['light', 'dark']) for (const width of [1440, 820, 390]) {
+  await check('Responsive 1440/1024/820/390/320 layouts in light/dark themes have no document overflow', async () => {
+    for (const theme of ['light', 'dark']) for (const width of [1440, 1024, 820, 390, 320]) {
       await page.setViewportSize({ width, height: width === 820 ? 1180 : width === 390 ? 844 : 1000 });
       await page.evaluate(theme => { localStorage.setItem('cx-theme', theme); document.documentElement.dataset.theme = theme; document.documentElement.classList.toggle('dark', theme === 'dark'); }, theme);
       await page.locator('[aria-label="Investigation context"]').scrollIntoViewIfNeeded(); await settle();
@@ -220,6 +220,138 @@ try {
       assert.equal(requests.filter(url => url.includes('/offernet/root-cause')).length, before + 1);
       assert.equal(requests.filter(url => /\/offernet\/(overview|operating-controls)/.test(url)).length, 0);
     }
+  });
+  await check('Dossier focus retains the same evidence and separate timeline events can both be pinned', async () => {
+    await visit('/lead-explorer' + scope + '&drill=awaiting-first-dial');
+    await page.getByRole('button', { name: /Open dossier for lead/ }).first().click();
+    await page.getByRole('tab', { name: 'Journey', exact: true }).click();
+    const events = page.locator('.cx-journey-spine .cx-journey-event');
+    assert.ok(await events.count() >= 2);
+    for (const index of [0, 1]) {
+      await events.nth(index).click();
+      await page.getByRole('button', { name: 'Pin timeline event', exact: true }).click();
+    }
+    assert.match(await stageDescription('evidence'), /2 session observations pinned/);
+    const before = await page.evaluate(() => [...window.__fixture.requests]);
+    const focus = page.getByRole('button', { name: 'Focus lead dossier', exact: true });
+    await focus.click();
+    const dialog = page.getByRole('dialog', { name: /Lead dossier for/ });
+    await dialog.waitFor();
+    assert.equal(await dialog.getAttribute('aria-modal'), 'true');
+    const focusedBounds = await dialog.boundingBox();
+    assert.ok(focusedBounds && focusedBounds.y <= 17 && focusedBounds.height >= 900, 'Focused dossier must use the viewport rather than retain inline sticky offsets');
+    assert.equal(await dialog.getByRole('tablist', { name: 'Lead dossier sections', exact: true }).getByRole('tab', { name: 'Journey', exact: true }).getAttribute('aria-selected'), 'true');
+    assert.equal(await page.evaluate(() => document.querySelector('.cx-main').style.overflow), 'hidden');
+    await page.screenshot({ path: path.join(output, 'dossier-focus.png') }); screenshots.push('dossier-focus.png');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.getByRole('dialog', { name: /Lead dossier for/ }).count(), 0);
+    assert.equal(await focus.evaluate(element => element === document.activeElement), true);
+    assert.deepEqual(await page.evaluate(() => [...window.__fixture.requests]), before);
+    assert.equal(new URL(page.url()).searchParams.has('leadId'), false);
+  });
+  await check('RPC decline moves from Command through exact drivers, records, source, audit, notes and evidence export', async () => {
+    const leadId = 'SYNTHETIC-LEAD-0001-very-long-identity-for-responsive-checks';
+    await page.goto(origin + '/command' + scope + '&vendor=Synthetic%20vendor&source=synthetic-source');
+    await page.getByRole('heading', { name: 'What changed?', exact: true }).waitFor();
+    await page.evaluate(async leadId => {
+      const payloads = window.__fixture.payloads;
+      const overview = payloads['/api/analytics/offernet/overview'];
+      overview.kpis.contactRate = 18.6;
+      overview.comparison = { fetchedDelta: null, deliveryRateDelta: null, dialRateDelta: null, contactRateDelta: -2.4, saleRateDelta: null, activationRateDelta: null };
+      overview.comparisonWindow = { startDate: '2026-09-27', endDate: '2026-09-27' };
+      // This fixture must answer the actual contactRate request. Reusing the
+      // default fetchedLeads payload would conceal a broken analytical handoff.
+      payloads['/api/analytics/offernet/root-cause'] = {
+        metric: { id: 'contactRate', label: 'RPC rate', kind: 'rate', currentValue: 18.6, previousValue: 21, delta: -2.4, deltaUnit: 'pp' },
+        currentWindow: { startDate: '2026-09-28', endDate: '2026-09-28' }, previousWindow: { startDate: '2026-09-27', endDate: '2026-09-27' },
+        dimensions: [{ key: 'vendor', label: 'Vendor', reconciliationStatus: 'RECONCILED', residual: 0, segments: [{ name: 'Synthetic vendor', currentValue: 18.6, previousValue: 21, currentNumerator: 186, currentDenominator: 1000, previousNumerator: 210, previousDenominator: 1000, contribution: -2.4, shareOfDelta: 100 }] }],
+        drivers: [], methodology: 'Synthetic matched-period RPC evidence. Arithmetic contribution agreement does not establish cause or certify source evidence.', validationStatus: 'NOT_VERIFIED',
+      };
+      payloads['/api/analytics/offernet/raw-leads'] = {
+        clientId: 'synthetic-a', startDate: '2026-09-28', endDate: '2026-09-28', segmentVendor: 'Synthetic vendor', metricId: 'rpc_rate', countingGrain: 'Distinct lead', dateBasis: 'Lead capture cohort', validationStatus: 'NOT_VERIFIED', totalCount: 1, limit: 50, offset: 0,
+        rows: [{ lead_id: leadId, consumer_id: 'SYNTHETIC-CONSUMER', vendor: 'Synthetic vendor', source: 'synthetic-source', fetched: '2026-09-28T09:00:00Z', delivered_time: '2026-09-28T10:00:00Z', qualified_delivery: true, dialled: true, contacted: false, sale: null, activated: null, total_calls: null, revenue: null,
+          investigationReason: { code: 'REPORTING_POPULATION', label: 'Selected vendor reporting population', detail: 'Synthetic lead from the selected capture cohort and vendor. A rate change does not identify a causal or failing subset.' } }],
+      };
+      await window.__fixture.refresh();
+    }, leadId);
+    await page.getByRole('button', { name: 'Investigate Right-party contact change: -2.4pp', exact: true }).click();
+    await waitStage('signal', 'Current 18.6%');
+    const expectedScope = { clientId: 'synthetic-a', startDate: '2026-09-28', endDate: '2026-09-28', vendor: 'Synthetic vendor', source: 'synthetic-source', investigationMetric: 'contactRate' };
+    const assertCaseScope = () => {
+      const query = new URL(page.url()).searchParams;
+      for (const [key, value] of Object.entries(expectedScope)) assert.equal(query.get(key), value, key);
+      for (const key of ['leadId', 'selectedLeadId', 'consumerId']) assert.equal(query.has(key), false, key);
+    };
+    assertCaseScope();
+    const driver = page.locator('.cx-driver-analysis');
+    assert.match(await driver.locator('.cx-driver-summary').innerText(), /18\.6%.*21%.*-2\.4\s+pp/s);
+    assert.match(await driver.locator('.cx-investigation-comparison').innerText(), /2026-09-28.*2026-09-27/s);
+    let requests = await page.evaluate(() => [...window.__fixture.requests]);
+    const rootRequest = new URL(requests.find(url => url.includes('/offernet/root-cause')), origin);
+    assert.equal(rootRequest.searchParams.get('metric'), 'contactRate');
+    assert.equal(requests.some(url => url.includes('/offernet/raw-leads')), false);
+    await driver.getByRole('button', { name: 'Audit evidence: RPC rate', exact: true }).click();
+    const inspector = page.getByRole('dialog', { name: 'RPC rate', exact: true });
+    await inspector.waitFor();
+    assert.match(await inspector.innerText(), /NOT_VERIFIED/);
+    await inspector.getByText('How this is calculated', { exact: true }).click();
+    assert.match(await inspector.innerText(), /RPC leads \/ Dialled leads/);
+    await inspector.getByText('Metric definition & technical details', { exact: true }).click();
+    assert.match(await inspector.innerText(), /rpc_rate/);
+    await inspector.getByRole('button', { name: 'Close inspector', exact: true }).click();
+    await driver.getByRole('button', { name: 'Pin evidence', exact: true }).click();
+    await driver.getByRole('button', { name: 'Pin Synthetic vendor evidence', exact: true }).click();
+    for (const width of [320, 390, 820, 1024, 1440]) {
+      await page.setViewportSize({ width, height: 1000 }); await settle();
+      const sizes = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, main: document.querySelector('.cx-main')?.clientWidth, mainScroll: document.querySelector('.cx-main')?.scrollWidth }));
+      assert.ok(sizes.document <= width + 1 && sizes.mainScroll <= sizes.main + 1, `RPC driver layout at ${width}: ${JSON.stringify(sizes)}`);
+    }
+    await page.evaluate(() => document.querySelector('.cx-main')?.scrollTo({ top: 0 })); await settle();
+    await page.screenshot({ path: path.join(output, 'rpc-case-diagnosis.png') }); screenshots.push('rpc-case-diagnosis.png');
+    await driver.locator('.cx-driver-table a').first().click();
+    await page.getByRole('button', { name: /Open dossier for lead/ }).first().waitFor();
+    assert.equal(new URL(page.url()).pathname, '/lead-explorer'); assertCaseScope();
+    assert.equal(new URL(page.url()).searchParams.get('segmentVendor'), 'Synthetic vendor');
+    requests = await page.evaluate(() => [...window.__fixture.requests]);
+    const recordsRequest = new URL(requests.find(url => url.includes('/offernet/raw-leads')), origin);
+    assert.equal(recordsRequest.searchParams.get('segmentVendor'), 'Synthetic vendor');
+    assert.equal(recordsRequest.searchParams.get('clientId'), 'synthetic-a');
+    assert.equal(recordsRequest.searchParams.get('startDate'), '2026-09-28');
+    assert.equal(requests.some(url => url.includes('/lead-ledger/replica?')), false);
+    await page.getByRole('button', { name: /Open dossier for lead/ }).first().click();
+    const dossier = page.getByRole('complementary', { name: `Lead dossier for ${leadId}`, exact: true });
+    await dossier.waitFor();
+    assert.match(await dossier.innerText(), /Selected vendor reporting population/);
+    await dossier.getByRole('button', { name: 'Pin lead evidence', exact: true }).click();
+    await dossier.getByRole('tab', { name: 'Journey', exact: true }).click();
+    await dossier.locator('.cx-journey-spine .cx-journey-event').first().click();
+    await dossier.getByRole('button', { name: 'Pin timeline event', exact: true }).click();
+    await dossier.getByRole('tablist', { name: 'Lead dossier sections', exact: true }).getByRole('tab', { name: 'Source', exact: true }).click();
+    await dossier.getByText('Source records narrowed to vendor: Synthetic vendor.', { exact: true }).waitFor();
+    assert.match(await dossier.innerText(), /Original source evidence.*NOT_VERIFIED/s);
+    assert.match(await dossier.innerText(), /source records do not independently establish/s);
+    requests = await page.evaluate(() => [...window.__fixture.requests]);
+    const sourceRequests = requests.filter(url => url.includes('/lead-ledger/replica?'));
+    assert.equal(sourceRequests.length, 1);
+    const sourceRequest = new URL(sourceRequests[0], origin);
+    assert.equal(sourceRequest.searchParams.get('search'), leadId);
+    assert.deepEqual(JSON.parse(sourceRequest.searchParams.get('filters')).lead_id, { operator: 'equals', value: leadId });
+    assertCaseScope();
+    await dossier.getByRole('tab', { name: 'Audit', exact: true }).click();
+    assert.match(await dossier.innerText(), /Supplied qualification flags.*Qualified/s);
+    await dossier.getByText('All returned analytical evidence fields', { exact: true }).click();
+    assert.match(await dossier.innerText(), /contacted.*false.*sale.*Unavailable/s);
+    await step('conclusion').click();
+    await page.getByLabel('Analyst conclusion · not validation').fill('Synthetic RPC decline is concentrated in the returned vendor comparison; causation is not established.');
+    await page.getByLabel('What remains unknown?').fill('Individual call history is unavailable; independent source reconciliation is not supplied.');
+    assert.match(await stageDescription('evidence'), /4 session observations pinned.*NOT_VERIFIED/s);
+    const download = page.waitForEvent('download'); await page.getByRole('button', { name: 'Export pinned evidence', exact: true }).click();
+    const csv = await readFile(await (await download).path(), 'utf8');
+    for (const value of ['RPC rate', '18.6%', 'contactRate', 'Synthetic vendor', '2026-09-28', leadId, 'NOT_VERIFIED', 'causation is not established', 'Individual call history is unavailable']) assert.ok(csv.includes(value), value);
+    assert.match(csv, /timeline-event/);
+    await writeFile(path.join(output, 'rpc-case-evidence.csv'), csv);
+    await page.locator('[aria-label="Investigation context"]').scrollIntoViewIfNeeded(); await settle();
+    await page.screenshot({ path: path.join(output, 'rpc-case-conclusion.png') }); screenshots.push('rpc-case-conclusion.png');
   });
   await check('Chart catalogue has no synthetic production values or scope-dependent measurements', async () => {
     await page.goto(origin + '/visuals' + scope); await waitText('No analytical dataset is connected');

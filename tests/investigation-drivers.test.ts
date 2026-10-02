@@ -65,7 +65,7 @@ const bundle = await build({
       AuthContext: `export const useAuth=()=>({isAdmin:window.__drivers.admin});`,
       ClientContext: `export const useClient=()=>({selectedClient:'synthetic'});`,
       FilterContext: `import{useSearchParams}from'react-router-dom';export function useFilters(){const[p]=useSearchParams();return{startDate:p.get('startDate')||'',endDate:p.get('endDate')||'',filters:{vendor:{operator:'not_in',values:['Blocked']}},filterError:null}}export const extractOffernetFilters=f=>({filters:JSON.stringify(f)});`,
-      offernetClient: `const fetcher=(kind,p,_refresh,signal)=>{window.__drivers.requests.push({kind,params:p});return Promise.resolve(window.__drivers[kind])};export const fetchRootCause=(...a)=>fetcher('operational',...a);export const fetchMarketingRootCause=(...a)=>fetcher('marketing',...a);export const fetchExceptions=(...a)=>fetcher('exceptions',...a);`,
+      offernetClient: `const fetcher=(kind,p,_refresh,signal)=>{window.__drivers.requests.push({kind,params:p});return Promise.resolve(window.__drivers[kind])};export const fetchRootCause=(...a)=>fetcher('operational',...a);export const fetchMarketingRootCause=(...a)=>fetcher('marketing',...a);export const fetchExceptions=(...a)=>fetcher('exceptions',...a);export const fetchRawLeads=(...a)=>fetcher('records',...a);`,
     };
     b.onResolve({ filter: /\/(AuthContext|ClientContext|FilterContext|offernetClient)$/ }, a => ({ path: a.path.split('/').at(-1)!, namespace: 'drivers-mock' }));
     b.onLoad({ filter: /.*/, namespace: 'drivers-mock' }, a => ({ contents: mocks[a.path], loader: 'tsx', resolveDir: process.cwd() }));
@@ -83,12 +83,12 @@ async function mount(metric: string | null, route = '/investigate' + scope, admi
 }
 test('rendered analysis shows exact matched dates, noncausal semantics and preserves scope on record links', async () => {
   const app = await mount('fetchedLeads'); try {
-    await app.wait(() => Boolean(app.w.document.querySelector('table')));
+    await app.wait(() => Boolean(app.w.document.querySelector('.cx-driver-table')));
     assert.match(app.text(), /2026-09-01 → 2026-09-07/);
     assert.match(app.text(), /do not establish a cause/);
     assert.match(app.text(), /NOT_VERIFIED/);
-    assert.match(app.w.document.querySelector('table').textContent, /Segment change.*Descriptive contribution.*Share of delta/);
-    assert.match(app.w.document.querySelector('tbody').textContent, /\+2 leads.*\+2 leads.*100%/);
+    assert.match(app.w.document.querySelector('.cx-driver-table').textContent, /Segment change.*Descriptive contribution.*Share of delta/);
+    assert.match(app.w.document.querySelector('.cx-driver-table tbody').textContent, /\+2 leads.*\+2 leads.*100%/);
     assert.equal(app.w.__drivers.requests[0].params.drill, 'awaiting-first-dial');
     assert.equal(app.w.__drivers.requests[0].params.segmentSource, 'Paid');
     const region = app.w.document.querySelector('[aria-label="Vendor exact breakdown"]');region.focus();assert.equal(app.w.document.activeElement, region);
@@ -106,20 +106,20 @@ test('unsupported metrics and implicit date scopes do not request a substituted 
 });
 test('exception concentration does not invent segment comparisons or grade/age breakdowns and respects admin links', async () => {
   const app = await mount(null, '/investigate'+scope, false); try {
-    await app.wait(() => Boolean(app.w.document.querySelector('table')));
+    await app.wait(() => Boolean(app.w.document.querySelector('.cx-driver-table')));
     assert.equal(app.w.__drivers.requests[0].kind, 'exceptions');
     assert.deepEqual([...app.w.document.querySelectorAll('.cx-driver-dimensions button')].map((b:any)=>b.textContent), ['Vendor','Source']);
     assert.match(app.text(), /Segment comparisons, grade and age breakdowns are unavailable/);
     assert.match(app.w.document.querySelector('.cx-driver-summary').textContent, /Affected distinct leads · Percentage change: \+20%/);
-    assert.doesNotMatch(app.w.document.querySelector('table').textContent, /Previous/);
-    assert.equal(new URL(app.w.document.querySelector('table a').href).pathname, '/investigate');
+    assert.doesNotMatch(app.w.document.querySelector('.cx-driver-table').textContent, /Previous/);
+    assert.equal(new URL(app.w.document.querySelector('.cx-driver-table a').href).pathname, '/investigate');
   } finally { app.close(); }
 });
 
 test('exception relative change uses the supplied percentage and keeps null unavailable', async () => {
   for (const [percentageChange, label] of [[null, 'Unavailable'], [-12.5, '-12.5%']] as const) {
     const app = await mount(null, '/investigate'+scope, false, percentageChange); try {
-      await app.wait(() => Boolean(app.w.document.querySelector('table')));
+      await app.wait(() => Boolean(app.w.document.querySelector('.cx-driver-table')));
       const change = app.w.document.querySelector('.cx-driver-summary > div:nth-child(3)');
       assert.equal(change.querySelector('strong').textContent, '+2 leads');
       assert.equal(change.querySelector('small').textContent, `Affected distinct leads · Percentage change: ${label}`);
@@ -130,7 +130,7 @@ test('exception relative change uses the supplied percentage and keeps null unav
 test('metric rate changes retain percentage-point semantics without an exception percentage label', async () => {
   const result = { ...operational, metric: { ...operational.metric, id: 'contactRate', label: 'RPC rate', kind: 'rate', deltaUnit: 'pp' } };
   const app = await mount('contactRate', '/investigate'+scope, true, 20, result); try {
-    await app.wait(() => Boolean(app.w.document.querySelector('table')));
+    await app.wait(() => Boolean(app.w.document.querySelector('.cx-driver-table')));
     const change = app.w.document.querySelector('.cx-driver-summary > div:nth-child(3)');
     assert.equal(change.querySelector('strong').textContent, '+2 pp');
     assert.equal(change.querySelector('small').textContent, 'Returned metric difference');

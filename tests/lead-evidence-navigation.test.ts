@@ -78,10 +78,15 @@ test('analytical record and driver actions explicitly open Population with uncha
   for (const key of ['sourceSearch', 'sourceMode', 'selectedIDs', 'leadId', 'search']) assert.equal(driver.searchParams.has(key), false);
 });
 
-test('Investigate navigation has one Lead Evidence primary tab and only release evidence in More', () => {
+test('Investigate has one Lead Evidence destination and trust/releases belong to the Evidence workspace', () => {
   const area = BUSINESS_AREAS.find(item => item.id === 'investigate')!;
-  assert.deepEqual(area.primaryTabs.map(item => item.name), ['Investigation inbox', 'Lead Evidence', 'Data confidence']);
-  assert.deepEqual(area.moreViews.map(item => item.name), ['Evidence reports', 'Vendor evidence']);
+  assert.deepEqual(area.primaryTabs.map(item => item.name), ['Investigate', 'Lead Evidence']);
+  assert.deepEqual(area.moreViews, []);
+  const evidence = BUSINESS_AREAS.find(item => item.id === 'evidence')!;
+  assert.ok(evidence.primaryTabs.some(item => item.path === '/evidence'));
+  assert.ok(evidence.moreViews.some(item => item.path === '/evidence/releases'));
+  assert.ok(evidence.moreViews.some(item => item.path === '/evidence/vendors'));
+  assert.equal(evidence.primaryTabs.some(item => item.path === '/lead-explorer'), false);
   const router = readFileSync(new URL('../src/app/AppRouter.tsx', import.meta.url), 'utf8');
   assert.match(router, /path="\/lead-ledger" element={<LeadLedgerCompatibilityRedirect/);
   assert.doesNotMatch(router, /path="\/lead-ledger" element={<LeadLedger\b/);

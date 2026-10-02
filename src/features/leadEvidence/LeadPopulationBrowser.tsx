@@ -1,6 +1,7 @@
 import AnalyticsPageLayout from '../../components/AnalyticsPageLayout';
 import InvestigationEvidenceWorkspace from '../../features/investigation/InvestigationEvidenceWorkspace';
 import InvestigationWorkflow from '../../features/investigation/InvestigationWorkflow';
+import InvestigationCaseRail from '../investigation/InvestigationCaseRail';
 import { useInvestigationAnalysis } from '../../features/investigation/useInvestigationAnalysis';
 import DriverAnalysis from '../../features/investigation/DriverAnalysis';
 import EvidenceConfidence from '../../features/investigation/EvidenceConfidence';
@@ -156,7 +157,7 @@ export default function LeadPopulationBrowser({ navigation, selection, onSelect,
       scope={<OffernetFilterBar onRefresh={() => { analysis.refresh(); return loadData(true); }} />}>
         <InvestigationWorkflow analysis={analysis.summary} recordsLoaded={isCurrentClientData && !error} requestError={error} evidenceCount={pinnedEvidence.length} populationCount={data?.totalCount} validationStatus={data?.validationStatus || data?.metadata?.validationStatus} dateBasis={data?.dateBasis || data?.metadata?.dateBasis} countingGrain={data?.countingGrain || data?.metadata?.countingGrain} loading={loading} receivedAt={receivedAt} selectedLead={selectedLead} onClearLead={onClose} />
         {focusLeadId && <p className="cx-lead-evidence-boundary" role="status">Focused analytical lead: {focusLeadId}, within the selected reporting/investigation scope. This focus is session-local. <button type="button" className="cx-button-secondary" onClick={onClearFocus}>Clear analytical focus</button></p>}
-        <InvestigationEvidenceWorkspace confidence={<EvidenceConfidence />}>
+        <InvestigationEvidenceWorkspace confidence={<EvidenceConfidence />} signals={<InvestigationCaseRail populationCount={error ? undefined : data?.totalCount} validationStatus={data?.validationStatus || data?.metadata?.validationStatus} />}>
         {investigation && <DriverAnalysis summaryScopeKey={analysis.scopeKey} refreshToken={analysis.refreshToken} onSummary={analysis.onSummary} onPin={item => pin(item, { validationStatus: data?.validationStatus || 'NOT_VERIFIED' })} />}
         {error && <div className="cx-command-error" role="alert"><AlertTriangle size={17} /><span>{error}</span></div>}
         {exportError && <div className="cx-command-error" role="alert"><AlertTriangle size={17} /><span>{exportError}</span></div>}
