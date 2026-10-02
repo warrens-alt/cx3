@@ -7,61 +7,61 @@
 | Route | Current target |
 | --- | --- |
 | `/command` | OverviewPage |
-| `/journey` | JourneyPage |
-| `/journey/acquisition` | CampaignIntelligence |
-| `/journey/qualification` | Vetting |
-| `/journey/routing` | RoutingIntelligence |
-| `/journey/process` | OffershopProcessObservability |
-| `/journey/vendors` | VendorLeadQuality |
-| `/journey/cohorts` | Cohorts |
-| `/journey/outcomes` | SalesActivationPage |
-| `/journey/consumers` | ConsumerReentry |
-| `/operations` | ContactPage |
-| `/operations/contact` | ContactPage |
-| `/operations/response` | SpeedPage |
-| `/operations/dispositions` | ContactPage |
-| `/operations/cli` | CliPerformance |
-| `/operations/agents` | AgentPerformanceIntelligence |
-| `/operations/time` | TemporalIntelligence |
-| `/evidence` | DataIntegrityIntelligence |
-| `/evidence/sources` | DataIntegrityIntelligence |
-| `/evidence/metrics` | DataIntegrityIntelligence |
-| `/evidence/reconciliation` | DataIntegrityIntelligence |
-| `/evidence/releases` | VersionedReports |
-| `/evidence/warehouse` | WarehouseAnalytics |
-| `/evidence/vendors` | VendorPerformance |
-| `/commercial/reconciliation` | CommercialReconciliation |
+| `/journey` | JourneyWorkspace |
+| `/journey/acquisition` | JourneyWorkspace |
+| `/journey/qualification` | JourneyWorkspace |
+| `/journey/routing` | JourneyWorkspace |
+| `/journey/process` | JourneyWorkspace |
+| `/journey/vendors` | JourneyWorkspace |
+| `/journey/cohorts` | JourneyWorkspace |
+| `/journey/outcomes` | JourneyWorkspace |
+| `/journey/consumers` | JourneyWorkspace |
+| `/operations` | OperationsWorkspace |
+| `/operations/contact` | OperationsWorkspace |
+| `/operations/response` | OperationsWorkspace |
+| `/operations/dispositions` | OperationsWorkspace |
+| `/operations/cli` | OperationsWorkspace |
+| `/operations/agents` | OperationsWorkspace |
+| `/operations/time` | OperationsWorkspace |
+| `/evidence` | EvidenceWorkspace |
+| `/evidence/sources` | EvidenceWorkspace |
+| `/evidence/metrics` | EvidenceWorkspace |
+| `/evidence/reconciliation` | EvidenceWorkspace |
+| `/evidence/releases` | EvidenceWorkspace |
+| `/evidence/warehouse` | EvidenceWorkspace |
+| `/evidence/vendors` | EvidenceWorkspace |
+| `/commercial/reconciliation` | CommercialWorkspace |
 | `/` | OverviewPage |
 | `/overview` | OverviewPage |
-| `/funnel` | JourneyPage |
-| `/speed-to-lead` | SpeedPage |
-| `/contact-strategy` | ContactPage |
-| `/cli-performance` | CliPerformance |
-| `/vendor-quality` | VendorLeadQuality |
-| `/temporal` | TemporalIntelligence |
-| `/sales-activation` | SalesActivationPage |
-| `/commercial` | CommercialIntelligence |
-| `/data-integrity` | DataIntegrityIntelligence |
-| `/agent-performance` | AgentPerformanceIntelligence |
-| `/campaigns` | CampaignIntelligence |
+| `/funnel` | JourneyWorkspace |
+| `/speed-to-lead` | OperationsWorkspace |
+| `/contact-strategy` | OperationsWorkspace |
+| `/cli-performance` | OperationsWorkspace |
+| `/vendor-quality` | JourneyWorkspace |
+| `/temporal` | OperationsWorkspace |
+| `/sales-activation` | JourneyWorkspace |
+| `/commercial` | CommercialWorkspace |
+| `/data-integrity` | EvidenceWorkspace |
+| `/agent-performance` | OperationsWorkspace |
+| `/campaigns` | JourneyWorkspace |
 | `/ai-insights` | AiOperationalInsights |
 | `/lead-explorer` | LeadExplorerIntelligence |
-| `/warehouse` | WarehouseAnalytics |
-| `/warehouse-analytics` | WarehouseAnalytics |
-| `/reports` | VersionedReports |
-| `/vendors` | VendorPerformance |
+| `/warehouse` | EvidenceWorkspace |
+| `/warehouse-analytics` | EvidenceWorkspace |
+| `/reports` | EvidenceWorkspace |
+| `/vendors` | EvidenceWorkspace |
 | `/investigate` | Exceptions |
 | `/exceptions` | Exceptions |
-| `/reconciliation` | CommercialReconciliation |
-| `/vetting` | Vetting |
+| `/reconciliation` | CommercialWorkspace |
+| `/vetting` | JourneyWorkspace |
 | `/visuals` | VisualWorkspace |
-| `/routing` | RoutingIntelligence |
-| `/consumers` | ConsumerReentry |
-| `/cohorts` | Cohorts |
+| `/routing` | JourneyWorkspace |
+| `/consumers` | JourneyWorkspace |
+| `/cohorts` | JourneyWorkspace |
 | `/access-control` | UserManagement |
 | `/users` | UserManagement |
 | `/lead-ledger` | redirect → /lead-explorer?view=source |
-| `/offershop-flow` | OffershopProcessObservability |
+| `/offershop-flow` | JourneyWorkspace |
 | `/admin` | SettingsPage |
 | `/validation` | AdminValidation |
 | `/insights` | redirect → /overview |
@@ -120,7 +120,7 @@ Area → page → section. See [frontend design architecture](FRONTEND-DESIGN-AR
 | `/admin` | Settings | Settings | Authenticated workspace access |
 | `/access-control` | Access control | Settings | Administrator only |
 | `/evidence/warehouse` | Warehouse | Evidence | Authenticated workspace access |
-| `/visuals` | Visual workspace | Command | Authenticated workspace access |
+| `/visuals` | Visual workspace | Settings | Authenticated workspace access |
 | `/journey/consumers` | Consumer re-entry | Journey | Authenticated workspace access |
 | `/ai-insights` | Ask ConversionX | Investigate | Authenticated workspace access |
 | `/validation` | Validation suite | Settings | Administrator only |

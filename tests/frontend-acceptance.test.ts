@@ -52,13 +52,13 @@ test('navigation uses destination scope policies and preserves repeated workspac
   const destination=navigationTarget('/lead-explorer?drill=awaiting-first-dial','/speed-to-lead',query);
   assert.equal(new URLSearchParams(destination.search).get('drill'),'awaiting-first-dial');
   assert.equal(new URLSearchParams(destination.search).get('search'),null);
-  assert.equal(new URLSearchParams(navigationTarget('/vendors','/overview',query).search).get('startDate'),null);
-  assert.equal(new URLSearchParams(navigationTarget('/overview','/reports',query+'&release=r1').search).get('startDate'),null);
+  assert.equal(new URLSearchParams(navigationTarget('/vendors','/overview',query).search).get('startDate'),'2026-09-28');
+  assert.equal(new URLSearchParams(navigationTarget('/overview','/reports',query+'&release=r1').search).get('startDate'),'2026-09-28');
 });
 
 test('quick navigation opens the single Lead Evidence destination by its Ledger alias and retains reporting scope',async()=>{
   const app=await mount('/lead-explorer'+scope+'&workspace=alpha&workspace=beta&drill=awaiting-first-dial&search=old');try{
-    await app.click('button','Search pages');
+    await app.click('button','Search workspaces');
     await app.wait(()=>app.find('input','Search pages and navigation'));
     const input=app.find('input','Search pages and navigation');
     await app.input(input,'Lead Ledger');
@@ -429,7 +429,7 @@ test('More analyses has native links, Escape closes it and returns focus',async(
     const trigger=await app.click('button','More analyses');
     await app.wait(()=>app.find('[role="group"]','More analyses'));
     const group=app.find('[role="group"]','More analyses');
-    assert.ok(group.querySelector('a[href*="agent-performance"]'));
+    assert.ok(group.querySelector('a[href*="/operations/agents"]'));
     assert.equal(group.querySelectorAll('[role="menuitem"]').length,0);
     app.w.document.dispatchEvent(new app.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
     await app.wait(()=>!app.find('[role="group"]','More analyses'));
@@ -443,8 +443,8 @@ test('More analyses closes on primary-link activation and router history changes
     await app.click('button','More analyses');
     assert.ok(app.find('[role="group"]','More analyses'));
     // A click without mousedown follows the same link activation path as Enter.
-    await app.click('nav[aria-label="Contact centre navigation"] a','Response speed');
-    await app.wait(()=>app.w.__fixture.location.startsWith('/speed-to-lead'));
+    await app.click('nav[aria-label="Operations navigation"] a','Response speed');
+    await app.wait(()=>app.w.__fixture.location.startsWith('/operations/response'));
     await app.wait(()=>!app.find('[role="group"]','More analyses'));
     assert.equal(Boolean(app.find('[role="group"]','More analyses')),false);
     await app.click('button','More analyses');
@@ -634,9 +634,11 @@ test('desktop source selection clears on page and scope round trips; switching v
 test('active non-admin sees no admin-only entry in sidebar, analyses or intent search',async()=>{
   const app=await mount('/overview'+scope,{nonAdmin:true});try{
     assert.equal(app.find('a','Access control'),undefined);
-    await app.click('button','More analyses');
-    assert.equal(app.find('#area-more-menu a','Lead ledger'),undefined);
-    await app.click('button','Search pages');
+    await app.w.__fixture.navigate('/investigate'+scope);
+    await app.wait(()=>app.find('.cx-area-nav'));
+    assert.equal(app.find('.cx-area-nav a','Lead Evidence'),undefined);
+    assert.equal(app.find('.cx-sidebar-admin-tools'),undefined);
+    await app.click('button','Search workspaces');
     const input=app.find('input','Search pages and navigation');await app.input(input,'Lead ledger');
     assert.equal(app.find('[role="option"]','Lead ledger'),undefined);
     await app.input(input,'Access control');assert.equal(app.find('[role="option"]','Access control'),undefined);
@@ -794,7 +796,8 @@ test('reduction: Audit Mode off hides metadata, whole-card evidence opens, and a
     await app.click('button','Close inspector');assert.equal(app.w.document.activeElement,trigger);
     await app.click('button','Display preferences');await app.click('[aria-label="Audit mode"] button','On');
     assert.equal(app.w.document.querySelectorAll('.cx-outcome-strip .cx-audit-metadata').length,6);
-    assert.equal(app.w.document.querySelectorAll('.cx-audit-metadata').length,7); // Six metric definitions plus supplied response context.
+    assert.equal(app.w.document.querySelectorAll('.cx-audit-metadata').length,8); // Six metric definitions, supplied response context, and the scoped concentration audit.
+    assert.ok(app.find('button', 'Audit evidence: Fetched lead concentration by vendor'));
     await app.click('button','Display preferences');await app.click('.cx-outcome-card .cx-metric-primary');
     assert.equal(app.w.document.querySelectorAll('.cx-audit-disclosure[open]').length,4);
     await app.click('button','Close inspector');await app.click('button','Display preferences');await app.click('[aria-label="Audit mode"] button','Off');
@@ -876,7 +879,7 @@ test('reduction: integrity overview separates gap checks and limitations, preser
 test('reduction: empty command palette suggests six core areas, typing searches the full allowed catalogue',async()=>{
   const app=await mount('/overview'+scope,{nonAdmin:true});try{
     await app.wait(()=>app.find('.cx-outcome-strip'));const before=[...app.w.__fixture.requests];
-    await app.click('button','Search pages');await app.wait(()=>app.find('[role="combobox"]'));
+    await app.click('button','Search workspaces');await app.wait(()=>app.find('[role="combobox"]'));
     assert.equal(app.w.document.querySelectorAll('[role="option"]').length,6);
     for (const option of app.w.document.querySelectorAll('[role="option"]')) {
       assert.ok(option.querySelector('small')?.textContent, 'Suggestions retain their descriptive text');
@@ -939,10 +942,10 @@ for (const route of ['/overview','/funnel','/campaigns','/vetting','/routing','/
   test(`convergence: ${route} renders its canonical title before reporting scope`, async () => {
     const app = await mount(route + scope, { payloads: { ...reductionPayloads, ...(route === '/temporal' ? { '/api/analytics/offernet/temporal': { heatmap: [], peakWindows: [], timeBases: [] } } : {}) } });
     try {
-      await app.wait(() => app.find('.cx-analytics-page .cx-page-header h1') && app.find('.cx-analytics-page .cx-scopebar'));
-      const title = app.find('.cx-analytics-page .cx-page-header h1');
+      await app.wait(() => app.find('main h1') && app.find('.cx-analytics-page .cx-scopebar'));
+      const title = app.find('main h1');
       const scopeBar = app.find('.cx-analytics-page .cx-scopebar');
-      assert.equal(title.textContent, getRouteItem(route)?.name);
+      assert.equal(title.textContent, ({ '/funnel': 'Journey', '/commercial': 'Commercial', '/data-integrity': 'Evidence' } as Record<string,string>)[route] || getRouteItem(route)?.name);
       assert.ok(title.compareDocumentPosition(scopeBar) & app.w.Node.DOCUMENT_POSITION_FOLLOWING);
       assert.equal(app.w.document.querySelectorAll('main h1').length, 1);
       assert.equal(app.find('.cx-viz-jump-nav, .cx-analysis-jump-nav'), undefined);

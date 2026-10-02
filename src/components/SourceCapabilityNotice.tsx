@@ -1,15 +1,17 @@
+import { getRouteItem } from '../app/routeManifest';
 import { useLocation } from 'react-router-dom';
 import { FLAT_LEAD_TENANT_TABLES, WAREHOUSE_SCHEMA_SNAPSHOT_DATE } from '../../contracts/warehouseSchemaSnapshot';
 import { useClient } from '../lib/ClientContext';
 import { useFilters } from '../lib/FilterContext';
 
-const leadViews = new Set(['', 'overview', 'funnel', 'speed-to-lead', 'contact-strategy', 'vendor-quality', 'sales-activation', 'temporal', 'cohorts', 'routing', 'data-integrity', 'exceptions', 'lead-explorer']);
+const leadViews = new Set(['', 'overview', 'operations', 'funnel', 'speed-to-lead', 'contact-strategy', 'vendor-quality', 'sales-activation', 'temporal', 'cohorts', 'routing', 'data-integrity', 'exceptions', 'lead-explorer']);
 
 /** Schema evidence is labelled separately from the freshness of live results. */
 export default function SourceCapabilityNotice({ warningsOnly = false }: { warningsOnly?: boolean }) {
   const { selectedClient } = useClient();
   const { filters, setFilter } = useFilters();
-  const domain = useLocation().pathname.split('/')[1] || '';
+  const location = useLocation();
+  const domain = getRouteItem(location.pathname)?.id || location.pathname.split('/')[1] || '';
   if (!FLAT_LEAD_TENANT_TABLES[selectedClient] || !leadViews.has(domain)) return null;
   const unsupported = ['grade', 'medium'].filter(key => filters[key]);
   if (warningsOnly && unsupported.length === 0 && domain !== 'routing') return null;

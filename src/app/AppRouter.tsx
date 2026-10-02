@@ -22,34 +22,19 @@ function safeImport<T>(loader: () => Promise<T>): Promise<T> {
 }
 
 // Lazy-loaded report and specialist surfaces
-export const VersionedReports = React.lazy(() => safeImport(() => import('../pages/VersionedReports')));
 export const UserManagement = React.lazy(() => safeImport(() => import('../pages/UserManagement')));
 export const OverviewPage = React.lazy(() => safeImport(() => import('../features/overview/OverviewPage')));
-export const JourneyPage = React.lazy(() => safeImport(() => import('../features/journey/JourneyPage')));
-export const ContactPage = React.lazy(() => safeImport(() => import('../features/contact/ContactPage')));
-export const SpeedPage = React.lazy(() => safeImport(() => import('../features/contact/SpeedPage')));
-export const VendorLeadQuality = React.lazy(() => safeImport(() => import('../pages/VendorLeadQuality')));
-export const TemporalIntelligence = React.lazy(() => safeImport(() => import('../pages/TemporalIntelligence')));
-export const SalesActivationPage = React.lazy(() => safeImport(() => import('../features/sales/SalesActivationPage')));
-export const CommercialIntelligence = React.lazy(() => safeImport(() => import('../pages/CommercialIntelligence')));
-export const DataIntegrityIntelligence = React.lazy(() => safeImport(() => import('../pages/DataIntegrityIntelligence')));
-export const AgentPerformanceIntelligence = React.lazy(() => safeImport(() => import('../pages/AgentPerformanceIntelligence')));
-export const CampaignIntelligence = React.lazy(() => safeImport(() => import('../pages/CampaignIntelligence')));
 export const AiOperationalInsights = React.lazy(() => safeImport(() => import('../pages/AiOperationalInsights')));
 export const LeadExplorerIntelligence = React.lazy(() => safeImport(() => import('../pages/LeadExplorerIntelligence')));
-export const Vetting = React.lazy(() => safeImport(() => import('../pages/Vetting')));
 export const VisualWorkspace = React.lazy(() => safeImport(() => import('../pages/VisualWorkspace')));
-export const CliPerformance = React.lazy(() => safeImport(() => import('../pages/CliPerformance')));
-export const Cohorts = React.lazy(() => safeImport(() => import('../pages/Cohorts')));
 export const SettingsPage = React.lazy(() => safeImport(() => import('../pages/Settings')));
 export const AdminValidation = React.lazy(() => safeImport(() => import('../pages/AdminValidation')));
-export const RoutingIntelligence = React.lazy(() => safeImport(() => import('../pages/RoutingIntelligence')));
-export const ConsumerReentry = React.lazy(() => safeImport(() => import('../pages/ConsumerReentry')));
-export const VendorPerformance = React.lazy(() => safeImport(() => import('../pages/VendorPerformance')));
 export const Exceptions = React.lazy(() => safeImport(() => import('../pages/Exceptions')));
-export const CommercialReconciliation = React.lazy(() => safeImport(() => import('../pages/CommercialReconciliation')));
-export const WarehouseAnalytics = React.lazy(() => safeImport(() => import('../pages/WarehouseAnalytics')));
-export const OffershopProcessObservability = React.lazy(() => safeImport(() => import('../pages/OffershopProcessObservability')));
+
+export const JourneyWorkspace = React.lazy(() => safeImport(() => import('../workspaces/journey/JourneyWorkspace')));
+export const OperationsWorkspace = React.lazy(() => safeImport(() => import('../workspaces/operations/OperationsWorkspace')));
+export const CommercialWorkspace = React.lazy(() => safeImport(() => import('../workspaces/commercial/CommercialWorkspace')));
+export const EvidenceWorkspace = React.lazy(() => safeImport(() => import('../workspaces/evidence/EvidenceWorkspace')));
 
 export default function AppRouter() {
   const location = useLocation();
@@ -114,69 +99,69 @@ export default function AppRouter() {
         <Routes>
           {/* Canonical workspace paths. Existing URLs below remain adapters. */}
           <Route path="/command" element={<OverviewPage key={selectedClient} />} />
-          <Route path="/journey" element={<JourneyPage key={selectedClient} />} />
-          <Route path="/journey/acquisition" element={<CampaignIntelligence key={selectedClient} />} />
-          <Route path="/journey/qualification" element={<Vetting key={selectedClient} />} />
-          <Route path="/journey/routing" element={<RoutingIntelligence key={selectedClient} />} />
-          <Route path="/journey/process" element={<OffershopProcessObservability key={selectedClient} />} />
-          <Route path="/journey/vendors" element={<VendorLeadQuality key={selectedClient} />} />
-          <Route path="/journey/cohorts" element={<Cohorts key={selectedClient} />} />
-          <Route path="/journey/outcomes" element={<SalesActivationPage key={selectedClient} />} />
-          <Route path="/journey/consumers" element={<ConsumerReentry key={selectedClient} />} />
-          <Route path="/operations" element={<ContactPage key={selectedClient} />} />
-          <Route path="/operations/contact" element={<ContactPage key={selectedClient} />} />
-          <Route path="/operations/response" element={<SpeedPage key={selectedClient} />} />
-          <Route path="/operations/dispositions" element={<ContactPage key={selectedClient} />} />
-          <Route path="/operations/cli" element={<CliPerformance key={selectedClient} />} />
-          <Route path="/operations/agents" element={<AgentPerformanceIntelligence key={selectedClient} />} />
-          <Route path="/operations/time" element={<TemporalIntelligence key={selectedClient} />} />
-          <Route path="/evidence" element={<DataIntegrityIntelligence key={selectedClient} />} />
-          <Route path="/evidence/sources" element={<DataIntegrityIntelligence key={selectedClient} />} />
-          <Route path="/evidence/metrics" element={<DataIntegrityIntelligence key={selectedClient} />} />
-          <Route path="/evidence/reconciliation" element={<DataIntegrityIntelligence key={selectedClient} />} />
-          <Route path="/evidence/releases" element={<VersionedReports key={selectedClient} />} />
-          <Route path="/evidence/warehouse" element={<WarehouseAnalytics key={selectedClient} />} />
-          <Route path="/evidence/vendors" element={<VendorPerformance key={selectedClient} />} />
-          <Route path="/commercial/reconciliation" element={<CommercialReconciliation key={selectedClient} />} />
+          <Route path="/journey" element={<JourneyWorkspace key={selectedClient} />} />
+          <Route path="/journey/acquisition" element={<JourneyWorkspace key={selectedClient} />} />
+          <Route path="/journey/qualification" element={<JourneyWorkspace key={selectedClient} />} />
+          <Route path="/journey/routing" element={<JourneyWorkspace key={selectedClient} />} />
+          <Route path="/journey/process" element={<JourneyWorkspace key={selectedClient} />} />
+          <Route path="/journey/vendors" element={<JourneyWorkspace key={selectedClient} />} />
+          <Route path="/journey/cohorts" element={<JourneyWorkspace key={selectedClient} />} />
+          <Route path="/journey/outcomes" element={<JourneyWorkspace key={selectedClient} />} />
+          <Route path="/journey/consumers" element={<JourneyWorkspace key={selectedClient} />} />
+          <Route path="/operations" element={<OperationsWorkspace key={selectedClient} />} />
+          <Route path="/operations/contact" element={<OperationsWorkspace key={selectedClient} />} />
+          <Route path="/operations/response" element={<OperationsWorkspace key={selectedClient} />} />
+          <Route path="/operations/dispositions" element={<OperationsWorkspace key={selectedClient} />} />
+          <Route path="/operations/cli" element={<OperationsWorkspace key={selectedClient} />} />
+          <Route path="/operations/agents" element={<OperationsWorkspace key={selectedClient} />} />
+          <Route path="/operations/time" element={<OperationsWorkspace key={selectedClient} />} />
+          <Route path="/evidence" element={<EvidenceWorkspace key={selectedClient} />} />
+          <Route path="/evidence/sources" element={<EvidenceWorkspace key={selectedClient} />} />
+          <Route path="/evidence/metrics" element={<EvidenceWorkspace key={selectedClient} />} />
+          <Route path="/evidence/reconciliation" element={<EvidenceWorkspace key={selectedClient} />} />
+          <Route path="/evidence/releases" element={<EvidenceWorkspace key={selectedClient} />} />
+          <Route path="/evidence/warehouse" element={<EvidenceWorkspace key={selectedClient} />} />
+          <Route path="/evidence/vendors" element={<EvidenceWorkspace key={selectedClient} />} />
+          <Route path="/commercial/reconciliation" element={<CommercialWorkspace key={selectedClient} lens="reconciliation" />} />
 
           {/* PRIMARY OFFERNET OPERATIONAL INTELLIGENCE PLATFORM ROUTES */}
           <Route path="/" element={<OverviewPage key={selectedClient} />} />
           <Route path="/overview" element={<OverviewPage key={selectedClient} />} />
-          <Route path="/funnel" element={<JourneyPage key={selectedClient} />} />
-          <Route path="/speed-to-lead" element={<SpeedPage key={selectedClient} />} />
-          <Route path="/contact-strategy" element={<ContactPage key={selectedClient} />} />
+          <Route path="/funnel" element={<JourneyWorkspace key={selectedClient} lens="lifecycle" />} />
+          <Route path="/speed-to-lead" element={<OperationsWorkspace key={selectedClient} lens="response" />} />
+          <Route path="/contact-strategy" element={<OperationsWorkspace key={selectedClient} lens="contact" />} />
           <Route
             path="/vendor-dispositions"
             element={<ScopePreservingRedirect to="/contact-strategy?tab=vendor_dispositions" replace />}
           />
-          <Route path="/cli-performance" element={<CliPerformance key={selectedClient} />} />
-          <Route path="/vendor-quality" element={<VendorLeadQuality key={selectedClient} />} />
-          <Route path="/temporal" element={<TemporalIntelligence key={selectedClient} />} />
-          <Route path="/sales-activation" element={<SalesActivationPage key={selectedClient} />} />
-          <Route path="/commercial" element={<CommercialIntelligence key={selectedClient} />} />
-          <Route path="/data-integrity" element={<DataIntegrityIntelligence key={selectedClient} />} />
-          <Route path="/agent-performance" element={<AgentPerformanceIntelligence key={selectedClient} />} />
-          <Route path="/campaigns" element={<CampaignIntelligence key={selectedClient} />} />
+          <Route path="/cli-performance" element={<OperationsWorkspace key={selectedClient} lens="cli" />} />
+          <Route path="/vendor-quality" element={<JourneyWorkspace key={selectedClient} lens="vendors" />} />
+          <Route path="/temporal" element={<OperationsWorkspace key={selectedClient} lens="time" />} />
+          <Route path="/sales-activation" element={<JourneyWorkspace key={selectedClient} lens="outcomes" />} />
+          <Route path="/commercial" element={<CommercialWorkspace key={selectedClient} />} />
+          <Route path="/data-integrity" element={<EvidenceWorkspace key={selectedClient} lens="overview" />} />
+          <Route path="/agent-performance" element={<OperationsWorkspace key={selectedClient} lens="agents" />} />
+          <Route path="/campaigns" element={<JourneyWorkspace key={selectedClient} lens="acquisition" />} />
           <Route path="/ai-insights" element={<AiOperationalInsights key={selectedClient} />} />
           <Route path="/lead-explorer" element={<LeadExplorerIntelligence key={selectedClient} />} />
 
           {/* WAREHOUSE EVIDENCE & AUDIT REPORTS */}
-          <Route path="/warehouse" element={<WarehouseAnalytics key={selectedClient} />} />
-          <Route path="/warehouse-analytics" element={<WarehouseAnalytics key={selectedClient} />} />
-          <Route path="/reports" element={<VersionedReports key={selectedClient} />} />
-          <Route path="/vendors" element={<VendorPerformance key={selectedClient} />} />
+          <Route path="/warehouse" element={<EvidenceWorkspace key={selectedClient} lens="warehouse" />} />
+          <Route path="/warehouse-analytics" element={<EvidenceWorkspace key={selectedClient} lens="warehouse" />} />
+          <Route path="/reports" element={<EvidenceWorkspace key={selectedClient} lens="releases" />} />
+          <Route path="/vendors" element={<EvidenceWorkspace key={selectedClient} lens="vendors" />} />
           <Route path="/investigate" element={<Exceptions key={selectedClient} />} />
           <Route path="/exceptions" element={<Exceptions key={selectedClient} />} />
-          <Route path="/reconciliation" element={<CommercialReconciliation key={selectedClient} />} />
-          <Route path="/vetting" element={<Vetting key={selectedClient} />} />
+          <Route path="/reconciliation" element={<CommercialWorkspace key={selectedClient} lens="reconciliation" />} />
+          <Route path="/vetting" element={<JourneyWorkspace key={selectedClient} lens="qualification" />} />
           <Route path="/visuals" element={<VisualWorkspace />} />
-          <Route path="/routing" element={<RoutingIntelligence />} />
-          <Route path="/consumers" element={<ConsumerReentry />} />
-          <Route path="/cohorts" element={<Cohorts />} />
+          <Route path="/routing" element={<JourneyWorkspace key={selectedClient} lens="routing" />} />
+          <Route path="/consumers" element={<JourneyWorkspace key={selectedClient} lens="consumers" />} />
+          <Route path="/cohorts" element={<JourneyWorkspace key={selectedClient} lens="cohorts" />} />
           <Route path="/access-control" element={<UserManagement key={selectedClient} />} />
           <Route path="/users" element={<UserManagement key={selectedClient} />} />
           <Route path="/lead-ledger" element={<LeadLedgerCompatibilityRedirect />} />
-          <Route path="/offershop-flow" element={<OffershopProcessObservability />} />
+          <Route path="/offershop-flow" element={<JourneyWorkspace key={selectedClient} lens="process" />} />
           <Route path="/admin" element={<SettingsPage />} />
           <Route path="/validation" element={<AdminValidation />} />
 

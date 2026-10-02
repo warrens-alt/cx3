@@ -8,6 +8,22 @@ APIs have been removed. Static validation comparisons are reference evidence,
 never live verification. See [the consolidation audit](docs/CONSOLIDATION-AUDIT.md)
 and [verification record](docs/qa/consolidation/README.md).
 
+## Operational Intelligence workspaces
+
+The product now has six primary workspaces: **Command, Journey, Operations,
+Investigate, Commercial and Evidence**. Command leads with supported lifecycle
+populations and trends; Journey and Operations compose the existing analytical
+features into scoped lenses. Investigation connects signal, diagnosis, segments,
+records, evidence and analyst conclusions. Commercial retains explicit unavailable
+inputs; Evidence combines source observations, definitions, lineage and immutable
+reporting. Settings, access control and validation remain separate.
+
+Canonical entry URLs are `/command`, `/journey`, `/operations`, `/investigate`,
+`/commercial` and `/evidence`. Existing external URLs remain compatibility adapters.
+The light default theme, graphite navigation, dark mode and original branding are
+retained. See [the product rebuild record](docs/CX3-PRODUCT-REBUILD.md) for architecture,
+contract boundaries, migration details and verification evidence.
+
 ## Primary host: Google AI Studio
 
 CX3 is hosted through Google AI Studio. Use [the Google AI Studio runtime guide](docs/GOOGLE-AI-STUDIO.md) for preview startup, GitHub synchronisation, server secrets and Cloud Run publishing. Cloudflare instructions below are an optional alternative; a Pages check does not diagnose the Google-hosted app. A GitHub merge does not establish that the AI Studio working copy or its published revision has updated.

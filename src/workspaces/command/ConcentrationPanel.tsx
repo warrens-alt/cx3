@@ -4,6 +4,7 @@ import type { LifecycleDiagnostics } from '../../../contracts/lifecycleAnalytics
 import { useScopedNavigationTarget } from '../../hooks/useScopedNavigationTarget';
 import ChartFrame from '../../shared/visuals/ChartFrame';
 import EvidenceBars from '../../shared/visuals/EvidenceBars';
+import AuditEvidenceButton from '../../shared/evidence/AuditEvidenceButton';
 import ReportingScopeSummary from '../../shared/reporting/ReportingScopeSummary';
 
 const DIMENSIONS = ['vendor', 'source', 'grade'] as const;
@@ -24,6 +25,7 @@ export default function ConcentrationPanel({ lifecycle }: { lifecycle?: Lifecycl
   const scoped = useScopedNavigationTarget();
   return <ChartFrame title="Where is the population concentrated?" scope={<ReportingScopeSummary />}
     subtitle="Descriptive concentration of fetched leads. Select a segment to investigate its exact population."
+    actions={<AuditEvidenceButton content={{ type: 'metric', title: `Fetched lead concentration by ${dimension}`, metricId: 'fetched_leads', definition: { meaning: 'Returned fetched population within each supplied segment. Segment memberships may overlap and are not additive.', grain: 'Distinct fetched lead within each segment', dateBasis: 'Lead capture cohort', nullMeaning: 'Missing segment counts remain unavailable.', limitations: ['Descriptive concentration does not establish causal attribution.'] }, provenance: { validationStatus: lifecycle?.validationStatus || 'NOT_VERIFIED' } }} />}
     controls={<label className="cx-command-lens-control">Lens <select aria-label="Concentration lens" value={dimension} onChange={event => setDimension(event.target.value as Dimension)}>
       {DIMENSIONS.filter(item => !lifecycle?.unsupportedDimensions?.includes(item)).map(item => <option value={item} key={item}>{item.charAt(0).toUpperCase() + item.slice(1)}</option>)}
     </select></label>}

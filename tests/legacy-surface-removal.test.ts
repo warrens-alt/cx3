@@ -44,9 +44,20 @@ test('unconsumed duplicate legacy implementations cannot reintroduce numeric fal
 
 test('diagnostic routes mount their canonical owners after unused lazy exports are retired', () => {
   const router = readFileSync('src/app/AppRouter.tsx', 'utf8');
-  for (const [path, component] of [['/funnel', 'JourneyPage'], ['/speed-to-lead', 'SpeedPage'], ['/contact-strategy', 'ContactPage'], ['/sales-activation', 'SalesActivationPage']]) {
-    assert.ok(router.includes(`path="${path}" element={<${component} key={selectedClient}`), `${path} still mounts ${component}`);
+  for (const [path, component, lens] of [['/funnel', 'JourneyWorkspace', 'lifecycle'], ['/speed-to-lead', 'OperationsWorkspace', 'response'], ['/contact-strategy', 'OperationsWorkspace', 'contact'], ['/sales-activation', 'JourneyWorkspace', 'outcomes']]) {
+    assert.ok(router.includes(`path="${path}" element={<${component} key={selectedClient} lens="${lens}"`), `${path} mounts its ${component} lens`);
   }
+  const journey = readFileSync('src/workspaces/journey/JourneyWorkspace.tsx', 'utf8');
+  const operations = readFileSync('src/workspaces/operations/OperationsWorkspace.tsx', 'utf8');
+  assert.match(journey, /const JourneyWorkbench = lazy\(\(\) => import\('\.\/JourneyWorkbench'\)\)/);
+  assert.match(journey, /<JourneyWorkbench selection=\{selection\} onSelect=\{select\}/);
+  assert.match(journey, /const Outcomes = lazy\(\(\) => import\('\.\.\/\.\.\/features\/sales\/SalesActivationPage'\)\)/);
+  assert.match(journey, /outcomes: Outcomes/);
+  assert.match(journey, /Specialist \? <Specialist \/>/);
+  assert.match(operations, /const Contact = lazy\(\(\) => import\('\.\.\/\.\.\/features\/contact\/ContactPage'\)\)/);
+  assert.match(operations, /const Response = lazy\(\(\) => import\('\.\.\/\.\.\/features\/contact\/SpeedPage'\)\)/);
+  assert.match(operations, /active === 'contact' \|\| active === 'dispositions' \? <Contact/);
+  assert.match(operations, /active === 'response' \? <Response \/>/);
   for (const name of ['SpeedToLeadIntelligence', 'ContactStrategyIntelligence', 'SalesActivationIntelligence']) {
     assert.equal(existsSync(`src/pages/${name}.tsx`), false, name);
     assert.ok(!router.includes(name), `${name} is not bundled by the router`);

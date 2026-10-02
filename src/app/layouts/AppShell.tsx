@@ -74,9 +74,10 @@ export default function AppShell({ children }: AppShellProps) {
 
   const searchShortcut = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘ K' : 'Ctrl K';
 
+  const documentPageTitle = currentArea && routeItem?.path === currentArea.landingPath ? currentArea.name : pageTitle;
   useEffect(() => {
-    document.title = `${pageTitle} · ${BRAND.name}`;
-  }, [pageTitle]);
+    document.title = `${documentPageTitle} · ${BRAND.name}`;
+  }, [documentPageTitle]);
 
   // Route change lifecycle: reset overlays, scroll to top, and focus main content
   useEffect(() => {

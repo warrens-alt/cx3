@@ -183,7 +183,7 @@ export default function OverviewPage() {
           <AuditMetadata grain="Distinct scoped lead" dateBasis="Lead capture cohort" validationStatus={data.validationStatus} definitionVersion={data.definitionVersion} generatedAt={data.generatedAt} />
 
           <div className="cx-overview-primary">
-            <PerformanceTrend data={data.dailyTrends} comparisonWindow={data.comparisonWindow} onAudit={(metricId, label) => setInspectorContent({ type: 'metric', metricId, title: `${label} daily evidence`, subtitle: 'Current capture-cohort daily observations. A previous daily series is not supplied.', provenance: { validationStatus: data.validationStatus, generatedAt: data.generatedAt, metricVersion: data.definitionVersion, timezone: data.timezone }, scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters } })} />
+            <PerformanceTrend data={data.dailyTrends} comparisonWindow={data.comparisonWindow} onAudit={content => setInspectorContent({ ...content, provenance: { validationStatus: data.validationStatus, generatedAt: data.generatedAt, metricVersion: data.definitionVersion, timezone: data.timezone }, scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters } })} />
             <AttentionList items={data.attention} isAdmin={isAdmin} />
           </div>
 

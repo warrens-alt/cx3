@@ -2,7 +2,11 @@
 
 Naming version: `cx.naming.1.0.0`. Versioned-report metric definition: `cx.metrics.2.0.1`.
 
-`contracts/naming.ts` owns page names, report labels and legacy display vocabulary. `contracts/legacyMetrics.ts` owns the existing dynamic metric expressions and matching human definitions. Frontend/backend metric and journey-reference imports now share these contracts rather than maintaining divergent copies. Machine identifiers, source columns, vendor values and existing API metric IDs are retained.
+`src/app/routeManifest.tsx` owns the current six-workspace navigation and compatibility
+identities: Command, Journey, Operations, Investigate, Commercial and Evidence.
+`contracts/naming.ts` retains report labels, reference page names and legacy display
+vocabulary. The product rebuild changes workspace presentation, not this naming
+contract or its metric version. `contracts/legacyMetrics.ts` owns the existing dynamic metric expressions and matching human definitions. Frontend/backend metric and journey-reference imports now share these contracts rather than maintaining divergent copies. Machine identifiers, source columns, vendor values and existing API metric IDs are retained.
 
 ## Units must be visible
 

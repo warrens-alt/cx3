@@ -5,7 +5,7 @@ import { useOperationalData } from '../../lib/useOperationalData';
 import { fetchAnalyticsJson } from '../../lib/analyticsRequest';
 import { parseWorkspaceEvidence } from '../../lib/workspaceReadiness';
 import { useScopedNavigationTarget } from '../../hooks/useScopedNavigationTarget';
-import { ROUTE_MANIFEST } from '../../app/routeManifest';
+import { getRouteItem } from '../../app/routeManifest';
 import { Info } from 'lucide-react';
 import { StatusPresentation, DataStatusDialog } from './ReportPresentation';
 import SourceEvidenceCards from './SourceEvidenceCards';
@@ -52,8 +52,7 @@ function WorkspaceReadiness() {
 
 export default function AnalyticsReadinessPanel() {
   const location = useLocation();
-  const path = location.pathname === '/' ? '/overview' : location.pathname;
-  const route = ROUTE_MANIFEST.find(item => item.path === path);
+  const route = getRouteItem(location.pathname);
   const { selectedClient } = useClient();
   // Fixed releases, administration and synthetic demo pages do not trigger source checks.
   if (!selectedClient || route?.scopePolicy !== 'operational' || new URLSearchParams(location.search).get('mode') === 'demo') return null;

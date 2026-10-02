@@ -11,6 +11,7 @@ import {
 import ChartTooltip from '../../../shared/visuals/ChartTooltip';
 import ChartFrame from '../../../shared/visuals/ChartFrame';
 import ReportingScopeSummary from '../../../shared/reporting/ReportingScopeSummary';
+import type { InspectorContent } from '../../../shared/evidence/InspectorHost';
 import { Clock3 } from 'lucide-react';
 import { formatTableNumber } from '../../../lib/formatters';
 
@@ -62,22 +63,51 @@ export function adaptDailyTrends(rows: DailyTrendRow[] = []): PerformanceTrendPo
 
 export interface PerformanceTrendProps {
   data?: DailyTrendRow[];
-  onAudit?: (metricId: string, label: string) => void;
+  onAudit?: (content: InspectorContent) => void;
   comparisonWindow?: {
     startDate: string;
     endDate: string;
   } | null;
 }
 
-const METRIC_CONFIGS: Record<SelectableTrendMetric, { label: string; color: string; metricId: string }> = {
+const METRIC_CONFIGS: Record<SelectableTrendMetric, { label: string; color: string; metricId?: string }> = {
   leads: { metricId: 'fetched_leads', label: 'Fetched leads', color: 'var(--cx-data-fetched)' },
   delivered: { metricId: 'delivered_leads', label: 'Delivered leads', color: 'var(--cx-data-delivered)' },
   dialled: { metricId: 'dialled_leads', label: 'Dialled leads', color: 'var(--cx-data-dialled)' },
   contacted: { metricId: 'rpc_leads', label: 'RPC leads', color: 'var(--cx-data-rpc)' },
   activations: { metricId: 'activated_leads', label: 'Activations', color: 'var(--cx-data-activation)' },
-  revenue: { metricId: 'recorded_revenue', label: 'Recorded revenue', color: 'var(--cx-chart-category-7)' },
+  revenue: { label: 'Recorded revenue', color: 'var(--cx-chart-category-7)' },
   sales: { metricId: 'sale_leads', label: 'Recorded sales', color: 'var(--cx-data-sales)' },
 };
+
+/** Describe the returned series without summing daily values into a cohort total. */
+export function dailyTrendAudit(points: PerformanceTrendPoint[], metric: SelectableTrendMetric): InspectorContent {
+  const config = METRIC_CONFIGS[metric];
+  const observed = points.filter(point => typeof point[metric] === 'number' && Number.isFinite(point[metric])).length;
+  const unavailable = points.length - observed;
+  const value = observed > 0 ? observed : null;
+  return {
+    type: 'metric', title: `${config.label} daily evidence`, metricId: config.metricId,
+    value, unit: 'daily observations',
+    subtitle: `${observed} supplied numeric observations · ${unavailable} unavailable values · ${points.length} returned dates. A previous daily series is not supplied.`,
+    definition: {
+      meaning: `Daily ${config.label.toLowerCase()} values supplied by the operational overview response. The result above counts observed daily values, including explicit zero; it is not a summed lead population or revenue total.`,
+      grain: metric === 'revenue' ? 'Returned recorded revenue aggregate per lead capture date' : 'Distinct analytical lead count per lead capture date',
+      dateBasis: 'Lead capture cohort, grouped by capture date',
+      calculation: 'Count returned daily rows containing a finite numeric value for the selected measure. Daily metric values are displayed unchanged in the exact daily evidence table.',
+      nullMeaning: 'Null, absent and non-finite daily values remain unavailable. A date absent from the response is not an observed zero.',
+      limitations: ['Observation coverage does not establish source completeness or independent reconciliation.', ...(metric === 'revenue' ? ['Recorded revenue is source-recorded operational value; it does not establish billing, collected cash, contribution or profit.'] : [])],
+    },
+    anatomy: { kind: 'count', label: 'Supplied numeric daily observations', value, unit: 'observations', secondary: [
+      { key: 'returned', label: 'Returned daily rows', value: points.length },
+      { key: 'unavailable', label: 'Rows with unavailable selected values', value: unavailable },
+    ] },
+    dimensions: [
+      { key: 'observation', label: 'Daily observations', state: observed > 0 ? 'observed' : 'unavailable', detail: `${observed} supplied numeric values; ${unavailable} unavailable values among ${points.length} returned rows.` },
+      { key: 'reconciliation', label: 'Independent reconciliation', state: 'not_verified' },
+    ],
+  };
+}
 
 interface TrendTooltipProps {
   active?: boolean;
@@ -114,7 +144,7 @@ export default function PerformanceTrend({ data = [], comparisonWindow, onAudit 
   };
 
   return (
-    <ChartFrame title="Performance trend" className="cx-trend-panel" actions={onAudit && <button type="button" className="cx-button-quiet" onClick={() => onAudit(currentConfig.metricId, currentConfig.label)}>Evidence</button>} scope={<ReportingScopeSummary />} header={
+    <ChartFrame title="Performance trend" className="cx-trend-panel" actions={onAudit && <button type="button" className="cx-button-quiet" onClick={() => onAudit(dailyTrendAudit(chartData, activeMetric))}>Evidence</button>} scope={<ReportingScopeSummary />} header={
       <div className="cx-trend-heading">
         <div>
           <h2>Performance trend</h2>

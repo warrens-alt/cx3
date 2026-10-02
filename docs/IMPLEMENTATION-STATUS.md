@@ -1,10 +1,26 @@
 # Implementation status — 2 October 2026
 
-## Current maturity implementation — 2 October 2026
+## Current product rebuild — 2 October 2026
+
+The current frontend entry model is **Command → Journey → Operations → Investigate
+→ Commercial → Evidence**, with Settings and authorised administration separate.
+This supersedes the seven-area navigation references in the historical records
+below. Canonical workspace adapters preserve original URLs, existing feature
+owners, scoped React Query identities, record gates and evidence definitions.
+The [product rebuild record](CX3-PRODUCT-REBUILD.md) is the current frontend revision
+and verification boundary. Historical maturity and reconciliation results below
+retain their original dates and counts.
+
+The rebuild changes presentation, navigation and interaction. It does not change
+metric/source contracts, SQL, authentication, tenant ownership or the meaning of
+validation. Unsupported daily prior-series, stage populations, commercial inputs,
+attempt events and live reconciliation remain explicitly unavailable.
+
+## Prior maturity implementation — 2 October 2026
 
 The maturity pass starts at `fa9a93d3d14ef3164f4bc45b29a0dbec95fed24d` on
 fetched `main`. The [implementation and verification record](CX3-MATURITY-PASS-2026-10-02.md)
-is the current revision boundary; dated results below keep their original counts.
+records that prior revision boundary; dated results below keep their original counts.
 
 - Supported immutable reporting execution and HMAC-signed replay are implemented
   on the existing metric/release architecture. An approved aggregate-snapshot

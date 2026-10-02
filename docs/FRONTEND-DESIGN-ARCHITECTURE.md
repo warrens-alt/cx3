@@ -1,7 +1,9 @@
 # Frontend design architecture and convergence audit
 
-Recorded 2 October 2026 against the frontend convergence work starting at `a12bc89`
-(PR #50). This document describes presentation ownership and the audited cleanup.
+Updated 2 October 2026 for the six-workspace product rebuild, following the
+frontend convergence work starting at `a12bc89` (PR #50). This document describes
+current presentation ownership and the audited cleanup. The
+[product rebuild record](CX3-PRODUCT-REBUILD.md) records implementation and QA.
 The generated [surface inventory](SURFACE-INVENTORY.md) remains the route/API map;
 [implementation status](IMPLEMENTATION-STATUS.md) records analytical and deployment
 boundaries.
@@ -23,15 +25,19 @@ no queries or analytical state. `OperationalPageHeader` adapts existing report
 metadata/actions to `PageHeader`; `PageShell` supplies the page boundary. Local
 section switches and disclosures retain their existing component/query lifetimes.
 
-Overview leads with outcomes, performance and meaningful changes, followed by
-attention and supporting detail. The Investigation and Lead Evidence Population layouts
+Command leads with an eight-position lifecycle strip (unsupported qualification
+and routing remain unavailable), current observations, attention and meaningful
+changes. Journey and Operations use lazy workspace adapters and existing scoped
+models; their contextual lenses retain the authoritative feature modules. The Investigation and Lead Evidence Population layouts
 retain their six-stage workflow, with a compact context summary and one mounted
 evidence subtree that adapts to the available width. These layouts reuse the
 existing models, scope, predicates, export utilities and evidence states.
 
 ## Navigation and colour
 
-The desktop sidebar contains only seven business areas. It is 248px expanded and
+The desktop sidebar contains six primary workspaces: Command, Journey, Operations,
+Investigate, Commercial and Evidence. Settings and authorised administrative
+destinations sit separately. It is 248px expanded and
 60px as an interactive icon rail; the collapsed preference persists locally.
 Second-level destinations belong to the current area's contextual tabs and overflow.
 Each canonical route has one area owner. Compatible URLs and search terms resolve
@@ -39,20 +45,20 @@ through the manifest instead of introducing duplicate navigation destinations.
 
 The topbar provides area/page orientation, workspace selection, search and display
 preferences. Start a review and account controls remain quiet sidebar actions.
-The mobile bottom navigation is stable: Overview, Journey, Contact, Investigate,
-More. More opens Sales, Commercial and Settings & Admin; the full navigation drawer
+The mobile bottom navigation is stable: Command, Journey, Operations, Investigate,
+More. More opens Commercial, Evidence and Settings; the full navigation drawer
 remains available. Accessible names, current state, focus and keyboard interactions
 do not depend on expanded labels or colour alone.
 
 | Area | Light-theme accent |
 | --- | --- |
-| Overview | `#2563EB` |
-| Lead Journey | `#4F46E5` |
-| Contact Centre | `#0F766E` |
-| Sales & Activation | `#15803D` |
+| Command | `#2563EB` |
+| Journey | `#4F46E5` |
+| Operations | `#0F766E` |
+| Evidence | `#15803D` |
 | Commercial | `#7C3AED` |
 | Investigate | `#C2410C` |
-| Settings & Admin | `#64748B` |
+| Settings | `#64748B` |
 
 `tokens.css` defines deliberate light/dark variants. Area accents are small
 orientation cues; selected pages use the shared cobalt underline. The sidebar
@@ -411,3 +417,20 @@ recorded in [the retirement audit](FRONTEND-RETIREMENT-2026-10-02.md). Current
 repository and five-width light/dark browser results are recorded in
 [the maturity QA record](CX3-MATURITY-PASS-2026-10-02.md); earlier counts above are
 historical evidence, not production warehouse certification.
+
+## Workspace composition
+
+`src/workspaces` contains the Command concentration visual, Journey workbench and
+selection model, Operations overview and lenses, Commercial bridge adapter and
+Evidence lenses. The route manifest is the only navigation owner. Compatibility
+routes adapt into the same workspace modules. Feature pages still own their exact
+queries, filters, interpretation and evidence inspectors; unsupported parameters
+continue to fail explicitly on the API.
+
+Investigation keeps one stateful case and one Lead Evidence subtree. Its desktop
+layout places signals on the left, diagnosis in the centre and the case file on
+the right. At constrained widths the rails stack or use the existing evidence
+switcher; the dossier offers keyboard-trapped focus mode. Client identity, selected
+dates and compatible filters survive navigation. Immutable release identity is
+retained only between release surfaces; returning to operations retains the chosen
+universal scope and drops release-specific identifiers.

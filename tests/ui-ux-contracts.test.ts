@@ -46,7 +46,7 @@ test('date presets use the browser local calendar rather than UTC ISO truncation
 
 test('mobile navigation exposes the four primary operator goals before More', () => {
   const mobile = read('src/components/MobileBottomNav.tsx');
-  for (const label of ['Overview', 'Journey', 'Contact', 'Investigate', 'More']) {
+  for (const label of ['Command', 'Journey', 'Operations', 'Investigate', 'More']) {
     assert.ok(mobile.includes(`<span>${label}</span>`), `missing mobile destination: ${label}`);
   }
   assert.doesNotMatch(mobile, /<span>Exceptions<\/span>/);
@@ -169,7 +169,9 @@ test('remaining analysis dialogs use shared accessibility and Explorer uses a fo
   assert.match(dossier, /<aside[^>]*tabIndex=\{-1\}/);
   assert.match(dossier, /role="tablist"/);
   assert.match(dossier, /aria-controls/);
-  assert.doesNotMatch(dossier, /aria-modal="true"/);
+  assert.match(dossier, /useDialogAccessibility<HTMLElement>\(focused/);
+  assert.match(dossier, /role=\{focused \? 'dialog' : undefined\}/);
+  assert.match(dossier, /aria-modal=\{focused \|\| undefined\}/);
 });
 
 test('legacy lead timeline request carries the selected workspace scope', () => {
@@ -214,7 +216,8 @@ test('evidence reports and Firebase are split from the main application bundle',
   const routerPath = fs.existsSync('src/app/AppRouter.tsx') ? 'src/app/AppRouter.tsx' : 'src/App.tsx';
   const app = read(routerPath);
   const vite = read('vite.config.ts');
-  assert.match(app, /const VersionedReports = React\.lazy/);
+  assert.match(read('src/workspaces/evidence/EvidenceWorkspace.tsx'), /const Releases = lazy\(\(\) => import\('\.\.\/\.\.\/pages\/VersionedReports'\)\)/);
+  assert.match(app, /const EvidenceWorkspace = React\.lazy/);
   assert.doesNotMatch(app, /import VersionedReports from/);
   assert.match(vite, /vendor-firebase/);
   assert.match(vite, /node_modules\/firebase/);
@@ -223,9 +226,9 @@ test('evidence reports and Firebase are split from the main application bundle',
 
 test('mobile and in-page operational navigation preserve reporting scope', () => {
   const mobile = read('src/components/MobileBottomNav.tsx');
-  assert.match(mobile, /navigationTarget\('\/overview', location\.pathname, location\.search\)/);
-  assert.match(mobile, /navigationTarget\('\/funnel', location\.pathname, location\.search\)/);
-  assert.match(mobile, /navigationTarget\('\/contact-strategy', location\.pathname, location\.search\)/);
+  assert.match(mobile, /navigationTarget\('\/command', location\.pathname, location\.search\)/);
+  assert.match(mobile, /navigationTarget\('\/journey', location\.pathname, location\.search\)/);
+  assert.match(mobile, /navigationTarget\('\/operations', location\.pathname, location\.search\)/);
   assert.match(mobile, /navigationTarget\('\/investigate', location\.pathname, location\.search\)/);
 
   for (const path of [
@@ -621,14 +624,14 @@ test('ScopePreservingRedirect forces vendor dispositions tab while preserving mo
   assert.equal(params.get('clientId'), 'tenant');
 });
 
-test('ScopePreservingRedirect isolates fixed release scope for /reports', async () => {
+test('ScopePreservingRedirect preserves explicit release identity and analytical scope for /reports', async () => {
   const { buildPreservedDestination } = await import('../src/app/navigation/ScopePreservingRedirect');
 
   const destination = buildPreservedDestination(
     '/reports',
     '?clientId=tenant&release=v1.0.0&startDate=2026-09-01&endDate=2026-09-15&vendor=V1'
   );
-  assert.equal(destination, '/reports?clientId=tenant&release=v1.0.0');
+  assert.equal(destination, '/reports?clientId=tenant&release=v1.0.0&startDate=2026-09-01&endDate=2026-09-15&vendor=V1');
 });
 
 test('ScopePreservingRedirect rejects external redirect targets', async () => {
@@ -760,27 +763,39 @@ test('R2 targeted fixes: InspectorHost binds dialogRef to useDialogAccessibility
   assert.match(inspector, /onMouseDown=\{event\s*=>\s*\{\s*if\s*\(event\.target\s*===\s*event\.currentTarget\)\s*onClose\(\);\s*\}\}/);
 });
 
-test('R3: AppRouter mounts JourneyPage on /funnel, ContactPage on /contact-strategy, and SpeedPage on /speed-to-lead', () => {
+test('R3: diagnostic routes mount canonical workspace lenses that consume Journey, Contact and Speed owners', () => {
   const router = read('src/app/AppRouter.tsx');
-  assert.match(router, /import\('\.\.\/features\/journey\/JourneyPage'\)/);
-  assert.match(router, /import\('\.\.\/features\/contact\/ContactPage'\)/);
-  assert.match(router, /import\('\.\.\/features\/contact\/SpeedPage'\)/);
-  assert.match(router, /path="\/funnel" element={<JourneyPage key=\{selectedClient\} \/>}/);
-  assert.match(router, /path="\/speed-to-lead" element={<SpeedPage key=\{selectedClient\} \/>}/);
-  assert.match(router, /path="\/contact-strategy" element={<ContactPage key=\{selectedClient\} \/>}/);
+  const journey = read('src/workspaces/journey/JourneyWorkspace.tsx');
+  const operations = read('src/workspaces/operations/OperationsWorkspace.tsx');
+  assert.match(router, /import\('\.\.\/workspaces\/journey\/JourneyWorkspace'\)/);
+  assert.match(router, /import\('\.\.\/workspaces\/operations\/OperationsWorkspace'\)/);
+  assert.match(journey, /import\('\.\/JourneyWorkbench'\)/);
+  assert.match(journey, /<JourneyWorkbench selection=\{selection\} onSelect=\{select\}/);
+  assert.match(operations, /import\('\.\.\/\.\.\/features\/contact\/ContactPage'\)/);
+  assert.match(operations, /import\('\.\.\/\.\.\/features\/contact\/SpeedPage'\)/);
+  assert.match(operations, /active === 'contact' \|\| active === 'dispositions' \? <Contact/);
+  assert.match(operations, /active === 'response' \? <Response \/>/);
+  assert.match(router, /path="\/funnel" element={<JourneyWorkspace key=\{selectedClient\} lens="lifecycle" \/>}/);
+  assert.match(router, /path="\/speed-to-lead" element={<OperationsWorkspace key=\{selectedClient\} lens="response" \/>}/);
+  assert.match(router, /path="\/contact-strategy" element={<OperationsWorkspace key=\{selectedClient\} lens="contact" \/>}/);
   assert.match(router, /path="\/vendor-dispositions"\s+element={<ScopePreservingRedirect to="\/contact-strategy\?tab=vendor_dispositions" replace \/>}/);
 });
 
-test('R3: JourneyPage connects progression, segments, timing, and evidence inspection with attached scope', () => {
-  const journey = read('src/features/journey/JourneyPage.tsx');
+test('R3: mounted Journey workbench connects progression, scoped segments, timing, and evidence inspection', () => {
+  const journey = read('src/workspaces/journey/JourneyWorkbench.tsx');
+  const selection = read('src/workspaces/journey/journeySelection.ts');
   const model = read('src/features/journey/model/useJourneyModel.ts');
   assert.match(journey, /JourneyProgression/);
-  assert.match(journey, /JourneySegments/);
+  assert.match(journey, /LifecycleSegmentsPanel/);
   assert.match(journey, /JourneyTiming/);
+  assert.match(journey, /JourneyAuditLens/);
+  assert.match(journey, /JourneyMetricEvidence/);
   assert.match(journey, /InspectorHost/);
-  assert.match(journey, /drill:\s*'funnel-stage'/);
-  assert.match(journey, /drill:\s*'funnel-loss'/);
-  assert.match(journey, /drill:\s*'lifecycle-segment'/);
+  assert.match(journey, /selectionDrill\(selection\)/);
+  assert.match(selection, /drill:\s*'funnel-stage'/);
+  assert.match(selection, /drill:\s*'funnel-loss'/);
+  assert.match(journey, /scoped\(`\/investigate\?drill=funnel-stage&drillValue=\$\{selectedStage\}&segment\$\{lens\[0\]\.toUpperCase\(\)\}\$\{lens\.slice\(1\)\}=\$\{encodeURIComponent\(row.key\)\}`\)/);
+  assert.match(journey, /scope: \{ clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters \}/);
   assert.match(model, /useEffect\(\(\)\s*=>\s*\{\s*setInspectorContent\(null\);\s*\},\s*\[selectedClient,\s*startDate,\s*endDate,\s*filters\]\)/);
   assert.match(model, /downloadAnalysisCsv/);
 });
@@ -806,4 +821,3 @@ test('R3: SpeedPage provides latency distributions, undialled backlog counters, 
   assert.match(speed, /Awaiting First Dial/);
   assert.match(speed, /CaptureTurnaroundPanel/);
 });
-
