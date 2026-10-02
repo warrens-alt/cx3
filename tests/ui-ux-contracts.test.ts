@@ -226,7 +226,7 @@ test('mobile and in-page operational navigation preserve reporting scope', () =>
   assert.match(mobile, /navigationTarget\('\/investigate', location\.pathname, location\.search\)/);
 
   for (const path of [
-    'src/pages/ExecutiveOverview.tsx',
+    'src/features/overview/components/JourneySummary.tsx',
     'src/pages/FunnelIntelligence.tsx',
     'src/pages/SpeedToLeadIntelligence.tsx',
     'src/pages/VendorLeadQuality.tsx',
@@ -288,7 +288,7 @@ test('all custom analysis drawers use focus-managed dialog semantics', () => {
 
 test('primary OfferNet tabs expose operating-control analytics appropriate to their purpose', () => {
   const expectations = [
-    ['src/pages/ExecutiveOverview.tsx', 'OperatingControlStrip'],
+    ['src/features/overview/OverviewPage.tsx', 'OperatingControlStrip'],
     ['src/pages/FunnelIntelligence.tsx', 'SlaBandsPanel'],
     ['src/pages/SpeedToLeadIntelligence.tsx', 'OperatingWindowPanel'],
     ['src/pages/VendorLeadQuality.tsx', 'VendorControlsPanel'],
@@ -454,14 +454,14 @@ test('shared operational visual components centralize Recharts usage for new ana
 
 
 test('overview and secondary operational tabs use the shared visual analytics language', () => {
-  const overview = read('src/pages/ExecutiveOverview.tsx');
+  const overview = read('src/features/overview/OverviewPage.tsx');
   const commercial = read('src/pages/CommercialIntelligence.tsx');
   const temporal = read('src/pages/TemporalIntelligence.tsx');
   const contact = read('src/pages/ContactStrategyIntelligence.tsx');
   const exceptions = read('src/pages/Exceptions.tsx');
 
-  assert.match(overview, /Lead-to-activation journey/);
-  assert.match(overview, /FunnelWaterfall/);
+  assert.match(overview, /JourneySummary/);
+  assert.match(read('src/features/overview/components/JourneySummary.tsx'), /Lead-to-activation journey/);
   assert.match(commercial, /Matched funnel outcomes by attribution key/);
   assert.match(temporal, /outcomes by hour/);
   assert.match(temporal, /VolumeRateComboChart/);

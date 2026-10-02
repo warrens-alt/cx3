@@ -100,7 +100,7 @@ compared the live shell and page primitives with their duplicate CSS selectors.
 | Retire `SectionNavigation.tsx` | No mounted consumers; obsolete no-op component. Contextual navigation belongs to `AreaNavigation`. |
 | Consolidate `analyticsVisuals.css` and `visualRefinement.css` | Live chart rules moved into `visuals.css`; Overview/reporting/shell rules moved to their owners before the old sheets were removed. |
 | Consolidate `scopeControls.css` | Scope styling moved into `reporting.css`, preserving the existing editor behaviour. |
-| Retain historical unmounted pages with consumers | Source assertions and fixture imports still refer to some historical implementations. For example, `ExecutiveOverview.tsx` remains covered by source tests, while the production router uses `features/overview/OverviewPage.tsx`. Unmounted alone is insufficient deletion evidence. |
+| Retire historical executive analytics | `ExecutiveOverview.tsx` was the only runtime importer of `ExecutiveAnalyticsConsole.tsx`; neither had a mounted route or tooling/fixture importer. Source assertions now exercise `features/overview/OverviewPage.tsx` and its journey component, and both historical files are deleted. Other legacy implementations still require consumer checks before deletion. |
 
 The cleanup does not claim that every legacy selector or compatibility component
 has disappeared. Remaining consumers are preserved rather than silently weakening

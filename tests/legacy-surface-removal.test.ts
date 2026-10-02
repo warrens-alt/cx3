@@ -23,3 +23,12 @@ test('unused Lead Engine frontend and backend packages are deleted', () => {
   assert.equal(existsSync('src/leadEngine'), false);
   assert.equal(existsSync('server/leadEngine'), false);
 });
+
+
+test('historical synthetic executive analytics cannot be imported or bundled', () => {
+  assert.equal(existsSync('src/pages/ExecutiveOverview.tsx'), false);
+  assert.equal(existsSync('src/components/analytics/ExecutiveAnalyticsConsole.tsx'), false);
+  const router = readFileSync('src/app/AppRouter.tsx', 'utf8');
+  assert.doesNotMatch(router, /ExecutiveOverview|ExecutiveAnalyticsConsole/);
+  assert.match(router, /path="\/overview" element=\{<OverviewPage/);
+});

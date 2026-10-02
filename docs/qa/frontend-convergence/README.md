@@ -127,6 +127,7 @@ only on disclosure.
 `KpiCard` keeps its lazy lineage/population drawers and is intentionally retained
 alongside the common visual metric shell. `product.css` still owns live feature
 compatibility selectors; the remaining domain/integration styles need incremental
-route-level consolidation. Historical unmounted pages with source-test/fixture
-consumers remain, including `ExecutiveOverview.tsx`. These are concrete retained
-consumers, not a claim that every legacy selector or wrapper was removed.
+route-level consolidation. Other historical unmounted pages with source-test/fixture consumers remain.
+The subsequent numerical hardening pass retired `ExecutiveOverview.tsx` and its
+synthetic console after confirming source assertions were their only remaining
+consumers; those assertions now cover the maintained Overview implementation.

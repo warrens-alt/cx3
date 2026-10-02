@@ -46,7 +46,7 @@ test('OfferNet control panels do not invent missing operating configuration or m
 
 test('operational pages preserve unavailable metrics instead of displaying fallback zeroes', () => {
   for (const path of [
-    'src/pages/ExecutiveOverview.tsx',
+    'src/features/overview/OverviewPage.tsx',
     'src/pages/Exceptions.tsx',
     'src/pages/ContactStrategyIntelligence.tsx',
     'src/pages/DataIntegrityIntelligence.tsx',
