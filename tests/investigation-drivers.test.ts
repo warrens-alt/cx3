@@ -137,3 +137,25 @@ test('metric rate changes retain percentage-point semantics without an exception
     assert.doesNotMatch(app.w.document.querySelector('.cx-driver-summary').textContent, /Percentage change/);
   } finally { app.close(); }
 });
+
+test('driver visual keeps signed contributions on opposite sides of zero and missing evidence unfilled', async () => {
+  const segment = operational.dimensions[0].segments[0];
+  const result = { ...operational, dimensions: [{ ...operational.dimensions[0], segments: [
+    { ...segment, name: 'Positive', contribution: 8 },
+    { ...segment, name: 'Negative', contribution: -4 },
+    { ...segment, name: 'Unknown', contribution: null },
+    { ...segment, name: 'Measured zero', contribution: 0 },
+  ] }] };
+  const app = await mount('fetchedLeads', '/investigate'+scope, true, 20, result as typeof operational); try {
+    await app.wait(() => Boolean(app.w.document.querySelector('.cx-driver-bars[data-mode=contribution]')));
+    const bars = app.w.document.querySelector('.cx-driver-bars');
+    assert.match(bars.textContent, /Descriptive contribution · centred on zero/);
+    const positive = bars.querySelector('[data-state=positive] i');
+    const negative = bars.querySelector('[data-state=negative] i');
+    assert.equal(positive.style.left, '50%'); assert.equal(positive.style.width, '50%');
+    assert.equal(negative.style.left, '25%'); assert.equal(negative.style.width, '25%');
+    assert.equal(bars.querySelector('[data-state=unavailable] i'), null);
+    assert.match(bars.querySelector('[data-state=unavailable]').textContent, /Unavailable/);
+    assert.equal(bars.querySelector('[data-state=zero] i').style.width, '0%');
+  } finally { app.close(); }
+});

@@ -14,7 +14,14 @@
 .cx-driver-pin { display:inline-flex; align-items:center; gap:5px; justify-self:start; grid-column:1/-1; }
 .cx-driver-bars { display:grid; gap:9px; padding:4px 0 16px; }
 .cx-driver-bar { display:grid; grid-template-columns:minmax(90px,1fr) minmax(40px,2fr) minmax(65px,auto); gap:10px; align-items:center; font-size:12px; }
-.cx-driver-bar > span { overflow-wrap:anywhere; }.cx-driver-bar > div { background:var(--cx-surface-subtle); height:7px; border-radius:3px; overflow:hidden; }.cx-driver-bar i { display:block; height:100%; background:var(--cx-accent); border-radius:3px; }.cx-driver-bar strong { text-align:right; font-variant-numeric:tabular-nums; }
+.cx-driver-bar > span { overflow-wrap:anywhere; }.cx-driver-bar-track { position:relative;background:var(--cx-surface-subtle); height:14px; border-radius:3px; }.cx-driver-bar i { position:absolute;display:block; height:100%; background:var(--cx-action); border-radius:2px; }.cx-driver-bar strong { text-align:right; font-variant-numeric:tabular-nums; }
+.cx-driver-visual-caption { font-size:10px;color:var(--cx-text-secondary);margin:0 0 5px; }
+.cx-driver-bars[data-mode=contribution] .cx-driver-bar-track::after { content:'';position:absolute;left:50%;top:-3px;bottom:-3px;border-left:1px solid var(--cx-border-strong); }
+.cx-driver-bar[data-state=negative] i { background:var(--cx-text-secondary); }
+.cx-driver-bar[data-state=unavailable] .cx-driver-bar-track { background:none;border:1px dashed var(--cx-border); }
+.cx-driver-bar[data-state=zero] .cx-driver-bar-track { border:1px solid var(--cx-border-subtle); }
+.cx-driver-bar strong small { display:block;font-size:10px;font-weight:400;color:var(--cx-text-secondary); }
+.cx-driver-bar a { color:var(--cx-action);text-decoration:underline;text-underline-offset:3px; }
 .cx-driver-table-scroll { position:relative; max-width:100%; overflow-x:auto; border:1px solid var(--cx-line); border-radius:8px; }
 .cx-driver-table { width:100%; border-collapse:collapse; font-size:12px; text-align:left; }
 .cx-driver-table caption { text-align:left; padding:9px 12px; font-size:11px; color:var(--cx-text-secondary); background:var(--cx-surface-subtle); }

@@ -57,12 +57,17 @@ export function DriverBreakdown({ label, rows, unit, compared, concentration, re
   recordsAllowed: boolean; decomposition?: boolean; contributionLabel?: string; href?: (name: string) => string; onInspect?: () => void; onPin?: (row: BreakdownRow) => void;
 }) {
   const max = rows.reduce((largest, row) => Math.max(largest, Math.abs(concentration ? row.current ?? 0 : row.contribution ?? 0)), 1);
+  const ranked = [...rows].sort((left, right) => Math.abs(concentration ? right.current ?? 0 : right.contribution ?? 0) - Math.abs(concentration ? left.current ?? 0 : left.contribution ?? 0));
   return <>
-    <div className="cx-driver-bars" aria-label={`${label}: ${concentration ? 'current affected leads' : contributionLabel.toLowerCase()}`}>
-      {rows.slice(0, 6).map(row => <div className="cx-driver-bar" key={row.name}>
-        <span>{row.name}</span><div aria-hidden="true"><i style={{ width: `${100 * Math.abs(concentration ? row.current ?? 0 : row.contribution ?? 0) / max}%` }} /></div>
-        <strong>{concentration ? number(row.current) : signed(row.contribution, unit)}</strong>
-      </div>)}
+    <div className="cx-driver-bars" data-mode={concentration ? 'population' : 'contribution'} aria-label={`${label}: ${concentration ? 'current affected leads' : contributionLabel.toLowerCase()}`}>
+      <p className="cx-driver-visual-caption">{concentration ? 'Largest returned populations' : `${contributionLabel} · centred on zero`}{rows.length > 6 ? ' · top six' : ''}</p>
+      {ranked.slice(0, 6).map(row => {
+        const value = concentration ? row.current : row.contribution;
+        return <div className="cx-driver-bar" key={row.name} data-state={value == null ? 'unavailable' : value === 0 ? 'zero' : value < 0 ? 'negative' : 'positive'}>
+          <span>{href ? <Link to={href(row.name)} onClick={onInspect}>{row.name}</Link> : row.name}</span><div className="cx-driver-bar-track" aria-hidden="true">{value != null && <i style={{ width: `${(concentration ? 100 : 50) * Math.abs(value) / max}%`, ...(!concentration ? { left: value < 0 ? `${50 - 50 * Math.abs(value) / max}%` : '50%' } : {}) }} />}</div>
+          <strong>{concentration ? number(row.current) : signed(row.contribution, unit)}{concentration && row.share != null && <small>{number(row.share)}% of population</small>}</strong>
+        </div>;
+      })}
     </div>
     <div className="cx-driver-table-scroll" role="region" aria-label={`${label} exact breakdown`} tabIndex={0}>
       <table className="cx-driver-table">

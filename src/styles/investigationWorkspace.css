@@ -30,7 +30,10 @@
 .cx-investigation-notes textarea,.cx-investigation-ai input { width:100%;border:1px solid var(--cx-control-border);border-radius:6px;background:var(--cx-surface-subtle);padding:9px;color:var(--cx-ink); }
 .cx-investigation-notes textarea { min-height:80px;resize:vertical; }
 .cx-investigation-starts { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 18px; }
-.cx-investigation-starts a { display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid var(--cx-border);border-radius:6px;padding:12px;background:var(--cx-surface);font-size:12px;font-weight:600;color:var(--cx-ink); }
+.cx-investigation-starts a { display:flex;align-items:center;gap:8px;border:1px solid var(--cx-border);border-radius:6px;padding:10px;min-height:44px;background:var(--cx-surface);font-size:12px;font-weight:550;color:var(--cx-ink); }
+.cx-investigation-starts a>svg { flex-shrink:0;color:var(--cx-text-secondary); }
+.cx-investigation-starts a>span { flex:1;min-width:0; }
+.cx-investigation-starts a>svg:last-child { width:12px; }
 .cx-investigation-starts a:hover { border-color:var(--cx-action);background:var(--cx-selected-bg); }
 .cx-investigation-ai form { display:flex;gap:8px;margin:12px 0; }
 .cx-investigation-ai-questions { display:flex;gap:6px;flex-wrap:wrap; }
@@ -74,10 +77,26 @@
 .cx-investigation-evidence-rail li { flex-wrap:wrap; }
 .cx-investigation-evidence-rail li>div { flex:1 1 100%; }
 .cx-investigation-evidence-rail .cx-investigation-actions button { min-height:36px; }
-@media(min-width:1380px) {
+.cx-investigation-tray>summary { display:flex;align-items:center;gap:8px;list-style:none; }
+.cx-investigation-tray>summary::-webkit-details-marker { display:none; }
+.cx-investigation-tray>summary>span { flex:1;min-width:0; }
+.cx-investigation-tray>summary small { font-size:11px;font-weight:400; }
+.cx-investigation-tray-chevron { flex-shrink:0;transition:transform 150ms ease; }
+.cx-investigation-tray[open]>summary .cx-investigation-tray-chevron { transform:rotate(180deg); }
+.cx-investigation-case-status { display:grid;gap:10px;padding:14px 0;border-bottom:1px solid var(--cx-border); }
+.cx-investigation-case-status>div { display:flex;align-items:center;justify-content:space-between;gap:12px; }
+.cx-investigation-case-status dt { display:flex;align-items:center;gap:6px;color:var(--cx-text-secondary);font-size:11px; }
+.cx-investigation-case-status dd { font-size:11px;font-weight:600;margin:0; }
+.cx-investigation-pin-boundary { margin:12px 0;color:var(--cx-text-secondary);font-size:11px; }
+.cx-investigation-tray :is(summary,button,textarea):focus-visible { outline:2px solid var(--cx-focus);outline-offset:3px; }
+@media(min-width:1180px) {
   .cx-investigation-evidence-workspace:has(>.cx-investigation-evidence-panel>.cx-investigation-tray[open]) { grid-template-columns:minmax(0,1fr) 320px; }
   .cx-investigation-evidence-panel:has(>.cx-investigation-tray[open]) { position:sticky; top:16px; max-height:calc(100dvh - 112px); overflow:auto; scrollbar-width:thin; }
+  .cx-investigation-evidence-rail>summary { position:sticky;top:0;z-index:2;background:var(--cx-surface); }
+  .cx-investigation-evidence-workspace:not(:has(>.cx-investigation-evidence-panel>.cx-investigation-tray[open])) .cx-investigation-evidence-panel { grid-row:1; }
+  .cx-investigation-evidence-workspace:has(>.cx-investigation-evidence-panel>.cx-investigation-tray[open]) .cx-investigation-starts { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
+@media(max-width:1179px) { .cx-investigation-evidence-panel { grid-row:1; }.cx-investigation-evidence-rail>.cx-investigation-tray-body { max-height:65dvh;overflow:auto;overscroll-behavior:contain; } }
 @media(max-width:900px) { .cx-investigation-starts { grid-template-columns:repeat(2,minmax(0,1fr)); } .cx-investigation-heading { align-items:start;flex-direction:column; } }
 @media(max-width:540px) {
   .cx-investigation-context,.cx-investigation-confidence,.cx-investigation-tray,.cx-investigation-ai { padding:12px; }
@@ -89,3 +108,4 @@
   .cx-investigation-workflow li>a,.cx-investigation-workflow li>span { padding-inline:10px; }
   .cx-investigation-context[data-compact="true"]> :not(.cx-investigation-workflow) { margin-inline:12px; }
 }
+@media(prefers-reduced-motion:reduce) { .cx-investigation-tray-chevron { transition:none; } }

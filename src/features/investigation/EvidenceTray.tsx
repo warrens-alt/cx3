@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { ChevronDown, Pin, ShieldQuestion } from 'lucide-react';
 import { useClient } from '../../lib/ClientContext';
 import { useAuth } from '../../lib/AuthContext';
 import { getAnalyticalSessionKey, subscribeToAnalyticalSession } from '../../lib/analyticalSession';
@@ -39,12 +40,14 @@ export default function EvidenceTray({ rail = false, confidence }: { rail?: bool
   const { items, remove, clear, notes, setNotes } = useEvidenceTray();
   const { selectedClient } = useClient();
   const { conclusion, unknowns } = notes;
-  const [open, setOpen] = useState(() => rail && typeof window !== 'undefined' && window.matchMedia('(min-width: 1380px)').matches);
+  const [open, setOpen] = useState(() => rail && typeof window !== 'undefined' && window.matchMedia('(min-width: 1180px)').matches);
   const exportEvidence = () => downloadAnalysisCsv('investigation_evidence', [
     ['Kind', 'Label', 'Value', 'Scope', 'Definition', 'Provenance', 'Identifier', 'Observed / generated at', 'Pinned at', 'Item validation', 'Analyst conclusion', 'Open questions'],
     ...items.map(item => [item.kind, item.label, item.value, investigationScopeText(item.scope), item.definition, Array.isArray(item.provenance) ? item.provenance.join('; ') : item.provenance, item.identifier, item.observedAt || 'Not supplied', item.pinnedAt, item.scope.validationStatus, conclusion, unknowns]),
   ], { clientId: selectedClient, validationStatus: 'NOT_VERIFIED', definitions: 'Locally pinned observations; each row retains its original scope. Analyst conclusions are notes, not validation. Counts across scopes must not be added.' });
-  return <details id="investigation-evidence-tray" tabIndex={-1} className={`cx-investigation-tray${rail ? ' cx-investigation-evidence-rail' : ''}`} open={open} onToggle={event => setOpen(event.currentTarget.open)}><summary>Evidence · {items.length} pinned {items.length === 1 ? 'observation' : 'observations'}</summary><div className="cx-investigation-tray-body"><p>Local to this session and workspace. Pins retain their observed scope; they are not saved analyses or published evidence releases.</p>
+  return <details id="investigation-evidence-tray" tabIndex={-1} className={`cx-investigation-tray${rail ? ' cx-investigation-evidence-rail' : ''}`} open={open} onToggle={event => setOpen(event.currentTarget.open)}><summary><Pin size={16} aria-hidden="true"/><span>Evidence <small>· {items.length} pinned {items.length === 1 ? 'observation' : 'observations'}</small></span><ChevronDown className="cx-investigation-tray-chevron" size={15} aria-hidden="true"/></summary><div className="cx-investigation-tray-body">
+    <dl className="cx-investigation-case-status" aria-label="Case file status"><div><dt><ShieldQuestion size={14} aria-hidden="true"/>Validation</dt><dd>Not verified</dd></div><div><dt>Conclusion</dt><dd>{conclusion.trim() ? 'Draft note' : 'Incomplete'}</dd></div><div><dt>Open questions</dt><dd>{unknowns.trim() ? 'Notes recorded' : 'Not recorded'}</dd></div></dl>
+    <details className="cx-investigation-pin-boundary"><summary>Session evidence scope</summary><p>Local to this session and workspace. Pins retain their observed scope; they are not saved analyses or published evidence releases.</p></details>
     {items.length ? <><ul>{items.map(item => <li key={item.id}><div><strong>{item.label} — {item.value}</strong><p>{item.definition}</p><small>{investigationScopeText(item.scope)} · {item.scope.validationStatus}</small><details><summary>Provenance and timing</summary><p>{Array.isArray(item.provenance) ? item.provenance.join(' · ') : item.provenance}</p><p>Observed/generated: {item.observedAt || 'Not supplied'} · Pinned: {item.pinnedAt}</p></details></div><button type="button" className="cx-button-secondary" aria-label={`Unpin ${item.label}`} onClick={() => remove(item.id)}>Unpin</button></li>)}</ul>
       </> : <p>Pin a metric, exception, driver, segment, lead or journey event to build an evidence trail.</p>}
       {confidence}
