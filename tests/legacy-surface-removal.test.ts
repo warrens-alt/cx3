@@ -35,6 +35,7 @@ test('historical synthetic executive analytics cannot be imported or bundled', (
 
 
 test('unconsumed duplicate legacy implementations cannot reintroduce numeric fallbacks', () => {
+  assert.equal(existsSync('server/queries.ts'), false);
   for (const name of ['overview', 'funnel', 'quality', 'calls', 'sources', 'leads', 'routing', 'index']) {
     assert.equal(existsSync(`server/bigquery/legacy/${name}.ts`), false, name);
   }
