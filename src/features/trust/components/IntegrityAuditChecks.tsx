@@ -1,5 +1,6 @@
 import TablePreview from '../../../shared/reporting/TablePreview';
 import React, { useState } from 'react';
+import { GitBranch } from 'lucide-react';
 import type { DataIntegrityData } from '../../../lib/offernetClient';
 import InspectorHost, { type InspectorContent } from '../../../shared/evidence/InspectorHost';
 import { formatTableNumber } from '../../../lib/formatters';
@@ -56,7 +57,7 @@ export default function IntegrityAuditChecks({ data, scope }: {
               <td><EvidenceStatus status={item.status} /></td>
               <td>{item.discrepancyCount == null ? 'Unavailable' : formatTableNumber(item.discrepancyCount)}</td>
               <td><EvidenceStatus status={item.evidence} /><p>{item.detail || 'No check definition was supplied.'}</p></td>
-              <td><button type="button" className="cx-admin-text-button" aria-label={`Inspect evidence for ${item.checkName}`} onClick={() => setSelected(item)}>Inspect</button><small>Record drill is not available for this check.</small></td>
+              <td><button type="button" className="cx-audit-evidence-control" aria-label={`Inspect evidence for ${item.checkName}`} onClick={() => setSelected(item)}><GitBranch size={14} aria-hidden="true" /><span>Audit evidence</span></button><small>Record drill is not available for this check.</small></td>
             </tr>)}</tbody>
           </table>
         </div>}</TablePreview>}

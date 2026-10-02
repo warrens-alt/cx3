@@ -6,7 +6,7 @@ import { useOperationalData } from '../lib/useOperationalData';
 import React, { useState } from 'react';
 import ReportSections from '../shared/reporting/ReportSections';
 import { groupIntegrityChecks } from '../features/trust/integrityAuditPresentation';
-import { AlertTriangle, Clock3, Database, ShieldCheck, GitFork } from 'lucide-react';
+import { AlertTriangle, Clock3, Database, ShieldCheck, GitBranch } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { OffernetFilterBar } from '../components/OffernetFilterBar';
 import { useClient } from '../lib/ClientContext';
@@ -26,6 +26,9 @@ import TelemetryRail from '../shared/visuals/TelemetryRail';
 import SourceEvidenceMatrix, { EvidenceStatus } from '../features/trust/components/SourceEvidenceMatrix';
 import IntegrityCheckComparison from '../features/trust/components/IntegrityCheckComparison';
 import IntegrityAuditChecks from '../features/trust/components/IntegrityAuditChecks';
+import MetricEvidenceHub, { IntegrityReconciliationBoundary, MetricDefinitions, SourceMetricDependencies } from '../features/trust/components/MetricEvidenceHub';
+import { metricDefinitionEvidence, sourceObservationEvidence } from '../features/trust/sourceMetricEvidence';
+import InspectorHost, { type InspectorContent } from '../shared/evidence/InspectorHost';
 import { warehouseSchemaPath } from '../features/evidenceWorkspace/warehouseAuditNavigation';
 import { scopedViewPath } from '../shared/evidence/auditPresentation';
 import '../styles/journeyContactVisuals.css';
@@ -50,6 +53,10 @@ export default function DataIntegrityIntelligence() {
   }, fetchDataIntegrity);
 
   const auditScope = { clientId: selectedClient, startDate, endDate, filters };
+  const auditScopeKey = JSON.stringify(auditScope);
+  const [inspection, setInspection] = useState<{ scopeKey: string; content: InspectorContent } | null>(null);
+  const inspectedContent = inspection?.scopeKey === auditScopeKey ? inspection.content : null;
+  const inspect = (content: InspectorContent) => setInspection({ scopeKey: auditScopeKey, content });
   const analysisPath = scopedViewPath(location.pathname, location.search, auditScope);
 
   const groups = groupIntegrityChecks(data?.checks || []);
@@ -63,9 +70,9 @@ export default function DataIntegrityIntelligence() {
 
         <ReportSections label="Data integrity sections" value={section} onChange={setSection} sections={[
           { id: 'overview', label: 'Overview', content: data && <><TelemetryRail className="cx-integrity-summary" label="Data integrity overview metrics">
-              <UnifiedMetricCard label="Checks with measured gaps" value={gaps.length} note="Returned checks with a positive gap count" onInspect={() => setSection('issues')} inspectLabel="Inspect issues" />
-              <UnifiedMetricCard label="Evidence limitations" value={groups.limitations.length} note="Checks with unavailable or unverified evidence" onInspect={() => setSection('issues')} inspectLabel="Inspect limitations" />
-              <UnifiedMetricCard label="Observed Data Sources" value={data.sources?.length ?? 'Unavailable'} note="Returned source entries; observation does not establish health" onInspect={() => setSection('sources')} inspectLabel="Inspect sources" />
+              <UnifiedMetricCard label="Checks with measured gaps" value={gaps.length} note="Returned checks with a positive gap count" auditContent={{ type: 'custom', title: 'Checks with measured gaps', value: gaps.length, scope: auditScope, definition: { meaning: 'Returned measured checks with a positive discrepancy count.', grain: 'Returned check entries', calculation: 'Count of measured checks with discrepancyCount greater than zero. This is not an affected-record total; check populations can overlap.' }, provenance: { validationStatus: data.validationStatus }, detailLimitation: 'Inspect individual integrity checks for their returned counts and limitations. No affected-record predicate is supplied.' }} onInspect={() => setSection('issues')} inspectLabel="Inspect issues" />
+              <UnifiedMetricCard label="Evidence limitations" value={groups.limitations.length} note="Checks with unavailable or unverified evidence" auditContent={{ type: 'custom', title: 'Evidence limitations', value: groups.limitations.length, scope: auditScope, definition: { meaning: 'Returned checks whose measured count or evidence state is unavailable or unverified.', grain: 'Returned check entries', calculation: 'Count of checks in the evidence-limitations group. A supplied zero is retained when the check contract is incomplete.' }, provenance: { validationStatus: data.validationStatus }, detailLimitation: 'No exact supporting record population is supplied for this summary.' }} onInspect={() => setSection('issues')} inspectLabel="Inspect limitations" />
+              <UnifiedMetricCard label="Observed Data Sources" value={data.sources?.length ?? 'Unavailable'} note="Returned source entries; observation does not establish health" auditContent={{ type: 'custom', title: 'Observed Data Sources', value: data.sources?.length ?? null, scope: { clientId: selectedClient, narrowing: {} }, definition: { meaning: 'Returned source observation entries, including unavailable sources.', grain: 'Source observation entries', dateBasis: 'All tenant-owned records, independent of the selected capture cohort.', calculation: 'Count of source entries. Source row counts are not summed.', nullMeaning: 'Missing sources are unavailable; a returned empty array is measured zero.' }, detailLimitation: 'Inspect individual source evidence for exact status and declared dependencies.' }} onInspect={() => setSection('sources')} inspectLabel="Inspect sources" />
             </TelemetryRail>
             <SourceEvidenceMatrix sources={data.sources} summaryOnly />
             <IntegrityCheckComparison key={JSON.stringify([selectedClient, startDate, endDate, filters])} checks={data.checks} onViewDetails={() => setSection('issues')} />
@@ -77,7 +84,7 @@ export default function DataIntegrityIntelligence() {
               </ul> : <p>{data.checks.length ? 'No unavailable or unverified checks were returned. This does not certify the report.' : 'No discrepancy checks were returned. There is no measured conclusion to display.'}</p>}
               <button type="button" className="cx-admin-text-button" onClick={() => setSection('issues')}>View all {data.checks.length} checks</button>
             </section></> },
-          { id: 'issues', label: 'Issues', content: data && <>            <IntegrityCheckComparison key={JSON.stringify([selectedClient, startDate, endDate, filters])} checks={data.checks} />
+          { id: 'issues', label: 'Integrity', content: data && <>            <IntegrityCheckComparison key={JSON.stringify([selectedClient, startDate, endDate, filters])} checks={data.checks} />
 
             <section className="cx-command-panel" id="integrity-checks">
               <div className="p-4"><ExportAnalysisButton filename="data_integrity_checks" rows={[
@@ -92,10 +99,12 @@ export default function DataIntegrityIntelligence() {
               <ShieldCheck size={16} aria-hidden="true"/><div><h2>Current validation state</h2><p>Source freshness and discrepancy counts are operational observations, not financial or evidence-release certification.</p></div>
             </aside>
 </> },
-          { id: 'sources', label: 'Sources', content: data && <>            <SourceEvidenceMatrix sources={data.sources} renderSourceAction={source => {
+          { id: 'sources', label: 'Source evidence', content: data && <>            <SourceEvidenceMatrix sources={data.sources} renderSourceAction={source => {
               const target = warehouseSchemaPath(source.table, selectedClient, analysisPath);
-              return target ? <Link className="cx-admin-text-button" to={target}>Inspect source schema</Link> : <small className="cx-trust-source-path">An exact source schema link is unavailable.</small>;
+              return <><button type="button" className="cx-audit-evidence-control" onClick={() => inspect(sourceObservationEvidence(source, selectedClient, metric => inspect(metricDefinitionEvidence(metric, auditScope))))}><GitBranch size={14} aria-hidden="true" /><span>Audit evidence</span></button>{target ? <Link className="cx-admin-text-button" to={target}>Inspect source schema</Link> : <small className="cx-trust-source-path">An exact source schema link is unavailable.</small>}</>;
             }} />
+            <SourceMetricDependencies scope={auditScope} sources={data.sources} onInspect={inspect} />
+            <aside className="cx-integrity-boundary" aria-label="Source field coverage availability"><Database size={16} aria-hidden="true" /><div><h2>Field population coverage unavailable</h2><p>This source API supplies row counts, reported statuses and timestamps. It does not supply field-level population counts. Coverage is never estimated from a record preview; original field availability is available in the Lead Ledger source evidence when returned by its API.</p></div></aside>
             <details className="cx-trust-disclosure"><summary>Detailed source observations and lifecycle diagnostics</summary>
             <section className="cx-command-panel">
               <header>
@@ -125,6 +134,9 @@ export default function DataIntegrityIntelligence() {
 
             </details>
 </> },
+          { id: 'metrics', label: 'Metric evidence', content: data && <MetricEvidenceHub scope={auditScope} sources={data.sources} onInspect={inspect} /> },
+          { id: 'reconciliation', label: 'Reconciliation', content: data && <IntegrityReconciliationBoundary /> },
+          { id: 'definitions', label: 'Definitions', content: <MetricDefinitions scope={auditScope} onInspect={inspect} /> },
           { id: 'diagnostics', label: 'Diagnostics', content: <>
             {data && <><details className="cx-report-disclosure"><summary>Audit context</summary>            <section key={JSON.stringify(auditScope)} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6" aria-label="Data integrity summary metrics">
               <UnifiedMetricCard
@@ -178,6 +190,7 @@ export default function DataIntegrityIntelligence() {
             <DataIntakePanel clientId={selectedClient} isAdmin={isAdmin} />
           </> },
         ]} />
+        <InspectorHost open={Boolean(inspectedContent)} content={inspectedContent} onClose={() => setInspection(null)} />
 
     </AnalyticsPageLayout>
   );

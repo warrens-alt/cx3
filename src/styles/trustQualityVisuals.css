@@ -152,3 +152,14 @@
 .cx-integrity-attention li { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; border-top: 1px solid var(--cx-border-subtle); padding: 12px 0; font-size: 13px; }
 .cx-integrity-attention li button { flex-shrink: 0; min-height: var(--cx-touch-target); }
 @media (max-width: 700px) { .cx-integrity-summary { grid-template-columns: 1fr; } .cx-integrity-attention li { flex-direction: column; gap: 4px; } }
+.cx-metric-audit-hub{min-width:0;margin-block:1rem}
+.cx-metric-audit-hub>.cx-evidence-matrix,.cx-metric-audit-hub>.cx-audit-dependencies,.cx-metric-audit-hub>.cx-audit-reconciliation,.cx-metric-audit-hub>.cx-trust-note,.cx-metric-audit-hub>.cx-admin-empty{margin:1rem}
+.cx-audit-definition-list{display:grid;gap:.75rem;padding:1rem;min-width:0}
+.cx-audit-definition-list details{padding:.75rem;border:1px solid var(--cx-border-subtle);border-radius:var(--cx-radius-md,8px);min-width:0;background:var(--cx-surface)}
+.cx-audit-definition-list summary{font-weight:600;cursor:pointer;color:var(--cx-text)}
+.cx-audit-definition-list p,.cx-audit-definition-list dl{font-size:.8rem;color:var(--cx-text-secondary);line-height:1.55}
+.cx-audit-definition-list dl>div{display:grid;grid-template-columns:minmax(8rem,.3fr) minmax(0,1fr);gap:.75rem;margin-block:.5rem}
+.cx-audit-definition-list dd{margin:0;overflow-wrap:anywhere}
+.cx-audit-definition-list dt{font-weight:600}
+.cx-audit-definition-list summary:focus-visible{outline:2px solid var(--cx-action);outline-offset:4px}
+@media(max-width:639px){.cx-audit-definition-list dl>div{grid-template-columns:1fr;gap:.15rem}.cx-metric-audit-hub>.cx-evidence-matrix{margin:.75rem}}
