@@ -33,7 +33,7 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
         COUNT(DISTINCT CASE WHEN is_invalid THEN lead_id END) AS invalid_leads,
         CASE WHEN COUNTIF(total_calls IS NULL) > 0 THEN NULL ELSE SUM(total_calls) END AS total_calls,
         ROUND(${completeRevenueSumSql()}, 2) AS revenue,
-        APPROX_QUANTILES(CASE WHEN deliv_to_dial_sec >= 0 THEN deliv_to_dial_sec END, 100)[OFFSET(50)] AS med_first_dial_sec
+        APPROX_QUANTILES(CASE WHEN is_dialled AND deliv_to_dial_sec >= 0 THEN deliv_to_dial_sec END, 100)[OFFSET(50)] AS med_first_dial_sec
       FROM base
       GROUP BY vendor
       ORDER BY leads DESC
@@ -98,7 +98,8 @@ export async function getVendorQualityAnalytics(params: OffernetQueryParams) {
   `;
 
   const [rows] = await client.query({ query, params: queryParams });
-  const data = rows[0] || { vendors: [], sources: [], grades: [], vetting: [] };
+  if (!rows[0]) throw new Error('Vendor quality aggregate evidence is unavailable.');
+  const data = rows[0];
   const lifecycle = assembleLifecycleDiagnostics(data.lifecycle_rows || [], diagnostics.period);
   return buildVendorQualityResult(data, lifecycle);
 }

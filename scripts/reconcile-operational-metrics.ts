@@ -164,7 +164,7 @@ export async function runReconciliation(options: ReconciliationOptions, dependen
   const [rows] = await job.getQueryResults();
   if (rows.length !== 1) throw new Error('Independent reconciliation query did not return exactly one aggregate row.');
   const metrics = rows[0] as Record<string, string | null>;
-  const service = options.compareService ? await (dependencies?.service || getExecutiveOverview)(options.scope) : null;
+  const service = options.compareService ? await (dependencies?.service || getExecutiveOverview)(options.scope, { includeDiagnostics: false }) : null;
   const comparisons = service ? compareReconciliation(metrics, service) : null;
   return { ...metadata, warehouseQueryId: job.id || null, serviceQueryIds: null,
     reconciliationStatus: comparisons?.every(row => row.status === 'RECONCILED_FOR_SCOPE') ? 'RECONCILED_FOR_SCOPE' : comparisons ? 'MISMATCH_OR_UNAVAILABLE' : 'WAREHOUSE_MEASURED_ONLY',

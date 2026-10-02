@@ -144,7 +144,7 @@ export interface OverviewData {
     loss: number;
     transitionRate: number | null;
   }>;
-  funnelLeak: { from: string; to: string; loss: number; rate: number | null };
+  funnelLeak: { from: string; to: string; loss: number; rate: number | null } | null;
   dailyTrends: Array<{
     date: string;
     leads: number;
@@ -317,6 +317,8 @@ export interface ContactStrategyData {
   attemptPerformance: Array<{
     bucket: string;
     leads: number;
+    dialled?: number | null;
+    rpcUnrecorded?: number | null;
     sharePct: number | null;
     contacted: number;
     contactRate: number | null;
@@ -324,7 +326,7 @@ export interface ContactStrategyData {
     saleRate: number | null;
     activations: number;
     activationRate: number | null;
-    revenue: number;
+    revenue: number | null;
     callCost: number | null;
     marginalSales: number | null;
     marginalCostPerSale: number | null;
@@ -337,7 +339,8 @@ export interface ContactStrategyData {
   }>;
   summary?: {
     totalLeads: number;
-    dialledLeads: number;
+    dialledLeads: number | null;
+    unrecordedDialledCallLeads?: number | null;
     unrecordedCallLeads: number;
     zeroCallLeads: number;
     oneCallLeads: number;
@@ -345,7 +348,7 @@ export interface ContactStrategyData {
     multiAttemptLeads: number;
     multiAttemptSharePct: number | null;
     fivePlusCallLeads: number;
-    fivePlusNoRpcLeads: number;
+    fivePlusNoRpcLeads: number | null;
   };
   methodology?: string;
   noAnswerAnalysis: {

@@ -66,6 +66,8 @@ export default function InspectorHost({ open, onClose, content }: { open: boolea
     ['Query job ID', provenance?.queryJobId], ['Report version', provenance?.reportVersion],
     ['Model version', provenance?.modelVersion], ['Timezone', provenance?.timezone || contract?.timezone],
     ['Contract source (definition only)', contract?.source],
+    ['Field mapping', contract?.mappingStatus], ['Source business meaning', contract?.sourceContractStatus],
+    ['Reconciliation', contract?.reconciliationStatus],
   ].filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].length > 0);
   const hasComponents = content.numeratorCount !== undefined || content.denominatorCount !== undefined;
   return <div className="cx-audit-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
@@ -101,7 +103,7 @@ export default function InspectorHost({ open, onClose, content }: { open: boolea
 <details className="cx-audit-disclosure" open={auditEnabled || undefined}><summary>Data provenance</summary><dl><div><dt>Validation</dt><dd data-validation={validation}>{validation}</dd></div>
           {Object.entries({ 'Source / table': provenance?.source, 'Source completeness': provenance?.sourceCompleteness, 'Evaluated at': provenance?.evaluatedAt, 'Generated at': provenance?.generatedAt, 'Observation cutoff': provenance?.observationCutoff }).filter(([, value]) => value).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
         </dl>{provenance?.generatedAt && <p>Generated at describes this response, not source freshness.</p>}{!provenance?.source && <p>Additional source provenance is not supplied by this operational response.</p>}
-          <p>Operational analytics are separate from immutable published reporting releases.</p><Link to={scoped('/reports')} onClick={onClose}>View evidence releases</Link>
+          <p>Approved field mapping does not certify source business meaning or reconcile production totals. Operational analytics are separate from immutable published reporting releases.</p><Link to={scoped('/reports')} onClick={onClose}>View evidence releases</Link>
         </details>
 <details className="cx-audit-disclosure" open={auditEnabled || undefined}><summary>Metric definition &amp; technical details</summary><dl>{grain && <div><dt>Counting grain</dt><dd>{grain}</dd></div>}</dl><dl>{technical.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>{contract && <><p>Eligibility: {contract.eligibility}</p><p>Exclusions: {contract.exclusions}</p></>}{content.details}{technical.length === 0 && !content.details && <p>No additional technical metadata is supplied.</p>}</details>
       </div><footer><button type="button" className="cx-button-secondary" onClick={onClose}>Close</button></footer>

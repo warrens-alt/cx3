@@ -1,3 +1,4 @@
+import { METRIC_REGISTRY_VERSION } from '../../../../contracts/metricRegistry';
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useOperationalData } from '../../../lib/useOperationalData';
@@ -255,10 +256,12 @@ export function useContactModel() {
   const handleExportCallCountsCsv = () => {
     if (!callCountQuery.data) return;
     const rows = [
-      ['Bucket', 'Leads', 'Share %', 'RPC', 'RPC / dialled %', 'Sales', 'Sale / lead %', 'Activations', 'Activation / sale %'],
+      ['Bucket', 'Leads', 'Qualified dialled', 'RPC unknown', 'Share %', 'RPC', 'RPC / dialled %', 'Recorded sales', 'Sale / lead %', 'Recorded activations', 'Independent activation / sale %'],
       ...callCountQuery.data.attemptPerformance.map(r => [
         r.bucket,
         r.leads,
+        r.dialled,
+        r.rpcUnrecorded,
         r.sharePct,
         r.contacted,
         r.contactRate,
@@ -277,6 +280,8 @@ export function useContactModel() {
         endDate,
         filters,
         validationStatus: 'NOT_VERIFIED',
+        dateBasis: 'Lead intake/capture cohort', countingGrain: 'Distinct lead per exclusive recorded-call bucket',
+        definitionVersion: METRIC_REGISTRY_VERSION, definitions: callCountQuery.data.methodology,
       }
     );
   };

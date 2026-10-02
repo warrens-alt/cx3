@@ -199,7 +199,8 @@ export async function getExecutiveOverview(params: OffernetQueryParams, options:
   `;
 
   const [rows] = await client.query({ query: mainQuery, params: queryParams });
-  const data = rows[0] || {};
+  if (!rows[0]) throw new Error('Overview aggregate evidence is unavailable.');
+  const data = rows[0];
   const lifecycle = assembleLifecycleDiagnostics(data.lifecycle_rows || [], diagnostics?.period || null);
 
   const fetched = Number(data.fetched_leads || 0);
@@ -230,8 +231,8 @@ export async function getExecutiveOverview(params: OffernetQueryParams, options:
   ].map((stage, index, stages) => {
     const previous = index === 0 ? null : stages[index - 1];
     const evidence = options.includeDiagnostics !== false && previous ? lifecycle.transitions[index - 1] : null;
-    const loss = evidence ? evidence.lost : previous ? Math.max(previous.volume - stage.volume, 0) : 0;
-    const transitionRate = evidence ? evidence.conversionRate : previous ? metricPercent(stage.volume, previous.volume) : fetched > 0 ? 100 : null;
+    const loss = evidence ? evidence.lost : null;
+    const transitionRate = evidence ? evidence.conversionRate : index === 0 && fetched > 0 ? 100 : null;
     return { ...stage, loss, transitionRate };
   });
 
@@ -241,7 +242,7 @@ export async function getExecutiveOverview(params: OffernetQueryParams, options:
     loss: stage.loss,
     rate: stage.transitionRate,
   }));
-  const largestLeak = transitions.reduce((largest, current) => current.loss > largest.loss ? current : largest, transitions[0] || { from: 'Fetched', to: 'Delivered', loss: 0, rate: 0 });
+  const largestLeak = transitions.filter(transition => transition.loss !== null).sort((a, b) => b.loss - a.loss)[0] || null;
 
   const backlogBuckets = [
     { bucket: '0–15m', count: Number(data.backlog_0_15m || 0), severity: 'normal' },
@@ -258,10 +259,10 @@ export async function getExecutiveOverview(params: OffernetQueryParams, options:
   const attention = [
     {
       id: 'awaiting-first-dial',
-      title: 'Delivered leads awaiting first dial',
+      title: 'Delivered leads awaiting qualified first dial',
       value: Number(data.awaiting_first_dial || 0),
       severity: Number(data.backlog_over_60m || 0) > 0 ? 'high' : 'medium',
-      detail: `${Number(data.backlog_over_60m || 0).toLocaleString()} have been waiting longer than 60 minutes.`,
+      detail: `${Number(data.backlog_over_60m || 0).toLocaleString()} have no qualified first dial more than 60 minutes after delivery.`,
       path: '/speed-to-lead',
     },
     {
@@ -380,7 +381,8 @@ export async function getOperationalCommercialSummary(params: OffernetQueryParam
       FROM operational_leads`,
     params: queryParams,
   });
-  const row = rows[0] || {};
+  if (!rows[0]) throw new Error('Operational commercial aggregate evidence is unavailable.');
+  const row = rows[0];
   const fetchedLeads = Number(row.fetched_leads || 0), saleLeads = Number(row.sale_leads || 0);
   return {
     kpis: { fetchedLeads, saleLeads, activatedLeads: Number(row.activated_leads || 0),

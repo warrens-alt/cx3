@@ -54,7 +54,8 @@ export async function getSalesActivationAnalytics(params: OffernetQueryParams) {
   `;
 
   const [rows] = await client.query({ query, params: queryParams });
-  const data = rows[0] || {};
+  if (!rows[0]) throw new Error('Sales and activation aggregate evidence is unavailable.');
+  const data = rows[0];
   return buildSalesActivationResult(data);
 }
 

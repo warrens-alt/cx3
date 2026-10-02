@@ -122,7 +122,8 @@ export async function getSpeedToLeadAnalytics(params: OffernetQueryParams) {
   `;
 
   const [rows] = await client.query({ query, params: queryParams });
-  const data = rows[0] || { percentiles: {}, cohorts: [], after_hours: [] };
+  if (!rows[0]) throw new Error('Response speed aggregate evidence is unavailable.');
+  const data = rows[0];
   return buildSpeedToLeadResult(data, clientConfig, operating);
 }
 

@@ -1,3 +1,4 @@
+import { METRIC_REGISTRY_VERSION } from '../../../../contracts/metricRegistry';
 import { useState, useMemo, useEffect } from 'react';
 import { useOperationalData } from '../../../lib/useOperationalData';
 import { useFilters, extractOffernetFilters } from '../../../lib/FilterContext';
@@ -69,6 +70,9 @@ export function useJourneyModel() {
         endDate,
         filters,
         validationStatus: data.lifecycle?.validationStatus || 'NOT_VERIFIED',
+        dateBasis: 'Lead intake/capture cohort', countingGrain: 'Distinct lead per returned segment',
+        definitionVersion: METRIC_REGISTRY_VERSION,
+        definitions: data.lifecycle?.methodology,
       }
     );
   };

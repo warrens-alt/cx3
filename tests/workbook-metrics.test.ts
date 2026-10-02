@@ -11,6 +11,7 @@ import { getSpeedToLeadAnalytics } from '../server/analytics/contact/speedToLead
 import { getSalesActivationAnalytics } from '../server/analytics/outcomes/salesActivation';
 import { getVendorQualityAnalytics } from '../server/analytics/performance/vendor';
 import { getTemporalAnalytics } from '../server/analytics/temporal/service';
+import { BLC_SOURCES } from '../contracts/blcReporting';
 import { getDataIntegrityAnalytics } from '../server/analytics/integrity/completeness';
 import { getRawLeads } from '../server/analytics/investigation/records';
 
@@ -219,6 +220,9 @@ test('operational drills share selected vendor lead grain and strict completed-d
 });
 
 test('vendor, temporal and integrity report correct denominators, nulls and distinct lead evidence', async context => {
+  // Source observability also probes activation metadata: keep this formula test entirely offline.
+  const metadataClient = getBigQueryClient(BLC_SOURCES.activationRegister.table.split('.')[0]);
+  context.mock.method(metadataClient, 'dataset', (() => ({ table: () => ({ getMetadata: async () => { throw Object.assign(new Error('Synthetic unavailable source'), { code: 403 }); } }) })) as any);
   const queries: string[] = [];
   context.mock.method(client, 'query', async (request: any) => {
     queries.push(request.query);
