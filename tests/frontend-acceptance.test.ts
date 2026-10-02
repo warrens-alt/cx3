@@ -788,7 +788,8 @@ test('reduction: Audit Mode off hides metadata, whole-card evidence opens, and a
     for(const disclosure of app.w.document.querySelectorAll('.cx-audit-disclosure > summary'))(disclosure as any).click();
     await app.click('button','Close inspector');assert.equal(app.w.document.activeElement,trigger);
     await app.click('button','Display preferences');await app.click('[aria-label="Audit mode"] button','On');
-    assert.equal(app.w.document.querySelectorAll('.cx-audit-metadata').length,4);
+    assert.equal(app.w.document.querySelectorAll('.cx-outcome-strip .cx-audit-metadata').length,4);
+    assert.equal(app.w.document.querySelectorAll('.cx-audit-metadata').length,5); // Four metric definitions plus supplied response context.
     await app.click('button','Display preferences');await app.click('.cx-outcome-card .cx-metric-primary');
     assert.equal(app.w.document.querySelectorAll('.cx-audit-disclosure[open]').length,4);
     await app.click('button','Close inspector');await app.click('button','Display preferences');await app.click('[aria-label="Audit mode"] button','Off');
@@ -900,7 +901,7 @@ test('reduction: Commercial Why changed requires returned comparison, eligible s
     ['',{...reductionPayloads['/api/analytics/offernet/commercial'],mediaComparison:null},0],
   ] as const){
     const app=await mount('/commercial'+scope+extra,{payloads:{'/api/analytics/offernet/commercial':payload}});try{
-      await app.wait(()=>app.find('.cx-commercial-metrics .cx-unified-metric'));
+      await app.wait(()=>app.find('.cx-telemetry-rail .cx-unified-metric'));
       assert.equal(app.w.document.querySelectorAll('[role="tabpanel"]:not([hidden]) .cx-why-btn').length,expected);
       assert.equal(app.w.__fixture.requests.some((url:string)=>url.includes('root-cause')),false);
     }finally{app.close();}

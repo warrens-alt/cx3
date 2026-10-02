@@ -91,7 +91,7 @@ test('vendor ordering is presentation-only and leaves incoming records unchanged
   const before = JSON.stringify(vendors);
   const html = render(React.createElement(VendorComparison, { vendors, onSelectVendor: () => {} }));
   assert.equal(JSON.stringify(vendors), before);
-  assert.ok(html.indexOf('Inspect Larger') < html.indexOf('Inspect Small'));
+  assert.ok(html.indexOf('Select Larger') < html.indexOf('Select Small'));
 });
 
 test('rate shading is fixed-scale and does not clamp or rewrite displayed out-of-range values', () => {

@@ -48,6 +48,14 @@ try {
       assert.equal(await page.locator('.cx-journey-spine .cx-journey-node svg').count(), 6);
       assert.equal(await page.locator('.cx-journey-spine [data-certainty=observed]').count(), 3);
       assert.equal(await page.locator('.cx-journey-spine [data-certainty=unavailable]').count(), 3);
+      const alignment = await page.locator('.cx-journey-spine').evaluate(spine => [...spine.querySelectorAll('.cx-journey-event')].map(event => ({
+        time: event.querySelector('.cx-journey-time-column').getBoundingClientRect().x,
+        node: event.querySelector('.cx-journey-node').getBoundingClientRect().x,
+        copy: event.querySelector('.cx-journey-event-copy').getBoundingClientRect().x,
+        y: event.getBoundingClientRect().y,
+      })));
+      assert.ok(alignment.every(row => row.time === alignment[0].time && row.node === alignment[0].node && row.copy === alignment[0].copy && row.time < row.node && row.node < row.copy), 'Dedicated time, spine, and evidence columns must align');
+      assert.ok(alignment.slice(1).every((row, index) => row.y > alignment[index].y), 'Lifecycle rows must stay vertically ordered');
       const before = await page.evaluate(() => [...window.__fixture.requests]);
       const sale = page.locator('.cx-journey-spine button[data-stage=sale]');
       await sale.focus(); await page.keyboard.press('Enter');

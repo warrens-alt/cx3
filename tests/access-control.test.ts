@@ -113,6 +113,8 @@ test('controlled access tabs share exactly one subscription per collection and u
     app.w.access.auth.isAdmin = false;
     app.w.access.render();
     await app.wait(() => app.text().includes('Administrator Access Required'));
+    // Subscription cleanup runs in the passive effect after the denied UI commits.
+    await app.wait(() => app.w.access.subscriptions.every((s: any) => s.closed));
     assert.ok(app.w.access.subscriptions.every((s: any) => s.closed));
     assert.equal(app.calls.length, 0);
   } finally { app.close(); }

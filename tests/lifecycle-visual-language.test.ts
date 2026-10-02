@@ -58,7 +58,8 @@ test('percentile rail positions only supplied numeric percentiles and preserves 
   assert.match(html,/left:0%/);assert.match(html,/left:100%/);
   assert.match(html,/data-state="unavailable"><dt>P75/);
   assert.match(html,/>0s<\/dd>/);assert.match(html,/>15m<\/dd>/);
-  assert.doesNotMatch(html,/NaN|Infinity|left:75%/);
+  assert.doesNotMatch(html,/NaN|Infinity/);
+  assert.doesNotMatch(html, /class="cx-percentile-mark"[^>]*left:75%/, "Axis ticks must not be mistaken for supplied percentile marks");
 });
 
 test('formatted-only percentiles cannot imply a calculated time scale', () => {

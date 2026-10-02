@@ -1,5 +1,5 @@
 /**
- * Synthetic frontend acceptance: 84 route/viewport/theme checks, six lifecycle interactions, seven shell interactions and two access-control theme checks.
+ * Synthetic frontend acceptance: 132 route/viewport/theme checks, six lifecycle interactions, seven shell interactions and two access-control theme checks.
  * Run after npm run build. Browser plugin not available; uses an optional Playwright runtime.
  * CX_PLAYWRIGHT_MODULE / CX_CHROMIUM_EXECUTABLE select an existing runtime; no dependencies are installed.
  * Screenshots and results are written outside the repository through CX_BROWSER_QA_OUTPUT or a temp directory.
@@ -26,14 +26,15 @@ await build({
   stdin: { contents: `import { ROUTE_MANIFEST, BUSINESS_AREAS } from './src/app/routeManifest';
     import { reductionPayloads } from './tests/frontend/reductionFixtures';
     import { convergencePayloads } from './tests/frontend/convergenceFixtures';
+    import { secondaryMaturityPayloads, secondaryMaturityScopes } from './tests/frontend/secondaryMaturityFixtures';
     import { SIDEBAR_COLLAPSED_KEY } from './src/lib/presentation';
     export const routes = ROUTE_MANIFEST.map(({icon, ...route}) => route);
     export const areas = BUSINESS_AREAS.map(({id, name, landingPath}) => ({id, name, landingPath}));
-    export { reductionPayloads, convergencePayloads, SIDEBAR_COLLAPSED_KEY };`, resolveDir: root, loader: 'ts' },
+    export { reductionPayloads, convergencePayloads, secondaryMaturityPayloads, secondaryMaturityScopes, SIDEBAR_COLLAPSED_KEY };`, resolveDir: root, loader: 'ts' },
   bundle: true, platform: 'node', format: 'esm', outfile: metadataPath,
 });
-const { routes, areas, reductionPayloads, convergencePayloads, SIDEBAR_COLLAPSED_KEY } = await import(pathToFileURL(metadataPath).href);
-const matrixPaths = ['/overview', '/funnel', '/contact-strategy', '/speed-to-lead', '/temporal', '/sales-activation', '/vendor-quality', '/campaigns', '/commercial', '/investigate', '/lead-explorer', '/lead-ledger', '/data-integrity', '/admin'];
+const { routes, areas, reductionPayloads, convergencePayloads, secondaryMaturityPayloads, secondaryMaturityScopes, SIDEBAR_COLLAPSED_KEY } = await import(pathToFileURL(metadataPath).href);
+const matrixPaths = ['/overview', '/funnel', '/contact-strategy', '/speed-to-lead', '/temporal', '/sales-activation', '/vendor-quality', '/campaigns', '/commercial', '/investigate', '/lead-explorer', '/lead-ledger', '/data-integrity', '/admin', '/vetting', '/cohorts', '/agent-performance', '/cli-performance', '/routing', '/consumers', '/reconciliation', '/warehouse'];
 const matrixRoutes = matrixPaths.map(routePath => {
   const route = routes.find(item => item.path === routePath);
   assert.ok(route, `Missing requested canonical route ${routePath}`);
@@ -51,6 +52,7 @@ const exception = { id: 'awaiting-first-dial', title: 'Awaiting first dial', cou
 const payloads = {
   ...convergencePayloads,
   ...reductionPayloads,
+  ...secondaryMaturityPayloads,
   '/api/analytics/offernet/exceptions': { exceptions: [exception], validationStatus: 'NOT_VERIFIED', populationNote: 'Synthetic overlapping checks', comparison: { current: { startDate: '2026-09-28', endDate: '2026-09-28' }, previous: { startDate: '2026-09-27', endDate: '2026-09-27' }, days: 1 } },
 };
 const server = createServer(async (request, response) => {
@@ -78,7 +80,7 @@ const analyticalRequests = values => values.filter(url => /\/api\/analytics\//.t
 const basename = value => value.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
 
 async function visit(page, routePath, extra = '') {
-  await page.goto(origin + routePath + scope + extra);
+  await page.goto(origin + routePath + (secondaryMaturityScopes[routePath] || scope) + extra);
   await page.locator('main h1').waitFor();
   await page.waitForLoadState('networkidle');
   await settle(page);
@@ -96,6 +98,38 @@ async function overflow(page) {
   assert.ok(dimensions.document <= dimensions.viewport + 1, `Document overflow: ${JSON.stringify(dimensions)}`);
   assert.ok(dimensions.mainScroll <= dimensions.main + 1, `Main content overflow: ${JSON.stringify(dimensions)}`);
   return dimensions;
+}
+
+async function stickyScope(page, viewport, theme) {
+  await page.locator('.cx-main').evaluate(element => { element.scrollTop = 600; });
+  await page.waitForFunction(() => document.querySelector('[aria-label="Reporting scope"]')?.dataset.stuck === 'true');
+  await settle(page);
+  const state = await page.locator('[aria-label="Reporting scope"]').evaluate(element => {
+    const style = getComputedStyle(element), rect = element.getBoundingClientRect(), main = document.querySelector('.cx-main');
+    return { stuck: element.dataset.stuck, position: style.position, background: style.backgroundColor, text: element.innerText,
+      top: rect.top, bottom: rect.bottom, height: rect.height, measuredHeight: getComputedStyle(main).getPropertyValue('--cx-sticky-scope-height').trim(), mainTop: main.getBoundingClientRect().top, scrollTop: main.scrollTop, windowScrollY: window.scrollY };
+  });
+  assert.equal(state.windowScrollY, 0, 'Only the shell main region scrolls');
+  assert.ok(state.scrollTop >= 500, 'The main region actually scrolled');
+  assert.match(state.text, /28 Sept? 2026/);
+  assert.match(state.text, /All vendors/);
+  assert.match(state.text, /All sources/);
+  if (viewport.name === 'mobile') {
+    assert.ok(['relative', 'static'].includes(state.position), 'Mobile reporting scope stays in document flow');
+    assert.ok(state.bottom < state.mainTop, 'Mobile scope scrolls away rather than obscuring evidence');
+  } else {
+    assert.equal(state.stuck, 'true');
+    assert.equal(state.position, 'sticky');
+    assert.match(state.text, /Synthetic workspace A/);
+    assert.ok(!['transparent', 'rgba(0, 0, 0, 0)'].includes(state.background), 'Sticky scope has an opaque background');
+    assert.ok(!state.background.startsWith('rgba') || /, 1\)$/.test(state.background), 'Sticky scope does not blend through evidence');
+    assert.ok(Math.abs(state.top - state.mainTop) <= 1, 'Sticky scope aligns to main scroll viewport');
+    assert.ok(Math.abs(parseFloat(state.measuredHeight) - state.height) <= 1, 'Chart scroll offset follows actual compact scope height');
+  }
+  const filename = `sticky-scope-${viewport.name}-${theme}.png`;
+  await page.screenshot({ path: path.join(output, filename) });
+  screenshots.push(filename);
+  return state;
 }
 
 async function ownership(page, route) {
@@ -162,7 +196,7 @@ async function scenario(name, { viewport = viewports[0], theme = 'light', fixtur
 
 try {
   for (const theme of ['light', 'dark']) for (const viewport of viewports) for (const route of matrixRoutes) {
-    await scenario(`${route.name} · ${viewport.name} · ${theme}`, { viewport, theme, kind: 'matrix', route: route.path }, async page => {
+    await scenario(`${route.name} · ${viewport.name} · ${theme}`, { viewport, theme, kind: 'matrix', route: route.path, fixtureState: route.path === '/agent-performance' ? { nonAdmin: true } : {} }, async page => {
       await visit(page, route.path, ['/investigate', '/lead-explorer'].includes(route.path) ? '&drill=awaiting-first-dial' : '');
       assert.equal(new URL(page.url()).pathname, route.path);
       assert.equal(await page.title(), `${route.name} · Offernet`);
@@ -173,7 +207,10 @@ try {
       assert.equal(await page.locator('vite-error-overlay, nextjs-portal').count(), 0);
       assert.doesNotMatch(await page.locator('main').innerText(), /Something went wrong|Application error|Page not found/i);
       assert.equal(await page.locator('html').getAttribute('data-theme'), theme);
-      if (route.scopePolicy !== 'settings') {
+      if (route.path === '/warehouse') {
+        assert.equal(await page.locator('main [aria-label="Reporting scope"]').count(), 0, 'A source catalogue has no operational cohort scope');
+        assert.match(await page.locator('main').innerText(), /catalogue/i);
+      } else if (route.scopePolicy !== 'settings') {
         const scopeBar = page.locator('main [aria-label="Reporting scope"]');
         assert.equal(await scopeBar.count(), 1);
         const scopeBox = await scopeBar.boundingBox();
@@ -186,6 +223,26 @@ try {
         });
         assert.ok(order.follows && order.headingBottom <= order.scopeTop + 1, `Heading must precede scope: ${JSON.stringify(order)}`);
       }
+      const specialistPresentation = {
+        '/vetting': { rail: true, frames: 1 },
+        '/cohorts': { rail: true, frames: 2 },
+        '/agent-performance': { rail: true, frames: 2 },
+        '/cli-performance': { rail: true, frames: 4 },
+        '/consumers': { rail: true, frames: 1 },
+      }[route.path];
+      if (specialistPresentation) {
+        if (specialistPresentation.rail) assert.ok(await page.locator('main .cx-telemetry-rail').count() >= 1, 'Specialist metrics use canonical telemetry');
+        assert.ok(await page.locator('main .cx-chart-frame').count() >= specialistPresentation.frames, 'Specialist charts use canonical focus frames');
+        if (route.path === '/consumers') {
+          const before = analyticalRequests(await requests(page)), beforeScope = page.url();
+          for (const tab of ['Sequential Entry Economics', 'High-Frequency Repeat Consumers', 'Volume Tiers Distribution']) {
+            await page.getByRole('button', { name: tab, exact: true }).click();
+            assert.equal(await page.locator('main .cx-chart-frame').count(), 1, 'The selected consumer tab owns one mounted chart frame');
+          }
+          assert.deepEqual(analyticalRequests(await requests(page)), before, 'Consumer tab changes reuse returned evidence');
+          assert.equal(page.url(), beforeScope, 'Consumer tab changes leave reporting scope unchanged');
+        }
+      }
       await ownership(page, route);
       const dimensions = await overflow(page);
       const metricFonts = await page.locator('.cx-metric-primary, .cx-metric-primary strong, .cx-metric-value, .cx-outcome-value, .cx-driver-summary strong').evaluateAll(elements => elements.filter(element => element.getClientRects().length).map(element => ({ value: element.textContent.trim(), family: getComputedStyle(element).fontFamily })));
@@ -195,6 +252,52 @@ try {
         const filename = `${basename(route.path)}-${viewport.name}-${theme}.png`;
         await page.screenshot({ path: path.join(output, filename) });
         screenshots.push(filename);
+      }
+      if (['/vetting', '/agent-performance'].includes(route.path)) {
+        const beforeScope = page.url(), beforeRequests = analyticalRequests(await requests(page));
+        if (route.path === '/agent-performance') {
+          await page.getByRole('textbox', { name: 'Search returned agents or vendors' }).fill('Synthetic Agent A');
+        }
+        const frame = route.path === '/vetting' ? page.locator('.cx-chart-frame[aria-label="Class lead distribution"]') : page.locator('.cx-agent-comparison');
+        const trigger = frame.locator('.cx-chart-focus-toggle'), mounted = await frame.locator('.cx-chart-frame-region').elementHandle();
+        await trigger.click();
+        assert.equal(await frame.getAttribute('role'), 'dialog');
+        assert.match(await frame.locator('.cx-chart-focus-scope').innerText(), /Synthetic workspace A/);
+        if (route.path === '/vetting') {
+          assert.match(await frame.locator('.cx-chart-focus-scope').innerText(), /Qualification capture: 2026-09-01 – 2026-09-14 · Class: All · Colour: All/);
+          const aggregateText = await page.locator('.cx-telemetry-rail').innerText();
+          assert.equal(await frame.getByRole('button', { name: 'pie', exact: true }).getAttribute('aria-pressed'), 'true', 'Initial Pie presentation has a selected control');
+          for (const presentation of ['bar', 'line', 'donut', 'pie']) {
+            const selected = frame.getByRole('button', { name: presentation, exact: true });
+            await selected.click();
+            assert.equal(await selected.getAttribute('aria-pressed'), 'true');
+            assert.equal(await frame.locator('.cx-chart-frame-header button[aria-pressed="true"]:not(.cx-chart-focus-toggle)').count(), 1, 'One chart presentation is selected');
+            const selectedStyle = await selected.evaluate(element => ({ color: getComputedStyle(element).color, background: getComputedStyle(element).backgroundColor }));
+            const inactiveStyle = await frame.getByRole('button', { name: presentation === 'pie' ? 'bar' : 'pie', exact: true }).evaluate(element => ({ color: getComputedStyle(element).color, background: getComputedStyle(element).backgroundColor }));
+            assert.notDeepEqual(selectedStyle, inactiveStyle, 'Selected presentation has distinct visible colour and surface styling');
+            assert.match(await frame.innerText(), /No vetting records available/);
+            assert.match(await frame.innerText(), /Current filter scope returned zero matching groups/);
+            assert.equal(await frame.locator('.recharts-surface').count(), 0, 'Missing group rows never produce a fabricated plot');
+            assert.equal(await page.locator('.cx-telemetry-rail').innerText(), aggregateText, 'Presentation changes preserve returned aggregate evidence');
+          }
+        } else {
+          assert.match(await frame.locator('.cx-chart-focus-scope').innerText(), /Displayed roster search: Synthetic Agent A · 1 matching rows/);
+          await frame.getByRole('button', { name: 'Inspect Synthetic Agent A: 120', exact: true }).click();
+          await page.locator('.cx-audit-drawer').waitFor();
+          assert.equal(await page.locator('.cx-audit-drawer a[href*="/lead-explorer"]').count(), 0, 'Restricted aggregate inspection cannot expose a record drill');
+          const restrictedFile = `agent-restricted-inspection-${viewport.name}-${theme}.png`;
+          await page.screenshot({ path: path.join(output, restrictedFile) });
+          screenshots.push(restrictedFile);
+          await page.getByRole('button', { name: 'Close inspector', exact: true }).click();
+        }
+        const focusFile = `${basename(route.path)}-focused-${viewport.name}-${theme}.png`;
+        await page.screenshot({ path: path.join(output, focusFile) });
+        screenshots.push(focusFile);
+        await page.keyboard.press('Escape');
+        assert.equal(await trigger.evaluate(element => document.activeElement === element), true, 'Specialist focus restores its trigger');
+        assert.equal(await mounted.evaluate(element => element.isConnected), true, 'Specialist focus retains mounted evidence');
+        assert.equal(page.url(), beforeScope, 'Specialist focus and local search preserve global scope');
+        assert.deepEqual(analyticalRequests(await requests(page)), beforeRequests, 'Specialist focus and local search reuse returned evidence');
       }
       return { heading, dimensions, metricFonts, unavailableState: /Synthetic request failure|unavailable/i.test(await page.locator('main').innerText()) };
     });
@@ -226,6 +329,7 @@ try {
       await page.getByRole('button', { name: 'Close inspector' }).click();
       assert.deepEqual(analyticalRequests(await requests(page)), before);
       await visit(page, '/funnel');
+      const sticky = await stickyScope(page, viewport, theme);
       const lifecyclePath = page.locator('.cx-lifecycle-path');
       assert.equal(await lifecyclePath.locator('li[data-stage]').count(), 6);
       assert.equal(await lifecyclePath.locator('[data-transition="non-nested"]').count(), 2);
@@ -234,6 +338,34 @@ try {
       const filename = `lifecycle-path-${viewport.name}-${theme}.png`;
       await lifecyclePath.screenshot({ path: path.join(output, filename) });
       screenshots.push(filename);
+      const originalNode = await lifecyclePath.locator('.cx-lifecycle-node').first().elementHandle();
+      const originalRegion = await lifecyclePath.locator('.cx-chart-frame-region').elementHandle();
+      const focusButton = lifecyclePath.locator('.cx-chart-focus-toggle');
+      const focusRequests = analyticalRequests(await requests(page));
+      const focusScope = page.url();
+      await focusButton.click();
+      await lifecyclePath.getByRole('button', { name: /^Close focus:/ }).waitFor();
+      assert.equal(await lifecyclePath.getAttribute('role'), 'dialog');
+      assert.equal(await originalNode.evaluate(node => node === document.querySelector('.cx-lifecycle-path .cx-lifecycle-node')), true, 'Focus retains the same lifecycle node');
+      assert.equal(await originalRegion.evaluate(node => node === document.querySelector('.cx-lifecycle-path .cx-chart-frame-region')), true, 'Focus retains the same chart subtree');
+      assert.match(await lifecyclePath.locator('.cx-chart-focus-scope').innerText(), /Synthetic workspace A/);
+      assert.deepEqual(analyticalRequests(await requests(page)), focusRequests, 'Focus creates no new analytical request');
+      await lifecyclePath.locator('.cx-lifecycle-node').first().focus();
+      await page.keyboard.press('Enter');
+      await page.locator('.cx-audit-drawer').waitFor();
+      await page.getByRole('button', { name: 'Close inspector', exact: true }).click();
+      assert.equal(await lifecyclePath.locator('.cx-lifecycle-node').first().getAttribute('aria-pressed'), 'true', 'Local lifecycle selection survives inspection');
+      assert.equal(page.url(), focusScope, 'Local selection leaves global scope unchanged');
+      assert.deepEqual(analyticalRequests(await requests(page)), focusRequests, 'Local selection creates no new analytical request');
+      const focusedFile = `lifecycle-focused-${viewport.name}-${theme}.png`;
+      await page.screenshot({ path: path.join(output, focusedFile) });
+      screenshots.push(focusedFile);
+      await page.keyboard.press('Escape');
+      assert.equal(await lifecyclePath.getAttribute('role'), 'region');
+      assert.equal(await focusButton.evaluate(node => node === document.activeElement), true, 'Escape restores the focus trigger');
+      assert.equal(await originalNode.evaluate(node => node === document.querySelector('.cx-lifecycle-path .cx-lifecycle-node')), true, 'Closing focus preserves mounted node identity');
+      assert.equal(await lifecyclePath.locator('.cx-lifecycle-node').first().getAttribute('aria-pressed'), 'true', 'Local selection survives focus exit');
+      assert.equal(await page.evaluate(() => window.scrollY), 0, 'Focus restoration keeps body scroll contained');
       await page.getByText('View exact transition evidence', { exact: true }).click();
       assert.equal(await page.getByRole('region', { name: 'Transition evidence table' }).locator('tbody tr').count(), 5);
       const journeyRequests = analyticalRequests(await requests(page));
@@ -244,7 +376,7 @@ try {
       assert.match(await page.locator('.cx-audit-result').innerText(), /2 leads/);
       await page.getByRole('button', { name: 'Close inspector' }).click();
       assert.deepEqual(analyticalRequests(await requests(page)), journeyRequests);
-      return { exactStages: 6, nonNestedTransitions: 2, keyboardTrendSwitch: true, exactTable: true, keyboardInspectors: true, dimensions: await overflow(page) };
+      return { exactStages: 6, nonNestedTransitions: 2, keyboardTrendSwitch: true, exactTable: true, keyboardInspectors: true, sticky, focusRetainsSubtree: true, focusPreservesSelectionAndScope: true, escapeRestoresFocus: true, dimensions: await overflow(page) };
     });
   }
 

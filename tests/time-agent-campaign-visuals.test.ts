@@ -48,7 +48,10 @@ test('campaign comparison excludes planning budget from the selectable performan
 
 test('phase 5 styles keep dense evidence tables sticky and responsive', () => {
   const css = read('src/styles/timeAgentCampaignVisuals.css');
-  for (const selector of ['.cx-speed-page', '.cx-temporal-page', '.cx-agent-page', '.cx-campaign-page']) assert.ok(css.includes(selector));
+  for (const selector of ['.cx-speed-page', '.cx-agent-page', '.cx-campaign-page']) assert.ok(css.includes(selector));
+  const temporalCss = read('src/styles/contactTemporalVisuals.css');
+  assert.match(temporalCss, /\.cx-temporal-page \.cx-performance-table thead th\{position:sticky/);
+  assert.doesNotMatch(read('src/styles/product.css'), /\.cx-temporal-(?:grid|cell|day|corner|scroll)/);
   assert.match(css, /position:sticky/);
   assert.match(css, /@media\(max-width:700px\)/);
   assert.match(css, /prefers-reduced-motion/);
