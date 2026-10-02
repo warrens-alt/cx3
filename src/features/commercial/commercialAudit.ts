@@ -4,11 +4,23 @@ import { formatTableCurrency, formatTableNumber } from '../../lib/formatters';
 import { suppliedProvenance } from '../evidenceWorkspace/secondaryAudit';
 import { suppliedCount } from '../evidenceWorkspace/metricVisualAudit';
 
-export type CommercialAuditNode = 'spend' | 'cpl' | 'attribution' | 'outcomes' | 'cohortRevenue' | 'matchedRevenue' | 'profit' | 'telephony' | 'commission' | 'overhead' | 'cps' | 'revenueSpend';
+export type CommercialAuditNode = 'spend' | 'cpl' | 'attribution' | 'outcomes' | 'cohortRevenue' | 'matchedRevenue' | 'profit' | 'telephony' | 'commission' | 'overhead' | 'cps' | 'revenueSpend' | 'fetched' | 'qualified' | 'delivered' | 'dialled' | 'rpc' | 'sales' | 'activations' | 'billing' | 'collections';
 export function commercialNodeAudit(data: CommercialData, node: CommercialAuditNode, scope: InspectorContent['scope'], currency?: string): InspectorContent {
   const { baseline, media, economics, attribution, reconciliation, grainDiagnostics: grain } = data;
   const money = (value: number | null | undefined) => formatTableCurrency(value, currency || data.currency || 'Currency unknown');
   const common: Partial<InspectorContent> = { scope, provenance: suppliedProvenance(data), detailLimitation: 'A matching record-level drill is not supplied for this commercial aggregate.' };
+  if (['fetched', 'qualified', 'delivered', 'dialled', 'rpc', 'sales', 'activations'].includes(node)) {
+    const key = node as 'fetched' | 'qualified' | 'delivered' | 'dialled' | 'rpc' | 'sales' | 'activations';
+    const labels = { fetched: 'Captured leads', qualified: 'Qualified leads', delivered: 'Delivered leads', dialled: 'Dialled leads', rpc: 'RPC', sales: 'Recorded sales', activations: 'Recorded activations' };
+    const value = key === 'qualified' || economics?.status !== 'AVAILABLE' ? null : suppliedCount(economics[key]);
+    return { ...common, type: 'metric', title: labels[key], value,
+      definition: { meaning: key === 'qualified' ? 'This commercial response does not supply a qualified lead population.' : economics?.reason || 'Approved matched operational evidence is unavailable.', grain: 'Distinct leads at approved matching attribution keys', dateBasis: 'Operational capture cohort', nullMeaning: 'Unavailable matched populations are never replaced by full-cohort totals.', limitations: ['These recorded populations are independent. Their ordering does not establish nested conversion, activation eligibility or billing.'] },
+      anatomy: { kind: 'count', label: labels[key], value },
+      dimensions: [{ key: 'observation', label: 'Matched population', state: value === null ? 'unavailable' : 'observed' }, { key: 'reconciliation', label: 'Independent reconciliation', state: 'not_verified' }, { key: 'business', label: 'Business approval', state: 'not_verified' }], reportPath: '/commercial' };
+  }
+  if (node === 'billing' || node === 'collections') return { ...common, type: 'custom', title: node === 'billing' ? 'Billing evidence' : 'Collection / settlement evidence', value: null,
+    definition: { meaning: 'The operational commercial response supplies no billing or settlement ledger.', nullMeaning: 'Unavailable financial evidence is not zero.', limitations: ['Recorded sales do not imply activation or billing. Recorded revenue does not establish collected cash. Published commercial ledger stages, when available, have their own immutable release scope.'] },
+    dimensions: [{ key: 'observation', label: 'Financial evidence', state: 'unavailable' }, { key: 'reconciliation', label: 'Independent reconciliation', state: 'not_verified' }], reportPath: '/commercial/reconciliation' };
   const spendConsistency: InspectorContent['reconciliation'] = reconciliation ? {
     label: 'Marketing spend arithmetic and delivery consistency', kind: 'delivery_consistency',
     state: reconciliation.status === 'RECONCILED' ? 'formula_checked' : reconciliation.difference != null && reconciliation.difference !== 0 ? 'mismatch' : reconciliation.status === 'UNAVAILABLE' ? 'unavailable' : 'partial',

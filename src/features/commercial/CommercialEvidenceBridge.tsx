@@ -10,6 +10,8 @@ import type { CommercialAuditNode } from './commercialAudit';
 import { commercialNodeAudit } from './commercialAudit';
 import AuditDependencyMap from '../../shared/evidence/AuditDependencyMap';
 import type { InspectorContent } from '../../shared/evidence/InspectorHost';
+import CommercialOutcomeRail from '../../workspaces/commercial/CommercialOutcomeRail';
+import { commercialOutcomeStages } from '../../workspaces/commercial/commercialBridgeModel';
 
 export default function CommercialEvidenceBridge({ data, currency, scope, onInspect }: { data: CommercialData; currency?: string; scope?: InspectorContent['scope']; onInspect?: (node: CommercialAuditNode) => void }) {
   const { baseline, economics, attribution } = data;
@@ -19,16 +21,12 @@ export default function CommercialEvidenceBridge({ data, currency, scope, onInsp
   const revenueLinked = matched && economics?.status === 'AVAILABLE' && economics.recordedRevenue != null;
   const dependencyModel = commercialNodeAudit(data, 'profit', scope, currency).dependencies!;
   const dependencyTargets: Record<string, CommercialAuditNode> = { spend: 'spend', revenue: 'cohortRevenue', telephony: 'telephony', commission: 'commission', overhead: 'overhead' };
-  const outcomeRows = [
-    { stage: lifecyclePresentation.fetched, value: economics?.fetched },
-    { stage: lifecyclePresentation.sales, value: economics?.sales },
-    { stage: lifecyclePresentation.activated, value: economics?.activations },
-  ];
-  return <ChartFrame title="Follow the available evidence" subtitle="Marketing, matched operations and recorded value" className="cx-commercial-evidence-bridge cx-analytical-canvas" scope={<ReportingScopeSummary />}>
+  const outcomeStages = commercialOutcomeStages(data);
+  return <ChartFrame title="Commercial evidence bridge" subtitle="Follow marketing activity through recorded outcomes and the financial evidence still required" className="cx-commercial-evidence-bridge cx-analytical-canvas" scope={<ReportingScopeSummary />}>
     <div className="cx-commercial-lineage">
       <article className="cx-lineage-marketing" data-state={baseline.mediaSpend == null ? 'unavailable' : 'observed'}>
         <h3><WalletCards size={18} aria-hidden="true" />Marketing platform</h3>
-        <span className="cx-bridge-value-label">Observed media spend</span><strong className="cx-bridge-value">{money(baseline.mediaSpend)}</strong>
+        <span className="cx-bridge-value-label">Observed media spend</span><strong className="cx-bridge-value">{baseline.mediaSpend == null ? 'UNAVAILABLE' : money(baseline.mediaSpend)}</strong>
         <small>{baseline.mediaSpend == null ? 'Spend evidence unavailable' : baseline.mediaSpend === 0 ? 'Observed zero' : 'Observed incurred spend'}</small>
         <dl><div><dt>Platform lead events</dt><dd>{formatTableNumber(data.media.platformLeads)}</dd></div><div><dt>CPC</dt><dd>{money(baseline.cpc)}</dd></div></dl>
         {onInspect && <button type="button" className="cx-audit-evidence-control" onClick={() => onInspect('spend')} aria-label="Audit evidence: Observed media spend">Audit evidence</button>}
@@ -40,26 +38,29 @@ export default function CommercialEvidenceBridge({ data, currency, scope, onInsp
       <article className="cx-lineage-operations" data-state={economics?.status === 'AVAILABLE' ? 'matched' : 'unavailable'}>
         <h3><lifecyclePresentation.fetched.Icon size={18} aria-hidden="true" />Matched operational outcomes</h3>
         <small>Approved matching keys only</small>
-        <dl className="cx-bridge-lifecycle">{outcomeRows.map(({ stage, value }) => <div key={stage.label}><dt><stage.Icon size={16} aria-hidden="true" style={{ color: stage.color }} />{stage.label}</dt><dd>{value == null ? '—' : formatTableNumber(value)}</dd></div>)}</dl>
+        <CommercialOutcomeRail stages={outcomeStages} onInspect={onInspect} />
         {economics?.status !== 'AVAILABLE' && <small>Matched outcome evidence unavailable</small>}
         {onInspect && <button type="button" className="cx-audit-evidence-control" onClick={() => onInspect('outcomes')} aria-label="Audit evidence: Matched operational outcomes">Audit evidence</button>}
       </article>
       <article className="cx-lineage-cohort" data-state={baseline.revenue == null ? 'unavailable' : 'observed'}>
         <h3><CircleDollarSign size={18} aria-hidden="true" />Recorded revenue</h3>
-        <span className="cx-bridge-value-label">Source-recorded cohort value</span><strong className="cx-bridge-value">{money(baseline.revenue)}</strong>
+        <span className="cx-bridge-value-label">Source-recorded cohort value</span><strong className="cx-bridge-value">{baseline.revenue == null ? 'UNAVAILABLE' : money(baseline.revenue)}</strong>
         <small>{baseline.revenue == null ? 'Revenue evidence unavailable' : baseline.revenue === 0 ? 'Observed zero' : 'Recorded source value'}</small>
         <p>Separate cohort · no cross-source link implied</p>
         {onInspect && <button type="button" className="cx-audit-evidence-control" onClick={() => onInspect('cohortRevenue')} aria-label="Audit evidence: Source-recorded cohort revenue">Audit evidence</button>}
       </article>
       <article className="cx-lineage-matched-revenue" data-linked={revenueLinked} data-state={economics?.recordedRevenue == null ? 'unavailable' : 'observed'}>
         <h3><CircleDollarSign size={18} aria-hidden="true" />Matched recorded revenue</h3>
-        <strong className="cx-bridge-value">{money(economics?.recordedRevenue)}</strong>
+        <strong className="cx-bridge-value">{economics?.recordedRevenue == null ? 'UNAVAILABLE' : money(economics.recordedRevenue)}</strong>
         <small>{economics?.recordedRevenue == null ? 'Matched value unavailable' : revenueLinked ? 'Approved matched population' : 'Returned matched value · lineage unverified'}</small>
         {onInspect && <button type="button" className="cx-audit-evidence-control" onClick={() => onInspect('matchedRevenue')} aria-label="Audit evidence: Matched recorded revenue">Audit evidence</button>}
       </article>
     </div>
+    <div className="cx-commercial-settlement" aria-label="Billing and collection evidence">
+      {([{ label: 'Billing', node: 'billing' }, { label: 'Collections / settlement', node: 'collections' }] as const).map(({ label, node }) => <article key={node} data-state="unavailable"><span>{label}</span><strong>UNAVAILABLE</strong><p>{node === 'billing' ? 'A recorded sale or activation does not establish a bill.' : 'Recorded revenue is not collected cash.'}</p>{onInspect && <button type="button" className="cx-audit-evidence-control" onClick={() => onInspect(node)}>Audit evidence</button>}</article>)}
+    </div>
     <div className="cx-commercial-missing-inputs" aria-label="Unavailable profitability inputs">
-      {([{ label: 'Telephony cost', node: 'telephony' }, { label: 'Commission', node: 'commission' }, { label: 'Overhead', node: 'overhead' }] as const).map(({ label, node }) => <div key={label}><span>{label}</span><strong>{node === 'overhead' ? money(baseline.fixedOverhead) : '—'}</strong><small>{node === 'overhead' && baseline.fixedOverhead != null ? 'Returned overhead' : 'Unavailable'}</small>{onInspect && <button type="button" className="cx-audit-evidence-control" onClick={() => onInspect(node)} aria-label={`Audit evidence: ${label}`}>Audit evidence</button>}</div>)}
+      {([{ label: 'Telephony cost', node: 'telephony' }, { label: 'Commission', node: 'commission' }, { label: 'Operating costs / overhead', node: 'overhead' }] as const).map(({ label, node }) => <div key={label}><span>{label}</span><strong>{node === 'overhead' && baseline.fixedOverhead != null ? money(baseline.fixedOverhead) : 'UNAVAILABLE'}</strong><small>{node === 'overhead' && baseline.fixedOverhead != null ? 'Returned overhead' : 'Unavailable'}</small>{onInspect && <button type="button" className="cx-audit-evidence-control" onClick={() => onInspect(node)} aria-label={`Audit evidence: ${label}`}>Audit evidence</button>}</div>)}
       <div className="cx-commercial-not-calculable"><ShieldQuestion size={18} aria-hidden="true" /><span>Contribution / profit</span><strong>Not calculable</strong><small>Required cost inputs are unavailable</small>{onInspect && <button type="button" className="cx-audit-evidence-control" onClick={() => onInspect('profit')} aria-label="Audit evidence: Contribution / profit">Audit evidence</button>}</div>
     </div>
     <AuditDependencyMap model={onInspect ? { ...dependencyModel, inputs: dependencyModel.inputs.map(input => ({ ...input, action: { label: 'Audit evidence', supported: true, authorized: true, onClick: () => onInspect(dependencyTargets[input.key]) } })) } : dependencyModel} />

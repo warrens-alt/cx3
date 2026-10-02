@@ -27,7 +27,7 @@ import CommercialEvidenceBridge from '../features/commercial/CommercialEvidenceB
 import { commercialNodeAudit } from '../features/commercial/commercialAudit';
 import CommercialEvidenceMap, { type CommercialEvidenceItem } from '../features/commercial/CommercialEvidenceMap';
 
-export default function CommercialIntelligence() {
+export default function CommercialIntelligence({ embedded = false }: { embedded?: boolean } = {}) {
   // Only these two displayed metrics have a matching, supported media decomposition.
   const [section, setSection] = useState('summary');
   const [audit, setAudit] = useState<InspectorContent | null>(null);
@@ -89,7 +89,7 @@ export default function CommercialIntelligence() {
     { label: 'Revenue / media spend', value: baseline.revenueToMediaSpendRatio == null ? '—' : `${baseline.revenueToMediaSpendRatio.toFixed(2)}×`, note: 'Matched recorded value / spend; not profit or cash return.', path: '/reconciliation', metric: null, available: baseline.revenueToMediaSpendRatio != null },
   ] : [];
 
-  return <AnalyticsPageLayout className="cx-commercial-page" title="Commercial overview" description={<>Recorded spend, revenue and matched outcomes.</>} actions={<ReportActions><Link to={scoped('/campaigns')} className="cx-button-secondary"><DollarSign size={15} /><span><strong>Media detail</strong><small>Campaign spend & efficiency</small></span><ArrowRight size={14} /></Link></ReportActions>} scope={<OffernetFilterBar onRefresh={() => loadData(true)} />}>
+  return <AnalyticsPageLayout className="cx-commercial-page" title="Commercial overview" header={embedded ? <></> : undefined} description={<>Recorded spend, revenue and matched outcomes.</>} actions={<ReportActions><Link to={scoped('/campaigns')} className="cx-button-secondary"><DollarSign size={15} /><span><strong>Media detail</strong><small>Campaign spend & efficiency</small></span><ArrowRight size={14} /></Link></ReportActions>} scope={<OffernetFilterBar onRefresh={() => loadData(true)} />}>
 
       {error && <div role="alert" className="cx-command-error"><AlertTriangle size={17} />{error}</div>}
       {loading && !data && <ReportSkeleton label="Loading commercial evidence" />}
@@ -98,13 +98,13 @@ export default function CommercialIntelligence() {
         <div className="cx-commercial-notices"><p className="cx-contract-note" role="note">{data.status} · {data.reason}</p>
         {data.reconciliation && data.reconciliation.status !== 'RECONCILED' && <p className="cx-contract-note" role="note">{data.reconciliation.reason}</p>}</div>
         <ReportSections label="Commercial sections" value={section} onChange={setSection} sections={[
-          { id: 'summary', label: 'Summary', content: <><TelemetryRail label="Commercial efficiency context">
+          { id: 'summary', label: 'Summary', content: <><CommercialEvidenceBridge data={data} currency={currency} scope={auditScope} onInspect={node => setAudit(commercialNodeAudit(data, node, auditScope, currency))} /><TelemetryRail label="Commercial efficiency context">
           {metrics.filter((_, index) => index === 1 || index === 3).map(item => <UnifiedMetricCard key={item.label} label={item.label} value={item.value} note={item.note}
             change={item.metric && canCompareMedia && item.available ? item.metric === 'spend' ? data.mediaComparison?.spendDeltaPct : data.mediaComparison?.cplDeltaPct : undefined}
             isPositiveGood={false}
             onWhyChanged={item.metric && canCompareMedia && item.available && Number.isFinite(item.metric === 'spend' ? data.mediaComparison?.spendDeltaPct : data.mediaComparison?.cplDeltaPct) ? () => setRootMetric(item.metric) : undefined}
             auditContent={commercialNodeAudit(data, item.metric === 'spend' ? 'spend' : item.metric === 'cpl' ? 'cpl' : item.label === 'Recorded revenue' ? 'cohortRevenue' : item.label === 'Attributed spend / sale' ? 'cps' : 'revenueSpend', auditScope, currency)} />)}
-        </TelemetryRail><CommercialEvidenceBridge data={data} currency={currency} scope={auditScope} onInspect={node => setAudit(commercialNodeAudit(data, node, auditScope, currency))} /><details className="cx-evidence-disclosure"><summary>View period comparison and attribution detail</summary><TelemetryRail label="Commercial source values">
+        </TelemetryRail><details className="cx-evidence-disclosure"><summary>View period comparison and attribution detail</summary><TelemetryRail label="Commercial source values">
           {metrics.filter((_, index) => index === 0 || index === 2).map(item => <UnifiedMetricCard key={item.label} label={item.label} value={item.value} note={item.note}
             change={item.metric && canCompareMedia && item.available ? data.mediaComparison?.spendDeltaPct : undefined}
             isPositiveGood={false}

@@ -25,7 +25,7 @@ const STAGES = ['expected_value','approved_value','invoiced_value','collected_va
 const available=(metric:MetricResult|null|undefined)=>metric?.calculationStatus==='CHECKED'?metric.value:null;
 const exportRows=(rows:unknown[],name:string)=>{const href=URL.createObjectURL(new Blob([JSON.stringify(rows,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=href;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(href),1000);};
 
-export default function CommercialReconciliation() {
+export default function CommercialReconciliation({ embedded = false }: { embedded?: boolean } = {}) {
   const workspace=useEvidenceWorkspace({metrics:METRICS,grouping:'vendor',comparisons:true});
   const { vendor } = useFilters();
   const report=workspace.current.data, previous=workspace.previous.data, currency=workspace.request.currency;
@@ -122,7 +122,7 @@ export default function CommercialReconciliation() {
     <header className="cx-page-header">
       <div>
         <p className="cx-ops-eyebrow">Commercial control</p>
-        <h1 className="text-page-title">Reconciliation</h1>
+        {embedded ? <h2 className="text-page-title">Commercial ledger reconciliation</h2> : <h1 className="text-page-title">Reconciliation</h1>}
         <p>Expected, approved, invoiced and collected ledger value.</p>
       </div>
       <a className="cx-button-secondary" href="#commercial-ledger">Review ledger evidence <ArrowRight size={15}/></a>
