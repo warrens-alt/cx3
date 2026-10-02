@@ -3,6 +3,7 @@ import DriverAnalysis from '../features/investigation/DriverAnalysis';
 import EvidenceConfidence from '../features/investigation/EvidenceConfidence';
 import EvidenceTray, { useEvidenceTray } from '../features/investigation/EvidenceTray';
 import InvestigationAI from '../features/investigation/InvestigationAI';
+import SavedInvestigations from '../features/investigation/SavedInvestigations';
 import { investigationPath, investigationRequest, clearInvestigationParams } from '../features/investigation/investigationModel';
 import { ReportSkeleton } from '../components/OperationalState';
 import { ReportActions } from '../shared/reporting/ReportPresentation';
@@ -106,6 +107,7 @@ export default function Exceptions() {
       <OffernetFilterBar onRefresh={async () => { await Promise.all([queue.loadData(true), ...(showOverview ? [loadData(true), controls.refetch()] : [])]); }} />
         <div className="cx-investigation-workflow" aria-label="Investigation workflow">{['Signal', 'Diagnose', 'Segment', 'Records', 'Evidence', 'Conclusion'].map(step => <span key={step}>{step}</span>)}</div>
         <InvestigationContextBar evidenceCount={pinnedEvidence.length} populationCount={selectedException?.count} validationStatus={queue.data?.validationStatus} loading={queue.loading} receivedAt={queue.receivedAt} />
+        <SavedInvestigations />
         <nav className="cx-investigation-starts" aria-label="Start an investigation">
           <Link to={investigationPath('/investigate', clearInvestigationParams(searchParams), { investigationMetric: 'fetchedLeads', search: null })}>What changed?<ArrowRight size={14}/></Link>
           <Link to={investigationPath('/investigate', clearInvestigationParams(searchParams), { drill: 'awaiting-first-dial', search: null })}>Where are leads getting stuck?<ArrowRight size={14}/></Link>

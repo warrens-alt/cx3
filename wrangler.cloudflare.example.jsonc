@@ -13,7 +13,11 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": true
   },
-  "r2_buckets": [{ "binding": "CLI_REPORTS", "bucket_name": "cx3-cli-reports" }],
+  "r2_buckets": [
+    { "binding": "CLI_REPORTS", "bucket_name": "cx3-cli-reports" }
+    // Optional saved definitions: add a SAVED_ANALYSES binding to an approved private bucket.
+    // See docs/SAVED-INVESTIGATIONS.md; this example does not provision or enable storage.
+  ],
   "vars": {
     "CX_AUTH_MODE": "firebase",
     "CX_ALLOW_DEV_AUTH": "false",
@@ -21,5 +25,7 @@
     "CX_CLI_STORAGE_PROVIDER": "r2",
     // Owner must check the bucket's public URL/domain settings before enabling uploads.
     "CX_CLI_R2_PRIVATE_CONFIRMED": "false"
+    // Optional saved definitions also require CX_SAVED_ANALYSES_STORAGE_PROVIDER=r2
+    // and CX_SAVED_ANALYSES_R2_PRIVATE_CONFIRMED=true after checking bucket privacy.
   }
 }

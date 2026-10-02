@@ -8,19 +8,21 @@ Navigation exposes Investigation inbox, Record explorer and Data confidence, fol
 
 The existing exception, record, root-cause, timeline and AI APIs share validated investigation qualification and additive vendor/source/grade/first-dial-age narrowing. Narrowing intersects global filters and the original drill. Root-cause metric IDs are exact and no unrelated metric falls back to sale rate. Exceptions retain current vendor/source concentration and matched capture-cohort snapshots; unsupported segment comparisons remain unavailable. Structured reasons come from the same predicate family used for inclusion. Missing call counters, outcomes, timestamps and commercial evidence are not converted to zero or fictional events.
 
-A local evidence tray pins scope/provenance-bearing observations and exports with the existing CSV utilities. Optional investigation AI displays its confirmed scope, source/model, supplied references and limitations; deterministic measurements stay primary. The standalone AI surface remains available.
+A local evidence tray pins scope/provenance-bearing observations and exports with the existing CSV utilities. The follow-up saved-investigation phase adds personal definition CRUD and exact-scope reopening through a strict versioned extension of `savedAnalysis`; it does not persist the tray or analytical results. See [saved investigation definitions](SAVED-INVESTIGATIONS.md) for the required private storage configuration. Optional investigation AI displays its confirmed scope, source/model, supplied references and limitations; deterministic measurements stay primary. The standalone AI surface remains available.
 
 Intentional boundaries in this revision:
 
 - deterministic limit/offset pagination remains; no new keyset or unbounded population export;
 - dossier lead IDs remain session state; private search/identity scope is not silently broadened to create a share link;
-- evidence tray state is local; no saved-analysis persistence backend, collaboration service or publication flow was introduced;
+- evidence tray state remains local; personal saved investigation definitions use separately configured private storage, without a collaboration service or publication flow;
 - exception grade/age and previous segment breakdowns remain unavailable because the existing API does not supply them;
 - driver comparison requires explicit dates and is unavailable while record-text search is active;
 - source confidence and arithmetic reconciliation do not promote `NOT_VERIFIED` to verified;
 - call aggregates are not reconstructed as individual attempts, and prior capture-cohort backlogs are not reconstructed historical queue snapshots.
 
-Final `npm run verify` passed: lint, 897 passing tests (0 failures; 1 existing Firestore-emulator test skipped), surface inventory and production build. Seventeen synthetic Chromium workflow checks passed with no page errors or console warnings at desktop, tablet and 390px mobile widths in both themes. See [verification notes and screenshots](qa/investigation-workspace/README.md). These checks do not establish analytical source certification. See [OfferNet analytics map](OFFERNET-ANALYTICS-MAP.md#investigation-workflow--2-october-2026) and [frontend inventory](FRONTEND-INVENTORY.md#current-investigation-workspace--2-october-2026) for the detailed contract.
+The investigation-workspace phase passed `npm run verify`: lint, 897 passing tests (0 failures; 1 existing Firestore-emulator test skipped), surface inventory and production build. Seventeen synthetic Chromium workflow checks passed with no page errors or console warnings at desktop, tablet and 390px mobile widths in both themes. See [verification notes and screenshots](qa/investigation-workspace/README.md). These checks do not establish analytical source certification. See [OfferNet analytics map](OFFERNET-ANALYTICS-MAP.md#investigation-workflow--2-october-2026) and [frontend inventory](FRONTEND-INVENTORY.md#current-investigation-workspace--2-october-2026) for the detailed contract.
+
+The saved-investigation follow-up passed `npm run verify`: TypeScript, 946 tests (945 passing, zero failures and one existing Firestore-emulator skip), surface inventory and production build. A final stored-ID corruption regression was then added and all nine repository tests passed. Four production server entry points passed smoke checks; thirteen additional synthetic browser checks passed across both themes and three widths. See [saved-investigation verification](qa/saved-investigations/README.md). Private saved storage has not been provisioned, configured or deployed by this work.
 
 ## Deployment boundary
 

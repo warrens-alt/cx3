@@ -159,10 +159,15 @@
 | GET | `/api/reporting/catalogue` | `server/reporting/router.ts` |
 | GET | `/api/reporting/exceptions` | `server/reporting/router.ts` |
 | POST | `/api/reporting/replay` | `server/reporting/router.ts` |
+| GET | `/api/saved-analyses/` | `server/savedAnalyses/router.ts` |
+| POST | `/api/saved-analyses/` | `server/savedAnalyses/router.ts` |
+| DELETE | `/api/saved-analyses/:id` | `server/savedAnalyses/router.ts` |
+| PUT | `/api/saved-analyses/:id` | `server/savedAnalyses/router.ts` |
 
 ## API boundary
 
 - `/api/analytics/*` is authenticated, tenant-scoped operational analytics and is stamped `UNVERIFIED`.
 - `/api/reporting/*` is the separate versioned evidence-reporting path.
+- `/api/saved-analyses/*` stores personal, authenticated owner/workspace-scoped investigation definitions; no analytical records or results are persisted.
 - `/api/bq/*` is retired and returns HTTP 410.
 - `/api/health` is liveness only and is the sole unauthenticated API route.

@@ -8,6 +8,7 @@ const vettingSource = read('server/vetting/router.ts');
 const sourceRouterSource = read('server/bigquery/sourceRouter.ts');
 const reportingSource = read('server/reporting/router.ts');
 const blcSource = read('server/blc/router.ts');
+const savedAnalysisSource = read('server/savedAnalyses/router.ts');
 
 function routeTarget(element: string) {
   const nav = element.match(/<(?:Navigate|ScopePreservingRedirect)\s+to="([^"]+)"/);
@@ -42,6 +43,7 @@ function buildApiRoutes() {
     ...directRoutes(sourceRouterSource, 'router', '/api/analytics', 'server/bigquery/sourceRouter.ts'),
     ...directRoutes(reportingSource, 'router', '/api/reporting', 'server/reporting/router.ts'),
     ...directRoutes(blcSource, 'router', '/api/analytics', 'server/blc/router.ts'),
+    ...directRoutes(savedAnalysisSource, 'router', '/api/saved-analyses', 'server/savedAnalyses/router.ts'),
   ];
 
   const reportsBlock = apiSource.match(/const reports:[\s\S]*?=\s*\[([\s\S]*?)\n\];/);
@@ -98,6 +100,7 @@ function generateInventory() {
     '',
     '- `/api/analytics/*` is authenticated, tenant-scoped operational analytics and is stamped `UNVERIFIED`.',
     '- `/api/reporting/*` is the separate versioned evidence-reporting path.',
+    '- `/api/saved-analyses/*` stores personal, authenticated owner/workspace-scoped investigation definitions; no analytical records or results are persisted.',
     '- `/api/bq/*` is retired and returns HTTP 410.',
     '- `/api/health` is liveness only and is the sole unauthenticated API route.',
     '',

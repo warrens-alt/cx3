@@ -106,3 +106,7 @@ The prior unmounted Assumptions, Ledger and User Journey pages were removed. The
 The 291 Node tests cover scope validation, SQL parameterisation, tenant isolation, cache identity, exact precision, release immutability, ingestion identity, source API compilation, Vetting reconciliation, labels, visual adapters, exports and the new HTTP guards. The 491 browser assertions cover the principal user flows at 1440×1000 and 390×844 plus a 1280-wide authentication-failure state.
 
 Not covered by this evidence: real IAP assertions, live BigQuery SQL, real schema/row counts, production network latency, multi-instance concurrency, deployment headers at the edge, assistive-technology manual testing, source-owner reconciliation or a production URL.
+
+## Saved investigation definitions
+
+The Investigation inbox now contains personal saved definitions with exact scope preview, create, fresh-scope open, rename and delete. The authenticated saved-analysis API exposes only owner/workspace-scoped definitions; unsupported/private fields and stale revisions fail closed. Storage readiness is distinct from an empty library. The feature adds no warehouse query or analytical calculation to a save operation. Browser/server regression coverage includes ownership, tenant access, privacy schema, stale work, concurrent saves and configured/unconfigured storage.
