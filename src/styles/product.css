@@ -1599,9 +1599,10 @@
 .cx-control-metrics { grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); }
 .cx-control-note {
   padding:9px 14px;
-  border-top:1px solid #EDF1F5;
-  background:#FAFBFD;
-  color:var(--cx-muted);
+  border:1px solid var(--cx-border-subtle);
+  border-radius:var(--cx-radius-md);
+  background:var(--cx-surface-subtle);
+  color:var(--cx-text-secondary);
   font-size:12px;
   line-height:1.5;
 }

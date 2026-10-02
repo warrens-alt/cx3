@@ -23,7 +23,6 @@
 .cx-vendor-composition-actions button:focus-visible{outline:2px solid var(--cx-action);outline-offset:2px}
 .cx-vendor-composition-actions i{width:8px;height:8px;border-radius:2px;flex:none}
 .cx-vendor-composition-actions b{font-variant-numeric:tabular-nums;color:var(--cx-text)}
-.cx-temporal-page .cx-control-note{background:var(--cx-surface-subtle);border:1px solid var(--cx-border-subtle);border-radius:var(--cx-radius-md);color:var(--cx-text-secondary)}
 .cx-temporal-basis-control{display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--cx-text-secondary)}
 .cx-temporal-basis-control label{display:flex;align-items:center;gap:8px;font-weight:600}
 .cx-temporal-basis-control select{padding:7px 10px;border:1px solid var(--cx-border);border-radius:6px;color:var(--cx-text);background:var(--cx-surface)}
