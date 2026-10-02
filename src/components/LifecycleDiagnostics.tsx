@@ -8,7 +8,7 @@ import { FunnelWaterfall } from './charts/FunnelWaterfall';
 import { RankedMetricChart } from './charts/OperationalVisuals';
 
 const signed = (value: number | null | undefined, suffix = '') => value == null ? '—' : `${value > 0 ? '+' : ''}${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}${suffix}`;
-const names: Record<string,string> = { fetched:'Fetched', delivered:'Delivered', dialled:'Dialled', rpc:'RPC', sales:'Sales', activations:'Activations', revenue:'Recorded revenue', deliveryRate:'Delivery rate', dialRate:'Dial coverage', rpcRate:'RPC / dialled', saleRate:'Lead → sale', activationRate:'Sale → activation' };
+const names: Record<string,string> = { fetched:'Fetched', delivered:'Delivered', dialled:'Dialled', rpc:'RPC', sales:'Sales', activations:'Activations', revenue:'Source-recorded revenue', deliveryRate:'Delivery rate', dialRate:'Dial coverage', rpcRate:'RPC / dialled', saleRate:'Lead → sale', activationRate:'Recorded activation / sale' };
 export function MatchedPeriodPanel({ data }: { data: LifecycleDiagnostics }) {
   return <section className="cx-command-panel"><header><div><span className="cx-command-section-kicker">Change</span><h2>Matched period comparison</h2><p>{data.period ? `${data.period.current.startDate}–${data.period.current.endDate} vs ${data.period.previous.startDate}–${data.period.previous.endDate} · ${data.period.days} calendar days each` : 'Choose an inclusive date range of up to 366 days to compare the immediately preceding equal-length period.'}</p></div></header>
     {data.period && <div className="cx-performance-table-wrap"><table className="cx-performance-table"><thead><tr><th>Metric</th><th>Current</th><th>Previous</th><th>Change</th><th>Relative change</th></tr></thead><tbody>{Object.entries(data.comparisons).map(([key, row]) => <tr key={key}><th>{names[key] || key}</th><td>{row.kind === 'rate' ? formatPercent(row.current, 2) : formatTableNumber(row.current)}</td><td>{row.kind === 'rate' ? formatPercent(row.previous, 2) : formatTableNumber(row.previous)}</td><td>{signed(row.kind === 'rate' ? row.percentagePointChange : row.absoluteChange, row.kind === 'rate' ? 'pp' : '')}</td><td>{signed(row.percentageChange, '%')}</td></tr>)}</tbody></table></div>}
@@ -16,21 +16,19 @@ export function MatchedPeriodPanel({ data }: { data: LifecycleDiagnostics }) {
   </section>;
 }
 export function LifecycleFunnelPanel({ data }: { data: LifecycleDiagnostics }) {
-  const first = data.transitions[0];
-  const funnelSteps = first ? [
-    { label: first.from, value: first.population },
-    ...data.transitions.map(transition => ({
-      label: transition.to,
-      value: transition.converted,
-      rate: transition.conversionRate ?? undefined,
-      dropoff: transition.lost ?? undefined,
-    })),
-  ] : [];
+  const funnelSteps = data.transitions.map(transition => ({
+    label: `${transition.from} → ${transition.to}`,
+    value: transition.converted,
+    population: transition.population,
+    rate: transition.conversionRate,
+    dropoff: transition.lost,
+    evidence: transition.status === 'NON_NESTED' ? 'Downstream recorded events also exist outside this qualified transition.' : 'Source-recorded transition evidence; business certification remains unverified.',
+  }));
 
   return <>
-    {funnelSteps.length > 1 && <FunnelWaterfall
-      title="Lead-to-activation funnel"
-      subtitle={data.largestLeakage ? `Largest measured loss: ${data.largestLeakage.from} → ${data.largestLeakage.to} · ${formatTableNumber(data.largestLeakage.lost)} leads` : 'Observed progression through the lifecycle.'}
+    {funnelSteps.length > 0 && <FunnelWaterfall
+      title="Qualified lifecycle transitions"
+      subtitle={data.largestLeakage ? `Largest measured loss: ${data.largestLeakage.from} → ${data.largestLeakage.to} · ${formatTableNumber(data.largestLeakage.lost)} leads` : 'Each transition retains its own population and intersection.'}
       steps={funnelSteps}
     />}
     <section className="cx-command-panel"><header><div><span className="cx-command-section-kicker">Lifecycle loss</span><h2>Transition evidence</h2><p>{data.largestDeterioration ? `Largest matched-period deterioration: ${data.largestDeterioration.from} → ${data.largestDeterioration.to}, ${signed(data.largestDeterioration.deteriorationPp, 'pp')}.` : 'Exact transition populations remain available below the visual.'}</p></div></header>
@@ -66,7 +64,7 @@ export function LifecycleSegmentsPanel({ data, initialDimension = 'vendor' }: { 
   }, [rows, previous, comparisonMetric, query]);
 
   const exportRows = () => [
-    ['Segment', 'Fetched', 'Delivered', 'Dialled', 'RPC', 'Sales', 'Activations', 'Delivery %', 'Dial %', 'RPC %', 'Lead → sale %', 'Sale → activation %', '15m SLA %', 'One-call share %', '5+ no RPC', 'Disposition completeness %', 'Recorded revenue subtotal', 'Leads without recorded revenue'],
+    ['Segment', 'Fetched', 'Delivered', 'Dialled', 'RPC', 'Sales', 'Activations', 'Delivery %', 'Dial %', 'RPC %', 'Lead → sale %', 'Recorded activation / sale %', '15m SLA %', 'One-call share %', '5+ no RPC', 'Disposition completeness %', 'Source-recorded revenue', 'Leads without recorded revenue'],
     ...rows.map(row => [row.key, row.fetched, row.delivered, row.dialled, row.rpc, row.sales, row.activations, row.deliveryRate, row.dialRate, row.rpcRate, row.saleRate, row.activationRate, row.within15mRate, row.oneCallShare, row.fivePlusNoRpc, row.dispositionCompleteness, row.revenue, row.missingRevenueLeads]),
   ];
 
@@ -77,7 +75,7 @@ export function LifecycleSegmentsPanel({ data, initialDimension = 'vendor' }: { 
     </header>
     <div className="cx-control-note flex flex-wrap items-end gap-4">
       <label>Dimension <select aria-label="Lifecycle dimension" value={dimension} onChange={event => setDimension(event.target.value)}>{Object.keys(data.segments).map(key => <option key={key} value={key}>{key}</option>)}</select></label>
-      <label>Sort by <select aria-label="Sort lifecycle segments" value={sort} onChange={event => setSort(event.target.value as SegmentSort)}><option value="fetched">Fetched</option><option value="saleRate">Lead → sale</option><option value="rpcRate">RPC / dialled</option><option value="activationRate">Sale → activation</option></select></label>
+      <label>Sort by <select aria-label="Sort lifecycle segments" value={sort} onChange={event => setSort(event.target.value as SegmentSort)}><option value="fetched">Fetched</option><option value="saleRate">Lead → sale</option><option value="rpcRate">RPC / dialled</option><option value="activationRate">Recorded activation / sale</option></select></label>
       <label className="flex flex-col gap-1">Find a segment <input type="search" aria-label="Find a lifecycle segment" className="max-w-full rounded border px-3 py-2" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search this dimension" /></label>
     </div>
     <div className="cx-analytics-visual-grid">
@@ -95,7 +93,7 @@ export function LifecycleSegmentsPanel({ data, initialDimension = 'vendor' }: { 
     <p className="cx-control-note">Tables show 25 rows per page. Search filters the visible rows across all three tables; full-scope calculations and exports retain every segment.</p>
     <PaginatedAnalysisTable rows={visibleSegments} label="lifecycle segments">{pageRows =>
       <div className="cx-performance-table-wrap"><table className="cx-performance-table" aria-label="Lifecycle segment metrics">
-        <thead><tr><th>Segment</th><th>Fetched</th><th>Delivered</th><th>Dialled</th><th>RPC</th><th>Sales</th><th>Activations</th><th>Delivery %</th><th>Dial %</th><th>RPC %</th><th>Lead → sale %</th><th>Prior sale %</th><th>Δ pp</th><th>Activation %</th><th>15m / delivered</th><th>One call / dialled</th><th>5+ no RPC</th><th>Disposition</th><th>Invalid leads</th><th>Missing source</th><th>Missing grade</th><th>Recorded revenue subtotal</th><th>Leads without recorded revenue</th></tr></thead>
+        <thead><tr><th>Segment</th><th>Fetched</th><th>Delivered</th><th>Dialled</th><th>RPC</th><th>Sales</th><th>Activations</th><th>Delivery %</th><th>Dial %</th><th>RPC %</th><th>Lead → sale %</th><th>Prior sale %</th><th>Δ pp</th><th>Activation %</th><th>15m / delivered</th><th>One call / dialled</th><th>5+ no RPC</th><th>Disposition</th><th>Invalid leads</th><th>Missing source</th><th>Missing grade</th><th>Source-recorded revenue</th><th>Leads without recorded revenue</th></tr></thead>
         <tbody>{pageRows.map(row => {
           const prior = previous.get(row.key);
           return <tr key={row.key}><th scope="row">{row.key}</th>
@@ -123,6 +121,6 @@ export function LifecycleSegmentsPanel({ data, initialDimension = 'vendor' }: { 
       }</PaginatedAnalysisTable>
       <p className="cx-control-note">{contribution.method}</p>
     </>}
-    <p className="cx-control-note">{data.methodology} Revenue is the sum of available recorded lead values; missing values are not imputed. The missing-revenue column counts leads without any recorded revenue, not all incomplete nested source values. Campaign and channel segmentation are unavailable until an approved operational mapping exists.</p>
+    <p className="cx-control-note">{data.methodology} Complete source-recorded revenue is unavailable when any included lead has incomplete revenue evidence; missing values are not imputed. The missing-revenue column counts leads without any recorded revenue, not all incomplete nested source values. Campaign and channel segmentation are unavailable until an approved operational mapping exists.</p>
   </section>;
 }
