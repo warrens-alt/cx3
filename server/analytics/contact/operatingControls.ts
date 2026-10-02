@@ -1,16 +1,14 @@
 import { getBigQueryClient } from '../../bigquery/client';
 import { getClientConfig } from '../../bigquery/config';
-import { validTimestampSql } from '../../bigquery/integrity';
 import type { OffernetQueryParams } from '../common/types';
 import { formatDuration } from '../common/types';
-import { configuredSourceTable } from '../common/warehouse';
+import { operationalLeadCtes } from '../common/leadMetrics';
 import { buildFilterClause } from '../common/scope';
-import { percentOrNull, durationSecondsOrNull } from '../common/metrics';
+import { percentOrNull, durationSecondsOrNull, numberOrNull } from '../common/metrics';
 
-export async function getOperatingControlsAnalytics(params: OffernetQueryParams) {
+export function buildOperatingControlsQuery(params: OffernetQueryParams) {
   const clientConfig = getClientConfig(params.clientId);
-  const client = getBigQueryClient(clientConfig.bigQueryProject);
-  const { whereSql, queryParams } = buildFilterClause(params);
+  const { queryParams } = buildFilterClause(params);
   const operating = clientConfig.operationalConfig?.operatingHours || { start: '08:00', end: '17:30', workdays: [1, 2, 3, 4, 5] };
   const timezone = clientConfig.timezone || 'Africa/Johannesburg';
   const paramsWithOperating = {
@@ -22,54 +20,11 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
   };
 
   const query = `
-    WITH raw AS (
-      SELECT
-        l.lead_id,
-        SAFE_CAST(l.fetched AS TIMESTAMP) AS fetched_ts,
-        COALESCE(l.offershop_source, '') AS source,
-        COALESCE(l.offershop_grade, '') AS grade,
-        hlc.vendor,
-        ${validTimestampSql('hlc.delivered')} AS delivered_ts,
-        ${validTimestampSql('hlc.first_call_date')} AS first_call_ts,
-        COALESCE(SAFE_CAST(hlc.total_calls AS INT64), 0) AS total_calls,
-        COALESCE(hlc.last_dialer_status, '') AS last_dialer_status,
-        SAFE_CAST(hlc.rpc AS INT64) > 0 AS is_rpc,
-        ${validTimestampSql('hlc.sale')} IS NOT NULL AS is_sale,
-        ${validTimestampSql('hlc.activated')} IS NOT NULL AS is_activated,
-        ${validTimestampSql('hlc.sale')} AS sale_ts,
-        ${validTimestampSql('hlc.activated')} AS activation_ts
-      FROM ${configuredSourceTable(params.clientId, 'leads')} l
-      LEFT JOIN UNNEST(l.hlc_details) hlc
-      ${whereSql}
-    ),
-    lead_level AS (
-      SELECT
-        lead_id,
-        ANY_VALUE(fetched_ts) AS fetched_ts,
-        ANY_VALUE(source) AS source,
-        ANY_VALUE(grade) AS grade,
-        COALESCE(
-          ARRAY_AGG(vendor IGNORE NULLS ORDER BY IF(delivered_ts IS NULL, 1, 0), delivered_ts ASC LIMIT 1)[SAFE_OFFSET(0)],
-          'Unknown'
-        ) AS vendor,
-        COUNTIF(delivered_ts IS NOT NULL) > 0 AS is_delivered,
-        COUNTIF(first_call_ts IS NOT NULL) > 0 AS is_dialled,
-        COUNTIF(is_rpc) > 0 AS is_rpc,
-        COUNTIF(is_sale) > 0 AS is_sale,
-        COUNTIF(is_activated) > 0 AS is_activated,
-        MAX(GREATEST(total_calls, 0)) AS recorded_call_count,
-        COUNTIF(first_call_ts IS NOT NULL AND TRIM(last_dialer_status) != '') > 0 AS has_disposition,
-        MIN(delivered_ts) AS first_delivery_ts,
-        MIN(first_call_ts) AS first_call_ts,
-        MIN(CASE WHEN is_sale THEN sale_ts END) AS sale_ts,
-        MIN(CASE WHEN is_activated THEN activation_ts END) AS activation_ts
-      FROM raw
-      GROUP BY lead_id
-    ),
+    WITH ${operationalLeadCtes(params)},
     classified AS (
       SELECT
         *,
-        TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) AS delivery_to_dial_sec,
+        TIMESTAMP_DIFF(first_call_ts, delivered_ts, SECOND) AS delivery_to_dial_sec,
         TIMESTAMP_DIFF(first_call_ts, fetched_ts, SECOND) AS capture_to_dial_sec,
         CASE
           WHEN fetched_ts IS NULL THEN NULL
@@ -84,7 +39,8 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
           ELSE FALSE
         END AS is_weekend,
         CASE
-          WHEN recorded_call_count <= 0 THEN '0 calls'
+          WHEN recorded_call_count IS NULL THEN 'Unrecorded'
+          WHEN recorded_call_count = 0 THEN '0 calls'
           WHEN recorded_call_count = 1 THEN '1 call'
           WHEN recorded_call_count = 2 THEN '2 calls'
           WHEN recorded_call_count = 3 THEN '3 calls'
@@ -92,14 +48,16 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
           ELSE '5+ calls'
         END AS attempt_bucket,
         CASE
+          WHEN delivered_ts IS NOT NULL AND NOT is_delivered THEN 'Invalid timing'
+          WHEN first_call_ts < delivered_ts THEN 'Invalid timing'
           WHEN NOT is_delivered THEN 'Not delivered'
-          WHEN NOT is_dialled THEN 'Undialled'
-          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) < 0 THEN 'Invalid timing'
-          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) <= 900 THEN '0–15m'
-          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) <= 1800 THEN '15–30m'
-          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) <= 3600 THEN '30–60m'
-          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) <= 21600 THEN '1–6h'
-          WHEN TIMESTAMP_DIFF(first_call_ts, first_delivery_ts, SECOND) <= 86400 THEN '6–24h'
+          WHEN first_call_ts IS NULL THEN 'Undialled'
+          WHEN NOT is_dialled THEN 'Unqualified dial'
+          WHEN TIMESTAMP_DIFF(first_call_ts, delivered_ts, SECOND) <= 900 THEN '0–15m'
+          WHEN TIMESTAMP_DIFF(first_call_ts, delivered_ts, SECOND) <= 1800 THEN '15–30m'
+          WHEN TIMESTAMP_DIFF(first_call_ts, delivered_ts, SECOND) <= 3600 THEN '30–60m'
+          WHEN TIMESTAMP_DIFF(first_call_ts, delivered_ts, SECOND) <= 21600 THEN '1–6h'
+          WHEN TIMESTAMP_DIFF(first_call_ts, delivered_ts, SECOND) <= 86400 THEN '6–24h'
           ELSE '24h+'
         END AS sla_band,
         CASE
@@ -110,16 +68,18 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
           WHEN TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), sale_ts, DAY) <= 30 THEN '15–30d'
           ELSE '30d+'
         END AS activation_age_bucket
-      FROM lead_level
+      FROM operational_leads
     ),
     summary AS (
       SELECT
         COUNT(*) AS total_leads,
         COUNTIF(is_delivered) AS delivered_leads,
         COUNTIF(is_dialled) AS dialled_leads,
+        COUNTIF(recorded_call_count IS NULL) AS unrecorded_call_leads,
+        COUNTIF(is_dialled AND recorded_call_count IS NULL) AS dialled_unrecorded_call_leads,
         COUNTIF(recorded_call_count = 0) AS zero_call_leads,
-        COUNTIF(recorded_call_count = 1) AS one_call_leads,
-        COUNTIF(recorded_call_count >= 2) AS multi_call_leads,
+        COUNTIF(is_dialled AND recorded_call_count = 1) AS one_call_leads,
+        COUNTIF(is_dialled AND recorded_call_count >= 2) AS multi_call_leads,
         COUNTIF(recorded_call_count >= 5 AND is_rpc IS FALSE) AS high_attempt_no_rpc_leads,
         COUNTIF(is_dialled AND has_disposition) AS disposition_complete_leads,
         COUNTIF(is_after_hours) AS after_hours_leads,
@@ -127,15 +87,15 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
         COUNTIF(is_delivered AND is_dialled AND delivery_to_dial_sec BETWEEN 0 AND 900) AS sla_15m_leads,
         COUNTIF(is_delivered AND is_dialled AND delivery_to_dial_sec BETWEEN 0 AND 3600) AS sla_60m_leads,
         COUNTIF(is_delivered AND NOT is_dialled) AS awaiting_first_dial,
-        MAX(CASE WHEN is_delivered AND NOT is_dialled AND first_delivery_ts IS NOT NULL
-          THEN TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), first_delivery_ts, SECOND) END) AS oldest_delivery_wait_sec,
+        MAX(CASE WHEN is_delivered AND NOT is_dialled AND delivered_ts IS NOT NULL
+          THEN TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), delivered_ts, SECOND) END) AS oldest_delivery_wait_sec,
         APPROX_QUANTILES(CASE WHEN is_dialled AND capture_to_dial_sec >= 0 THEN capture_to_dial_sec END, 100)[OFFSET(50)] AS capture_to_dial_median_sec,
         APPROX_QUANTILES(CASE WHEN is_dialled AND capture_to_dial_sec >= 0 THEN capture_to_dial_sec END, 100)[OFFSET(90)] AS capture_to_dial_p90_sec,
         COUNTIF(is_dialled AND capture_to_dial_sec BETWEEN 0 AND 900) AS capture_sla_15m_leads,
         COUNTIF(is_dialled AND capture_to_dial_sec BETWEEN 0 AND 3600) AS capture_sla_60m_leads,
         COUNTIF(is_sale AND NOT is_activated AND sale_ts IS NOT NULL AND TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), sale_ts, DAY) > 14) AS activation_backlog_14d,
-        COUNTIF(is_after_hours AND is_rpc) AS after_hours_rpc,
-        COUNTIF(NOT is_after_hours AND is_rpc) AS operating_hours_rpc,
+        COUNTIF(is_after_hours AND is_dialled AND is_rpc IS TRUE) AS after_hours_rpc,
+        COUNTIF(NOT is_after_hours AND is_dialled AND is_rpc IS TRUE) AS operating_hours_rpc,
         COUNTIF(is_after_hours AND is_sale) AS after_hours_sales,
         COUNTIF(NOT is_after_hours AND is_sale) AS operating_hours_sales,
         COUNTIF(NOT is_after_hours) AS operating_hours_leads,
@@ -149,10 +109,10 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
       SELECT
         attempt_bucket AS bucket,
         CASE attempt_bucket
-          WHEN '0 calls' THEN 0 WHEN '1 call' THEN 1 WHEN '2 calls' THEN 2
+          WHEN 'Unrecorded' THEN -1 WHEN '0 calls' THEN 0 WHEN '1 call' THEN 1 WHEN '2 calls' THEN 2
           WHEN '3 calls' THEN 3 WHEN '4 calls' THEN 4 ELSE 5 END AS bucket_order,
         COUNT(*) AS leads,
-        COUNTIF(is_rpc) AS contacted,
+        COUNTIF(is_dialled AND is_rpc IS TRUE) AS contacted,
         COUNTIF(is_sale) AS sales,
         COUNTIF(is_activated) AS activations
       FROM classified
@@ -166,7 +126,7 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
           WHEN '1–6h' THEN 4 WHEN '6–24h' THEN 5 WHEN '24h+' THEN 6
           WHEN 'Undialled' THEN 7 WHEN 'Not delivered' THEN 8 ELSE 9 END AS sort_order,
         COUNT(*) AS leads,
-        COUNTIF(is_rpc) AS contacted,
+        COUNTIF(is_dialled AND is_rpc IS TRUE) AS contacted,
         COUNTIF(is_sale) AS sales
       FROM classified
       GROUP BY sla_band
@@ -220,12 +180,15 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
         vendor,
         COUNT(*) AS leads,
         COUNTIF(is_dialled) AS dialled,
-        COUNTIF(recorded_call_count = 1) AS one_call_leads,
+        COUNTIF(recorded_call_count IS NULL) AS unrecorded_call_leads,
+        COUNTIF(is_dialled AND recorded_call_count IS NULL) AS dialled_unrecorded_call_leads,
+        COUNTIF(recorded_call_count = 0) AS zero_call_leads,
+        COUNTIF(is_dialled AND recorded_call_count = 1) AS one_call_leads,
         COUNTIF(recorded_call_count >= 5 AND is_rpc IS FALSE) AS high_attempt_no_rpc,
         COUNTIF(is_dialled AND NOT has_disposition) AS missing_disposition,
         COUNTIF(is_delivered AND is_dialled AND delivery_to_dial_sec BETWEEN 0 AND 900) AS sla_15m_leads,
         COUNTIF(is_delivered) AS delivered,
-        COUNTIF(is_rpc) AS contacted,
+        COUNTIF(is_dialled AND is_rpc IS TRUE) AS contacted,
         COUNTIF(is_sale) AS sales,
         APPROX_QUANTILES(CASE WHEN is_dialled AND delivery_to_dial_sec >= 0 THEN delivery_to_dial_sec END, 100)[OFFSET(50)] AS median_first_dial_sec
       FROM classified
@@ -244,9 +207,15 @@ export async function getOperatingControlsAnalytics(params: OffernetQueryParams)
     FROM summary
   `;
 
-  const [rows] = await client.query({ query, params: paramsWithOperating });
-  const row = rows[0] || {};
-  return buildOperatingControlsResult(row, clientConfig, operating);
+  return { query, queryParams: paramsWithOperating, clientConfig, operating };
+}
+
+export async function getOperatingControlsAnalytics(params: OffernetQueryParams) {
+  const { query, queryParams, clientConfig, operating } = buildOperatingControlsQuery(params);
+  const client = getBigQueryClient(clientConfig.bigQueryProject);
+  const [rows] = await client.query({ query, params: queryParams });
+  if (!rows[0]) throw new Error('Operating controls aggregate evidence is unavailable.');
+  return buildOperatingControlsResult(rows[0], clientConfig, operating);
 }
 
 export function buildOperatingControlsResult(row: any, clientConfig: any, operating: any) {
@@ -302,6 +271,10 @@ export function buildOperatingControlsResult(row: any, clientConfig: any, operat
     return {
       vendor: item.vendor,
       leads,
+      unrecordedCallLeads: numberOrNull(item.unrecorded_call_leads),
+      dialledUnrecordedCallLeads: numberOrNull(item.dialled_unrecorded_call_leads),
+      dialledUnrecordedCallSharePct: percentOrNull(item.dialled_unrecorded_call_leads, vendorDialled, 1),
+      zeroCallLeads: numberOrNull(item.zero_call_leads),
       oneCallSharePct: percentOrNull(oneCall, vendorDialled, 1),
       highAttemptNoRpc: Number(item.high_attempt_no_rpc || 0),
       dispositionCompletenessPct: vendorDialled > 0 ? percentOrNull(vendorDialled - missingDisposition, vendorDialled, 1) : null,
@@ -317,6 +290,9 @@ export function buildOperatingControlsResult(row: any, clientConfig: any, operat
       totalLeads: total,
       deliveredLeads: delivered,
       dialledLeads: dialled,
+      unrecordedCallLeads: numberOrNull(row.unrecorded_call_leads),
+      dialledUnrecordedCallLeads: numberOrNull(row.dialled_unrecorded_call_leads),
+      dialledUnrecordedCallSharePct: percentOrNull(row.dialled_unrecorded_call_leads, dialled, 1),
       zeroCallLeads: Number(row.zero_call_leads || 0),
       oneCallLeads: Number(row.one_call_leads || 0),
       multiCallLeads: Number(row.multi_call_leads || 0),
@@ -377,7 +353,7 @@ export function buildOperatingControlsResult(row: any, clientConfig: any, operat
       workdays: operating.workdays,
     },
     methodology: {
-      callCount: 'Call-count controls use the maximum recorded HLC/vendor total_calls value per lead. They are descriptive and are not event-level attempt attribution.',
+      callCount: 'Call-count controls use the maximum recorded HLC/vendor total_calls value per lead. Only valid non-negative counters qualify: null/invalid/negative is Unrecorded; an explicit 0 is Zero calls. One-call and multi-call shares count qualified dialled leads in each recorded bucket / all qualified dialled leads; dialled leads with unrecorded counters are reported separately. These are descriptive cumulative counters, not event-level attempt attribution. The 5+ no RPC population requires explicit negative RPC; unknown RPC is excluded.',
       vendor: 'Vendor controls use the first recorded delivered vendor per lead to keep each lead exclusive in the comparison.',
       operatingHours: 'Operating-hours classification uses the tenant timezone and configured operating window.',
       captureTurnaround: 'Capture-to-first-dial measures lead fetched/API-entry time to the first recorded dial. Delivery-to-first-dial remains a separate downstream handoff metric.',

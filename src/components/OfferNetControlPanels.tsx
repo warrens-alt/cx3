@@ -38,19 +38,19 @@ export function OperatingControlStrip({ data }: { data: OperatingControlsData })
         <div><small>P90 {s.captureToDialP90 || '—'} · {pct(s.captureWithin15mRate)} within 15m</small></div>
       </article>
       <article className="cx-command-metric">
-        <span>Awaiting first dial</span>
+        <span>Awaiting qualified first dial</span>
         <strong>{fmt(s.awaitingFirstDial)}</strong>
         <div><small>Oldest delivered wait {s.oldestDeliveryWait || '—'}</small></div>
       </article>
       <article className="cx-command-metric">
         <span>One-call share</span>
         <strong>{pct(s.singleAttemptSharePct)}</strong>
-        <div><small>{fmt(s.oneCallLeads)} leads · share of dialled leads</small></div>
+        <div><small>{fmt(s.oneCallLeads)} leads · share of dialled leads; {fmt(s.dialledUnrecordedCallLeads)} dialled leads have unrecorded call counts</small></div>
       </article>
       <article className="cx-command-metric">
         <span>5+ calls, no RPC</span>
         <strong>{fmt(s.highAttemptNoRpcLeads)}</strong>
-        <div><small>High-effort leads with no recorded right-party contact</small></div>
+        <div><small>Recorded 5+ calls with explicit non-RPC evidence</small></div>
       </article>
       <article className="cx-command-metric">
         <span>Disposition complete</span>
@@ -79,7 +79,7 @@ export function AttemptCoveragePanel({ data }: { data: OperatingControlsData }) 
         <div>
           <span className="cx-command-section-kicker">Contact governance</span>
           <h2>Recorded call-count coverage</h2>
-          <p>Exclusive lead populations by the maximum recorded HLC call count, with eventual RPC and sale outcomes.</p>
+          <p>Exclusive lead populations by the maximum valid recorded HLC call count. Zero calls requires an explicit 0; call count unrecorded is a separate population.</p>
         </div>
         <PhoneCall size={16} className="text-slate-400"/>
       </header>
@@ -91,7 +91,7 @@ export function AttemptCoveragePanel({ data }: { data: OperatingControlsData }) 
           <tbody>
             {attemptBuckets.map(row => (
               <tr key={row.bucket}>
-                <th>{row.bucket}</th>
+                <th>{row.bucket === 'Unrecorded' ? 'Call count unrecorded' : row.bucket === '0 calls' ? 'Zero calls' : row.bucket}</th>
                 <td>{fmt(row.leads)}</td>
                 <td>{pct(row.sharePct)}</td>
                 <td>{fmt(row.contacted)}</td>
@@ -103,7 +103,7 @@ export function AttemptCoveragePanel({ data }: { data: OperatingControlsData }) 
           </tbody>
         </table>
       </div>
-      <div className="cx-control-note">{data?.methodology?.callCount || 'Methodology unavailable for this scope.'}</div>
+      <div className="cx-control-note">{fmt(data?.summary?.unrecordedCallLeads)} leads have call count unrecorded, including {fmt(data?.summary?.dialledUnrecordedCallLeads)} dialled leads ({pct(data?.summary?.dialledUnrecordedCallSharePct)} of the dialled denominator). {data?.methodology?.callCount || 'Methodology unavailable for this scope.'}</div>
     </section>
   );
 }
@@ -132,7 +132,7 @@ export function CaptureTurnaroundPanel({ data }: { data: OperatingControlsData }
         <article><span>P90</span><strong>{s.captureToDialP90 || '—'}</strong><small>Tail turnaround</small></article>
         <article><span>≤15 minutes</span><strong>{pct(s.captureWithin15mRate)}</strong><small>All captured leads in scope</small></article>
         <article><span>≤1 hour</span><strong>{pct(s.captureWithin60mRate)}</strong><small>All captured leads in scope</small></article>
-        <article><span>Waiting first dial</span><strong>{fmt(s.awaitingFirstDial)}</strong><small>Oldest delivered wait {s.oldestDeliveryWait || '—'}</small></article>
+        <article><span>Waiting qualified first dial</span><strong>{fmt(s.awaitingFirstDial)}</strong><small>Oldest delivered wait {s.oldestDeliveryWait || '—'}</small></article>
       </div>
 
       <div className="cx-command-grid cx-turnaround-grid">
@@ -287,7 +287,7 @@ export function VendorControlsPanel({ data }: { data: OperatingControlsData }) {
       <div className="cx-performance-table-wrap">
         <table className="cx-performance-table cx-vendor-controls-table">
           <thead>
-            <tr><th>Vendor</th><th>Leads</th><th>15m SLA</th><th>Median first dial</th><th>One-call share</th><th>5+ no RPC</th><th>Disposition complete</th><th>RPC</th><th>Sale / lead</th></tr>
+            <tr><th>Vendor</th><th>Leads</th><th>15m SLA</th><th>Median first dial</th><th>One-call share</th><th>Zero calls</th><th>Call count unrecorded</th><th>Dialled with count unrecorded</th><th>5+ no RPC</th><th>Disposition complete</th><th>RPC</th><th>Sale / lead</th></tr>
           </thead>
           <tbody>
             {vendorControls.map(row => (
@@ -297,6 +297,9 @@ export function VendorControlsPanel({ data }: { data: OperatingControlsData }) {
                 <td>{pct(row.sla15Rate)}</td>
                 <td>{row.medianFirstDial}</td>
                 <td>{pct(row.oneCallSharePct)}</td>
+                <td>{fmt(row.zeroCallLeads)}</td>
+                <td>{fmt(row.unrecordedCallLeads)}</td>
+                <td>{fmt(row.dialledUnrecordedCallLeads)} · {pct(row.dialledUnrecordedCallSharePct)}</td>
                 <td>{fmt(row.highAttemptNoRpc)}</td>
                 <td>{pct(row.dispositionCompletenessPct)}</td>
                 <td>{pct(row.rpcRate)}</td>
@@ -327,10 +330,24 @@ export function ContactGovernancePanel({
   const c = data?.dataCompleteness;
   const rows = [
     {
+      key: 'unrecorded-call-count',
+      title: 'Call count unrecorded',
+      value: s.unrecordedCallLeads,
+      detail: `${fmt(s.dialledUnrecordedCallLeads)} qualified dialled leads lack a valid cumulative counter (${pct(s.dialledUnrecordedCallSharePct)} of the dialled denominator).`,
+      severity: 'medium',
+    },
+    {
+      key: 'zero-call-count',
+      title: 'Zero calls',
+      value: s.zeroCallLeads,
+      detail: 'A valid cumulative call counter is explicitly recorded as 0.',
+      severity: 'medium',
+    },
+    {
       key: 'high-attempt-no-rpc',
       title: '5+ recorded calls with no RPC',
       value: s.highAttemptNoRpcLeads,
-      detail: 'High-effort leads that still have no recorded right-party contact.',
+      detail: 'Recorded call count ≥5 with explicit non-RPC evidence; unknown RPC does not qualify.',
       href: highAttemptHref,
       severity: 'high',
     },
@@ -338,7 +355,7 @@ export function ContactGovernancePanel({
       key: 'one-call-only',
       title: 'Exactly one recorded call',
       value: s.oneCallLeads,
-      detail: `${pct(s.singleAttemptSharePct)} of dialled leads have exactly one recorded call-count.`,
+      detail: `${pct(s.singleAttemptSharePct)}: qualified dialled leads with exactly one recorded call / qualified dialled leads. ${fmt(s.dialledUnrecordedCallLeads)} dialled leads have unrecorded call counts.`,
       href: oneCallHref,
       severity: 'medium',
     },

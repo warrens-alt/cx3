@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildOperatingControlsResult } from '../../server/analytics/contact/operatingControls';
+import { buildOperatingControlsQuery, buildOperatingControlsResult } from '../../server/analytics/contact/operatingControls';
+import { operationalLeadCtes } from '../../server/analytics/common/leadMetrics';
 
 test('operating-controls: normal population returns precise rates and durations', () => {
   const row = {
@@ -105,4 +106,68 @@ test('operating-controls: empty/zero population returns null rates and dash late
   assert.equal(result.summary.captureToDialMedian, '—');
   assert.equal(result.summary.captureToDialP90, '—');
   assert.equal(result.summary.oldestDeliveryWait, '—');
+});
+
+const scope = { clientId: 'default_tenant', startDate: '2026-09-01', endDate: '2026-09-30' };
+const operating = { start: '08:00', end: '17:30', workdays: [1, 2, 3, 4, 5] };
+
+test('operating-controls: canonical normalization preserves unrecorded, zero and maximum cumulative call counts', () => {
+  const { query } = buildOperatingControlsQuery(scope);
+  assert.ok(query.includes(`WITH ${operationalLeadCtes(scope)},`));
+  assert.match(query, /CASE WHEN SAFE_CAST\(hlc.total_calls AS INT64\) >= 0 THEN SAFE_CAST\(hlc.total_calls AS INT64\) END AS total_calls/);
+  assert.match(query, /MAX\(total_calls\) AS recorded_call_count/);
+  assert.doesNotMatch(query, /COALESCE\(SAFE_CAST\(hlc.total_calls|MAX\(GREATEST\(total_calls/);
+  assert.match(query, /WHEN recorded_call_count IS NULL THEN 'Unrecorded'\s+WHEN recorded_call_count = 0 THEN '0 calls'/);
+  assert.match(query, /COUNTIF\(recorded_call_count IS NULL\) AS unrecorded_call_leads/);
+  assert.match(query, /COUNTIF\(recorded_call_count = 0\) AS zero_call_leads/);
+});
+
+test('operating-controls: unknown call evidence is visible within the unchanged qualified dialled denominator', () => {
+  const result = buildOperatingControlsResult({ total_leads: 10, delivered_leads: 9, dialled_leads: 8,
+    unrecorded_call_leads: 3, dialled_unrecorded_call_leads: 2, zero_call_leads: 1, one_call_leads: 2, multi_call_leads: 4,
+    attempts: [{ bucket: 'Unrecorded', leads: 3, contacted: 1, sales: 0 }, { bucket: '0 calls', leads: 1, contacted: 0, sales: 0 }],
+    vendor_controls: [{ vendor: 'A', leads: 10, dialled: 8, unrecorded_call_leads: 3, dialled_unrecorded_call_leads: 2, zero_call_leads: 1, one_call_leads: 2 }],
+  }, {}, operating);
+  assert.equal(result.summary.unrecordedCallLeads, 3);
+  assert.equal(result.summary.zeroCallLeads, 1);
+  assert.equal(result.summary.dialledUnrecordedCallLeads, 2);
+  assert.equal(result.summary.dialledUnrecordedCallSharePct, 25);
+  assert.equal(result.summary.singleAttemptSharePct, 25);
+  assert.equal(result.summary.multiAttemptSharePct, 50);
+  assert.deepEqual(result.attemptBuckets.map(row => [row.bucket, row.leads]), [['Unrecorded', 3], ['0 calls', 1]]);
+  assert.equal(result.vendorControls[0].unrecordedCallLeads, 3);
+  assert.equal(result.vendorControls[0].zeroCallLeads, 1);
+  assert.equal(result.vendorControls[0].dialledUnrecordedCallLeads, 2);
+  assert.equal(result.vendorControls[0].dialledUnrecordedCallSharePct, 25);
+  assert.equal(result.vendorControls[0].oneCallSharePct, 25);
+});
+
+test('operating-controls: missing completeness fields remain unavailable while recorded zero remains zero', () => {
+  const missing = buildOperatingControlsResult({ dialled_leads: 4 }, {}, operating);
+  assert.equal(missing.summary.unrecordedCallLeads, null);
+  assert.equal(missing.summary.dialledUnrecordedCallLeads, null);
+  assert.equal(missing.summary.dialledUnrecordedCallSharePct, null);
+  const zero = buildOperatingControlsResult({ dialled_leads: 4, unrecorded_call_leads: 0, dialled_unrecorded_call_leads: 0, zero_call_leads: 0 }, {}, operating);
+  assert.equal(zero.summary.unrecordedCallLeads, 0);
+  assert.equal(zero.summary.dialledUnrecordedCallLeads, 0);
+  assert.equal(zero.summary.dialledUnrecordedCallSharePct, 0);
+});
+
+test('operating-controls: explicit non-RPC and qualified chronology control membership', () => {
+  const { query } = buildOperatingControlsQuery(scope);
+  assert.equal((query.match(/recorded_call_count >= 5 AND is_rpc IS FALSE/g) || []).length, 2);
+  assert.match(query, /CASE WHEN COUNTIF\(is_rpc\) > 0 THEN TRUE WHEN COUNTIF\(is_rpc IS NULL\) > 0 THEN NULL ELSE FALSE END AS is_rpc/);
+  assert.match(query, /COUNTIF\(is_dialled AND recorded_call_count = 1\) AS one_call_leads/);
+  assert.match(query, /COUNTIF\(is_dialled AND recorded_call_count >= 2\) AS multi_call_leads/);
+  assert.match(query, /COUNTIF\(is_delivered AND NOT is_dialled\) AS awaiting_first_dial/);
+  assert.match(query, /WHEN first_call_ts < delivered_ts THEN 'Invalid timing'/);
+});
+
+test('operating-controls: tenant/vendor scope and unsupported dimension rejection survive normalization reuse', () => {
+  const { query, queryParams } = buildOperatingControlsQuery({ ...scope, clientId: 'mtn', vendor: 'Tenant vendor' });
+  assert.match(query, /LOWER\(hlc.vendor\) = LOWER\(@vendor\)/);
+  assert.equal(queryParams.vendor, 'Tenant vendor');
+  assert.equal(queryParams.scopeTimezone, queryParams.tenantTimezone);
+  assert.throws(() => buildOperatingControlsQuery({ ...scope, clientId: 'mtn', grade: 'A' }), /UNSUPPORTED_FILTER/);
+  assert.throws(() => buildOperatingControlsQuery({ ...scope, agent: 'A' }), /UNSUPPORTED_FILTER/);
 });

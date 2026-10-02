@@ -2,7 +2,9 @@ import type { MatchedPeriodWindow, MetricComparison } from '../../../contracts/p
 import type { AttributedEconomics, SpendReconciliation } from '../../../contracts/commercial';
 export interface OperatingControlsData {
   summary: {
-    unrecordedCallLeads?: number;
+    unrecordedCallLeads: number | null;
+    dialledUnrecordedCallLeads: number | null;
+    dialledUnrecordedCallSharePct: number | null;
     totalLeads: number;
     deliveredLeads: number;
     dialledLeads: number;
@@ -63,6 +65,10 @@ export interface OperatingControlsData {
   vendorControls: Array<{
     vendor: string;
     leads: number;
+    unrecordedCallLeads: number | null;
+    dialledUnrecordedCallLeads: number | null;
+    dialledUnrecordedCallSharePct: number | null;
+    zeroCallLeads: number | null;
     oneCallSharePct: number | null;
     highAttemptNoRpc: number;
     dispositionCompletenessPct: number | null;

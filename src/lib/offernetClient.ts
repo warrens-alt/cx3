@@ -6,7 +6,9 @@ export type { MatchedPeriodWindow, MetricComparison, AttributedEconomics, SpendR
 
 export interface OperatingControlsData {
   summary: {
-    unrecordedCallLeads?: number;
+    unrecordedCallLeads: number | null;
+    dialledUnrecordedCallLeads: number | null;
+    dialledUnrecordedCallSharePct: number | null;
     totalLeads: number;
     deliveredLeads: number;
     dialledLeads: number;
@@ -67,6 +69,10 @@ export interface OperatingControlsData {
   vendorControls: Array<{
     vendor: string;
     leads: number;
+    unrecordedCallLeads: number | null;
+    dialledUnrecordedCallLeads: number | null;
+    dialledUnrecordedCallSharePct: number | null;
+    zeroCallLeads: number | null;
     oneCallSharePct: number | null;
     highAttemptNoRpc: number;
     dispositionCompletenessPct: number | null;
