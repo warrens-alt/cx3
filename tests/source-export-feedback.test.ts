@@ -59,8 +59,22 @@ async function mount() {
     return deferred.at(-1)!;
   };
   const navigate = async (tenant: string, extra = '') => {
-    w.__fixture.navigate(route(tenant, extra));
-    await wait(() => new URL(w.__fixture.location, 'https://synthetic.invalid').searchParams.get('clientId') === tenant && [...w.document.querySelectorAll('.cx-ledger-provenance div')].some((field: any) => field.querySelector('dt')?.textContent === 'Workspace / client' && field.querySelector('dd')?.textContent === tenant) && findButton('Export source-compatible data')?.disabled === false);
+    const destination = route(tenant, extra);
+    const expected = new URL(destination, 'https://synthetic.invalid');
+    const expectedSearch = expected.searchParams.get('sourceSearch') || '';
+    w.__fixture.navigate(destination);
+    // Harness location is assigned during render, before the source browser's
+    // transition commits. Tenant alone cannot identify a same-tenant search
+    // change; wait for the returned search scope in the rendered provenance.
+    await wait(() => {
+      const current = new URL(w.__fixture.location, 'https://synthetic.invalid');
+      const fields = [...w.document.querySelectorAll('.cx-ledger-provenance div')];
+      const returnedField = (label: string) => fields.find((field: any) => field.querySelector('dt')?.textContent === label)?.querySelector('dd')?.textContent || '';
+      return current.pathname === expected.pathname && current.search === expected.search
+        && w.document.querySelector('#ledger-search')?.value === expectedSearch
+        && returnedField('Workspace / client') === tenant && returnedField('Search') === expectedSearch
+        && findButton('Export source-compatible data')?.disabled === false;
+    }, `Rendered source scope: ${tenant} / ${expectedSearch || 'no search'}`);
     await settle();
   };
   return { w, text, findButton, wait, settle, click, begin, navigate, deferred, downloads, close() { w.__fixture.unmount(); dom.window.close(); assert.deepEqual(errors, []); } };
