@@ -36,7 +36,7 @@ test('all nine tenant contracts match workbook operating windows, aliases and sp
 test('operating reports bind the tenant ISO calendar and return its exact operating context', async t => {
   const client = getBigQueryClient(getClientConfig('default_tenant').bigQueryProject);
   const submitted: { query: string; params: Record<string, unknown> }[] = [];
-  t.mock.method(client, 'query', async options => { submitted.push(options); return [[]]; });
+  t.mock.method(client, 'query', async options => { submitted.push(options); return [[{}]]; });
   for (const [alias, , start, end, workdays] of expected) {
     for (const report of [getOperatingControlsAnalytics, getSpeedToLeadAnalytics, getTemporalAnalytics]) {
       const result = await report({ clientId: alias, startDate: '2026-09-21', endDate: '2026-09-27' });

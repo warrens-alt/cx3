@@ -174,13 +174,14 @@ test('marketing discovery remains admin-only', () => {
 
 
 test('OfferNet operating controls remain lead-level and descriptive', () => {
-  const analytics = readAnalytics();
+  const analytics = read('server/analytics/contact/operatingControls.ts');
+  const normalization = read('server/analytics/common/leadMetrics.ts');
   assert.match(analytics, /export async function getOperatingControlsAnalytics/);
-  assert.match(analytics, /lead_level AS/);
-  assert.match(analytics, /CASE WHEN SAFE_CAST\(hlc\.total_calls AS INT64\) >= 0 THEN SAFE_CAST\(hlc\.total_calls AS INT64\) END AS total_calls/);
-  assert.match(analytics, /MAX\(total_calls\) AS recorded_call_count/);
+  assert.match(analytics, /operationalLeadCtes\(params\)/);
+  assert.match(normalization, /CASE WHEN SAFE_CAST\(hlc\.total_calls AS INT64\) >= 0 THEN SAFE_CAST\(hlc\.total_calls AS INT64\) END AS total_calls/);
+  assert.match(normalization, /MAX\(total_calls\) AS recorded_call_count/);
   assert.match(analytics, /first recorded delivered vendor per lead/);
-  assert.match(analytics, /descriptive and are not event-level attempt attribution/);
+  assert.match(analytics, /descriptive cumulative counters, not event-level attempt attribution/);
 });
 
 test('contact-strategy call-count buckets are exclusive per lead', () => {
