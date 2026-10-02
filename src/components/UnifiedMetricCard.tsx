@@ -57,7 +57,7 @@ export default function UnifiedMetricCard({
   if (loading) {
     return (
       <article
-        className={`cx-unified-metric cx-metric-card enterprise-card bg-surface border border-border rounded-xl p-4 sm:p-5 flex flex-col justify-between animate-pulse ${className}`}
+        className={`cx-unified-metric cx-metric-card is-loading animate-pulse ${className}`}
         role="status"
         aria-label={`Loading ${label}`}
       >
@@ -82,7 +82,7 @@ export default function UnifiedMetricCard({
 
   return (
     <article
-      className={`cx-unified-metric cx-metric-card enterprise-card bg-surface border border-border hover:border-action/40 rounded-xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-150 hover:shadow-xs group ${className}`}
+      className={`cx-unified-metric cx-metric-card ${className}`}
     >
       <div>
         <div className="flex items-center justify-between gap-1 mb-1">
@@ -102,13 +102,13 @@ export default function UnifiedMetricCard({
           )}
         </div>
 
-        {auditContent ? <button type="button" className="cx-metric-primary block text-left my-1.5 w-full" onClick={() => setAuditOpen(true)} aria-label={`Inspect evidence: ${label}`}><strong className="cx-metric-value text-2xl lg:text-[28px] font-bold font-mono tracking-tight text-text-main tabular-nums leading-tight">{displayValue}</strong></button> : to ? (
+        {auditContent ? <button type="button" className="cx-metric-primary block text-left my-1.5 w-full" onClick={() => setAuditOpen(true)} aria-label={`Inspect evidence: ${label}`}><strong className="cx-metric-value text-2xl lg:text-[28px] font-bold tracking-tight text-text-main tabular-nums leading-tight">{displayValue}</strong></button> : to ? (
           <Link
             to={to}
             className="cx-metric-primary block hover:text-action transition-colors my-1.5"
             title={inspectLabel ? `${inspectLabel} records for ${label}` : `Inspect ${label}`}
           >
-            <strong className="cx-metric-value text-2xl lg:text-[28px] font-bold font-mono tracking-tight text-text-main tabular-nums leading-tight">
+            <strong className="cx-metric-value text-2xl lg:text-[28px] font-bold tracking-tight text-text-main tabular-nums leading-tight">
               {displayValue}
             </strong>
           </Link>
@@ -120,12 +120,12 @@ export default function UnifiedMetricCard({
             aria-label={inspectLabel ? `${inspectLabel} ${label}` : `Inspect ${label}`}
             title={inspectLabel ? `${inspectLabel} ${label}` : `Inspect ${label}`}
           >
-            <strong className="cx-metric-value text-2xl lg:text-[28px] font-bold font-mono tracking-tight text-text-main tabular-nums leading-tight">
+            <strong className="cx-metric-value text-2xl lg:text-[28px] font-bold tracking-tight text-text-main tabular-nums leading-tight">
               {displayValue}
             </strong>
           </button>
         ) : (
-          <strong className="cx-metric-value text-2xl lg:text-[28px] font-bold font-mono tracking-tight text-text-main block my-1.5 tabular-nums leading-tight">
+          <strong className="cx-metric-value text-2xl lg:text-[28px] font-bold tracking-tight text-text-main block my-1.5 tabular-nums leading-tight">
             {displayValue}
           </strong>
         )}
@@ -135,7 +135,7 @@ export default function UnifiedMetricCard({
             {note && <small className="text-text-sec font-medium">{note}</small>}
             {hasChange && (
               <span
-                className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-semibold font-mono tabular-nums leading-none ${
+                className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-semibold tabular-nums leading-none ${
                   isZero
                     ? 'text-text-mute bg-surface-subtle border border-border-subtle'
                     : positive

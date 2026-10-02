@@ -41,7 +41,7 @@ export default function KpiCard({
 
   if (loading) {
     return (
-      <div className="enterprise-card cx-kpi p-4 sm:p-5" role="status" aria-label={`Loading ${title}`}>
+      <div className="cx-kpi cx-metric-card" role="status" aria-label={`Loading ${title}`}>
         <div className="animate-pulse h-4 bg-surface-subtle border border-border-subtle rounded mb-4" />
         <div className="animate-pulse h-8 bg-surface-subtle border border-border-subtle rounded w-1/2 mb-2" />
         <div className="animate-pulse h-3 bg-surface-subtle border border-border-subtle rounded w-1/3" />
@@ -56,10 +56,10 @@ export default function KpiCard({
 
   return (
     <>
-      <article className="enterprise-card cx-kpi bg-surface border border-border hover:border-action/40 rounded-xl p-4 sm:p-5 flex flex-col justify-between h-full transition-all duration-150 hover:shadow-xs group">
+      <article className="cx-kpi cx-metric-card">
         <div>
           <div className="flex items-center justify-between gap-1 mb-1">
-            <h3 className="text-text-sec text-xs sm:text-[12px] font-semibold uppercase tracking-wider line-clamp-1">{title}</h3>
+            <h3 className="cx-metric-label">{title}</h3>
             <div className="flex items-center gap-0.5">
               {lineage && (
                 <>
@@ -88,7 +88,7 @@ export default function KpiCard({
 
           <div className="my-1.5">
             {!missing && prefix && <small className="text-text-sec font-medium text-xs mr-1">{prefix}</small>}
-            <strong className="text-2xl lg:text-[28px] font-bold tracking-tight text-text-main font-mono tabular-nums leading-tight">
+            <strong className="cx-metric-value text-2xl lg:text-[28px] font-bold tracking-tight text-text-main tabular-nums leading-tight">
               {missing ? 'Unavailable' : typeof value === 'number' ? formatKpiValue(value) : value}
             </strong>
             {!missing && suffix && <small className="text-text-sec font-medium text-xs ml-1">{suffix}</small>}
@@ -96,7 +96,7 @@ export default function KpiCard({
 
           <div className="flex items-center gap-2 flex-wrap text-xs mt-1">
             {hasChange ? (
-              <div className="inline-flex flex-wrap items-center gap-1.5 text-xs font-mono">
+              <div className="inline-flex flex-wrap items-center gap-1.5 text-xs">
                 <span className="text-text-sec text-[11px]">{changeLabel}</span>
                 <span
                   className={`inline-flex items-center gap-0.5 font-semibold text-[11px] px-1.5 py-0.5 rounded tabular-nums ${
@@ -112,7 +112,7 @@ export default function KpiCard({
                 </span>
               </div>
             ) : (
-              <span className="text-text-mute text-xs font-mono text-[11px]">{subtitle || 'Observed operational population'}</span>
+              <span className="text-text-mute text-xs text-[11px]">{subtitle || 'Observed operational population'}</span>
             )}
           </div>
         </div>
@@ -145,9 +145,7 @@ export default function KpiCard({
               </button>
             )}
           </div>
-        ) : (
-          <div className="mt-3 pt-2.5 border-t border-transparent min-h-[29px]" aria-hidden="true" />
-        )}
+        ) : null}
       </article>
 
       {lineage && (auditOpen || drawerOpen) && (

@@ -30,7 +30,7 @@ export default function SalesOutcomeSummary({ model, onInspect }: SalesOutcomeSu
             className="cx-metric-primary text-left block hover:text-action transition-colors my-1.5 cursor-pointer w-full"
             aria-label="Inspect recorded sales" title="Inspect recorded sales"
           >
-            <strong className="text-2xl font-bold font-mono tracking-tight text-text-main tabular-nums block">
+            <strong className="text-2xl font-bold font-sans tabular-nums tracking-tight text-text-main block">
               {formatTableNumber(summary.totalSales)}
             </strong>
           </button>
@@ -58,7 +58,7 @@ export default function SalesOutcomeSummary({ model, onInspect }: SalesOutcomeSu
             className="cx-metric-primary text-left block hover:text-semantic-pos transition-colors my-1.5 cursor-pointer w-full"
             aria-label="Inspect recorded activations" title="Inspect recorded activations"
           >
-            <strong className="text-2xl font-bold font-mono tracking-tight text-text-main tabular-nums block">
+            <strong className="text-2xl font-bold font-sans tabular-nums tracking-tight text-text-main block">
               {formatTableNumber(summary.totalActivations)}
             </strong>
           </button>
@@ -93,7 +93,7 @@ export default function SalesOutcomeSummary({ model, onInspect }: SalesOutcomeSu
             className="cx-metric-primary text-left block hover:text-semantic-warn transition-colors my-1.5 cursor-pointer w-full"
             aria-label="Inspect unactivated sales" title="Inspect unactivated sales"
           >
-            <strong className="text-2xl font-bold font-mono tracking-tight text-text-main tabular-nums block">
+            <strong className="text-2xl font-bold font-sans tabular-nums tracking-tight text-text-main block">
               {summary.salesWithoutActivation !== null ? formatTableNumber(summary.salesWithoutActivation) : '—'}
             </strong>
           </button>
@@ -124,7 +124,7 @@ export default function SalesOutcomeSummary({ model, onInspect }: SalesOutcomeSu
             className="cx-metric-primary text-left block hover:text-action transition-colors my-1.5 cursor-pointer w-full"
             aria-label="Inspect recorded revenue" title="Inspect recorded revenue"
           >
-            <strong className="text-2xl font-bold font-mono tracking-tight text-text-main tabular-nums block">
+            <strong className="text-2xl font-bold font-sans tabular-nums tracking-tight text-text-main block">
               {formatWorkspaceCurrency(summary.realizedRevenue, summary.currency)}
             </strong>
           </button>

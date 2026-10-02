@@ -102,7 +102,7 @@ export default function MetricRail({ items }: MetricRailProps) {
                 )}
               </div>
 
-              <div className="text-2xl sm:text-[26px] font-bold text-slate-900 mt-1 font-mono tracking-tight tabular-nums">
+              <div className="text-2xl sm:text-[26px] font-bold text-slate-900 mt-1 font-sans tabular-nums tracking-tight tabular-nums">
                 {item.value}
               </div>
             </div>

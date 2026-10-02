@@ -57,7 +57,7 @@ export default function EvidenceInspector({ report, selection, onClose, currency
           <>
             <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
               <span className="text-xs text-slate-500">Value</span>
-              <p className="text-xl font-bold text-slate-900 mt-1 font-mono">
+              <p className="text-xl font-bold text-slate-900 mt-1 font-sans tabular-nums">
                 {metric.value ?? 'Unavailable'}
               </p>
               <div className="mt-2 flex items-center gap-1.5 text-xs">
@@ -77,11 +77,11 @@ export default function EvidenceInspector({ report, selection, onClose, currency
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between border-b pb-1.5">
                   <span className="text-slate-500">Numerator</span>
-                  <span className="font-mono text-slate-900">{metric.numerator}</span>
+                  <span className="font-sans tabular-nums text-slate-900">{metric.numerator}</span>
                 </div>
                 <div className="flex justify-between border-b pb-1.5">
                   <span className="text-slate-500">Denominator</span>
-                  <span className="font-mono text-slate-900">{metric.denominator}</span>
+                  <span className="font-sans tabular-nums text-slate-900">{metric.denominator}</span>
                 </div>
               </div>
             )}

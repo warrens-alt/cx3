@@ -61,14 +61,14 @@ export default function ExactBarChart({
             className={`block w-full text-left p-2 rounded-lg ${onSelect ? 'cursor-pointer hover:bg-surface-subtle focus-visible:outline-2 focus-visible:outline-action' : ''} ${isSelected ? 'ring-1 ring-action' : ''}`}>
             <div className="flex flex-wrap justify-between gap-2 text-xs mb-1">
               <span className="font-medium text-text-sec break-words min-w-0">{item.label}</span>
-              <span className="font-mono font-semibold text-text-main tabular-nums break-all">{item.formatted}</span>
+              <span className="font-sans tabular-nums font-semibold text-text-main tabular-nums break-all">{item.formatted}</span>
             </div>
             <div className="relative w-full bg-surface-subtle h-2 rounded-full overflow-hidden" aria-hidden="true" data-state={value === null ? 'unknown' : value === 0 ? 'zero' : 'observed'}>
               {signed && <span className="absolute top-0 bottom-0 left-1/2 border-l border-text-mute" />}
               <div className="absolute top-0 h-full bg-action rounded-full" style={{width:`${width}%`,left:`${signed ? value !== null && value < 0 ? 50-width : 50 : 0}%`}} />
             </div>
             {value === null && <p className="text-xs text-text-mute mt-1">No numeric evidence</p>}
-            {item.secondaryFormatted && <p className="text-xs text-text-sec mt-1 text-right font-mono tabular-nums">{item.secondaryFormatted}</p>}
+            {item.secondaryFormatted && <p className="text-xs text-text-sec mt-1 text-right font-sans tabular-nums tabular-nums">{item.secondaryFormatted}</p>}
           </Element>;
         })}
         {chartItems.length === 0 && <p className="text-center py-8 text-xs text-text-sec">{empty || 'No chart data available for the current scope.'}</p>}
