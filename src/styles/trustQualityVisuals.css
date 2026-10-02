@@ -42,6 +42,8 @@
 .cx-source-evidence-table td:nth-child(3){min-width:175px}
 .cx-source-evidence-table time{font-size:11px;display:block;white-space:nowrap}
 .cx-trust-source-path{display:block;max-width:225px;overflow-wrap:anywhere;font-family:var(--font-mono,monospace);font-size:10px;line-height:1.6;font-weight:400;color:var(--cx-text-muted);margin-top:5px}
+.cx-source-exact-evidence>summary{min-height:44px;padding:13px 20px;font-size:12px;font-weight:600;cursor:pointer;color:var(--cx-text-secondary);border-top:1px solid var(--cx-border-subtle)}
+.cx-source-exact-evidence>summary:focus-visible{outline:2px solid var(--cx-focus);outline-offset:-3px}
 .cx-trust-detail-cell{min-width:260px;color:var(--cx-text-secondary)}
 .cx-trust-number{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
 .cx-trust-disclosure{border:1px solid var(--cx-border-subtle);border-radius:8px;background:var(--cx-surface);padding:0;min-width:0}

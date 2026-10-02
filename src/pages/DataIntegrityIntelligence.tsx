@@ -30,6 +30,7 @@ import { scopedViewPath } from '../shared/evidence/auditPresentation';
 import '../styles/journeyContactVisuals.css';
 import '../styles/trustQualityVisuals.css';
 import '../styles/evidenceWorkspaces.css';
+import '../styles/evidenceMatrix.css';
 
 export default function DataIntegrityIntelligence() {
   const [section, setSection] = useState('overview');
@@ -52,7 +53,6 @@ export default function DataIntegrityIntelligence() {
 
   const groups = groupIntegrityChecks(data?.checks || []);
   const gaps = groups.measured.filter(check => check.discrepancyCount != null && check.discrepancyCount > 0);
-  const attention = [...gaps].sort((a, b) => (b.discrepancyCount ?? 0) - (a.discrepancyCount ?? 0));
 
   return (
     <AnalyticsPageLayout className="cx-trust-workspace" ariaLabel="Data integrity workspace" title="Data confidence" description={<>See which measured discrepancies and source limitations need investigation.</>} actions={<ReportActions />} scope={<OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />}>
@@ -66,13 +66,14 @@ export default function DataIntegrityIntelligence() {
               <UnifiedMetricCard label="Evidence limitations" value={groups.limitations.length} note="Checks with unavailable or unverified evidence" onInspect={() => setSection('issues')} inspectLabel="Inspect limitations" />
               <UnifiedMetricCard label="Observed Data Sources" value={data.sources?.length ?? 'Unavailable'} note="Returned source entries; observation does not establish health" onInspect={() => setSection('sources')} inspectLabel="Inspect sources" />
             </section>
+            <SourceEvidenceMatrix sources={data.sources} summaryOnly />
+            <IntegrityCheckComparison key={JSON.stringify([selectedClient, startDate, endDate, filters])} checks={data.checks} onViewDetails={() => setSection('issues')} />
             <section className="cx-integrity-attention" aria-label="Integrity needs attention">
-              <h2>Needs attention</h2>
+              <h2>Evidence limitations</h2>
               <p>{data.reason}</p>
-              {attention.length || groups.limitations.length ? <ul>
-                {attention.slice(0, 5).map((check, index) => <li key={`gap-${index}`}><div><strong>{check.checkName}</strong><p>{check.detail}</p></div><button type="button" className="cx-admin-text-button" onClick={() => setSection('issues')}>{formatTableNumber(check.discrepancyCount)} gaps · Inspect</button></li>)}
+              {groups.limitations.length ? <ul>
                 {groups.limitations.slice(0, 3).map((check, index) => <li key={`limit-${index}`}><div><strong>{check.checkName}</strong><p>{check.detail}</p></div><button type="button" className="cx-admin-text-button" onClick={() => setSection('issues')}>Evidence limited · Inspect</button></li>)}
-              </ul> : <p>{data.checks.length ? 'No measured gaps or evidence limitations were returned. This does not certify the report.' : 'No discrepancy checks were returned. There is no measured conclusion to display.'}</p>}
+              </ul> : <p>{data.checks.length ? 'No unavailable or unverified checks were returned. This does not certify the report.' : 'No discrepancy checks were returned. There is no measured conclusion to display.'}</p>}
               <button type="button" className="cx-admin-text-button" onClick={() => setSection('issues')}>View all {data.checks.length} checks</button>
             </section></> },
           { id: 'issues', label: 'Issues', content: data && <>            <IntegrityCheckComparison key={JSON.stringify([selectedClient, startDate, endDate, filters])} checks={data.checks} />
