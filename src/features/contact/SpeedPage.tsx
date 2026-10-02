@@ -31,6 +31,7 @@ import {
 import { useSpeedModel, type SpeedData } from './model/useSpeedModel';
 import AuditEvidenceButton from '../../shared/evidence/AuditEvidenceButton';
 import InspectorHost, { type InspectorContent } from '../../shared/evidence/InspectorHost';
+import { speedCohortAudit } from './model/speedAudit';
 
 export default function SpeedPage() {
   const {
@@ -259,7 +260,7 @@ export default function SpeedPage() {
                 <caption className="sr-only">Returned counts and outcome rates for every first-dial latency cohort, including undialled and invalid timing.</caption>
                 <thead><tr><th scope="col">Cohort</th><th scope="col">Leads</th><th scope="col">RPC</th><th scope="col">RPC rate</th><th scope="col">Sales</th><th scope="col">Sale rate</th><th scope="col">Activations</th><th scope="col">Activation rate</th><th scope="col">Audit</th></tr></thead>
                 <tbody>{data.cohorts.map((row, idx) => <tr key={`${row.cohort}-${idx}`}>
-                  <th scope="row">{row.cohort}</th><td>{formatTableNumber(row.leads)}</td><td>{formatTableNumber(row.contacted)}</td><td>{formatPercent(row.contactRate)}</td><td>{formatTableNumber(row.sales)}</td><td>{formatPercent(row.saleRate, 2)}</td><td>{formatTableNumber(row.activations)}</td><td>{formatPercent(row.activationRate)}</td>
+                  <th scope="row">{row.cohort}</th><td>{formatTableNumber(row.leads)}</td><td>{formatTableNumber(row.contacted)}</td><td>{formatPercent(row.contactRate)} <AuditEvidenceButton content={speedCohortAudit(row, 'rpc', auditScope, data.methodology)} /></td><td>{formatTableNumber(row.sales)}</td><td>{formatPercent(row.saleRate, 2)} <AuditEvidenceButton content={speedCohortAudit(row, 'sales', auditScope, data.methodology)} /></td><td>{formatTableNumber(row.activations)}</td><td>{formatPercent(row.activationRate)} <AuditEvidenceButton content={speedCohortAudit(row, 'activations', auditScope, data.methodology)} /></td>
                   <td><AuditEvidenceButton content={{ ...auditContent(row.cohort, row.leads, data.methodology || 'Returned lead population and outcomes for this first-dial timing group.'), unit: 'leads', definition: { meaning: data.methodology || 'Returned outcome associations for this first-dial timing group.', grain: 'Leads in the returned timing group.', calculation: 'Counts and rates are supplied by the response. The dialled population used for RPC rate is not separately supplied in this cohort object.', nullMeaning: 'An unavailable rate is not zero. A zero population is retained as returned.', limitations: ['Timing groups describe association with outcomes; they do not establish causation.'] }, details: <dl><div><dt>RPC count / returned RPC rate</dt><dd>{formatTableNumber(row.contacted)} / {formatPercent(row.contactRate)}</dd></div><div><dt>Sale count / returned sale rate</dt><dd>{formatTableNumber(row.sales)} / {formatPercent(row.saleRate, 2)}</dd></div><div><dt>Activation count / returned activation rate</dt><dd>{formatTableNumber(row.activations)} / {formatPercent(row.activationRate)}</dd></div></dl> }} /></td>
                 </tr>)}</tbody>
               </table>

@@ -56,6 +56,20 @@
 
 .cx-viz-table-scroll:focus-visible{outline:2px solid var(--cx-focus,var(--cx-action));outline-offset:3px}
 
+.cx-journey-audit-lens-toggle{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.cx-journey-audit-lens-toggle [aria-pressed="true"]{background:var(--cx-selected-bg);border-color:var(--cx-action);color:var(--cx-text)}
+.cx-journey-audit-lens{margin-top:18px;padding:20px;background:var(--cx-surface);border:1px solid var(--cx-border);border-radius:10px;min-width:0}
+.cx-journey-audit-lens>header{margin-bottom:16px}.cx-journey-audit-lens>header h3{font-size:15px;color:var(--cx-text);font-weight:650}
+.cx-journey-audit-lens>header p,.cx-journey-audit-qualified{font-size:12px;color:var(--cx-text-secondary);line-height:1.55}
+.cx-journey-audit-lens>ol{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;list-style:none;padding:0;margin:0}
+.cx-journey-audit-lens>ol>li{min-width:0;padding:15px;border:1px solid var(--cx-border-subtle);border-radius:8px;overflow-wrap:anywhere}
+.cx-journey-audit-stage-heading{display:flex;justify-content:space-between;gap:8px;align-items:baseline}.cx-journey-audit-stage-heading h4{font-size:13px;font-weight:650;color:var(--cx-text)}
+.cx-journey-audit-stage-heading>strong{font-size:20px;font-variant-numeric:tabular-nums;color:var(--cx-text)}
+.cx-journey-audit-lens .cx-audit-dimensions{margin-block:12px}.cx-journey-audit-lens .cx-audit-dimensions>ul{grid-template-columns:1fr}
+.cx-journey-audit-qualified{margin-block:12px}
+@media(max-width:820px){.cx-journey-audit-lens>ol{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.cx-journey-audit-lens{padding:14px}.cx-journey-audit-lens>ol{grid-template-columns:1fr}}
+
 /* Keep card actions secondary and avoid oversized footers in six-column summaries. */
 .cx-visual-workspace .cx-unified-metric :is(.cx-why-btn,.cx-inspect-btn){padding:3px 0;border-color:transparent;background:transparent;box-shadow:none;color:var(--cx-action);gap:3px;font-size:11px;font-weight:500;min-height:26px}
 .cx-visual-workspace .cx-unified-metric :is(.cx-why-btn,.cx-inspect-btn):hover{background:transparent;box-shadow:none;transform:none;text-decoration:underline}

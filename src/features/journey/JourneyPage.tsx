@@ -22,7 +22,7 @@ import ReportingScopeBar from '../../shared/reporting/ReportingScopeBar';
 import InspectorHost from '../../shared/evidence/InspectorHost';
 import RootCauseDrawer from '../../components/RootCauseDrawer';
 import VisualSkeleton from '../../shared/visuals/VisualSkeleton';
-import { AuditMetadata } from '../../shared/evidence/AuditMode';
+import { AuditMetadata, useAuditMode } from '../../shared/evidence/AuditMode';
 import { OperationalError, ReportSkeleton } from '../../components/OperationalState';
 import { formatPercent, formatRatioPercent, formatTableNumber } from '../../lib/formatters';
 import { MatchedPeriodPanel } from '../../components/LifecycleDiagnostics';
@@ -32,6 +32,8 @@ import { adaptJourneyData } from './model/journeyAdapter';
 import JourneyProgression, { type StageItem } from './components/JourneyProgression';
 import JourneySegments, { type JourneyDimension } from './components/JourneySegments';
 import JourneyTiming from './components/JourneyTiming';
+import JourneyAuditLens from './components/JourneyAuditLens';
+import { lifecycleVisualAudit } from '../evidenceWorkspace/metricVisualAudit';
 import type { LifecycleSegment } from '../../../contracts/lifecycleAnalytics';
 import type { RootCauseData } from '../../lib/offernetClient';
 
@@ -57,6 +59,8 @@ export default function JourneyPage() {
   // Authoritative journey display adapter separating stage totals from transition intersections
   const { headline, stages, transitions } = useMemo(() => adaptJourneyData(data), [data]);
   const [rootMetric, setRootMetric] = useState<RootCauseData['metric']['id'] | null>(null);
+  const { enabled: auditEnabled } = useAuditMode();
+  const [auditLens, setAuditLens] = useState(false);
   const rateEvidence = [
     { label: 'Acquired demand', value: formatTableNumber(headline.totalVolume), metricId: 'fetched_leads', numerator: headline.totalVolume, denominator: null, basis: 'Intake cohort', stage: 'fetched' },
     { label: 'Delivery rate', value: headline.deliveryPct !== null ? `${headline.deliveryPct.toFixed(1)}%` : '—', metricId: 'delivery_rate', numerator: headline.deliveredVolume, denominator: headline.totalVolume, basis: 'Delivered / fetched', stage: 'delivered' },
@@ -68,7 +72,7 @@ export default function JourneyPage() {
 
   const handleInspectStage = (stage: StageItem) => {
     const isSupported = ['fetched', 'delivered', 'dialled', 'rpc', 'sales', 'activated'].includes(stage.key);
-    setInspectorContent({
+    setInspectorContent(lifecycleVisualAudit({
       type: 'stage',
       metricId: STAGE_METRIC_IDS[stage.key],
       title: `${stage.name} Stage`,
@@ -83,13 +87,14 @@ export default function JourneyPage() {
         label: `Inspect ${stage.name} lead records in Lead Explorer`,
       } : undefined,
       detailLimitation: !isSupported ? `Individual record drill is not supported for ${stage.name}.` : undefined,
+      provenance: { validationStatus: data?.lifecycle?.validationStatus },
       scope: {
         clientId: scope.clientId,
         startDate: scope.startDate,
         endDate: scope.endDate,
         filters,
       },
-    });
+    }, stage.volume, stage.key, data?.lifecycle));
   };
 
   const handleInspectTransition = (from: string, to: string, lost: number, lossKey: string) => {
@@ -199,6 +204,11 @@ export default function JourneyPage() {
               onInspectStage={handleInspectStage}
               onInspectTransition={handleInspectTransition}
             />
+            {auditEnabled && <div className="cx-journey-audit-lens-toggle" role="group" aria-label="Journey presentation lens">
+              <button type="button" className="cx-button-secondary" aria-pressed={!auditLens} onClick={() => setAuditLens(false)}>Performance</button>
+              <button type="button" className="cx-button-secondary" aria-pressed={auditLens} onClick={() => setAuditLens(true)}>Audit evidence</button>
+            </div>}
+            {auditEnabled && auditLens && <JourneyAuditLens stages={stages} lifecycle={data.lifecycle} onInspectStage={handleInspectStage} />}
           </section>
 
           <details className="cx-report-disclosure">
@@ -206,7 +216,7 @@ export default function JourneyPage() {
             <div className="cx-viz-table-scroll" role="region" aria-label="Stage metric evidence" tabIndex={0}>
               <table className="cx-viz-table"><caption className="sr-only">Independent stage metrics retain their original numerator and denominator definitions.</caption>
                 <thead><tr><th>Measure</th><th>Value</th><th>Numerator</th><th>Denominator</th><th>Basis</th></tr></thead>
-                <tbody>{rateEvidence.map(item => <tr key={item.metricId}><th scope="row"><button type="button" className="cx-button-quiet" onClick={() => setInspectorContent({ type: 'metric', metricId: item.metricId, title: item.label, value: item.value, numeratorCount: item.numerator, denominatorCount: item.denominator, scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters }, recordDrill: { drill: 'funnel-stage', drillValue: item.stage } })}>{item.label}</button><AuditMetadata metricId={item.metricId}/></th><td>{item.value}</td><td>{formatTableNumber(item.numerator)}</td><td>{formatTableNumber(item.denominator)}</td><td>{item.basis}</td></tr>)}</tbody>
+                <tbody>{rateEvidence.map(item => <tr key={item.metricId}><th scope="row"><button type="button" className="cx-button-quiet" aria-label={`Audit evidence: ${item.label}`} onClick={() => setInspectorContent({ type: 'metric', metricId: item.metricId, title: item.label, value: item.value, numeratorCount: item.numerator, denominatorCount: item.denominator, anatomy: { kind: item.denominator === null ? 'count' : 'ratio', label: item.label, value: item.value, numerator: { key: 'numerator', label: item.denominator === null ? item.label : item.basis.split(' / ')[0], value: item.numerator }, ...(item.denominator === null ? {} : { denominator: { key: 'denominator', label: item.basis.split(' / ')[1], value: item.denominator } }), detail: item.basis }, scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters }, provenance: { validationStatus: data.lifecycle?.validationStatus }, recordDrill: { drill: 'funnel-stage', drillValue: item.stage } })}>{item.label}</button><AuditMetadata metricId={item.metricId}/></th><td>{item.value}</td><td>{formatTableNumber(item.numerator)}</td><td>{formatTableNumber(item.denominator)}</td><td>{item.basis}</td></tr>)}</tbody>
               </table>
             </div>
           </details>

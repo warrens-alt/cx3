@@ -24,6 +24,7 @@ import { formatPercent, formatTableNumber } from '../../lib/formatters';
 import { downloadAnalysisCsv, type AnalysisCell } from '../../lib/analysisExport';
 import { OperatingControlStrip } from '../../components/OfferNetControlPanels';
 import OverviewCommercialPanel from '../../components/OverviewCommercialPanel';
+import { lifecycleVisualAudit } from '../evidenceWorkspace/metricVisualAudit';
 
 export default function OverviewPage() {
   const { filters } = useFilters();
@@ -182,7 +183,7 @@ export default function OverviewPage() {
           <LifecyclePath title="Lifecycle overview" compact
             stages={(data.funnelStages || []).filter(stage => stage.key in lifecyclePresentation).map(stage => ({ ...stage, key: stage.key as LifecycleStage }))}
             transitions={data.lifecycle?.transitions}
-            onSelectStage={key => setInspectorContent({ type: 'stage', metricId: STAGE_METRIC_IDS[key], title: `${lifecyclePresentation[key].label} evidence`, value: formatTableNumber(data.funnelStages?.find(stage => stage.key === key)?.volume), reportPath: '/funnel', reportLabel: 'Explore full journey', recordDrill: { drill: 'funnel-stage', drillValue: key }, scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters } })}
+            onSelectStage={key => setInspectorContent(lifecycleVisualAudit({ type: 'stage', metricId: STAGE_METRIC_IDS[key], title: `${lifecyclePresentation[key].label} evidence`, value: formatTableNumber(data.funnelStages?.find(stage => stage.key === key)?.volume), reportPath: '/funnel', reportLabel: 'Explore full journey', recordDrill: { drill: 'funnel-stage', drillValue: key }, provenance: { validationStatus: data.validationStatus, generatedAt: data.generatedAt, metricVersion: data.definitionVersion, timezone: data.timezone }, scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters } }, data.funnelStages?.find(stage => stage.key === key)?.volume, key, data.lifecycle))}
           />
 
           <div className="cx-overview-primary">
@@ -193,7 +194,7 @@ export default function OverviewPage() {
 
           <div className="cx-overview-secondary">
             <AttentionList items={data.attention} isAdmin={isAdmin} />
-            <FirstCallResponse sla={data.sla} backlog={data.backlog} />
+            <FirstCallResponse sla={data.sla} backlog={data.backlog} deliveredCount={data.kpis.deliveredLeads} onInspect={content => setInspectorContent({ ...content, provenance: { validationStatus: data.validationStatus, generatedAt: data.generatedAt, metricVersion: data.definitionVersion, timezone: data.timezone }, scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters } })} />
           </div>
 
           <section className="cx-overview-more" aria-label="Explore more analysis">

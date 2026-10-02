@@ -8,13 +8,15 @@ import { Link } from 'react-router-dom';
 import { TrendingUp, TrendingDown, ArrowRight, Search, Inbox, Send, BadgeCheck, Zap } from 'lucide-react';
 import { formatPercent, formatTableNumber } from '../../../lib/formatters';
 import type { OverviewData } from '../../../lib/offernetClient';
+import type { LifecycleExtension } from '../../../../contracts/lifecycleAnalytics';
 import type { InspectorContent } from '../../../shared/evidence/InspectorHost';
 import { useScopedNavigationTarget } from '../../../hooks/useScopedNavigationTarget';
+import { lifecycleVisualAudit } from '../../evidenceWorkspace/metricVisualAudit';
 
 export type RootMetric = 'fetchedLeads' | 'deliveryRate' | 'dialRate' | 'contactRate' | 'leadToSaleRate' | 'activationRate';
 
 interface OutcomeStripProps {
-  data: OverviewData;
+  data: OverviewData & LifecycleExtension;
   onInspect: (content: InspectorContent) => void;
   onWhyChanged?: (metric: RootMetric) => void;
   isAdmin: boolean;
@@ -164,7 +166,7 @@ export default function OutcomeStrip({
         type: 'metric' as const,
         metricId: 'activated_leads',
         title: 'Activations',
-        subtitle: 'Fulfilled sales converted to active recurring commercial status.',
+        subtitle: 'Independently recorded activation timestamps within the selected intake cohort.',
         value: fmt(kpis.activatedLeads),
         relatedValue: { label: 'Activations / recorded sales', value: formatPercent(kpis.activationRate) },
         reportPath: '/sales-activation',
@@ -183,6 +185,19 @@ export default function OutcomeStrip({
       {outcomes.map(item => {
         const presentation = outcomePresentation[item.id as keyof typeof outcomePresentation];
         const Icon = presentation.icon;
+        const count = item.id === 'fetched_leads' ? kpis.fetchedLeads : item.id === 'delivered_leads' ? kpis.deliveredLeads : item.id === 'recorded_sales' ? kpis.saleLeads : kpis.activatedLeads;
+        const countEvidence = lifecycleVisualAudit(item.inspectContent, count, item.recordDrillValue, data.lifecycle);
+        const rateEvidence: InspectorContent | null = item.id === 'fetched_leads' ? null : {
+          ...item.inspectContent,
+          metricId: item.id === 'delivered_leads' ? 'delivery_rate' : item.id === 'recorded_sales' ? 'sales_per_fetched_rate' : 'activation_rate',
+          title: item.id === 'delivered_leads' ? 'Delivery rate' : item.id === 'recorded_sales' ? 'Lead-to-sale rate' : 'Activations / recorded sales',
+          value: item.rateValue,
+          numeratorCount: count,
+          numeratorLabel: item.label,
+          denominatorCount: item.id === 'activations' ? kpis.saleLeads : kpis.fetchedLeads,
+          denominatorLabel: item.id === 'activations' ? 'Recorded sales' : 'Fetched leads',
+          anatomy: { kind: item.id === 'activations' ? 'independent_ratio' : 'ratio', label: item.id === 'activations' ? 'Activations / recorded sales' : item.subnote, value: item.rateValue, numerator: { key: 'numerator', label: item.label, value: count }, denominator: { key: 'denominator', label: item.id === 'activations' ? 'Recorded sales' : 'Fetched leads', value: item.id === 'activations' ? kpis.saleLeads : kpis.fetchedLeads } },
+        };
         return (
         <article
           key={item.id}
@@ -197,16 +212,17 @@ export default function OutcomeStrip({
           </div>
 
           <div className="my-3">
-            <button type="button" onClick={() => onInspect(item.inspectContent)} className="cx-metric-primary cx-outcome-value text-3xl lg:text-[34px] font-bold cx-tabular text-text-main block hover:text-action transition-colors tracking-tight leading-tight" aria-label={`Inspect evidence: ${item.label}`}>{item.value}</button>
+            <button type="button" onClick={() => onInspect(countEvidence)} className="cx-metric-primary cx-outcome-value text-3xl lg:text-[34px] font-bold cx-tabular text-text-main block hover:text-action transition-colors tracking-tight leading-tight" aria-label={`Inspect evidence: ${item.label}`}>{item.value}</button>
 
             <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <span className="text-xs text-text-sec font-medium">{item.subnote}</span>
+              {rateEvidence ? <button type="button" className="cx-button-quiet text-xs text-text-sec font-medium" onClick={() => onInspect(rateEvidence)} aria-label={`Audit evidence: ${rateEvidence.title}`}>{item.subnote}</button> : <span className="text-xs text-text-sec font-medium">{item.subnote}</span>}
               <DeltaBadge delta={item.delta} unit={item.deltaUnit} />
             </div>
           </div>
 
           <MetricSparkline label={item.label} color={`var(--cx-data-${presentation.series})`} points={trend.map(point => ({ date: point.date, value: point[presentation.metric] }))} />
           <AuditMetadata metricId={item.inspectContent.metricId} />
+          <button type="button" className="cx-audit-evidence-control" onClick={() => onInspect(countEvidence)} aria-label={`Audit evidence: ${item.label}`}>Audit evidence</button>
           <ArrowRight className="cx-metric-chevron" size={14} aria-hidden="true" />
           {hasComparison && item.id === 'fetched_leads' && onWhyChanged && Number.isFinite(item.delta) && <button type="button" className="cx-why-btn cx-metric-context-action" onClick={() => onWhyChanged(item.rootMetric)} title={`Investigate why ${item.label.toLowerCase()} changed`}>Why changed? <Search size={12} aria-hidden="true" /></button>}
         </article>
