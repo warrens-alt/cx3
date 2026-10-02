@@ -445,6 +445,7 @@ export const ROUTE_MANIFEST: RouteItem[] = [
   },
   {
     id: 'validation',
+    adminOnly: true,
     name: 'Validation suite',
     path: '/validation',
     description: 'System audit and verification checklist.',
@@ -492,7 +493,7 @@ export const BUSINESS_AREAS: BusinessArea[] = [
     icon: BadgeCheck,
     description: 'Recorded sales, activation conversion, and fulfilment ageing.',
     primaryTabs: ROUTE_MANIFEST.filter(r => r.area === 'sales' && r.isPrimaryTab),
-    moreViews: ROUTE_MANIFEST.filter(r => (r.area === 'sales' || r.id === 'cohorts') && r.isMoreView),
+    moreViews: ROUTE_MANIFEST.filter(r => r.area === 'sales' && r.isMoreView),
   },
   {
     id: 'commercial',
@@ -501,7 +502,7 @@ export const BUSINESS_AREAS: BusinessArea[] = [
     icon: CircleDollarSign,
     description: 'Evidenced media spend, outcome economics, and reconciliation.',
     primaryTabs: ROUTE_MANIFEST.filter(r => r.area === 'commercial' && r.isPrimaryTab),
-    moreViews: ROUTE_MANIFEST.filter(r => (r.area === 'commercial' || r.id === 'vendors') && r.isMoreView),
+    moreViews: ROUTE_MANIFEST.filter(r => r.area === 'commercial' && r.isMoreView),
   },
   {
     id: 'investigate',

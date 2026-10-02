@@ -50,3 +50,21 @@ test('six business destinations replace competing primary dashboards without ret
   assert.equal(new Set(NAVIGATION_PAGES.map(page => page.path)).size, NAVIGATION_PAGES.length);
   for (const page of NAVIGATION_PAGES) assert.ok(paths.has(page.path), `${page.path} must be an existing route`);
 });
+
+test('every supported route is searchable under one canonical area and contextual pages never borrow another area', async () => {
+  const { BUSINESS_AREAS, ROUTE_MANIFEST, getAreaForPath } = await import('../src/app/routeManifest');
+  for (const route of ROUTE_MANIFEST) {
+    assert.ok(searchNavigation(route.name, true).some(page => page.path === route.path), route.path);
+    assert.equal(navigationPage(route.path)?.name, route.name);
+    for (const alias of route.urlAliases || []) {
+      assert.equal(navigationPage(alias)?.path, route.path, alias);
+      assert.equal(getAreaForPath(alias).id, route.area, alias);
+    }
+    const owners = BUSINESS_AREAS.filter(area => [...area.primaryTabs, ...area.moreViews].some(page => page.path === route.path));
+    assert.deepEqual(owners.map(area => area.id), route.isPrimaryTab || route.isMoreView ? [route.area] : []);
+  }
+  assert.equal(navigationPage('/warehouse')?.section, 'settings');
+  assert.equal(navigationPage('/ai-insights')?.section, 'overview');
+  assert.ok(!searchNavigation('Validation suite', false).some(page => page.path === '/validation'));
+  assert.ok(searchNavigation('Validation suite', true).some(page => page.path === '/validation'));
+});

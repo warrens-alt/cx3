@@ -74,12 +74,12 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
 
   return (
     <nav
-      className={`cx-area-nav bg-surface border-b border-border z-20 ${className}`}
+      className={`cx-area-nav ${className}`}
       aria-label={`${activeArea.name} navigation`}
       data-navigation-area={activeArea.id}
     >
-      <div className="cx-area-nav-inner max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-2 w-full min-w-0">
-        <div className="flex items-center gap-1 overflow-x-auto min-w-0 flex-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pt-1">
+      <div className="cx-area-nav-inner">
+        <div className="cx-area-tabs">
           {primaryTabs.map(tab => {
             const active = isCurrent(tab.path);
             return (
@@ -87,7 +87,7 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
                 key={tab.path}
                 to={scoped(tab.path)}
                 aria-current={active ? 'page' : undefined}
-                className="cx-area-nav-item rounded-t-md"
+                className="cx-area-nav-item"
                 title={tab.description}
               >
                 <span>{tab.name}</span>
@@ -97,7 +97,7 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
         </div>
 
         {moreViews.length > 0 && (
-          <div className="relative inline-block shrink-0 py-1" ref={dropdownRef}>
+          <div className="cx-area-overflow" ref={dropdownRef}>
             <button
               ref={buttonRef}
               type="button"
@@ -105,7 +105,7 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
               aria-expanded={moreOpen}
               aria-controls="area-more-menu"
               data-current-section={isMoreViewActive || undefined}
-              className="cx-area-more-trigger inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer"
+              className="cx-area-more-trigger"
             >
               <span>{moreLabel}</span>
               <ChevronDown size={13} aria-hidden="true" className={`transition-transform duration-150 ${moreOpen ? 'rotate-180' : ''}`} />
@@ -114,7 +114,7 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
             {moreOpen && (
               <div
                 id="area-more-menu"
-                className="cx-area-more-menu absolute right-0 mt-1.5 rounded-lg shadow-sm bg-surface border border-border py-1.5 z-50 text-xs"
+                className="cx-area-more-menu"
                 role="group"
                 aria-label={moreLabel}
               >
@@ -127,12 +127,12 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
                       to={scoped(view.path)}
                       aria-current={active ? 'page' : undefined}
                       onClick={() => setMoreOpen(false)}
-                      className="cx-area-more-item block px-3.5 py-2.5 transition-colors"
+                      className="cx-area-more-item"
                       title={view.description}
                     >
                       <div className="font-semibold text-xs flex items-center justify-between">
                         <span>{view.name}</span>
-                        {active && <span className="cx-area-more-indicator w-1.5 h-1.5 rounded-full" aria-hidden="true" />}
+                        {active && <span className="cx-area-more-indicator" aria-hidden="true" />}
                       </div>
                       <div className="cx-area-more-description">{view.description}</div>
                     </Link>

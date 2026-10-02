@@ -52,7 +52,7 @@ test('mobile navigation exposes the four primary operator goals before More', ()
 });
 
 test('sidebar uses one command search instead of a second filtering navigation system', () => {
-  const sidebar = read('src/components/Sidebar.tsx');
+  const sidebar = read('src/app/navigation/PrimaryNavigation.tsx');
   assert.match(sidebar, /cx-sidebar-search/);
   assert.doesNotMatch(sidebar, /placeholder="Search navigation/);
   assert.doesNotMatch(sidebar, /setCollapsed/);
@@ -75,7 +75,7 @@ test('advanced analytics use the consolidated operational shell', () => {
     'src/pages/CliPerformance.tsx',
   ]) {
     const source = read(path);
-    assert.match(source, /cx-command-page/);
+    assert.match(source, /AnalyticsPageLayout/);
     assert.match(source, /OperationalPageHeader/);
   }
 });
@@ -199,7 +199,7 @@ test('login and access-state screens do not claim unverified live infrastructure
 test('route changes reset overlays, scroll to top and move focus to main content', () => {
   const shellPath = fs.existsSync('src/app/layouts/AppShell.tsx') ? 'src/app/layouts/AppShell.tsx' : 'src/App.tsx';
   const app = read(shellPath);
-  assert.match(app, /setMobile\(false\)/);
+  assert.match(app, /setMobile\(null\)/);
   assert.match(app, /setCommand\(false\)/);
   assert.match(app, /window\.scrollTo/);
   assert.match(app, /const main = document\.getElementById\('main-content'\)/);
@@ -508,10 +508,10 @@ test('chart interactions write into the existing URL-backed analytical filter sc
 
 test('visual analytics styling is isolated and unreferenced legacy stylesheets stay removed', () => {
   const main = read('src/main.tsx');
-  const analyticsCss = read('src/styles/analyticsVisuals.css');
+  const analyticsCss = read('src/styles/visuals.css');
   const productCss = read('src/styles/product.css');
 
-  assert.match(main, /styles\/analyticsVisuals\.css/);
+  assert.match(main, /styles\/visuals\.css/);
   assert.match(analyticsCss, /cx-analytics-visual-grid/);
   assert.match(analyticsCss, /cx-chart-toolbar/);
   assert.doesNotMatch(productCss, /Visual analytics hierarchy/);
@@ -520,7 +520,9 @@ test('visual analytics styling is isolated and unreferenced legacy stylesheets s
     'src/styles/acquisition.css',
     'src/styles/explore.css',
     'src/styles/demo.css',
-    'src/styles/visuals.css',
+    'src/styles/analyticsVisuals.css',
+    'src/styles/navigation.css',
+    'src/styles/theme.css',
   ]) {
     assert.equal(fs.existsSync(path), false, `unused legacy stylesheet returned: ${path}`);
   }
@@ -632,10 +634,9 @@ test('AppShell is the sole client switcher owner and ReportingScopeBar renders n
 
 test('duplicate section navigation is removed and does not compete with AppShell area navigation', () => {
   const header = read('src/components/OperationalPageHeader.tsx');
-  const sectionNav = read('src/components/SectionNavigation.tsx');
-
   assert.doesNotMatch(header, /SectionNavigation/);
-  assert.match(sectionNav, /return null/);
+  assert.equal(fs.existsSync('src/components/SectionNavigation.tsx'), false);
+  assert.equal((read('src/app/layouts/AppShell.tsx').match(/<AreaNavigation/g) || []).length, 1);
 });
 
 test('R2: Overview router mounts OverviewPage on / and /overview', () => {

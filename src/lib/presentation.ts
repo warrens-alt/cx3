@@ -1,6 +1,7 @@
 import { buildPreservedDestination, UNIVERSAL_SCOPE_PARAMS, SETTINGS_SCOPE_PARAMS, RELEASE_SCOPE_PARAMS, INVESTIGATION_PATHS, INVESTIGATION_SCOPE_PARAMS } from '../app/navigation/ScopePreservingRedirect';
 export type TableDensity = 'comfortable' | 'compact';
 export const DENSITY_KEY = 'cx.presentation.density.v1';
+export const SIDEBAR_COLLAPSED_KEY = 'cx.presentation.sidebar-collapsed.v1';
 export function safeDensity(value: unknown): TableDensity { return value === 'compact' ? 'compact' : 'comfortable'; }
 export function isCurrentPage(pathname: string, path: string, currentSearch?: string): boolean {
   const [targetPath, targetQuery] = path.split('?');

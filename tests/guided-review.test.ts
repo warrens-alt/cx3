@@ -30,11 +30,11 @@ test('review navigation uses existing surfaces and opening review reuses the ove
   assert.notDeepEqual(operationalQueryOptions('ExecutiveOverview', { ...scope, clientId: 'mondo' }, fetcher).queryKey, operationalQueryOptions('ExecutiveOverview', scope, fetcher).queryKey);
 });
 test('navigation is query-free and guided review is lazy, scope-bound and not a fake live feed', () => {
-  const sidebar = fs.readFileSync('src/components/Sidebar.tsx', 'utf8');
+  const sidebar = fs.readFileSync('src/app/navigation/PrimaryNavigation.tsx', 'utf8');
   const review = fs.readFileSync('src/components/ManagementReview.tsx', 'utf8');
   const launcher = fs.readFileSync('src/components/ReviewLauncher.tsx', 'utf8');
   assert.doesNotMatch(sidebar, /fetch\(/); assert.doesNotMatch(sidebar, /\/api\/analytics\/health/);
-  assert.match(sidebar, /aria-expanded/); assert.match(sidebar, /Source status & completeness/);
+  assert.match(sidebar, /ReviewLauncher compact/); assert.doesNotMatch(sidebar, /Source status & completeness/);
   assert.match(launcher, /lazy\(/); assert.match(review, /fetchOverview, bounded/);
   assert.match(review, /Source data cutoff: not supplied/); assert.match(review, /extractOffernetFilters\(filters\)/);
 });

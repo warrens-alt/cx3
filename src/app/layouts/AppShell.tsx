@@ -1,9 +1,9 @@
+import '../../styles/shell.css';
 import '../../styles/investigationWorkspace.css';
 import { InvestigationEvidenceProvider } from '../../features/investigation/EvidenceTray';
 import { AuditModeControl } from '../../shared/evidence/AuditMode';
 import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { ErrorBoundary } from 'react-error-boundary';
 import {
   Menu,
   Search,
@@ -16,8 +16,8 @@ import { BRAND, PAGE_TITLES } from '../../../contracts/naming';
 import { useClient } from '../../lib/ClientContext';
 import { useFilters } from '../../lib/FilterContext';
 import { useTableDensity } from '../../lib/useTableDensity';
-import { navigationPage, isOperationalRoute } from '../../lib/navigation';
-import { navigationTarget } from '../../lib/presentation';
+import { navigationPage } from '../../lib/navigation';
+import { navigationTarget, SIDEBAR_COLLAPSED_KEY } from '../../lib/presentation';
 import { DEMO_ENTRY_URL } from '../../lib/applicationMode';
 import { useDevice } from '../../hooks/useDevice';
 import PrimaryNavigation from '../navigation/PrimaryNavigation';
@@ -25,7 +25,6 @@ import AreaNavigation from '../navigation/AreaNavigation';
 import MobileBottomNav from '../../components/MobileBottomNav';
 import Modal from '../../components/Modal';
 import ThemeToggle from '../../components/ThemeToggle';
-import { PageSkeleton } from '../../components/Skeleton';
 import CommandPalette from '../../components/CommandPalette';
 import { getAreaForPath, getRouteItem } from '../routeManifest';
 
@@ -47,13 +46,21 @@ export default function AppShell({ children }: AppShellProps) {
 
   const { filterError, resetScope } = useFilters();
   const device = useDevice();
-  const [mobile, setMobile] = useState(false);
-  const [sidebar, setSidebar] = useState(true);
+  const [mobile, setMobile] = useState<'all' | 'more' | null>(null);
+  const [sidebar, setSidebar] = useState(() => {
+    try { return window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) !== 'true'; }
+    catch { return true; }
+  });
   const [command, setCommand] = useState(false);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const preferencesRef = useRef<HTMLDivElement>(null);
   const preferencesButtonRef = useRef<HTMLButtonElement>(null);
   const { density, setDensity } = useTableDensity();
+
+  useEffect(() => {
+    try { window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(!sidebar)); }
+    catch { /* The local presentation remains usable when storage is unavailable. */ }
+  }, [sidebar]);
 
   const currentArea = getAreaForPath(location.pathname);
   const pageNav = navigationPage(location.pathname);
@@ -73,7 +80,7 @@ export default function AppShell({ children }: AppShellProps) {
 
   // Route change lifecycle: reset overlays, scroll to top, and focus main content
   useEffect(() => {
-    setMobile(false);
+    setMobile(null);
     setCommand(false);
     setPreferencesOpen(false);
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
@@ -112,7 +119,7 @@ export default function AppShell({ children }: AppShellProps) {
     const listener = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        setMobile(false);
+        setMobile(null);
         setCommand(old => !old);
       }
     };
@@ -124,14 +131,14 @@ export default function AppShell({ children }: AppShellProps) {
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)');
     const close = () => {
-      if (mq.matches) setMobile(false);
+      if (mq.matches) setMobile(null);
     };
     mq.addEventListener('change', close);
     return () => mq.removeEventListener('change', close);
   }, []);
 
   const openSearch = () => {
-    setMobile(false);
+    setMobile(null);
     setCommand(true);
   };
 
@@ -147,33 +154,22 @@ export default function AppShell({ children }: AppShellProps) {
         Skip to report content
       </a>
 
-      {/* Desktop Sidebar */}
-      <div
-        id="desktop-navigation"
-        inert={!sidebar}
-        aria-hidden={!sidebar ? true : undefined}
-        className={`cx-desktop-sidebar transition-all duration-300 ease-in-out ${
-          sidebar ? 'w-[252px] opacity-100' : 'w-0 opacity-0 pointer-events-none'
-        }`}
-      >
-        <div className="w-[252px] h-full">
-          <PrimaryNavigation
-            onSearch={openSearch}
-            searchShortcut={searchShortcut}
-          />
-        </div>
+      {/* The collapsed desktop rail remains interactive. */}
+      <div id="desktop-navigation" className="cx-desktop-sidebar" data-collapsed={!sidebar}>
+        <PrimaryNavigation collapsed={!sidebar} onSearch={openSearch} searchShortcut={searchShortcut} />
       </div>
 
       {/* Mobile Drawer Modal */}
       <Modal
         id="mobile-navigation-dialog"
-        open={mobile}
-        onClose={() => setMobile(false)}
-        label="Navigation"
+        open={Boolean(mobile)}
+        onClose={() => setMobile(null)}
+        label={mobile === 'more' ? 'More areas' : 'Navigation'}
         className="cx-nav-modal"
       >
         <PrimaryNavigation
-          onClose={() => setMobile(false)}
+          onClose={() => setMobile(null)}
+          areaIds={mobile === 'more' ? ['sales', 'commercial', 'settings'] : undefined}
           onSearch={openSearch}
           searchShortcut={searchShortcut}
         />
@@ -185,19 +181,19 @@ export default function AppShell({ children }: AppShellProps) {
         <header className="cx-topbar">
           <button
             type="button"
-            className="cx-icon-button cx-mobile-menu"
+            className="cx-shell-toggle cx-mobile-menu"
             aria-label="Open navigation"
             aria-haspopup="dialog"
-            aria-expanded={mobile}
+            aria-expanded={Boolean(mobile)}
             aria-controls={mobile ? 'mobile-navigation-dialog' : undefined}
-            onClick={() => setMobile(true)}
+            onClick={() => setMobile('all')}
           >
             <Menu size={20} aria-hidden="true" />
           </button>
 
           <button
             type="button"
-            className="cx-icon-button cx-desktop-toggle"
+            className="cx-shell-toggle cx-desktop-toggle"
             aria-label={sidebar ? 'Collapse navigation' : 'Expand navigation'}
             title={sidebar ? 'Collapse navigation' : 'Expand navigation'}
             aria-controls="desktop-navigation"
@@ -211,34 +207,19 @@ export default function AppShell({ children }: AppShellProps) {
             )}
           </button>
 
-          {/* Breadcrumb: Brand / Area / Title */}
           <nav className="cx-breadcrumb" aria-label="Breadcrumb" data-navigation-area={currentArea.id}>
-            <Link
-              to={navigationTarget('/overview', location.pathname, location.search)}
-              className="hover:text-text-main transition-colors font-medium text-text-sec"
-              title="Overview"
-            >
-              {BRAND.name}
+            <Link to={navigationTarget(currentArea.landingPath, location.pathname, location.search)}
+              className="cx-breadcrumb-area" title={currentArea.name}
+              aria-current={currentArea.name.toLowerCase() === pageTitle.toLowerCase() ? 'page' : undefined}>
+              {currentArea.name}
             </Link>
-            {currentArea.name.toLowerCase() !== pageTitle.toLowerCase() && (
-              <>
-                <span aria-hidden="true" className="text-text-mute">/</span>
-                <Link
-                  to={navigationTarget(currentArea.landingPath, location.pathname, location.search)}
-                  className="cx-breadcrumb-area transition-colors hidden sm:inline"
-                  title={currentArea.name}
-                >
-                  {currentArea.name}
-                </Link>
-              </>
-            )}
-            <span aria-hidden="true" className="text-text-mute">/</span>
-            <strong title={pageTitle} className="text-text-main font-semibold truncate max-w-[200px] sm:max-w-xs md:max-w-md">
-              {pageTitle}
-            </strong>
+            {currentArea.name.toLowerCase() !== pageTitle.toLowerCase() && <>
+              <span aria-hidden="true">/</span>
+              <strong title={pageTitle} aria-current="page">{pageTitle}</strong>
+            </>}
           </nav>
 
-          <div className="cx-topbar-actions flex items-center gap-2">
+          <div className="cx-topbar-actions">
             {/* Search trigger */}
             <button
               type="button"
@@ -255,11 +236,9 @@ export default function AppShell({ children }: AppShellProps) {
             </button>
 
             {/* Workspace Client Switcher - Prominent */}
-            <div className="cx-workspace-select flex items-center gap-1.5">
-              <span className="text-xs font-semibold text-text-sec hidden md:inline shrink-0">Workspace:</span>
+            <div className="cx-workspace-select">
               <select
                 aria-label="Active client"
-                className="bg-surface text-text-main border border-border hover:border-action/40 rounded-lg px-2.5 h-9 text-xs font-semibold max-w-[200px] sm:max-w-[260px] truncate cursor-pointer shadow-2xs focus:ring-2 focus:ring-action/20 focus:border-action focus:outline-hidden transition-all"
                 value={selectedClient}
                 onChange={event => setSelectedClient(event.target.value)}
                 disabled={clientLoading || !clients.length}
@@ -345,7 +324,7 @@ export default function AppShell({ children }: AppShellProps) {
         <AreaNavigation />
 
         {/* Main Content Area */}
-        <main id="main-content" tabIndex={-1} className="cx-main pb-16 lg:pb-0">
+        <main id="main-content" tabIndex={-1} className="cx-main">
           {clientError && (
             <section className="cx-scope-error" role="alert">
               <AlertCircle size={22} />
@@ -390,7 +369,7 @@ export default function AppShell({ children }: AppShellProps) {
         </main>
 
         {/* Mobile Bottom Navigation */}
-        <MobileBottomNav onOpenMenu={() => setMobile(true)} menuOpen={mobile} />
+        <MobileBottomNav onOpenMenu={() => setMobile('more')} menuOpen={mobile === 'more'} />
       </div>
 
       {/* Command Palette */}

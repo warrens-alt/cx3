@@ -1,254 +1,75 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import {
-  Activity,
-  Search,
-  Settings,
-  Shield,
-  Database,
-  Layers,
-  LogOut,
-  X,
-} from 'lucide-react';
+import { Activity, Search, LogOut, X } from 'lucide-react';
 import { BRAND } from '../../../contracts/naming';
 import { navigationTarget } from '../../lib/presentation';
-import { getAreaForPath, getRouteItem, BUSINESS_AREAS, ROUTE_MANIFEST } from '../routeManifest';
-import { useClient } from '../../lib/ClientContext';
+import { getAreaForPath, getRouteItem, BUSINESS_AREAS, type BusinessAreaId } from '../routeManifest';
 import { useAuth } from '../../lib/AuthContext';
 import ReviewLauncher from '../../components/ReviewLauncher';
-import '../../styles/guidedAnalytics.css';
 
 interface PrimaryNavigationProps {
   onClose?: () => void;
   onSearch: () => void;
   searchShortcut?: string;
+  collapsed?: boolean;
+  areaIds?: BusinessAreaId[];
 }
 
+/** The persistent navigation owns areas; AreaNavigation owns their pages. */
 export default function PrimaryNavigation({
-  onClose,
-  onSearch,
-  searchShortcut = 'Ctrl K',
+  onClose, onSearch, searchShortcut = 'Ctrl K', collapsed = false, areaIds,
 }: PrimaryNavigationProps) {
   const location = useLocation();
-  const { clientConfig } = useClient();
-  const { user, profile, isAdmin, signOut } = useAuth();
-
+  const { user, profile, signOut } = useAuth();
   const currentArea = getAreaForPath(location.pathname);
   const currentRoute = getRouteItem(location.pathname);
-  const settingsActive = currentArea.id === 'settings' && !['warehouse', 'access-control'].includes(currentRoute?.id || '');
+  const areas = BUSINESS_AREAS.filter(area => !areaIds || areaIds.includes(area.id));
+  const initials = user?.displayName
+    ? user.displayName.split(' ').map(name => name[0]).join('').slice(0, 2).toUpperCase()
+    : user?.email?.charAt(0).toUpperCase() || 'U';
 
-  const businessNavItems = BUSINESS_AREAS.slice(0, 6).map(area => ({
-    id: area.id,
-    name: area.name,
-    path: area.landingPath,
-    icon: area.icon,
-    desc:
-      area.id === 'overview'
-        ? 'Decide where to look'
-        : area.id === 'journey'
-        ? 'Progression & acquisition'
-        : area.id === 'contact'
-        ? 'Calls & vendor outcomes'
-        : area.id === 'sales'
-        ? 'Sales, conversion & ageing'
-        : area.id === 'commercial'
-        ? 'Spend, revenue & attribution'
-        : 'Populations, records & data confidence',
-  }));
+  return <aside className="cx-sidebar" data-collapsed={collapsed}>
+    <div className="cx-brand">
+      <Link to={navigationTarget('/overview', location.pathname, location.search)} onClick={onClose}
+        aria-label={`${BRAND.name} home`} title={`${BRAND.name} home`} className="cx-brand-link">
+        <span className="cx-brand-icon"><Activity size={21} aria-hidden="true" /></span>
+        <strong className="cx-brand-copy">{BRAND.name}</strong>
+      </Link>
+      {onClose && <button type="button" className="cx-nav-icon" aria-label="Close navigation" onClick={onClose}><X size={18} aria-hidden="true" /></button>}
+    </div>
 
-  const investigationItems = (paths: string[]) => paths.flatMap(path => {
-    const route = ROUTE_MANIFEST.find(item => item.path === path);
-    return route && (!route.adminOnly || isAdmin) ? [{ id: route.id, name: route.name, path: route.path, icon: route.icon, desc: route.description }] : [];
-  });
+    {onClose && <button type="button" onClick={onSearch} className="cx-sidebar-search"
+      aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K">
+      <Search size={16} aria-hidden="true" /><span>Find a page</span><kbd aria-hidden="true">{searchShortcut}</kbd>
+    </button>}
 
-  return (
-    <aside className="cx-sidebar">
-      {/* Brand header */}
-      <div className="cx-brand">
-        <Link
-          to={navigationTarget('/overview', location.pathname, location.search)}
-          onClick={onClose}
-          aria-label={`${BRAND.name} home`}
-          className="cx-brand-link"
-        >
-          <span className="cx-brand-icon">
-            <Activity size={18} aria-hidden="true" />
-          </span>
-          <span className="cx-brand-copy">
-            <strong>{BRAND.name}</strong>
-            <small>Lead operations</small>
-          </span>
-        </Link>
-        {onClose && (
-          <button
-            type="button"
-            className="cx-nav-icon"
-            aria-label="Close navigation"
-            onClick={onClose}
-          >
-            <X size={18} />
-          </button>
-        )}
-      </div>
-
-      {/* Global Command / Search - single visible trigger per viewport: topbar on desktop, sidebar drawer on mobile */}
-      <button
-        type="button"
-        onClick={onSearch}
-        className="cx-sidebar-search lg:hidden"
-        aria-haspopup="dialog"
-        aria-keyshortcuts="Control+K Meta+K"
-      >
-        <Search size={15} aria-hidden="true" />
-        <span>Find a page</span>
-        <kbd aria-hidden="true">{searchShortcut}</kbd>
-      </button>
-
-
-      {/* Operations and investigation keep their existing destinations. */}
-      <nav aria-label="Main navigation" className="cx-navigation cx-navigation-simple flex-1">
-        {[
-          { name: 'Operations', items: businessNavItems.filter(item => item.id !== 'investigate') },
-          { name: 'Investigate', items: investigationItems(['/investigate', '/lead-explorer', '/data-integrity']) },
-          { name: 'Evidence & Audit', items: investigationItems(['/reports', '/lead-ledger', '/vendors']) },
-        ].map(group => <section key={group.name} aria-label={group.name}>
-          <div className="cx-nav-section-label">{group.name}</div>
-          <ul>
-            {group.items.map(item => {
-              const Icon = item.icon;
-              const isCurrentArea = group.name === 'Operations' && currentArea.id === item.id;
-              const isExactPage = currentRoute?.path === item.path;
-              return (
-                <li key={item.id}>
-                  <div className="cx-nav-goal-row">
-                    <Link
-                      to={navigationTarget(item.path, location.pathname, location.search)}
-                      aria-current={isExactPage ? 'page' : isCurrentArea ? 'location' : undefined}
-                      data-current-section={isCurrentArea || undefined}
-                      data-navigation-area={getAreaForPath(item.path).id}
-                      onClick={onClose}
-                      className="cx-nav-link"
-                      title={item.desc}
-                      aria-description={item.desc}
-                    >
-                      <Icon size={16} aria-hidden="true" />
-                      <span className="cx-nav-copy"><strong>{item.name}</strong><small className={isCurrentArea || isExactPage ? undefined : 'sr-only'}>{item.desc}</small></span>
-                    </Link>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </section>)}
-
-        {/* Administration Section */}
-        <section aria-label="Administration">
-          <div className="cx-nav-section-label">Administration</div>
-          <ul>
-            <li>
-              <div className="cx-nav-goal-row">
-                <Link
-                  to={navigationTarget('/admin', location.pathname, location.search)}
-                  aria-current={currentRoute?.id === 'admin' ? 'page' : settingsActive ? 'location' : undefined}
-                  onClick={onClose}
-                  className="cx-nav-link"
-                  data-navigation-area={getAreaForPath('/admin').id}
-                  title="Workspace configuration and preferences"
-                >
-                  <Settings size={16} aria-hidden="true" />
-                  <span className="cx-nav-copy"><strong>Settings</strong><small className={settingsActive ? undefined : 'sr-only'}>Workspace &amp; preferences</small></span>
-                </Link>
-              </div>
-            </li>
-            <li>
-              <div className="cx-nav-goal-row">
-                <Link
-                  to={navigationTarget('/warehouse', location.pathname, location.search)}
-                  aria-current={location.pathname === '/warehouse' || location.pathname === '/warehouse-analytics' ? 'page' : undefined}
-                  onClick={onClose}
-                  className="cx-nav-link"
-                  data-navigation-area={getAreaForPath('/warehouse').id}
-                  title="Google Cloud BigQuery warehouse tables, live API puller & schemas"
-                >
-                  <Database size={16} aria-hidden="true" />
-                  <span className="cx-nav-copy"><strong>Cloud warehouse</strong><small className={['/warehouse', '/warehouse-analytics'].includes(location.pathname) ? undefined : 'sr-only'}>Tables, sources &amp; schemas</small></span>
-                </Link>
-              </div>
-            </li>
-            {isAdmin && (
-              <li>
-                <div className="cx-nav-goal-row">
-                  <Link
-                    to={navigationTarget('/access-control', location.pathname, location.search)}
-                    aria-current={location.pathname === '/access-control' || location.pathname === '/users' ? 'page' : undefined}
-                    onClick={onClose}
-                    className="cx-nav-link"
-                    data-navigation-area={getAreaForPath('/access-control').id}
-                    title="Manage user access and roles"
-                  >
-                    <Shield size={16} aria-hidden="true" />
-                    <span className="cx-nav-copy"><strong>Access control</strong><small className={['/access-control', '/users'].includes(location.pathname) ? undefined : 'sr-only'}>User access &amp; roles</small></span>
-                  </Link>
-                </div>
-              </li>
-            )}
-          </ul>
-        </section>
-      </nav>
-
-      {/* Footer */}
-      <div className="cx-sidebar-footer">
-        <div className="cx-sidebar-review"><ReviewLauncher afterNavigate={onClose} /></div>
-        <Link
-          className="cx-sidebar-source-link"
-          to={navigationTarget('/data-integrity', location.pathname, location.search)}
-          onClick={onClose}
-        >
-          <Database size={14} aria-hidden="true" />
-          <span>Source status & completeness</span>
-        </Link>
-
-        <div className="cx-workspace">
-          <Layers size={15} aria-hidden="true" />
-          <span>
-            <strong>Workspace</strong>
-            <small>{clientConfig?.name || 'Select a workspace'}</small>
-          </span>
-          <div className="flex items-center gap-0.5">
-            <Link
-              to={navigationTarget('/admin', location.pathname, location.search)}
-              aria-label="Open Settings"
-              onClick={onClose}
-            >
-              <Settings size={14} />
+    <nav aria-label="Main navigation" className="cx-navigation">
+      {['operations', 'administration'].map(group => <ul key={group} className={group === 'administration' ? 'cx-navigation-admin' : undefined}>
+        {areas.filter(area => (area.id === 'settings') === (group === 'administration')).map(area => {
+          const Icon = area.icon;
+          const active = currentArea.id === area.id;
+          return <li key={area.id}>
+            <Link to={navigationTarget(area.landingPath, location.pathname, location.search)}
+              onClick={onClose} className="cx-nav-link" data-navigation-area={area.id}
+              aria-label={area.name} title={collapsed ? area.name : area.description}
+              aria-current={active ? currentRoute?.path === area.landingPath ? 'page' : 'location' : undefined}>
+              <Icon size={19} aria-hidden="true" />
+              <span className="cx-nav-label">{area.name}</span>
             </Link>
-          </div>
-        </div>
+          </li>;
+        })}
+      </ul>)}
+    </nav>
 
-        <div className="cx-account-row">
-          <div className="cx-account-identity">
-            <span className="cx-account-avatar">
-              {user?.displayName
-                ? user.displayName.split(' ').map(name => name[0]).join('').slice(0, 2).toUpperCase()
-                : user?.email?.charAt(0).toUpperCase() || 'U'}
-            </span>
-            <span>
-              <strong>{user?.displayName || 'Team member'}</strong>
-              <small>{profile?.role || 'authenticated'}</small>
-            </span>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              type="button"
-              onClick={() => signOut()}
-              aria-label="Sign out"
-              title="Sign out"
-            >
-              <LogOut size={15} />
-            </button>
-          </div>
-        </div>
+    <div className="cx-sidebar-footer">
+      <div className="cx-account-identity" title={`${user?.displayName || 'Team member'} · ${profile?.role || 'authenticated'}`}>
+        <span className="cx-account-avatar" aria-hidden="true">{initials}</span>
+        <span className="cx-account-copy"><strong>{user?.displayName || 'Team member'}</strong><small>{profile?.role || 'authenticated'}</small></span>
       </div>
-    </aside>
-  );
+      <div className="cx-sidebar-tools">
+        <div className="cx-sidebar-review"><ReviewLauncher compact afterNavigate={onClose} /></div>
+        <button type="button" className="cx-nav-icon" onClick={() => signOut()} aria-label="Sign out" title="Sign out"><LogOut size={17} aria-hidden="true" /></button>
+      </div>
+    </div>
+  </aside>;
 }

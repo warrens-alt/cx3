@@ -1,11 +1,11 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Search, X, ArrowRight, Sun, Moon, Monitor } from 'lucide-react';
-import { searchNavigation, SECTION_NAMES, NAV_GROUPS } from '../lib/navigation';
+import { searchNavigation, NAV_GROUPS } from '../lib/navigation';
 import { useAuth } from '../lib/AuthContext';
-import { isCurrentPage, navigationTarget } from '../lib/presentation';
+import { navigationTarget } from '../lib/presentation';
 import { useTheme } from '../lib/ThemeContext';
-import { getAreaForPath } from '../app/routeManifest';
+import { getAreaForPath, getRouteItem } from '../app/routeManifest';
 import Modal from './Modal';
 
 export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; onOpenFilters?: () => void }) {
@@ -72,10 +72,10 @@ export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; o
     <div className="cx-command-results" role="listbox" aria-label="Matching pages and commands" id={resultsId} ref={list}>
       {totalResults.map((item, optionIndex) => {
         const Icon = item.icon;
-        const current = !item.isAction && isCurrentPage(location.pathname, item.path, location.search);
-        const group = !query.trim() ? 'Suggested' : item.isAction === true ? 'Display preferences' : SECTION_NAMES[item.section];
+        const current = !item.isAction && getRouteItem(location.pathname)?.path === item.path;
+        const group = !query.trim() ? 'Suggested' : item.isAction === true ? 'Display preferences' : getAreaForPath(item.path).name;
         const previous = totalResults[optionIndex - 1];
-        const previousGroup = previous ? (!query.trim() ? 'Suggested' : previous.isAction === true ? 'Display preferences' : SECTION_NAMES[previous.section]) : null;
+        const previousGroup = previous ? (!query.trim() ? 'Suggested' : previous.isAction === true ? 'Display preferences' : getAreaForPath(previous.path).name) : null;
         return <React.Fragment key={item.path}>
           {group !== previousGroup && <div className="cx-command-group-label" role="presentation">{group}</div>}
           <div role="option" aria-selected={optionIndex === index} id={`${id}-option-${optionIndex}`} data-index={optionIndex}
@@ -87,7 +87,7 @@ export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; o
             <strong>{item.name}</strong>
             <small>{item.description}</small>
             <span className={query.trim() ? "cx-command-section" : "sr-only"}>
-              {item.isAction === true ? 'Appearance command' : `${SECTION_NAMES[item.section]}${item.adminOnly ? ' · Admin' : ''}`}
+              {item.isAction === true ? 'Appearance command' : `${getAreaForPath(item.path).name}${item.adminOnly ? ' · Admin' : ''}`}
             </span>
           </span>
           {current ? <small className="cx-command-current">Current page</small> : <ArrowRight size={16} aria-hidden="true" />}

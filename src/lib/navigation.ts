@@ -1,6 +1,8 @@
 import { PhoneCall, type LucideIcon } from 'lucide-react';
 import {
   ROUTE_MANIFEST,
+  BUSINESS_AREAS,
+  getRouteItem,
   type LegacyNavigationSection,
 } from '../app/routeManifest';
 
@@ -26,7 +28,7 @@ export const SECTION_NAMES: Record<NavigationSection, string> = {
   exceptions: 'Investigate',
   evidence: 'Investigate',
   explore: 'Investigate',
-  settings: 'Settings',
+  settings: 'Settings & Admin',
 };
 
 export function primarySection(section: NavigationSection): NavigationSection {
@@ -34,20 +36,6 @@ export function primarySection(section: NavigationSection): NavigationSection {
   if (section === 'evidence' || section === 'explore') return 'exceptions';
   return section;
 }
-
-const LEGACY_PAGE_TITLES: Record<string, string> = {
-  '/funnel': 'Lead funnel',
-  '/offershop-flow': 'Offershop deal flow',
-  '/campaigns': 'Campaigns & acquisition',
-  '/vetting': 'Vetting & validation',
-  '/vendor-quality': 'Vendor performance',
-  '/routing': 'Lead routing',
-  '/contact-strategy': 'Contact performance',
-  '/speed-to-lead': 'Speed to lead',
-  '/cli-performance': 'Caller ID performance',
-  '/commercial': 'Spend & commercial',
-  '/investigate': 'Investigation inbox',
-};
 
 const LEGACY_PAGE_DESCRIPTIONS: Record<string, string> = {
   '/overview': 'What changed and what needs attention?',
@@ -76,68 +64,26 @@ const LEGACY_PAGE_DESCRIPTIONS: Record<string, string> = {
   '/access-control': 'Manage roles and permitted workspaces.',
 };
 
-const CORE_CATALOGUE_PATHS = [
-  '/overview',
-  '/visuals',
-  '/validation',
-  '/consumers',
-  '/ai-insights',
-  '/funnel',
-  '/offershop-flow',
-  '/campaigns',
-  '/vetting',
-  '/vendor-quality',
-  '/routing',
-  '/cohorts',
-  '/contact-strategy',
-  '/speed-to-lead',
-  '/cli-performance',
-  '/agent-performance',
-  '/temporal',
-  '/sales-activation',
-  '/commercial',
-  '/reconciliation',
-  '/investigate',
-  '/lead-explorer',
-  '/lead-ledger',
-  '/data-integrity',
-  '/warehouse',
-  '/reports',
-  '/vendors',
-  '/admin',
-  '/access-control',
-];
-
 /**
  * Authoritative pages derived directly from ROUTE_MANIFEST.
  */
-export const NAVIGATION_PAGES: NavigationPage[] = ROUTE_MANIFEST
-  .filter(item => CORE_CATALOGUE_PATHS.includes(item.path))
-  .map(item => ({
-    name: LEGACY_PAGE_TITLES[item.path] || item.name,
+export const NAVIGATION_PAGES: NavigationPage[] = ROUTE_MANIFEST.map(item => ({
+    name: item.name,
     path: item.path,
     description: LEGACY_PAGE_DESCRIPTIONS[item.path] || item.description,
-    section: item.legacySection,
+    section: ({ overview: 'overview', journey: 'funnel', contact: 'contact', sales: 'sales', commercial: 'commercial', investigate: 'exceptions', settings: 'settings' } as const)[item.area],
     icon: item.icon,
     aliases: item.searchTerms,
     adminOnly: item.adminOnly,
   }));
 
-const primaryPaths = [
-  '/overview',
-  '/funnel',
-  '/contact-strategy',
-  '/sales-activation',
-  '/commercial',
-  '/investigate',
-  '/admin',
-];
+const primaryPaths = BUSINESS_AREAS.map(area => area.landingPath);
 
 const primaryItems = primaryPaths.map(path => {
   const page = NAVIGATION_PAGES.find(item => item.path === path)!;
   return {
     ...page,
-    name: SECTION_NAMES[page.section],
+    name: BUSINESS_AREAS.find(area => area.landingPath === path)?.name || page.name,
     icon: page.section === 'contact' ? PhoneCall : page.icon,
   };
 });
@@ -166,9 +112,7 @@ export function isOperationalRoute(pathname: string): boolean {
 }
 
 export function navigationPage(pathname: string): NavigationPage | undefined {
-  const canonical =
-    ({ '/': '/overview', '/users': '/access-control', '/settings': '/admin', '/exceptions': '/investigate' } as Record<string, string>)[pathname] ||
-    pathname;
+  const canonical = getRouteItem(pathname)?.path;
   return NAVIGATION_PAGES.find(page => page.path === canonical);
 }
 

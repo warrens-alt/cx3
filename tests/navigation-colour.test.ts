@@ -4,10 +4,10 @@ import { readFileSync } from 'node:fs';
 import { BUSINESS_AREAS, ROUTE_MANIFEST, getAreaForPath } from '../src/app/routeManifest';
 
 const tokens = readFileSync(new URL('../src/styles/tokens.css', import.meta.url), 'utf8');
-const globals = readFileSync(new URL('../src/styles/globals.css', import.meta.url), 'utf8');
+const shell = readFileSync(new URL('../src/styles/shell.css', import.meta.url), 'utf8');
 const light = tokens.match(/:root\s*\{([^}]+)\}/)![1];
 const dark = tokens.match(/:root\[data-theme="dark"\]\s*\{([^}]+)\}/)![1];
-const expected = { overview: '#315BCB', journey: '#4F46E5', contact: '#0F766E', sales: '#0369A1', commercial: '#7C3AED', investigate: '#475569' };
+const expected = { overview: '#2563EB', journey: '#4F46E5', contact: '#0F766E', sales: '#15803D', commercial: '#7C3AED', investigate: '#C2410C', admin: '#64748B' };
 
 function value(block: string, name: string): string {
   const match = block.match(new RegExp(`${name}:\\s*([^;]+);`));
@@ -29,7 +29,7 @@ function contrast(foreground: number[], background: number[]): number {
 test('every business area has one canonical navigation identity and all aliases retain that identity', () => {
   for (const area of BUSINESS_AREAS) {
     const token = area.id === 'settings' ? 'admin' : area.id;
-    const mapping = globals.match(new RegExp(`\\[data-navigation-area="${area.id}"\\]\\s*\\{([^}]+)\\}`));
+    const mapping = shell.match(new RegExp(`\\[data-navigation-area="${area.id}"\\]\\s*\\{([^}]+)\\}`));
     assert.ok(mapping, `Missing navigation mapping for ${area.name}`);
     assert.match(mapping[1], new RegExp(`--cx-nav-accent:\\s*var\\(--cx-area-${token}\\)`));
     assert.match(mapping[1], new RegExp(`--cx-nav-soft:\\s*var\\(--cx-area-${token}-soft\\)`));
@@ -42,15 +42,14 @@ test('every business area has one canonical navigation identity and all aliases 
   }
   for (const [area, hex] of Object.entries(expected)) assert.equal(value(light, `--cx-area-${area}`), hex);
   for (const block of [light, dark]) {
-    assert.equal(value(block, '--cx-area-admin'), 'var(--cx-text-secondary)');
     assert.equal(value(block, '--cx-area-admin-soft'), 'var(--cx-surface-subtle)');
   }
 });
 
 for (const [theme, block] of [['light', light], ['dark', dark]]) {
   test(`${theme} area text and icons exceed WCAG AA contrast on navigation surfaces and selected backgrounds`, () => {
-    for (const area of [...Object.keys(expected), 'admin']) {
-      const ink = rgb(value(block, area === 'admin' ? '--cx-text-secondary' : `--cx-area-${area}`));
+    for (const area of Object.keys(expected)) {
+      const ink = rgb(value(block, `--cx-area-${area}`));
       for (const surface of ['--cx-surface', '--cx-surface-subtle', '--cx-surface-elevated']) {
         const ratio = contrast(ink, rgb(value(block, surface)));
         assert.ok(ratio >= 4.5, `${theme} ${area} on ${surface}: ${ratio.toFixed(2)}:1`);

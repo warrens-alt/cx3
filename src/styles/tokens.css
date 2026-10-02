@@ -36,13 +36,13 @@
   --cx-primary-soft-hover: #DEE9FF;
 
   /* Navigation identity only: separate from lifecycle and semantic status. */
-  --cx-area-overview: #315BCB;
+  --cx-area-overview: #2563EB;
   --cx-area-journey: #4F46E5;
   --cx-area-contact: #0F766E;
-  --cx-area-sales: #0369A1;
+  --cx-area-sales: #15803D;
   --cx-area-commercial: #7C3AED;
-  --cx-area-investigate: #475569;
-  --cx-area-admin: var(--cx-text-secondary);
+  --cx-area-investigate: #C2410C;
+  --cx-area-admin: #64748B;
   --cx-area-overview-soft: color-mix(in srgb, var(--cx-area-overview) 7%, var(--cx-surface));
   --cx-area-journey-soft: color-mix(in srgb, var(--cx-area-journey) 7%, var(--cx-surface));
   --cx-area-contact-soft: color-mix(in srgb, var(--cx-area-contact) 7%, var(--cx-surface));
@@ -137,7 +137,7 @@
   --cx-shadow-sm: 0 1px 2px 0 rgba(21, 34, 56, 0.04);
   --cx-shadow-md: 0 4px 6px -1px rgba(21, 34, 56, 0.05), 0 2px 4px -2px rgba(21, 34, 56, 0.03);
   --cx-shadow-drawer: -4px 0 24px -4px rgba(21, 34, 56, 0.12);
-  --cx-shadow-card: var(--cx-shadow-sm);
+  --cx-shadow-card: none;
   --cx-shadow-elevated: var(--cx-shadow-md);
 
   /* Touch & Controls & Layout Math */
@@ -149,6 +149,24 @@
   --cx-card-gap: 16px;
   --cx-panel-padding: 16px;
   --cx-page-padding-x: clamp(16px, 2vw, 32px);
+
+  /* Shared reporting rhythm; technical content alone uses the mono face. */
+  --cx-type-page: 28px;
+  --cx-type-section: 17px;
+  --cx-type-body: 14px;
+  --cx-type-control: 13px;
+  --cx-type-note: 12px;
+  --cx-space-1: 4px;
+  --cx-space-2: 8px;
+  --cx-space-3: 12px;
+  --cx-space-4: 16px;
+  --cx-space-6: 24px;
+  --cx-space-8: 32px;
+  --cx-row-padding: 12px;
+  --cx-motion: 150ms;
+  --cx-layer-dialog: 50;
+  --cx-radius: var(--cx-radius-card);
+  --cx-control-radius: var(--cx-radius-control);
 }
 
 [data-theme="dark"],
@@ -166,7 +184,7 @@
   --cx-ink: #F8FAFC;
   --cx-text: #F8FAFC;
   --cx-text-secondary: #94A3B8;
-  --cx-text-muted: #64748B;
+  --cx-text-muted: #94A3B8;
   --cx-text-disabled: #475569;
 
   /* Action & Focus (Dark) */
@@ -189,10 +207,10 @@
   --cx-area-overview: #93B4FF;
   --cx-area-journey: #A5A3FF;
   --cx-area-contact: #5EEAD4;
-  --cx-area-sales: #7DD3FC;
+  --cx-area-sales: #86EFAC;
   --cx-area-commercial: #C4B5FD;
-  --cx-area-investigate: #CBD5E1;
-  --cx-area-admin: var(--cx-text-secondary);
+  --cx-area-investigate: #FDBA74;
+  --cx-area-admin: #CBD5E1;
   --cx-area-overview-soft: color-mix(in srgb, var(--cx-area-overview) 7%, var(--cx-surface));
   --cx-area-journey-soft: color-mix(in srgb, var(--cx-area-journey) 7%, var(--cx-surface));
   --cx-area-contact-soft: color-mix(in srgb, var(--cx-area-contact) 7%, var(--cx-surface));
@@ -270,14 +288,14 @@
   --cx-control-border: #3E517A;
   --cx-border-focus: #3B82F6;
   --cx-line: #1E2B45;
-  --cx-muted: #64748B;
+  --cx-muted: #94A3B8;
   --cx-accent: #3B82F6;
 
   /* Elevation (Dark) */
   --cx-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.45);
   --cx-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
   --cx-shadow-drawer: -4px 0 24px -4px rgba(0, 0, 0, 0.6);
-  --cx-shadow-card: var(--cx-shadow-sm);
+  --cx-shadow-card: none;
   --cx-shadow-elevated: var(--cx-shadow-md);
 }
 

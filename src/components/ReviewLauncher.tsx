@@ -6,11 +6,11 @@ import Modal from './Modal';
 import '../styles/guidedAnalytics.css';
 const ManagementReview = lazy(() => import('./ManagementReview'));
 
-export default function ReviewLauncher({ afterNavigate }: { afterNavigate?: () => void }) {
+export default function ReviewLauncher({ afterNavigate, compact = false }: { afterNavigate?: () => void; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
   return <>
-    <button type="button" className="cx-button-secondary cx-review-launch" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}><ClipboardList size={15} aria-hidden="true"/>Start a review</button>
+    <button type="button" className={`cx-button-secondary cx-review-launch${compact ? ' cx-review-launch-compact' : ''}`} aria-label="Start a review" title="Start a review" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}><ClipboardList size={15} aria-hidden="true"/><span className={compact ? 'sr-only' : undefined}>Start a review</span></button>
     {open && createPortal(<Modal open onClose={close} label="Management review" className="cx-review-modal">
       <ErrorBoundary fallback={<div className="cx-review-body" role="alert"><p>The review could not load.</p><button type="button" onClick={close}>Close review</button></div>}>
         <Suspense fallback={<div className="cx-review-body"><p role="status">Opening management review…</p><button type="button" className="cx-button-secondary" onClick={close}>Cancel</button></div>}>

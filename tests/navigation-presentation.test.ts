@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { searchNavigation } from '../src/lib/navigation';
+import { BUSINESS_AREAS, getAreaForPath, getRouteItem } from '../src/app/routeManifest';
+import { SIDEBAR_COLLAPSED_KEY } from '../src/lib/presentation';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // Render the production shell with static, explicit workspace/role contexts.
@@ -48,7 +50,7 @@ const bundle = await build({
 });
 const scope = '?clientId=synthetic&workspace=one&workspace=two&startDate=2026-09-01&endDate=2026-09-28';
 
-async function mount(route: string, admin = false) {
+async function mount(route: string, admin = false, collapsed = false) {
   const errors: string[] = [];
   const console = new VirtualConsole();
   console.on('jsdomError', (error: Error) => errors.push(error.message));
@@ -58,6 +60,7 @@ async function mount(route: string, admin = false) {
   });
   const w = dom.window as any;
   w.__navigation = { route, admin };
+  if (collapsed) w.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, 'true');
   w.matchMedia = (query: string) => ({ matches: false, media: query, addEventListener() {}, removeEventListener() {} });
   w.HTMLElement.prototype.scrollIntoView = () => {};
   w.HTMLElement.prototype.scrollTo = () => {};
@@ -91,22 +94,47 @@ async function mount(route: string, admin = false) {
   } };
 }
 
-test('rendered sidebar separates Operations, Investigate and Administration without exposing admin links', async () => {
+test('persistent sidebar exposes exactly seven canonical business areas for every role', async () => {
   for (const admin of [false, true]) {
     const app = await mount('/cohorts' + scope, admin);
     try {
       const nav = app.find('nav[aria-label="Main navigation"]');
-      const sections = [...nav.querySelectorAll(':scope > section')] as Element[];
-      assert.deepEqual(sections.map(section => section.getAttribute('aria-label')), ['Operations', 'Investigate', 'Evidence & Audit', 'Administration']);
-      assert.deepEqual(sections.map(section => section.querySelectorAll('a').length), [5, admin ? 3 : 2, admin ? 3 : 2, admin ? 3 : 2]);
-      assert.match(sections[0].textContent!, /Progression & acquisition/);
-      assert.match(sections[1].textContent!, /Investigation inbox/);
+      const links = [...nav.querySelectorAll('a')] as HTMLAnchorElement[];
+      assert.deepEqual(links.map(link => new URL(link.href).pathname), BUSINESS_AREAS.map(area => area.landingPath));
+      assert.deepEqual(links.map(link => link.getAttribute('aria-label')), BUSINESS_AREAS.map(area => area.name));
+      assert.equal(nav.querySelectorAll('a[aria-current]').length, 1);
       assert.equal(nav.querySelector('a[href*="/funnel"]').getAttribute('aria-current'), 'location');
-      assert.equal(Boolean(nav.querySelector('a[href*="/access-control"]')), admin);
+      assert.equal(nav.querySelectorAll('small').length, 0, 'Descriptions do not compete with the area labels');
+      for (const path of ['/lead-explorer', '/data-integrity', '/reports', '/lead-ledger', '/vendors', '/warehouse', '/access-control']) {
+        assert.equal(nav.querySelector(`a[href*="${path}"]`), null, `${path} belongs inside its area`);
+      }
       assert.equal(app.w.document.querySelectorAll('.cx-sidebar-review button').length, 1);
-      assert.equal(app.w.document.querySelectorAll('.cx-theme-toggle').length, 0);
+      assert.equal(app.w.document.querySelectorAll('.cx-sidebar-search').length, 0, 'Desktop search has one topbar owner');
     } finally { app.close(); }
   }
+});
+
+test('collapsed desktop rail retains every area, label and active state and persists only presentation', async () => {
+  const app = await mount('/speed-to-lead' + scope);
+  try {
+    const trigger = await app.click('button', 'Collapse navigation');
+    const rail = app.find('#desktop-navigation');
+    assert.equal(rail.dataset.collapsed, 'true');
+    assert.equal(rail.hasAttribute('inert'), false);
+    assert.equal(rail.getAttribute('aria-hidden'), null);
+    assert.equal(rail.querySelectorAll('.cx-nav-link').length, 7);
+    for (const link of rail.querySelectorAll('.cx-nav-link')) assert.equal(link.title, link.getAttribute('aria-label'));
+    assert.equal(rail.querySelector('.cx-nav-link[aria-current]').dataset.navigationArea, 'contact');
+    assert.equal(app.w.localStorage.getItem(SIDEBAR_COLLAPSED_KEY), 'true');
+    assert.equal(app.w.__navigation.location, '/speed-to-lead' + scope);
+    assert.equal(trigger.getAttribute('aria-expanded'), 'false');
+    await app.click('button', 'Expand navigation');
+    assert.equal(rail.dataset.collapsed, 'false');
+    assert.equal(app.w.localStorage.getItem(SIDEBAR_COLLAPSED_KEY), 'false');
+  } finally { app.close(); }
+  const restored = await mount('/overview' + scope, false, true);
+  try { assert.equal(restored.find('#desktop-navigation').dataset.collapsed, 'true'); }
+  finally { restored.close(); }
 });
 
 test('single Display preferences retains explicit theme and table spacing actions with Escape focus return', async () => {
@@ -131,37 +159,37 @@ test('single Display preferences retains explicit theme and table spacing action
   } finally { app.close(); }
 });
 
-test('mobile fifth position identifies Sales and Commercial and preserves scope on secondary-area navigation', async () => {
-  for (const [route, label, current, landing] of [
-    ['/sales-activation', 'Sales', 'page', '/sales-activation'],
-    ['/commercial', 'Commercial', 'page', '/commercial'],
-    ['/reconciliation', 'Commercial', 'location', '/commercial'],
-  ]) {
+test('mobile destinations stay stable and More opens only the remaining areas with scope and focus preserved', async () => {
+  for (const route of ['/overview', '/funnel', '/contact-strategy', '/investigate', '/sales-activation', '/commercial', '/reconciliation', '/admin']) {
     const app = await mount(route + scope + '&drill=obsolete&search=obsolete');
     try {
       const nav = app.find('nav[aria-label="Mobile navigation"]');
-      const fifth = nav.querySelector('.grid').lastElementChild;
-      assert.equal(fifth.tagName, 'A'); assert.match(fifth.textContent, new RegExp(label));
-      assert.equal(fifth.getAttribute('aria-current'), current);
-      fifth.focus(); fifth.click();
-      await app.wait(() => app.w.__navigation.location === fifth.getAttribute('href'));
-      // Wait for the route's overlay-reset and focus effect before opening navigation.
-      if (route !== landing) await app.wait(() => app.w.document.activeElement === app.w.document.querySelector('#main-content'));
+      const items = [...nav.querySelector('.cx-mobile-nav-items').children] as HTMLElement[];
+      assert.deepEqual(items.map(item => item.querySelector('span')!.textContent), ['Overview', 'Journey', 'Contact', 'Investigate', 'More']);
+      const more = items[4];
+      assert.equal(more.tagName, 'BUTTON');
+      assert.equal(more.getAttribute('aria-haspopup'), 'dialog');
+      more.focus(); more.click();
+      await app.wait(() => app.find('[role="dialog"]', 'More areas'));
+      const drawer = app.find('[role="dialog"]', 'More areas');
+      assert.deepEqual([...drawer.querySelectorAll('.cx-nav-link')].map((link: any) => link.dataset.navigationArea), ['sales', 'commercial', 'settings']);
+      app.w.document.dispatchEvent(new app.w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await app.wait(() => !app.find('[role="dialog"]'));
+      assert.equal(app.w.document.activeElement, more);
+      more.click();
+      await app.wait(() => app.find('[role="dialog"]', 'More areas'));
+      const destination = app.find('[role="dialog"]', 'More areas').querySelector('a[href*="/commercial"]');
+      const href = destination.getAttribute('href');
+      destination.click();
+      await app.wait(() => app.w.__navigation.location === href);
+      await app.wait(() => !app.find('[role="dialog"]'));
       const url = new URL(app.w.__navigation.location, 'https://synthetic.invalid');
       assert.equal(url.searchParams.get('startDate'), '2026-09-01');
       assert.deepEqual(url.searchParams.getAll('workspace'), ['one', 'two']);
-      assert.equal(url.searchParams.get('drill'), null); assert.equal(url.searchParams.get('search'), null);
-      await app.click('button', 'Open navigation');
-      await app.wait(() => app.find('[role="dialog"]', 'Navigation'));
+      assert.equal(url.searchParams.get('drill'), null);
+      assert.equal(url.searchParams.get('search'), null);
     } finally { app.close(); }
   }
-  const app = await mount('/admin?clientId=synthetic');
-  try {
-    const more = app.find('nav[aria-label="Mobile navigation"] button');
-    assert.equal(more.textContent.trim(), 'More');
-    assert.equal(more.getAttribute('aria-haspopup'), 'dialog');
-    assert.equal(more.getAttribute('aria-current'), null);
-  } finally { app.close(); }
 });
 
 test('More analyses retains native links, scoped navigation, Escape and route/history dismissal', async () => {
@@ -234,32 +262,50 @@ test('palette appearance group retains Dark theme keyboard action', async () => 
   } finally { app.close(); }
 });
 
-test('area identity follows canonical and aliased routes across navigation while report content stays unscoped', async () => {
-  for (const [route, area, current, mobileCurrent] of [
-    ['/insights', 'overview', 'page'],
-    ['/acquisition', 'journey', 'location'],
-    ['/calls', 'contact', 'page'],
-    ['/outcomes', 'sales', 'page'],
-    ['/reconciliation', 'commercial', 'location'],
-    ['/explorer', 'investigate', 'page', 'location'],
-    ['/settings', 'settings', 'page'],
-    ['/validation', 'settings', 'location'],
-    ['/ai-insights', 'overview', 'location'],
-  ]) {
+test('canonical and alias routes agree across area links, contextual navigation and compact breadcrumb', async () => {
+  for (const route of ['/insights', '/acquisition', '/calls', '/outcomes', '/reconciliation', '/explorer', '/settings', '/validation', '/ai-insights']) {
     const app = await mount(route + scope, true);
     try {
+      const area = getAreaForPath(route);
+      const page = getRouteItem(route)!;
       const selected = app.find('.cx-navigation a[aria-current]');
-      assert.equal(selected.dataset.navigationArea, area, route);
-      assert.equal(selected.getAttribute('aria-current'), current, route);
-      assert.ok(selected.querySelector('small:not(.sr-only)'), 'Current area description remains visible');
-      assert.equal(app.find('.cx-area-nav').dataset.navigationArea, area, route);
-      assert.equal(app.find('.cx-breadcrumb').dataset.navigationArea, area, route);
-      assert.equal(app.find('.cx-mobile-nav-active').dataset.navigationArea, area, route);
-      if (area !== 'settings') assert.equal(app.find('.cx-mobile-nav-active').getAttribute('aria-current'), mobileCurrent || current, route);
+      assert.equal(selected.dataset.navigationArea, area.id, route);
+      assert.equal(selected.getAttribute('aria-current'), page.path === area.landingPath ? 'page' : 'location', route);
+      assert.equal(app.find('.cx-area-nav').dataset.navigationArea, area.id, route);
+      const breadcrumb = app.find('.cx-breadcrumb');
+      assert.equal(breadcrumb.dataset.navigationArea, area.id, route);
+      assert.match(breadcrumb.textContent, new RegExp(area.name.replace('&', '&')));
+      assert.ok(breadcrumb.textContent.includes(page.name));
+      assert.equal(breadcrumb.querySelectorAll('a').length, 1, 'Brand is not repeated in the breadcrumb');
+      assert.equal(app.find('.cx-mobile-nav-active').dataset.navigationArea, area.id, route);
       assert.ok(app.find('.cx-mobile-nav-active .cx-mobile-nav-dot[aria-hidden="true"]'));
-      assert.equal(app.find('#main-content').closest('[data-navigation-area]'), null, 'Area identity must not cascade into report or scope content');
+      assert.equal(app.find('#main-content').closest('[data-navigation-area]'), null, 'Area colour must not cascade into analysis');
       assert.equal(app.find('.cx-app').getAttribute('data-navigation-area'), null);
     } finally { app.close(); }
+  }
+});
+
+test('contextual pages have one area owner and retain administrative visibility', async () => {
+  for (const admin of [false, true]) {
+    for (const route of ['/sales-activation', '/commercial', '/admin', '/investigate']) {
+      const app = await mount(route + scope, admin);
+      try {
+        const nav = app.find('.cx-area-nav');
+        const area = getAreaForPath(route);
+        const trigger = nav.querySelector('.cx-area-more-trigger');
+        if (trigger) { trigger.click(); await app.wait(() => nav.querySelector('.cx-area-more-menu')); }
+        for (const link of nav.querySelectorAll('a')) {
+          const page = getRouteItem(new URL(link.href).pathname)!;
+          assert.equal(page.area, area.id, `${route} must not borrow ${page.path}`);
+          assert.ok(admin || !page.adminOnly, `${page.path} must remain hidden from ordinary viewers`);
+        }
+        if (route === '/admin') {
+          assert.equal(Boolean(nav.querySelector('a[href*="/access-control"]')), admin);
+          assert.equal(Boolean(nav.querySelector('a[href*="/validation"]')), admin);
+          assert.ok(nav.querySelector('a[href*="/warehouse"]'));
+        }
+      } finally { app.close(); }
+    }
   }
 });
 
