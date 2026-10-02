@@ -1,7 +1,7 @@
 import { compareExactDecimal, exactDecimal, subtractExactDecimals } from '../../../contracts/exactDecimal';
 
 /** These describe independent evidence dimensions, never an aggregate quality score. */
-export type AuditState = 'observed' | 'mapped' | 'scoped' | 'reconciled' | 'business_verified' | 'partial' | 'mismatch' | 'not_verified' | 'unavailable' | 'formula_checked' | 'api_consistent' | 'presentation_consistent';
+export type AuditState = 'observed' | 'mapped' | 'scoped' | 'reproduced' | 'reconciled' | 'business_verified' | 'partial' | 'mismatch' | 'not_verified' | 'unavailable' | 'formula_checked' | 'api_consistent' | 'presentation_consistent';
 export type AuditValue = number | string | null;
 export interface AuditDimension { key: string; label: string; state: AuditState; detail?: string }
 /** Both flags must be explicitly true; only the caller knows drill semantics and access. */
@@ -26,7 +26,7 @@ export interface EvidenceExclusionsModel {
   label: string; recorded?: AuditPopulation; qualified?: AuditPopulation; excluded?: AuditPopulation;
   reasons: AuditExclusion[]; detail?: string;
 }
-export type AuditReconciliationKind = 'source_reconciliation' | 'delivery_consistency' | 'formula_check' | 'business_verification';
+export type AuditReconciliationKind = 'source_reconciliation' | 'delivery_consistency' | 'immutable_reproduction' | 'formula_check' | 'business_verification';
 export interface AuditComparison { key: string; label: string; observed: AuditValue; expected: AuditValue; detail?: string }
 export interface AuditReconciliationModel {
   label: string; kind: AuditReconciliationKind; state: AuditState; values: AuditPopulation[];
@@ -40,6 +40,7 @@ export const AUDIT_STATE_LABELS: Record<AuditState, string> = {
   business_verified: 'Business verified', partial: 'Partial evidence', mismatch: 'Mismatch',
   not_verified: 'Not verified', unavailable: 'Unavailable', formula_checked: 'Formula checked',
   api_consistent: 'API consistent', presentation_consistent: 'Presentation consistent',
+  reproduced: 'Reproduced for scope',
 };
 export const TRACE_NODE_LABELS: Record<EvidenceTraceNodeType, string> = {
   source: 'Source', field: 'Field', normalization: 'Normalisation', qualification: 'Qualification',
@@ -48,6 +49,7 @@ export const TRACE_NODE_LABELS: Record<EvidenceTraceNodeType, string> = {
 export const RECONCILIATION_KIND_LABELS: Record<AuditReconciliationKind, string> = {
   source_reconciliation: 'Independent source reconciliation', delivery_consistency: 'Delivery consistency check',
   formula_check: 'Formula check', business_verification: 'Business meaning verification',
+  immutable_reproduction: 'Immutable result reproducibility',
 };
 export function auditStateLabel(state: AuditState): string { return AUDIT_STATE_LABELS[state]; }
 export function formatAuditValue(value: AuditValue | undefined): string {

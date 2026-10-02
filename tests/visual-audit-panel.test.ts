@@ -83,3 +83,11 @@ test('a supplied independent comparison can establish only its explicitly declar
   const delivery=buildAuditPanelModel({type:'metric',title:'Count',value:0,scope,reconciliation:{...reconciliation,kind:'delivery_consistency',state:'presentation_consistent'}},'tenant-a');
   assert.equal(delivery.dimensions.find(item=>item.key==='reconciliation')?.state,'not_verified');
 });
+
+test('immutable reproduction is its own dimension and cannot promote independent reconciliation', () => {
+  const model = buildAuditPanelModel({ type: 'custom', title: 'Immutable count', value: '10', scope,
+    reconciliation: { label: 'Replay comparison', kind: 'immutable_reproduction', state: 'reproduced', values: [], detail: 'Signed original and replay match.' } }, 'tenant-a');
+  assert.equal(model.dimensions.find(item => item.key === 'reproduced')?.state, 'reproduced');
+  assert.equal(model.dimensions.find(item => item.key === 'reconciliation')?.state, 'not_verified');
+  assert.equal(model.dimensions.find(item => item.key === 'business')?.state, 'not_verified');
+});

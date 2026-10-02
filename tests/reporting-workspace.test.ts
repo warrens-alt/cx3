@@ -61,11 +61,11 @@ test('exact metric anatomy preserves unsafe-number decimal strings and independe
   assert.ok(html.includes('9007199254740993')); assert.doesNotMatch(html, /9007199254740992/);
   assert.equal(content.recordDrill, undefined);
   const dimensions = reportDimensions(report, true);
-  assert.equal(dimensions.find(item => item.key === 'reconciled')?.state, 'not_verified');
+  assert.equal(dimensions.find(item => item.key === 'reconciliation')?.state, 'not_verified');
   assert.equal(dimensions.find(item => item.key === 'business')?.state, 'not_verified');
-  assert.equal(dimensions.find(item => item.key === 'reproduced')?.state, 'api_consistent');
+  assert.equal(dimensions.find(item => item.key === 'reproduced')?.state, 'reproduced');
   const unavailable = reportMetricInspector(report, { ...report.totals[0], value: null, calculationStatus: 'UNAVAILABLE' });
-  assert.equal(unavailable.dimensions?.find(item => item.key === 'observed')?.state, 'unavailable');
+  assert.equal(unavailable.dimensions?.find(item => item.key === 'source')?.state, 'unavailable');
 });
 
 test('client rejects malformed success and cross-tenant replay descriptors', async () => {

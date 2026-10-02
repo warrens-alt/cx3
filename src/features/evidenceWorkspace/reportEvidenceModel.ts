@@ -4,11 +4,11 @@ import type { AuditDimension } from '../../shared/evidence/auditVisualModel';
 
 export function reportDimensions(report: EvidenceReportResult, reproduced = false): AuditDimension[] {
   return [
-    { key: 'observed', label: 'Observed', state: report.evidence.observed ? 'observed' : 'unavailable', detail: 'An exact value was returned from the registered frozen aggregate.' },
-    { key: 'mapped', label: 'Mapped', state: report.evidence.mapped ? 'mapped' : 'unavailable', detail: 'Declared release and metric contracts; source meaning approval remains separate.' },
-    { key: 'scoped', label: 'Scoped', state: report.evidence.scoped ? 'scoped' : 'unavailable', detail: 'Exact tenant, dates, filters and observation cutoff.' },
-    { key: 'reproduced', label: 'Reproduced', state: reproduced ? 'api_consistent' : 'not_verified', detail: reproduced ? 'Signed original and replay match. This is reproducibility evidence only.' : 'Replay has not established a match.' },
-    { key: 'reconciled', label: 'Independently reconciled', state: 'not_verified', detail: 'Replay does not independently measure the underlying source.' },
+    { key: 'source', label: 'Observed', state: report.evidence.observed ? 'observed' : 'unavailable', detail: 'An exact value was returned from the registered frozen aggregate.' },
+    { key: 'mapping', label: 'Mapped', state: report.evidence.mapped ? 'mapped' : 'unavailable', detail: 'Declared release and metric contracts; source meaning approval remains separate.' },
+    { key: 'scope', label: 'Scoped', state: report.evidence.scoped ? 'scoped' : 'unavailable', detail: 'Exact tenant, dates, filters and observation cutoff.' },
+    { key: 'reproduced', label: 'Reproduced', state: reproduced ? 'reproduced' : 'not_verified', detail: reproduced ? 'Signed original and replay match. This is reproducibility evidence only.' : 'Replay has not established a match.' },
+    { key: 'reconciliation', label: 'Independently reconciled', state: 'not_verified', detail: 'Replay does not independently measure the underlying source.' },
     { key: 'business', label: 'Business verified', state: 'not_verified', detail: 'Publication and a checked calculation do not approve source business meaning.' },
   ];
 }
@@ -27,7 +27,7 @@ export function reportMetricInspector(report: ReportResult, metric: MetricResult
     anatomy: { kind: definition?.aggregation === 'ratio' ? 'ratio' : metric.unit === 'currency' ? 'financial' : 'count', label: definition?.label || metric.metricId, value: metric.value, unit: metric.unit === 'currency' ? report.request.currency : metric.unit,
       numerator: { key: 'numerator', label: definition?.numeratorLabel || 'Numerator', value: metric.numerator },
       ...(definition?.denominatorLabel ? { denominator: { key: 'denominator', label: definition.denominatorLabel, value: metric.denominator }, scaling: 'percentage_value' as const } : {}), formula: definition?.formula },
-    dimensions: full.evidence ? reportDimensions({ ...full, evidence: { ...full.evidence, observed: metric.value !== null && metric.calculationStatus === 'CHECKED', mapped: evidence?.mappingStatus === 'APPROVED_RELEASE_CONTRACT' } }) : [
+    dimensions: full.evidence ? reportDimensions({ ...full, evidence: { ...full.evidence, observed: metric.value !== null && metric.calculationStatus === 'CHECKED', mapped: full.evidence.mapped && evidence?.mappingStatus === 'APPROVED_RELEASE_CONTRACT' } }) : [
       { key: 'calculation', label: 'Calculation', state: metric.calculationStatus === 'CHECKED' ? 'formula_checked' : 'unavailable' },
       { key: 'reconciliation', label: 'Independent reconciliation', state: 'not_verified' },
       { key: 'meaning', label: 'Business meaning', state: 'not_verified' },

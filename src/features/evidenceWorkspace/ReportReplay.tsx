@@ -23,11 +23,14 @@ export default function ReportReplay({ tenantId, report, onCompared }: { tenantI
     finally { if (!controller.signal.aborted && current === sequence.current) setBusy(false); }
   };
   const original = result?.original, replayed = result?.replayed;
-  const rows = original ? [...original.totals, ...original.groups].map(row => ({
+  const originals = [...(original?.totals || []), ...(original?.groups || [])];
+  const replays = [...(replayed?.totals || []), ...(replayed?.groups || [])];
+  const union = [...originals, ...replays.filter(row => !originals.some(candidate => candidate.metricId === row.metricId && candidate.group === row.group))];
+  const rows = union.map(row => ({
     key: JSON.stringify([row.metricId, row.group]), label: `${METRIC_BY_ID[row.metricId]?.label || row.metricId}${row.group === null ? ' · Total' : ` · ${row.group}`}`,
-    expected: row.value, observed: [...(replayed?.totals || []), ...(replayed?.groups || [])].find(candidate => candidate.metricId === row.metricId && candidate.group === row.group)?.value ?? null,
+    expected: originals.find(candidate => candidate.metricId === row.metricId && candidate.group === row.group)?.value ?? null, observed: replays.find(candidate => candidate.metricId === row.metricId && candidate.group === row.group)?.value ?? null,
     detail: `${row.unit} · Original immutable result / Replayed immutable result`,
-  })) : [];
+  }));
   return <section className="cx-report-replay cx-admin-panel" aria-label="Replay immutable evidence">
     <h2>Replay and compare</h2><p>A signed descriptor reproduces its original release, metric definitions and exact scope. Replay requires current tenant authority. Tokens contain aggregate evidence and scope; keep them with the intended evidence recipients.</p>
     {report && <p>Replay availability: <strong>{report.replay.status}</strong>{report.replay.reason ? ` · ${report.replay.reason}` : ''}{report.replay.expiresAt ? ` · Expires ${report.replay.expiresAt}` : ''}</p>}
@@ -36,7 +39,8 @@ export default function ReportReplay({ tenantId, report, onCompared }: { tenantI
     {error && <p role="alert">{error}</p>}
     {result && <div aria-live="polite"><h3>{result.status}</h3><p>{result.reason}</p><p>Independent reconciliation: <strong>{result.reconciliationStatus}</strong> · Business meaning: <strong>{result.businessMeaningStatus}</strong></p>
       {original && <dl><div><dt>Original immutable result</dt><dd>{original.resultHash}<br />Generated {original.generatedAt}</dd></div><div><dt>Replayed immutable result</dt><dd>{replayed?.resultHash || 'Unavailable'}<br />{replayed ? `Generated ${replayed.generatedAt}` : 'No replayed result'}</dd></div><div><dt>Original scope</dt><dd>{original.request.tenantId} · {original.request.startDate} → {original.request.endDate} · {original.request.dateBasis} · {JSON.stringify(original.request.filters)}</dd></div></dl>}
-      <ReconciliationView model={{ label: 'Immutable result comparison', kind: 'delivery_consistency', state: result.status === 'MATCH' ? 'api_consistent' : result.status === 'MISMATCH' ? 'mismatch' : 'unavailable', values: [], comparisons: rows, detail: 'MATCH compares signed immutable result content, including evidence metadata. This is reproducibility evidence, not independent source reconciliation.' }} />
+      <ReconciliationView model={{ label: 'Immutable result comparison', kind: 'immutable_reproduction', state: result.status === 'MATCH' ? 'reproduced' : result.status === 'MISMATCH' ? 'mismatch' : 'unavailable', values: [], comparisons: rows, detail: 'MATCH compares signed immutable result content, including evidence metadata. This is reproducibility evidence, not independent source reconciliation.' }} />
+      <details><summary>Original and replayed components</summary><p>Inspect numerator, denominator, completeness and generation scope. A mismatch can concern evidence metadata even when displayed values agree.</p><pre>{JSON.stringify({ original, replayed }, null, 2)}</pre></details>
     </div>}
   </section>;
 }
