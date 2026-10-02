@@ -1,3 +1,4 @@
+import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
 import { ReportSkeleton } from '../components/OperationalState';
 import { downloadAnalysisCsv } from '../lib/analysisExport';
 import { useOperationalData } from '../lib/useOperationalData';
@@ -78,12 +79,9 @@ export default function TemporalIntelligence() {
   }, [activeHeatmap, metricView]);
 
   return (
-    <div className="cx-command-page cx-temporal-page">
-      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} onExportCsv={handleExportCsv} />
-      <div className="cx-command-content">
-        <OperationalPageHeader
+    <AnalyticsPageLayout className="cx-temporal-page" title="Time & day" header={<OperationalPageHeader
           eyebrow="Contact"
-          title="Time & day performance"
+          title="Time & day"
           description="See when captured lead volume, RPC and sale outcomes are concentrated in the tenant's local timezone without turning observed peaks into prescriptive calling rules."
           actions={
             <div className="cx-segmented-control" role="group" aria-label="Temporal metric">
@@ -93,14 +91,7 @@ export default function TemporalIntelligence() {
               <button type="button" data-active={metricView === 'volume'} aria-pressed={metricView === 'volume'} onClick={() => setMetricView('volume')}>Volume</button>
             </div>
           }
-        />
-
-        <nav className="cx-analysis-jump-nav" aria-label="Time analysis sections">
-          <a href="#temporal-matrix">Day × hour matrix</a>
-          <a href="#temporal-hour">By hour</a>
-          <a href="#temporal-day">By day</a>
-          <a href="#temporal-peaks">Observed peaks</a>
-        </nav>
+        />} scope={<OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} onExportCsv={handleExportCsv} />}>
 
         {error && <div className="cx-command-error"><AlertTriangle size={17}/>{error}</div>}
         {loading && !data && <ReportSkeleton label="Building day/hour matrix" metricCount={2} />}
@@ -244,7 +235,7 @@ export default function TemporalIntelligence() {
             </section>
           </>
         )}
-      </div>
-    </div>
+
+    </AnalyticsPageLayout>
   );
 }

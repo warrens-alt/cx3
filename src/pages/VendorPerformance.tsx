@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowDown, ArrowRight, ArrowUp, ArrowUpDown, Columns3, Download, Filter, Info, Search, X, FileSpreadsheet, Check, Table as TableIcon, BarChart2 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
 import { Link, useLocation } from 'react-router-dom';
-import { PAGE_TITLES } from '../../contracts/naming';
 import { compareExactDecimal } from '../../contracts/exactDecimal';
 import { METRIC_BY_ID, type MetricResult, type ReportResult } from '../../contracts/reporting';
 import { formatReportValue } from '../lib/reportPreflight';
@@ -120,7 +119,7 @@ export default function VendorPerformance() {
   const missingReleaseReason=workspace.catalogue.data&&!workspace.catalogue.data.available?workspace.catalogue.data.reason:null;
 
   return <div className="cx-page cx-ops-page">
-    <header className="cx-page-header"><div><p className="cx-ops-eyebrow">Management workspace</p><h1 className="text-page-title">{PAGE_TITLES['/vendors']}</h1><p>Compare vendor supply, delivery, observed calling, recorded outcomes and commercial stages from one approved evidence release.</p></div><a className="cx-button-secondary" href="#vendor-table">Review vendor evidence <ArrowRight size={15}/></a></header>
+    <header className="cx-page-header"><div><p className="cx-ops-eyebrow">Management workspace</p><h1 className="text-page-title">Vendor evidence</h1><p>Compare vendor supply, delivery, observed calling, recorded outcomes and commercial stages from one approved evidence release.</p></div><a className="cx-button-secondary" href="#vendor-table">Review vendor evidence <ArrowRight size={15}/></a></header>
     <EvidenceScopeBar releaseId={workspace.release?.releaseId} cutoff={workspace.release?.cutoff} busy={workspace.current.isFetching}/>
     <WorkspaceState loading={loading} error={error} missingRelease={missingReleaseReason} scopeError={workspace.scopeError} retry={()=>{void workspace.catalogue.refetch();void workspace.current.refetch();}}/>
 

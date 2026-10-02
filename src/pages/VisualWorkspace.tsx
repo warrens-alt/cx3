@@ -1,3 +1,4 @@
+import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
 import React, { useState, useMemo } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
@@ -34,15 +35,14 @@ export default function VisualWorkspace() {
   const points: VisualPoint[] = [];
 
   return (
-    <div className="cx-page space-y-4 sm:space-y-6 p-3 sm:p-6">
-      <PageHeader
-        title="Visual Workspace"
+    <AnalyticsPageLayout className="cx-visual-catalogue-page" title="Visual workspace" header={<PageHeader
+        title="Visual workspace"
         subtitle="Chart presentation catalogue. No analytical dataset is connected to this page."
         badges={[
           { label: `Chart: ${kind}`, variant: 'neutral' },
           { label: 'Analytics unavailable', variant: 'neutral' },
         ]}
-      />
+      />}>
 
       <section className="enterprise-card p-3 sm:p-4 space-y-2" aria-label="Visual catalogue evidence" data-state="unavailable">
         <h2 className="text-sm font-semibold">Analytics unavailable</h2>
@@ -107,6 +107,6 @@ export default function VisualWorkspace() {
           </button>
         </div>
       )}
-    </div>
+    </AnalyticsPageLayout>
   );
 }

@@ -1,8 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Database, Palette, RefreshCw, Sun, Moon, Monitor, Cpu, ShieldCheck, BookOpen } from 'lucide-react';
-import { PageShell } from '../components/PageShell';
-import PageHeader from '../components/PageHeader';
+import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
 import { useClient } from '../lib/ClientContext';
 import { useAuth } from '../lib/AuthContext';
 import { useOperationalData } from '../lib/useOperationalData';
@@ -45,9 +44,7 @@ export default function Settings() {
   const latestLabel = typeof latest === 'string' && Number.isFinite(Date.parse(latest))
     ? `${new Date(latest).toISOString()} (UTC)` : 'No valid timestamp reported';
 
-  return <PageShell className="cx-settings-page">
-    <PageHeader title="Settings & System Diagnostics" description="Display preferences and measured service checks for the selected workspace." />
-    <nav className="cx-admin-section-nav" aria-label="Settings sections"><a href="#settings-appearance">Appearance</a><a href="#settings-density">Table spacing</a><a href="#settings-services">Service diagnostics</a></nav>
+  return <AnalyticsPageLayout className="cx-settings-page" title="Settings" description="Display preferences and measured service checks for the selected workspace.">
     <div className="cx-settings-sections">
       <section id="settings-appearance" className="cx-settings-card" aria-labelledby="settings-appearance-title">
         <header className="cx-settings-card-header">
@@ -110,5 +107,5 @@ export default function Settings() {
         {isAdmin && <footer className="cx-settings-ledger"><div><BookOpen size={18} aria-hidden="true" /><div><strong>Inspect the lead ledger</strong><p>Open bounded records using the current reporting scope.</p></div></div><Link to={navigationTarget('/lead-ledger', location.pathname, location.search)} className="cx-button-secondary">Open scoped ledger</Link></footer>}
       </section>
     </div>
-  </PageShell>;
+  </AnalyticsPageLayout>;
 }

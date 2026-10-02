@@ -40,24 +40,24 @@ export function UserDirectory({
   onEditTenants,
 }: UserDirectoryProps) {
   return (
-    <div className="bg-surface rounded-lg border border-slate-200 shadow-sm overflow-hidden space-y-4 p-4 sm:p-5">
+    <div className="bg-surface rounded-lg border border-border-subtle shadow-sm overflow-hidden space-y-4 p-4 sm:p-5">
       {/* Controls bar */}
       <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
         <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-mute" />
           <input
             type="text"
             aria-label="Search loaded user directory"
             placeholder="Search users by name or email…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+            className="w-full pl-9 pr-4 py-2 border border-border-strong rounded-lg text-xs sm:text-sm bg-surface text-text-main focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-mute hover:text-text-sec"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -69,7 +69,7 @@ export function UserDirectory({
             aria-label="Filter by status"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-            className="px-3 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 bg-surface"
+            className="px-3 py-2 border border-border-strong rounded-lg text-xs font-medium text-text-sec bg-surface"
           >
             <option value="all">All Statuses</option>
             <option value="active">Active Only</option>
@@ -81,7 +81,7 @@ export function UserDirectory({
             aria-label="Filter by role"
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value as typeof roleFilter)}
-            className="px-3 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 bg-surface"
+            className="px-3 py-2 border border-border-strong rounded-lg text-xs font-medium text-text-sec bg-surface"
           >
             <option value="all">All Roles</option>
             <option value="admin">Admins</option>
@@ -92,9 +92,9 @@ export function UserDirectory({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto border border-slate-200 rounded-lg">
-        <table className="w-full text-left text-xs text-slate-700">
-          <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
+      <div className="overflow-x-auto border border-border-subtle rounded-lg">
+        <table className="w-full text-left text-xs text-text-sec">
+          <thead className="bg-surface-subtle border-b border-border-subtle text-[11px] font-semibold text-text-sec uppercase tracking-wider">
             <tr>
               <th className="px-4 py-3">User & Identity</th>
               <th className="px-4 py-3">Role</th>
@@ -104,10 +104,10 @@ export function UserDirectory({
               <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-border-subtle">
             {loadingUsers && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-8 text-center text-text-mute">
                   Loading user directory…
                 </td>
               </tr>
@@ -116,7 +116,7 @@ export function UserDirectory({
             {directoryError && <tr><td colSpan={6} className="px-4 py-8 text-center" role="alert">User directory unavailable. Account roles and access scopes could not be loaded.</td></tr>}
             {!loadingUsers && !directoryError && filteredUsers.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={6} className="px-4 py-8 text-center text-text-sec">
                   No users match the search filter.
                 </td>
               </tr>
@@ -133,7 +133,7 @@ export function UserDirectory({
                 return (
                   <tr
                     key={user.uid}
-                    className={`hover:bg-slate-50/70 transition-colors ${
+                    className={`hover:bg-surface-subtle transition-colors ${
                       user.status === 'pending' ? 'bg-amber-50/30' : ''
                     }`}
                   >
@@ -145,7 +145,7 @@ export function UserDirectory({
                             src={user.photoURL}
                             alt={`${user.displayName || user.email} profile avatar`}
                             referrerPolicy="no-referrer"
-                            className="w-8 h-8 rounded-full border border-slate-200 shrink-0"
+                            className="w-8 h-8 rounded-full border border-border-subtle shrink-0"
                           />
                         ) : (
                           <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs shrink-0">
@@ -153,7 +153,7 @@ export function UserDirectory({
                           </div>
                         )}
                         <div className="min-w-0">
-                          <div className="font-semibold text-slate-900 truncate flex items-center gap-1.5">
+                          <div className="font-semibold text-text-main truncate flex items-center gap-1.5">
                             {user.displayName || 'Unnamed User'}
                             {isSelf && (
                               <span className="px-1.5 py-0.2 bg-blue-100 text-blue-700 rounded text-[10px] font-medium">
@@ -166,8 +166,8 @@ export function UserDirectory({
                               </span>
                             )}
                           </div>
-                          <div className="text-slate-500 text-[11px] truncate flex items-center gap-1">
-                            <Mail className="w-3 h-3 text-slate-400" />
+                          <div className="text-text-sec text-[11px] truncate flex items-center gap-1">
+                            <Mail className="w-3 h-3 text-text-mute" />
                             <span>{user.email}</span>
                           </div>
                         </div>
@@ -187,7 +187,7 @@ export function UserDirectory({
                           value={user.role}
                           onChange={(e) => handleRoleChange(user, e.target.value as UserRole)}
                           disabled={isSelf}
-                          className="px-2.5 py-1 border border-slate-200 rounded-md text-xs font-semibold bg-surface cursor-pointer hover:border-slate-300"
+                          className="px-2.5 py-1 border border-border-subtle rounded-md text-xs font-semibold bg-surface cursor-pointer hover:border-border-strong"
                         >
                           <option value="admin">Admin</option>
                           <option value="analyst">Analyst</option>
@@ -229,14 +229,14 @@ export function UserDirectory({
                           allowed.slice(0, 2).map((tId) => (
                             <span
                               key={tId}
-                              className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-medium"
+                              className="px-2 py-0.5 rounded bg-surface-subtle text-text-sec text-[10px] font-medium"
                             >
                               {AVAILABLE_TENANTS.find((t) => t.id === tId)?.name || tId}
                             </span>
                           ))
                         )}
                         {!hasAllTenants && allowed.length > 2 && (
-                          <span className="text-[10px] text-slate-500 font-medium">
+                          <span className="text-[10px] text-text-sec font-medium">
                             +{allowed.length - 2} more
                           </span>
                         )}
@@ -251,7 +251,7 @@ export function UserDirectory({
                     </td>
 
                     {/* Last Active */}
-                    <td className="px-4 py-3.5 text-slate-500 text-[11px]">
+                    <td className="px-4 py-3.5 text-text-sec text-[11px]">
                       {user.lastLoginAt
                         ? new Date(user.lastLoginAt).toLocaleDateString(undefined, {
                             month: 'short',
@@ -279,7 +279,7 @@ export function UserDirectory({
                         <button
                           type="button"
                           onClick={() => handleStatusChange(user, 'suspended')}
-                          className="px-2.5 py-1 rounded border border-slate-300 hover:bg-rose-50 hover:text-rose-700 text-slate-600 font-medium text-xs transition-colors cursor-pointer"
+                          className="px-2.5 py-1 rounded border border-border-strong hover:bg-rose-50 hover:text-rose-700 text-text-sec font-medium text-xs transition-colors cursor-pointer"
                         >
                           Suspend
                         </button>
@@ -300,7 +300,7 @@ export function UserDirectory({
                           type="button"
                           onClick={() => handleDeleteUser(user)}
                           title="Delete account"
-                          className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer inline-block"
+                          className="p-1 rounded text-text-mute hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer inline-block"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

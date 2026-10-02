@@ -1,3 +1,4 @@
+import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
 import React from 'react';
 import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, GitBranch, GitFork, Route } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -19,12 +20,9 @@ export default function RoutingIntelligence() {
   const { data, loading, error, refetch } = useAnalyticsData('routing');
 
   return (
-    <div className="cx-command-page cx-routing-page">
-      <OffernetFilterBar onRefresh={() => refetch()} />
-      <div className="cx-command-content">
-        <OperationalPageHeader
+    <AnalyticsPageLayout className="cx-routing-page" title="Routing" header={<OperationalPageHeader
           eyebrow="Routing"
-          title="Lead routing"
+          title="Routing"
           description="Understand routing depth, partner handoffs, repeated delivery journeys and the records that fail to produce a matched vendor transaction."
           status="NOT_VERIFIED"
           statusLabel="Legacy routing analytics"
@@ -34,7 +32,7 @@ export default function RoutingIntelligence() {
               <Link to={scoped('/lead-explorer')} className="cx-button-secondary">Inspect leads <ArrowRight size={13}/></Link>
             </div>
           }
-        />
+        />} scope={<OffernetFilterBar onRefresh={() => refetch()} />}>
 
         {error && <div className="cx-command-error"><AlertTriangle size={17}/>{String(error)}</div>}
         {loading && !data && <div className="cx-command-loading"><div className="cx-command-spinner"/>Loading routing journeys…</div>}
@@ -247,7 +245,7 @@ export default function RoutingIntelligence() {
             </>
           );
         })()}
-      </div>
-    </div>
+
+    </AnalyticsPageLayout>
   );
 }

@@ -1,3 +1,4 @@
+import AnalyticsPageLayout from '../../components/AnalyticsPageLayout';
 import { ReportActions } from '../../shared/reporting/ReportPresentation';
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -64,26 +65,7 @@ export default function SpeedPage() {
   const chartStage = selectedTiming?.scopeKey === auditScopeKey && data?.timingStages.includes(selectedTiming.stage) ? selectedTiming.stage : null;
 
   return (
-    <div className="cx-speed-page">
-      {/* 1. Scope Bar */}
-
-
-      <div className="cx-command-content space-y-6">
-      {/* 2. Page Header */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-1 border-b border-border-subtle pb-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-text-mute uppercase tracking-wider">
-            <Timer size={13} className="text-brand-primary" />
-            <span>Contact Centre</span>
-          </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-text-main mt-0.5">
-            Response Speed & Latency
-          </h1>
-          <p className="text-sm text-text-sec mt-1">
-            Understand how quickly leads are contacted and how downstream outcomes change as first-dial age increases.
-          </p>
-        </div>
-        <ReportActions>
+    <AnalyticsPageLayout className="cx-speed-page" title="Response speed" description={<>Understand how quickly leads are contacted and how downstream outcomes change as first-dial age increases.</>} actions={<ReportActions>
           <Link
             to={scoped('/contact-strategy')}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-subtle bg-surface hover:bg-surface-subtle transition-colors text-xs font-medium text-text-sec hover:text-text-main shadow-xs"
@@ -110,12 +92,10 @@ export default function SpeedPage() {
             <AlertTriangle size={13} />
             <span>SLA exceptions</span>
           </Link>
-        </ReportActions>
-      </header>
-      <ReportingScopeBar
+        </ReportActions>} scope={<ReportingScopeBar
         onRefresh={refreshAll}
         onExportCsv={data ? handleExportCsv : undefined}
-      />
+      />}>
 
       {/* Error state */}
       {error && (
@@ -419,8 +399,8 @@ export default function SpeedPage() {
           </section>
         </React.Fragment>
       )}
-      </div>
+
       <InspectorHost open={Boolean(chartStage)} onClose={() => setSelectedTiming(null)} content={chartStage ? timingContent(chartStage, 'median', chartStage.stage) : null} />
-    </div>
+    </AnalyticsPageLayout>
   );
 }

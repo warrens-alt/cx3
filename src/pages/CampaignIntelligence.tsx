@@ -1,3 +1,4 @@
+import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
 import { ReportSkeleton } from '../components/OperationalState';
 import TablePreview from '../shared/reporting/TablePreview';
 import { ReportActions } from '../shared/reporting/ReportPresentation';
@@ -86,30 +87,12 @@ export default function CampaignIntelligence() {
   const canCompare = Boolean(startDate && endDate && data?.comparison && !loading && !error);
 
   return (
-    <div className="cx-command-page cx-campaign-page">
-
-
-      <div className="cx-command-content">
-        <header className="cx-command-hero">
-          <div>
-            <span className="cx-command-eyebrow">Media performance</span>
-            <h1>Campaigns & spend</h1>
-            <p>Observed platform delivery and spend from the approved marketing API-table contract for the selected tenant.</p>
-          </div>
-                  <ReportActions />
-</header>
-      <OffernetFilterBar
+    <AnalyticsPageLayout className="cx-campaign-page" title="Acquisition" description={<>Observed platform delivery and spend from the approved marketing API-table contract for the selected tenant.</>} actions={<ReportActions />} scope={<OffernetFilterBar
         onRefresh={() => loadData(true)}
         showVendorFilter={false}
         showSourceFilter={false}
         showGradeFilter={false}
-      />
-
-        <nav className="cx-analysis-jump-nav" aria-label="Campaign analysis sections">
-          <a href="#campaign-evidence">Evidence</a>
-          <a href="#campaign-comparison">Compare campaigns</a>
-          <a href="#campaigns-table">Campaign detail</a>
-        </nav>
+      />}>
 
         {error && <div className="cx-command-error"><AlertTriangle size={17}/>{error}</div>}
         {loading && !data && <ReportSkeleton label="Loading media performance" metricCount={5} />}
@@ -230,7 +213,6 @@ export default function CampaignIntelligence() {
                 </div>
               </section>
             )}
-
 
             {data.campaigns.length > 0 && <>
               <section className="cx-command-panel cx-campaign-comparison" id="campaign-comparison" aria-label="Campaign comparison">
@@ -384,10 +366,9 @@ export default function CampaignIntelligence() {
             </section>
           </>
         )}
-      </div>
 
       <InspectorHost open={Boolean(audit)} onClose={() => setAudit(null)} content={audit} />
       <MarketingRootCauseDrawer open={rootMetric !== null} metric={rootMetric} onClose={() => setRootMetric(null)} />
-    </div>
+    </AnalyticsPageLayout>
   );
 }

@@ -1,3 +1,4 @@
+import AnalyticsPageLayout from '../../components/AnalyticsPageLayout';
 import { ReportActions } from '../../shared/reporting/ReportPresentation';
 import React from 'react';
 import { Link } from 'react-router-dom';
@@ -59,27 +60,7 @@ export default function SalesActivationPage() {
   } = useSalesActivationModel();
 
   return (
-    <div className="cx-command-page cx-sales-page" aria-label="Sales & activation workspace">
-      {/* Shell Reporting Scope Bar */}
-
-
-      <div className="cx-command-content space-y-5">
-        {/* Page Header */}
-        <header className="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-2 border-b border-border-subtle">
-          <div>
-            <div className="flex items-center gap-1.5 text-xs text-text-sec">
-              <span className="cx-command-eyebrow">Outcomes</span>
-              <span className="text-text-muted" aria-hidden="true">·</span>
-              <span className="font-medium text-text-muted">Sales & activation</span>
-            </div>
-            <h1 className="text-2xl font-bold text-text-main mt-1 tracking-tight">
-              Sales & activation
-            </h1>
-            <p className="text-xs text-text-sec mt-1 max-w-2xl leading-relaxed">
-              Recorded outcomes for the selected operational intake cohort. Understand confirmed sales, independent activation fulfilment, post-sale queue ageing, and source-recorded revenue.
-            </p>
-          </div>
-          <ReportActions aboutContent={<div className="space-y-3 text-xs text-slate-600 leading-relaxed">
+    <AnalyticsPageLayout className="cx-sales-page" ariaLabel="Sales & activation workspace" title="Sales & activation" description={<>Recorded outcomes for the selected operational intake cohort. Understand confirmed sales, independent activation fulfilment, post-sale queue ageing, and source-recorded revenue.</>} actions={<ReportActions aboutContent={<div className="space-y-3 text-xs text-slate-600 leading-relaxed">
             <section className="space-y-1">
               <h3 className="font-semibold text-slate-900">Operational Cohort Scope</h3>
               <p>
@@ -124,12 +105,13 @@ export default function SalesActivationPage() {
               <ArrowRight size={13} />
             </Link>
 
-          </ReportActions>
-        </header>
-      <ReportingScopeBar
+          </ReportActions>} scope={<ReportingScopeBar
         onRefresh={refreshAll}
         onExportCsv={handleExportCompleteWorkbook}
-      />
+      />}>
+      {/* Shell Reporting Scope Bar */}
+
+        {/* Page Header */}
 
         {/* Operational Context Sub-Bar */}
         <div className="bg-surface-subtle border border-border rounded-lg p-2.5 px-3.5 flex flex-wrap items-center justify-between gap-3 text-xs text-text-sec">
@@ -269,7 +251,6 @@ export default function SalesActivationPage() {
             </section>
           </div>
         )}
-      </div>
 
       {/* Inspector Host for Evidence Drawer */}
       <InspectorHost
@@ -277,6 +258,6 @@ export default function SalesActivationPage() {
         onClose={() => setInspectorContent(null)}
         content={salesAudit(inspectorContent, rawData)}
       />
-    </div>
+    </AnalyticsPageLayout>
   );
 }

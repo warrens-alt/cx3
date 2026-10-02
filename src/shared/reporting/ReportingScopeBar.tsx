@@ -17,7 +17,6 @@ import { fetchAnalyticsJson } from '../../lib/useAnalyticsData';
 import { dateDraftError, scopeFilterSummary, scopeSelectValue, type DateRangeDraft } from '../../lib/scopeControls';
 import type { FilterCondition } from '../../../contracts/filters';
 import type { ScopePolicy } from '../../app/routeManifest';
-import '../../styles/scopeControls.css';
 import { ExportPresentation } from './ReportPresentation';
 
 export interface ReportingScopeBarProps {
@@ -28,6 +27,8 @@ export interface ReportingScopeBarProps {
   showSourceFilter?: boolean;
   showGradeFilter?: boolean;
   className?: string;
+  /** New scope surfaces may defer choice lookup until the editor is requested. */
+  deferOptionsUntilExpanded?: boolean;
 }
 
 const localDateOnly = (date: Date) => {
@@ -150,6 +151,7 @@ function OperationalScopeBar({
   showSourceFilter = true,
   showGradeFilter = true,
   className = '',
+  deferOptionsUntilExpanded = false,
 }: ReportingScopeBarProps) {
   const { selectedClient } = useClient();
   const {
@@ -193,7 +195,7 @@ function OperationalScopeBar({
       if (endDate) query.set('endDate', endDate);
       return fetchAnalyticsJson(`/api/analytics/filter-options?${query.toString()}`, signal);
     },
-    enabled: Boolean(selectedClient),
+    enabled: Boolean(selectedClient) && (!deferOptionsUntilExpanded || editorOpen),
     staleTime: 120000,
     retry: false,
     refetchOnWindowFocus: false,
@@ -294,7 +296,7 @@ function OperationalScopeBar({
     try {
       const [view, options] = await Promise.allSettled([
         Promise.resolve().then(() => onRefresh?.()),
-        optionsQuery.refetch({ throwOnError: true }),
+        !deferOptionsUntilExpanded || editorOpen ? optionsQuery.refetch({ throwOnError: true }) : Promise.resolve(),
       ]);
       if (view.status === 'rejected') {
         const msg = view.reason instanceof Error ? view.reason.message : 'The current view could not be refreshed. Try again.';

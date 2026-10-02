@@ -1,3 +1,4 @@
+import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
 import { chartCoordinate } from '../lib/chartPresentation';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useOperationalData } from '../lib/useOperationalData';
@@ -289,12 +290,9 @@ export default function CliPerformance() {
   const isImported = data?.provenance === 'IMPORTED_REPORT';
 
   return (
-    <div className="cx-command-page cx-cli-page">
-      <OffernetFilterBar onRefresh={() => loadData(true)} onExportCsv={handleExportCsv} />
-      <div className="cx-command-content">
-        <OperationalPageHeader
+    <AnalyticsPageLayout className="cx-cli-page" title="Caller ID" header={<OperationalPageHeader
           eyebrow="Contact"
-          title="CLI performance"
+          title="Caller ID"
           description="Compare outbound caller-ID delivery, RPC, conversation depth and recorded downstream outcomes without inventing unavailable telephony fields."
           status={isImported ? 'IMPORTED_REPORT' : isSchemaUnavailable ? 'SCHEMA_GAP' : data?.metadata.validationStatus || 'NOT_VERIFIED'}
           statusLabel="CLI source"
@@ -324,7 +322,7 @@ export default function CliPerformance() {
               )}
             </div>
           }
-        />
+        />} scope={<OffernetFilterBar onRefresh={() => loadData(true)} onExportCsv={handleExportCsv} />}>
 
         {error && <div className="cx-command-error" role="alert"><AlertTriangle size={17}/><span>{error}</span></div>}
         {loading && !data && <div className="cx-command-loading" role="status"><div className="cx-command-spinner"/>Loading CLI performance…</div>}
@@ -519,7 +517,7 @@ export default function CliPerformance() {
           onClose={() => setShowAnomalyModal(false)}
           anomalies={data?.anomalies}
         />
-      </div>
-    </div>
+
+    </AnalyticsPageLayout>
   );
 }

@@ -1,3 +1,4 @@
+import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
 import React, { useMemo, useState } from 'react';
 import { AlertTriangle, CalendarDays, Layers3 } from 'lucide-react';
 import { useAnalyticsData } from '../lib/useAnalyticsData';
@@ -71,10 +72,7 @@ export default function Cohorts() {
     .map((row: any) => String(row.maturationReason))));
 
   return (
-    <div className="cx-command-page cx-cohorts-page">
-      <OffernetFilterBar onRefresh={() => refetch()} />
-      <div className="cx-command-content">
-        <OperationalPageHeader
+    <AnalyticsPageLayout className="cx-cohorts-page" title="Cohort maturation" header={<OperationalPageHeader
           eyebrow="Lifecycle"
           title="Cohort maturation"
           description="Compare captured cohorts as their observed call, sale and activation outcomes accumulate over time."
@@ -100,7 +98,7 @@ export default function Cohorts() {
               </label>
             </div>
           }
-        />
+        />} scope={<OffernetFilterBar onRefresh={() => refetch()} />}>
 
         {error && <div className="cx-command-error"><AlertTriangle size={17}/>{String(error)}</div>}
         {loading && !cohorts && <div className="cx-command-loading"><div className="cx-command-spinner"/>Loading cohorts…</div>}
@@ -230,7 +228,7 @@ export default function Cohorts() {
             </div>
           </>
         )}
-      </div>
-    </div>
+
+    </AnalyticsPageLayout>
   );
 }

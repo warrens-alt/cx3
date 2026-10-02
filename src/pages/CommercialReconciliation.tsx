@@ -3,7 +3,6 @@ import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowDown, ArrowRight, ArrowUp, ArrowUpDown, Database, Download, FileText, Info, Search, X, Table as TableIcon, BarChart2 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
-import { PAGE_TITLES } from '../../contracts/naming';
 import { compareExactDecimal, subtractExactDecimals } from '../../contracts/exactDecimal';
 import { METRIC_BY_ID, type MetricResult } from '../../contracts/reporting';
 import { exactNumber } from '../../contracts/format';
@@ -120,7 +119,7 @@ export default function CommercialReconciliation() {
     <header className="cx-page-header">
       <div>
         <p className="cx-ops-eyebrow">Commercial control</p>
-        <h1 className="text-page-title">{PAGE_TITLES['/reconciliation']}</h1>
+        <h1 className="text-page-title">Reconciliation</h1>
         <p>Follow recorded outcomes through expected, approved, invoiced and collected value without collapsing those stages into a single revenue label.</p>
       </div>
       <a className="cx-button-secondary" href="#commercial-ledger">Review ledger evidence <ArrowRight size={15}/></a>

@@ -18,11 +18,11 @@ export function AccessInvites({
   setInviteModalOpen,
 }: AccessInvitesProps) {
   return (
-    <div className="bg-surface rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 pb-4">
+    <div className="bg-surface rounded-xl border border-border-subtle shadow-sm p-5 space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border-subtle pb-4">
         <div>
-          <h2 className="text-sm font-bold text-slate-900">Pre-Authorized Access Whitelist</h2>
-          <p className="text-xs text-slate-500">
+          <h2 className="text-sm font-bold text-text-main">Pre-Authorized Access Whitelist</h2>
+          <p className="text-xs text-text-sec">
             Invitations preassign an analyst or viewer role and client workspaces at first Google sign-in. Accounts still require administrator approval; an invitation does not grant administrator authority.
           </p>
         </div>
@@ -36,9 +36,9 @@ export function AccessInvites({
         </button>
       </div>
 
-      <div className="overflow-x-auto border border-slate-200 rounded-lg">
-        <table className="w-full text-left text-xs text-slate-700">
-          <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-600 uppercase">
+      <div className="overflow-x-auto border border-border-subtle rounded-lg">
+        <table className="w-full text-left text-xs text-text-sec">
+          <thead className="bg-surface-subtle border-b border-border-subtle text-[11px] font-semibold text-text-sec uppercase">
             <tr>
               <th className="px-4 py-3">Email Address</th>
               <th className="px-4 py-3">Pre-assigned Role</th>
@@ -47,27 +47,27 @@ export function AccessInvites({
               <th className="px-4 py-3 text-right">Revoke</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-border-subtle">
             {inviteState !== 'loaded' && <tr><td colSpan={5} className="px-4 py-8 text-center" role={inviteState === 'error' ? 'alert' : 'status'}>{inviteState === 'error' ? 'Invitations unavailable. The subscription failed.' : 'Loading invitations…'}</td></tr>}
             {inviteState === 'loaded' && invitesList.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={5} className="px-4 py-8 text-center text-text-mute">
                   No pre-authorized invites configured. New users will be placed in the pending approval queue.
                 </td>
               </tr>
             )}
             {invitesList.map((inv) => (
-              <tr key={inv.id} className="hover:bg-slate-50">
-                <td className="px-4 py-3 font-semibold text-slate-900">{inv.email}</td>
+              <tr key={inv.id} className="hover:bg-surface-subtle">
+                <td className="px-4 py-3 font-semibold text-text-main">{inv.email}</td>
                 <td className="px-4 py-3">
-                  <span className="uppercase text-[11px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-800">
+                  <span className="uppercase text-[11px] font-bold px-2 py-0.5 rounded bg-surface-subtle text-text-main">
                     {inv.role}
                   </span>
                 </td>
                 <td className="px-4 py-3">
                   {inv.allowedTenants.includes('*') ? 'All Workspaces (*)' : inv.allowedTenants.join(', ')}
                 </td>
-                <td className="px-4 py-3 text-slate-500">{inv.invitedBy}</td>
+                <td className="px-4 py-3 text-text-sec">{inv.invitedBy}</td>
                 <td className="px-4 py-3 text-right">
                   <button
                     type="button"

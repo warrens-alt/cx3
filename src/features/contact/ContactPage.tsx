@@ -1,3 +1,4 @@
+import AnalyticsPageLayout from '../../components/AnalyticsPageLayout';
 import { ReportActions } from '../../shared/reporting/ReportPresentation';
 import '../../styles/journeyContactVisuals.css';
 import React, { useMemo, useState } from 'react';
@@ -116,28 +117,8 @@ export default function ContactPage() {
       : undefined;
 
   return (
-    <div className="cx-visual-workspace cx-contact-visual-workspace space-y-6">
-      {/* 1. Scope Bar */}
+    <AnalyticsPageLayout className="cx-contact-visual-workspace" title="Contact effort" description={<>Examine observed call attempts, outcome yields, and vendor disposition distributions.</>} actions={<ReportActions />} scope={<ReportingScopeBar onRefresh={refreshAll} onExportCsv={handleExportCsv} />}>
 
-
-      <div className="cx-visual-workspace-body space-y-6">
-      {/* 2. Page Header */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-1 border-b border-border-subtle pb-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-text-mute uppercase tracking-wider">
-            <PhoneCall size={13} className="text-brand-primary" />
-            <span>Contact Centre</span>
-          </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-text-main mt-0.5">
-            Contact Effort & Vendor Outcomes
-          </h1>
-          <p className="text-sm text-text-sec mt-1">
-            Examine observed call attempts, outcome yields, and vendor disposition distributions.
-          </p>
-        </div>
-        <ReportActions />
-      </header>
-      <ReportingScopeBar onRefresh={refreshAll} onExportCsv={handleExportCsv} />
 <nav className="cx-report-secondary-actions" aria-label="Contact analyses">
           {/* Tab Switcher */}
           <div className="inline-flex rounded-lg border border-border-subtle p-0.5 bg-surface text-xs font-medium">
@@ -169,14 +150,7 @@ export default function ContactPage() {
             </button>
           </div>
 
-          <Link
-            to={scoped('/speed-to-lead')}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-subtle bg-surface hover:bg-surface-subtle transition-colors text-xs font-medium text-text-sec hover:text-text-main shadow-xs"
-            title="Diagnose first-dial latency and response SLAs"
-          >
-            <Timer size={13} />
-            <span>Response speed</span>
-          </Link>
+
 
           <Link
             to={scoped('/lead-explorer')}
@@ -338,7 +312,7 @@ export default function ContactPage() {
         metric={rootMetric}
         onClose={() => setRootMetric(null)}
       />
-      </div>
-    </div>
+
+    </AnalyticsPageLayout>
   );
 }

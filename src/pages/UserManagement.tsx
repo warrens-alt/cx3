@@ -1,3 +1,4 @@
+import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
 import React, { useState, useEffect } from 'react';
 import { Users, Shield, UserCheck, Clock, Plus, CheckCircle, AlertTriangle, SlidersHorizontal, KeyRound, History, X } from 'lucide-react';
 import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
@@ -261,8 +262,8 @@ export default function UserManagement() {
         <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
           <Shield className="w-6 h-6" />
         </div>
-        <h1 className="text-xl font-bold text-slate-900">Administrator Access Required</h1>
-        <p className="text-sm text-slate-600">
+        <h1 className="text-xl font-bold text-text-main">Administrator Access Required</h1>
+        <p className="text-sm text-text-sec">
           Only authorized platform administrators can manage user accounts and access governance policies.
         </p>
       </div>
@@ -270,35 +271,11 @@ export default function UserManagement() {
   }
 
   return (
-    <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-6 space-y-6 transition-all duration-200">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-2 rounded-lg bg-blue-50 text-blue-700">
-              <Shield className="w-5 h-5" />
-            </span>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight font-display">
-              User & Access Control Center
-            </h1>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Manage authenticated Google accounts, role permissions, client tenant scopes, and access requests.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => setInviteModalOpen(true)}
-            className="btn-primary !h-8 gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Pre-Authorize User</span>
-          </button>
-        </div>
-      </div>
-
+    <AnalyticsPageLayout className="cx-access-page" title="Access control" description="Manage authenticated Google accounts, role permissions, client tenant scopes, and access requests." actions={
+      <button type="button" onClick={() => setInviteModalOpen(true)} className="cx-button-primary">
+        <Plus className="w-4 h-4" /><span>Pre-Authorize User</span>
+      </button>
+    }>
       {actionNotice && (
         <div
           className={`p-3 rounded-lg text-xs font-medium flex items-center justify-between transition-all ${
@@ -327,22 +304,22 @@ export default function UserManagement() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-surface p-4 rounded-lg border border-slate-200 shadow-2xs space-y-1 hover:border-slate-300 transition-all">
-          <div className="flex items-center justify-between text-slate-500 text-[11px] font-semibold uppercase tracking-wider">
+        <div className="bg-surface p-4 rounded-lg border border-border-subtle shadow-2xs space-y-1 hover:border-border-strong transition-all">
+          <div className="flex items-center justify-between text-text-sec text-[11px] font-semibold uppercase tracking-wider">
             <span>Total Accounts</span>
-            <Users className="w-3.5 h-3.5 text-slate-400" />
+            <Users className="w-3.5 h-3.5 text-text-mute" />
           </div>
-          <div className="text-2xl font-bold text-slate-900 font-mono tabular-nums">{loadingUsers ? '…' : directoryError ? 'Unavailable' : totalUsers}</div>
-          <p className="text-[10.5px] text-slate-500 font-mono">Registered Google accounts</p>
+          <div className="text-2xl font-bold text-text-main font-sans tabular-nums">{loadingUsers ? '…' : directoryError ? 'Unavailable' : totalUsers}</div>
+          <p className="text-[10.5px] text-text-sec font-sans">Registered Google accounts</p>
         </div>
 
-        <div className="bg-surface p-4 rounded-lg border border-slate-200 shadow-2xs space-y-1 hover:border-slate-300 transition-all">
-          <div className="flex items-center justify-between text-slate-500 text-[11px] font-semibold uppercase tracking-wider">
+        <div className="bg-surface p-4 rounded-lg border border-border-subtle shadow-2xs space-y-1 hover:border-border-strong transition-all">
+          <div className="flex items-center justify-between text-text-sec text-[11px] font-semibold uppercase tracking-wider">
             <span>Active Users</span>
             <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
           </div>
-          <div className="text-2xl font-bold text-emerald-600 font-mono tabular-nums">{loadingUsers ? '…' : directoryError ? 'Unavailable' : activeCount}</div>
-          <p className="text-[10.5px] text-slate-500 font-mono">Currently authorized</p>
+          <div className="text-2xl font-bold text-emerald-600 font-sans tabular-nums">{loadingUsers ? '…' : directoryError ? 'Unavailable' : activeCount}</div>
+          <p className="text-[10.5px] text-text-sec font-sans">Currently authorized</p>
         </div>
 
         <button type="button"
@@ -351,52 +328,52 @@ export default function UserManagement() {
             setStatusFilter('pending');
           }}
           className={`bg-surface p-4 rounded-lg border shadow-2xs space-y-1 cursor-pointer transition-all ${
-            pendingCount > 0 ? 'border-amber-300 bg-amber-50/20 hover:border-amber-400' : 'border-slate-200 hover:border-slate-300'
+            pendingCount > 0 ? 'border-amber-300 bg-amber-50/20 hover:border-amber-400' : 'border-border-subtle hover:border-border-strong'
           }`}
         >
-          <div className="flex items-center justify-between text-slate-500 text-[11px] font-semibold uppercase tracking-wider">
+          <div className="flex items-center justify-between text-text-sec text-[11px] font-semibold uppercase tracking-wider">
             <span>Pending Approvals</span>
-            <Clock className={`w-3.5 h-3.5 ${pendingCount > 0 ? 'text-amber-500 animate-pulse' : 'text-slate-400'}`} />
+            <Clock className={`w-3.5 h-3.5 ${pendingCount > 0 ? 'text-amber-500 animate-pulse' : 'text-text-mute'}`} />
           </div>
           <div className="flex items-center gap-2">
-            <span className={`text-2xl font-bold font-mono tabular-nums ${pendingCount > 0 ? 'text-amber-600' : 'text-slate-900'}`}>
+            <span className={`text-2xl font-bold font-sans tabular-nums ${pendingCount > 0 ? 'text-amber-600' : 'text-text-main'}`}>
               {loadingUsers ? '…' : directoryError ? 'Unavailable' : pendingCount}
             </span>
             {pendingCount > 0 && (
-              <span className="px-1.5 py-0.5 text-[9.5px] font-semibold bg-amber-100 text-amber-800 rounded font-mono">
+              <span className="px-1.5 py-0.5 text-[9.5px] font-semibold bg-amber-100 text-amber-800 rounded font-sans">
                 ACTION REQUIRED
               </span>
             )}
           </div>
-          <p className="text-[10.5px] text-slate-500 font-mono">Awaiting access grant</p>
+          <p className="text-[10.5px] text-text-sec font-sans">Awaiting access grant</p>
         </button>
 
-        <div className="bg-surface p-4 rounded-lg border border-slate-200 shadow-2xs space-y-1 hover:border-slate-300 transition-all">
-          <div className="flex items-center justify-between text-slate-500 text-[11px] font-semibold uppercase tracking-wider">
+        <div className="bg-surface p-4 rounded-lg border border-border-subtle shadow-2xs space-y-1 hover:border-border-strong transition-all">
+          <div className="flex items-center justify-between text-text-sec text-[11px] font-semibold uppercase tracking-wider">
             <span>Administrators</span>
             <Shield className="w-3.5 h-3.5 text-blue-500" />
           </div>
-          <div className="text-2xl font-bold text-blue-700 font-mono tabular-nums">{loadingUsers ? '…' : directoryError ? 'Unavailable' : adminCount}</div>
-          <p className="text-[10.5px] text-slate-500 font-mono">Full platform authority</p>
+          <div className="text-2xl font-bold text-blue-700 font-sans tabular-nums">{loadingUsers ? '…' : directoryError ? 'Unavailable' : adminCount}</div>
+          <p className="text-[10.5px] text-text-sec font-sans">Full platform authority</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-slate-200 flex flex-wrap gap-4 text-xs sm:text-sm font-semibold">
+      <div className="border-b border-border-subtle flex flex-wrap gap-4 text-xs sm:text-sm font-semibold">
         <button
           type="button"
           aria-pressed={activeTab === 'users'}
           onClick={() => setActiveTab('users')}
           className={`pb-3 border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${
             activeTab === 'users'
-              ? 'border-blue-600 text-blue-700 font-bold'
-              : 'border-transparent text-slate-500 hover:text-slate-900'
+              ? 'border-action text-action font-bold'
+              : 'border-transparent text-text-sec hover:text-text-main'
           }`}
         >
           <Users className="w-4 h-4" />
           <span>User Directory ({directoryError ? 'Unavailable' : loadingUsers ? '…' : usersList.length})</span>
           {pendingCount > 0 && (
-            <span className="text-[11px] font-semibold text-amber-700 font-mono">
+            <span className="text-[11px] font-semibold text-amber-700 font-sans">
               ({loadingUsers ? '…' : directoryError ? 'Unavailable' : pendingCount} pending)
             </span>
           )}
@@ -408,8 +385,8 @@ export default function UserManagement() {
           onClick={() => setActiveTab('invites')}
           className={`pb-3 border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${
             activeTab === 'invites'
-              ? 'border-blue-600 text-blue-700 font-bold'
-              : 'border-transparent text-slate-500 hover:text-slate-900'
+              ? 'border-action text-action font-bold'
+              : 'border-transparent text-text-sec hover:text-text-main'
           }`}
         >
           <KeyRound className="w-4 h-4" />
@@ -422,8 +399,8 @@ export default function UserManagement() {
           onClick={() => setActiveTab('policies')}
           className={`pb-3 border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${
             activeTab === 'policies'
-              ? 'border-blue-600 text-blue-700 font-bold'
-              : 'border-transparent text-slate-500 hover:text-slate-900'
+              ? 'border-action text-action font-bold'
+              : 'border-transparent text-text-sec hover:text-text-main'
           }`}
         >
           <SlidersHorizontal className="w-4 h-4" />
@@ -436,8 +413,8 @@ export default function UserManagement() {
           onClick={() => setActiveTab('audit')}
           className={`pb-3 border-b-2 transition-colors flex items-center gap-2 cursor-pointer ${
             activeTab === 'audit'
-              ? 'border-blue-600 text-blue-700 font-bold'
-              : 'border-transparent text-slate-500 hover:text-slate-900'
+              ? 'border-action text-action font-bold'
+              : 'border-transparent text-text-sec hover:text-text-main'
           }`}
         >
           <History className="w-4 h-4" />
@@ -481,6 +458,6 @@ export default function UserManagement() {
           selectedTenants={selectedTenants} setSelectedTenants={setSelectedTenants}
           tenantSubmitting={tenantSubmitting} handleSaveTenants={handleSaveTenants} />
       )}
-    </div>
+    </AnalyticsPageLayout>
   );
 }

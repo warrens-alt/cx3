@@ -1,3 +1,4 @@
+import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
 import { ReportSkeleton } from '../components/OperationalState';
 import TablePreview from '../shared/reporting/TablePreview';
 import { useOperationalData } from '../lib/useOperationalData';
@@ -96,21 +97,18 @@ export default function AgentPerformanceIntelligence() {
   }, [data?.agents]);
 
   return (
-    <div className="cx-command-page cx-agent-page">
-      <OffernetFilterBar
-        onRefresh={() => loadData(true)}
-        onExportCsv={handleExportCsv}
-        showSourceFilter={false}
-        showGradeFilter={false}
-      />
-      <div className="cx-command-content">
-        <OperationalPageHeader
+    <AnalyticsPageLayout className="cx-agent-page" title="Agent activity" header={<OperationalPageHeader
           eyebrow="Contact"
           title="Agent activity"
           description="Observed dialler calls and call outcomes by agent. CX3 does not assign performance scores or tiers."
           status={data?.rankingStatus || 'NOT_VERIFIED'}
           statusLabel="Ranking status"
-        />
+        />} scope={<OffernetFilterBar
+        onRefresh={() => loadData(true)}
+        onExportCsv={handleExportCsv}
+        showSourceFilter={false}
+        showGradeFilter={false}
+      />}>
 
         {error && <div className="cx-command-error"><AlertTriangle size={17}/>{error}</div>}
         {loading && !data && <ReportSkeleton label="Aggregating agent call activity" metricCount={4} />}
@@ -270,8 +268,8 @@ export default function AgentPerformanceIntelligence() {
             </section>
           </>
         )}
-      </div>
+
       <InspectorHost open={Boolean(audit)} onClose={() => setAudit(null)} content={audit} />
-    </div>
+    </AnalyticsPageLayout>
   );
 }

@@ -1,3 +1,4 @@
+import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   GitFork, ShieldCheck, AlertTriangle, ArrowRight, CheckCircle2, Clock3,
@@ -125,12 +126,9 @@ export default function OffershopProcessObservability() {
   }, [allNodes, matrixSearch, matrixStatusFilter, selectedFamily]);
 
   return (
-    <div className="cx-command-page cx-process-page">
-      <OffernetFilterBar onRefresh={() => loadData(true)} />
-      <div className="cx-command-content">
-        <OperationalPageHeader
+    <AnalyticsPageLayout className="cx-process-page" title="Process flow" header={<OperationalPageHeader
           eyebrow="Deal flow observability"
-          title="Offershop Process Intelligence"
+          title="Process flow"
           description="End-to-end evidence tracking across Acquisition, Preparation & Validation, Consumer Hospital, Partner ROR, HLC Delivery, Dialler Execution, and TEDI Feedback."
           status="OBSERVED"
           statusLabel="Process Architecture V3"
@@ -144,7 +142,7 @@ export default function OffershopProcessObservability() {
               </Link>
             </div>
           }
-        />
+        />} scope={<OffernetFilterBar onRefresh={() => loadData(true)} />}>
 
         {error && <div className="cx-command-error"><AlertTriangle size={17} />{String(error)}</div>}
         {loading && !data && <div className="cx-command-loading"><div className="cx-command-spinner" />Auditing Offershop deal flow…</div>}
@@ -897,7 +895,7 @@ export default function OffershopProcessObservability() {
             )}
           </>
         )}
-      </div>
-    </div>
+
+    </AnalyticsPageLayout>
   );
 }

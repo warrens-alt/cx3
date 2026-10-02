@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { PageShell } from '../components/PageShell';
-import PageHeader from '../components/PageHeader';
+import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
 import { DataState, displayNumber } from '../components/DataState';
 import { useAnalyticsData } from '../lib/useAnalyticsData';
 import { fetchWarehouseTables } from '../lib/warehouseClient';
@@ -117,8 +116,7 @@ export default function AdminValidation() {
     ['telemetry', 'Telemetry reference'], ['hygiene', 'Validation rules'], ['blc_powerbi', 'BLC integration reference'],
   ] as const;
 
-  return <PageShell className="cx-validation-page">
-    <PageHeader title="Validation evidence" description="Inspect historical reference values and registered schema references. Independent live reconciliation has not been performed." />
+  return <AnalyticsPageLayout className="cx-validation-page" title="Validation suite" description="Inspect historical reference values and registered schema references. Independent live reconciliation has not been performed.">
     <section className="cx-command-panel p-5 space-y-2" aria-label="Validation boundary">
       <h2 className="text-base font-semibold">Independent validation not established</h2>
       <p>{data?.message || 'Independent live reconciliation has not been performed.'} Reference values are not proof of current warehouse accuracy, access, financial reconciliation, or tenant isolation.</p>
@@ -165,5 +163,5 @@ export default function AdminValidation() {
     {activeTab === 'telemetry' && <section className="cx-command-panel p-5 space-y-2"><h2 className="text-base font-semibold">Telemetry reference</h2><p>No measured JSON validity, event completeness or telemetry reconciliation result is returned by this page. Those checks are not reported.</p><p>The saved export manifest describes {EXPORT_MANIFEST_EVIDENCE.totalProjects} projects and {EXPORT_MANIFEST_EVIDENCE.totalDatasets} datasets. Registration is separate from current access.</p><details><summary>Historical export failure reference</summary><pre className="whitespace-pre-wrap break-words">{JSON.stringify(OBSERVED_EXPORT_FAILURES,null,2)}</pre></details></section>}
     {activeTab === 'hygiene' && <section className="cx-command-panel p-5 space-y-2"><h2 className="text-base font-semibold">Validation rules reference</h2><p>Identity validation, telephone formatting and lifecycle chronology require measured source checks. No clean-data percentage, executed-test count or chronology pass result is available here.</p><p>Repository test execution and warehouse reconciliation are separate evidence. A page render runs neither.</p></section>}
     {activeTab === 'blc_powerbi' && <section className="cx-command-panel p-5 space-y-2"><h2 className="text-base font-semibold">BLC integration contract reference</h2><p>No authenticated Power BI check or live mandate reconciliation has been performed by this page. Registered query definitions do not establish verified activations.</p><dl className="break-all"><dt>Dataset</dt><dd>{RUBIX_DATASET_ID}</dd><dt>Report</dt><dd>{RUBIX_REPORT_ID}</dd><dt>Model</dt><dd>{RUBIX_MODEL_ID}</dd><dt>Entity</dt><dd>{RUBIX_ENTITY}</dd><dt>Company predicate</dt><dd>{RUBIX_COMPANY_PREDICATE}</dd></dl><details><summary>Registered query types ({RUBIX_QUERY_TYPES.length})</summary><pre className="whitespace-pre-wrap break-words">{JSON.stringify(RUBIX_QUERY_TYPES,null,2)}</pre></details></section>}
-  </PageShell>;
+  </AnalyticsPageLayout>;
 }

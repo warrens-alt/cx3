@@ -1,11 +1,9 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
-import { PAGE_TITLES } from '../../contracts/naming';
 
 interface PageHeaderProps {
   title: string;
-  description?: string;
-  subtitle?: string;
+  description?: React.ReactNode;
+  subtitle?: React.ReactNode;
   category?: string;
   badge?: string;
   badges?: Array<{ label: string; variant?: string }>;
@@ -21,30 +19,28 @@ export default function PageHeader({
   badges,
   children,
 }: PageHeaderProps) {
-  const location = useLocation();
-  const displayTitle = (location.pathname === '/visuals' ? 'Visual Workspace' : PAGE_TITLES[location.pathname]) || title;
   const desc = description || subtitle;
 
   return (
     <header className="cx-page-header">
-      <div className="min-w-0 flex-1">
+      <div className="cx-page-heading">
         {category && (
-          <div className="text-[11px] font-mono font-semibold uppercase tracking-wider text-blue-600 mb-1 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+          <div className="cx-page-category">
+
             <span>{category}</span>
           </div>
         )}
-        <h1 className="text-page-title text-slate-900 dark:text-slate-100 tracking-tight" style={{ textWrap: 'balance' }}>
-          {displayTitle}
+        <h1 className="cx-page-title">
+          {title}
         </h1>
-        {desc && <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-[13px] leading-relaxed mt-1 max-w-3xl">{desc}</p>}
+        {desc && <p className="cx-page-description">{desc}</p>}
         {badge && (
-          <div className="flex items-center gap-2 mt-2 text-xs text-slate-500 dark:text-slate-400 font-mono">
-            <span className="text-blue-700 dark:text-blue-400 font-semibold">{badge}</span>
+          <div className="cx-page-badges">
+            <span className="cx-page-badge">{badge}</span>
           </div>
         )}
         {badges && badges.length > 0 && (
-          <div className="flex items-center gap-2.5 mt-2.5 text-xs text-slate-500 dark:text-slate-400 font-mono flex-wrap">
+          <div className="cx-page-badges">
             {badges.map((b, idx) => (
               <React.Fragment key={idx}>
                 {idx > 0 && <span className="text-slate-300 dark:text-slate-600" aria-hidden="true">·</span>}
@@ -56,7 +52,7 @@ export default function PageHeader({
           </div>
         )}
       </div>
-      {children && <div className="cx-page-actions shrink-0">{children}</div>}
+      {children && <div className="cx-page-actions">{children}</div>}
     </header>
   );
 }

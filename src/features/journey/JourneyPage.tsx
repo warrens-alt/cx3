@@ -1,3 +1,4 @@
+import AnalyticsPageLayout from '../../components/AnalyticsPageLayout';
 import { STAGE_METRIC_IDS } from '../../shared/evidence/auditPresentation';
 import { ReportActions } from '../../shared/reporting/ReportPresentation';
 import '../../styles/journeyContactVisuals.css';
@@ -139,26 +140,7 @@ export default function JourneyPage() {
   };
 
   return (
-    <div className="cx-visual-workspace cx-journey-visual-workspace space-y-6">
-      {/* 1. Scope Bar */}
-
-
-      <div className="cx-visual-workspace-body space-y-6">
-      {/* 2. Page Header */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-1 border-b border-border-subtle pb-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-text-mute uppercase tracking-wider">
-            <GitFork size={13} className="text-brand-primary" />
-            <span>Lead Journey</span>
-          </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-text-main mt-0.5">
-            Stage Progression & Lifecycle
-          </h1>
-          <p className="text-sm text-text-sec mt-1">
-            See where acquired demand progresses or drops off across intake, delivery, dialling, contact, and sales.
-          </p>
-        </div>
-        <ReportActions>
+    <AnalyticsPageLayout className="cx-journey-visual-workspace" title="Progression" description={<>See where acquired demand progresses or drops off across intake, delivery, dialling, contact, and sales.</>} actions={<ReportActions>
           <Link
             to={scoped('/offershop-flow')}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-subtle bg-surface hover:bg-surface-subtle transition-colors text-xs font-medium text-text-sec hover:text-text-main shadow-xs"
@@ -176,14 +158,11 @@ export default function JourneyPage() {
             <Search size={13} />
             <span>Inspect records</span>
           </Link>
-        </ReportActions>
-      </header>
-      <ReportingScopeBar
+        </ReportActions>} scope={<ReportingScopeBar
         onRefresh={refreshAll}
         onExportCsv={data ? handleExportCsv : undefined}
-      />
+      />}>
 
-      <nav className="cx-viz-jump-nav" aria-label="Lead Journey sections"><a href="#journey-progression">Stage progression</a><a href="#journey-segments">Segment comparison</a><a href="#journey-timing">Timing evidence</a></nav>
       {/* Error state */}
       {error && (
         <OperationalError
@@ -386,7 +365,7 @@ export default function JourneyPage() {
         metric={rootMetric}
         onClose={() => setRootMetric(null)}
       />
-      </div>
-    </div>
+
+    </AnalyticsPageLayout>
   );
 }

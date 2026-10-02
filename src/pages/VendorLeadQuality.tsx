@@ -1,3 +1,4 @@
+import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
 import { ReportSkeleton } from '../components/OperationalState';
 import TablePreview from '../shared/reporting/TablePreview';
 import { ReportActions } from '../shared/reporting/ReportPresentation';
@@ -121,23 +122,11 @@ export default function VendorLeadQuality() {
   );
 
   return (
-    <div className="cx-command-page cx-trust-workspace" aria-label="Vendor quality workspace">
-
-      <div className="cx-command-content">
-        <header className="cx-command-hero">
-          <div>
-            <span className="cx-command-eyebrow">Performance</span>
-            <h1>Vendors, sources and lead quality</h1>
-            <p>Compare operational execution and test whether lead-quality signals are associated with better downstream outcomes.</p>
-          </div>
-          <ReportActions>
+    <AnalyticsPageLayout className="cx-trust-workspace" ariaLabel="Vendor quality workspace" title="Vendor quality" description={<>Compare operational execution and test whether lead-quality signals are associated with better downstream outcomes.</>} actions={<ReportActions>
             <Link to={scoped('/campaigns')} className="cx-button-secondary">Campaigns & spend</Link>
             <Link to={scoped('/commercial')} className="cx-button-secondary">Commercial</Link>
-</ReportActions>
-</header>
-      <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />
+</ReportActions>} scope={<OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />}>
 
-        <nav className="cx-viz-jump-nav" aria-label="Vendor quality sections"><a href="#vendor-comparison">Compare vendors</a><a href="#vendor-speed">Speed & contact</a><a href="#source-performance">Source performance</a><a href="#quality-signals">Grade & vetting</a></nav>
         {error && <div className="cx-command-error"><AlertTriangle size={17} />{error}</div>}
         {loading && !data && <ReportSkeleton label="Loading performance analysis" metricCount={1} />}
 
@@ -286,10 +275,9 @@ export default function VendorLeadQuality() {
             </div>
           </>
         )}
-      </div>
 
       <InspectorHost open={Boolean(audit)} onClose={() => setAudit(null)} content={audit} />
-    </div>
+    </AnalyticsPageLayout>
   );
 }
 

@@ -280,3 +280,7 @@
   .cx-ledger-journey dl{grid-template-columns:minmax(0,1fr)}
   .cx-journey-event strong{font-size:10px}
 }
+
+/* The canonical reporting layout owns the outer page spacing. */
+.cx-ledger-workspace.cx-ledger-workspace-body { max-width:none; margin:0; padding:0; }
+.cx-analytics-page .cx-ledger-tabs { padding:0; background:transparent; }

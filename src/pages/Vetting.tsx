@@ -1,7 +1,8 @@
 import React, { useDeferredValue, useMemo, useState } from 'react';
 import { ShieldCheck, Layers3, Palette, ArrowUpRight, ArrowDownRight, Minus, Download, Filter, Clock3, X, Table as TableIcon, BarChart2, Search, ArrowRight } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
-import { PageShell } from '../components/PageShell';
+import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
+import ReportingScopeBar from '../shared/reporting/ReportingScopeBar';
 import { DataState } from '../components/DataState';
 import VettingChart from '../components/visuals/VettingChart';
 import { VisualTable } from '../components/visuals/DataVisual';
@@ -31,17 +32,17 @@ function Scorecard({title,rows,report}:{title:string;rows:VettingGroup[];report:
         <label>
           <span>Find group</span>
           <div className="relative">
-            <input 
-              aria-label={`${title} search`} 
-              type="search" 
-              value={search} 
+            <input
+              aria-label={`${title} search`}
+              type="search"
+              value={search}
               onChange={e=>{setSearch(e.target.value);setPage(0);}}
               className={search ? 'pr-7' : ''}
             />
             {search && (
-              <button 
-                type="button" 
-                onClick={()=>{setSearch('');setPage(0);}} 
+              <button
+                type="button"
+                onClick={()=>{setSearch('');setPage(0);}}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-text-mute hover:text-text-main"
                 aria-label="Clear search"
               >
@@ -213,8 +214,8 @@ export default function Vetting(){
   const sourceClassRows=data?selectedGroups(data,sourceAxis==='source'?'sourceClass':'vendorClass'):[],sourceColourRows=data?selectedGroups(data,sourceAxis==='source'?'sourceColour':'vendorColour'):[];
   const trend=data?selectedGroups(data,'trend').map(r=>({...decorateGroup(r,data),label:r.key})):[];
   const show=Boolean(data && data.scope && data.current && !result.error && !result.loading && !result.fetching);
-  return <PageShell><div className="vetting-page">
-    <header className="vetting-hero"><div><h1>Vetting</h1><p>Compare class and colour results as separate classifications, with their recorded outcomes.</p></div><div><button type="button" className="cx-button-secondary" disabled={!show} onClick={exportAll}><Download size={15}/>Export complete analysis</button>{!show&&<p className="cx-filter-note">Available when this selection has loaded.</p>}</div></header>
+  return <AnalyticsPageLayout className="vetting-page" title="Qualification" description="Compare class and colour results as separate classifications, with their recorded outcomes." actions={<div><button type="button" className="cx-button-secondary" disabled={!show} onClick={exportAll}><Download size={15}/>Export complete analysis</button>{!show&&<p className="cx-filter-note">Available when this selection has loaded.</p>}</div>} scope={<ReportingScopeBar deferOptionsUntilExpanded onRefresh={result.refetch} />}
+    status={(!startDate || !endDate) && <p className="cx-filter-note">Vetting uses the fetched-date window {activeStart} – {activeEnd} when either reporting date is absent.</p>}>
     <section className="vetting-selection enterprise-card" aria-label="Vetting selections"><label>Class result<select aria-label="Class result" value={classValue} onChange={e=>setClassValue(e.target.value)}><option value="">All class results</option>{currentClassOptions.map(v=><option value={v} key={v}>{v}</option>)}</select></label>
       <label>Colour result<select aria-label="Colour result" value={colourValue} onChange={e=>setColourValue(e.target.value)}><option value="">All colour results</option>{currentColourOptions.map(v=><option value={v} key={v}>{v}</option>)}</select></label>
       <label>Capture trend<select aria-label="Vetting trend interval" value={interval} onChange={e=>setInterval(e.target.value)}><option value="day">Daily</option><option value="week">Weekly (Monday)</option><option value="month">Monthly</option></select></label>
@@ -285,5 +286,5 @@ export default function Vetting(){
       </>}
       <details className="vetting-evidence enterprise-card"><summary>Definitions, source fields and query evidence</summary><p><strong>Previous window:</strong> {data?.scope?.previousStart || '—'} to {data?.scope?.previousEnd || '—'}. <strong>Source:</strong> {data?.evidence?.table || 'Unavailable'}. <strong>Query job:</strong> {data?.evidence?.jobId||'Unavailable'}. <strong>Read at:</strong> {data?.evidence?.generatedAt || 'Unavailable'}.</p><p>No snapshot is pinned. The same filters and period definitions apply throughout this response.</p><ul>{(data?.notes || []).map(n=><li key={n}>{n}</li>)}</ul><dl>{Object.entries(data?.fields || {}).map(([key,f])=><div key={key}><dt>{f.sourceField}</dt><dd>{f.available?'Column available':'Mapping unavailable'}</dd></div>)}</dl></details>
     </div>}
-  </div></PageShell>;
+  </AnalyticsPageLayout>;
 }

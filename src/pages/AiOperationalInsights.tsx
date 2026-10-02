@@ -1,3 +1,4 @@
+import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
 import { useSearchParams } from 'react-router-dom';
 import InvestigationAI from '../features/investigation/InvestigationAI';
 import { investigationRequest, matchesInvestigationResponse } from '../features/investigation/investigationModel';
@@ -104,12 +105,8 @@ export default function AiOperationalInsights() {
   };
 
   return (
-    <div className="cx-command-page cx-ai-evidence-page">
+    <AnalyticsPageLayout className="cx-ai-evidence-page" title="AI Insights" description={<>Review the returned briefing, explore its findings and inspect supplied metric references before acting.</>} actions={<ReportActions />} scope={<OffernetFilterBar onRefresh={() => loadData(true)} />}>
 
-      <div className="cx-command-content space-y-6">
-        <header className="cx-command-hero"><div><span className="cx-command-eyebrow">Operational analysis</span><h1>AI insights & evidence</h1><p>Review the returned briefing, explore its findings and inspect supplied metric references before acting.</p></div><Cpu size={24} aria-hidden="true" />          <ReportActions />
-</header>
-      <OffernetFilterBar onRefresh={() => loadData(true)} />
         <InvestigationContextBar validationStatus={data?.validationStatus} />
         <dl className="cx-ai-provenance" aria-label="Briefing provenance"><div><dt>Source</dt><dd>{data?.source || 'Not reported'}</dd></div><div><dt>Reported model</dt><dd>{data?.model || 'Not reported'}</dd></div><div><dt>Response status</dt><dd>{data?.status || 'Not reported'}</dd></div><div><dt>Validation</dt><dd>{data?.validationStatus || 'NOT_VERIFIED'}</dd></div></dl>
         {data && <nav className="cx-admin-section-nav" aria-label="AI insight sections"><a href="#ai-briefing">Briefing</a><a href="#ai-findings">Findings & evidence</a><a href="#ai-question">Ask a question</a></nav>}
@@ -309,7 +306,7 @@ export default function AiOperationalInsights() {
 
           </>
         ) : null}
-      </div>
-    </div>
+
+    </AnalyticsPageLayout>
   );
 }

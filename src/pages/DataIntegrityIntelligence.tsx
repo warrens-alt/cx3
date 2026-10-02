@@ -1,3 +1,4 @@
+import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
 import InvestigationContextBar from '../features/investigation/InvestigationContextBar';
 import { ReportSkeleton } from '../components/OperationalState';
 import { ReportActions } from '../shared/reporting/ReportPresentation';
@@ -54,22 +55,7 @@ export default function DataIntegrityIntelligence() {
   const attention = [...gaps].sort((a, b) => (b.discrepancyCount ?? 0) - (a.discrepancyCount ?? 0));
 
   return (
-    <div className="cx-command-page cx-trust-workspace" aria-label="Data integrity workspace">
-
-      <div className="cx-command-content">
-        <header className="cx-command-hero flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1>Data confidence</h1>
-            <p>See which measured discrepancies and source limitations need investigation.</p>
-          </div>
-          <div>
-            <Link to={scoped('/offershop-flow')} className="cx-button-secondary">
-              Offershop Deal Flow <GitFork size={13} />
-            </Link>
-          </div>
-          <ReportActions />
-        </header>
-        <OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />
+    <AnalyticsPageLayout className="cx-trust-workspace" ariaLabel="Data integrity workspace" title="Data confidence" description={<>See which measured discrepancies and source limitations need investigation.</>} actions={<ReportActions />} scope={<OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), controls.refetch()]); }} />}>
 
         {error && <div role="alert" className="cx-command-error"><AlertTriangle size={16}/>{error}</div>}
         {loading && !data && <ReportSkeleton label="Loading data integrity" metricCount={3} />}
@@ -191,7 +177,6 @@ export default function DataIntegrityIntelligence() {
           </> },
         ]} />
 
-      </div>
-    </div>
+    </AnalyticsPageLayout>
   );
 }

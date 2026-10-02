@@ -1,3 +1,4 @@
+import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
 import { ReportActions } from '../shared/reporting/ReportPresentation';
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
@@ -27,10 +28,9 @@ import { buildLeadLedgerExport } from '../lib/leadLedgerExport';
 import { ledgerValidation, ledgerOutcome, ledgerCalls } from '../lib/leadLedgerValues';
 import EvidenceExportPreflight, { returnedEvidenceFields } from '../features/leadLedger/EvidenceExportPreflight';
 
-export default function LeadLedger({ onViewSource }: { onViewSource: (leadId: string, fields: string[]) => void }) {
+export default function LeadLedger({ onViewSource, workspaceNavigation }: { onViewSource: (leadId: string, fields: string[]) => void; workspaceNavigation?: React.ReactNode }) {
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
-
 
   const [pageSize, setPageSize] = useState(50);
   const [searchInput, setSearchInput] = useState('');
@@ -118,25 +118,7 @@ export default function LeadLedger({ onViewSource }: { onViewSource: (leadId: st
   const endRecord = data ? (currentRows.length ? page * pageSize + currentRows.length : 0) : null;
 
   return (
-    <div className="min-h-screen bg-app-bg pb-16">
-      <OffernetFilterBar onRefresh={() => loadData(true)} />
-      <div className="max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <BookOpen size={20} className="text-[var(--cx-action)]" />
-              <h1 className="text-xl font-bold text-text-main tracking-tight">Lead Ledger</h1>
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-[var(--cx-action)] border border-blue-200">
-                Operational Ledger
-              </span>
-            </div>
-            <p className="text-xs text-text-mute mt-1">
-              Tenant-scoped analytical records with bounded pagination. Missing evidence remains unavailable; source reconciliation is not implied.
-            </p>
-          </div>
-
-          <ReportActions statusEvidence={<p>Operational analysis uses the normalised analytical records and timeline. Source reconciliation is not implied. Missing evidence remains unavailable.</p>}>
+    <AnalyticsPageLayout className="cx-ledger-analysis-page" title="Lead ledger" description={<>Tenant-scoped analytical records with bounded pagination. Missing evidence remains unavailable; source reconciliation is not implied.</>} actions={<ReportActions statusEvidence={<p>Operational analysis uses the normalised analytical records and timeline. Source reconciliation is not implied. Missing evidence remains unavailable.</p>}>
             <button
               type="button"
               onClick={() => { if (data) setExportReview({ scopeKey, result: data }); }}
@@ -146,8 +128,7 @@ export default function LeadLedger({ onViewSource }: { onViewSource: (leadId: st
               <Download size={14} />
               <span>Export Page CSV</span>
             </button>
-          </ReportActions>
-        </div>
+          </ReportActions>} scope={<OffernetFilterBar onRefresh={() => loadData(true)} />} status={workspaceNavigation}>
 
         <EvidenceExportPreflight open={Boolean(exportReview && exportReview.scopeKey === scopeKey && exportReview.result === data && !loading && !error && currentRows.length)} onClose={() => setExportReview(null)} onConfirm={handleExportCsv} fields={data ? returnedEvidenceFields(data) : []}>
           <strong>Current returned page · operational Ledger CSV</strong>
@@ -520,7 +501,7 @@ export default function LeadLedger({ onViewSource }: { onViewSource: (leadId: st
           </> : <div className="cx-ledger-inspector-empty"><p className="cx-ledger-eyebrow">LEAD JOURNEY</p><h2>Select a lead</h2><p>See recorded milestones, elapsed time and call evidence, then inspect the source fields.</p></div>}
         </aside>
         </div>
-      </div>
-    </div>
+
+    </AnalyticsPageLayout>
   );
 }

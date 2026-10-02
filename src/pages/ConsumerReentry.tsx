@@ -1,8 +1,8 @@
 import { VisualTable } from '../components/visuals/DataVisual';
 import { formatTableNumber, formatPercent } from '../lib/formatters';
 import React, { useState } from 'react';
-import { PageShell } from '../components/PageShell';
-import PageHeader from '../components/PageHeader';
+import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
+import ReportingScopeBar from '../shared/reporting/ReportingScopeBar';
 import KpiCard from '../components/KpiCard';
 import { TableSkeleton } from '../components/Skeleton';
 import { useAnalyticsData } from '../lib/useAnalyticsData';
@@ -24,19 +24,23 @@ export default function ConsumerReentry() {
   const [sequenceView, setSequenceView] = useState<'table' | 'graph'>('table');
   const [sampleView, setSampleView] = useState<'table' | 'graph'>('table');
 
-  if (error) return <PageShell><PageHeader title="Consumer Re-entry"/><DataState error={error} retry={refetch}/></PageShell>;
+  const scope = <ReportingScopeBar deferOptionsUntilExpanded onRefresh={refetch} />;
+  const title = 'Consumer re-entry';
+  const description = 'Consumer-level deduplication, repeat entry frequency, sequence decay economics, and multi-lead lifecycle value.';
+
+  if (error) return <AnalyticsPageLayout title={title} description={description} scope={scope}><DataState error={error} retry={refetch}/></AnalyticsPageLayout>;
 
   if (loading) {
     return (
-      <PageShell>
+      <AnalyticsPageLayout title={title} description={description} scope={scope}>
         <TableSkeleton />
-      </PageShell>
+      </AnalyticsPageLayout>
     );
   }
 
   if (error || !data || !data.overview) {
     return (
-      <PageShell>
+      <AnalyticsPageLayout title={title} description={description} scope={scope}>
         <div className="bg-white rounded-xl border border-slate-200 p-8 text-center max-w-xl mx-auto my-12 shadow-sm">
           <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-slate-800 mb-2">Unable to Load Consumer Re-entry Data</h2>
@@ -44,23 +48,17 @@ export default function ConsumerReentry() {
             {error || 'The response did not include a consumer overview. Population size is unavailable.'}
           </p>
         </div>
-      </PageShell>
+      </AnalyticsPageLayout>
     );
   }
 
   const { overview, tiers, sequenceEconomics, repeatConsumersSample } = data;
 
   return (
-    <PageShell>
-      <PageHeader
-        title="Consumer Re-entry & Recycle Intelligence"
-        description="Consumer-level deduplication, repeat entry frequency, sequence decay economics, and multi-lead lifecycle value."
-      >
-        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 px-3 py-1.5 rounded-lg text-xs font-medium">
+    <AnalyticsPageLayout title={title} description={description} scope={scope} actions={<div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 px-3 py-1.5 rounded-lg text-xs font-medium">
           <ShieldCheck className="w-4 h-4 text-emerald-600" />
           <span>Entity: vw_consumers (Grain: consumer_id)</span>
-        </div>
-      </PageHeader>
+        </div>}>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-7 gap-4 lg:gap-5 mb-6 sm:mb-8">
@@ -536,6 +534,6 @@ export default function ConsumerReentry() {
           )}
         </div>
       )}
-    </PageShell>
+    </AnalyticsPageLayout>
   );
 }

@@ -10,8 +10,9 @@ const compiled = await build({
     contents: `import React from 'react';
       import {createRoot} from 'react-dom/client';
       import UserManagement from './src/pages/UserManagement';
+      import {MemoryRouter} from 'react-router-dom';
       const root=createRoot(document.getElementById('root'));
-      window.access.render=()=>root.render(<UserManagement/>);
+      window.access.render=()=>root.render(<MemoryRouter initialEntries={['/admin']}><UserManagement/></MemoryRouter>);
       window.access.unmount=()=>root.unmount();
       window.access.render();`,
     loader: 'tsx', resolveDir: process.cwd(),

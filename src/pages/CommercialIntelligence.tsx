@@ -1,3 +1,4 @@
+import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
 import { ReportSkeleton } from '../components/OperationalState';
 import ReportSections from '../shared/reporting/ReportSections';
 import TablePreview from '../shared/reporting/TablePreview';
@@ -84,10 +85,8 @@ export default function CommercialIntelligence() {
     { label: 'Revenue / media spend', value: baseline.revenueToMediaSpendRatio == null ? '—' : `${baseline.revenueToMediaSpendRatio.toFixed(2)}×`, note: 'Matched recorded value / spend; not profit or cash return.', path: '/reconciliation', metric: null, available: baseline.revenueToMediaSpendRatio != null },
   ] : [];
 
-  return <div className="cx-command-page cx-commercial-page">
-    <div className="cx-command-content">
-      <header className="cx-command-hero"><div><h1>Commercial</h1><p>Recorded spend, revenue and matched outcomes.</p></div><ReportActions><Link to={scoped('/campaigns')} className="cx-button-secondary"><DollarSign size={15} /><span><strong>Media detail</strong><small>Campaign spend & efficiency</small></span><ArrowRight size={14} /></Link></ReportActions></header>
-      <OffernetFilterBar onRefresh={() => loadData(true)} />
+  return <AnalyticsPageLayout className="cx-commercial-page" title="Commercial overview" description={<>Recorded spend, revenue and matched outcomes.</>} actions={<ReportActions><Link to={scoped('/campaigns')} className="cx-button-secondary"><DollarSign size={15} /><span><strong>Media detail</strong><small>Campaign spend & efficiency</small></span><ArrowRight size={14} /></Link></ReportActions>} scope={<OffernetFilterBar onRefresh={() => loadData(true)} />}>
+
       {error && <div role="alert" className="cx-command-error"><AlertTriangle size={17} />{error}</div>}
       {loading && !data && <ReportSkeleton label="Loading commercial evidence" />}
       {loading && data && <p role="status">Refreshing the current commercial scope…</p>}
@@ -171,8 +170,8 @@ export default function CommercialIntelligence() {
 </> },
         ]} />
       </>}
-    </div>
+
     <InspectorHost open={Boolean(audit)} onClose={() => setAudit(null)} content={audit} />
     <RootCauseDrawer open={Boolean(rootMetric)} metric={rootMetric} onClose={() => setRootMetric(null)} />
-  </div>;
+  </AnalyticsPageLayout>;
 }
