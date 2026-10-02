@@ -256,7 +256,7 @@ export default function CommercialReconciliation() {
 
             <p className="cx-ops-table-count">{filtered.length} matching vendors · {rows.length} total returned</p>
 
-            <div className="cx-ops-table-scroll">
+            <div className="cx-ops-table-scroll" role="region" aria-label="Commercial reconciliation table, scroll for all values" tabIndex={0}>
               <VisualTable initialView="table" visual={{id:'commercial.reconciliation',data:filtered,context:{currency}}} className="enterprise-table" aria-label="Commercial reconciliation by vendor">
                 <thead>
                   <tr>

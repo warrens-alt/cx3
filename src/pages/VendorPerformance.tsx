@@ -283,7 +283,7 @@ export default function VendorPerformance() {
               </details>
             </div>
             <p className="cx-ops-table-count">Showing {matching.length?page*pageSize+1:0}–{Math.min((page+1)*pageSize,matching.length)} of {matching.length} matching vendors · {rows.length} total returned</p>
-            <div className="cx-ops-table-scroll"><VisualTable initialView="table" visual={{id:'vendor.performance',data:pageRows,context:{currency}}} className="enterprise-table" aria-label="Vendor performance evidence">
+            <div className="cx-ops-table-scroll" role="region" aria-label="Vendor performance table, scroll for all values" tabIndex={0}><VisualTable initialView="table" visual={{id:'vendor.performance',data:pageRows,context:{currency}}} className="enterprise-table" aria-label="Vendor performance evidence">
               <thead>
                 <tr>
                   <th scope="col" aria-sort={sortMetric==='vendor'?(direction==='asc'?'ascending':'descending'):'none'}>

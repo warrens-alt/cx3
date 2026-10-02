@@ -19,10 +19,12 @@ export function useEvidenceWorkspace(options: UseEvidenceWorkspaceOptions) {
   const { clientId, clientConfig } = useClient();
   const { startDate, endDate, filters, filterError } = useFilters();
   const location = useLocation();
+  const releases = new URLSearchParams(location.search).getAll('release');
+  const requestedRelease = releases[0];
   const sessionKey = getAnalyticalSessionKey();
   const catalogue = useQuery({
-    queryKey: ['reporting-catalogue', sessionKey, clientId],
-    queryFn: ({ signal }) => fetchReportingCatalogue(clientId, signal),
+    queryKey: ['reporting-catalogue', sessionKey, clientId, requestedRelease, releases.length],
+    queryFn: ({ signal }) => releases.length > 1 ? Promise.reject(new Error('Choose one explicit reporting release.')) : fetchReportingCatalogue(clientId, signal, requestedRelease),
     staleTime: 60000, retry: false,
   });
   const release = !catalogue.error ? catalogue.data?.release || null : null;

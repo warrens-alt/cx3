@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
-import { METRIC_VERSION, REPORT_MAX_ROWS } from '../contracts/reporting';
+import { METRICS, METRIC_VERSION, REPORT_MAX_ROWS } from '../contracts/reporting';
 import { executeReport } from '../server/reporting/service';
 import { reportRequest, reportScopeHash } from '../server/reporting/scope';
 import { BigQueryReportRepository } from '../server/reporting/repository';
 import { createReportingRouter } from '../server/reporting/router';
 import { apiErrorHandler } from '../server/apiErrors';
-import { sameOriginRequests } from '../server/httpGuards';
+import { analyticalConcurrency, sameOriginRequests } from '../server/httpGuards';
 import { fixtureRelease, fixtureRepository, fixtureRow, principal, request } from './reporting-fixtures';
 
 test('executor authenticates and authorises explicit tenant before accessing a release', async () => {
@@ -28,7 +28,7 @@ test('requests reject SQL, identities, unsupported filters, unknown metrics and 
 
 test('missing, malformed, revoked and unapproved releases fail closed', async () => {
   await assert.rejects(executeReport(fixtureRepository(null).repository, principal, request), { status: 404 });
-  for (const change of [{ snapshots: {} }, { checks: [] }, { tenantId: 'tenant_b' }, { status: 'REVOKED' }, { execution: { ...fixtureRelease().execution, supportedFilters: ['lead_id'] } }]) {
+  for (const change of [{ snapshots: {} }, { checks: [] }, { tenantId: 'tenant_b' }, { status: 'REVOKED' }, { cutoff: '2026-09-31T00:00:00Z' }, { builtAt: '2026' }, { execution: { ...fixtureRelease().execution, supportedFilters: ['lead_id'] } }]) {
     const { repository, calls } = fixtureRepository({ ...fixtureRelease(), ...change } as any);
     await assert.rejects(executeReport(repository, principal, request));
     assert.equal(calls.queries.length, 0);
@@ -41,7 +41,16 @@ test('legacy manifests and changed definitions return structured NOT_SUPPORTED v
     const report = await executeReport(repository, principal, request);
     assert.equal(report.status, 'NOT_SUPPORTED'); assert.equal(report.totals[0].value, null);
     assert.equal(report.totals[0].calculationStatus, 'UNAVAILABLE'); assert.equal(calls.queries.length, 0);
+    assert.equal(report.totals[0].evidence.mappingStatus, 'UNAVAILABLE'); assert.equal(report.evidence.mapped, false);
   }
+});
+
+test('the row ceiling includes unavailable metrics and cannot produce an oversized replay descriptor', async () => {
+  const scope = { ...request, metrics: METRICS.map(metric => metric.id), grouping: 'vendor' as const };
+  const release = fixtureRelease(); release.execution!.supportedMetrics = ['fetched_leads'];
+  const base = fixtureRow(scope);
+  const rows = [base, ...Array.from({ length: REPORT_MAX_ROWS - 1 }, (_, i) => ({ ...base, is_total: false, group_key: `synthetic-vendor-${i}` }))];
+  await assert.rejects(executeReport(fixtureRepository(release, rows).repository, principal, scope), /bounded result size/);
 });
 
 test('partial and unavailable source evidence never becomes zero or checked data', async () => {
@@ -56,6 +65,19 @@ test('partial and unavailable source evidence never becomes zero or checked data
     assert.equal(result.totals[0].completeness, state === 'UNAVAILABLE' ? 'UNAVAILABLE' : 'PARTIAL');
     assert.equal(calls.queries.length, 0);
   }
+});
+
+test('vendor-scoped fetched leads require delivery evidence without changing unfiltered lead semantics', async () => {
+  const release = fixtureRelease(); release.sources.find(source => source.fact === 'deliveries')!.status = 'UNAVAILABLE';
+  for (const change of [{ filters: { vendor: ['synthetic-vendor'] } }, { grouping: 'vendor' as const }]) {
+    const scope = { ...request, ...change };
+    const { repository, calls } = fixtureRepository(release, [fixtureRow(scope)]);
+    const report = await executeReport(repository, principal, scope);
+    assert.equal(report.totals[0].value, null); assert.equal(report.totals[0].completeness, 'UNAVAILABLE');
+    assert.deepEqual(report.totals[0].evidence.sources.map(source => source.fact), ['leads', 'deliveries']);
+    assert.equal(calls.queries.length, 0);
+  }
+  assert.equal((await executeReport(fixtureRepository(release).repository, principal, request)).status, 'AVAILABLE');
 });
 
 test('registered bounded execution preserves exact counts, grain, scope and independent evidence states', async () => {
@@ -109,7 +131,7 @@ test('repository enforces approved reporting dataset, immutable metadata and Big
   process.env.CX_REPORTING_DATASET = 'fixture.reporting'; process.env.BIGQUERY_MAX_BYTES_BILLED = '900';
   let queryOptions: any, metadataRequests = 0;
   const fake: any = { dataset: () => ({ table: () => ({ getMetadata: async () => { metadataRequests++; return [{ type: 'SNAPSHOT', creationTime: String(Date.parse('2026-09-04T00:00:00Z')), snapshotDefinition: { snapshotTime: '2026-09-03T00:00:00Z' } }]; } }) }),
-    createQueryJob: async (options: any) => { queryOptions = options; return [{ id: 'fixture-job', getQueryResults: async () => [[]], getMetadata: async () => [{ statistics: { query: { totalBytesProcessed: '10', cacheHit: false } } }] }]; } };
+    createQueryJob: async (options: any) => { queryOptions = options; return [{ id: 'fixture-job', promise: async () => [], getQueryResults: async () => [[]], getMetadata: async () => [{ statistics: { query: { totalBytesProcessed: '10', cacheHit: false } } }] }]; } };
   try {
     const repository = new BigQueryReportRepository(fake);
     await repository.assertSnapshots(fixtureRelease()); assert.equal(metadataRequests, 10);
@@ -141,4 +163,41 @@ test('HTTP reporting retains authentication, tenant and origin boundaries', asyn
     const response = await send(request, { 'x-test-auth': 'fixture' }); assert.equal(response.status, 200);
     assert.equal((await response.json()).data.status, 'AVAILABLE');
   } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+});
+
+test('bounded repository waits for warehouse completion before reading and rejects extra result pages', async () => {
+  let started!: () => void, finish!: () => void;
+  const processing = new Promise<void>(resolve => { started = resolve; });
+  const completed = new Promise<void>(resolve => { finish = resolve; });
+  let resultReads = 0;
+  const fake: any = { createQueryJob: async () => [{ id: 'synthetic-pending-job', promise: async () => { started(); await completed; },
+    getQueryResults: async (options: any) => { resultReads++; assert.equal(options.maxResults, 101); assert.equal(options.autoPaginate, false); return [[], { pageToken: 'extra-page' }]; },
+  }] };
+  const repo = new BigQueryReportRepository(fake);
+  const outcome = repo.query({ query: 'SELECT 1', params: {} });
+  const rejected = assert.rejects(outcome, /bounded response/);
+  await processing; assert.equal(resultReads, 0);
+  finish(); await rejected; assert.equal(resultReads, 1);
+});
+
+test('reporting HTTP quota stays occupied until disconnected immutable execution finishes', async () => {
+  const { repository } = fixtureRepository();
+  let start!: () => void, finish!: () => void;
+  const started = new Promise<void>(resolve => { start = resolve; });
+  const waiting = new Promise<void>(resolve => { finish = resolve; });
+  const originalQuery = repository.query;
+  let first = true;
+  repository.query = async compiled => { if (first) { first = false; start(); await waiting; } return originalQuery(compiled); };
+  const app = express(); app.use(express.json()); app.use((_req, res, next) => { res.locals.principal = principal; next(); });
+  app.use('/api/reporting', analyticalConcurrency({ global: 1, perSubject: 1 }), createReportingRouter(repository)); app.use(apiErrorHandler);
+  const server = app.listen(0, '127.0.0.1'); await new Promise<void>(resolve => server.once('listening', resolve));
+  const url = `http://127.0.0.1:${(server.address() as any).port}/api/reporting`;
+  const send = (signal?: AbortSignal) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request), signal });
+  const abort = new AbortController();
+  try {
+    const pending = send(abort.signal).catch(() => null); await started; abort.abort(); await pending;
+    const blocked = await send(); assert.equal(blocked.status, 429); assert.equal(blocked.headers.get('Retry-After'), '1');
+    finish(); await new Promise<void>(resolve => setImmediate(resolve));
+    assert.equal((await send()).status, 200);
+  } finally { finish(); await new Promise<void>(resolve => server.close(() => resolve())); }
 });

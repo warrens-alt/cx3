@@ -1,11 +1,11 @@
 import type { Filters } from '../../contracts/filters';
 import { validateDate } from '../../contracts/filters';
 import { METRIC_BY_ID, type ReportRequest, type ReleaseManifest } from '../../contracts/reporting';
+import { UNIVERSAL_SCOPE_PARAMS } from '../app/navigation/ScopePreservingRedirect';
 
 export function reportLocalScopeError(search: string): string | null {
   const params = new URLSearchParams(search);
-  const unsupported = ['search', 'sourceSearch', 'leadId', 'lead_id', 'consumerId', 'drill', 'drillValue', 'segmentVendor', 'segmentSource', 'segmentGrade', 'segmentLeadAge', 'snapshot', 'reportId', 'manifest', 'version'];
-  return unsupported.some(key => params.has(key)) ? 'This URL includes record, investigation or legacy scope that immutable reports cannot apply. Remove those parameters explicitly before executing.' : null;
+  return [...params.keys()].some(key => !UNIVERSAL_SCOPE_PARAMS.has(key) && key !== 'release') ? 'This URL includes record, investigation or legacy scope that immutable reports cannot apply. Remove those parameters explicitly before executing.' : null;
 }
 
 /** Scope projection is strict: unsupported dimensions/operators never disappear. */

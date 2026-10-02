@@ -10,7 +10,9 @@ const nonEmpty = (value: unknown, field: string, max = 256): string => {
 
 const iso = (value: unknown, field: string): string => {
   const text = nonEmpty(value, field, 64);
-  if (!Number.isFinite(Date.parse(text))) throw new RequestError(`Invalid ${field} in release manifest`, 503);
+  const parts = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/.exec(text);
+  const day = parts && Date.parse(parts[1]);
+  if (!parts || !Number.isFinite(day) || new Date(day!).toISOString().slice(0, 10) !== parts[1] || Number(parts[2]) > 23 || Number(parts[3]) > 59 || Number(parts[4]) > 59 || !Number.isFinite(Date.parse(text))) throw new RequestError(`Invalid ${field} in release manifest`, 503);
   return text;
 };
 
@@ -90,7 +92,7 @@ export function validateRelease(raw: unknown): ReleaseManifest {
     const execution = release.execution;
     if (!execution || typeof execution !== 'object' || Array.isArray(execution)) throw new RequestError('Invalid execution contract in release manifest', 503);
     if (execution.contractVersion !== AGGREGATE_SNAPSHOT_VERSION) throw new RequestError('Unsupported release execution contract', 503);
-    if (!/^[a-f0-9]{64}$/.test(execution.definitionHash)) throw new RequestError('Invalid execution definition hash', 503);
+    if (typeof execution.definitionHash !== 'string' || !/^[a-f0-9]{64}$/.test(execution.definitionHash)) throw new RequestError('Invalid execution definition hash', 503);
     snapshot(execution.snapshot, 'execution.snapshot');
     for (const [name, allowed] of Object.entries({ supportedMetrics: Object.keys(METRIC_BY_ID), supportedDateBases: ['capture_cohort', 'event_date'], supportedGroupings: ['none', 'source', 'vendor', 'capture_month'], supportedFilters: ['vendor', 'source', 'medium'] })) {
       const values = execution[name];

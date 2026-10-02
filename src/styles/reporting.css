@@ -573,3 +573,60 @@
   font-size:12px;
   line-height:1.5;
 }
+
+/* Immutable vendor/commercial workspaces share this reporting presentation owner.
+   Exact values wrap in summaries; wide evidence tables retain every digit in a bounded scroll region. */
+.cx-ops-page { display:flex; flex-direction:column; gap:24px; min-width:0; }
+.cx-ops-page > *, .cx-ops-page :is(.enterprise-card,.cx-ops-primary) { min-width:0; max-width:100%; }
+.cx-ops-page :is(h2,h3,p,strong,small,dd) { overflow-wrap:anywhere; }
+.cx-ops-eyebrow { color:var(--cx-text-secondary); font-size:12px; font-weight:600; margin-bottom:5px; }
+.cx-ops-page h2 { font-size:16px; line-height:1.4; font-weight:650; letter-spacing:-.02em; }
+.cx-ops-page :is(.cx-ops-periods,.cx-ops-driver,.cx-ops-breakdown,.cx-ops-coverage,.cx-commercial-gaps,.cx-ops-table-card) { padding:20px; }
+.cx-ops-page :is(.cx-ops-periods,.cx-ops-driver,.cx-ops-breakdown,.cx-ops-coverage,.cx-commercial-gaps,.cx-ops-table-card) header p { margin-top:5px; color:var(--cx-text-secondary); font-size:12px; line-height:1.6; }
+.cx-ops-analysis-grid { display:grid; grid-template-columns:minmax(0,1.8fr) minmax(0,1fr); gap:20px; align-items:start; }
+.cx-ops-secondary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; align-items:start; }
+.cx-ops-viewbar,.cx-ops-table-card > header,.cx-ops-driver > header { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:16px; }
+.cx-ops-viewbar > div { display:grid; gap:4px; }
+.cx-ops-viewbar span { color:var(--cx-text-secondary); font-size:11px; }
+.cx-ops-page :is(.cx-ops-viewbar,.cx-ops-table-tools) label { display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; max-width:100%; color:var(--cx-text-secondary); font-size:12px; }
+.cx-ops-page :is(.cx-ops-viewbar,.cx-ops-table-tools) select { min-height:36px; min-width:0; max-width:100%; padding:6px 9px; border:1px solid var(--cx-border); border-radius:6px; background:var(--cx-surface); color:var(--cx-text); }
+.cx-ops-page .cx-ops-metric-rail { grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); margin:0; }
+.cx-ops-page .cx-ops-metric-rail > * { min-width:0; grid-column:auto; }
+.cx-ops-metric-value { overflow-wrap:anywhere; line-height:1.25; }
+.cx-ops-periods > div { display:grid; gap:5px; padding:14px 0; border-bottom:1px solid var(--cx-border-subtle); }
+.cx-ops-periods > div:last-child { border-bottom:0; padding-bottom:0; }
+.cx-ops-periods :is(span,small) { color:var(--cx-text-secondary); font-size:12px; }
+.cx-ops-periods strong { font-size:20px; font-variant-numeric:tabular-nums; }
+.cx-ops-driver > div,.cx-commercial-controls { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.cx-ops-driver article { display:flex; flex-direction:column; gap:7px; min-width:0; padding-top:14px; border-top:1px solid var(--cx-border-subtle); }
+.cx-ops-driver article span,.cx-ops-driver article small { font-size:12px; line-height:1.5; }
+.cx-ops-driver article strong { font-size:20px; font-variant-numeric:tabular-nums; }
+.cx-ops-coverage dl,.cx-commercial-gaps dl { margin:16px 0; }
+.cx-ops-coverage dl > div,.cx-commercial-gaps dl > div { display:grid; gap:5px; padding:11px 0; border-bottom:1px solid var(--cx-border-subtle); font-size:12px; line-height:1.5; }
+.cx-ops-coverage dt,.cx-commercial-gaps dt { color:var(--cx-text-secondary); }
+.cx-commercial-gaps dd { font-weight:650; font-variant-numeric:tabular-nums; }
+.cx-ops-unavailable,.cx-commercial-gaps > p { display:flex; align-items:flex-start; gap:8px; font-size:12px; line-height:1.6; color:var(--cx-text-secondary); margin-top:12px; }
+.cx-ops-unavailable svg,.cx-commercial-gaps > p svg { flex-shrink:0; }
+.cx-commercial-controls { grid-template-columns:repeat(2,minmax(0,1fr)); margin-top:16px; }
+.cx-commercial-controls article { display:grid; gap:8px; padding:16px; font-size:12px; line-height:1.6; }
+.cx-commercial-controls article :is(span,p) { color:var(--cx-text-secondary); }
+.cx-ops-table-tools { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin:16px 0 10px; }
+.cx-ops-table-tools input:not([type=checkbox]) { width:190px; min-width:0; max-width:100%; min-height:36px; padding:6px 9px; border:1px solid var(--cx-border); border-radius:6px; color:var(--cx-text); background:var(--cx-surface); }
+.cx-ops-table-tools details { position:relative; font-size:12px; }
+.cx-ops-table-tools summary { display:flex; align-items:center; gap:6px; cursor:pointer; min-height:36px; }
+.cx-ops-table-tools details > div { display:grid; gap:10px; margin-top:8px; padding:12px; background:var(--cx-surface); border:1px solid var(--cx-border); border-radius:6px; }
+.cx-ops-table-count,.cx-ops-empty { margin:10px 0; color:var(--cx-text-secondary); font-size:12px; }
+.cx-ops-page .cx-ops-table-scroll { width:100%; max-width:100%; min-width:0; max-height:640px; overflow:auto; border:1px solid var(--cx-border-subtle); border-radius:var(--cx-radius-md); }
+.cx-ops-table-scroll .enterprise-table { min-width:100%; width:max-content; }
+.cx-ops-table-scroll .enterprise-table :is(th,td) { white-space:nowrap; }
+.cx-ops-table-scroll .enterprise-table :is(th,td):first-child { min-width:160px; }
+.cx-ops-value-button { color:var(--cx-action); font-variant-numeric:tabular-nums; text-decoration:underline; text-underline-offset:3px; }
+.cx-ops-table-card > footer,.cx-ops-table-card > footer > div { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; margin-top:14px; font-size:12px; }
+.cx-ops-page :is(button,a,input,select,summary,.cx-ops-table-scroll):focus-visible { outline:2px solid var(--cx-focus); outline-offset:3px; }
+@media(max-width:1050px) { .cx-ops-analysis-grid,.cx-ops-secondary-grid { grid-template-columns:1fr; } }
+@media(max-width:600px) {
+  .cx-ops-page { gap:20px; }
+  .cx-ops-page :is(.cx-ops-periods,.cx-ops-driver,.cx-ops-breakdown,.cx-ops-coverage,.cx-commercial-gaps,.cx-ops-table-card) { padding:14px; }
+  .cx-ops-driver > div,.cx-commercial-controls { grid-template-columns:1fr; }
+  .cx-ops-driver > header > div { flex-wrap:wrap; min-width:0; }
+}

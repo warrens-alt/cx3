@@ -4,7 +4,7 @@ import CopyEvidenceButton from '../../shared/evidence/CopyEvidenceButton';
 import type { ReleaseManifest } from '../../../contracts/reporting';
 
 function time(value: string | undefined) {
-  return value && Number.isFinite(Date.parse(value)) ? `${new Date(value).toISOString()} (UTC)` : value || 'Not reported';
+  return value && Number.isFinite(Date.parse(value)) ? `${value}${value.endsWith('Z') ? ' (UTC)' : ' (supplied offset)'}` : value || 'Not reported';
 }
 
 export function CopyReleaseValue({ label, value }: { label: string; value: string | undefined }) {

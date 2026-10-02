@@ -18,6 +18,7 @@ export function reportMetricInspector(report: ReportResult, metric: MetricResult
   const evidence = (metric as EvidenceMetricResult).evidence;
   const full = report as EvidenceReportResult;
   return {
+    shareable: false,
     type: 'custom', title: definition?.label || metric.metricId,
     subtitle: 'Immutable release result · calculation and independent verification are separate.',
     value: metric.value, unit: metric.unit === 'currency' ? report.request.currency : metric.unit,
@@ -38,6 +39,6 @@ export function reportMetricInspector(report: ReportResult, metric: MetricResult
       { key: 'scope', type: 'qualification', label: 'Exact release scope', state: 'scoped', detail: `${report.request.tenantId} · ${report.request.startDate} → ${report.request.endDate} · ${JSON.stringify(report.request.filters)}` },
       { key: 'result', type: 'metric', label: definition?.label || metric.metricId, value: metric.value, state: metric.value === null ? 'unavailable' : 'observed' },
     ],
-    detailLimitation: `Release cutoff: ${report.releaseCutoff}. Requested observation cutoff: ${report.request.observationCutoff}. No record-level supporting-evidence reader is approved for these immutable aggregate snapshots. Operational lead populations cannot establish the frozen report result.`,
+    detailLimitation: `Release cutoff: ${report.releaseCutoff}. Requested observation cutoff: ${report.request.observationCutoff}. Use the signed replay token to restore this exact immutable result; a page link cannot encode its complete execution contract. No record-level supporting-evidence reader is approved for these immutable aggregate snapshots. Operational lead populations cannot establish the frozen report result.`,
   };
 }

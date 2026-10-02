@@ -20,21 +20,16 @@ export function formatReportValue(
   }
 
   if (val === null || val === undefined || val === '') return 'Unavailable';
-  const num = typeof val === 'number' ? val : parseFloat(val);
-  if (Number.isNaN(num)) return String(val);
-
-  if (unit === 'percent') {
-    return `${num.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 })}%`;
-  }
+  if (typeof val === 'number' && !Number.isFinite(val)) return 'Unavailable';
+  // Warehouse decimal strings are evidence, not IEEE-754 chart coordinates.
+  const text = String(val);
+  if (!/^[+-]?\d+(?:\.\d+)?$/.test(text)) return text;
+  const [whole, fraction] = text.split('.');
+  const exact = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (fraction === undefined ? '' : `.${fraction}`);
+  if (unit === 'percent') return `${exact}%`;
   if (unit === 'currency') {
-    const symbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : 'R';
-    return `${symbol}${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const symbol = ({ USD: '$', EUR: '€', GBP: '£', ZAR: 'R' } as Record<string, string>)[currency] || `${currency} `;
+    return `${symbol}${exact}`;
   }
-  if (unit === 'seconds') {
-    if (num < 60) return `${Math.round(num)}s`;
-    const mins = Math.floor(num / 60);
-    const secs = Math.round(num % 60);
-    return `${mins}m ${secs}s`;
-  }
-  return num.toLocaleString();
+  return exact;
 }

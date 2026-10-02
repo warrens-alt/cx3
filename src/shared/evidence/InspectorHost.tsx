@@ -20,6 +20,8 @@ import SupportingRecordPreview from './SupportingRecordPreview';
 export { buildScopeSearch } from './auditPresentation';
 
 export interface InspectorContent {
+  /** False when a route URL cannot restore this exact evidence contract (use signed replay). */
+  shareable?: boolean;
   type: 'metric' | 'stage' | 'segment' | 'custom';
   metricId?: string;
   title: string;
@@ -64,7 +66,7 @@ export default function InspectorHost({ open, onClose, content }: { open: boolea
   const scoped = (path: string) => auditDestination(path, location.search, content.scope);
   const viewPath = scopedViewPath(location.pathname, location.search, content.scope);
   const viewURL = typeof window === 'undefined' ? viewPath : new URL(viewPath, window.location.origin).href;
-  const shareable = canShareAuditScope(scopeSearch) && canShareAuditScope(location.search);
+  const shareable = content.shareable !== false && canShareAuditScope(scopeSearch) && canShareAuditScope(location.search);
   const params = new URLSearchParams(scopeSearch);
   let filters: Record<string, unknown> = content.scope?.filters || {};
   if (!content.scope) {
@@ -125,7 +127,7 @@ export default function InspectorHost({ open, onClose, content }: { open: boolea
           <div><dt>Vendor</dt><dd>{filters.vendor !== undefined ? filterDescription(filters.vendor) : 'All (no vendor filter)'}</dd></div>
           <div><dt>Source</dt><dd>{filters.source !== undefined ? filterDescription(filters.source) : 'All (no source filter)'}</dd></div>
           {Object.entries(filters).filter(([key]) => !['vendor', 'source'].includes(key)).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{filterDescription(value)}</dd></div>)}
-        </dl>{shareable ? <><CopyEvidenceButton value={viewURL} label="Copy scoped link"/><details><summary>Scoped view link</summary><p className="cx-audit-selectable">{viewURL}</p><p>Restores the report and supported URL scope. A selected metric or local drawer state is not encoded unless the report already supports it.</p></details></> : <p>This exact record-search or private-identity scope is local and cannot be copied as a shareable link.</p>}</details>
+        </dl>{shareable ? <><CopyEvidenceButton value={viewURL} label="Copy scoped link"/><details><summary>Scoped view link</summary><p className="cx-audit-selectable">{viewURL}</p><p>Restores the report and supported URL scope. A selected metric or local drawer state is not encoded unless the report already supports it.</p></details></> : <p>{content.shareable === false ? 'Use the signed replay token to restore this immutable report. A page link cannot restore its complete execution contract.' : 'This exact record-search or private-identity scope is local and cannot be copied as a shareable link.'}</p>}</details>
 <details className="cx-audit-disclosure" open={auditEnabled || undefined}><summary>Data provenance</summary><dl><div><dt>Validation</dt><dd data-validation={validation}>{validation}</dd></div>
           {Object.entries({ 'Source / table': provenance?.source, 'Source completeness': provenance?.sourceCompleteness, 'Evaluated at': provenance?.evaluatedAt, 'Generated at': provenance?.generatedAt, 'Observation cutoff': provenance?.observationCutoff }).filter(([, value]) => value).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
         </dl>{provenance?.generatedAt && <p>Generated at describes this response, not source freshness.</p>}{!provenance?.source && <p>Additional source provenance is not supplied by this operational response.</p>}

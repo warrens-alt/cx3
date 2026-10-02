@@ -78,6 +78,9 @@ export class BigQueryReportRepository implements ReportRepository {
     return trackAnalyticalWork(async () => {
       const started = Date.now();
       const [job] = await this.bq.createQueryJob(readOnlyQueryOptions(compiled, this.budget));
+      // With manual pagination the SDK can return nextQuery for a still-running job.
+      // Retain the analytical quota until warehouse completion, then read one bounded page.
+      await job.promise();
       const [rows, nextPage] = await job.getQueryResults({ maxResults: 101, autoPaginate: false });
       if (nextPage) throw new RequestError('Reporting result exceeded the bounded response; partial results are not supported', 422);
       const [metadata] = await job.getMetadata();

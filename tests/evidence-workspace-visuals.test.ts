@@ -37,9 +37,16 @@ test('release presentation retains full identifiers and distinguishes missing ap
 test('snapshot date is separate from source completeness and observation cutoff', () => {
   const html = render(React.createElement(ReleaseEvidence, { release }));
   assert.ok(html.includes('PARTIAL'));
-  assert.ok(html.includes('2026-09-28T11:00:00.000Z'));
-  assert.ok(html.includes('2026-09-28T00:00:00.000Z'));
+  assert.ok(html.includes('2026-09-28T11:00:00Z'));
+  assert.ok(html.includes('2026-09-28T00:00:00Z'));
   assert.ok(html.includes('Complete through'));
+});
+test('release identity display preserves supplied sub-millisecond timestamps and offsets', () => {
+  const precise = { ...release, cutoff: '2026-09-28T02:00:00.123456789+02:00',
+    snapshots: { ...release.snapshots, leads: { ...release.snapshots.leads, snapshotTime: '2026-09-28T11:00:00.123456789Z' } } };
+  const html = render(React.createElement(ReleaseEvidence, { release: precise }));
+  assert.ok(html.includes(precise.cutoff));
+  assert.ok(html.includes(precise.snapshots.leads.snapshotTime));
 });
 test('empty audit checks do not become a pass', () => {
   const html = render(React.createElement(ReleaseEvidence, { release: { ...release, checks: [] } }));

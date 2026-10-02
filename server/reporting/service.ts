@@ -14,17 +14,24 @@ export function reportingPrincipal(principal: Principal | undefined): Principal 
   return principal;
 }
 
+function requiredFacts(metric: MetricDefinition, request: VersionedReportRequest) {
+  // The registered fetched-lead definition scopes vendors through recorded delivery episodes.
+  // That filter/group dependency requires evidence even though the unfiltered count needs only leads.
+  return [...new Set([...metric.requires, ...(request.filters.vendor?.length || request.grouping === 'vendor' ? ['deliveries' as const] : [])])];
+}
+
 function unavailable(metric: MetricDefinition, request: VersionedReportRequest, release: ReleaseManifest, reason: string, completeness: EvidenceMetricResult['completeness'] = 'UNAVAILABLE'): EvidenceMetricResult {
+  const mapped = !!release.execution && release.modelVersion === MODEL_VERSION && release.metricVersion === METRIC_VERSION && release.execution.definitionHash === REPORT_DEFINITION_HASH && release.execution.supportedMetrics.includes(metric.id);
   return { metricId: metric.id, group: null, value: null, numerator: null, denominator: null, unit: metric.unit, calculationStatus: 'UNAVAILABLE', completeness, reason,
     evidence: { grain: metric.grain, dateBasis: request.dateBasis, definitionVersion: release.metricVersion, releaseId: release.releaseId,
       numeratorDefinition: metric.numeratorLabel, denominatorDefinition: metric.denominatorLabel,
-      sources: metric.requires.map(fact => ({ fact, snapshot: release.snapshots[fact], coverage: release.sources.find(source => source.fact === fact)! })),
-      mappingStatus: release.execution ? 'APPROVED_RELEASE_CONTRACT' : 'UNAVAILABLE', reconciliationStatus: 'NOT_VERIFIED', businessMeaningStatus: 'NOT_VERIFIED', evidenceStatus: completeness === 'PARTIAL' ? 'PARTIAL' : 'UNAVAILABLE' } };
+      sources: requiredFacts(metric, request).map(fact => ({ fact, snapshot: release.snapshots[fact], coverage: release.sources.find(source => source.fact === fact)! })),
+      mappingStatus: mapped ? 'APPROVED_RELEASE_CONTRACT' : 'UNAVAILABLE', reconciliationStatus: 'NOT_VERIFIED', businessMeaningStatus: 'NOT_VERIFIED', evidenceStatus: completeness === 'PARTIAL' ? 'PARTIAL' : 'UNAVAILABLE' } };
 }
 
 function metricAvailability(metric: MetricDefinition, request: VersionedReportRequest, release: ReleaseManifest): EvidenceMetricResult | null {
   if (!release.execution!.supportedMetrics.includes(metric.id) || !metric.dateBases.includes(request.dateBasis)) return unavailable(metric, request, release, 'Metric is not supported by this release for the requested date basis.');
-  const sources = metric.requires.map(fact => release.sources.find(source => source.fact === fact)!);
+  const sources = requiredFacts(metric, request).map(fact => release.sources.find(source => source.fact === fact)!);
   if (sources.some(source => source.status === 'UNAVAILABLE')) return unavailable(metric, request, release, 'Required source evidence is unavailable.');
   if (sources.some(source => source.status !== 'COMPLETE' || !source.completeThrough || Date.parse(source.completeThrough) < Date.parse(request.observationCutoff) || !source.earliestAvailable || Date.parse(source.earliestAvailable) > Date.parse(request.startDate))) return unavailable(metric, request, release, 'Required source coverage is incomplete for this exact period and observation cutoff; the value is withheld.', 'PARTIAL');
   return null;
@@ -119,6 +126,7 @@ export async function executeReport(repo: ReportRepository, principal: Principal
   }
   const compare = (a: EvidenceMetricResult, b: EvidenceMetricResult) => a.metricId < b.metricId ? -1 : a.metricId > b.metricId ? 1 : (a.group || '') < (b.group || '') ? -1 : (a.group || '') > (b.group || '') ? 1 : 0;
   report.totals.sort(compare); report.groups.sort(compare);
+  report.evidence.mapped = report.totals.some(row => row.evidence.mappingStatus === 'APPROVED_RELEASE_CONTRACT');
   if (!report.message && report.status === 'UNAVAILABLE') report.message = 'Required metric evidence is unavailable for this exact release and scope.';
   report.resultHash = fingerprint(immutableReportContent(report));
   return report;

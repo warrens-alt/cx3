@@ -1,29 +1,18 @@
 import type { MetricResult, ReportResult } from '../../contracts/reporting';
+import { exactDecimal, exactPercent, subtractExactDecimals } from '../../contracts/exactDecimal';
 
 export function exactMovement(current: string | null | undefined, previous: string | null | undefined): string | null {
   if (current === null || current === undefined || previous === null || previous === undefined) {
     return null;
   }
-  const curr = parseFloat(current);
-  const prev = parseFloat(previous);
-  if (Number.isNaN(curr) || Number.isNaN(prev) || prev === 0) {
-    return null;
-  }
-  const pct = ((curr - prev) / prev) * 100;
-  return pct.toFixed(1);
+  const curr = exactDecimal(current), prev = exactDecimal(previous);
+  return curr === null || prev === null ? null : exactPercent(subtractExactDecimals(curr, prev), prev, 1);
 }
 
 export function metricValue(report: ReportResult | null | undefined, metricId: string, group?: string | null): MetricResult | null {
   if (!report) return null;
-  if (group !== undefined && group !== null) {
-    const match = report.groups?.find((m: MetricResult) => m.metricId === metricId && m.group === group);
-    if (match) return match;
-  }
-  const totalMatch = report.totals?.find((m: MetricResult) => m.metricId === metricId);
-  if (totalMatch) return totalMatch;
-
-  const fallback = report.groups?.find((m: MetricResult) => m.metricId === metricId);
-  return fallback ?? null;
+  if (group !== undefined) return report.groups?.find(row => row.metricId === metricId && row.group === group) ?? null;
+  return report.totals?.find(row => row.metricId === metricId) ?? null;
 }
 
 export interface ReportPivotRow {
@@ -35,7 +24,7 @@ export interface ReportPivotRow {
 
 export function pivotReportGroups(report: ReportResult | null | undefined, _metrics?: string[]): ReportPivotRow[] {
   if (!report) return [];
-  const list = report.groups && report.groups.length > 0 ? report.groups : report.totals || [];
+  const list = report.request.grouping === 'none' ? report.totals || [] : report.groups || [];
   const groupsMap = new Map<string, ReportPivotRow>();
   for (const m of list) {
     const raw = m.group ?? 'Total';

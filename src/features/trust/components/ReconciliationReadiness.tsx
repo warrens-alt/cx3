@@ -28,9 +28,9 @@ function OperatorWorkflow({ scope }: { scope: ReconciliationScope }) {
     <p><strong>Exact run scope:</strong> {scopeDescription}</p>
     <label className="flex flex-col gap-1 text-sm">Operator run
       <select className="min-h-10 w-full rounded border border-control-border bg-surface px-3 text-text-main" value={mode} onChange={event => setMode(event.target.value as ReconciliationRunMode)}>
-        <option value="dry-run">Dry run · validate warehouse query</option>
-        <option value="warehouse">Measure warehouse only</option>
-        <option value="compare">Measure and compare with service</option>
+        <option value="dry-run">Dry run · validate query</option>
+        <option value="warehouse">Measure warehouse</option>
+        <option value="compare">Compare with service</option>
       </select>
     </label>
     <pre className="whitespace-pre-wrap break-all rounded border border-border-subtle bg-surface-subtle p-3 text-xs" aria-label="Reconciliation command">{command}</pre>

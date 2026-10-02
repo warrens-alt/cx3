@@ -67,7 +67,7 @@ async function openAudit(page, trigger, verify, screenshotName) {
   assert.deepEqual(await requests(page), before, 'Closing audit must not fetch');
 }
 try {
-  for (const theme of ['light', 'dark']) for (const viewport of [{ width: 1440, height: 1000 }, { width: 820, height: 1180 }, { width: 390, height: 844 }]) {
+  for (const theme of ['light', 'dark']) for (const viewport of [{ width: 1440, height: 1000 }, { width: 1024, height: 1000 }, { width: 820, height: 1180 }, { width: 390, height: 844 }, { width: 320, height: 844 }]) {
     const context = await browser.newContext({ viewport, colorScheme: theme });
     await context.addInitScript(({ theme, payloads }) => {
       localStorage.setItem('cx-theme', theme); localStorage.setItem('cx.presentation.audit-mode.v1', 'on');

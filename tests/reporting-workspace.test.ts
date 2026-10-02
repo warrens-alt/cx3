@@ -30,7 +30,7 @@ test('report controls fail closed for missing release contract, invalid dates, u
 });
 
 test('private and unsupported investigation URL scope cannot silently broaden a report', () => {
-  for (const key of ['search', 'sourceSearch', 'leadId', 'drill', 'segmentVendor', 'segmentSource', 'snapshot']) assert.match(reportLocalScopeError(`?${key}=private` )!, /cannot apply/);
+  for (const key of ['search', 'sourceSearch', 'leadId', 'lead_id', 'consumer_id', 'transaction_id', 'selectedLeadId', 'selectedIDs', 'investigationMetric', 'drill', 'segmentVendor', 'segmentSource', 'snapshot', 'arbitrary']) assert.match(reportLocalScopeError(`?${key}=private` )!, /cannot apply/);
   assert.equal(reportLocalScopeError('?clientId=tenant_a&startDate=2026-09-01&release=release_fixture'), null);
 });
 
@@ -76,4 +76,21 @@ test('client rejects malformed success and cross-tenant replay descriptors', asy
     globalThis.fetch = (async () => new Response(JSON.stringify({ success: true, data: { contractVersion: 'cx.report-replay.1', status: 'MATCH', comparisonKind: 'IMMUTABLE_REPRODUCTION', reconciliationStatus: 'NOT_VERIFIED', original: { request: { tenantId: 'other' }, totals: [], groups: [] }, replayed: null } }), { status: 200 })) as typeof fetch;
     await assert.rejects(() => replayEvidenceReport(request.tenantId, 'synthetic'), /outside/);
   } finally { globalThis.fetch = previous; }
+});
+
+test('inherited versioned report views preserve exact values and never substitute total for an absent group', async () => {
+  const { formatReportValue } = await import('../src/lib/reportPreflight');
+  const { exactMovement, metricValue, pivotReportGroups } = await import('../src/lib/evidenceWorkspace');
+  const report = await result();
+  assert.equal(formatReportValue(report.totals[0]), '9,007,199,254,740,993');
+  assert.equal(formatReportValue({ ...report.totals[0], unit: 'currency', value: '1234567890.123456789' }, 'ZAR'), 'R1,234,567,890.123456789');
+  assert.equal(formatReportValue({ ...report.totals[0], value: null }), 'Unavailable');
+  assert.equal(formatReportValue({ ...report.totals[0], value: '0' }), '0');
+  assert.equal(exactMovement('9007199254740993', '9007199254740992'), '0.0');
+  assert.equal(exactMovement('3', '2'), '50.0');
+  assert.equal(exactMovement('1', '0'), null);
+  assert.equal(metricValue(report, 'fetched_leads', 'missing vendor'), null);
+  assert.equal(metricValue({ ...report, totals: [], groups: [{ ...report.totals[0], group: 'A' }] }, 'fetched_leads'), null);
+  assert.deepEqual(pivotReportGroups({ ...report, request: { ...report.request, grouping: 'vendor' } }), []);
+  assert.equal(reportMetricInspector(report, report.totals[0]).shareable, false);
 });

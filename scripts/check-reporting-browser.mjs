@@ -8,6 +8,8 @@ import { buildAcceptanceFixture } from './build-frontend-acceptance-fixture.mjs'
 import { fixtureRelease, fixtureRow, fixtureRepository, request } from '../tests/reporting-fixtures.ts';
 import { executeReport } from '../server/reporting/service.ts';
 import { attachReplayToken, replayReport } from '../server/reporting/replay.ts';
+import { METRICS, METRIC_BY_ID } from '../contracts/reporting.ts';
+import { reportRequest } from '../server/reporting/scope.ts';
 
 const output = process.env.CX_BROWSER_QA_OUTPUT || await mkdtemp(path.join(tmpdir(), 'cx3-reports-qa-'));
 await mkdir(output, { recursive: true });
@@ -15,15 +17,45 @@ const fixture = await mkdtemp(path.join(tmpdir(), 'cx3-reports-app-'));
 await buildAcceptanceFixture(fixture);
 const scope = { ...request, tenantId: 'synthetic-a' };
 const release = { ...fixtureRelease(), tenantId: scope.tenantId };
-const repo = fixtureRepository(release, [fixtureRow(scope)]).repository;
+release.execution.supportedMetrics = METRICS.map(metric => metric.id);
+const historicalRelease = { ...release, releaseId: 'release_historical', approvalReference: 'synthetic-historical-approval' };
 const authority = { subject: 'synthetic-browser', role: 'viewer', tenants: ['synthetic-a'], email: 'fixture@example.invalid' };
 const key = 'synthetic-browser-only-signing-secret-at-least-32-bytes';
-const report = attachReplayToken(await executeReport(repo, authority, scope), key);
-const replay = await replayReport(repo, authority, { contractVersion: 'cx.report-replay.1', tenantId: scope.tenantId, token: report.token }, { signingKey: key });
-const payloads = { '/api/reporting/catalogue': { configured: true, status: 'AVAILABLE', release, replayConfigured: true, execution: { status: 'SUPPORTED', definitionHash: release.execution.definitionHash } }, '/api/reporting': report, '/api/reporting/replay': replay };
+const registeredRelease = releaseId => releaseId === historicalRelease.releaseId ? historicalRelease : releaseId === undefined || releaseId === release.releaseId ? release : null;
+const repository = fixtureRepository(release).repository;
+repository.release = async (_tenant, releaseId) => registeredRelease(releaseId);
+function requestRepository(input) {
+  const normalized = reportRequest(input);
+  const rows = normalized.metrics.flatMap(id => {
+    const metric = METRIC_BY_ID[id], ratio = metric.unit === 'percent';
+    const value = ratio ? '50' : metric.unit === 'currency' ? '9007199254740993.123456789' : '9007199254740993';
+    const row = { ...fixtureRow(normalized), metric_id: id, unit: metric.unit, grain: metric.grain, value, numerator: ratio ? '1' : value, denominator: ratio ? '2' : null };
+    return normalized.grouping === 'none' ? [row] : [row, { ...row, is_total: false, group_key: normalized.grouping === 'vendor' ? 'Synthetic vendor' : 'Synthetic source' }];
+  });
+  return { ...repository, query: fixtureRepository(registeredRelease(normalized.releaseId), rows).repository.query };
+}
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname === '/favicon.ico') { res.writeHead(204).end(); return; }
+  if (url.pathname.startsWith('/api/reporting')) {
+    try {
+      let data;
+      if (url.pathname === '/api/reporting/catalogue') {
+        const selected = registeredRelease(url.searchParams.get('releaseId') || undefined);
+        data = { configured: true, status: selected ? 'AVAILABLE' : 'NO_APPROVED_RELEASE', release: selected, replayConfigured: true, execution: { status: selected ? 'SUPPORTED' : 'NOT_SUPPORTED', definitionHash: release.execution.definitionHash } };
+      } else {
+        let text = ''; for await (const chunk of req) text += chunk;
+        const body = JSON.parse(text);
+        if (url.pathname === '/api/reporting') data = attachReplayToken(await executeReport(requestRepository(body), authority, body), key);
+        else if (url.pathname === '/api/reporting/replay') {
+          const descriptor = JSON.parse(Buffer.from(body.token.split('.')[0], 'base64url').toString());
+          data = await replayReport(requestRepository(descriptor.original.request), authority, body, { signingKey: key });
+        } else throw new Error('Unexpected synthetic reporting request');
+      }
+      res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ success: true, data }));
+    } catch (error) { res.writeHead(error.status || 500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ success: false, error: error.message })); }
+    return;
+  }
   const name = url.pathname === '/brand/conversionx-grey.png' ? 'conversionx-grey.png' : ['/fixture.js', '/fixture.css', '/application.css'].includes(url.pathname) ? url.pathname.slice(1) : 'index.html';
   try { res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : name.endsWith('.png') ? 'image/png' : 'text/html'); res.end(await readFile(path.join(fixture, name))); } catch { res.writeHead(404).end(); }
 });
@@ -35,14 +67,27 @@ const results = [];
 try {
   for (const theme of ['light', 'dark']) for (const width of [1440, 1024, 820, 390, 320]) {
     const context = await browser.newContext({ viewport: { width, height: width === 820 ? 1180 : width < 640 ? 844 : 1000 }, colorScheme: theme, reducedMotion: 'reduce', acceptDownloads: true });
-    await context.addInitScript(({ theme, payloads }) => {
+    await context.addInitScript(({ theme }) => {
       localStorage.setItem('cx-theme', theme); let state;
-      Object.defineProperty(window, '__fixture', { configurable: true, get: () => state, set: value => { state = { ...value, payloads }; } });
-    }, { theme, payloads });
+      Object.defineProperty(window, '__fixture', { configurable: true, get: () => state, set: value => { state = { requestDetails: [], ...value }; } });
+      const nativeFetch = window.fetch.bind(window); let fixtureFetch = nativeFetch;
+      Object.defineProperty(window, 'fetch', { configurable: true, set: value => { fixtureFetch = value; }, get: () => (input, options = {}) => {
+        const url = new URL(String(input), location.origin);
+        if (url.pathname.startsWith('/api/reporting')) {
+          state.requests.push(url.pathname + url.search);
+          state.requestDetails.push({ url: url.pathname + url.search, method: options.method || 'GET', body: options.body ? JSON.parse(options.body) : null });
+          return nativeFetch(input, options);
+        }
+        return fixtureFetch(input, options);
+      } });
+    }, { theme });
     const page = await context.newPage(); page.setDefaultTimeout(10000);
     const errors = []; page.on('pageerror', err => errors.push(err.message)); page.on('console', message => { if (['error', 'warning'].includes(message.type())) errors.push(message.text()); });
-    const record = { theme, width, passed: false, checks: [], screenshots: [] };
-    const check = async (name, action) => { await action(); record.checks.push(name); };
+    const record = { theme, width, passed: false, checks: [], failures: [], screenshots: [] };
+    const check = async (name, action) => {
+      try { await action(); record.checks.push(name); }
+      catch (error) { record.failures.push({ name, error: error.stack || String(error) }); console.error(`FAIL ${theme} ${width}: ${name}: ${error.message}`); await shot(`failure-${record.failures.length}`); }
+    };
     const overflow = async () => { const size = await page.evaluate(() => ({ width: innerWidth, doc: document.documentElement.scrollWidth, main: document.querySelector('main').clientWidth, scroll: document.querySelector('main').scrollWidth })); assert.ok(size.doc <= size.width + 1 && size.scroll <= size.main + 1, JSON.stringify(size)); };
     const shot = async name => { const filename = `${name}-${theme}-${width}.png`; await page.screenshot({ path: path.join(output, filename) }); record.screenshots.push(filename); };
     try {
@@ -67,6 +112,7 @@ try {
         const dialog = page.getByRole('dialog', { name: 'Fetched leads' }); await dialog.waitFor();
         assert.ok((await dialog.innerText()).includes('fixture.reporting.leads'));
         assert.ok((await dialog.innerText()).includes('No record-level'));
+        assert.equal(await dialog.getByRole('button', { name: 'Copy scoped link', exact: true, includeHidden: true }).count(), 0, 'Immutable execution cannot be restored by an operational page link');
         await shot('report-audit'); await page.keyboard.press('Escape'); await dialog.waitFor({ state: 'hidden' });
         assert.equal(await trigger.evaluate(element => element === document.activeElement), true);
       });
@@ -89,9 +135,48 @@ try {
         await page.getByText(/This URL includes record/).waitFor(); assert.equal(await page.getByRole('button', { name: 'Run report', exact: true }).isDisabled(), true);
         assert.equal(await page.locator('.cx-report-result').count(), 0); await overflow();
       });
-      assert.deepEqual(errors, []); record.passed = true;
+      for (const route of ['/vendors', '/reconciliation']) await check(`${route}: historical release reaches every execution and exact values retain precision`, async () => {
+        await page.goto(`${origin}${route}?clientId=synthetic-a&startDate=${scope.startDate}&endDate=${scope.endDate}&release=${historicalRelease.releaseId}`);
+        await page.waitForFunction(() => window.__fixture.requestDetails.some(item => item.url === '/api/reporting' && item.method === 'POST'));
+        await page.waitForFunction(() => document.querySelector('main').textContent.includes('9,007,199,254,740,993'));
+        await page.waitForLoadState('networkidle');
+        const details = await page.evaluate(() => window.__fixture.requestDetails);
+        const catalogues = details.filter(item => item.url.startsWith('/api/reporting/catalogue'));
+        assert.ok(catalogues.length > 0); assert.ok(catalogues.every(item => new URL(item.url, origin).searchParams.get('releaseId') === historicalRelease.releaseId));
+        const executions = details.filter(item => item.url === '/api/reporting' && item.method === 'POST');
+        assert.ok(executions.length >= 2, 'Current and previous intervals both execute');
+        assert.ok(executions.every(item => item.body.releaseId === historicalRelease.releaseId && item.body.tenantId === 'synthetic-a'));
+        const text = await page.locator('main').innerText(); assert.ok(text.includes('9,007,199,254,740,993')); assert.ok(text.includes('9,007,199,254,740,993.123456789')); assert.ok(!text.includes('9,007,199,254,740,992'));
+        await overflow();
+        const clippedValues = await page.locator('.cx-ops-metric-value, .cx-ops-periods strong, .cx-ops-driver article strong, .cx-command-metric strong').evaluateAll(elements => elements.filter(element => element.scrollWidth > element.clientWidth + 1).map(element => element.textContent));
+        assert.deepEqual(clippedValues, [], 'Exact summary values fit or wrap without clipping');
+        const table = page.getByRole('region', { name: /table, scroll for all values/ });
+        await table.focus(); assert.equal(await table.evaluate(element => element === document.activeElement), true);
+        await table.evaluate(element => { element.scrollLeft = element.scrollWidth; });
+        assert.ok(await table.evaluate(element => element.scrollLeft > 0), 'Wide exact table is independently scrollable');
+        await table.evaluate(element => { element.scrollLeft = 0; });
+        await page.locator('h1').scrollIntoViewIfNeeded(); await shot(route.slice(1) + '-historical-exact');
+        await table.scrollIntoViewIfNeeded(); await shot(route.slice(1) + '-historical-table');
+      });
+      for (const route of ['/reports', '/vendors', '/reconciliation']) {
+        await check(`${route}: repeated release identity is rejected before reporting access`, async () => {
+          await page.goto(`${origin}${route}?clientId=synthetic-a&startDate=${scope.startDate}&endDate=${scope.endDate}&release=${release.releaseId}&release=${historicalRelease.releaseId}`);
+          await page.getByText('Choose one explicit reporting release.', { exact: true }).first().waitFor();
+          assert.equal(await page.evaluate(() => window.__fixture.requests.filter(value => value.startsWith('/api/reporting')).length), 0);
+          await overflow();
+        });
+        for (const parameter of ['consumer_id=synthetic-private-identity', 'unregisteredScope=do-not-drop']) await check(`${route}: ${parameter.split('=')[0]} blocks execution`, async () => {
+          await page.goto(`${origin}${route}?clientId=synthetic-a&startDate=${scope.startDate}&endDate=${scope.endDate}&${parameter}`);
+          await page.getByText(/This URL includes record/).first().waitFor();
+          await page.waitForLoadState('networkidle');
+          assert.equal(await page.evaluate(() => window.__fixture.requests.filter(value => value === '/api/reporting').length), 0);
+          if (route === '/reports') assert.equal(await page.getByRole('button', { name: 'Run report', exact: true }).isDisabled(), true);
+          await overflow();
+        });
+      }
+      assert.deepEqual(errors, []); record.passed = record.failures.length === 0;
     } catch (error) { record.error = error.stack || String(error); record.console = errors; await shot('failure'); }
-    results.push(record); await context.close();
+    results.push(record); console.log(`${record.passed ? 'PASS' : 'FAIL'} ${theme} ${width}: ${record.checks.length} passed, ${record.failures.length} failed`); await context.close();
   }
 } finally { await browser.close(); await new Promise(resolve => server.close(resolve)); await writeFile(path.join(output, 'results.json'), JSON.stringify({ origin, synthetic: true, browserPlugin: 'not available', results }, null, 2)); }
 console.log(JSON.stringify({ output, passed: results.filter(item => item.passed).length, total: results.length, checks: results.reduce((sum, item) => sum + item.checks.length, 0) }));

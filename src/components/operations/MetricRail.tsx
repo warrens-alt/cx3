@@ -27,7 +27,7 @@ export default function MetricRail({ items }: MetricRailProps) {
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-5 sm:mb-6">
+    <div className="cx-ops-metric-rail grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-5 sm:mb-6">
       {items.map((item, index) => {
         let changeContent: React.ReactNode = null;
         if (typeof item.change === 'string') {
@@ -102,7 +102,7 @@ export default function MetricRail({ items }: MetricRailProps) {
                 )}
               </div>
 
-              <div className="text-2xl sm:text-[26px] font-bold text-text-main mt-1 font-sans tabular-nums tracking-tight tabular-nums">
+              <div className="cx-ops-metric-value text-2xl sm:text-[26px] font-bold text-text-main mt-1 font-sans tabular-nums tracking-tight tabular-nums">
                 {item.value}
               </div>
             </div>
