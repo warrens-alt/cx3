@@ -1,97 +1,162 @@
-# ConversionX Numerical Audit Matrix & Accuracy Dossier
+# CX3 numerical accuracy and evidence audit
 
-Audit Version: `cx.numerical-audit.2.0.0`  
-Evaluation Date: 27 September 2026  
-Evaluation Baseline: Checkpoint `4af49295cfd9c40e1c7886448b72a3d48e987532`
+Audit date: 2 October 2026. Fetched baseline: `fca6150b83c4c9e9f00a41cabe1104ea9bd7ae38` on `main`.
+Definition registry: `cx.metric.3.0.0`. Lifecycle policy: `cx.lifecycle.3.0.0`.
 
----
+This document records tested formula/query behavior and remaining evidence boundaries. It does **not** certify all displayed numbers or current warehouse totals. Earlier versions' inventory percentages and blanket “verified”/“SUPPORTED” claims are superseded: they did not establish production reconciliation or source-owner approval.
 
-## 1. Executive Summary & Inventory Denominator
+## Evidence states
 
-This audit establishes mathematical and physical source accuracy across all displayed numbers, KPI cards, table totals, comparison ratios, process-flow diagrams, and export facilities. It removes all known false-data paths, placeholder defaults, and synthetic fallbacks.
+These are separate states, not a single approval ladder:
 
-### Inventory Denominator Breakdown
+| State | Meaning |
+| --- | --- |
+| `CODE_VERIFIED` | Relevant formula, compiler, service or rendering behavior has an executed passing regression test. This does not execute GoogleSQL against production. |
+| `SOURCE_STRUCTURALLY_MAPPED` | The recorded schema/source contract supplies the required field. This does not prove current access or business meaning. |
+| `BUSINESS_MEANING_NOT_VERIFIED` | A source/business owner has not certified the business interpretation. |
+| `LIVE_RECONCILIATION_PENDING` | No live reconciliation was executed for the requested production scope. |
+| `RECONCILED_FOR_SCOPE` | An opt-in run compared the listed independent warehouse measurements with service measurements for an explicit tenant/date/filter scope. It certifies neither other metrics nor other scopes. |
+| `UNAVAILABLE` | Required evidence, identity, source access, numerator or denominator is absent or incomplete. |
 
-| State | Definition | Count | Share (%) |
-|---|---|---|---|
-| **SUPPORTED** | Real verified physical source query, strict tenant isolation, deduplicated entity grain, tested end-to-end. | 42 | 48.8% |
-| **CORRECTED** | Previously manufactured, aliased, or fallback-contaminated metric now corrected with verifiable logic. | 18 | 20.9% |
-| **BLOCKED** | Legitimate architectural metric blocked by missing upstream warehouse credentials or denied table access. | 14 | 16.3% |
-| **EXPLICITLY_UNAVAILABLE** | Cost/overhead category intentionally withheld from P&L rather than fabricated from assumptions. | 12 | 14.0% |
-| **TOTAL REVIEWED** | **Comprehensive inventory across 15 operational & evidence surfaces** | **86** | **100.0%** |
+Metric mapping status `APPROVED` remains distinct from source-contract and reconciliation status. API validation stays `NOT_VERIFIED`; Data Confidence remains `overallHealthScore = null`, `healthGrade = NOT_VERIFIED`.
 
----
+## Canonical population and final definitions
 
-## 2. Trace and Removal of Known False-Data Paths
+All maintained operational services select the tenant's configured source, capture-date period, timezone and supported filters **before** normalizing to one row per non-null lead ID. Vendor filters restrict nested vendor evidence as well as lead membership. Earliest valid event timestamps are retained; cumulative calls use the maximum non-negative recorded counter. No source fallback or identity bridge is introduced.
 
-### Finding A: Media Spend Manufactured from Budget
-- **Before:** `loadMarketingContract` inspected candidate fields and, when `observedSpendField` was unmapped, injected `media_spend` synthesized from `budget`. In `server/analytics/campaigns/performance.ts` and `marketingRootCause.ts`, the SQL query projected `COALESCE(SAFE_CAST(budget AS NUMERIC), 0) AS media_spend`. This created duplicate-column syntax errors when a real `media_spend` existed and disguised planned budget as actual spend.
-- **After:** Removed synthetic spend candidate creation in `marketing.ts` (`mediaSpendField: hasSpendCandidate ? spendCandidate : null`). Removed `COALESCE(budget, 0) AS media_spend` projection. Budget remains strictly a planning measure; actual spend is populated only when an approved physical media spend column is present and allowlisted.
-- **Result:** Real zero spend returns `0`; unmapped spend returns `null` (`—`). Never aliased as budget. Tested and verified in `tests/spend-accuracy.test.ts`.
+| Metric | Numerator / definition | Denominator / grain |
+| --- | --- | --- |
+| Fetched | Distinct lead IDs selected by intake/capture timestamp | One lead per selected cohort |
+| Source-recorded delivery | Valid normalized delivery timestamp exists | Independent recorded evidence |
+| Delivered | Recorded delivery at or after capture; required predecessor available | Qualified distinct lead |
+| Source-recorded first dial | Valid normalized first-call timestamp exists | Independent recorded evidence |
+| Dialled | Qualified delivery plus first dial at or after both capture and delivery | Qualified distinct lead |
+| RPC | Qualified dialled lead with positive recorded RPC evidence | Distinct lead; unknown RPC remains unknown |
+| Recorded sales | Valid normalized `hlc.sale` timestamp exists | Independent distinct lead; no inferred RPC |
+| Recorded activation | Valid normalized `hlc.activated` timestamp exists | Independent distinct lead; no inferred sale |
+| Delivery rate | Qualified delivered | Fetched |
+| Dial coverage | Qualified dialled | Qualified delivered |
+| RPC rate | Qualified dialled with positive RPC | Qualified dialled, including separately disclosed unknown RPC evidence |
+| Lead-to-sale | Recorded sales | Fetched |
+| Activation / sale | Recorded activations | Recorded sales; **independent population ratio**, potentially above 100% |
+| Sale → activation conversion | Recorded sale at/after capture and activation at/after that sale | Recorded sales; chronological intersection |
+| RPC → sale conversion | Qualified RPC and recorded sale at/after capture and first dial | Qualified RPC; chronological intersection |
+| One-call share | Qualified dialled leads with recorded count exactly one | Qualified dialled, including separately exposed unrecorded-call population |
+| Multi-call share | Qualified dialled leads with recorded count at least two | Qualified dialled, including separately exposed unrecorded-call population |
+| 5+ calls, no RPC | Recorded count at least five and RPC **explicitly false** | Independent exception count; unknown RPC excluded |
 
-### Finding B: Offershop Process Flow Synthetic Fallbacks
-- **Before:** `getOffershopProcessFlow` caught BigQuery query errors and returned hardcoded synthetic populations, including an intake default of `12,450`. Partner, hospital, and activity counts used fixed fraction multipliers and fallback expressions such as `rpcCount || 4920`.
-- **After:** Completely removed all fallback numbers (`12450`, `4920`, `0.65`, `0.12`). Error blocks in `server/analytics/process/offershopProcess.ts` now fail closed, assigning `null` to all unobserved metrics.
-- **Result:** No synthetic data is returned during offline, unauthenticated, or query failure states. Verified in `tests/offershop-process-api.test.ts`.
+Recorded sale means a valid sale timestamp exists in the selected source. CX3 does not infer billing, collection, underwriting or commercial completion from this field. Recorded activation does not establish collection, recurring-contract status or successful billing. `is_sale` and `is_activated` retain those recorded populations even when chronology is anomalous.
 
-### Finding C: Offershop Ownership and Scope Enforcement
-- **Before:** Offershop queries queried shared tables without consistently binding tenant vendor scoping.
-- **After:** Applied `buildFilterClause(clientConfig, ...)` and `tenantVendorScopeValues(clientConfig)` across all offershop queries. Subqueries over nested `hlc_details` strictly enforce vendor isolation.
-- **Result:** Cross-tenant leakage is prevented; multi-vendor leads remain partitioned to the authorized tenant.
+A valid source timestamp means blank/malformed/1900/1970 values were rejected with `validTimestampSql`. Chronological qualification is separate from timestamp parsing. Missing predecessors do not invent validity. Invalid recorded events remain visible in record evidence and chronology flags. Earliest recorded evidence is assessed rather than replacing an anomalous first event with a later convenient event.
 
-### Finding D: Commercial Revenue and Spend Reconciliation
-- **Before:** Mixed raw HLC repeated transaction rows with lead submission revenue, risking double-counting of cumulative snapshots.
-- **After:** Reconciled entity grain: lead-level recorded revenue uses distinct lead records (`COUNT(DISTINCT lead_id)`), while transaction-level revenue is kept separate and labelled in attribution. Duplicate spend rows trigger `INVALID_GRAIN` rather than inflated sums.
-- **Result:** Tested in `tests/analytics/commercial.test.ts` and `tests/spend-accuracy.test.ts`.
+## Source → query → API → UI audit matrix
 
-### Finding E: Offershop Process Diagram & Operational Lead Ledger
-- **Before:** Offershop deal flow was presented only as an unconnected 4-column grid of stage cards. Lead Ledger was a static 50-row sample (`limit=50, offset=0`) without pagination or search.
-- **After:** 
-  1. Built and integrated `OffershopProcessDiagram` as the primary connected process logic graph in `OffershopProcessObservability.tsx`, displaying all 38 nodes across 10 families, decision forks (Validation Code 1 vs 2), hospital recovery loop, and partner duplicate windows (48h–10d).
-  2. Upgraded `LeadLedger.tsx` into a full operational lead ledger with bounded server-side pagination (`page`, `pageSize`), keyword search across IDs and vendors, copy-to-clipboard, lead timeline inspection modal, and 17-column CSV export.
-- **Result:** High-usability operational interfaces with zero security leakage or unbounded database queries.
+The code states below are supported by targeted tests and the verification record in `IMPLEMENTATION-STATUS.md`; live reconciliation remains pending for every production tenant/date/filter scope in this change.
 
----
+| Surface / contract | Source and query path | Accuracy behavior / limits | Evidence state |
+| --- | --- | --- | --- |
+| Overview, Journey, Response Speed, Vendor Quality | Configured lead source → `common/leadMetrics.ts` → domain services → maintained pages/inspectors | Qualified delivery/dial/RPC; recorded sales/activation; unchanged approved rate denominators. Matched-period mechanics and representative-vendor rules retained. | `CODE_VERIFIED`; structurally mapped; live pending |
+| Time & Day | Same canonical CTE → `temporal/service.ts` → `TemporalIntelligence` | Undefined `operational_leads` reference repaired. Capture, Delivery and First dial group the **same capture cohort** by their respective recorded timestamp. Missing timestamp counts, unknown RPC and cohort volume remain explicit. Tenant timezone used consistently. | `CODE_VERIFIED`; live pending |
+| Attempt Coverage / Contact Governance | Canonical counter → `contact/operatingControls.ts`, `contact/strategy.ts` → control panels/export | `NULL`/invalid negative → Unrecorded; recorded 0 → Zero calls; repeated counters use MAX. Explicit no-RPC required for 5+ exception. No reconstruction of missing dial denominator or no-RPC count from other totals. | `CODE_VERIFIED`; live pending |
+| Funnel / Investigation | `lifecycleDiagnostics.ts` intersections and shared `exceptionPredicates.ts` | Delivery→dial and sale→activation require chronology. `NON_NESTED` retains independently recorded populations. Queue, drill, driver and evidence use shared predicates; waiting means no **qualified** first dial. | `CODE_VERIFIED`; live pending |
+| Data Confidence / dossier | Canonical lead state plus source-quality observations | Separate delivery-before-capture, dial-before-capture, dial-before-delivery, sale-before-capture and activation-before-sale counts. Combined anomaly count deduplicates leads; separate counts may overlap. Raw recorded dates and qualification retained. | `CODE_VERIFIED`; no invented health score |
+| Source-recorded revenue | HLC lead/vendor/transaction keys → canonical NUMERIC assessment | Identical amount+currency duplicates collapse once. Missing identity/currency/amount, wrong currency or conflicting values withhold complete total. Known subtotal is separate. An incomplete key cannot become zero. | `CODE_VERIFIED`; business meaning and live totals unverified |
+| Marketing / media spend | Approved field candidates and configured marketing tenant mapping | Budget remains planning evidence. No approved observed-spend field → spend/CPC/CPM/spend-dependent CPL unavailable. Missing or duplicate spend-grain evidence fails closed. | `CODE_VERIFIED`; mapping/access dependent |
+| Commercial | `commercial/spend.ts` and approved recorded components | Telephony/agent/delivery costs, commission, fixed overhead, contribution, profit, margin and break-even withheld without contracts. Revenue less media spend is not profit. | `UNAVAILABLE` for unsupported components |
+| Agent performance | Discrete call-event source → `agents/activity.ts` | Event grain, tenant vendor restrictions, field completeness and same-call sale/RPC preserved. No invented tiers. | `CODE_VERIFIED`; live pending |
+| Source inventory | Runtime/source catalogue → `DataIntakePanel` | Missing inventory cannot substitute 65 objects, 18 tables or 47 views; prior-tenant evidence cleared when scope changes. | `CODE_VERIFIED`; catalogue is not a source-access certification |
+| Historical synthetic executive console | No remaining runtime importer | Deleted `src/components/analytics/ExecutiveAnalyticsConsole.tsx` and `src/pages/ExecutiveOverview.tsx`; synthetic shares, hourly profiles, benchmarks, lift and revenue assumptions retired. Maintained Overview unchanged by those historical assumptions. | Retired |
 
-## 3. Human-Readable Audit Matrix
+Time & Day describes **observed association by recorded event timestamp, not causal calling recommendation**. A delivery/dial timestamp outside the capture dates remains an observation on the selected intake cohort; selecting a time basis does not select a new event-date cohort. No event timestamp is substituted from another lifecycle field.
 
-| Metric ID / Canonical Version | Route & Component | Source Table & Column | Entity Grain | Formula / Aggregation | Null / Zero Policy | Status |
-|---|---|---|---|---|---|---|
-| `commercial.media_spend` <br>`cx.commercial.spend.2.0.0` | `/commercial`<br>`CommercialIntelligence` | `lead_ledger_platform_insights`<br>`media_spend` | Platform row | `SUM(SAFE_CAST(media_spend AS NUMERIC))` | Real 0 returns 0; unmapped returns `null`. Never aliased as budget. | **CORRECTED** |
-| `commercial.revenue` <br>`cx.commercial.rev.2.0.0` | `/commercial`<br>`CommercialIntelligence` | `clustered_lead_ledger`<br>`revenue` | Unique lead | `SUM(SAFE_CAST(revenue AS NUMERIC))` | 0 returns R0.00; missing returns `null` (`—`). | **SUPPORTED** |
-| `commercial.cpl` <br>`cx.commercial.cpl.2.0.0` | `/commercial`<br>`CommercialIntelligence` | Derived | Platform aggregate | `mediaSpend / platformLeads` | Withheld (`null`) if platformLeads is 0 or null. | **SUPPORTED** |
-| `commercial.cps` <br>`cx.commercial.cps.2.0.0` | `/commercial`<br>`CommercialIntelligence` | Attribution join | Matched keys | `matchedSpend / matchedSales` | Requires valid attribution in both periods. | **SUPPORTED** |
-| `commercial.withheld_costs` <br>`cx.commercial.costs.2.0.0` | `/commercial`<br>`CommercialIntelligence` | N/A (No approved tables) | Financial overhead | Explicitly withheld | Shows `UNAVAILABLE`. Never simulated. | **EXPLICITLY_UNAVAILABLE** |
-| `campaigns.spend` <br>`cx.campaigns.perf.2.0.0` | `/campaigns`<br>`CampaignIntelligence` | `lead_ledger_platform_insights`<br>`media_spend` | Campaign summary | `SUM(SAFE_CAST(media_spend AS NUMERIC))` | Budget kept separate; spend null if unpopulated. | **CORRECTED** |
-| `campaigns.cpl` <br>`cx.campaigns.cpl.2.0.0` | `/campaigns`<br>`CampaignIntelligence` | Derived | Campaign | `spend / actions_lead` | Null when actions_lead is 0. | **SUPPORTED** |
-| `offershop.intake` <br>`cx.offershop.flow.2.0.0` | `/offershop-flow`<br>`OffershopProcessObservability` | `clustered_lead_ledger`<br>`lead_id` | Lead submission | `COUNT(DISTINCT lead_id)` | Fails closed to null on error. Fallback 12,450 removed. | **CORRECTED** |
-| `offershop.validation_valid` <br>`cx.offershop.val.2.0.0` | `/offershop-flow`<br>`OffershopProcessDiagram` | `clustered_lead_ledger`<br>`valid_idno` | Lead submission | `COUNTIF(valid_idno = 1)` | Exact numeric encoding (1=valid, 2=invalid). | **SUPPORTED** |
-| `offershop.validation_invalid` <br>`cx.offershop.val.2.0.0` | `/offershop-flow`<br>`OffershopProcessDiagram` | `clustered_lead_ledger`<br>`valid_idno` | Lead submission | `COUNTIF(valid_idno = 2)` | Enforces discrete code 2 for recovery hospital. | **SUPPORTED** |
-| `offershop.hospital_entries` <br>`cx.offershop.hosp.2.0.0` | `/offershop-flow`<br>`OffershopProcessDiagram` | `clustered_lead_ledger`<br>`offershop_source` | Vetting defect | Bounded count of hospital records | Null when disconnected. Fixed fraction removed. | **CORRECTED** |
-| `offershop.partner_rules` <br>`cx.offershop.ror.2.0.0` | `/offershop-flow`<br>`OffershopProcessDiagram` | `contracts/offershopProcess.ts` | Partner branch | 7 documented partner duplicate windows (48h–10d) | Blocked from live warehouse verification. | **BLOCKED** |
-| `offershop.dialled` <br>`cx.offershop.dial.2.0.0` | `/offershop-flow`<br>`OffershopProcessDiagram` | `clustered_lead_ledger`<br>`hlc_details.first_call_date` | Dialler delivery | `COUNTIF(first_call_date IS NOT NULL)` | Null when disconnected. | **CORRECTED** |
-| `offershop.rpc` <br>`cx.offershop.rpc.2.0.0` | `/offershop-flow`<br>`OffershopProcessDiagram` | `clustered_lead_ledger`<br>`hlc_details.rpc` | Contacted lead | `COUNTIF(SAFE_CAST(rpc AS INT64) > 0)` | Null when disconnected. Fallback 4920 removed. | **CORRECTED** |
-| `offershop.reported_sales` <br>`cx.offershop.sale.2.0.0` | `/offershop-flow`<br>`OffershopProcessDiagram` | `clustered_lead_ledger`<br>`hlc_details.sale` | Sale event | `COUNTIF(sale IS NOT NULL)` | Null when disconnected. | **CORRECTED** |
-| `offershop.verified_active` <br>`cx.offershop.act.2.0.0` | `/offershop-flow`<br>`OffershopProcessDiagram` | `clustered_lead_ledger`<br>`hlc_details.activated` | Verified activation | `COUNTIF(activated IS NOT NULL)` | Null when disconnected. | **CORRECTED** |
-| `lead_ledger.paginated_rows` <br>`cx.lead_ledger.rows.2.0.0` | `/lead-ledger`<br>`LeadLedger` | `clustered_lead_ledger` | Row submission | `SELECT ... LIMIT pageSize OFFSET page*pageSize` | Deduped before count; empty array on 0 matches. | **CORRECTED** |
-| `lead_ledger.total_count` <br>`cx.lead_ledger.count.2.0.0` | `/lead-ledger`<br>`LeadLedger` | `clustered_lead_ledger` | Row count | `COUNT(*) OVER()` windowed total | Zero if no rows match query filters. | **CORRECTED** |
-| `reconciliation.financial_stages` <br>`cx.recon.stages.2.0.0` | `/reconciliation`<br>`CommercialReconciliation` | `cx_reporting` fact snapshots | Financial delta | Signed exact decimal string sums | Checked status or `Unavailable`. | **SUPPORTED** |
-| `reports.certified_12` <br>`cx.reporting.v2.0.0` | `/reports`<br>`VersionedReports` | `cx_reporting` snapshots | Fact rows | 12 immutable v2 metrics | Certified by 8 release gates with 0 failure count. | **SUPPORTED** |
+## Retired duplicate code and legacy financial paths
 
----
+Beyond the two synthetic executive files, consumer searches found no runtime use of
+`server/queries.ts` or these duplicate modules under `server/bigquery/legacy/`:
+`calls.ts`, `funnel.ts`, `index.ts`, `leads.ts`, `overview.ts`, `quality.ts`,
+`routing.ts`, `sources.ts`. They were retired; the tested `cohorts.ts` and `types.ts`
+remain, and the live cohort service now uses that corrected implementation.
 
-## 4. Verification and Test Evidence
+Active legacy query and Explore outputs now preserve incomplete monetary totals,
+unknown call/duration evidence and empty denominators. Historical revenue-by-call-age
+projections remain unavailable because first-call time does not establish revenue
+recognition. Legacy transaction revenue requires actual HLC amount/currency/key
+eligibility; expected activation-register revenue cannot fill a missing recorded
+amount. Explicit eligible duplicate NULL contributions are excluded from completeness
+checks without excluding incomplete or conflicting keys. These protections do not
+certify the older model's unrelated source identity bridges or business semantics.
 
-All relevant unit, contract, and HTTP test suites pass cleanly:
+The live lifecycle waterfall now renders each supplied transition's parent population,
+qualified intersection, rate and loss. It does not compute adjacent-stage subtraction,
+end-to-end conversion or total fall-off from non-nested populations.
+
+## Revenue, financial precision and exports
+
+The canonical complete-total expression remains `CASE WHEN COUNTIF(revenue IS NULL) > 0 THEN NULL ELSE SUM(revenue) END`. A measured zero is zero; a missing complete total remains null. SUM over an empty population may remain unavailable rather than asserting a financial observation.
+
+The flat-source adapter now casts source revenue to BigQuery `NUMERIC`, avoiding an unnecessary FLOAT64 conversion before key/currency reconciliation. Existing approximate physical FLOAT64 values cannot be made exact by a later cast; the supplied MTN, Mondo and RealPromotions dictionaries already declare FLOAT64 source revenue. Canonical financial arithmetic occurs in BigQuery before presentation conversion.
+
+Legacy operational API fields may still use JavaScript `Number` for chart/display compatibility. Binary floating point cannot represent every decimal fraction; integers beyond `2^53 - 1` cannot be represented safely, and cent precision is not guaranteed for sufficiently large amounts. These presentation values are not exact financial reconciliation artifacts. No decimal-library migration was undertaken. The reconciliation harness returns COUNT/NUMERIC results as decimal strings and refuses service-count comparisons outside the safe-integer range. Exact audit/export work should use those strings or the existing decimal-string warehouse reporting path.
+
+Inspectors reuse the existing metric registry/audit architecture for definition, numerator, denominator, grain, date basis, source and validation. Export metadata retains supplied workspace/client, dates, filters, date basis, grain, definition version, validation, truncation and generation time. Missing metadata stays explicit; an approved mapping does not manufacture reconciliation. Operating-control export evidence distinguishes zero-call, unrecorded-call and dialled-unrecorded populations. Modelled values are not presented as observed evidence.
+
+## Numeric fallback review classifications
+
+A review scan found 646 initial matching source lines and 441 after the shared hardening edits at that checkpoint; these are syntactic hits, not defect counts. Searches covered production `src`, `server`, and `contracts`, including `?? number`, `|| number`, `Number(value || 0)`, SQL `COALESCE`/`IFNULL`, fixed percentages, revenue assumptions, rankings and synthetic profiles. Each retained family has a different evidential meaning:
+
+| Class | Examples / decision |
+| --- | --- |
+| Configuration | Operating hours and weekday lists; SLA thresholds; bounded query bytes; pagination limits; timeout/cache sizes. These are policy/configuration, not measured counts. Retained and labelled by their contracts. |
+| UI layout constant | Chart height, grid sizes, opacity, animation duration, empty visual scaffolding and numeric axis geometry. Retained where they do not enter reported metrics. |
+| Test fixture | `tests/**`, browser acceptance fixture builders and mocked warehouse responses. Retained, synthetic and isolated from production queries. |
+| Explicit simulation | Isolated labelled test/demo fixtures cannot be merged into observed totals or exported as observed evidence. `getOffershopSimulation` remains explicitly `isSimulation=true` / `BASELINE_REQUIRED`, with null baseline/change/counts until evidence exists. No simulation introduced into maintained reporting. |
+| Production analytical fallback | Historical executive synthetic values removed with their unmounted files; inventory 65/18/47 and CLI schema 24 fallbacks removed; operating missing calls→0 removed; Temporal/Response Speed missing dial denominator→intake removed; strategy no-RPC inferred by subtraction removed; legacy budget→spend, missing revenue “$0”, fixed A− quality score, previous=current/comparison=0 and caught-source-failure→empty-success removed. Required absent evidence now null/unavailable. |
+| Proven measured zero | COUNT outputs; a missing categorical bucket after a successful complete aggregate; array lengths; zero contributions for rows outside a deliberately selected SUM population. Retained only in that context. |
+| Incomplete monetary/outcome evidence | Missing revenue/spend/call/RPC/denominator/feed values are not safe zero defaults. Relevant financial completeness paths and nullable response conversions are protected by regression tests. |
+
+A successful formula test does not certify current source rows. This review does not grant approval to unrelated historical source joins or assert that their business identities have been reconciled.
+
+## Opt-in live reconciliation harness
+
+Run only as an authorised operator with existing BigQuery credentials/ADC and read/query access:
+
 ```bash
-npx tsx --test tests/spend-accuracy.test.ts tests/offershop-process-api.test.ts tests/analytics/commercial.test.ts tests/analytics/campaigns.test.ts tests/offershop-process-contracts.test.ts
+npm run reconcile:metrics -- --client mtn --start 2026-09-01 --end 2026-09-30
+npm run reconcile:metrics -- --client mtn --start 2026-09-01 --end 2026-09-30 --compare-service
+npm run reconcile:metrics -- --client default_tenant --start 2026-09-01 --end 2026-09-30 --vendor BLC --source example --grade Gold
+npm run reconcile:metrics -- --client mtn --start 2026-09-01 --end 2026-09-30 --dry-run
 ```
-**Results:** 40 tests passed, 0 failed, 0 skipped in 5.3s.
 
-```bash
-npx tsx --test tests/sales-activation-contracts.test.ts tests/authoritative-metrics.test.ts tests/source-table-contract.test.ts tests/cli-performance.test.ts tests/formatters.test.ts tests/navigation-model.test.ts tests/phase-1-1-metric-workflow.test.ts
-```
-**Results:** 47 tests passed, 0 failed, 0 skipped in 6.9s.
+`--grade` is refused for flat tenant sources that do not supply grade. Unknown/inactive tenant, unsupported flags/filters, malformed/reversed dates and more than 366 inclusive days fail before query execution. There is no implicit default tenant. The configured `BIGQUERY_MAX_BYTES_BILLED` ceiling and single-SELECT read-only guard apply; no DDL, DML, destination table, export job or schema mutation is allowed. Normal test runs import/test the compiler with fake clients only and never invoke CLI main.
 
-`npm run docs:surfaces:check` passed cleanly.  
-`compile_applet` build succeeded without warnings or errors.
+The independent query shares only source adaptation, timestamp normalization and scope/security guards. It does not import the canonical lead aggregation: it independently computes lead rollups, financial keys, lifecycle qualification, contact buckets, chronology anomalies, ratios and timing. Output contains selected source tables, tenant, timezone, dates, filters, as-of/generated time, definition/harness versions, truncation and warehouse job ID. Service query IDs are null because that API does not expose them.
+
+Metrics include recorded/qualified delivery and dial counts, qualified RPC and unknown evidence, sales/activation, independent and linked activation ratios, all five chronology counts, unrecorded/0/1/2/3/4/5+ call buckets, explicit 5+ no RPC, revenue completeness/key/duplicate/conflict/subtotal/total evidence, approximate median/P90 delivery→dial and awaiting/over-15m/over-60m backlog.
+
+JSON is written to stdout; optional comparison table to stderr. Service comparison checks only the listed stable count metrics and returns signed service-minus-warehouse differences. Matching those metrics once is `RECONCILED_FOR_SCOPE`; warehouse-only measurement is `WAREHOUSE_MEASURED_ONLY`; dry-run remains `LIVE_RECONCILIATION_PENDING`. Unavailable or mismatched comparisons exit nonzero. Sequential jobs may see source updates; rerun/review discrepancies rather than declaring either number correct. Approximate quantiles are labelled approximate, and financial decimal output is not compared to approximate legacy JS amounts.
+
+**Live reconciliation not executed in this change.** No production totals, source permissions or business semantics have been newly certified.
+
+## Remaining certification work
+
+- Owner-approved meaning of `hlc.sale` and `hlc.activated`.
+- Current tenant-specific source permissions, including historically restricted MTN views.
+- Approved source identity bridges before any new cross-source join.
+- All-vendor activation coverage and maturity semantics.
+- Live totals for an explicit tenant/date/filter scope, with retained job evidence.
+- Billing, collection and revenue certification separate from recorded source amounts.
+- Marketing attribution and client mapping where unconfigured.
+- Exact financial reconciliation beyond legacy presentation-number precision.
+
+Failures remain explicit and do not fall back to the default tenant, master table or a wider vendor population.
+
+## Completed verification record
+
+The final `npm run verify` succeeded: **1,089 passing, 0 failing, 1 skipped,
+0 cancelled** out of 1,090 repository tests, plus lint, generated-surface check and
+production build. The skip requires a local Firestore emulator. Required numerical
+targeted suites passed 104/104; the offline reconciliation harness suite passed
+10/10 and its standalone TypeScript check passed. Browser checks passed 63 broad
+scenarios and 10 focused numerical scenarios using explicitly synthetic fixtures.
+These overlapping code/UI checks establish neither live production totals nor
+business certification. See `IMPLEMENTATION-STATUS.md` for commands and evidence.

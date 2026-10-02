@@ -1,5 +1,87 @@
 # Implementation status — 2 October 2026
 
+## Numerical accuracy and data-truthfulness hardening
+
+This pass started after fetching `origin/main` and confirming
+`fca6150b83c4c9e9f00a41cabe1104ea9bd7ae38`. Work is on local `main`; the older
+local-main-only commit was preserved on `codex/preserved-main-before-numerical-hardening`.
+
+- Temporal now consumes `operationalLeadCtes` rather than its broken parallel
+  lifecycle definition. Capture, Delivery and First dial retain the same intake
+  cohort, canonical timestamp parsing, explicit missing timestamp populations,
+  unknown RPC and tenant timezone. Unsupported dimensions fail closed.
+- Operating Controls and Attempt Coverage distinguish recorded zero from
+  unrecorded/invalid cumulative counters. The counter is the maximum valid
+  non-negative value. Qualified dialled denominator coverage is exposed alongside
+  one/multi-call shares; 5+ no RPC requires explicitly false RPC.
+- Metric registry `cx.metric.3.0.0` separates source-recorded events from qualified
+  chronology. Delivery requires capture→delivery order; dial requires qualified
+  delivery and ordered first dial. RPC uses qualified dial plus positive recorded
+  evidence. Recorded sales and activations remain independent; no sale⇒RPC
+  inference or billing/collection inference was added.
+- Funnel conversion retains explicit intersections and `NON_NESTED` evidence.
+  Queue, driver, record and evidence predicates remain aligned. Dossiers retain
+  recorded dates, qualification and anomaly state. Data Confidence exposes the
+  five chronology populations separately and still withholds an overall score.
+- Source-recorded revenue keeps transaction identity, duplicate, conflict,
+  currency and missing-value checks. Flat-source NUMERIC values avoid premature
+  FLOAT64 conversion. Legacy analytical monetary paths retain unavailable rather
+  than null→zero; expected activation-register revenue cannot fill recorded HLC
+  gaps. Budget cannot become spend. Unsupported Commercial P&L remains unavailable.
+- Unmounted `ExecutiveAnalyticsConsole.tsx` and `ExecutiveOverview.tsx` were deleted
+  after checking consumers. Source inventory fallback counts were removed.
+  Export evidence and metric inspectors distinguish mapping, business meaning,
+  validation and reconciliation rather than conflating them.
+- The read-only, opt-in `npm run reconcile:metrics -- --client … --start … --end …`
+  harness independently calculates lifecycle, chronology, contact effort, revenue
+  and timing. `--compare-service` compares listed stable counts with the service;
+  `--dry-run` does not execute the service. Exact decimal strings are retained in
+  the warehouse output; shared query guards enforce bounded read-only access.
+
+**Live reconciliation not executed.** Production totals remain
+`LIVE_RECONCILIATION_PENDING`. Owner approval of sale/activation meaning, tenant
+source permissions, identity bridges, all-vendor activation coverage,
+billing/collection/revenue certification and unconfigured marketing attribution
+remain separate certification work. A passing code test or `APPROVED` mapping
+is not a certified production total. See the revised
+[numerical audit matrix](NUMERICAL-AUDIT-MATRIX.md) for definitions, denominators,
+precision limits, source paths and harness usage.
+
+Final verification completed on 2 October 2026:
+
+| Executed command/check | Result |
+| --- | --- |
+| `npm ci` | Passed; 524 packages installed. |
+| `npm run lint` | Passed on the settled source. |
+| `npm test` | Passed: 1,085 passed, 0 failed, 1 skipped (before the last four review regressions). |
+| `npm run docs:surfaces:check` | Passed. |
+| `npm run build` | Passed; frontend, server and static warehouse catalogue artifacts generated. |
+| `npm run verify` | **Passed**: lint, final full test suite, surface check and build; **1,089 passed, 0 failed, 1 skipped, 0 cancelled** (1,090 tests). |
+| Required targeted numerical suites | 104 passed, 0 failed, 0 skipped; includes registry/workbook/lifecycle/contact/Temporal/Sales/Commercial/spend/Investigation/tenant/source/agent/Data Confidence. |
+| Reconciliation harness tests | 10 passed, 0 failed, 0 skipped; compiler and fake-client execution only. Separate script TypeScript check passed. |
+| Broad browser QA | 63 passed, 0 failed. |
+| Focused numerical browser QA | 10 passed, 0 failed. |
+
+The one skipped repository test is the Firestore access lifecycle suite, gated by
+`FIRESTORE_EMULATOR_HOST`; no emulator was configured for this run. Overlapping
+targeted runs are not added to the full-suite total. Initial stale assertions were
+fixed and rerun; only the final counts above describe the completed revision.
+
+Browser QA used the existing Playwright/Chromium runtime because the Browser
+plugin/skill was not available. All payloads were explicitly synthetic. Broad QA
+covered desktop 1440×1000, tablet 820×1180 and mobile 390×844 in light/dark themes.
+Focused QA covered desktop/mobile Temporal event selection and CSV, vendor
+controls, Investigation governance, Overview disclosure and Bars/Flow transition
+evidence. Page identity, nonblank render, overlays, console and interaction checks
+passed; screenshots were inspected. No production warehouse totals were used.
+
+Evidence is stored outside Git in
+`../numerical-hardening-evidence-2026-10-02/`: `convergence/results.json`,
+`temporal-controls/results.json`, screenshots/CSV, and `verification/` command logs.
+Build-time warehouse exports are static catalogue artifacts, not live reconciliation.
+Earlier sections retain their original dated verification counts and scope.
+
+
 ## Frontend UX convergence
 
 The frontend convergence starts from PR #50 (`a12bc89`) and follows **Area → Page →
