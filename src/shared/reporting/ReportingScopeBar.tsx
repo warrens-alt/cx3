@@ -1,4 +1,4 @@
-import React, { useId, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Calendar,
@@ -153,7 +153,7 @@ function OperationalScopeBar({
   className = '',
   deferOptionsUntilExpanded = false,
 }: ReportingScopeBarProps) {
-  const { selectedClient } = useClient();
+  const { selectedClient, clients } = useClient();
   const {
     startDate,
     endDate,
@@ -170,6 +170,30 @@ function OperationalScopeBar({
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState('');
+  const [compact, setCompact] = useState(false);
+  const sentinel = useRef<HTMLSpanElement>(null);
+  const scopeElement = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!sentinel.current || typeof IntersectionObserver === 'undefined') return;
+    const root = sentinel.current.closest('.cx-main');
+    const observer = new IntersectionObserver(([entry]) => {
+      setCompact(!entry.isIntersecting && entry.boundingClientRect.top < (entry.rootBounds?.top ?? 0));
+    }, { root, threshold: 0 });
+    observer.observe(sentinel.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const element = scopeElement.current;
+    const main = element?.closest<HTMLElement>('.cx-main');
+    if (!element || !main || !compact) return;
+    const previous = main.style.getPropertyValue('--cx-sticky-scope-height');
+    const measure = () => main.style.setProperty('--cx-sticky-scope-height', `${element.getBoundingClientRect().height}px`);
+    measure();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    observer?.observe(element);
+    return () => { observer?.disconnect(); if (previous) main.style.setProperty('--cx-sticky-scope-height', previous); else main.style.removeProperty('--cx-sticky-scope-height'); };
+  }, [compact]);
 
   const scopeKey = JSON.stringify([selectedClient, startDate, endDate]);
   const [storedDraft, setStoredDraft] = useState<(DateRangeDraft & { scopeKey: string }) | null>(null);
@@ -319,9 +343,11 @@ function OperationalScopeBar({
 
   return (
     <>
-    <section className={`cx-scopebar cx-scope-controls ${editorOpen ? 'is-expanded' : ''} ${className}`} aria-label="Reporting scope">
+    <span ref={sentinel} className="cx-scope-sentinel" aria-hidden="true" />
+    <section ref={scopeElement} className={`cx-scopebar cx-scope-controls ${editorOpen ? 'is-expanded' : ''} ${className}`} aria-label="Reporting scope" data-stuck={compact || undefined}>
       <div className="cx-scopebar-main">
         <div className="cx-scope-summary">
+          {compact && <strong className="cx-sticky-workspace">{clients.find(client => client.id === selectedClient)?.name || selectedClient}</strong>}
           <span><Calendar size={13} aria-hidden="true" /><strong>{periodSummary}</strong></span>
           <span>{filters.vendor ? `Vendor: ${scopeFilterSummary(filters.vendor)}` : 'All vendors'}</span>
           <span>{filters.source ? `Source: ${scopeFilterSummary(filters.source)}` : 'All sources'}</span>
@@ -332,7 +358,7 @@ function OperationalScopeBar({
         <button
           type="button"
           className="cx-scope-toggle"
-          onClick={() => setEditorOpen(value => !value)}
+          onClick={() => { if (compact) sentinel.current?.scrollIntoView({ block: 'start', behavior: 'instant' }); setEditorOpen(value => !value); }}
           aria-expanded={editorOpen}
           aria-controls={`${controlsId} ${panelId}`}
         >

@@ -8,6 +8,7 @@ import { installAuthenticatedApiFetch } from './lib/apiFetch';
 import { registerQueryClientForSessionIsolation } from './lib/analyticalSession';
 import './index.css';
 import './styles/product.css';
+import './styles/operatingControls.css';
 import './styles/reporting.css';
 import './styles/overview.css';
 import './styles/visuals.css';

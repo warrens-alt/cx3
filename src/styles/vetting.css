@@ -1,3 +1,53 @@
+/* Active presentation rules migrated from product.css; original cascade precedes canonical refinements. */
+
+.cx-app .vetting-hero { padding:0; gap:16px; }
+.cx-app .vetting-hero h1 { font-size:30px; margin:0 0 8px; }
+.cx-app .vetting-hero p { font-size:14px; }
+.cx-app .vetting-page { gap:16px; }
+.cx-app .vetting-panel { gap:16px; }
+.cx-app .vetting-page label,
+.cx-app .vetting-page summary,
+.cx-app .vetting-tabs button { font-size:13px; }
+.cx-app .vetting-page select,
+.cx-app .vetting-page input { font-size:13px; min-height:44px; }
+.cx-app .vetting-page button { min-height:44px; }
+.cx-app .vetting-kpis { gap:0; border-block:1px solid #e2e8f0; }
+.cx-app .vetting-kpis article { background:transparent; box-shadow:none; border:0; border-radius:0; padding:12px; }
+.cx-app .vetting-kpis article>span { font-size:12px; letter-spacing:0; text-transform:none; }
+.cx-app .vetting-kpis strong { font-size:26px; margin:6px 0; }
+.cx-app .vetting-kpis small,
+.cx-app .vetting-kpis p,
+.cx-app .vetting-insight>span { font-size:12px; }
+.cx-app .vetting-kpis p { padding-top:6px; margin-top:6px; }
+.cx-app .vetting-insight { padding:12px 16px; }
+.cx-app .vetting-chart header p,
+.cx-app .vetting-chart-caption,
+.cx-app .vetting-evidence,
+.cx-app .vetting-diagnostics dt { font-size:12px; color:var(--cx-muted); }
+.cx-app .vetting-chart-actions button,
+.cx-app .vetting-chart-controls button { font-size:13px; }
+.cx-app .vetting-pagination { flex-wrap:wrap; font-size:13px; }
+.cx-app .vetting-scorecard td:not(:nth-child(2)),
+.cx-app .vetting-scorecard th:not(:nth-child(-n+2)) { text-align:right; }
+.cx-app .vetting-scorecard tbody th:first-child { text-align:left; }
+.cx-app .vetting-pie-legend button,
+.cx-app .vetting-pie-legend small,
+.cx-app .vetting-matrix-row small,
+.cx-app .vetting-matrix-row strong,
+.cx-app .vetting-exact ul { font-size:12px; }
+@media(max-width:767px) {
+  .cx-app .vetting-hero h1 { font-size:24px; }
+}
+@media(max-width:767px) {
+  .cx-app .vetting-page select,
+.cx-app .vetting-page input { font-size:15px; }
+}
+@media(max-width:767px) {
+  .cx-app .vetting-kpis article { padding:8px; }
+}
+@media(max-width:767px) {
+  .cx-app .vetting-kpis strong { font-size:20px; }
+}
 .vetting-page{display:flex;flex-direction:column;gap:22px;min-width:0;color:#17283d}.vetting-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding:24px 0 4px}.vetting-eyebrow{display:flex;align-items:center;gap:8px;color:#315EAD;font-size:11px;font-weight:750;letter-spacing:.13em}.vetting-hero h1{font-size:36px;line-height:1.1;font-weight:750;margin:10px 0 12px;letter-spacing:-.035em}.vetting-hero p{font-size:15px;color:#53677b;max-width:640px}.vetting-hero-meta{display:flex;flex-wrap:wrap;gap:18px;margin-top:18px;font-size:11px;color:#697c8f}.vetting-hero-meta span{display:flex;gap:6px;align-items:center}
 .vetting-selection{display:grid;grid-template-columns:1fr 1fr .7fr 1.3fr auto;align-items:end;gap:12px;padding:18px}.vetting-page label{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:650;color:#4e657a}.vetting-page select,.vetting-page input{width:100%;max-width:100%;min-width:0;border:1px solid #d9e3eb;background:white;border-radius:7px;padding:10px;color:#1c354b;font-size:12px;font-weight:500;min-height:40px}.vetting-page button{min-height:36px}.vetting-page button:disabled{opacity:.5;cursor:not-allowed}.vetting-page :focus-visible{outline:3px solid var(--cx-focus, #315BCB);outline-offset:3px}
 .vetting-tabs{display:flex;gap:5px;overflow-x:auto;padding:5px;border:1px solid #dce5eb;border-radius:11px;background:#edf2f6}.vetting-tabs button{flex:1;white-space:nowrap;border-radius:7px;padding:10px 13px;font-size:12px;font-weight:650;color:#536a7f}.vetting-tabs button[aria-selected=true]{background:var(--cx-action, #315BCB);color:white;box-shadow:0 3px 8px rgba(49,91,203,.18)}.vetting-panel{display:flex;flex-direction:column;gap:22px;min-width:0}.vetting-insight{display:flex;align-items:flex-start;gap:12px;border-left:3px solid var(--cx-action, #315BCB);background:#EDF5FC;padding:16px 18px;border-radius:8px}.vetting-insight>svg{flex-shrink:0;color:var(--cx-action, #315BCB)}.vetting-insight p{font-size:13px;line-height:1.65;flex:1}.vetting-insight>span{font-size:10px;text-align:right;max-width:130px;color:#637a8d}.vetting-warning{font-size:12px;background:#fff7e8;border:1px solid #efe0be;border-radius:8px;padding:13px 16px;line-height:1.6;color:#6e541e}

@@ -281,7 +281,7 @@ export default function AppShell({ children }: AppShellProps) {
                   <div>
                     <div className="font-semibold text-text-main mb-1.5 flex items-center justify-between">
                       <span>Table spacing</span>
-                      <span className="text-[11px] text-text-mute capitalize font-mono">{density}</span>
+                      <span className="text-[11px] text-text-mute capitalize">{density}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-1.5 bg-surface-subtle p-1 rounded-md border border-border-subtle" role="group" aria-label="Table density">
                       <button
