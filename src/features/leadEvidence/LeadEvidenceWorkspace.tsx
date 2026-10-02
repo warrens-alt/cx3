@@ -53,6 +53,7 @@ export default function LeadEvidenceWorkspace() {
       const leadId = selection.leadId;
       setSourceFocus(previous => previous?.boundary === boundary && previous.focus.leadId === leadId ? previous : { boundary, focus: { leadId, fields: [] } });
     }
+    if (next === 'population') setMatchRequest(null);
     if (next === 'population' && selection?.origin === 'source' && !selection.row) setSelection(null);
     setParams(previous => { const value = new URLSearchParams(previous); value.set('view', next); return value; });
   }, [setParams, selection, boundary]);
@@ -110,7 +111,7 @@ export default function LeadEvidenceWorkspace() {
     setSourceFocus({ boundary, focus: { leadId, fields } });
     changeMode('source');
   };
-  const requestLead = matchRequest?.boundary === boundary && mode === 'source' ? matchRequest.leadId : null;
+  const requestLead = matchRequest?.boundary === boundary && mode === 'source' && selection?.leadId === matchRequest.leadId ? matchRequest.leadId : null;
   const exactFilters = requestLead && !filters.lead_id ? { ...filters, lead_id: { operator: 'equals' as const, value: requestLead } } : filters;
   const analyticalMatch = useOperationalData<RawLeadsData>('lead-evidence-exact-match', {
     clientId: selectedClient, startDate: startDate || undefined, endDate: endDate || undefined,
@@ -140,5 +141,5 @@ export default function LeadEvidenceWorkspace() {
     segmentVendor={params.get('segmentVendor') || undefined} onPin={selection.row ? item => pin({ ...item, kind: item.type }, { validationStatus: selection.result?.validationStatus || 'NOT_VERIFIED' }) : undefined} />;
   return <div id={`${modeId}-${mode}-panel`} role="tabpanel" aria-labelledby={`${modeId}-${mode}-tab`} className="cx-lead-evidence-page">{mode === 'population'
     ? <LeadPopulationBrowser navigation={navigation} selection={selection} onSelect={selectAnalytical} onClose={closeDossier} dossier={dossier} dossierId={dossierId} scopeKey={boundary} onPopulationResolved={populationResolved} focusLeadId={populationFocus?.boundary === boundary ? populationFocus.leadId : undefined} onClearFocus={() => { setPopulationFocus(null); setSelection(null); }} />
-    : <LeadSourceBrowser sourceMode={sourceMode} setSourceMode={value => setParams(previous => { const next = new URLSearchParams(previous); next.set('sourceMode', value); return next; })} sourceFocus={sourceFocus} workspaceNavigation={navigation} selection={selection} dossier={dossier} dossierId={dossierId} onSelect={selectSource} onSourceResolved={sourceResolved} onClearFocus={() => { setSourceFocus(null); setSelection(null); }} boundary={boundary} />}</div>;
+    : <LeadSourceBrowser sourceMode={sourceMode} setSourceMode={value => setParams(previous => { const next = new URLSearchParams(previous); next.set('sourceMode', value); return next; })} sourceFocus={sourceFocus} workspaceNavigation={navigation} selection={selection} dossier={dossier} dossierId={dossierId} onSelect={selectSource} onSourceResolved={sourceResolved} onClearFocus={() => { setSourceFocus(null); setSelection(null); setMatchRequest(null); }} boundary={boundary} />}</div>;
 }

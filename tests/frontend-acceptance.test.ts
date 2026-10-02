@@ -289,9 +289,10 @@ test('request failure is not rendered as an empty analytical ledger',async()=>{
 });
 
 test('explorer distinguishes absent outcomes from explicit false',async()=>{
-  const app=await mount('/lead-explorer'+scope);try{
+  const app=await mount('/lead-explorer'+scope+'&preset=outcomes');try{
     await app.wait(()=>app.text().includes('SYNTHETIC-LEAD-0001'));
-    const rows=[...app.w.document.querySelectorAll('tbody tr')] as any[];
+    await app.wait(()=>app.find('table[data-preset="outcomes"]'));
+    const rows=[...app.w.document.querySelectorAll('table[data-preset="outcomes"] tbody tr')] as any[];
     assert.match(rows[0].textContent,/Unavailable/);
     assert.match(rows[1].textContent,/Not recorded/);
   }finally{app.close();}

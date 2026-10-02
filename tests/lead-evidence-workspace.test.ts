@@ -268,6 +268,30 @@ test('a source-only unmatched selection clears on a direct Population mode switc
   } finally { app.close(); }
 });
 
+test('clearing a source-only selection through the primary Population tab cannot restart its pending analytical lookup on return', async () => {
+  const app = await mount('/lead-explorer' + scope + '&view=source');
+  try {
+    await app.wait(() => app.find('button', `Inspect source lead ${firstLead}`));
+    await app.click('button', `Inspect source lead ${firstLead}`);
+    app.w.__fixture.defer = [rawPath];
+    await app.click('button', 'Load analytical evidence', app.find('.cx-lead-dossier'));
+    await app.wait(() => app.w.__fixture.pending?.[rawPath]);
+    const resolveOldLookup = app.w.__fixture.pending[rawPath];
+    app.w.__fixture.defer = [];
+    await app.click('[role="tab"][data-view="population"]');
+    await app.wait(() => app.find('button', `Open dossier for lead ${firstLead}`) && !app.find('.cx-lead-dossier'));
+    const exactReads = app.queries(rawPath).filter(request => app.requestParams(request).get('search') === firstLead).length;
+    assert.equal(exactReads, 1);
+    await app.click('[role="tab"][data-view="source"]');
+    await app.wait(() => app.find('button', `Inspect source lead ${firstLead}`) && !app.find('.cx-lead-dossier'));
+    assert.equal(app.queries(rawPath).filter(request => app.requestParams(request).get('search') === firstLead).length, exactReads, 'No old identity lookup restarts after selection was cleared');
+    resolveOldLookup();
+    await app.settle();
+    assert.equal(app.find('.cx-lead-dossier'), undefined);
+    assert.equal(app.timelines().length, 0);
+  } finally { app.close(); }
+});
+
 test('source page membership clears the dossier when the returned page omits its selected source key', async () => {
   const app = await mount('/lead-explorer' + scope + '&view=source', { sourceLeadCount: 26 });
   try {
