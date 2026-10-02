@@ -1,5 +1,39 @@
 # UI, API and query surface coverage
 
+## Current maturity coverage — 2 October 2026
+
+The source-generated [surface inventory](SURFACE-INVENTORY.md) is authoritative
+for mounted routes and API paths. This section supersedes historical current-state
+claims below without broadening their original test results.
+
+| Surface | Current behavior and evidence boundary |
+| --- | --- |
+| `/reports` | Authorised release catalogue, explicit scope and metric selection, immutable aggregate execution, exact cards/table/components, canonical audit inspection, signed replay and result/evidence JSON export. No approved frozen record reader; supporting-record unavailability is explicit. |
+| `/vendors`, `/reconciliation` | Existing evidence consumers use the same strict request/release contract, explicit historical release selection, exact value formatting and fail-closed unsupported scope. Missing vendor groups cannot borrow totals. |
+| `GET /api/reporting/catalogue` | Explicit authorised `tenantId`, optional `releaseId`, query-key allowlist, validated manifest, execution/replay configuration metadata. |
+| `POST /api/reporting` | Versioned request, tenant/release/definition validation, configured dataset only, fixed parameterized aggregate SELECT, immutable snapshot metadata, byte guard and 100-row result cap. Unavailable/partial sources withhold values. |
+| `POST /api/reporting/replay` | HMAC signature, descriptor size/version/expiry, tenant authority, current release/manifest/snapshot checks, exact original/replayed comparison. `MATCH` never means independent reconciliation. |
+| `/validation` | Existing administrator gate plus commands for the existing reconciliation CLI and strict local JSON import. Scope/version/grain/run-time validation; operator-supplied unattested evidence; persistence unavailable; no browser warehouse calls. |
+| Overview → Investigation → Lead Evidence | Permitted tenant/dates/filters and selected metric/driver preserved; private identities stay local. Source-only records require exact analytical lookup. Population and Source Evidence keep separate grains/models/caches. |
+| Dossier and Audit Evidence | Shared Summary/Journey/Calls/Outcomes/Audit/Source; literal supplied lifecycle/qualification/anomalies, available source fields, exact outcomes, canonical inspector and independent Reproduced state. |
+| Routing and access | Seven business areas, canonical feature mounts, public compatibility redirects, admin record gates, chunk recovery and route error handling retained. |
+
+Reporting requests reject unsupported/private/investigation URL scope rather than
+silently broaden it. Immutable report export deliberately includes the signed replay
+token and exact aggregate evidence; it contains no credentials or raw unrestricted
+SQL. It remains subject to server tenant authority when replayed. Operational record
+exports keep their existing admin/private scope boundaries. No `/api/reporting/evidence`
+record-preview endpoint was added.
+
+Regression and browser coverage, including exact command results and all five
+widths in light/dark themes, are recorded in
+[the maturity verification record](CX3-MATURITY-PASS-2026-10-02.md). These are
+synthetic implementation checks; live warehouse reconciliation, production identity
+configuration and source business approval remain unverified.
+
+## Historical surface review — 21 September 2026
+
+
 > **Current inventory:** `docs/SURFACE-INVENTORY.md` is generated directly from the mounted app router and the API router sources. CI runs `npm run docs:surfaces:check`, so route/API drift now fails verification. The narrative classifications below remain the 21 September audit context unless explicitly updated.
 
 Audit date: 21 September 2026. Every reachable React route in `src/App.tsx` and every Express endpoint mounted by `server.ts` is listed here. “Legacy” means intentionally available but not independently reconciled; it does not mean untested.
@@ -35,7 +69,7 @@ Driver tests cover exact metric IDs, scoped matched periods, contribution reconc
 
 All analytical/reporting routes pass through generated request ID and browser-security middleware, the 64 KiB JSON body ceiling, signed IAP verification, explicit tenant policy, same-origin protection for unsafe methods, and the process-local concurrency limiter. `/api/health` is the only public API. Legacy responses add `X-Analytics-Status: LEGACY_UNVERIFIED`. API responses are private/no-store. Unknown APIs return 404 and `/api/bq/*` returns 410.
 
-Legacy client scope is capture-date plus explicit filters. `useAnalyticsData` includes tenant, dates, filters and endpoint parameters in the query identity and uses the browser cancellation signal. Evidence Reports keep a separate fixed report request and do not inherit legacy URL filters.
+Legacy client scope is capture-date plus explicit filters. `useAnalyticsData` includes tenant, dates, filters and endpoint parameters in the query identity and uses the browser cancellation signal. At this historical revision, Evidence Reports kept a separate fixed request. Current reports strictly project supported dates/filters and reject unsupported URL scope as described above.
 
 ## Reachable UI routes
 

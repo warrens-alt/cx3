@@ -1,5 +1,25 @@
 # ConversionX frontend inventory and verification map
 
+## Current maturity additions — 2 October 2026
+
+`VersionedReports` composes `ReportExecutionWorkspace`, `ReportReplay` and the
+existing release/audit components. Vendor Evidence and Commercial Reconciliation
+share strict versioned scope/release selection and exact decimal rendering.
+`AdminValidation` includes the admin-only `ReconciliationReadiness` panel. These
+are additions to existing routes; navigation still has seven business areas.
+
+`LeadEvidenceSummary` and the canonical Dossier strengthen supplied lifecycle,
+qualification, anomaly, outcome and source-relationship evidence. Overview attention
+and changes open Investigation with permitted scope. Population/Source retain
+separate grains, caches and private selection. No record workspace was duplicated.
+
+Three old diagnostic pages, six unused access components and DemoWorkspace were
+removed after traced consumer and capability parity. `FunnelIntelligence` remains
+reference-only because its old derived vendor ratio has no approved canonical
+equivalent. See the [complete retirement classifications](FRONTEND-RETIREMENT-2026-10-02.md)
+and [maturity verification](CX3-MATURITY-PASS-2026-10-02.md). Earlier tables and test
+counts below are historical and do not describe current executable reporting.
+
 ## Current Lead Evidence workspace — 2 October 2026
 
 `/lead-explorer` now mounts `LeadEvidenceWorkspace` through the retained

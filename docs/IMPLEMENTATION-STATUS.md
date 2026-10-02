@@ -1,5 +1,41 @@
 # Implementation status — 2 October 2026
 
+## Current maturity implementation — 2 October 2026
+
+The maturity pass starts at `fa9a93d3d14ef3164f4bc45b29a0dbec95fed24d` on
+fetched `main`. The [implementation and verification record](CX3-MATURITY-PASS-2026-10-02.md)
+is the current revision boundary; dated results below keep their original counts.
+
+- Supported immutable reporting execution and HMAC-signed replay are implemented
+  on the existing metric/release architecture. An approved aggregate-snapshot
+  descriptor is required; no operational fact mapping or publication pipeline is
+  inferred. [The contract guide](VERSIONED-REPORTING.md) records configuration,
+  scope hashes, exact values, byte/row limits and unsupported release states.
+- Reports offers release identity, explicit execution, exact cards and tables,
+  canonical definition/lineage inspection, JSON evidence export and original versus
+  replayed comparison. Reproduction, independent reconciliation and business meaning
+  remain separate dimensions. A signed descriptor is required for full restoration;
+  ordinary report-page links do not claim to carry the entire immutable contract.
+- `/validation` adds the administrator reconciliation operator workflow around the
+  existing CLI. Imported evidence is validated against exact tenant/date/filter,
+  metric, grain, definition and timestamp, labelled unattested, kept local, and
+  never promoted to global production verification. Persistence is unavailable.
+- Overview changes/attention feed Investigation with permitted scope. Population
+  adds literal lifecycle summaries without replacing its 17-column analytical
+  preset. The single six-tab Dossier strengthens summary, original source evidence,
+  exact outcomes and independent qualification/reconciliation states.
+- The consumer audit restored canonical export/diagnostic parity before retiring
+  three old diagnostic pages, six unused access components and unmounted DemoWorkspace.
+  `FunnelIntelligence` and other unproven candidates remain explicit reference/test
+  code. [Retirement and security evidence](FRONTEND-RETIREMENT-2026-10-02.md) lists
+  consumers, retained capability boundaries and the current tracked-tree scan.
+
+No analytical formula, denominator, source/tenant mapping, lifecycle qualification,
+revenue meaning or registered metric definition changed. Live production totals,
+source-owner approval, cloud configuration and independent reconciliation remain
+unverified. Existing seven-area navigation, aliases, administrative record gates,
+query ceilings and saved-definition storage boundaries remain in force.
+
 ## Lead Evidence consolidation
 
 This presentation consolidation fetched `origin/main` and confirmed actual HEAD
@@ -369,17 +405,19 @@ and redirects to the maintained surfaces.
 
 ## Evidence reporting
 
-`contracts/reporting.ts` defines the intended versioned evidence metric contract and `server/reporting/repository.ts` contains immutable snapshot verification logic.
+`contracts/reporting.ts` remains the metric registry. The current executor reads
+only the manifest's explicitly approved immutable aggregate snapshot, validates
+registered definitions and exact scoped rows, and returns independent evidence
+metadata. `GET /api/reporting/catalogue` accepts an explicit tenant and optional
+release ID; `POST /api/reporting` executes the versioned request;
+`POST /api/reporting/replay` authenticates a signed descriptor and compares exact
+original/replayed results. Unsupported historical releases return structured
+`NOT_SUPPORTED`, not a fabricated result. See [VERSIONED-REPORTING.md](VERSIONED-REPORTING.md).
 
-However, the current repository does **not** contain a complete v2 report compiler/executor or replay engine. Therefore:
-
-- `GET /api/reporting/catalogue` can inspect an authorised tenant's release registry when configured;
-- report execution returns `501 NOT_IMPLEMENTED`;
-- replay returns `501 NOT_IMPLEMENTED`;
 - exceptions do not fabricate rules or PASS evidence when no approved release exists;
 - release manifests are validated strictly before use.
 
-Do not describe this repository revision as having completed reproducible evidence-report execution.
+Reproducible execution is implemented for the approved aggregate contract. This does not certify production publication, physical source business meaning, completeness or independent reconciliation.
 
 ### Unsupported historical reporting scripts
 
@@ -388,8 +426,8 @@ These scripts are retained as unfinished design history. They are not wired into
 | Script | Missing implementation or fixture |
 | --- | --- |
 | `scripts/ingest-canonical.ts` | `server/reporting/ingestion` and its `normalizeBatch` implementation. |
-| `scripts/publish-release.ts` | `server/reporting/checks` (`releaseCheckQueries`) and `server/reporting/scope` (`isoTimestamp`). |
-| `scripts/warehouse-reference.ts` | `compileReport`/`compileEvidence` exports from `server/reporting/query`, `server/reporting/scope` (`reportRequest`), and `tests/fixtures/reporting-reference.json`. |
+| `scripts/publish-release.ts` | `server/reporting/checks` (`releaseCheckQueries`). The restored scope helper alone does not make this script supported. |
+| `scripts/warehouse-reference.ts` | `compileReport`/`compileEvidence` exports from `server/reporting/query` and `tests/fixtures/reporting-reference.json`. The restored request helper uses the new explicit contract. |
 
 Module loading fails before their planning or `--execute` guards. Do not use these scripts for ingestion, release publication, or warehouse validation. Restoring them requires the reviewed reporting implementation and fixtures. The supported read-only integration check is `npm run sources:check`; it does not ingest or publish data.
 
@@ -599,14 +637,14 @@ This release hardens operational reliability, permission isolation, and reportin
    - `src/app/navigation/ScopePreservingRedirect.tsx` now allows exploration and pagination parameters (`search`, `drill`, `drillValue`, `page`, `pageSize`, `leadId`) for `/lead-ledger` as well as `/lead-explorer`.
 
 5. **Versioned Report Executor Presentation**:
-   - `src/pages/VersionedReports.tsx` presents an explicit status badge (`Executor: Deferred (501)`) and header communicating that full versioned report compilation and evidence replay are deferred to Milestone 2, while retaining fail-closed 501 HTTP responses.
+   - Historical milestone: `VersionedReports` disclosed the former deferred 501 boundary. The maturity implementation above supersedes that executor/replay state for explicitly supported immutable aggregate releases.
 
 6. **Automated Verification**:
    - Comprehensive test suites in `tests/analytical-session-isolation.test.ts` (9 tests) and `tests/auth-dead-ends.test.ts` (5 tests) verify all required session-isolation transitions, recovery states, and export invariants.
 
 ## Remaining work
 
-1. Complete the versioned report compiler/executor and signed replay flow.
+1. Approve and publish production aggregate snapshots and manifest descriptors; configure the server-only signing key and verify immutable execution/replay under deployment IAM.
 2. Provision and test immutable reporting snapshots with separately controlled cloud permissions.
 3. Reconcile call-event identities, repeated HLC records and activation transaction identities against live sources.
 4. Approve source timezone semantics and event-time interpretation.

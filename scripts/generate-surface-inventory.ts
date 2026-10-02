@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import { ROUTE_MANIFEST, BUSINESS_AREAS } from '../src/app/routeManifest';
 import { buildLeadLedgerDestination } from '../src/app/navigation/ScopePreservingRedirect';
+import { REPORT_REQUEST_VERSION, REPORT_RESULT_VERSION, REPORT_REPLAY_VERSION, AGGREGATE_SNAPSHOT_VERSION, REPORT_MAX_ROWS } from '../contracts/reporting';
 
 const read = (path: string) => fs.readFileSync(path, 'utf8');
 
@@ -113,7 +114,8 @@ function generateInventory() {
     '## API boundary',
     '',
     '- `/api/analytics/*` is authenticated, tenant-scoped operational analytics and is stamped `UNVERIFIED`.',
-    '- `/api/reporting/*` is the separate versioned evidence-reporting path.',
+    `- \`POST /api/reporting\` accepts \`${REPORT_REQUEST_VERSION}\` and returns \`${REPORT_RESULT_VERSION}\` from an approved immutable \`${AGGREGATE_SNAPSHOT_VERSION}\`; at most ${REPORT_MAX_ROWS} result rows. Unsupported releases fail explicitly.`,
+    `- \`POST /api/reporting/replay\` validates \`${REPORT_REPLAY_VERSION}\` signed evidence and compares immutable results. A match is reproduction, not independent reconciliation.`,
     '- `/api/saved-analyses/*` stores personal, authenticated owner/workspace-scoped investigation definitions; no analytical records or results are persisted.',
     '- `/api/bq/*` is retired and returns HTTP 410.',
     '- `/api/health` is liveness only and is the sole unauthenticated API route.',

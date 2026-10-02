@@ -12,13 +12,13 @@ and [verification record](docs/qa/consolidation/README.md).
 
 CX3 is hosted through Google AI Studio. Use [the Google AI Studio runtime guide](docs/GOOGLE-AI-STUDIO.md) for preview startup, GitHub synchronisation, server secrets and Cloud Run publishing. Cloudflare instructions below are an optional alternative; a Pages check does not diagnose the Google-hosted app. A GitHub merge does not establish that the AI Studio working copy or its published revision has updated.
 
-## Current trust boundary — 26 September 2026
+## Current trust boundary — 2 October 2026
 
 The application intentionally separates **operational analytics** from **versioned evidence reporting**.
 
 Operational analytics are useful for exploration and operational monitoring, but they are not independently reconciled or certified. The API stamps these responses `UNVERIFIED`. Media spend, CPC, CPM and CPL may be shown when they come from the configured marketing API-table contract and its declared spend grain passes validation. Budget is never substituted for spend. Cross-source attribution and profitability remain withheld unless their own explicit contracts are active.
 
-The `/reports` area currently provides a tenant-scoped registry of immutable reporting releases. The metric contracts and release-manifest model are present, but the v2 report executor and replay engine are **not implemented in this repository revision**. Their endpoints therefore fail explicitly with `NOT_IMPLEMENTED` instead of returning placeholder results.
+The `/reports` area executes registered metrics from an approved immutable aggregate snapshot in an authorised tenant release. It validates exact scope, source coverage, snapshot identity, registered definitions and bounded results. Signed replay compares the original immutable result with a new execution without calling a match independent reconciliation. Releases without the explicit executable snapshot contract return `NOT_SUPPORTED`; missing evidence stays unavailable. The repository does not provision or publish production snapshots. See [versioned reporting](docs/VERSIONED-REPORTING.md) and [the maturity implementation and QA record](docs/CX3-MATURITY-PASS-2026-10-02.md).
 
 ## Security
 
@@ -117,15 +117,17 @@ binding and `CX_SAVED_ANALYSES_R2_PRIVATE_CONFIRMED=true` after reviewing bucket
 There is no memory, CLI-storage or warehouse-credential fallback and no automatic provisioning.
 See [.env.example](.env.example) and [activation and verification requirements](docs/SAVED-INVESTIGATIONS.md).
 
-## Demo mode
+## Reconciliation readiness
 
-`/overview?mode=demo` is a separate client-only synthetic workspace. It does not make live analytics or BigQuery requests and should never be interpreted as validated business performance.
+Administrators can use `/validation` to prepare an exact-scope command for the existing `npm run reconcile:metrics` harness and inspect its JSON output. Imports are operator-supplied and unattested, remain local to that session/scope, and cannot promote production metrics globally. Evidence persistence is explicitly unavailable. Dry-run validation, warehouse measurements, service comparison, matches and mismatches remain separate states. No warehouse command runs in the browser.
+
+There is no isolated product demo mode. The browser QA scripts use explicitly synthetic fixtures; `?mode=demo` must not be relied on to suppress operational requests.
 
 ## Known remaining work
 
 The main remaining trust work is:
 
-- complete and independently test the versioned report compiler/executor and replay token flow;
+- approve and publish the immutable aggregate snapshot descriptor, exact scope rows and registered definition hash; configure the server-only `CX_REPORT_SIGNING_KEY` for replay;
 - provision and validate immutable reporting snapshots outside this repository;
 - reconcile call-event joins, activation identities and timestamp semantics against live sources;
 - approve exact tenant-to-`client_name` mappings through `CX_MARKETING_CLIENT_MAP_JSON` for tenant-level campaign reporting;

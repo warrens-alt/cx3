@@ -201,7 +201,8 @@ Area → page → section. See [frontend design architecture](FRONTEND-DESIGN-AR
 ## API boundary
 
 - `/api/analytics/*` is authenticated, tenant-scoped operational analytics and is stamped `UNVERIFIED`.
-- `/api/reporting/*` is the separate versioned evidence-reporting path.
+- `POST /api/reporting` accepts `cx.report-request.1` and returns `cx.report-result.1` from an approved immutable `cx.reporting.aggregate-snapshot.1`; at most 100 result rows. Unsupported releases fail explicitly.
+- `POST /api/reporting/replay` validates `cx.report-replay.1` signed evidence and compares immutable results. A match is reproduction, not independent reconciliation.
 - `/api/saved-analyses/*` stores personal, authenticated owner/workspace-scoped investigation definitions; no analytical records or results are persisted.
 - `/api/bq/*` is retired and returns HTTP 410.
 - `/api/health` is liveness only and is the sole unauthenticated API route.

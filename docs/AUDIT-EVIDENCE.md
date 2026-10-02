@@ -12,6 +12,7 @@ qualification gaps, independent comparison status and supporting-record access.
 | Observed | A value/observation was returned | Physical-source completeness or business approval |
 | Mapped | A declared analytical source/field mapping exists | Source-owner approval or independent totals |
 | Scoped | The supplied result context is shown | That a source-wide observation used the capture cohort |
+| Reproduced for scope | Signed immutable result replay matches for the exact descriptor | Independent source reconciliation or business approval |
 | Reconciled | Actual independent comparison for the labelled exact scope | Business approval or other scopes |
 | Business verified | Explicit source/business approval | Other metrics, periods or sources |
 | Partial / mismatch | Supplied incomplete evidence / measured disagreement | A combined confidence score |
@@ -64,3 +65,22 @@ synthetic fixtures and does not certify live production reconciliation.
 
 See [the audit acceptance record](qa/audit-evidence/README.md) for executed commands,
 browser coverage, reproducible runner instructions and remaining evidence gaps.
+
+## Immutable reporting and readiness extension — 2 October 2026
+
+The maturity pass reuses this visual model for immutable reports and the local
+reconciliation operator workflow. `immutable_reproduction` has a distinct
+`reproduced` state and never becomes `reconciled`. Per-metric Observed/Mapping
+states derive from that selected metric, not another available report metric.
+Original/replayed values, numerator, denominator, nulls and hashes remain exact;
+release timestamp strings retain supplied sub-millisecond identity.
+
+Immutable report inspectors do not offer a scoped-link action that drops execution
+scope; users export the signed descriptor for replay. No frozen record reader is
+approved, so a report's supporting-record limitation is explicit. Operational
+record previews retain their separate existing admin boundary.
+
+The admin readiness panel labels imported CLI results operator-supplied and
+unattested, tied to exact scope/version/grain/time, with persistence unavailable.
+Its matched arithmetic cannot update global evidence status. Implementation and
+current verification are in [the maturity record](CX3-MATURITY-PASS-2026-10-02.md).

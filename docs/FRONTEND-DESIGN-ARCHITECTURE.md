@@ -339,8 +339,8 @@ commercial, integrity and pinned Investigation evidence. It composes shared
 presentation models and never fetch analytical data. `EvidenceMatrix` also
 supports independent metric evidence dimensions and accessible exact text.
 
-Evidence layers are **Observed → mapped → scoped → reconciled → business
-verified**, with independent partial, mismatch, not verified and unavailable
+Evidence layers are **Observed → mapped → scoped → reproduced → independently
+reconciled → business verified**, with independent partial, mismatch, not verified and unavailable
 states. The arrow describes questions to inspect, not an automatic promotion.
 A returned source aggregate and approved field mapping can coexist with absent
 independent reconciliation and unapproved source business meaning. No combined
@@ -373,3 +373,41 @@ Audit layout uses existing tokens in light/dark themes. Ordered lineage nodes
 have semantic text and keyboard actions; connectors are decorative. Mobile traces
 are vertical, ratio populations stack, and comparison/record tables scroll inside
 their own regions. Exact values and state names remain available without hover.
+
+## Maturity ownership — 2 October 2026
+
+The seven business areas and `routeManifest.tsx` remain authoritative. No primary
+route, parallel Lead Evidence workspace or audit framework was added.
+`ReportExecutionWorkspace` owns explicit immutable execution and `ReportReplay`
+owns signed original/replayed comparison. They compose the existing
+`InspectorHost`, `EvidenceTrace`, `MetricAnatomy`, `EvidenceMatrix` and
+`ReconciliationView`. The old `EvidenceInspector` export is now a compatibility
+adapter to that canonical host, retaining focus trapping, Escape and focus return.
+
+Release identity, exact timestamp strings, source coverage and contract metadata
+remain visible through cards/status strips and expandable technical detail. Exact
+metric strings and components never pass through floating-point display conversion.
+`reporting.css` also owns the existing Vendor/Commercial `.cx-ops-page` layouts,
+with exact summary values wrapping and keyboard-focusable bounded table regions.
+Wide evidence tables scroll internally; long hashes wrap at 320px. A successful
+replay adds only `Reproduced for scope`; source reconciliation and business approval
+remain not verified. Immutable inspectors direct users to signed replay because
+ordinary scoped URLs cannot restore the full execution contract.
+
+`LeadEvidenceSummary` supplies six literal lifecycle positions, source/vendor
+context, supplied qualification/anomalies and aggregate call evidence. It never
+turns aggregate call counters into attempt events. The existing Calls chronology
+continues to show supplied event-level fields and unavailable positions. Dossier
+Source uses a trace from original rows through available fields, identity and the
+exact analytical relationship, with independent reconciliation always separate.
+
+`ReconciliationReadiness` is a disclosure on the existing admin Validation page.
+It prepares safely quoted harness commands and validates local JSON results;
+there is no browser warehouse executor or invented persistence. Source/tenant/scope
+changes clear local evidence. All states include text rather than colour alone.
+
+Consumer-based retirement and intentionally retained reference implementations are
+recorded in [the retirement audit](FRONTEND-RETIREMENT-2026-10-02.md). Current
+repository and five-width light/dark browser results are recorded in
+[the maturity QA record](CX3-MATURITY-PASS-2026-10-02.md); earlier counts above are
+historical evidence, not production warehouse certification.

@@ -160,3 +160,18 @@ targeted suites passed 104/104; the offline reconciliation harness suite passed
 scenarios and 10 focused numerical scenarios using explicitly synthetic fixtures.
 These overlapping code/UI checks establish neither live production totals nor
 business certification. See `IMPLEMENTATION-STATUS.md` for commands and evidence.
+
+## Reporting and reconciliation readiness — 2 October 2026
+
+Operational definitions and lifecycle policy above are unchanged. The separate
+existing versioned reporting registry remains `cx.metrics.2.0.1`; its new executor
+validates approved immutable aggregate rows against those definitions and exact
+components. Values outside available source coverage remain null/PARTIAL. Exact
+replay proves reproducibility only, with independent source reconciliation and
+business meaning still `NOT_VERIFIED`.
+
+Admin `/validation` prepares existing harness commands and validates imported
+seven-metric comparisons for their original exact scope, grain, definition and run
+time. Import provenance is `OPERATOR_SUPPLIED_UNATTESTED`; no new persistence,
+production evidence or global verification promotion is introduced. See
+[the contract](VERSIONED-REPORTING.md) and [verification record](CX3-MATURITY-PASS-2026-10-02.md).
