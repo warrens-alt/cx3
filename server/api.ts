@@ -18,7 +18,7 @@ import { cacheResponse } from './cacheMiddleware';
 import { MODEL_VERSION } from './bigquery/integrity';
 import { serverQueryCache } from './cache';
 import { analyticalRoute as asyncRoute } from './analyticalWork';
-import { operationalFilterValues, canonicalOperationalFilters } from './offernetScope';
+import { buildOffernetQueryParams } from './analytics/requestScope';
 import { operationalMetadata } from './analytics/common/lineage';
 import { redactReportRecords } from './analytics/common/reportAccess';
 import { analyticsRequestTenant } from './requestTenant';
@@ -219,39 +219,6 @@ for (const route of ['/explore', '/insights', '/drivers']) {
 import * as offernetAnalytics from './analytics';
 
 // Offernet Operational Intelligence Endpoints
-function buildOffernetQueryParams(req: Request, res: Response): offernetAnalytics.OffernetQueryParams {
-  const scope = res.locals.scope as QueryScope;
-  const values = operationalFilterValues(scope.filters, req.path);
-  const effectiveFilters = canonicalOperationalFilters(values);
-  scope.filters = effectiveFilters;
-  const investigationString = (name: string, maxLength?: number) => {
-    const queryValue = scalarString(req.query[name], name, maxLength);
-    const bodyValue = req.method === 'GET' ? undefined : scalarString(req.body?.[name], name, maxLength);
-    if (queryValue !== undefined && bodyValue !== undefined && queryValue !== bodyValue) {
-      throw new RequestError(`Conflicting ${name} investigation scope between query and body`, 422);
-    }
-    return bodyValue ?? queryValue;
-  };
-  return {
-    clientId: scope.clientId,
-    startDate: scope.startDate,
-    endDate: scope.endDate,
-    ...values,
-    filters: effectiveFilters,
-    search: investigationString('search', 200),
-    question: scalarString(req.method === 'GET' ? req.query.question : req.body?.question ?? req.query.question, 'question', 1000),
-    drill: investigationString('drill'),
-    drillValue: investigationString('drillValue'),
-    segmentVendor: investigationString('segmentVendor', 200),
-    segmentSource: investigationString('segmentSource', 200),
-    segmentGrade: investigationString('segmentGrade', 200),
-    segmentLeadAge: investigationString('segmentLeadAge', 100),
-    metric: investigationString('metric'),
-    limit: boundedInteger(req.query.limit, 50, 200, 10),
-    offset: boundedInteger(req.query.offset, 0, 100000),
-  };
-}
-
 analyticsRouter.get('/offernet/operating-controls', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-operating-controls', params, () => offernetAnalytics.getOperatingControlsAnalytics(params));
@@ -264,6 +231,8 @@ analyticsRouter.get('/offernet/overview', cacheResponse(60), asyncRoute(async (r
   res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
+// Investigation signals and descriptive diagnosis. Record/evidence routes below
+// share the same request-scope parser and retain their explicit administrator gate.
 analyticsRouter.get('/offernet/exceptions', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-exceptions', params, () => offernetAnalytics.getExceptionAnalytics(params));
@@ -276,6 +245,7 @@ analyticsRouter.get('/offernet/root-cause', cacheResponse(60), asyncRoute(async 
   res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
+// Marketing attribution and source confidence.
 analyticsRouter.get('/offernet/marketing-root-cause', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-marketing-root-cause', params, () => offernetAnalytics.getMarketingRootCauseAnalysis(params));
@@ -300,6 +270,7 @@ analyticsRouter.get('/offernet/source-observability', cacheResponse(60), asyncRo
   res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
+// Operational lifecycle, contact, sales and commercial reporting.
 analyticsRouter.get('/offernet/offershop-flow', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-offershop-flow', params, () => offernetAnalytics.getOffershopProcessFlow(params));
@@ -390,6 +361,7 @@ analyticsRouter.get('/offernet/campaigns', cacheResponse(60), asyncRoute(async (
   res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
+// Investigation synthesis, affected records and dossier evidence.
 analyticsRouter.get('/offernet/ai-insights', cacheResponse(60), asyncRoute(async (req, res) => {
   const params = buildOffernetQueryParams(req, res);
   const data = await singleFlight(res, 'offernet-ai-insights', params, () => offernetAnalytics.getAiInsightsAnalytics(params));
@@ -415,6 +387,7 @@ analyticsRouter.get('/offernet/lead-timeline/:leadId', requireAdmin, cacheRespon
   res.json({ success: true, data, metadata: operationalMetadata(res.locals.scope, res.req.path.split('/')[2] || '') });
 }));
 
+// Workspace configuration and Google service integration.
 analyticsRouter.get('/offernet/client-config', asyncRoute((_req, res) => {
   const config = getClientConfig(res.locals.scope.clientId);
   const operational = config.operationalConfig
