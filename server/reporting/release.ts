@@ -1,5 +1,5 @@
 import { RequestError } from '../bigquery/filters';
-import { FACTS, type ReleaseManifest } from '../../contracts/reporting';
+import { AGGREGATE_SNAPSHOT_VERSION, FACTS, METRIC_BY_ID, type ReleaseManifest } from '../../contracts/reporting';
 
 const nonEmpty = (value: unknown, field: string, max = 256): string => {
   if (typeof value !== 'string' || !value.trim() || value.length > max) {
@@ -84,6 +84,18 @@ export function validateRelease(raw: unknown): ReleaseManifest {
     if (!['PASS', 'FAIL', 'NOT_RUN'].includes(check.status)) throw new RequestError('Invalid check status in release manifest', 503);
     if (typeof check.observed !== 'string' || typeof check.expected !== 'string') throw new RequestError('Invalid check values in release manifest', 503);
     nonEmpty(check.jobId, 'check.jobId', 256);
+  }
+
+  if (release.execution !== undefined) {
+    const execution = release.execution;
+    if (!execution || typeof execution !== 'object' || Array.isArray(execution)) throw new RequestError('Invalid execution contract in release manifest', 503);
+    if (execution.contractVersion !== AGGREGATE_SNAPSHOT_VERSION) throw new RequestError('Unsupported release execution contract', 503);
+    if (!/^[a-f0-9]{64}$/.test(execution.definitionHash)) throw new RequestError('Invalid execution definition hash', 503);
+    snapshot(execution.snapshot, 'execution.snapshot');
+    for (const [name, allowed] of Object.entries({ supportedMetrics: Object.keys(METRIC_BY_ID), supportedDateBases: ['capture_cohort', 'event_date'], supportedGroupings: ['none', 'source', 'vendor', 'capture_month'], supportedFilters: ['vendor', 'source', 'medium'] })) {
+      const values = execution[name];
+      if (!Array.isArray(values) || (name !== 'supportedFilters' && !values.length) || values.length > allowed.length || new Set(values).size !== values.length || values.some(value => typeof value !== 'string' || !allowed.includes(value))) throw new RequestError(`Invalid execution ${name}`, 503);
+    }
   }
 
   return release as ReleaseManifest;

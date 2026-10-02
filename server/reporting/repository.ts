@@ -5,6 +5,15 @@ import type { QueryExecutionEvidence, ReleaseManifest } from '../../contracts/re
 import type { CompiledQuery } from './query';
 import { readOnlyQueryOptions } from '../bigquery/readOnly';
 import { trackAnalyticalWork } from '../analyticalWork';
+
+/** Preserve sub-millisecond snapshot identity; Date.parse alone silently discards it. */
+function timestampNanoseconds(value: unknown): bigint | null {
+  if (typeof value !== 'string') return null;
+  const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}:\d{2})$/.exec(value);
+  if (!match) return null;
+  const milliseconds = Date.parse(match[1] + match[3]);
+  return Number.isFinite(milliseconds) ? BigInt(milliseconds) * 1_000_000n + BigInt((match[2] || '').padEnd(9, '0')) : null;
+}
 export interface ReportRepository {
   configured: boolean;
   release(tenant: string, releaseId?: string): Promise<ReleaseManifest | null>;
@@ -54,22 +63,23 @@ export class BigQueryReportRepository implements ReportRepository {
     return release;
   }
   async assertSnapshots(release: ReleaseManifest) {
-    await Promise.all([...Object.values(release.snapshots), ...Object.values(release.provenance)].map(async s => {
+    await Promise.all([...Object.values(release.snapshots), ...Object.values(release.provenance), ...(release.execution ? [release.execution.snapshot] : [])].map(async s => {
       const [project, dataset, id] = s.table.split('.');
       // Published facts must reside in the separately controlled reporting dataset.
       if (`${project}.${dataset}` !== this.dataset) throw new RequestError('Snapshot is outside the approved reporting dataset', 503);
       const [meta] = await this.bq.dataset(dataset, { projectId: project }).table(id).getMetadata();
       const snapshotTime = meta.snapshotDefinition?.snapshotTime;
-      const createdAt = typeof meta.creationTime === 'string' && /^\d+$/.test(meta.creationTime) ? Number(meta.creationTime) : NaN;
-      const frozenAt = typeof snapshotTime === 'string' ? Date.parse(snapshotTime) : NaN;
-      if (meta.type !== 'SNAPSHOT' || !Number.isFinite(createdAt) || !Number.isFinite(frozenAt) || createdAt !== Date.parse(s.createdAt) || frozenAt !== Date.parse(s.snapshotTime)) throw new RequestError('Snapshot was replaced, is missing, or is not read-only', 409);
+      const createdAt = typeof meta.creationTime === 'string' && /^\d+$/.test(meta.creationTime) ? BigInt(meta.creationTime) * 1_000_000n : null;
+      const frozenAt = timestampNanoseconds(snapshotTime);
+      if (meta.type !== 'SNAPSHOT' || createdAt === null || frozenAt === null || createdAt !== timestampNanoseconds(s.createdAt) || frozenAt !== timestampNanoseconds(s.snapshotTime)) throw new RequestError('Snapshot was replaced, is missing, or is not read-only', 409);
     }));
   }
   async query(compiled: CompiledQuery) {
     return trackAnalyticalWork(async () => {
       const started = Date.now();
       const [job] = await this.bq.createQueryJob(readOnlyQueryOptions(compiled, this.budget));
-      const [rows] = await job.getQueryResults();
+      const [rows, nextPage] = await job.getQueryResults({ maxResults: 101, autoPaginate: false });
+      if (nextPage) throw new RequestError('Reporting result exceeded the bounded response; partial results are not supported', 422);
       const [metadata] = await job.getMetadata();
       const statistics = metadata.statistics?.query;
       const selectStatements = compiled.query.match(/\bSELECT\b/gi)?.length ?? 0;

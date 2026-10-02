@@ -51,6 +51,8 @@ export interface ReleaseManifest {
   snapshots: Record<Fact, { table: string; createdAt: string; snapshotTime: string }>;
   provenance: Record<'records' | 'batches' | 'contracts', { table: string; createdAt: string; snapshotTime: string }>;
   sources: SourceEvidence[]; checks: CheckEvidence[]; approvedBy: string; approvalReference: string;
+  /** Explicitly approved aggregate output. Absent means facts cannot be executed by this reader. */
+  execution?: AggregateSnapshotContract;
 }
 export interface MetricResult {
   metricId: string; group: string | null; value: string | null; numerator: string | null; denominator: string | null;
@@ -63,7 +65,48 @@ export interface QueryExecutionEvidence {
 }
 export interface ReportResult {
   queryJobId: string; queryEvidence: QueryExecutionEvidence; engineHash: string;
-  executionId: string; token: string; request: ReportRequest; releaseId: string; modelVersion: string; metricVersion: string;
+  executionId: string; token: string | null; request: ReportRequest; releaseId: string; modelVersion: string; metricVersion: string;
   releaseCutoff: string; sourceBatchIds: string[]; totals: MetricResult[]; groups: MetricResult[];
   metricDefinitions: MetricDefinition[]; generatedAt: string; validation: CheckEvidence[]; sources: SourceEvidence[];
+}
+
+/** Adds an execution boundary to the existing release/metric registry; no fact mappings are inferred. */
+export const REPORT_REQUEST_VERSION = 'cx.report-request.1' as const;
+export const REPORT_RESULT_VERSION = 'cx.report-result.1' as const;
+export const AGGREGATE_SNAPSHOT_VERSION = 'cx.reporting.aggregate-snapshot.1' as const;
+export const REPORT_MAX_ROWS = 100;
+export interface SnapshotIdentity { table: string; createdAt: string; snapshotTime: string; }
+export interface AggregateSnapshotContract {
+  contractVersion: typeof AGGREGATE_SNAPSHOT_VERSION;
+  snapshot: SnapshotIdentity;
+  /** SHA-256 of the canonical existing METRICS, MODEL_VERSION and METRIC_VERSION. */
+  definitionHash: string;
+  supportedMetrics: string[];
+  supportedDateBases: DateBasis[];
+  supportedGroupings: Grouping[];
+  supportedFilters: (keyof ReportRequest['filters'])[];
+}
+export interface VersionedReportRequest extends ReportRequest {
+  contractVersion: typeof REPORT_REQUEST_VERSION;
+  releaseId: string;
+}
+export interface MetricEvidence {
+  grain: string; dateBasis: DateBasis; definitionVersion: string; releaseId: string;
+  numeratorDefinition: string; denominatorDefinition: string | null;
+  sources: { fact: Fact; snapshot: SnapshotIdentity; coverage: SourceEvidence }[];
+  mappingStatus: 'APPROVED_RELEASE_CONTRACT' | 'UNAVAILABLE';
+  reconciliationStatus: 'NOT_VERIFIED'; businessMeaningStatus: 'NOT_VERIFIED';
+  evidenceStatus: 'OBSERVED' | 'PARTIAL' | 'UNAVAILABLE';
+}
+export interface EvidenceMetricResult extends MetricResult { evidence: MetricEvidence; }
+export interface EvidenceReportResult extends Omit<ReportResult, 'request' | 'totals' | 'groups'> {
+  contractVersion: typeof REPORT_RESULT_VERSION;
+  status: 'AVAILABLE' | 'UNAVAILABLE' | 'NOT_SUPPORTED';
+  message: string | null;
+  request: VersionedReportRequest; totals: EvidenceMetricResult[]; groups: EvidenceMetricResult[];
+  scopeHash: string; manifestHash: string; resultHash: string;
+  generationContract: typeof AGGREGATE_SNAPSHOT_VERSION;
+  snapshot: SnapshotIdentity | null;
+  replay: { status: 'AVAILABLE' | 'NOT_CONFIGURED' | 'NOT_REPLAYABLE'; expiresAt: string | null; reason: string | null };
+  evidence: { observed: boolean; mapped: boolean; scoped: boolean; reproduced: 'NOT_RUN'; independentlyReconciled: 'NOT_VERIFIED'; businessVerified: 'NOT_VERIFIED' };
 }

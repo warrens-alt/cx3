@@ -4,16 +4,19 @@ import { BigQueryReportRepository } from './repository';
 import { RequestError } from '../bigquery/filters';
 import { exceptionCatalogue } from '../../contracts/operations';
 import { requireTenant } from '../securityPolicy';
+import { executeReport, reportingPrincipal } from './service';
+import { reportIdentity } from './scope';
+import { REPORT_DEFINITION_HASH } from './fingerprint';
+import { METRIC_VERSION, MODEL_VERSION } from '../../contracts/reporting';
 
 export function createReportingRouter(repoFactory?: (() => BigQueryReportRepository) | BigQueryReportRepository | any) {
   const router = Router();
   const getRepo = typeof repoFactory === 'function' ? repoFactory : repoFactory ? (() => repoFactory) : (() => new BigQueryReportRepository());
 
   const tenantFor = (req: Request, res: Response, explicit?: unknown) => {
-    const candidate = typeof explicit === 'string' && explicit.trim()
-      ? explicit.trim()
-      : (res.locals.scope?.clientId || res.locals.principal?.tenants?.[0] || 'default_tenant');
-    requireTenant(res.locals.principal, candidate);
+    const principal = reportingPrincipal(res.locals.principal);
+    const candidate = reportIdentity(explicit, 'tenantId');
+    requireTenant(principal, candidate);
     return candidate;
   };
 
@@ -29,6 +32,11 @@ export function createReportingRouter(repoFactory?: (() => BigQueryReportReposit
           release: release || null,
           status: release ? 'AVAILABLE' : 'NO_APPROVED_RELEASE',
           message: release ? undefined : 'No approved release available',
+          execution: {
+            status: release?.execution && release.metricVersion === METRIC_VERSION && release.modelVersion === MODEL_VERSION && release.execution.definitionHash === REPORT_DEFINITION_HASH ? 'SUPPORTED' : 'NOT_SUPPORTED',
+            definitionHash: REPORT_DEFINITION_HASH,
+            reason: release?.execution ? undefined : 'An approved immutable aggregate snapshot execution contract is required.',
+          },
         },
       });
     } catch (err) {
@@ -40,7 +48,7 @@ export function createReportingRouter(repoFactory?: (() => BigQueryReportReposit
     try {
       const repo = getRepo();
       const tenant = tenantFor(req, res, req.query.tenantId);
-      const releaseId = req.query.releaseId as string | undefined;
+      const releaseId = req.query.releaseId === undefined ? undefined : reportIdentity(req.query.releaseId, 'releaseId');
       const release = await repo.release(tenant, releaseId);
 
       if (release) {
@@ -73,22 +81,8 @@ export function createReportingRouter(repoFactory?: (() => BigQueryReportReposit
 
   router.post('/', analyticalRoute(async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const repo = getRepo();
-      const tenant = tenantFor(req, res, req.body?.tenantId);
-      const release = await repo.release(tenant, req.body?.releaseId);
-      if (!release) {
-        return res.status(404).json({
-          success: false,
-          error: 'No approved release available',
-          status: 'NO_APPROVED_RELEASE',
-        });
-      }
-      return res.status(501).json({
-        success: false,
-        error: 'Versioned report execution is not implemented in this repository revision',
-        status: 'NOT_IMPLEMENTED',
-        releaseId: release.releaseId,
-      });
+      const result = await executeReport(getRepo(), res.locals.principal, req.body);
+      return res.json({ success: true, data: result });
     } catch (err) {
       next(err);
     }
