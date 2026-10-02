@@ -19,6 +19,16 @@
   --cx-text-muted: #5D6B80;
   --cx-text-disabled: #94A3B8;
 
+  /* Categorical chart identities are separate from lifecycle and status meanings. */
+  --cx-chart-category-1: #315BCB;
+  --cx-chart-category-2: #0F766E;
+  --cx-chart-category-3: #7C3AED;
+  --cx-chart-category-4: #0284C7;
+  --cx-chart-category-5: #B45309;
+  --cx-chart-category-6: #BE185D;
+  --cx-chart-category-7: #475569;
+  --cx-chart-category-8: #0891B2;
+
   /* Action & Focus */
   --cx-action: #315BCB;
   --cx-action-hover: #2447AD;
@@ -186,6 +196,15 @@
   --cx-text-secondary: #94A3B8;
   --cx-text-muted: #94A3B8;
   --cx-text-disabled: #475569;
+
+  --cx-chart-category-1: #60A5FA;
+  --cx-chart-category-2: #5EEAD4;
+  --cx-chart-category-3: #C4B5FD;
+  --cx-chart-category-4: #7DD3FC;
+  --cx-chart-category-5: #FCD34D;
+  --cx-chart-category-6: #F9A8D4;
+  --cx-chart-category-7: #CBD5E1;
+  --cx-chart-category-8: #67E8F9;
 
   /* Action & Focus (Dark) */
   --cx-action: #3B82F6;

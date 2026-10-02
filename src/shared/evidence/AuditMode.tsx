@@ -25,9 +25,17 @@ export function AuditModeControl() {
     <button type="button" className="cx-button-secondary" aria-pressed={enabled} onClick={() => setEnabled(true)}>On</button>
   </div></div>;
 }
-export function AuditMetadata({ metricId, grain, dateBasis, validationStatus }: { metricId?: string; grain?: string; dateBasis?: string; validationStatus?: string }) {
+export function AuditMetadata({ metricId, grain, dateBasis, validationStatus, definitionVersion, generatedAt, source }: { metricId?: string; grain?: string; dateBasis?: string; validationStatus?: string; definitionVersion?: string; generatedAt?: string; source?: string }) {
   const { enabled } = useAuditMode();
   const definition = metricId ? AUTHORITATIVE_METRICS[metricId] : undefined;
-  const parts = [metricId, grain || definition?.countingGrain, dateBasis || definition?.dateBasis, validationStatus || definition?.reconciliationStatus].filter(Boolean);
-  return enabled && parts.length ? <div className="cx-audit-metadata" aria-label="Audit metadata">{parts.map((part, index) => <span key={index}>{part}</span>)}</div> : null;
+  const parts = [
+    { label: 'Metric ID', value: metricId, technical: true },
+    { label: 'Grain', value: grain || definition?.countingGrain },
+    { label: 'Date basis', value: dateBasis || definition?.dateBasis },
+    { label: 'Validation', value: validationStatus || definition?.reconciliationStatus, technical: true },
+    { label: 'Definition', value: definitionVersion, technical: true },
+    { label: 'Response generated', value: generatedAt, technical: true },
+    { label: 'Source', value: source, technical: true },
+  ].filter(part => part.value);
+  return enabled && parts.length ? <dl className="cx-audit-metadata" aria-label="Audit metadata">{parts.map(part => <div key={part.label}><dt>{part.label}</dt><dd className={part.technical ? 'cx-tech-label' : undefined}>{part.value}</dd></div>)}{generatedAt && <small>Response timing does not establish source freshness.</small>}</dl> : null;
 }
