@@ -32,3 +32,11 @@ test('historical synthetic executive analytics cannot be imported or bundled', (
   assert.doesNotMatch(router, /ExecutiveOverview|ExecutiveAnalyticsConsole/);
   assert.match(router, /path="\/overview" element=\{<OverviewPage/);
 });
+
+
+test('unconsumed duplicate legacy implementations cannot reintroduce numeric fallbacks', () => {
+  for (const name of ['overview', 'funnel', 'quality', 'calls', 'sources', 'leads', 'routing', 'index']) {
+    assert.equal(existsSync(`server/bigquery/legacy/${name}.ts`), false, name);
+  }
+  assert.equal(existsSync('server/bigquery/legacy/cohorts.ts'), true);
+});
