@@ -11,17 +11,17 @@
 .cx-speed-page .cx-command-metrics .cx-command-metric{border-top:2px solid var(--cx-data-delivered)}
 .cx-speed-page .cx-speed-latency-visual{padding:16px}
 .cx-speed-page .cx-speed-latency-visual .cx-evidence-bars{border:0;padding:0}
-.cx-speed-page .cx-contact-cohorts article{border-color:var(--cx-border-subtle);border-radius:8px;background:var(--cx-surface)}
+.cx-speed-page .cx-contact-cohorts article{border-color:var(--cx-border-subtle);border-radius:var(--cx-radius-md);background:var(--cx-surface)}
 .cx-speed-page .cx-contact-cohort-volume{height:7px;border-radius:999px;overflow:hidden;background:var(--cx-surface-subtle)}
 .cx-speed-page .cx-contact-cohort-volume i{display:block;height:100%;background:var(--cx-action);border-radius:inherit}
 .cx-speed-page .cx-performance-table-wrap{overflow:auto}
-.cx-speed-page .cx-performance-table thead th{position:sticky;top:0;z-index:2;background:var(--cx-surface-subtle);font-size:10px;text-transform:uppercase;letter-spacing:.035em}
+.cx-speed-page .cx-performance-table thead th{position:sticky;top:0;z-index:2;background:var(--cx-surface-subtle);font-size:11px;text-transform:none;letter-spacing:0}
 .cx-speed-page .cx-performance-table :is(td,th){font-variant-numeric:tabular-nums}
 
 .cx-agent-page .cx-agent-comparison{padding:16px}
 .cx-agent-page .cx-agent-comparison .cx-evidence-bars{border:0;padding:0}
 .cx-agent-page .cx-performance-table-wrap{overflow:auto}
-.cx-agent-page .cx-performance-table thead th{position:sticky;top:0;z-index:2;background:var(--cx-surface-subtle);font-size:10px;text-transform:uppercase;letter-spacing:.035em}
+.cx-agent-page .cx-performance-table thead th{position:sticky;top:0;z-index:2;background:var(--cx-surface-subtle);font-size:11px;text-transform:none;letter-spacing:0}
 .cx-agent-page .cx-agent-table :is(th,td):first-child{position:sticky;left:0;z-index:1;background:var(--cx-surface)}
 .cx-agent-page .cx-agent-table thead th:first-child{z-index:3;background:var(--cx-surface-subtle)}
 .cx-agent-page .cx-agent-table tbody tr:hover,.cx-agent-page .cx-performance-table tbody tr:hover{background:var(--cx-selected-bg)}
@@ -31,10 +31,10 @@
 .cx-campaign-page .cx-campaign-comparison{padding:16px}
 .cx-campaign-page .cx-campaign-comparison .cx-evidence-bars{border:0;padding:0}
 .cx-campaign-page .cx-media-metrics{grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
-.cx-campaign-page .cx-media-metrics .cx-command-metric{min-width:0;border-radius:9px;border-color:var(--cx-border-subtle);box-shadow:var(--cx-shadow-sm)}
-.cx-campaign-page .cx-spend-status,.cx-campaign-page .cx-command-panel{border-color:var(--cx-border-subtle);border-radius:10px;box-shadow:var(--cx-shadow-sm)}
-.cx-campaign-page .cx-performance-table-wrap{overflow:auto;border:1px solid var(--cx-border-subtle);border-radius:8px}
-.cx-campaign-page .cx-campaign-table thead th{position:sticky;top:0;z-index:2;background:var(--cx-surface-subtle);font-size:10px;text-transform:uppercase;letter-spacing:.035em}
+.cx-campaign-page .cx-media-metrics .cx-command-metric{min-width:0;border-radius:var(--cx-radius-md);border-color:var(--cx-border-subtle);box-shadow:var(--cx-shadow-sm)}
+.cx-campaign-page .cx-spend-status,.cx-campaign-page .cx-command-panel{border-color:var(--cx-border-subtle);border-radius:var(--cx-radius-md);box-shadow:var(--cx-shadow-sm)}
+.cx-campaign-page .cx-performance-table-wrap{overflow:auto;border:1px solid var(--cx-border-subtle);border-radius:var(--cx-radius-md)}
+.cx-campaign-page .cx-campaign-table thead th{position:sticky;top:0;z-index:2;background:var(--cx-surface-subtle);font-size:11px;text-transform:none;letter-spacing:0}
 .cx-campaign-page .cx-campaign-table :is(th,td):first-child{position:sticky;left:0;z-index:1;background:var(--cx-surface)}
 .cx-campaign-page .cx-campaign-table thead th:first-child{z-index:3;background:var(--cx-surface-subtle)}
 .cx-campaign-page .cx-campaign-table tbody tr:hover{background:var(--cx-selected-bg)}

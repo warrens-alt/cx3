@@ -7,6 +7,7 @@ import FirstCallResponse from '../src/features/overview/components/FirstCallResp
 import OverviewChanges from '../src/features/overview/components/OverviewChanges';
 import OutcomeStrip from '../src/features/overview/components/OutcomeStrip';
 import JourneySummary, { type FunnelStageItem } from '../src/features/overview/components/JourneySummary';
+import type { InspectorContent } from '../src/shared/evidence/InspectorHost';
 
 const route = '/overview?clientId=synthetic-a&startDate=2026-09-22&endDate=2026-09-28&vendor=Synthetic%20vendor';
 async function withRenderedComponent(run: (app: { container: HTMLElement; render: (element: React.ReactNode) => Promise<void>; click: (element: HTMLElement) => Promise<void> }) => Promise<void>) {
@@ -33,8 +34,8 @@ async function withRenderedComponent(run: (app: { container: HTMLElement; render
 }
 
 const outcomeData = {
-  kpis: { fetchedLeads: 100, deliveredLeads: 80, saleLeads: 40, activatedLeads: 0, deliveryRate: 80, leadToSaleRate: 40, activationRate: 0 },
-  comparison: { fetchedDelta: 0, deliveryRateDelta: -1, saleRateDelta: 2, activationRateDelta: 0 },
+  kpis: { fetchedLeads: 100, deliveredLeads: 80, dialledLeads: 60, contactedLeads: 12, dialRate: 75, contactRate: 20, saleLeads: 40, activatedLeads: 0, deliveryRate: 80, leadToSaleRate: 40, activationRate: 0 },
+  comparison: { fetchedDelta: 0, deliveryRateDelta: -1, dialRateDelta: 0, contactRateDelta: -2, saleRateDelta: 2, activationRateDelta: 0 },
 } as React.ComponentProps<typeof OutcomeStrip>['data'];
 
 test('Overview Why changed requires comparison evidence and dispatches the existing metric when available', async () => {
@@ -46,7 +47,7 @@ test('Overview Why changed requires comparison evidence and dispatches the exist
     for (const hasComparison of [false, undefined]) {
       await app.render(React.createElement(OutcomeStrip, { ...props, hasComparison }));
       assert.equal(whyButtons().length, 0);
-      assert.equal(app.container.querySelectorAll('.cx-outcome-card').length, 4);
+      assert.equal(app.container.querySelectorAll('.cx-outcome-card').length, 6);
     }
     await app.click(app.container.querySelector('.cx-outcome-card .cx-metric-primary')!);
     assert.deepEqual(inspected, ['fetched_leads']);
@@ -59,6 +60,42 @@ test('Overview Why changed requires comparison evidence and dispatches the exist
     assert.equal(whyButtons().length, 0);
     await app.render(React.createElement(OutcomeStrip, { ...props, hasComparison: true, onWhyChanged: undefined }));
     assert.equal(whyButtons().length, 0);
+  });
+});
+
+test('Overview connects the exact six supplied lifecycle populations and preserves dial/RPC rate denominators', async () => {
+  await withRenderedComponent(async app => {
+    const inspected: InspectorContent[] = [];
+    const data = structuredClone(outcomeData), before = JSON.stringify(data);
+    await app.render(React.createElement(OutcomeStrip, { data, isAdmin: true, onInspect: content => inspected.push(content) }));
+    const cards = [...app.container.querySelectorAll('.cx-outcome-card')];
+    assert.deepEqual(cards.map(card => card.getAttribute('data-series')), ['fetched', 'delivered', 'dialled', 'rpc', 'sales', 'activation']);
+    assert.deepEqual(cards.map(card => card.querySelector('.cx-metric-primary')?.textContent), ['100', '80', '60', '12', '40', '0']);
+    await app.click(app.container.querySelector('button[aria-label="Audit evidence: Dialled / delivered"]')!);
+    await app.click(app.container.querySelector('button[aria-label="Audit evidence: RPC / dialled"]')!);
+    assert.deepEqual(inspected.map(content => [content.metricId, content.value, content.numeratorCount, content.denominatorCount, content.denominatorLabel]), [
+      ['dial_rate', '75.0%', 60, 80, 'Delivered leads'],
+      ['rpc_rate', '20.0%', 12, 60, 'Dialled leads'],
+    ]);
+    await app.click(cards[2].querySelector('.cx-audit-evidence-control')!);
+    assert.equal(inspected.at(-1)?.recordDrill?.drillValue, 'dialled');
+    assert.match(app.container.textContent!, /recorded sales and activations remain independent evidence/);
+    assert.equal(JSON.stringify(data), before);
+  });
+});
+
+test('Overview lifecycle telemetry retains missing dial/RPC measurements without manufacturing zero or a trend', async () => {
+  await withRenderedComponent(async app => {
+    const data = { ...outcomeData, kpis: { ...outcomeData.kpis, dialledLeads: null, contactedLeads: 0, dialRate: null, contactRate: null }, dailyTrends: [{ date: '2026-09-28', leads: 100, delivered: 80 }] } as any;
+    await app.render(React.createElement(OutcomeStrip, { data, isAdmin: false, onInspect: () => {} }));
+    const dial = app.container.querySelector('[data-series="dialled"]')!, rpc = app.container.querySelector('[data-series="rpc"]')!;
+    assert.equal(dial.querySelector('.cx-metric-primary')?.textContent, '—');
+    assert.equal(rpc.querySelector('.cx-metric-primary')?.textContent, '0');
+    assert.match(dial.textContent!, /— of delivered leads/);
+    assert.match(rpc.textContent!, /— of dialled leads/);
+    assert.equal(dial.querySelector('svg.cx-metric-sparkline'), null);
+    assert.equal(rpc.querySelector('svg.cx-metric-sparkline'), null);
+    assert.doesNotMatch(app.container.textContent!, /NaN|Infinity/);
   });
 });
 
@@ -128,6 +165,7 @@ test('Overview first-call response displays exact supplied measurements and pres
     await app.render(React.createElement(FirstCallResponse, props));
     assert.match(app.container.textContent!, /within 17 minutes/);
     assert.equal(app.container.querySelector('strong')!.textContent, '0.0%');
+    assert.equal(app.container.querySelector<HTMLElement>('.cx-overview-response-track > span')!.style.width, '0%');
     assert.deepEqual([...app.container.querySelectorAll('dd')].map(value => value.textContent), ['0s', '41m', '0', '9']);
     const link = new URL(app.container.querySelector('a')!.href, 'https://synthetic.invalid');
     assert.equal(link.pathname, '/speed-to-lead');
@@ -137,7 +175,19 @@ test('Overview first-call response displays exact supplied measurements and pres
     await app.render(React.createElement(FirstCallResponse, { sla: undefined, backlog: undefined } as any));
     assert.match(app.container.textContent!, /unavailable/);
     assert.equal(app.container.querySelector('strong')!.textContent, '—');
+    assert.equal(app.container.querySelector('.cx-overview-response-track > span'), null);
     assert.deepEqual([...app.container.querySelectorAll('dd')].map(value => value.textContent), ['—', '—', '—', '—']);
+  });
+});
+
+test('Overview first-call response never estimates unavailable percentiles or clamps an out-of-range supplied compliance value', async () => {
+  await withRenderedComponent(async app => {
+    const props = { sla: { firstDialTargetMinutes: 17, complianceRate: 120, medianDeliveryToDial: '—', p90DeliveryToDial: '—' }, backlog: undefined } as any;
+    await app.render(React.createElement(FirstCallResponse, props));
+    assert.equal(app.container.querySelector('strong')!.textContent, '120.0%');
+    assert.equal(app.container.querySelector('.cx-overview-response-track > span'), null);
+    assert.deepEqual([...app.container.querySelectorAll('dd')].map(value => value.textContent), ['—', '—', '—', '—']);
+    assert.doesNotMatch(app.container.textContent!, /P10|P25|P75|10th|25th|75th/);
   });
 });
 

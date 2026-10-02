@@ -13,8 +13,8 @@ await buildAcceptanceFixture(fixture);
 const server = createServer(async (request, response) => {
   const pathname = new URL(request.url, 'http://localhost').pathname;
   if (pathname === '/favicon.ico') { response.writeHead(204).end(); return; }
-  const file = ['/fixture.js', '/fixture.css', '/application.css'].includes(pathname) ? pathname.slice(1) : 'index.html';
-  try { response.setHeader('Content-Type', file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : 'text/html'); response.end(await readFile(path.join(fixture, file))); }
+  const file = pathname === '/brand/conversionx-grey.png' ? 'conversionx-grey.png' : ['/fixture.js', '/fixture.css', '/application.css'].includes(pathname) ? pathname.slice(1) : 'index.html';
+  try { response.setHeader('Content-Type', file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : file.endsWith('.png') ? 'image/png' : 'text/html'); response.end(await readFile(path.join(fixture, file))); }
   catch { response.writeHead(404).end(); }
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -51,7 +51,7 @@ try {
       await page.goto(origin + '/lead-explorer' + scope + '&drill=awaiting-first-dial&segmentSource=synthetic-source');
       await page.getByRole('button', { name: `Open dossier for lead ${leadId}`, exact: true }).filter({ visible: true }).waitFor();
       await check('Canonical identity and lazy initial requests', async () => {
-        assert.equal(await page.title(), 'Lead Evidence · Offernet');
+        assert.equal(await page.title(), 'Lead Evidence · ConversionX');
         assert.equal(await page.locator('html').getAttribute('data-theme'), theme);
         assert.equal(await page.getByRole('tablist', { name: 'Lead Evidence modes' }).count(), 1);
         const values = await requests(page);
@@ -66,6 +66,7 @@ try {
           await settle(page); await overflow(page);
           assert.deepEqual(await requests(page), before);
         }
+        await page.locator('.cx-investigation-table-wrap[data-preset=full] .cx-investigation-records[data-preset=full]').waitFor();
         assert.equal(await page.locator('.cx-investigation-records thead th').count(), 17);
         const scroll = page.locator('.cx-investigation-table-wrap[data-preset=full]');
         assert.equal(await scroll.evaluate(element => element.scrollWidth > element.clientWidth), true);
@@ -81,9 +82,13 @@ try {
         assert.deepEqual(await dossier.locator('[role=tab]').allTextContents(), ['Summary', 'Journey', 'Calls', 'Outcomes', 'Audit', 'Source']);
         await page.waitForFunction(() => window.__fixture.requests.some(value => value.includes('/lead-timeline/')));
         const before = await requests(page);
+        await dossier.locator('.cx-dossier-body[data-section=summary]').scrollIntoViewIfNeeded();
+        await settle(page); await shot('population-summary');
         await dossier.getByRole('tab', { name: 'Summary', exact: true }).focus(); await page.keyboard.press('ArrowRight');
         assert.equal(await dossier.locator('.cx-dossier-tabs').getByRole('tab', { name: 'Journey', exact: true }).evaluate(element => element === document.activeElement), true);
         assert.match(await dossier.innerText(), /attempt history|Individual synthetic call times/);
+        await dossier.locator('.cx-journey-forensic-canvas:not([hidden])').scrollIntoViewIfNeeded();
+        await settle(page); await shot('population-journey');
         await dossier.getByRole('tab', { name: 'Audit', exact: true }).click();
         assert.equal(await dossier.locator('.cx-evidence-trace').count(), 1);
         assert.deepEqual(await requests(page), before);

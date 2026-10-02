@@ -1,0 +1,8 @@
+/* One supplied bitmap, framed in SVG without changing its geometry or pixels. */
+.cx-conversionx-brand { display:block; flex-shrink:0; max-width:100%; height:auto; }
+.cx-brand-wordmark { width:184px; aspect-ratio:2516 / 380; }
+.cx-brand-symbol { width:29px; aspect-ratio:515 / 380; }
+.cx-brand-full { width:340px; aspect-ratio:2684 / 624; }
+.cx-brand-full[data-tone="light"] { filter:brightness(0) invert(.84); }
+[data-theme="dark"] .cx-conversionx-brand[data-tone="auto"] .cx-brand-symbol-image { filter:var(--cx-brand-symbol-filter); }
+[data-theme="dark"] .cx-conversionx-brand[data-tone="auto"] .cx-brand-wordmark-image { filter:var(--cx-brand-wordmark-filter); }

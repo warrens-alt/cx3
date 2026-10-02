@@ -9,6 +9,8 @@ import {
   Tooltip,
 } from 'recharts';
 import ChartTooltip from '../../../shared/visuals/ChartTooltip';
+import ChartFrame from '../../../shared/visuals/ChartFrame';
+import ReportingScopeSummary from '../../../shared/reporting/ReportingScopeSummary';
 import { Clock3 } from 'lucide-react';
 import { formatTableNumber } from '../../../lib/formatters';
 
@@ -107,11 +109,11 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
   };
 
   return (
-    <section className="cx-trend-panel cx-report-panel" aria-label="Performance trend">
-      <div className="cx-trend-heading flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+    <ChartFrame title="Performance trend" className="cx-trend-panel" scope={<ReportingScopeSummary />} header={
+      <div className="cx-trend-heading">
         <div>
-          <h2 className="text-base font-bold text-text-main">Performance trend</h2>
-          <p className="text-xs text-text-sec mt-0.5">
+          <h2>Performance trend</h2>
+          <p>
             Daily progression across the selected reporting period.
           </p>
         </div>
@@ -121,7 +123,7 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
           role="tablist"
           aria-label="Select metric to plot"
           style={{ '--cx-active-series': currentConfig.color } as React.CSSProperties}
-          className="cx-trend-tabs flex items-center gap-1 bg-surface-subtle p-1 rounded-lg border border-border-subtle text-xs"
+          className="cx-trend-tabs"
         >
           {(Object.keys(METRIC_CONFIGS) as SelectableTrendMetric[]).map(key => (
             <button
@@ -134,24 +136,22 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
               tabIndex={activeMetric === key ? 0 : -1}
               onKeyDown={event => handleMetricKey(event, key)}
               onClick={() => setActiveMetric(key)}
-              className={`px-3 py-1.5 rounded-md font-medium transition-colors cursor-pointer whitespace-nowrap ${
-                activeMetric === key
-                  ? 'bg-surface text-text-main shadow-2xs font-semibold'
-                  : 'text-text-mute hover:text-text-main'
-              }`}
             >
               {METRIC_CONFIGS[key].label}
             </button>
           ))}
         </div>
-      </div>
+      </div>}
+      footer={<div className="cx-trend-context"><Clock3 size={13} aria-hidden="true" /><span>{comparisonWindow
+        ? `Plotting ${currentConfig.label}. Preceding matched comparison window (${comparisonWindow.startDate} – ${comparisonWindow.endDate}) provides page-level delta context.`
+        : `Plotting ${currentConfig.label}. Comparison evidence is unavailable for the selected period.`}</span></div>}>
 
       {/* Chart Canvas */}
-      <div className="cx-trend-canvas h-64 min-h-[256px] w-full" id={`${chartId}-plot`} role="tabpanel" aria-labelledby={`${chartId}-${activeMetric}`}>
+      <div className="cx-trend-canvas" id={`${chartId}-plot`} role="tabpanel" aria-labelledby={`${chartId}-${activeMetric}`}>
         {chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={60}>
-            <LineChart data={chartData} margin={{ top: 8, right: 12, left: -2, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border-subtle)" />
+            <LineChart data={chartData} accessibilityLayer margin={{ top: 8, right: 12, left: -2, bottom: 0 }}>
+              <CartesianGrid vertical={false} stroke="var(--cx-border-subtle)" />
               <XAxis
                 dataKey="date"
                 minTickGap={48}
@@ -173,7 +173,7 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
                 type="linear"
                 dataKey={activeMetric}
                 stroke={currentConfig.color}
-                strokeWidth={2.5}
+                strokeWidth={2}
                 dot={{ r: chartData.length === 1 ? 5 : 3, fill: currentConfig.color, strokeWidth: 2, stroke: 'var(--cx-surface)' }}
                 activeDot={{ r: 6, fill: currentConfig.color, stroke: 'var(--cx-surface)', strokeWidth: 2 }}
                 connectNulls={false}
@@ -182,12 +182,13 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <div className="h-full flex flex-col items-center justify-center text-xs text-text-mute bg-surface-subtle/50 rounded-lg border border-dashed border-border-subtle p-4">
+          <div className="cx-trend-empty">
             <span className="font-medium text-text-sec">No daily trend data available in this scope.</span>
             <span className="text-xs text-text-mute mt-0.5">Select a broader date range or adjust tenant filters.</span>
           </div>
         )}
       </div>
+      <p className="cx-trend-legend"><i style={{ background: currentConfig.color }} aria-hidden="true" />{currentConfig.label}</p>
 
       <details className="cx-report-disclosure cx-trend-evidence"><summary>View exact daily evidence</summary>
         <div className="cx-viz-table-scroll" role="region" aria-label="Daily trend evidence" tabIndex={0}>
@@ -197,15 +198,6 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
         </div>
       </details>
 
-      {/* Comparison Context Footer */}
-      <div className="pt-3 mt-2 border-t border-border-subtle flex items-center gap-1.5 text-xs text-text-mute">
-        <Clock3 size={13} aria-hidden="true" />
-        <span>
-          {comparisonWindow
-            ? `Plotting ${currentConfig.label}. Preceding matched comparison window (${comparisonWindow.startDate} – ${comparisonWindow.endDate}) provides page-level delta context.`
-            : `Plotting ${currentConfig.label}. Comparison evidence is unavailable for the selected period.`}
-        </span>
-      </div>
-    </section>
+    </ChartFrame>
   );
 }

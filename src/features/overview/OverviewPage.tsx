@@ -180,12 +180,6 @@ export default function OverviewPage() {
 
           <AuditMetadata grain="Distinct scoped lead" dateBasis="Lead capture cohort" validationStatus={data.validationStatus} definitionVersion={data.definitionVersion} generatedAt={data.generatedAt} />
 
-          <LifecyclePath title="Lifecycle overview" compact
-            stages={(data.funnelStages || []).filter(stage => stage.key in lifecyclePresentation).map(stage => ({ ...stage, key: stage.key as LifecycleStage }))}
-            transitions={data.lifecycle?.transitions}
-            onSelectStage={key => setInspectorContent(lifecycleVisualAudit({ type: 'stage', metricId: STAGE_METRIC_IDS[key], title: `${lifecyclePresentation[key].label} evidence`, value: formatTableNumber(data.funnelStages?.find(stage => stage.key === key)?.volume), reportPath: '/funnel', reportLabel: 'Explore full journey', recordDrill: { drill: 'funnel-stage', drillValue: key }, provenance: { validationStatus: data.validationStatus, generatedAt: data.generatedAt, metricVersion: data.definitionVersion, timezone: data.timezone }, scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters } }, data.funnelStages?.find(stage => stage.key === key)?.volume, key, data.lifecycle))}
-          />
-
           <div className="cx-overview-primary">
             <PerformanceTrend data={data.dailyTrends} comparisonWindow={data.comparisonWindow} />
             <OverviewChanges changes={meaningfulChanges} hasComparison={hasComparison}
@@ -201,6 +195,12 @@ export default function OverviewPage() {
             <h2>Explore more analysis</h2>
             <details className="cx-report-disclosure cx-overview-lifecycle-disclosure">
               <summary>Lifecycle progression <small>Stage populations and transition evidence</small></summary>
+          <LifecyclePath title="Lifecycle overview" compact
+            stages={(data.funnelStages || []).filter(stage => stage.key in lifecyclePresentation).map(stage => ({ ...stage, key: stage.key as LifecycleStage }))}
+            transitions={data.lifecycle?.transitions}
+            onSelectStage={key => setInspectorContent(lifecycleVisualAudit({ type: 'stage', metricId: STAGE_METRIC_IDS[key], title: `${lifecyclePresentation[key].label} evidence`, value: formatTableNumber(data.funnelStages?.find(stage => stage.key === key)?.volume), reportPath: '/funnel', reportLabel: 'Explore full journey', recordDrill: { drill: 'funnel-stage', drillValue: key }, provenance: { validationStatus: data.validationStatus, generatedAt: data.generatedAt, metricVersion: data.definitionVersion, timezone: data.timezone }, scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters } }, data.funnelStages?.find(stage => stage.key === key)?.volume, key, data.lifecycle))}
+          />
+
           <JourneySummary
             stages={data.funnelStages}
             funnelLeak={data.funnelLeak}

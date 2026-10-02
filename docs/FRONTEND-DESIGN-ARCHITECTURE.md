@@ -8,7 +8,7 @@ boundaries.
 
 ## Canonical structure
 
-**Area → Page → Scope → Answer → Detail** is the maintained reading order.
+**Area → Page → Scope → Answer → Evidence** is the maintained reading order.
 
 | Level | Responsibility | Canonical owner |
 | --- | --- | --- |
@@ -16,7 +16,7 @@ boundaries.
 | Page | Contextual destination, one title and useful actions | `AreaNavigation`, `AnalyticsPageLayout`, `PageHeader` |
 | Scope | Workspace, period and applied filters, with explicit editing | `ReportingScopeBar`, existing filter contexts and editors |
 | Answer | Principal supported measures and the main chart/table | Feature page, shared metric and reporting primitives |
-| Detail | Supporting comparisons, records, definitions and evidence | Feature disclosures, inspectors and existing drawers |
+| Evidence | Supporting comparisons, records, definitions and provenance | Feature disclosures, inspectors and existing drawers |
 
 `AnalyticsPageLayout` composes the title/actions, scope, status and content. It owns
 no queries or analytical state. `OperationalPageHeader` adapts existing report
@@ -54,8 +54,9 @@ do not depend on expanded labels or colour alone.
 | Investigate | `#C2410C` |
 | Settings & Admin | `#64748B` |
 
-`tokens.css` defines deliberate light/dark variants. Area accents are applied in
-navigation to the current marker, icon and restrained selected surface. Analytical
+`tokens.css` defines deliberate light/dark variants. Area accents are small
+orientation cues; selected pages use the shared cobalt underline. The sidebar
+uses an independent graphite/silver palette in both themes. Analytical
 series, lifecycle stages, favourable/unfavourable outcomes and validation states
 keep separate data/status tokens. An area's accent must not recolour its charts or
 imply that an unavailable result is healthy.
@@ -70,6 +71,7 @@ backend gate. Presentation visibility does not grant authority.
 | Owner | Maintained responsibility |
 | --- | --- |
 | `src/styles/tokens.css` | Theme, spacing, type, surface, navigation, data and semantic tokens; imported by `index.css`. |
+| `src/components/ConversionXBrand.tsx` and `.css` | The supplied, unmodified PNG with proportional wordmark/symbol framing and silver display treatment for graphite surfaces. Navigation omits the tagline. |
 | `src/styles/shell.css` | App shell, sidebar/rail, topbar, breadcrumbs, contextual tabs/overflow, mobile navigation/drawer and command palette; imported by `AppShell`. |
 | `src/styles/reporting.css` | Page/header layout, scope controls, shared metric/panel surfaces, sections, disclosures and table foundations. |
 | `src/styles/visuals.css` | Shared plots, legends, tooltips and lifecycle visuals. |
@@ -83,10 +85,97 @@ backend gate. Presentation visibility does not grant authority.
 retain their specific styles. New rules should be added to the relevant owner;
 adding another late global override recreates the cascade that this pass removes.
 
+## ConversionX visual refinement — 2 October 2026
+
+The refinement starts from `fe13490` on current main. It changes presentation
+only. The display brand is ConversionX; source/vendor names, API identifiers,
+routes and the seven area memberships remain unchanged. The supplied logo is
+stored at `public/brand/conversionx-grey.png`. Wordmark and circuit-X crops use
+SVG viewports with its native coordinates, retaining proportions and alpha.
+The silver treatment lifts the dark part of the X on the graphite rail. The
+tagline appears in access states, away from everyday analytical navigation.
+
+Light reports use a pale neutral canvas, white surfaces, graphite ink and fine
+hairlines; dark reports use graphite/charcoal surfaces and silver text. Cobalt
+marks actions and selection. All six lifecycle identities remain separate from
+status and area colour. Existing Public Sans, Plus Jakarta Sans and JetBrains
+Mono fonts remain; mono is reserved for technical identifiers and source values.
+Controls and panels use 4–8px radii, with elevation reserved for overlays.
+Transitions are 150ms and respect reduced motion. The 248px sidebar and 60px
+rail retain their behavior; desktop topbar/contextual navigation are 48/36px.
+
+Overview presents one connected six-stage outcome strip using the existing
+returned fetched, delivered, dialled, RPC, sale and activation measures. Its
+trend and changes share a 68/32 surface before stacking; the original lifecycle
+transition view stays mounted inside its disclosure. Missing intersections and
+rates remain unavailable. Attention order, counts and severity are supplied
+evidence; first-call response uses only returned compliance and percentiles.
+
+Investigation uses a thin case/workflow rail and ruled evidence notebook. Lead
+Evidence retains one Population or Source browser and one canonical Dossier.
+The case header uses already-loaded identity facts, six underline tabs, flat
+summary groups, a forensic Journey spine and separate original source rows.
+Observation, mapping, coverage and independent verification remain distinct.
+The audit drawer retains its portal, focus boundary and layer above sticky UI.
+
+Shared rules were refined in their existing owners. Active legacy evidence-table
+rules moved from `product.css` into `reporting.css`; repeated input-background
+declarations were removed. No broad stylesheet purge occurred. The unmounted
+historical Overview trend pair remains untouched because it has no active
+consumer requiring this refinement.
+
+The generated visual reference guides palette, typography, connected telemetry,
+chart proportions, master/detail composition and ruled evidence. Existing labels,
+controls, exact returned values, meaningful missing states and provenance take
+precedence over generated sample content. No sample rows, fake rates, extra
+filters, call histories, verification badges or financial conclusions were added.
+
 `UnifiedMetricCard` and `KpiCard` use the same metric surface vocabulary.
 `KpiCard` is intentionally retained as a behaviour wrapper: its consumers still
 need lazy definition/lineage and selected-population drawers, metadata and analysis
 actions. Visual convergence does not justify dropping those interactions.
+
+The populated Process tab strip and diagram retain their own horizontal scroll
+boundaries; the header actions and legend wrap on narrow screens. Qualification
+controls use the same light/dark tokens as other reports. Wrapped Routing metric
+values use the canonical metric typography. The area strip reveals its current
+link through instant internal scrolling on route/width changes; route order,
+link targets, workspace scope and request behavior remain unchanged.
+
+### Refinement verification
+
+All required commands completed successfully: `npm ci`, `npm run lint`,
+`npm test`, `npm run docs:surfaces:check`, `npm run build` and `npm run verify`.
+Final verification reports 1,238 tests: **1,237 passed, zero failed, one skipped**.
+The existing Firestore access-lifecycle test requires its emulator and is the
+single skip. The client/server build and warehouse schema export completed.
+
+| Browser suite | Passing evidence |
+| --- | --- |
+| Frontend convergence | 249/249 checks: 23 route/compatibility views at five widths in both themes, plus lifecycle, shell and access interactions |
+| Audit Evidence | 56/56 checks |
+| Investigation | 17/17 checks |
+| Lead Evidence workspace | 10/10 viewport/theme scenarios, 80 workflow checks, 50 screenshots |
+| Dossier Journey | 6/6 scenarios |
+| Case design and sticky positioning | 6/6 scenarios |
+| Focused populated Routing/Process and current navigation | 24/24 scenarios against the final metric typography build |
+| Mounted access states | 24/24 scenarios, including pending/error recovery and original callbacks |
+
+Browser QA uses the existing local Playwright/Chromium runtime because the
+Browser plugin is unavailable. Captures cover **1440, 1024, 820, 390 and 320px**
+in light and dark. Manual review covers all 18 requested representative surfaces,
+including Population, original Source fields and Dossier Summary/Journey/Audit.
+Checks retain document/main overflow, internal wide-table scrolling, focus,
+drawer layering, sticky scope and exact-value/request assertions. Final browser
+suites report no runtime or console errors. Counts overlap and are not additive.
+
+The fixtures are test-only and explicitly synthetic. Process observations match
+the existing regression HTTP response across ten stages and 36 nodes. Routing
+uses an explicit synthetic cohort grounded in its query contract, with unknown
+financial and billable-sale values preserved. These tests establish presentation
+and interaction behavior, not live warehouse completeness or production sign-in.
+Detailed results and screenshots were written outside the Git repository in the
+workspace's `conversionx-visual-qa-2026-10-02` directory.
 
 ## Audit and retirement decisions
 

@@ -6,6 +6,7 @@ import {fileURLToPath} from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 export async function buildAcceptanceFixture(out) {
   await mkdir(out,{recursive:true});
+  await copyFile(path.join(root,'public/brand/conversionx-grey.png'),path.join(out,'conversionx-grey.png'));
   const mocks={
     AuthContext:`export function useAuth(){const denied=window.__fixture?.denied;return {user:{uid:'synthetic-user',displayName:'Synthetic reviewer',email:'synthetic@example.invalid'},profile:{role:window.__fixture?.nonAdmin?'analyst':'admin',status:denied?'pending':'active'},loading:false,isAdmin:!denied&&!window.__fixture?.nonAdmin,isActive:!denied,isPending:denied,isSuspended:false,accessState:denied?'PENDING':'ACTIVE',authError:null,signOut:()=>{},retryAuth:()=>{}}}`,
     ClientContext:`import {useSearchParams} from 'react-router-dom'; export function useClient(){const [p,set]=useSearchParams();const selectedClient=p.get('clientId')||'synthetic-a';const config={id:selectedClient,name:'Synthetic workspace',timezone:'Africa/Johannesburg',currency:'ZAR',colours:{},thresholds:{},metrics:{},capabilities:{}};return {selectedClient,clientId:selectedClient,clientConfig:config,clients:[{id:'synthetic-a',name:'Synthetic workspace A'},{id:'synthetic-b',name:'Synthetic workspace B'}],ready:true,loading:false,error:null,reportAuthenticationFailure:()=>{},retry:()=>{},setSelectedClient:id=>set(prev=>{const next=new URLSearchParams(prev);next.set('clientId',id);return next;})};}`,

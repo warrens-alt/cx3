@@ -1,11 +1,12 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Activity, Search, LogOut, X } from 'lucide-react';
+import { Search, LogOut, X } from 'lucide-react';
 import { BRAND } from '../../../contracts/naming';
 import { navigationTarget } from '../../lib/presentation';
 import { getAreaForPath, getRouteItem, BUSINESS_AREAS, type BusinessAreaId } from '../routeManifest';
 import { useAuth } from '../../lib/AuthContext';
 import ReviewLauncher from '../../components/ReviewLauncher';
+import ConversionXBrand from '../../components/ConversionXBrand';
 
 interface PrimaryNavigationProps {
   onClose?: () => void;
@@ -32,8 +33,7 @@ export default function PrimaryNavigation({
     <div className="cx-brand">
       <Link to={navigationTarget('/overview', location.pathname, location.search)} onClick={onClose}
         aria-label={`${BRAND.name} home`} title={`${BRAND.name} home`} className="cx-brand-link">
-        <span className="cx-brand-icon"><Activity size={21} aria-hidden="true" /></span>
-        <strong className="cx-brand-copy">{BRAND.name}</strong>
+        <ConversionXBrand variant={collapsed ? 'symbol' : 'wordmark'} tone="light" />
       </Link>
       {onClose && <button type="button" className="cx-nav-icon" aria-label="Close navigation" onClick={onClose}><X size={18} aria-hidden="true" /></button>}
     </div>

@@ -1,13 +1,13 @@
 .cx-evidence-matrix{min-width:0;color:var(--cx-text)}
 .cx-evidence-matrix-scroll{max-width:100%;overflow:auto;overscroll-behavior-inline:contain}
-.cx-evidence-matrix table{width:100%;min-width:580px;border-collapse:separate;border-spacing:0;text-align:left;font-size:12px;font-variant-numeric:tabular-nums}
-.cx-evidence-matrix th,.cx-evidence-matrix td{padding:16px 18px;border-top:1px solid var(--cx-border-subtle);vertical-align:middle}
-.cx-evidence-matrix thead th{background:var(--cx-surface-subtle);font-size:10px;letter-spacing:.04em;text-transform:uppercase;font-weight:600;color:var(--cx-text-secondary)}
+.cx-evidence-matrix table{width:100%;min-width:580px;border-collapse:separate;border-spacing:0;text-align:left;font-size:13px;font-variant-numeric:tabular-nums}
+.cx-evidence-matrix th,.cx-evidence-matrix td{padding:10px 12px;border-top:1px solid var(--cx-border-subtle);vertical-align:middle}
+.cx-evidence-matrix thead th{background:var(--cx-surface-subtle);font-size:11px;letter-spacing:0;text-transform:none;font-weight:600;color:var(--cx-text-secondary)}
 .cx-evidence-matrix tbody th{font-weight:600;min-width:160px;max-width:220px;position:sticky;left:0;background:var(--cx-surface);z-index:1}
-.cx-evidence-matrix small{display:block;color:var(--cx-text-secondary);font-size:10px;font-weight:400;line-height:1.6;margin-top:3px;overflow-wrap:anywhere}
-.cx-evidence-matrix-cell{display:flex;align-items:flex-start;gap:9px;min-width:110px}
+.cx-evidence-matrix small{display:block;color:var(--cx-text-secondary);font-size:11px;font-weight:400;line-height:1.6;margin-top:3px;overflow-wrap:anywhere}
+.cx-evidence-matrix-cell{display:flex;align-items:flex-start;gap:7px;min-width:110px}
 .cx-evidence-matrix-cell>svg{flex-shrink:0;margin-top:1px;color:var(--cx-text-secondary)}
-.cx-evidence-matrix-cell strong{font-size:12px;font-weight:550;line-height:1.5}
+.cx-evidence-matrix-cell strong{font-size:13px;font-weight:550;line-height:1.5}
 .cx-evidence-matrix [data-state=observed] svg{color:var(--cx-action)}
 .cx-evidence-matrix :is([data-state=mapped],[data-state=scoped],[data-state=formula_checked],[data-state=api_consistent],[data-state=presentation_consistent]) svg{color:var(--cx-action)}
 .cx-evidence-matrix :is([data-state=reconciled],[data-state=business_verified]) svg{color:var(--cx-favourable)}
@@ -16,7 +16,7 @@
 .cx-evidence-matrix [data-state=issue] svg,.cx-evidence-matrix [data-state=partial] svg{color:var(--cx-warning)}
 .cx-evidence-matrix [data-state=unavailable],.cx-evidence-matrix [data-state=unverified]{color:var(--cx-text-muted)}
 .cx-evidence-matrix td[data-state=unavailable] .cx-evidence-matrix-cell,.cx-evidence-matrix td[data-state=unverified] .cx-evidence-matrix-cell{border-bottom:1px dashed var(--cx-border);padding-bottom:5px}
-.cx-evidence-matrix-key{display:flex;flex-wrap:wrap;gap:10px 18px;list-style:none;margin:0;padding:14px 18px;border-top:1px solid var(--cx-border-subtle);font-size:10px;color:var(--cx-text-secondary)}
+.cx-evidence-matrix-key{display:flex;flex-wrap:wrap;gap:10px 18px;list-style:none;margin:0;padding:12px;border-top:1px solid var(--cx-border-subtle);font-size:11px;color:var(--cx-text-secondary)}
 .cx-evidence-matrix-key li{display:flex;align-items:center;gap:5px}
 .cx-evidence-matrix-empty{padding:20px;font-size:12px;color:var(--cx-text-secondary)}
 .cx-evidence-matrix :is([tabindex],button,a):focus-visible{outline:2px solid var(--cx-focus);outline-offset:-2px}

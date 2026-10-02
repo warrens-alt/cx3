@@ -785,16 +785,16 @@ test('reduction: Audit Mode off hides metadata, whole-card evidence opens, and a
     await app.wait(()=>app.find('.cx-outcome-strip'));
     const before=[...app.w.__fixture.requests];
     assert.equal(app.w.document.querySelectorAll('.cx-audit-metadata').length,0);
-    assert.equal(app.w.document.querySelectorAll('.cx-outcome-card .cx-metric-primary').length,4);
-    assert.equal(app.w.document.querySelectorAll('.cx-outcome-card .cx-audit-evidence-control').length,4);
+    assert.equal(app.w.document.querySelectorAll('.cx-outcome-card .cx-metric-primary').length,6);
+    assert.equal(app.w.document.querySelectorAll('.cx-outcome-card .cx-audit-evidence-control').length,6);
     const trigger=await app.click('.cx-outcome-card .cx-metric-primary');
     assert.ok(app.find('.cx-audit-support a','Inspect supporting records'));
     assert.equal(app.w.document.querySelectorAll('.cx-audit-disclosure[open]').length,0);
     for(const disclosure of app.w.document.querySelectorAll('.cx-audit-disclosure > summary'))(disclosure as any).click();
     await app.click('button','Close inspector');assert.equal(app.w.document.activeElement,trigger);
     await app.click('button','Display preferences');await app.click('[aria-label="Audit mode"] button','On');
-    assert.equal(app.w.document.querySelectorAll('.cx-outcome-strip .cx-audit-metadata').length,4);
-    assert.equal(app.w.document.querySelectorAll('.cx-audit-metadata').length,5); // Four metric definitions plus supplied response context.
+    assert.equal(app.w.document.querySelectorAll('.cx-outcome-strip .cx-audit-metadata').length,6);
+    assert.equal(app.w.document.querySelectorAll('.cx-audit-metadata').length,7); // Six metric definitions plus supplied response context.
     await app.click('button','Display preferences');await app.click('.cx-outcome-card .cx-metric-primary');
     assert.equal(app.w.document.querySelectorAll('.cx-audit-disclosure[open]').length,4);
     await app.click('button','Close inspector');await app.click('button','Display preferences');await app.click('[aria-label="Audit mode"] button','Off');
@@ -965,7 +965,7 @@ test('convergence: Overview answer hierarchy and local disclosures retain trend 
     await app.wait(() => app.find('.cx-outcome-strip') && app.w.__fixture.requests.some((url: string) => url.includes('filter-options')));
     const ordered = ['.cx-outcome-strip', '.cx-overview-primary', '.cx-overview-secondary', '.cx-overview-more'].map(selector => app.find(selector));
     for (let i = 1; i < ordered.length; i++) assert.ok(ordered[i - 1].compareDocumentPosition(ordered[i]) & app.w.Node.DOCUMENT_POSITION_FOLLOWING);
-    assert.equal(app.w.document.querySelectorAll('.cx-outcome-card').length, 4);
+    assert.equal(app.w.document.querySelectorAll('.cx-outcome-card').length, 6);
     assert.match(app.find('.cx-outcome-strip').textContent, /Activations/);
     assert.match(app.find('.cx-overview-response').textContent, /Awaiting first call20.*Waiting over 60 min0/);
     assert.equal(app.find('.cx-overview-response-value').textContent, '—');

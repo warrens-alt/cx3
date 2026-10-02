@@ -1,10 +1,10 @@
 /** Display vocabulary only. Source columns, API IDs and vendor identity values are never renamed. */
 export const NAMING_VERSION = 'cx.naming.1.0.0';
 export const BRAND = { 
-  name: 'Offernet', 
+  name: 'ConversionX',
   platform: 'Operational Intelligence Platform',
-  description: 'Offernet Operational Intelligence Platform', 
-  engine: 'Powered by ConversionX' 
+  description: 'ConversionX Operational Intelligence Platform',
+  engine: 'Every signal captured. Every conversion owned.'
 } as const;
 export const PAGE_TITLES: Readonly<Record<string, string>> = {
   '/': 'Overview',

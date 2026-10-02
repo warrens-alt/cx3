@@ -1,9 +1,11 @@
-// Populated synthetic browser evidence copied from existing regression fixtures.
+// Populated synthetic browser evidence grounded in regression fixtures and query contracts.
 // This file is test-only: it is not imported by the application or production build.
 // Preserve unavailable/null entries; these payloads establish no live-source verification.
 import type { JourneyData } from '../../src/features/journey/model/useJourneyModel';
 import type { CampaignData, SalesActivationData, VendorQualityData } from '../../src/lib/offernetClient';
 import { DISPOSITION_REPORT_VERSION, type ContactDispositionsData } from '../../contracts/vendorDispositions';
+import { OFFERSHOP_PROCESS_VERSION, OFFERSHOP_PROCESS_NODES, TEDI_REFERENCE_SCHEDULES } from '../../contracts/offershopProcess';
+import type { OffershopProcessOverview } from '../../server/analytics/process/offershopProcess';
 
 // tests/journey-and-contact-contracts.test.ts: independent totals vs transition intersections.
 // The two vendor rows overlap (11 vendor memberships vs 10 distinct fetched leads).
@@ -369,6 +371,411 @@ export const convergenceCampaignPayload: CampaignData = {
   ],
 };
 
+// No populated Routing regression fixture exists. These explicitly synthetic rows use
+// only the aliases returned by getRoutingIntelligenceStats in server/bigquery/queries.ts.
+// The two partner rows overlap by design; they are not a distinct cohort total.
+// Revenue and billable-sale observations are not supplied and remain unavailable.
+export const convergenceRoutingPayload = {
+  overview: {
+    total_leads: 100, total_routed_leads: 80, routed_lead_share_pct: 80,
+    single_route_leads: 40, multi_route_leads: 40, handoff_leads: 64,
+    missing_handoff_leads: 16, handoff_rate_pct: 80, missing_handoff_rate_pct: 20,
+    routed_sale_leads: 8, routed_billable_sale_leads: null,
+    routed_sale_rate_pct: 10, routed_billable_sale_rate_pct: null,
+    routed_revenue: null, total_revenue: null, rev_per_routed_lead: null,
+    avg_routing_depth: 1.5,
+  },
+  depthBreakdown: [
+    { depth_bucket: '0 Routes (Unrouted)', routing_depth: 0, leads: 20, lead_share_pct: 20,
+      handoff_rate_pct: 0, delivery_rate_pct: 0, call_rate_pct: 0, rpc_rate_pct: 0,
+      sale_rate_pct: 0, billable_sale_rate_pct: null, total_revenue: null, rev_per_lead: null },
+    { depth_bucket: '1 Partner Route', routing_depth: 1, leads: 40, lead_share_pct: 40,
+      handoff_rate_pct: 80, delivery_rate_pct: 60, call_rate_pct: 50, rpc_rate_pct: 20,
+      sale_rate_pct: 10, billable_sale_rate_pct: null, total_revenue: null, rev_per_lead: null },
+    { depth_bucket: '2 Partner Routes', routing_depth: 2, leads: 40, lead_share_pct: 40,
+      handoff_rate_pct: 80, delivery_rate_pct: 60, call_rate_pct: 50, rpc_rate_pct: 20,
+      sale_rate_pct: 10, billable_sale_rate_pct: null, total_revenue: null, rev_per_lead: null },
+  ],
+  partnerHandoff: [
+    { partner: 'Synthetic route A', routed_leads: 80, first_route_leads: 80, cascade_route_leads: 0,
+      avg_cascade_delay_sec: null, handoff_leads: 64, missing_handoff_leads: 16,
+      handoff_rate_pct: 80, delivery_rate_pct: 60, sale_rate_pct: 10,
+      billable_sale_rate_pct: null, total_revenue: null, rev_per_lead: null, avg_handoff_latency_sec: 30 },
+    { partner: 'Synthetic route B', routed_leads: 40, first_route_leads: 0, cascade_route_leads: 40,
+      avg_cascade_delay_sec: 120, handoff_leads: 32, missing_handoff_leads: 8,
+      handoff_rate_pct: 80, delivery_rate_pct: 60, sale_rate_pct: 10,
+      billable_sale_rate_pct: null, total_revenue: null, rev_per_lead: null, avg_handoff_latency_sec: 45 },
+  ],
+  topRoutePaths: [
+    { route_path: 'Synthetic route A', partner_count: 1, leads: 40, share_pct: 50,
+      deliv_pct: 60, call_pct: 50, sale_pct: 10, billable_sale_pct: null, total_revenue: null, rev_per_lead: null },
+    { route_path: 'Synthetic route A -> Synthetic route B', partner_count: 2, leads: 40, share_pct: 50,
+      deliv_pct: 60, call_pct: 50, sale_pct: 10, billable_sale_pct: null, total_revenue: null, rev_per_lead: null },
+  ],
+  missingSample: [
+    { lead_id: 'SYNTHETIC-ROUTING-LEAD-0001-long-identifier', consumer_id: 'SYNTHETIC-CONSUMER-0001',
+      partner: 'Synthetic route A', ror_timestamp: '2026-09-28T09:02:00Z', route_sequence: 1,
+      source: 'synthetic-source', medium: 'synthetic-medium', capture_timestamp: '2026-09-28T09:00:00Z' },
+    { lead_id: 'SYNTHETIC-ROUTING-LEAD-0002', consumer_id: null,
+      partner: 'Synthetic route B', ror_timestamp: '2026-09-28T10:04:00Z', route_sequence: 2,
+      source: null, medium: null, capture_timestamp: '2026-09-28T10:00:00Z' },
+  ],
+};
+
+// Exact getOffershopProcessFlow response for the existing query mock in
+// tests/offershop-process-api.test.ts: 3 leads and ID/phone valid, invalid, unknown
+// counts of 1 each. Only scope and evaluatedAt are fixed for the synthetic browser.
+// Catalog nodes and TEDI schedules retain the existing process contract verbatim.
+// Uninstrumented observed metrics, partner eligibility and recovery tags stay null.
+export const convergenceProcessPayload: OffershopProcessOverview = {
+  "processVersion": OFFERSHOP_PROCESS_VERSION,
+  "evaluatedAt": "2026-09-28T12:00:00.000Z",
+  "scope": {
+    "clientId": "synthetic-a",
+    "startDate": "2026-09-28",
+    "endDate": "2026-09-28"
+  },
+  "readinessSummary": {
+    "totalNodes": 36,
+    "mappedCount": 17,
+    "dependencyBlockedCount": 8,
+    "mappingRequiredCount": 2,
+    "notInstrumentedCount": 9,
+    "readinessPct": 47
+  },
+  "stages": {
+    "acquisition": {
+      "family": "acquisition",
+      "title": "Acquisition & Channel Provenance",
+      "description": "Captures OnChannel, OffChannel and Offline submissions. Preserves website prequalification distinction and abandoned conversation recovery.",
+      "readiness": "PARTIAL",
+      "nodes": OFFERSHOP_PROCESS_NODES.filter(node => node.family === 'acquisition'),
+      "observedMetrics": {
+        "totalSubmissions": 3,
+        "onChannelSharePct": null,
+        "offChannelSharePct": null,
+        "offlineSharePct": null,
+        "abandonedConversationsPendingRecovery": null,
+        "idleOlderThanTwoHoursThresholdMet": null
+      },
+      "notes": [
+        "OnChannel, OffChannel and Offline are preserved as documented classifications.",
+        "Website prequalification responses are kept distinct from central pipeline ingestion.",
+        "Chatbot 2-hour idle recovery is an intended SLA from the diagram awaiting runtime logging certification."
+      ]
+    },
+    "ingestion": {
+      "family": "ingestion",
+      "title": "Pipeline Ingestion (offer_shop_lead_submit)",
+      "description": "Ingestion of validated submissions into central lead ledger with timestamping and source tags.",
+      "readiness": "MAPPED",
+      "nodes": OFFERSHOP_PROCESS_NODES.filter(node => node.family === 'ingestion'),
+      "observedMetrics": {
+        "ingestedLeads": 3,
+        "distinctLeadIds": 3,
+        "targetTable": "`dashboards-422710.lead_ledger.clustered_lead_ledger`",
+        "ingestionStatus": "ACTIVE"
+      },
+      "notes": [
+        "Grounded in configured lead_ledger source.",
+        "Declared views with offershop prefix (e.g. view_all_offershop_lead_submit) exist but have failing underlying dependencies."
+      ]
+    },
+    "preparation_validation": {
+      "family": "preparation_validation",
+      "title": "Preparation & Validation",
+      "description": "Standardisation, National ID Luhn check, mobile validation, alt phone handling, placeholder email detection, Mondo grade and BLC colour.",
+      "readiness": "MAPPED",
+      "nodes": OFFERSHOP_PROCESS_NODES.filter(node => node.family === 'preparation_validation'),
+      "observedMetrics": {
+        "totalEvaluated": 3,
+        "idValidationValidCode1": 1,
+        "idValidationInvalidCode2": 1,
+        "idValidationUnknown": 1,
+        "idValidationRatePct": 33.33,
+        "phoneValidationValidCode1": 1,
+        "phoneValidationInvalidCode2": 1,
+        "phoneValidationUnknown": 1,
+        "phoneValidationRatePct": 33.33,
+        "placeholderEmailDetected": null,
+        "mondoGradeAssigned": null,
+        "blcColourAssigned": null
+      },
+      "notes": [
+        "Diagram field encoding: 1 = valid / successful, 2 = invalid / unsuccessful. Preserved explicitly.",
+        "Standardised does not mean valid; format-valid phone does not prove right-party contact. Unknown codes are not invalid. Conflicting repeated lead snapshots require separate review.",
+        "Mondo grade and BLC colour are modeled independently; no synthetic composite score is generated."
+      ]
+    },
+    "consumer_hospital": {
+      "family": "consumer_hospital",
+      "title": "Consumer Hospital & Identity Recovery",
+      "description": "Processes format-invalid or unverified identities via phone-to-ID, ID-to-phone, and name matching back into the pipeline or terminal morgue.",
+      "readiness": "PARTIAL",
+      "nodes": OFFERSHOP_PROCESS_NODES.filter(node => node.family === 'consumer_hospital'),
+      "observedMetrics": {
+        "hospitalEntries": null,
+        "recoveredIdentities": null,
+        "recoveryRatePct": null,
+        "pipelineReentries": null,
+        "terminalMorgueRecords": null
+      },
+      "notes": [
+        "Tags (EXACT, INVALID_ID_ZERO, SMALL_DIFF_1/2/3_DIGIT, DIFFERENT) represent upstream source outcomes, not confidence probabilities.",
+        "CX3 does not perform client-side fuzzy matching or expose PII; it observes upstream recovery evidence.",
+        "Hospital history is not fabricated from a latest-state flag."
+      ]
+    },
+    "partner_qualification": {
+      "family": "partner_qualification",
+      "title": "ROR & Partner Qualification",
+      "description": "Partner qualification paths (BLC, Mondo, MTN, Real Promotions, BizVoIP, RewardsCo, Invalid-ID campaign) with duplicate windows.",
+      "readiness": "DEPENDENCY_BLOCKED",
+      "nodes": OFFERSHOP_PROCESS_NODES.filter(node => node.family === 'partner_qualification'),
+      "observedMetrics": {
+        "totalEvaluated": null,
+        "blcEligible": null,
+        "mondoEligible": null,
+        "mtnEligible": null,
+        "realPromotionsEligible": null,
+        "bizvoipEligible": null,
+        "rewardscoEligible": null,
+        "invalidIdCampaignEligible": null
+      },
+      "notes": [
+        "ROR terminology retained without expansion.",
+        "Partner qualification paths are not mutually exclusive; a lead can qualify for multiple partners.",
+        "Dedicated partner views (e.g. view_lead_ledger_mondo_lead_submit_open) have observed BigQuery Access Denied dependency failures."
+      ]
+    },
+    "hlc_delivery": {
+      "family": "hlc_delivery",
+      "title": "Hot Lead Connect (HLC) & Delivery",
+      "description": "Outbound queueing, partner API delivery, duplicate action enforcement, response contract verification, and dialler list assignment.",
+      "readiness": "MAPPED",
+      "nodes": OFFERSHOP_PROCESS_NODES.filter(node => node.family === 'hlc_delivery'),
+      "observedMetrics": {
+        "deliveredEpisodes": null,
+        "uniqueDeliveredLeads": null,
+        "avgVendorEpisodesPerLead": null,
+        "partnerAcceptanceRatePct": null,
+        "suppressedDuplicates": null
+      },
+      "notes": [
+        "Duplicate windows documented: BLC 48h, Mondo 10d, MTN 48h, Real Promotions 7d, BizVoIP 48h, RewardsCo 48h.",
+        "Duplicate actions: Suppress, Update existing record, Reclassify, Reintroduce, Create genuinely new record.",
+        "HTTP 200 does not equal business acceptance without an approved response contract."
+      ]
+    },
+    "dialler_activity": {
+      "family": "dialler_activity",
+      "title": "Dialler Activity & Call Dispositions",
+      "description": "Discrete call attempts, leads dialled, right-party contact (RPC) dispositions, and call counters from Vicidial.",
+      "readiness": "MAPPED",
+      "nodes": OFFERSHOP_PROCESS_NODES.filter(node => node.family === 'dialler_activity'),
+      "observedMetrics": {
+        "discreteCallAttempts": null,
+        "leadsDialled": null,
+        "rightPartyContacts": null,
+        "rpcRatePct": null,
+        "avgCallsPerDialledLead": null
+      },
+      "notes": [
+        "Discrete call events are kept distinct from cumulative HLC call counters.",
+        "Last status is not a complete disposition history.",
+        "Expected first dial is kept distinct from recorded first dial."
+      ]
+    },
+    "commercial_activation": {
+      "family": "commercial_activation",
+      "title": "Commercial Sales & Activations",
+      "description": "Commercial reported sales, delivered sales, and verified contract activations.",
+      "readiness": "MAPPED",
+      "nodes": OFFERSHOP_PROCESS_NODES.filter(node => node.family === 'commercial_activation'),
+      "observedMetrics": {
+        "reportedSales": null,
+        "saleRateFromLeadsPct": null,
+        "verifiedActivations": null,
+        "activationRateFromSalesPct": null
+      },
+      "notes": [
+        "A partner reported sale is not automatically an activation or recognised revenue.",
+        "BLC remote activations table provides bounded alternative reconciliation; other partners require TEDI files."
+      ]
+    },
+    "tedi_feedback": {
+      "family": "tedi_feedback",
+      "title": "TEDI & External Feedback Reconciliation",
+      "description": "Scheduled echo file ingestion, deduplication, storage, table load, and reconciliation monitoring for MTN, Mondo, Real Promotions.",
+      "readiness": "DEPENDENCY_BLOCKED",
+      "nodes": OFFERSHOP_PROCESS_NODES.filter(node => node.family === 'tedi_feedback'),
+      "observedMetrics": {
+        "configuredSchedules": 6,
+        "unresolvedFileFeeds": 5,
+        "verifiedLoadedFeeds": 1
+      },
+      "notes": [
+        "Schedules serve as reference metadata until approved against actual infrastructure.",
+        "States differentiated: Not yet expected, Overdue, Received not loaded, Loaded unmatched, Observed source failure, Unknown.",
+        "Without monitoring evidence, shows Unknown, not Failed."
+      ]
+    },
+    "advertising_feedback": {
+      "family": "advertising_feedback",
+      "title": "Advertising Feedback (CAPI & Web Events)",
+      "description": "Separate related process for CAPI / ad platform conversion event transmission, acknowledgement, and media attribution.",
+      "readiness": "NOT_INSTRUMENTED",
+      "nodes": OFFERSHOP_PROCESS_NODES.filter(node => node.family === 'advertising_feedback'),
+      "observedMetrics": {
+        "capiEventStream": "NOT_DEPLOYED",
+        "eligibilityRulesConfigured": 0
+      },
+      "notes": [
+        "Modeled as a separate related process, never conflated with contact centre dialler outcomes."
+      ]
+    }
+  },
+  "partnerSummary": {
+    "blc_ontact": {
+      "partnerId": "blc_ontact",
+      "displayName": "BLC / ONtact",
+      "duplicateWindowText": "48 hours",
+      "duplicateAction": "UPDATE_EXISTING",
+      "warehouseReadiness": "DEPENDENCY_BLOCKED",
+      "failingDependency": "offernet-dmp.external_data_echos.extrnal_data_echos_blc_activations_master",
+      "observedEligibleCount": null,
+      "observedSuppressedCount": null,
+      "deliveredEpisodes": null,
+      "reportedSales": null,
+      "verifiedActivations": null,
+      "notes": "Dedicated BLC view blocked by external_data_echos permission; alternative reconciliation via blc_remote_activations."
+    },
+    "mondo": {
+      "partnerId": "mondo",
+      "displayName": "Mondo",
+      "duplicateWindowText": "10 days",
+      "duplicateAction": "SUPPRESS",
+      "warehouseReadiness": "DEPENDENCY_BLOCKED",
+      "failingDependency": "offernet-dmp.hot_lead_connect.mondo_lead_submit",
+      "observedEligibleCount": null,
+      "observedSuppressedCount": null,
+      "deliveredEpisodes": null,
+      "reportedSales": null,
+      "verifiedActivations": null,
+      "notes": "Duplicate window is 10 days. Underlying view blocked by offernet-dmp:hot_lead_connect."
+    },
+    "mtn": {
+      "partnerId": "mtn",
+      "displayName": "MTN",
+      "duplicateWindowText": "48 hours",
+      "duplicateAction": "UPDATE_EXISTING",
+      "warehouseReadiness": "DEPENDENCY_BLOCKED",
+      "failingDependency": "offernet-dmp.external_data_echos.extrnal_data_echos_mtn_activation_master",
+      "observedEligibleCount": null,
+      "observedSuppressedCount": null,
+      "deliveredEpisodes": null,
+      "reportedSales": null,
+      "verifiedActivations": null,
+      "notes": "Product branches kept separate from grade-only classification. 48-hour duplicate window."
+    },
+    "real_promotions": {
+      "partnerId": "real_promotions",
+      "displayName": "Real Promotions",
+      "duplicateWindowText": "7 days",
+      "duplicateAction": "SUPPRESS",
+      "warehouseReadiness": "DEPENDENCY_BLOCKED",
+      "failingDependency": "offernet-dmp.external_data_echos.extrnal_data_echos_real_promotions_calls_master",
+      "observedEligibleCount": null,
+      "observedSuppressedCount": null,
+      "deliveredEpisodes": null,
+      "reportedSales": null,
+      "verifiedActivations": null,
+      "notes": "Duplicate window is 7 days (168 hours). Blocked dependency on real_promotions_calls_master."
+    },
+    "bizvoip": {
+      "partnerId": "bizvoip",
+      "displayName": "BizVoIP",
+      "duplicateWindowText": "48 hours",
+      "duplicateAction": "SUPPRESS",
+      "warehouseReadiness": "DEPENDENCY_BLOCKED",
+      "failingDependency": "offernet-dmp.external_data_echos.extrnal_data_echos_bizvoip_vicidial_log",
+      "observedEligibleCount": null,
+      "observedSuppressedCount": null,
+      "deliveredEpisodes": null,
+      "reportedSales": null,
+      "verifiedActivations": null,
+      "notes": "48-hour duplicate window. Business and PBX qualifications."
+    },
+    "invalid_id_campaign": {
+      "partnerId": "invalid_id_campaign",
+      "displayName": "Invalid-ID Campaign",
+      "duplicateWindowText": "48 hours",
+      "duplicateAction": "RECLASSIFY",
+      "warehouseReadiness": "NOT_INSTRUMENTED",
+      "observedEligibleCount": null,
+      "observedSuppressedCount": null,
+      "deliveredEpisodes": null,
+      "reportedSales": null,
+      "verifiedActivations": null,
+      "notes": "Dedicated re-engagement campaign for unverified identities."
+    },
+    "rewardsco": {
+      "partnerId": "rewardsco",
+      "displayName": "RewardsCo",
+      "duplicateWindowText": "48 hours",
+      "duplicateAction": "SUPPRESS",
+      "warehouseReadiness": "DEPENDENCY_BLOCKED",
+      "failingDependency": "offernet-dmp.hot_lead_connect.rewardsco_lead_submit",
+      "observedEligibleCount": null,
+      "observedSuppressedCount": null,
+      "deliveredEpisodes": null,
+      "reportedSales": null,
+      "verifiedActivations": null,
+      "notes": "48-hour duplicate window. View blocked on offernet-dmp:hot_lead_connect."
+    }
+  },
+  "consumerHospitalSummary": {
+    "readiness": "PARTIAL",
+    "hospitalEntries": null,
+    "hospitalRecovered": null,
+    "pipelineReturns": null,
+    "terminalMorgueCount": null,
+    "tagsObserved": {
+      "EXACT": null,
+      "SMALL_DIFF_1_DIGIT": null,
+      "SMALL_DIFF_2_DIGIT": null,
+      "SMALL_DIFF_3_DIGIT": null,
+      "INVALID_ID_ZERO": null,
+      "DIFFERENT": null
+    },
+    "directions": {
+      "phoneToId": {
+        "status": "NOT_INSTRUMENTED",
+        "note": "Upstream identity graph lookup; not logged directly to BigQuery view."
+      },
+      "idToPhone": {
+        "status": "NOT_INSTRUMENTED",
+        "note": "National ID lookup; observed only via post-recovery return status."
+      },
+      "nameSurname": {
+        "status": "NOT_INSTRUMENTED",
+        "note": "Name difference scoring handled upstream without PII exposure in CX3."
+      }
+    }
+  },
+  "tediFeedbackSummary": {
+    "schedules": TEDI_REFERENCE_SCHEDULES,
+    "overallStatus": "ATTENTION_REQUIRED",
+    "unresolvedCount": 5
+  },
+  "advertisingFeedbackSummary": {
+    "status": "SEPARATE_RELATED_PROCESS",
+    "description": "Advertising-event feedback (CAPI / web-events) is tracked independently from call centre dialler outcomes.",
+    "isConflatedWithDialler": false,
+    "eligibilityCheckConfigured": false
+  }
+};
+
 export const convergencePayloads = {
   '/api/analytics/offernet/funnel': convergenceJourneyPayload,
   '/api/analytics/offernet/contact-strategy': convergenceContactPayload,
@@ -376,4 +783,6 @@ export const convergencePayloads = {
   '/api/analytics/offernet/sales-activation': convergenceSalesPayload,
   '/api/analytics/offernet/vendor-quality': convergenceVendorPayload,
   '/api/analytics/offernet/campaigns': convergenceCampaignPayload,
+  '/api/analytics/routing': convergenceRoutingPayload,
+  '/api/analytics/offernet/offershop-flow': convergenceProcessPayload,
 };

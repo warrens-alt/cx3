@@ -4,13 +4,11 @@ import React from 'react';
 import { lifecyclePresentation } from '../../../shared/visuals/lifecyclePresentation';
 import MetricSparkline from '../../../shared/visuals/MetricSparkline';
 import { adaptDailyTrends } from './PerformanceTrend';
-import { Link } from 'react-router-dom';
-import { TrendingUp, TrendingDown, ArrowRight, Search, Inbox, Send, BadgeCheck, Zap } from 'lucide-react';
+import { TrendingUp, TrendingDown, ArrowRight, Search } from 'lucide-react';
 import { formatPercent, formatTableNumber } from '../../../lib/formatters';
 import type { OverviewData } from '../../../lib/offernetClient';
 import type { LifecycleExtension } from '../../../../contracts/lifecycleAnalytics';
 import type { InspectorContent } from '../../../shared/evidence/InspectorHost';
-import { useScopedNavigationTarget } from '../../../hooks/useScopedNavigationTarget';
 import { lifecycleVisualAudit } from '../../evidenceWorkspace/metricVisualAudit';
 
 export type RootMetric = 'fetchedLeads' | 'deliveryRate' | 'dialRate' | 'contactRate' | 'leadToSaleRate' | 'activationRate';
@@ -27,6 +25,8 @@ interface OutcomeStripProps {
 const outcomePresentation = {
   fetched_leads: { icon: lifecyclePresentation.fetched.Icon, metric: 'leads', series: 'fetched' },
   delivered_leads: { icon: lifecyclePresentation.delivered.Icon, metric: 'delivered', series: 'delivered' },
+  dialled_leads: { icon: lifecyclePresentation.dialled.Icon, metric: 'dialled', series: 'dialled' },
+  rpc_leads: { icon: lifecyclePresentation.rpc.Icon, metric: 'contacted', series: 'rpc' },
   recorded_sales: { icon: lifecyclePresentation.sales.Icon, metric: 'sales', series: 'sales' },
   activations: { icon: lifecyclePresentation.activated.Icon, metric: 'activations', series: 'activation' },
 } as const;
@@ -40,12 +40,12 @@ function DeltaBadge({ delta, unit = '%' }: { delta?: number | null; unit?: strin
   const Icon = isPositive ? TrendingUp : isZero ? ArrowRight : TrendingDown;
   return (
     <span
-      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11.5px] font-semibold cx-tabular leading-none ${
+      className={`cx-outcome-delta cx-tabular ${
         isPositive
-          ? 'text-semantic-pos bg-semantic-pos/10'
+          ? 'text-semantic-pos'
           : isZero
-          ? 'text-text-mute bg-surface-subtle border border-border-subtle'
-          : 'text-semantic-neg bg-semantic-neg/10'
+          ? 'text-text-mute'
+          : 'text-semantic-neg'
       }`}
     >
       <Icon size={11} aria-hidden="true" />
@@ -65,7 +65,6 @@ export default function OutcomeStrip({
   isAdmin,
   hasComparison = false,
 }: OutcomeStripProps) {
-  const scoped = useScopedNavigationTarget();
   const kpis = data.kpis;
   const comparison = data.comparison;
   const trend = adaptDailyTrends(data.dailyTrends);
@@ -122,6 +121,52 @@ export default function OutcomeStrip({
           drillValue: 'delivered',
           label: 'Inspect delivered lead records',
         },
+      },
+    },
+    {
+      id: 'dialled_leads',
+      label: 'Dialled leads',
+      value: fmt(kpis.dialledLeads),
+      rateValue: formatPercent(kpis.dialRate),
+      delta: comparison?.dialRateDelta,
+      deltaUnit: 'pp',
+      rootMetric: 'dialRate' as RootMetric,
+      subnote: `${formatPercent(kpis.dialRate)} of delivered leads`,
+      reportPath: '/funnel',
+      recordDrillValue: 'dialled',
+      inspectContent: {
+        type: 'metric' as const,
+        metricId: 'dialled_leads',
+        title: 'Dialled leads',
+        subtitle: 'Qualified delivered leads with a chronologically consistent first-dial timestamp.',
+        value: fmt(kpis.dialledLeads),
+        relatedValue: { label: 'Dialled / delivered', value: formatPercent(kpis.dialRate) },
+        reportPath: '/funnel',
+        reportLabel: 'Open dial coverage',
+        recordDrill: { drill: 'funnel-stage', drillValue: 'dialled', label: 'Inspect dialled lead records' },
+      },
+    },
+    {
+      id: 'rpc_leads',
+      label: 'Right-party contact (RPC)',
+      value: fmt(kpis.contactedLeads),
+      rateValue: formatPercent(kpis.contactRate),
+      delta: comparison?.contactRateDelta,
+      deltaUnit: 'pp',
+      rootMetric: 'contactRate' as RootMetric,
+      subnote: `${formatPercent(kpis.contactRate)} of dialled leads`,
+      reportPath: '/funnel',
+      recordDrillValue: 'rpc',
+      inspectContent: {
+        type: 'metric' as const,
+        metricId: 'rpc_leads',
+        title: 'Right-party contact (RPC)',
+        subtitle: 'Qualified dialled leads with positive source-recorded RPC evidence.',
+        value: fmt(kpis.contactedLeads),
+        relatedValue: { label: 'RPC / dialled', value: formatPercent(kpis.contactRate) },
+        reportPath: '/funnel',
+        reportLabel: 'Open contact coverage',
+        recordDrill: { drill: 'funnel-stage', drillValue: 'rpc', label: 'Inspect right-party contact records' },
       },
     },
     {
@@ -182,21 +227,26 @@ export default function OutcomeStrip({
 
   return (
     <TelemetryRail label="Principal operational outcomes" className="cx-outcome-strip">
+      <header className="cx-outcome-rail-heading"><h2>Lead lifecycle</h2><p>Observed stage populations · recorded sales and activations remain independent evidence.</p></header>
       {outcomes.map(item => {
         const presentation = outcomePresentation[item.id as keyof typeof outcomePresentation];
         const Icon = presentation.icon;
-        const count = item.id === 'fetched_leads' ? kpis.fetchedLeads : item.id === 'delivered_leads' ? kpis.deliveredLeads : item.id === 'recorded_sales' ? kpis.saleLeads : kpis.activatedLeads;
+        const count = item.id === 'fetched_leads' ? kpis.fetchedLeads : item.id === 'delivered_leads' ? kpis.deliveredLeads : item.id === 'dialled_leads' ? kpis.dialledLeads : item.id === 'rpc_leads' ? kpis.contactedLeads : item.id === 'recorded_sales' ? kpis.saleLeads : kpis.activatedLeads;
+        const denominator = item.id === 'dialled_leads' ? kpis.deliveredLeads : item.id === 'rpc_leads' ? kpis.dialledLeads : item.id === 'activations' ? kpis.saleLeads : kpis.fetchedLeads;
+        const denominatorLabel = item.id === 'dialled_leads' ? 'Delivered leads' : item.id === 'rpc_leads' ? 'Dialled leads' : item.id === 'activations' ? 'Recorded sales' : 'Fetched leads';
+        const rateMetricId = item.id === 'delivered_leads' ? 'delivery_rate' : item.id === 'dialled_leads' ? 'dial_rate' : item.id === 'rpc_leads' ? 'rpc_rate' : item.id === 'recorded_sales' ? 'sales_per_fetched_rate' : 'activation_rate';
+        const rateTitle = item.id === 'delivered_leads' ? 'Delivery rate' : item.id === 'dialled_leads' ? 'Dialled / delivered' : item.id === 'rpc_leads' ? 'RPC / dialled' : item.id === 'recorded_sales' ? 'Lead-to-sale rate' : 'Activations / recorded sales';
         const countEvidence = lifecycleVisualAudit(item.inspectContent, count, item.recordDrillValue, data.lifecycle);
         const rateEvidence: InspectorContent | null = item.id === 'fetched_leads' ? null : {
           ...item.inspectContent,
-          metricId: item.id === 'delivered_leads' ? 'delivery_rate' : item.id === 'recorded_sales' ? 'sales_per_fetched_rate' : 'activation_rate',
-          title: item.id === 'delivered_leads' ? 'Delivery rate' : item.id === 'recorded_sales' ? 'Lead-to-sale rate' : 'Activations / recorded sales',
+          metricId: rateMetricId,
+          title: rateTitle,
           value: item.rateValue,
           numeratorCount: count,
           numeratorLabel: item.label,
-          denominatorCount: item.id === 'activations' ? kpis.saleLeads : kpis.fetchedLeads,
-          denominatorLabel: item.id === 'activations' ? 'Recorded sales' : 'Fetched leads',
-          anatomy: { kind: item.id === 'activations' ? 'independent_ratio' : 'ratio', label: item.id === 'activations' ? 'Activations / recorded sales' : item.subnote, value: item.rateValue, numerator: { key: 'numerator', label: item.label, value: count }, denominator: { key: 'denominator', label: item.id === 'activations' ? 'Recorded sales' : 'Fetched leads', value: item.id === 'activations' ? kpis.saleLeads : kpis.fetchedLeads } },
+          denominatorCount: denominator,
+          denominatorLabel,
+          anatomy: { kind: item.id === 'activations' ? 'independent_ratio' : 'ratio', label: item.id === 'activations' ? 'Activations / recorded sales' : item.subnote, value: item.rateValue, numerator: { key: 'numerator', label: item.label, value: count }, denominator: { key: 'denominator', label: denominatorLabel, value: denominator } },
         };
         return (
         <article
@@ -204,18 +254,18 @@ export default function OutcomeStrip({
           data-series={presentation.series}
           className="cx-outcome-card cx-metric-card"
         >
-          <div className="cx-outcome-heading flex items-start justify-between">
+          <div className="cx-outcome-heading">
             <span className="cx-metric-label">
               {item.label}
             </span>
             <span className="cx-outcome-icon" aria-hidden="true"><Icon size={16} strokeWidth={1.8} /></span>
           </div>
 
-          <div className="my-3">
-            <button type="button" onClick={() => onInspect(countEvidence)} className="cx-metric-primary cx-outcome-value text-3xl lg:text-[34px] font-bold cx-tabular text-text-main block hover:text-action transition-colors tracking-tight leading-tight" aria-label={`Inspect evidence: ${item.label}`}>{item.value}</button>
+          <div className="cx-outcome-measure">
+            <button type="button" onClick={() => onInspect(countEvidence)} className="cx-metric-primary cx-outcome-value cx-tabular" aria-label={`Inspect evidence: ${item.label}`}>{item.value}</button>
 
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              {rateEvidence ? <button type="button" className="cx-button-quiet text-xs text-text-sec font-medium" onClick={() => onInspect(rateEvidence)} aria-label={`Audit evidence: ${rateEvidence.title}`}>{item.subnote}</button> : <span className="text-xs text-text-sec font-medium">{item.subnote}</span>}
+            <div className="cx-outcome-context">
+              {rateEvidence ? <button type="button" className="cx-button-quiet cx-outcome-rate" onClick={() => onInspect(rateEvidence)} aria-label={`Audit evidence: ${rateEvidence.title}`}>{item.subnote}</button> : <span>{item.subnote}</span>}
               <DeltaBadge delta={item.delta} unit={item.deltaUnit} />
             </div>
           </div>

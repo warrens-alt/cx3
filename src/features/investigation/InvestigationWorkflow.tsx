@@ -82,7 +82,7 @@ export default function InvestigationWorkflow({ analysis, recordsLoaded = false,
     const destination = stage === 'records' ? '/lead-explorer' : stage === 'signal' || stage === 'diagnose' ? '/investigate' : location.pathname;
     return `${investigationPath(destination, params)}#${stageTargets[stage]}`;
   };
-  const rail = <nav className="cx-investigation-workflow" aria-label="Investigation workflow"><ol>{stages.map((stage, index) => <li key={stage.key} data-current={stage.key === current}>
+  const rail = <nav className="cx-investigation-workflow" aria-label="Investigation workflow"><ol>{stages.map((stage, index) => <li key={stage.key} data-current={stage.key === current} data-available={stage.available}>
       {stage.available ? <Link data-stage={stage.key} to={href(stage.key)} aria-label={stage.label} aria-describedby={`${descriptionId}-${stage.key}`} aria-current={stage.key === current ? 'step' : undefined} onClick={() => focusStage(stage.key)}>
         <span className="cx-investigation-stage-title"><span aria-hidden="true">{index + 1}</span>{stage.label}</span><span id={`${descriptionId}-${stage.key}`} className="sr-only">{stage.detail}</span>
       </Link> : <span data-stage={stage.key} aria-disabled="true" aria-label={stage.label} aria-describedby={`${descriptionId}-${stage.key}`}><span className="cx-investigation-stage-title"><span aria-hidden="true">{index + 1}</span>{stage.label}</span><span id={`${descriptionId}-${stage.key}`} className="sr-only">{stage.detail}</span></span>}

@@ -20,7 +20,7 @@
 .cx-control-track i { display:block; min-width:2px; height:100%; border-radius:inherit; background:var(--cx-action); }
 .cx-control-band-list dl { display:grid; grid-template-columns:repeat(2,1fr); gap:7px; margin:0; }
 .cx-control-band-list dl>div { text-align:right; }
-.cx-control-band-list dt { color:var(--cx-muted); font-size:12px; text-transform:uppercase; }
+.cx-control-band-list dt { color:var(--cx-muted); font-size:12px; text-transform:none; }
 .cx-control-band-list dd { margin-top:1px; color:var(--cx-text); font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; }
 
 .cx-control-window-grid {
@@ -32,13 +32,13 @@
 .cx-control-window-grid article {
   padding:12px 13px;
   border:1px solid var(--cx-border);
-  border-radius:8px;
+  border-radius:var(--cx-radius-md);
   background:var(--cx-surface-subtle);
 }
 .cx-control-window-grid span,
 .cx-control-window-grid strong,
 .cx-control-window-grid small { display:block; }
-.cx-control-window-grid span { color:var(--cx-text-secondary); font-size:12px; font-weight:750; text-transform:uppercase; letter-spacing:.05em; }
+.cx-control-window-grid span { color:var(--cx-text-secondary); font-size:12px; font-weight:750; text-transform:none; letter-spacing:0; }
 .cx-control-window-grid strong { margin-top:6px; color:var(--cx-ink); font-size:18px; font-variant-numeric:tabular-nums; }
 .cx-control-window-grid small { margin-top:4px; color:var(--cx-text-muted); font-size:12px; line-height:1.4; }
 
@@ -62,13 +62,13 @@
 .cx-control-completeness article {
   padding:11px 12px;
   border:1px solid var(--cx-border);
-  border-radius:8px;
+  border-radius:var(--cx-radius-md);
   background:var(--cx-surface-subtle);
 }
 .cx-control-completeness article[data-alert=true] { border-color:var(--cx-status-warning-border); background:var(--cx-warning-bg); }
 .cx-control-completeness span,
 .cx-control-completeness strong { display:block; }
-.cx-control-completeness span { color:var(--cx-text-secondary); font-size:12px; text-transform:uppercase; font-weight:750; letter-spacing:.045em; }
+.cx-control-completeness span { color:var(--cx-text-secondary); font-size:12px; text-transform:none; font-weight:750; letter-spacing:0; }
 .cx-control-completeness strong { margin-top:5px; color:var(--cx-text); font-size:20px; font-variant-numeric:tabular-nums; }
 .cx-control-completeness article[data-alert=true] strong { color:var(--cx-warning); }
 

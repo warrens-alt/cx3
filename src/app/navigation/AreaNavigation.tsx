@@ -16,10 +16,36 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
   const [moreOpen, setMoreOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMoreOpen(false);
   }, [location.pathname]);
+
+  // Keep the current page label inside the horizontal strip without moving
+  // the document or changing navigation. Direct scroll geometry is instant.
+  useEffect(() => {
+    const tabs = tabsRef.current;
+    if (!tabs) return;
+    const revealCurrentTab = () => {
+      const current = tabs.querySelector<HTMLAnchorElement>('[aria-current="page"]');
+      if (!current) return;
+      const tabBounds = current.getBoundingClientRect();
+      const stripBounds = tabs.getBoundingClientRect();
+      const left = stripBounds.left + tabs.clientLeft;
+      const right = left + tabs.clientWidth;
+      if (tabBounds.left < left) tabs.scrollLeft -= left - tabBounds.left;
+      else if (tabBounds.right > right) tabs.scrollLeft += tabBounds.right - right;
+    };
+    revealCurrentTab();
+    if (typeof ResizeObserver === 'function') {
+      const observer = new ResizeObserver(revealCurrentTab);
+      observer.observe(tabs);
+      return () => observer.disconnect();
+    }
+    window.addEventListener('resize', revealCurrentTab);
+    return () => window.removeEventListener('resize', revealCurrentTab);
+  }, [location.pathname, isAdmin]);
 
   const activeArea = getAreaForPath(location.pathname);
   const currentPath = location.pathname === '/' ? '/overview' : location.pathname;
@@ -79,7 +105,7 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
       data-navigation-area={activeArea.id}
     >
       <div className="cx-area-nav-inner">
-        <div className="cx-area-tabs">
+        <div className="cx-area-tabs" ref={tabsRef}>
           {primaryTabs.map(tab => {
             const active = isCurrent(tab.path);
             return (
@@ -108,7 +134,7 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
               className="cx-area-more-trigger"
             >
               <span>{moreLabel}</span>
-              <ChevronDown size={13} aria-hidden="true" className={`transition-transform duration-150 ${moreOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown size={13} aria-hidden="true" className={moreOpen ? 'cx-chevron-open' : undefined} />
             </button>
 
             {moreOpen && (

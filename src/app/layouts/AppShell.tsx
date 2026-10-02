@@ -27,6 +27,7 @@ import Modal from '../../components/Modal';
 import ThemeToggle from '../../components/ThemeToggle';
 import CommandPalette from '../../components/CommandPalette';
 import { getAreaForPath, getRouteItem } from '../routeManifest';
+import ConversionXBrand from '../../components/ConversionXBrand';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -191,6 +192,8 @@ export default function AppShell({ children }: AppShellProps) {
             <Menu size={20} aria-hidden="true" />
           </button>
 
+          <span className="cx-mobile-brand" aria-hidden="true"><ConversionXBrand variant="symbol" tone="auto" /></span>
+
           <button
             type="button"
             className="cx-shell-toggle cx-desktop-toggle"
@@ -274,7 +277,7 @@ export default function AppShell({ children }: AppShellProps) {
               {preferencesOpen && (
                 <div
                   id="display-preferences-dialog"
-                  className="absolute right-0 mt-2 w-64 rounded-lg shadow-xl bg-surface border border-border p-3 z-50 text-xs space-y-3"
+                  className="cx-preferences-popover"
                   role="group"
                   aria-label="Display preferences"
                 >
@@ -290,7 +293,7 @@ export default function AppShell({ children }: AppShellProps) {
                         onClick={() => setDensity('comfortable')}
                         aria-label="Comfortable table spacing"
                         className={`py-1 px-2 rounded font-medium text-xs text-center transition-colors cursor-pointer ${
-                          density === 'comfortable' ? 'bg-surface text-text-main shadow-2xs font-semibold' : 'text-text-sec hover:text-text-main'
+                          density === 'comfortable' ? 'bg-surface text-text-main font-semibold' : 'text-text-sec hover:text-text-main'
                         }`}
                       >
                         Comfortable
@@ -301,7 +304,7 @@ export default function AppShell({ children }: AppShellProps) {
                         onClick={() => setDensity('compact')}
                         aria-label="Compact table spacing"
                         className={`py-1 px-2 rounded font-medium text-xs text-center transition-colors cursor-pointer ${
-                          density === 'compact' ? 'bg-surface text-text-main shadow-2xs font-semibold' : 'text-text-sec hover:text-text-main'
+                          density === 'compact' ? 'bg-surface text-text-main font-semibold' : 'text-text-sec hover:text-text-main'
                         }`}
                       >
                         Compact

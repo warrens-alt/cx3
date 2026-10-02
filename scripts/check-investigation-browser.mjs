@@ -13,9 +13,9 @@ const fixture = await mkdtemp(path.join(tmpdir(), 'cx3-investigation-app-'));
 await buildAcceptanceFixture(fixture);
 const server = createServer(async (request, response) => {
   const pathname = new URL(request.url, 'http://localhost').pathname;
-  const file = ['/fixture.js', '/fixture.css', '/application.css'].includes(pathname) ? pathname.slice(1) : 'index.html';
+  const file = pathname === '/brand/conversionx-grey.png' ? 'conversionx-grey.png' : ['/fixture.js', '/fixture.css', '/application.css'].includes(pathname) ? pathname.slice(1) : 'index.html';
   try {
-    response.setHeader('Content-Type', file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : 'text/html');
+    response.setHeader('Content-Type', file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : file.endsWith('.png') ? 'image/png' : 'text/html');
     response.end(await readFile(path.join(fixture, file)));
   } catch { response.writeHead(404).end(); }
 });
@@ -45,7 +45,7 @@ const settle = () => page.evaluate(() => new Promise(resolve => requestAnimation
 let failure;
 try {
   await check('Page identity, meaningful screen and six accessible stages', async () => {
-    await visit(); assert.equal(await page.title(), 'Investigation inbox · Offernet');
+    await visit(); assert.equal(await page.title(), 'Investigation inbox · ConversionX');
     await waitStage('signal', 'Current 20'); assert.equal(await page.locator('[data-stage]').count(), 6);
     assert.match(await text(), /NOT_VERIFIED/); assert.equal(await step('diagnose').getAttribute('aria-current'), 'step');
     assert.equal(await page.locator('vite-error-overlay').count(), 0);

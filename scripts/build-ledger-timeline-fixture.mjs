@@ -12,7 +12,8 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export async function buildLedgerTimelineFixture(output, { includeProductionCss = true } = {}) {
 const out = path.resolve(output);
-await mkdir(out, { recursive: true });
+  await mkdir(out, { recursive: true });
+  await copyFile(path.join(root, 'public/brand/conversionx-grey.png'), path.join(out, 'conversionx-grey.png'));
 
 const mocks = {
   AuthContext: `export function useAuth(){return {user:{uid:'synthetic-user',displayName:'Synthetic reviewer',email:'synthetic@example.invalid'},profile:{role:'admin',status:'active'},loading:false,isAdmin:true,isActive:true,isPending:false,isSuspended:false,accessState:'ACTIVE',authError:null,signOut:()=>{},retryAuth:()=>{}}}`,

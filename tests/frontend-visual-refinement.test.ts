@@ -15,16 +15,16 @@ function render(node: React.ReactNode) {
   }, node));
 }
 const data = {
-  kpis: { fetchedLeads: 1280, deliveredLeads: 1100, saleLeads: 180, activatedLeads: 0,
+  kpis: { fetchedLeads: 1280, deliveredLeads: 1100, dialledLeads: 900, contactedLeads: 90, dialRate: 81.8, contactRate: 10, saleLeads: 180, activatedLeads: 0,
     deliveryRate: 85.9, leadToSaleRate: 14.1, activationRate: 0 },
   comparison: null,
 } as React.ComponentProps<typeof OutcomeStrip>['data'];
 
-test('refined outcome cards preserve numbers, complete labels and the four series', () => {
+test('refined outcome cards preserve numbers, complete labels and the six lifecycle series', () => {
   const html = render(React.createElement(OutcomeStrip, { data, isAdmin: true, onInspect: () => {} }));
   for (const text of ['1,280', '1,100', '180', 'Fetched leads', 'Delivered leads', 'Recorded sales', 'Activations']) assert.ok(html.includes(text));
-  for (const series of ['fetched', 'delivered', 'sales', 'activation']) assert.ok(html.includes(`data-series="${series}"`));
-  assert.equal((html.match(/cx-outcome-icon/g) || []).length, 4);
+  for (const series of ['fetched', 'delivered', 'dialled', 'rpc', 'sales', 'activation']) assert.ok(html.includes(`data-series="${series}"`));
+  assert.equal((html.match(/cx-outcome-icon/g) || []).length, 6);
   assert.match(html, /aria-hidden="true"/);
   assert.match(html, /class="[^"]*cx-outcome-value[^>]+>0<\/button>/);
   assert.ok(!html.includes('NaN'));
@@ -34,11 +34,11 @@ test('outcome presentation offers audit-first buttons to administrators and view
   for (const isAdmin of [true, false]) {
     const html = render(React.createElement(OutcomeStrip, { data, isAdmin, onInspect: () => {} }));
     assert.doesNotMatch(html, /href="\/lead-explorer\?/);
-    assert.equal((html.match(/cx-audit-evidence-control/g) || []).length, 4);
-    assert.equal((html.match(/aria-label="Audit evidence:/g) || []).length, 7);
-    assert.equal((html.match(/aria-label="Inspect evidence:/g) || []).length, 4);
+    assert.equal((html.match(/cx-audit-evidence-control/g) || []).length, 6);
+    assert.equal((html.match(/aria-label="Audit evidence:/g) || []).length, 11);
+    assert.equal((html.match(/aria-label="Inspect evidence:/g) || []).length, 6);
     assert.equal((html.match(/>Inspect evidence</g) || []).length, 0);
-    assert.equal((html.match(/cx-metric-primary/g) || []).length, 4);
+    assert.equal((html.match(/cx-metric-primary/g) || []).length, 6);
   }
 });
 

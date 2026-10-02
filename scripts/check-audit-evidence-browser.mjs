@@ -19,8 +19,8 @@ const { reductionPayloads, convergencePayloads } = await import(pathToFileURL(me
 const server = createServer(async (request, response) => {
   const pathname = new URL(request.url, 'http://localhost').pathname;
   if (pathname === '/favicon.ico') { response.writeHead(204).end(); return; }
-  const file = ['/fixture.js', '/fixture.css', '/application.css'].includes(pathname) ? pathname.slice(1) : 'index.html';
-  try { response.setHeader('Content-Type', file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : 'text/html'); response.end(await readFile(path.join(fixture, file))); } catch { response.writeHead(404).end(); }
+  const file = pathname === '/brand/conversionx-grey.png' ? 'conversionx-grey.png' : ['/fixture.js', '/fixture.css', '/application.css'].includes(pathname) ? pathname.slice(1) : 'index.html';
+  try { response.setHeader('Content-Type', file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : file.endsWith('.png') ? 'image/png' : 'text/html'); response.end(await readFile(path.join(fixture, file))); } catch { response.writeHead(404).end(); }
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const origin = `http://127.0.0.1:${server.address().port}`;
@@ -77,7 +77,7 @@ try {
     const errors = []; page.on('pageerror', error => errors.push(error.message)); page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
     const visit = async (route, extra = '') => {
       await page.goto(origin + route + scope + extra); await page.locator('main h1').waitFor(); await page.waitForLoadState('networkidle'); await settle(page);
-      assert.match(await page.title(), / · Offernet$/); assert.equal(new URL(page.url()).pathname, route); assert.equal(await page.locator('html').getAttribute('data-theme'), theme); assert.ok((await page.locator('main').innerText()).length > 30); assert.equal(await page.locator('vite-error-overlay').count(), 0); await overflow(page);
+      assert.match(await page.title(), / · ConversionX$/); assert.equal(new URL(page.url()).pathname, route); assert.equal(await page.locator('html').getAttribute('data-theme'), theme); assert.ok((await page.locator('main').innerText()).length > 30); assert.equal(await page.locator('vite-error-overlay').count(), 0); await overflow(page);
     };
     const run = async (name, task) => {
       const result = { name, theme, viewport, passed: false };

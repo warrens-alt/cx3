@@ -104,29 +104,32 @@
 .cx-page-header, .cx-command-hero { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; margin:0; padding:0; border:0; }
 .cx-page-heading, .cx-page-header > div, .cx-command-hero > div { min-width:0; }
 .cx-page-heading { flex:1; }
-.cx-page-header h1, .cx-command-hero h1 { color:var(--cx-text); margin:0; font-size:clamp(25px,2.3vw,32px); font-weight:700; line-height:1.2; letter-spacing:-.035em; text-wrap:balance; }
+.cx-page-header h1, .cx-command-hero h1 { color:var(--cx-text); margin:0; font-size:clamp(24px,2.3vw,30px); font-weight:700; line-height:1.2; letter-spacing:-.035em; text-wrap:balance; }
 .cx-page-header p, .cx-command-hero p { margin:7px 0 0; max-width:76ch; color:var(--cx-text-secondary); font-size:14px; line-height:1.55; }
 .cx-page-actions, .cx-operational-page-actions { flex-shrink:0; display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:8px; }
 .cx-page-category, .cx-command-eyebrow, .cx-command-section-kicker { display:block; margin-bottom:5px; font-size:12px; font-weight:600; color:var(--cx-text-secondary); letter-spacing:0; text-transform:none; }
 .cx-page-badges { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; font-size:12px; color:var(--cx-text-secondary); }
 .cx-page-badge { font-weight:600; }
 
-/* All metric cards use one restrained shell; values and evidence actions keep their original behavior. */
-.cx-metric-card, .cx-command-metric { position:relative; min-width:0; padding:18px; background:var(--cx-surface); border:1px solid var(--cx-border-subtle); border-radius:10px; box-shadow:none; }
+/* Independent metrics retain a surface; related measures form connected telemetry below. */
+.cx-metric-card, .cx-command-metric { position:relative; min-width:0; padding:18px; background:var(--cx-surface); border:1px solid var(--cx-border-subtle); border-radius:var(--cx-radius-md); box-shadow:none; }
 .cx-metric-card { display:flex; flex-direction:column; justify-content:space-between; height:100%; }
-.cx-metric-label, .cx-command-metric > span { display:block; color:var(--cx-text-secondary); font-size:12px; font-weight:600; line-height:1.45; letter-spacing:0; text-transform:none; overflow-wrap:anywhere; }
-.cx-metric-value, .cx-command-metric > strong { color:var(--cx-text); font-family:var(--font-sans); font-size:clamp(26px,2.3vw,32px); font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:-.035em; line-height:1.2; overflow-wrap:anywhere; }
-.cx-command-metric > strong { display:block; margin-top:7px; }
+.cx-metric-label, .cx-command-metric > span, .cx-command-metric > div > span { display:block; color:var(--cx-text-secondary); font-size:12px; font-weight:600; line-height:1.45; letter-spacing:0; text-transform:none; overflow-wrap:anywhere; }
+.cx-metric-value, .cx-command-metric > strong, .cx-command-metric > div > strong { color:var(--cx-text); font-family:var(--font-sans); font-size:clamp(26px,2.3vw,32px); font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:-.035em; line-height:1.2; overflow-wrap:anywhere; }
+.cx-command-metric > strong, .cx-command-metric > div > strong { display:block; margin-top:7px; }
 .cx-command-metric > div { display:flex; flex-direction:column; align-items:flex-start; gap:5px; margin-top:9px; }
 .cx-metric-card small, .cx-command-metric small { color:var(--cx-text-secondary); font-size:12px; line-height:1.5; }
 .cx-metric-primary { text-align:left; cursor:pointer; }
-.cx-metric-primary::after { content:''; position:absolute; inset:0; border-radius:10px; }
+.cx-metric-primary::after { content:''; position:absolute; inset:0; border-radius:var(--cx-radius-md); }
 .cx-metric-primary:focus-visible { outline:none; }
 .cx-metric-primary:focus-visible::after { outline:2px solid var(--cx-focus); outline-offset:3px; }
 .cx-metric-chevron { position:absolute; right:12px; bottom:12px; color:var(--cx-text-muted); pointer-events:none; }
 .cx-metric-context-action { position:relative; z-index:1; width:fit-content; margin-top:8px; min-height:32px; font-size:12px; }
 .cx-metric-card:has(.cx-metric-primary):hover { border-color:var(--cx-action); }
-.cx-command-metrics { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; background:transparent; border:0; border-radius:0; box-shadow:none; overflow:visible; }
+.cx-command-metrics { display:grid;grid-template-columns:repeat(5,minmax(0,1fr)); }
+:where(.cx-command-metrics,.cx-visual-metric-grid,.grid:has(>.cx-unified-metric),section:has(>.cx-unified-metric)) { gap:0;background:transparent;border-block:1px solid var(--cx-border);border-radius:0;box-shadow:none;overflow:visible; }
+:where(.cx-command-metrics,.cx-visual-metric-grid,.grid,section)>.cx-metric-card { padding:18px 20px;border:0;border-inline-end:1px solid var(--cx-border-subtle);border-radius:0;background:transparent;box-shadow:none; }
+:where(.cx-command-metrics,.cx-visual-metric-grid,.grid,section)>.cx-metric-card:last-child { border-inline-end:0; }
 .cx-kpi-tools { display:flex; gap:2px; }
 .cx-kpi-tools button { min-width:28px; min-height:28px; }
 .cx-kpi-note, .cx-metric-picker > p { font-size:var(--cx-type-note); }
@@ -141,7 +144,7 @@
 .cx-kpi-amount strong { font:inherit; font-size:inherit; }
 
 /* Supported legacy panels converge on the same surface while retaining their feature layouts. */
-.enterprise-card, .cx-report-panel, .cx-command-panel { background:var(--cx-surface); border:1px solid var(--cx-border-subtle); border-radius:10px; box-shadow:none; min-width:0; }
+.enterprise-card, .cx-report-panel, .cx-command-panel { background:var(--cx-surface); border:1px solid var(--cx-border-subtle); border-radius:var(--cx-radius-md); box-shadow:none; min-width:0; }
 .cx-report-panel { padding:18px; }
 .cx-command-panel { overflow:hidden; }
 .cx-command-grid { display:grid; gap:20px; }
@@ -169,6 +172,42 @@
 .cx-report-disclosure > summary small { font-size:12px; font-weight:400; color:var(--cx-text-secondary); line-height:1.6; }
 .cx-report-disclosure[open] > summary { margin-bottom:12px; }
 
+/* Legacy evidence grids share the canonical reporting owner. */
+.cx-performance-table-wrap { overflow:auto; }
+.cx-performance-table {
+  width:100%;
+  min-width:900px;
+  border-collapse:collapse;
+  font-size:12px;
+  font-variant-numeric:tabular-nums;
+}
+.cx-performance-table thead { background:var(--cx-surface-subtle); color:var(--cx-text-secondary); }
+.cx-performance-table th,
+.cx-performance-table td {
+  padding:10px 12px;
+  border-bottom:1px solid var(--cx-border-subtle);
+  text-align:right;
+  white-space:nowrap;
+}
+.cx-performance-table thead th {
+  font-size:12px;
+  text-transform:none;
+  letter-spacing:0;
+  font-weight:750;
+}
+.cx-performance-table th:first-child,
+.cx-performance-table td:first-child { text-align:left; }
+.cx-performance-table tbody th { color:var(--cx-text); font-weight:650; }
+.cx-performance-table tbody td { color:var(--cx-text-secondary); }
+.cx-performance-table tbody tr:hover { background:var(--cx-surface-subtle); }
+.cx-performance-table thead th { position:sticky; top:0; z-index:2; background:var(--cx-surface-subtle); }
+.cx-performance-table :is(thead,tbody) th:first-child { position:sticky; left:0; background:var(--cx-surface); box-shadow:1px 0 0 var(--cx-border-subtle); }
+.cx-performance-table thead th:first-child { z-index:3; background:var(--cx-surface-subtle); }
+[data-density=compact] .cx-performance-table :is(th,td) { padding:7px 10px; }
+.cx-performance-table thead th { color:var(--cx-text-secondary); font-size:12px; text-transform:none; letter-spacing:0; }
+.cx-performance-table tbody tr:hover { background:var(--cx-canvas); }
+.cx-performance-table :is(th,td) { vertical-align:middle; }
+
 /* Shared table foundation; wide data scrolls within its own surface. */
 .enterprise-table { width:100%; text-align:left; font-size:13px; border-collapse:separate; border-spacing:0; }
 .enterprise-table, .cx-command-content table { font-variant-numeric:tabular-nums; }
@@ -177,11 +216,11 @@
 .enterprise-table tbody th { position:static; }
 .enterprise-table tbody tr:hover { background:var(--cx-surface-subtle); }
 .enterprise-table tbody tr[data-selected=true], .enterprise-table tbody tr[aria-selected=true] { background:var(--cx-selected-bg); box-shadow:inset 3px 0 0 var(--cx-action); }
-.cx-performance-table-wrap, .cx-table-container { max-width:100%; min-width:0; overflow:auto; background:var(--cx-surface); border:1px solid var(--cx-border-subtle); border-radius:10px; }
+.cx-performance-table-wrap, .cx-table-container { max-width:100%; min-width:0; overflow:auto; background:var(--cx-surface); border:1px solid var(--cx-border-subtle); border-radius:var(--cx-radius-md); }
 [data-density="compact"] .enterprise-table :is(th,td) { padding:6px 8px; font-size:12px; }
 @media(max-width:760px) { .enterprise-table :is(th,td) { padding-inline:10px; } }
 @media print { .enterprise-card { break-inside:avoid; box-shadow:none; } }
-.cx-command-content table th { letter-spacing:.025em; font-weight:650; }
+.cx-command-content table th { letter-spacing:0; font-weight:650; }
 .cx-command-content table :is(th,td) { vertical-align:middle; }
 .cx-command-content :is(.cx-performance-table-wrap,.cx-ops-table-scroll,.overflow-x-auto) { scrollbar-gutter:stable; }
 .cx-reconciliation-page .cx-ops-table-scroll { border:1px solid var(--cx-border-subtle); border-radius:8px; overflow:auto; }
@@ -203,6 +242,7 @@
   .cx-page-actions, .cx-operational-page-actions { justify-content:flex-start; }
   .cx-command-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .cx-metric-card, .cx-command-metric, .cx-report-panel { padding:16px; }
+  :where(.cx-command-metrics,.cx-visual-metric-grid,.grid,section)>.cx-metric-card { padding:14px 12px;border-bottom:1px solid var(--cx-border-subtle); }
   .cx-command-panel > header { padding:16px; flex-wrap:wrap; }
   .cx-report-panel-heading { flex-wrap:wrap; }
   .cx-report-section-tabs button { padding-inline:10px; }
@@ -271,7 +311,7 @@
   border: 1px solid var(--cx-border);
   border-radius: 6px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color var(--cx-motion),border-color var(--cx-motion),color var(--cx-motion);
   box-shadow: none;
 }
 .cx-scope-controls .cx-scope-control:not(:has(.cx-scope-control-icon)) select {
@@ -309,7 +349,7 @@
   color: var(--cx-text-secondary);
   white-space: nowrap;
   cursor: pointer;
-  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color var(--cx-motion),border-color var(--cx-motion),color var(--cx-motion);
   box-shadow: none;
 }
 .cx-scope-controls .cx-scope-more:hover,
@@ -384,7 +424,7 @@
   align-items: center;
   gap: 5px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color var(--cx-motion),border-color var(--cx-motion),color var(--cx-motion);
 }
 .cx-scope-controls .cx-scope-chips button:hover {
   background: var(--cx-border-subtle);
@@ -415,7 +455,7 @@
   font-size: 12.5px;
   color: var(--cx-text);
   background: var(--cx-surface);
-  transition: all 0.15s ease;
+  transition: background-color var(--cx-motion),border-color var(--cx-motion),color var(--cx-motion);
 }
 .cx-scope-controls .cx-scope-custom-dates input:focus {
   border-color: var(--cx-action);
@@ -443,7 +483,7 @@
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color var(--cx-motion),border-color var(--cx-motion),color var(--cx-motion);
 }
 .cx-scope-date-actions button[type="submit"] {
   border-color: var(--cx-action);

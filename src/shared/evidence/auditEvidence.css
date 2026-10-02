@@ -1,7 +1,7 @@
-.cx-audit-backdrop{position:fixed;inset:0;z-index:70;display:flex;justify-content:flex-end;background:rgba(15,23,42,.38)}
-.cx-audit-drawer{width:min(100%,600px);height:100dvh;display:flex;flex-direction:column;background:var(--cx-surface,#fff);color:var(--cx-text,#17243b);border-left:1px solid var(--cx-border,#dce3ed);box-shadow:-8px 0 32px #0002}
+.cx-audit-backdrop{position:fixed;inset:0;z-index:70;display:flex;justify-content:flex-end;background:rgba(23,25,29,.42)}
+.cx-audit-drawer{width:min(100%,600px);height:100dvh;display:flex;flex-direction:column;background:var(--cx-surface,#fff);color:var(--cx-text,#17243b);border-left:1px solid var(--cx-border,#dce3ed);box-shadow:-8px 0 24px #0002}
 .cx-audit-drawer>header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:20px 24px;border-bottom:1px solid var(--cx-border,#dce3ed)}
-.cx-audit-drawer h2{font-size:20px;line-height:1.3;font-weight:700;margin:4px 0;overflow-wrap:anywhere}
+.cx-audit-drawer h2{font-size:22px;line-height:1.35;font-weight:650;margin:4px 0;overflow-wrap:anywhere}
 .cx-audit-drawer h3{font-size:13px;font-weight:650;letter-spacing:normal;margin:0 0 12px;color:var(--cx-text-secondary,#59677a)}
 .cx-audit-drawer p,.cx-audit-drawer li{font-size:13px;line-height:1.6;margin:8px 0;overflow-wrap:anywhere}
 .cx-audit-eyebrow{font-size:11px;font-weight:600;color:var(--cx-text-secondary,#59677a)}
@@ -20,12 +20,12 @@
 @media(max-width:420px){.cx-audit-drawer>header{padding:16px}.cx-audit-body{padding:0 16px}.cx-audit-drawer dl>div{grid-template-columns:1fr;gap:2px}.cx-audit-result>strong{font-size:30px}.cx-audit-drawer>footer{padding-left:16px;padding-right:16px}}
 
 /* Canonical audit lens: dimensions retain independent state and readable text. */
-.cx-audit-evidence-control{display:inline-flex;align-items:center;gap:5px;min-height:32px;width:fit-content;max-width:100%;padding:4px 7px;border:1px solid var(--cx-border);border-radius:6px;background:var(--cx-surface);color:var(--cx-text-secondary);font-size:11px;line-height:1.4;cursor:pointer;margin-top:5px}
-.cx-audit-evidence-control:hover{color:var(--cx-action);border-color:var(--cx-action)}
+.cx-audit-evidence-control{display:inline-flex;align-items:center;gap:5px;min-height:32px;width:fit-content;max-width:100%;padding:4px 7px;border:1px solid var(--cx-border);border-radius:4px;background:var(--cx-surface);color:var(--cx-text-secondary);font-size:11px;line-height:1.4;cursor:pointer;margin-top:5px}
+.cx-audit-evidence-control{transition:color 150ms ease,border-color 150ms ease,background-color 150ms ease}.cx-audit-evidence-control:hover{color:var(--cx-action);border-color:var(--cx-action)}
 .cx-audit-evidence-control:focus-visible{outline:2px solid var(--cx-action);outline-offset:3px}
 .cx-audit-evidence-control svg{flex-shrink:0}.cx-audit-evidence-control.is-compact{padding:3px 6px;font-size:10px}
-.cx-audit-dimensions{display:grid;gap:8px;padding:0!important;margin:0;list-style:none}
-.cx-audit-dimensions li{padding:9px 10px;margin:0!important;background:var(--cx-surface-subtle);border:1px solid var(--cx-border);border-radius:7px;border-left:3px solid var(--cx-text-muted)}
+.cx-audit-dimensions{display:grid;gap:0;padding:0!important;margin:0;list-style:none}
+.cx-audit-dimensions li{padding:11px 0 11px 12px;margin:0!important;background:transparent;border:0;border-bottom:1px solid var(--cx-border);border-radius:0;border-left:2px solid var(--cx-text-muted)}
 .cx-audit-dimensions li>div{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.cx-audit-dimensions li span{font-size:11px;font-weight:600}.cx-audit-dimensions small{display:block;line-height:1.5;font-size:11px;color:var(--cx-text-secondary);margin-top:3px}
 .cx-audit-dimensions li[data-state=observed],.cx-audit-dimensions li[data-state=mapped],.cx-audit-dimensions li[data-state=scoped]{border-left-color:var(--cx-action)}
 .cx-audit-dimensions li[data-state=partial]{border-left-color:var(--cx-warning)}.cx-audit-dimensions li[data-state=mismatch]{border-left-color:var(--cx-negative)}
@@ -33,3 +33,5 @@
 /* Raised above the established whole-card primary link's decorative hit area. */
 .cx-metric-card .cx-audit-evidence-control,.cx-outcome-card .cx-button-quiet{position:relative;z-index:2}
 .cx-audit-evidence-control{position:relative;z-index:2}
+
+@media(prefers-reduced-motion:reduce){.cx-audit-evidence-control{transition:none}}

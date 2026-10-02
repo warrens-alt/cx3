@@ -1,5 +1,5 @@
 /**
- * Synthetic frontend acceptance: 132 route/viewport/theme checks, six lifecycle interactions, seven shell interactions and two access-control theme checks.
+ * Synthetic frontend acceptance: five-width, two-theme route matrix plus lifecycle, shell and access-control interaction checks.
  * Run after npm run build. Browser plugin not available; uses an optional Playwright runtime.
  * CX_PLAYWRIGHT_MODULE / CX_CHROMIUM_EXECUTABLE select an existing runtime; no dependencies are installed.
  * Screenshots and results are written outside the repository through CX_BROWSER_QA_OUTPUT or a temp directory.
@@ -34,7 +34,7 @@ await build({
   bundle: true, platform: 'node', format: 'esm', outfile: metadataPath,
 });
 const { routes, areas, reductionPayloads, convergencePayloads, secondaryMaturityPayloads, secondaryMaturityScopes, SIDEBAR_COLLAPSED_KEY } = await import(pathToFileURL(metadataPath).href);
-const matrixPaths = ['/overview', '/funnel', '/contact-strategy', '/speed-to-lead', '/temporal', '/sales-activation', '/vendor-quality', '/campaigns', '/commercial', '/investigate', '/lead-explorer', '/lead-ledger', '/data-integrity', '/admin', '/vetting', '/cohorts', '/agent-performance', '/cli-performance', '/routing', '/consumers', '/reconciliation', '/warehouse'];
+const matrixPaths = ['/overview', '/funnel', '/contact-strategy', '/speed-to-lead', '/temporal', '/sales-activation', '/vendor-quality', '/campaigns', '/commercial', '/investigate', '/lead-explorer', '/lead-ledger', '/data-integrity', '/admin', '/vetting', '/cohorts', '/agent-performance', '/cli-performance', '/routing', '/consumers', '/reconciliation', '/warehouse', '/offershop-flow'];
 const matrixRoutes = matrixPaths.map(routePath => {
   const route = routes.find(item => item.path === routePath || item.urlAliases?.includes(routePath));
   assert.ok(route, `Missing requested canonical or compatibility route ${routePath}`);
@@ -44,6 +44,8 @@ const viewports = [
   { name: 'desktop', width: 1440, height: 1000 },
   { name: 'tablet', width: 820, height: 1180 },
   { name: 'mobile', width: 390, height: 844 },
+  { name: 'laptop', width: 1024, height: 1000 },
+  { name: 'mobile-small', width: 320, height: 844 },
 ];
 const expectedChecks = matrixRoutes.length * viewports.length * 2 + viewports.length * 2 + 9;
 const scope = '?clientId=synthetic-a&startDate=2026-09-28&endDate=2026-09-28';
@@ -58,9 +60,9 @@ const payloads = {
 const server = createServer(async (request, response) => {
   const pathname = new URL(request.url, 'http://localhost').pathname;
   if (pathname === '/favicon.ico') { response.writeHead(204).end(); return; }
-  const file = ['/fixture.js', '/fixture.css', '/application.css'].includes(pathname) ? pathname.slice(1) : 'index.html';
+  const file = pathname === '/brand/conversionx-grey.png' ? 'conversionx-grey.png' : ['/fixture.js', '/fixture.css', '/application.css'].includes(pathname) ? pathname.slice(1) : 'index.html';
   try {
-    response.setHeader('Content-Type', file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : 'text/html');
+    response.setHeader('Content-Type', file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : file.endsWith('.png') ? 'image/png' : 'text/html');
     response.end(await readFile(path.join(fixture, file)));
   } catch { response.writeHead(404).end(); }
 });
@@ -114,7 +116,7 @@ async function stickyScope(page, viewport, theme) {
   assert.match(state.text, /28 Sept? 2026/);
   assert.match(state.text, /All vendors/);
   assert.match(state.text, /All sources/);
-  if (viewport.name === 'mobile') {
+  if (viewport.width <= 760) {
     assert.ok(['relative', 'static'].includes(state.position), 'Mobile reporting scope stays in document flow');
     assert.ok(state.bottom < state.mainTop, 'Mobile scope scrolls away rather than obscuring evidence');
   } else {
@@ -203,7 +205,7 @@ try {
         assert.equal(new URL(page.url()).searchParams.get('view'), 'source');
         assert.equal(endpointCount(await requests(page), 'raw-leads'), 0, 'Source mode does not mount an analytical population');
       }
-      assert.equal(await page.title(), `${route.name} · Offernet`);
+      assert.equal(await page.title(), `${route.name} · ConversionX`);
       assert.equal(await page.locator('main h1').count(), 1);
       const heading = (await page.locator('main h1').innerText()).trim();
       assert.equal(heading, route.name, 'The visible heading must match its canonical page identity');
@@ -310,7 +312,8 @@ try {
   for (const theme of ['light', 'dark']) for (const viewport of viewports) {
     await scenario(`Lifecycle evidence interactions · ${viewport.name} · ${theme}`, { viewport, theme, kind: 'visual-interaction' }, async page => {
       await visit(page, '/overview');
-      if (viewport.name === 'mobile') {
+      await page.locator('.cx-overview-lifecycle-disclosure > summary').click();
+      if (viewport.width <= 760) {
         const ribbon = page.locator('.cx-lifecycle-path');
         const iconBox = await ribbon.locator('.cx-lifecycle-node-icon').first().boundingBox();
         const countBox = await ribbon.locator('.cx-lifecycle-node strong').first().boundingBox();
@@ -567,7 +570,7 @@ try {
       // No account, invite, policy or remote configuration mutation is submitted.
       await visit(page, '/access-control');
       const route = routes.find(route => route.path === '/access-control');
-      assert.equal(await page.title(), `${route.name} · Offernet`);
+      assert.equal(await page.title(), `${route.name} · ConversionX`);
       assert.equal((await page.locator('main h1').innerText()).trim(), route.name);
       await ownership(page, route);
       await page.getByRole('button', { name: 'Access Policies', exact: true }).click();

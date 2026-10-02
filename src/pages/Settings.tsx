@@ -53,8 +53,8 @@ export default function Settings() {
         <div className="cx-settings-appearance">
           <div className="cx-settings-theme"><h3>Workspace theme</h3><div className="cx-settings-theme-cards">
             {([
-              { id: 'light', name: 'Offernet light', detail: 'Light surfaces and clear analytics.', Icon: Sun },
-              { id: 'dark', name: 'Midnight slate', detail: 'Dark surfaces for reduced glare.', Icon: Moon },
+              { id: 'light', name: 'ConversionX light', detail: 'Light surfaces and clear analytics.', Icon: Sun },
+              { id: 'dark', name: 'Graphite dark', detail: 'Dark surfaces for reduced glare.', Icon: Moon },
               { id: 'system', name: 'System auto', detail: `Matches your device (${resolvedTheme}).`, Icon: Monitor },
             ] as const).map(({ id, name, detail, Icon }) => <button key={id} type="button" className={`cx-settings-theme-card ${theme === id ? 'is-active' : ''}`} onClick={() => setTheme(id)} aria-pressed={theme === id}>
               <div className={`cx-settings-theme-preview is-${id}`} aria-hidden="true"><i /><div><b /><span /><span /></div></div>
