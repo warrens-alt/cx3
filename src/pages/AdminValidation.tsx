@@ -4,6 +4,7 @@ import PageHeader from '../components/PageHeader';
 import { DataState, displayNumber } from '../components/DataState';
 import { useAnalyticsData } from '../lib/useAnalyticsData';
 import { fetchWarehouseTables } from '../lib/warehouseClient';
+import { buildValidationReferenceCsv, type ValidationReferenceEvidence } from '../../contracts/validationEvidence';
 import { Download, RefreshCw } from 'lucide-react';
 import {
   EXPORT_MANIFEST_EVIDENCE,
@@ -20,7 +21,7 @@ import {
 } from '../../contracts/rubixPowerBi';
 
 export default function AdminValidation() {
-  const { data, loading, error, refetch } = useAnalyticsData('validation');
+  const { data, loading, error, refetch } = useAnalyticsData<ValidationReferenceEvidence>('validation');
   const [activeTab, setActiveTab] = useState<'reconciliation' | 'objects' | 'telemetry' | 'hygiene' | 'blc_powerbi'>('reconciliation');
   const [searchQuery, setSearchQuery] = useState('');
   const [datasetFilter, setDatasetFilter] = useState('all');
@@ -30,6 +31,7 @@ export default function AdminValidation() {
   const [tablesError, setTablesError] = useState(false);
 
   useEffect(() => {
+    if (activeTab !== 'objects') return;
     let active = true;
     setLoadingTables(true);
     fetchWarehouseTables()
@@ -45,7 +47,7 @@ export default function AdminValidation() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [activeTab]);
 
   const value = (v: unknown) => {
     if (v === null || v === undefined) return 'Not measured';
@@ -71,19 +73,8 @@ export default function AdminValidation() {
   }, [warehouseTables, datasetFilter, typeFilter, searchQuery]);
 
   const handleExportReconciliationCsv = () => {
-    const metrics = data?.metrics || [];
-    const headers = ['Metric', 'Raw BigQuery', 'Semantic Model', 'API Payload', 'UI Rendered', 'Status', 'Discrepancy', 'Analytical Grain'];
-    const rows = metrics.map((m: any) => [
-      `"${m.metric}"`,
-      `"${m.rawBigQuery}"`,
-      `"${m.semanticModel}"`,
-      `"${m.apiPayload}"`,
-      `"${m.uiRendered}"`,
-      `"${m.status}"`,
-      `"${m.discrepancy || ''}"`,
-      `"${m.grain || ''}"`,
-    ]);
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    if (!data) return;
+    const csvContent = buildValidationReferenceCsv(data);
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -92,6 +83,7 @@ export default function AdminValidation() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleExportObjectsCsv = () => {
@@ -116,35 +108,42 @@ export default function AdminValidation() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const metricsList = data?.metrics || [];
-  const endpointTime = data?.reconciledAt || data?.verifiedAt;
-  const timestamp = endpointTime && Number.isFinite(Date.parse(endpointTime)) ? new Date(endpointTime).toLocaleString() : 'Not reported';
   const tabs = [
-    ['reconciliation', 'Returned comparison'], ['objects', 'Warehouse catalogue'],
+    ['reconciliation', 'Reference comparison'], ['objects', 'Warehouse catalogue'],
     ['telemetry', 'Telemetry reference'], ['hygiene', 'Validation rules'], ['blc_powerbi', 'BLC integration reference'],
   ] as const;
 
   return <PageShell className="cx-validation-page">
-    <PageHeader title="Validation evidence" description="Inspect returned comparison fields and registered schema references. Independent reconciliation remains outstanding." />
+    <PageHeader title="Validation evidence" description="Inspect historical reference values and registered schema references. Independent live reconciliation has not been performed." />
     <section className="cx-command-panel p-5 space-y-2" aria-label="Validation boundary">
       <h2 className="text-base font-semibold">Independent validation not established</h2>
-      <p>The current validation endpoint returns reference measurements and status claims without an independent live reconciliation run. These reference values do not describe the selected workspace or reporting dates. They are not proof of current warehouse accuracy, access, financial reconciliation, or tenant isolation.</p>
-      <p>Endpoint status: <strong>{data?.overallStatus || data?.status || 'Not reported'}</strong> · Endpoint timestamp: {timestamp}. This is not a reconciliation timestamp.</p>
+      <p>{data?.message || 'Independent live reconciliation has not been performed.'} Reference values are not proof of current warehouse accuracy, access, financial reconciliation, or tenant isolation.</p>
+      <p>{data?.referenceScope || 'Historical reference values do not describe the selected workspace or reporting dates.'}</p>
+      <dl className="grid gap-3 sm:grid-cols-2" aria-label="Evidence availability">
+        <div><dt>Validation status</dt><dd><strong>{data?.overallStatus || 'Not reported'}</strong></dd></div>
+        <div><dt>Returned reference values</dt><dd>{data ? `${metricsList.length} historical reference comparisons` : 'Not reported'}</dd></div>
+        <div><dt>Independently verified measurements</dt><dd>{data?.independentVerificationStatus || 'Not reported'}</dd></div>
+        <div><dt>Current warehouse evidence</dt><dd>{data?.currentWarehouseEvidenceStatus || 'Not reported'} · this endpoint performs no warehouse check</dd></div>
+        <div><dt>Verified at</dt><dd>{data ? 'Not performed' : 'Not reported'}</dd></div>
+        <div><dt>Reconciled at</dt><dd>{data ? 'Not performed' : 'Not reported'}</dd></div>
+      </dl>
       <div className="flex flex-wrap gap-2 mt-3">
         <button type="button" className="cx-button-secondary" onClick={() => refetch()} disabled={loading}><RefreshCw size={14}/> Refresh returned evidence</button>
-        <button type="button" className="cx-button-secondary" onClick={activeTab === 'objects' ? handleExportObjectsCsv : handleExportReconciliationCsv} disabled={activeTab === 'objects' ? loadingTables || tablesError : loading || !!error || !data}><Download size={14}/> Export {activeTab === 'objects' ? 'catalogue' : 'returned matrix (unverified)'}</button>
+        <button type="button" className="cx-button-secondary" onClick={activeTab === 'objects' ? handleExportObjectsCsv : handleExportReconciliationCsv} disabled={activeTab === 'objects' ? loadingTables || tablesError : loading || !!error || !data}><Download size={14}/> Export {activeTab === 'objects' ? 'catalogue' : 'reference matrix (NOT_VERIFIED)'}</button>
       </div>
     </section>
     <nav className="cx-viz-jump-nav my-4" aria-label="Validation views">{tabs.map(([key,label]) => <button type="button" className="cx-button-secondary" key={key} aria-pressed={activeTab === key} onClick={() => setActiveTab(key)}>{label}</button>)}</nav>
-    {activeTab === 'reconciliation' && <section className="cx-command-panel p-5 space-y-2" aria-label="Returned comparison">
-      <h2 className="text-base font-semibold">Unverified endpoint output</h2>
-      <p>Each value below is returned by the endpoint. Labels such as VERIFIED are quoted source claims, not a frontend certification. The CSV retains the original endpoint status claims and does not include this on-screen caveat. It must not be used as certification evidence.</p>
+    {activeTab === 'reconciliation' && <section className="cx-command-panel p-5 space-y-2" aria-label="Reference comparison">
+      <h2 className="text-base font-semibold">Historical reference values · NOT_VERIFIED</h2>
+      <p>These saved comparison fields and notes are unverified historical references. They were not measured against the current warehouse, API response or rendered UI. The CSV includes the same reference classification, unavailable evidence and validation status.</p>
       {loading || error || !data ? <DataState loading={loading} error={error} empty={!data} retry={refetch}/> : <>
-        <div className="cx-performance-table-wrap" role="region" aria-label="Unverified comparison fields" tabIndex={0}>
-          <table className="cx-performance-table"><thead><tr>{['Metric','Raw BigQuery field','Semantic model field','API payload field','UI rendered field','Reported status','Reported comparison / grain'].map(label=><th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>
-            {metricsList.map((m:any,index:number)=><tr key={`${m.metric}-${index}`}><th scope="row">{m.metric}</th><td>{value(m.rawBigQuery)}</td><td>{value(m.semanticModel)}</td><td>{value(m.apiPayload)}</td><td>{value(m.uiRendered)}</td><td>{m.status || 'Not reported'} · unverified claim</td><td>{m.discrepancy || 'Not reported'}<br/>{m.grain}</td></tr>)}
+        <div className="cx-performance-table-wrap" role="region" aria-label="Historical reference comparison fields" tabIndex={0}>
+          <table className="cx-performance-table"><thead><tr>{['Metric','Raw BigQuery reference','Semantic model reference','API payload reference','UI rendered reference','Validation status / evidence kind','Unverified reference note / grain'].map(label=><th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>
+            {metricsList.map((m,index)=><tr key={`${m.metric}-${index}`}><th scope="row">{m.metric}</th><td>{value(m.rawBigQuery)}</td><td>{value(m.semanticModel)}</td><td>{value(m.apiPayload)}</td><td>{value(m.uiRendered)}</td><td>{m.status} · {m.evidenceKind}</td><td>{m.discrepancy || 'Not reported'}<br/>{m.grain}</td></tr>)}
           </tbody></table>
         </div>
         {!metricsList.length && <p>No comparison fields returned. No validation result is implied.</p>}

@@ -1,3 +1,5 @@
+import type { ValidationReferenceEvidence } from '../../contracts/validationEvidence';
+
 export {
   getOverviewStats,
   getQualityStats,
@@ -5,16 +7,19 @@ export {
   getLeadTimeline,
 } from './queries';
 
-export function validationUnavailable(clientId?: string) {
-  const reconciledAt = new Date().toISOString();
+export function validationUnavailable(): ValidationReferenceEvidence {
   return {
-    status: 'EVIDENCE_CHECKED',
-    overallStatus: 'EVIDENCE_CHECKED',
-    message: 'Admin validation evidence chain is verified through schema-grounded contracts and physical observations.',
-    chain: 'Independently obtained measurements are compared across Raw BigQuery, Semantic Models, API Transport, and UI presentation layers.',
-    verifiedAt: reconciledAt,
-    reconciledAt,
-    tenant: clientId || 'all_tenants',
+    status: 'NOT_VERIFIED',
+    overallStatus: 'NOT_VERIFIED',
+    evidenceKind: 'HISTORICAL_REFERENCE',
+    message: 'Reference measurements only. Independent live reconciliation has not been performed.',
+    chain: 'Saved reference comparison fields only; no current Raw BigQuery, Semantic Model, API Transport or UI measurement has been obtained.',
+    verifiedAt: null,
+    reconciledAt: null,
+    tenant: null,
+    referenceScope: 'Historical scope and observation time are not recorded. These values do not describe the selected workspace or reporting dates.',
+    independentVerificationStatus: 'UNAVAILABLE',
+    currentWarehouseEvidenceStatus: 'UNAVAILABLE',
     metrics: [
       {
         metric: 'Total Physical Leads',
@@ -22,8 +27,9 @@ export function validationUnavailable(clientId?: string) {
         semanticModel: 350573,
         apiPayload: 350573,
         uiRendered: 350573,
-        status: 'VERIFIED',
-        discrepancy: '0 gaps observed across master clustered lead ledger',
+        status: 'NOT_VERIFIED',
+        evidenceKind: 'HISTORICAL_REFERENCE',
+        discrepancy: 'Unverified historical reference note: 0 gaps observed across master clustered lead ledger',
         grain: 'Physical lead grain (lead_id)',
       },
       {
@@ -32,8 +38,9 @@ export function validationUnavailable(clientId?: string) {
         semanticModel: 341890,
         apiPayload: 341890,
         uiRendered: 341890,
-        status: 'VERIFIED',
-        discrepancy: '8,683 unlinked anonymous leads quarantined',
+        status: 'NOT_VERIFIED',
+        evidenceKind: 'HISTORICAL_REFERENCE',
+        discrepancy: 'Unverified historical reference note: 8,683 unlinked anonymous leads quarantined',
         grain: 'Consumer identity grain (consumer_id)',
       },
       {
@@ -42,8 +49,9 @@ export function validationUnavailable(clientId?: string) {
         semanticModel: 1200000,
         apiPayload: 1200000,
         uiRendered: 1200000,
-        status: 'VERIFIED',
-        discrepancy: '0 dropped events in VICIdial call stream',
+        status: 'NOT_VERIFIED',
+        evidenceKind: 'HISTORICAL_REFERENCE',
+        discrepancy: 'Unverified historical reference note: 0 dropped events in VICIdial call stream',
         grain: 'Call attempt grain (uniqueid)',
       },
       {
@@ -52,8 +60,9 @@ export function validationUnavailable(clientId?: string) {
         semanticModel: 100,
         apiPayload: 100,
         uiRendered: 100,
-        status: 'VERIFIED',
-        discrepancy: '0 out-of-order delivery/call/activation events',
+        status: 'NOT_VERIFIED',
+        evidenceKind: 'HISTORICAL_REFERENCE',
+        discrepancy: 'Unverified historical reference note: 0 out-of-order delivery/call/activation events',
         grain: 'Event timestamp sequence (%)',
       },
       {
@@ -62,8 +71,9 @@ export function validationUnavailable(clientId?: string) {
         semanticModel: 26835.18,
         apiPayload: 26835.18,
         uiRendered: 26835.18,
-        status: 'VERIFIED',
-        discrepancy: 'Exact decimal arithmetic reconciled (R0.00 drift)',
+        status: 'NOT_VERIFIED',
+        evidenceKind: 'HISTORICAL_REFERENCE',
+        discrepancy: 'Unverified historical reference note: Exact decimal arithmetic reconciled (R0.00 drift)',
         grain: 'Channel / Campaign / Date grain',
       },
       {
@@ -72,8 +82,9 @@ export function validationUnavailable(clientId?: string) {
         semanticModel: 85,
         apiPayload: 85,
         uiRendered: 85,
-        status: 'VERIFIED',
-        discrepancy: 'Reconciled against verified activations ledger',
+        status: 'NOT_VERIFIED',
+        evidenceKind: 'HISTORICAL_REFERENCE',
+        discrepancy: 'Unverified historical reference note: Reconciled against verified activations ledger',
         grain: 'Mandate activation grain',
       },
       {
@@ -82,8 +93,9 @@ export function validationUnavailable(clientId?: string) {
         semanticModel: 99.42,
         apiPayload: 99.42,
         uiRendered: 99.42,
-        status: 'VERIFIED',
-        discrepancy: 'Luhn algorithm & E.164 syntax enforced (%)',
+        status: 'NOT_VERIFIED',
+        evidenceKind: 'HISTORICAL_REFERENCE',
+        discrepancy: 'Unverified historical reference note: Luhn algorithm & E.164 syntax enforced (%)',
         grain: 'Vetting validation flag grain',
       },
     ],

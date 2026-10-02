@@ -343,11 +343,27 @@ test('failed access subscriptions never invent an account; view buttons change t
   }finally{app.close();}
 });
 
-test('validation quotes endpoint claims without certification and changes reference panels',async()=>{
+test('validation displays non-certified references and exports the same truthful evidence status',async()=>{
   const app=await mount('/validation'+scope);try{
-    await app.wait(()=>app.text().includes('Independent validation not established'));
-    assert.doesNotMatch(app.text(),/0 Discrepancy|Reconciled:/);
-    assert.match(app.text(),/Endpoint timestamp: Not reported/);
+    await app.wait(()=>app.text().includes('Synthetic reference metric'));
+    assert.match(app.text(),/Independent validation not established/);
+    assert.match(app.text(),/Historical reference values · NOT_VERIFIED/);
+    assert.match(app.text(),/HISTORICAL_REFERENCE/);
+    assert.match(app.text(),/Verified atNot performed/);
+    assert.match(app.text(),/Reconciled atNot performed/);
+    assert.match(app.text(),/Independently verified measurementsUNAVAILABLE/);
+    assert.match(app.text(),/Current warehouse evidenceUNAVAILABLE/);
+    assert.doesNotMatch(app.text(),/EVIDENCE_CHECKED|unverified claim|0 Discrepancy/);
+    assert.equal(app.w.__fixture.requests.filter((r:string)=>r.includes('/warehouse/tables')).length,0);
+    await app.click('button','Export reference matrix');
+    assert.equal(app.blobs.length,1);
+    const csv=await new Promise<string>((resolve,reject)=>{const reader=new app.w.FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(reader.error);reader.readAsText(app.blobs[0]);});
+    assert.match(csv,/"HISTORICAL_REFERENCE"/);
+    assert.match(csv,/"NOT_VERIFIED","NOT_VERIFIED","",""/);
+    assert.doesNotMatch(csv,/"VERIFIED"|EVIDENCE_CHECKED/);
+    await app.click('button','Warehouse catalogue');
+    await app.wait(()=>app.w.__fixture.requests.some((r:string)=>r.includes('/warehouse/tables')));
+    assert.match(app.text(),/Saved schema registration does not establish live source access/);
     await app.click('button','Validation rules');assert.match(app.text(),/No clean-data percentage/);
     assert.ok(!app.find('table'));
   }finally{app.close();}

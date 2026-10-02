@@ -102,7 +102,27 @@ analyticsRouter.get('/health', asyncRoute(async (_req, res) => {
   res.json({ success: true, health, data: health, client: client.name });
 }));
 analyticsRouter.get('/discovery', requireAdmin, asyncRoute(async (_req, res) => res.json({ success: true, data: await discoverData(getClientConfig(res.locals.scope.clientId)) })));
-analyticsRouter.get('/validation', requireAdmin, (_req, res) => res.json({ success: true, metadata: metadata(res, 'not_verified'), data: validationUnavailable() }));
+analyticsRouter.get('/validation', requireAdmin, (_req, res) => {
+  const scope = res.locals.scope as QueryScope;
+  res.json({
+    success: true,
+    metadata: {
+      validationStatus: 'NOT_VERIFIED',
+      evidenceKind: 'HISTORICAL_REFERENCE',
+      generatedAt: new Date().toISOString(),
+      dataAsOf: null,
+      source: { type: 'historical_reference', liveWarehouseRead: false },
+      // Request provenance is not the scope of the historical reference values.
+      requestScope: {
+        clientId: scope.clientId,
+        startDate: scope.startDate ?? null,
+        endDate: scope.endDate ?? null,
+        appliedFilters: scope.filters,
+      },
+    },
+    data: validationUnavailable(),
+  });
+});
 analyticsRouter.get('/parameter-coverage', requireAdmin, asyncRoute(async (_req, res) => res.json({success:true,data:await parameterCoverage(res.locals.scope.clientId)})));
 analyticsRouter.get('/metrics/registry', cacheResponse(120), asyncRoute(async (_req, res) => {
   res.json({
