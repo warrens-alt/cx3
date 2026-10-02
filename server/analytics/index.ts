@@ -21,7 +21,7 @@ export { getAgentPerformanceAnalytics } from './agents/activity';
 export { getClientCampaignAnalytics } from './campaigns/performance';
 export { getMarketingRootCauseAnalysis } from './investigation/marketingRootCause';
 export { getMarketingAttributionAnalytics } from './commercial/attribution';
-export { getAiInsightsAnalytics } from './investigation/aiInsights';
+export { getAiInsightsAnalytics, isInvestigationScopedRequest } from './investigation/aiInsights';
 export { getRawLeads } from './investigation/records';
 export { getLeadTimeline } from './investigation/timeline';
 export { getExceptionAnalytics } from './investigation/exceptions';

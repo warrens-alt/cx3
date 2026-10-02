@@ -841,6 +841,10 @@ export interface AiInsightsData {
 }
 
 export interface RawLeadsData {
+  segmentVendor?: string | null;
+  segmentSource?: string | null;
+  segmentGrade?: string | null;
+  segmentLeadAge?: string | null;
   rows: Array<Record<string, any>>;
   totalCount?: number | null;
   limit: number;

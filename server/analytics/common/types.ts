@@ -1,4 +1,5 @@
-export interface OffernetQueryParams {
+import type { InvestigationNarrowing } from '../../../contracts/investigation';
+export interface OffernetQueryParams extends InvestigationNarrowing {
   clientId: string;
   startDate?: string;
   endDate?: string;
@@ -13,6 +14,7 @@ export interface OffernetQueryParams {
   adset?: string;
   cli?: string;
   search?: string;
+  question?: string;
   drill?: string;
   drillValue?: string;
   metric?: string;

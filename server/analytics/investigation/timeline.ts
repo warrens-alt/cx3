@@ -1,15 +1,18 @@
 import { getBigQueryClient } from '../../bigquery/client';
 import { getClientConfig, tenantVendorScopeValues } from '../../bigquery/config';
-import { configuredSourceTable } from '../common/warehouse';
+import { buildQualifiedInvestigationEvidence } from './records';
+import { buildFilterClause } from '../common/scope';
 import { RequestError } from '../../bigquery/filters';
 import { validTimestampSql } from '../../bigquery/integrity';
 import type { OffernetQueryParams } from '../common/types';
 
-export async function getLeadTimeline(leadId: string, params: Pick<OffernetQueryParams, 'clientId' | 'vendor'>) {
+export async function getLeadTimeline(leadId: string, input: OffernetQueryParams) {
+  const { qualifiedSql, queryParams: scopeParams, normalizedParams: params } = buildQualifiedInvestigationEvidence(input, leadId);
+  const { whereSql } = buildFilterClause(params);
   const client = getBigQueryClient(getClientConfig(params.clientId).bigQueryProject);
   const clientConfig = getClientConfig(params.clientId);
   const conditions = ['l.lead_id = @leadId'];
-  const queryParams: Record<string, any> = { leadId };
+  const queryParams: Record<string, any> = { ...scopeParams, leadId };
 
   if (clientConfig.id !== 'default_tenant') {
     const tenantVendors = tenantVendorScopeValues(clientConfig);
@@ -25,8 +28,14 @@ export async function getLeadTimeline(leadId: string, params: Pick<OffernetQuery
     conditions.push('LOWER(hlc.vendor) = LOWER(@vendor)');
     queryParams.vendor = cleanVendor;
   }
+  if (params.segmentVendor !== undefined) {
+    // Membership above is lead-grained. Keep the displayed vendor history inside the
+    // selected segment as well. Match operational_raw's null→Unknown normalization
+    // before applying the shared trimmed/blank→Unrecorded grouping semantics.
+    conditions.push("COALESCE(NULLIF(TRIM(COALESCE(hlc.vendor, 'Unknown')), ''), 'Unrecorded') = @segmentVendor");
+  }
 
-  const query = `
+  const query = `${qualifiedSql}
     SELECT
       l.lead_id,
       l.consumer_id,
@@ -43,9 +52,11 @@ export async function getLeadTimeline(leadId: string, params: Pick<OffernetQuery
         FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', ${validTimestampSql('hlc.sale')}) AS sale,
         FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%SZ', ${validTimestampSql('hlc.activated')}) AS activated
       )
-    FROM ${configuredSourceTable(params.clientId, 'leads')} l
+    FROM scoped_leads l
+    JOIN qualified_evidence population ON population.lead_id = l.lead_id
     LEFT JOIN UNNEST(l.hlc_details) hlc
-    WHERE ${conditions.join(' AND ')}
+    ${whereSql}
+    AND ${conditions.join(' AND ')}
     ORDER BY ${validTimestampSql('hlc.delivered')} DESC NULLS LAST, hlc.vendor, hlc.transaction_id
     LIMIT 201
   `;
