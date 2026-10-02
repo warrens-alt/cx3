@@ -81,7 +81,9 @@ export function buildInvestigationPredicate(params: OffernetQueryParams, queryPa
       case 'lead-age': {
         const timing = params.drill === 'lead-age' ? 'TIMESTAMP_DIFF(m.first_call_ts, m.fetched_ts, SECOND)' : `TIMESTAMP_DIFF(${alias}.first_call_ts, ${alias}.delivered_ts, SECOND)`;
         const buckets: Record<string, string> = {
-          'Invalid timing': 'm.has_recorded_first_dial AND NOT m.is_dialled',
+          'Invalid timing': params.drill === 'delivery-age'
+            ? '(m.has_recorded_delivery AND NOT m.is_delivered) OR (m.is_delivered AND m.has_recorded_first_dial AND NOT m.is_dialled)'
+            : 'm.has_recorded_first_dial AND NOT m.is_dialled',
           '0–5m': `${timing} BETWEEN 0 AND 300`,
           '0–15m': `${timing} BETWEEN 0 AND 900`,
           '5–15m': `${timing} > 300 AND ${timing} <= 900`,
@@ -95,7 +97,7 @@ export function buildInvestigationPredicate(params: OffernetQueryParams, queryPa
           '6–24h': `${timing} > 21600 AND ${timing} <= 86400`,
           '24h+': `${timing} > 86400`,
         };
-        condition = value === 'Not delivered' ? 'NOT m.is_delivered' : value === 'Undialled' ? (params.drill === 'lead-age' ? 'NOT m.has_recorded_first_dial' : 'm.is_delivered AND NOT m.has_recorded_first_dial') : Object.hasOwn(buckets, value) ? (value === 'Invalid timing' ? buckets[value] : `m.is_dialled AND ${buckets[value]}`) : undefined;
+        condition = value === 'Not delivered' ? 'NOT m.has_recorded_delivery' : value === 'Undialled' ? (params.drill === 'lead-age' ? 'NOT m.has_recorded_first_dial' : 'm.is_delivered AND NOT m.has_recorded_first_dial') : Object.hasOwn(buckets, value) ? (value === 'Invalid timing' ? buckets[value] : `m.is_dialled AND ${buckets[value]}`) : undefined;
         break;
       }
       case 'funnel-loss': condition = ({

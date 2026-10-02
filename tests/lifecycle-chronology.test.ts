@@ -5,6 +5,7 @@ import { operationalLeadCtes, operationalLeadSelectSql, operationalLifecycleStat
 import { assembleLifecycleDiagnostics, compileLifecycleDiagnostics } from '../server/analytics/common/lifecycleDiagnostics';
 import { buildInvestigationPredicate, exceptionPredicate } from '../server/analytics/investigation/exceptionPredicates';
 import { buildQualifiedInvestigationEvidence } from '../server/analytics/investigation/records';
+import { buildOperatingControlsQuery } from '../server/analytics/contact/operatingControls';
 import { AUTHORITATIVE_METRICS } from '../contracts/metricRegistry';
 
 const at = (time: string) => Date.parse(`2026-09-01T${time}:00Z`);
@@ -25,6 +26,7 @@ function fixtureDb() {
   insert.run('activation-without-sale', at('10:00'), at('10:01'), null, null, at('11:00'), null, 0, 0);
   insert.run('dial-without-delivery', at('10:00'), null, at('10:05'), null, null, 0, 5, 0);
   insert.run('sale-before-capture', at('10:00'), at('10:01'), at('10:05'), at('09:00'), at('11:00'), 1, 4, 1);
+  insert.run('delivery-before-capture-no-dial', at('10:00'), at('09:00'), null, null, null, null, null, 0);
   insert.run('explicit-no-rpc', at('10:00'), at('10:01'), at('10:05'), null, null, 0, 5, 1);
   insert.run('unknown-rpc', at('10:00'), at('10:01'), at('10:05'), null, null, null, 5, 1);
   insert.run('no-predecessor', null, at('10:01'), at('10:05'), at('10:20'), at('11:00'), 1, null, 0);
@@ -149,4 +151,20 @@ test('dossier evidence exposes raw timestamps, qualified states and individual c
   assert.match(AUTHORITATIVE_METRICS.activation_rate.plainDefinition, /not linked sale-to-activation conversion/);
   assert.equal(AUTHORITATIVE_METRICS.dialled_leads.sourceContractStatus, 'BUSINESS_MEANING_NOT_VERIFIED');
   assert.equal(AUTHORITATIVE_METRICS.dialled_leads.reconciliationStatus, 'NOT_VERIFIED');
+});
+
+
+test('delivery-age drill matches the control band including invalid delivery without any recorded dial', () => {
+  const db = fixtureDb();
+  try {
+    const query = buildOperatingControlsQuery(scope).query;
+    const classification = query.match(/(CASE\s+WHEN delivered_ts IS NOT NULL AND NOT is_delivered[\s\S]*?END) AS sla_band/)![1].replace(/\bSECOND\b/g, "'SECOND'");
+    db.exec(`CREATE VIEW bands AS SELECT *, ${classification} AS band FROM qualified`);
+    for (const value of ['Invalid timing', 'Not delivered', 'Undialled', '0–15m', '15–30m', '30–60m', '1–6h', '6–24h', '24h+']) {
+      const counted = db.prepare('SELECT lead_id FROM bands WHERE band = ? ORDER BY lead_id').all(value);
+      const predicate = buildInvestigationPredicate({ ...scope, drill: 'delivery-age', drillValue: value }, {}).replace(/\bSECOND\b/g, "'SECOND'");
+      const drilled = db.prepare(`SELECT lead_id FROM qualified m WHERE ${predicate} ORDER BY lead_id`).all();
+      assert.deepEqual(drilled, counted, value);
+    }
+  } finally { db.close(); }
 });
