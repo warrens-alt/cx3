@@ -1,4 +1,6 @@
 import React, { useId, useMemo, useRef, useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
+import { lifecyclePresentation } from '../../shared/visuals/lifecyclePresentation';
 import CopyEvidenceButton from '../../shared/evidence/CopyEvidenceButton';
 import { buildLedgerTimeline, type LedgerTimelineEvent } from './timeline';
 import type { LeadTimelineData } from '../../lib/offernetClient';
@@ -13,6 +15,7 @@ type Props = {
 const dateLabel = (timestamp: string) => new Date(timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 const timeLabel = (timestamp: string) => new Date(timestamp).toLocaleTimeString('en-GB', { hour12: false, timeZone: 'UTC' });
 const valueText = (value: unknown) => value == null || value === '' ? 'Unavailable' : String(value);
+const timelineStages = { capture: 'fetched', delivery: 'delivered', call: 'dialled', rpc: 'rpc', sale: 'sales', activation: 'activated' } as const;
 
 /** Uses the selected, already-loaded analytical row. Interactions are local state only. */
 export default function LeadJourney({ row, validationStatus, onViewSource, sourceEvents, onPinEvent }: Props) {
@@ -31,12 +34,18 @@ export default function LeadJourney({ row, validationStatus, onViewSource, sourc
       evidence.current?.scrollIntoView({ block: 'nearest' });
     });
   };
-  const eventButton = (event: LedgerTimelineEvent, compact = false) => <button type="button" className="cx-journey-event" data-stage={event.kind} data-certainty={event.timestampStatus} aria-pressed={selectedId === event.id} aria-controls={`${id}-evidence`} onClick={() => selectEvent(event)}>
-    <span className="cx-journey-node" aria-hidden="true" />
+  const eventButton = (event: LedgerTimelineEvent, compact = false) => {
+    const stage = lifecyclePresentation[timelineStages[event.kind]];
+    const Icon = stage.Icon;
+    const anomalies = journey.anomalies.filter(anomaly => anomaly.field.endsWith(`→ ${event.kind}`) || event.evidenceFields.some(field => field.label === anomaly.field));
+    return <button type="button" className="cx-journey-event" data-stage={event.kind} data-certainty={event.timestampStatus} data-anomaly={anomalies.length > 0 || undefined} style={{ '--journey-stage': stage.color } as React.CSSProperties} aria-pressed={selectedId === event.id} aria-controls={`${id}-evidence`} onClick={() => selectEvent(event)}>
+    <span className="cx-journey-node" aria-hidden="true"><Icon size={16} /></span>
     <strong>{event.title}</strong>
     {event.timestamp ? <time dateTime={event.timestamp}>{!compact && <span>{dateLabel(event.timestamp)}</span>}<span>{timeLabel(event.timestamp)}</span></time> : <span className="cx-journey-untimed">Timestamp unavailable</span>}
     <small>{event.timestampStatus === 'observed' ? 'Observed timestamp' : 'Recorded · untimed'}</small>
+    {anomalies.map((anomaly, index) => <span className="cx-journey-inline-anomaly" key={index}><AlertTriangle size={12} aria-hidden="true"/><span>{anomaly.message}</span></span>)}
   </button>;
+  };
   const copy = selected ? [`Lead ID: ${valueText(row.lead_id)}`, selected.title, selected.timestamp || 'Timestamp unavailable', `Validation: ${validation}`, 'Layer: Normalised operational evidence', selected.description, ...selected.evidenceFields.map(field => `${field.label}: ${valueText(field.value)}`)].join('\n') : '';
 
   return <div className="cx-ledger-journey">
@@ -63,7 +72,7 @@ export default function LeadJourney({ row, validationStatus, onViewSource, sourc
             {eventButton(event)}
           </li>;
         })}</ol>
-        <p className="cx-journey-key"><span><i data-filled="true" />Observed time</span><span><i />Recorded, time unavailable</span></p>
+        <p className="cx-journey-key"><span><i data-filled="true" />Observed time</span><span><i />Recorded, time unavailable</span>{journey.anomalies.length > 0 && <span><AlertTriangle size={12} aria-hidden="true"/>Chronology anomaly</span>}</p>
       </> : journey.untimedEvents.length > 0 ? <div className="cx-journey-undated"><h3>Recorded stages · timestamps unavailable</h3><ul>{journey.untimedEvents.map(event => <li key={event.id}>{eventButton(event)}</li>)}</ul></div> : null}
       <details className="cx-journey-calls">
         <summary><span>Calls {journey.calls.count == null ? '· count unavailable' : `×${journey.calls.count}`}</span><small>Recorded aggregate · inspect evidence</small></summary>
@@ -73,7 +82,7 @@ export default function LeadJourney({ row, validationStatus, onViewSource, sourc
         <dl>{journey.calls.evidenceFields.map(field => <div key={field.label}><dt>{field.label}</dt><dd>{valueText(field.value)}</dd></div>)}</dl>
         {onViewSource && <button type="button" className="cx-button-secondary" onClick={() => onViewSource(['HLC Total Calls', 'HLC First Call Date', 'HLC Last Call Date', 'HLC Last Dialer Status', 'HLC RPC'])}>View call source fields</button>}
       </details>
-      <dl className="cx-journey-outcomes">{journey.outcomes.map(outcome => <div key={outcome.kind}><dt>{outcome.title}</dt><dd>{outcome.state === 'recorded' ? 'Recorded' : outcome.state === 'not-recorded' ? 'Not recorded in returned evidence' : 'Evidence unavailable'}</dd></div>)}</dl>
+      <dl className="cx-journey-outcomes">{journey.outcomes.map(outcome => { const stage = lifecyclePresentation[timelineStages[outcome.kind]]; const Icon = stage.Icon; return <div key={outcome.kind} data-state={outcome.state}><dt><Icon size={14} aria-hidden="true" style={{ color: outcome.state === 'recorded' ? stage.color : undefined }}/>{outcome.title}</dt><dd>{outcome.state === 'recorded' ? 'Recorded' : outcome.state === 'not-recorded' ? 'Not recorded in returned evidence' : 'Evidence unavailable'}</dd></div>; })}</dl>
     </section>
 
     <section role="tabpanel" id={`${id}-events-panel`} aria-labelledby={`${id}-events-tab`} hidden={mode !== 'events'} tabIndex={0}>
