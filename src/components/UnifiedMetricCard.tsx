@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import InspectorHost, { type InspectorContent } from '../shared/evidence/InspectorHost';
 import { AuditMetadata } from '../shared/evidence/AuditMode';
 import { Link, type To } from 'react-router-dom';
-import { type LucideIcon, Info, Search, ArrowRight, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { type LucideIcon, Info, Search, ArrowRight, TrendingUp, TrendingDown, Minus, GitBranch } from 'lucide-react';
 
 export interface UnifiedMetricCardProps {
   auditContent?: InspectorContent;
@@ -160,6 +160,7 @@ export default function UnifiedMetricCard({
       </div>
 
       {auditContent && <AuditMetadata metricId={auditContent.metricId} grain={auditContent.definition?.grain || auditContent.provenance?.countingGrain} dateBasis={auditContent.definition?.dateBasis || auditContent.provenance?.dateBasis} validationStatus={auditContent.provenance?.validationStatus} />}
+      {auditContent && <button type="button" className="cx-audit-evidence-control" onClick={() => setAuditOpen(true)} aria-label={`Audit evidence: ${label}`}><GitBranch size={13} aria-hidden="true"/>Audit evidence</button>}
       {(auditContent || to || onInspect) && <ArrowRight className="cx-metric-chevron" size={14} aria-hidden="true" />}
       {onWhyChanged && hasChange && <button type="button" className="cx-why-btn cx-metric-context-action" onClick={onWhyChanged} title={`Investigate why ${label.toLowerCase()} changed`}>{whyLabel}<Search size={10} aria-hidden="true" /></button>}
       {!auditContent && denominatorLabel && <div className="cx-metric-context-action">

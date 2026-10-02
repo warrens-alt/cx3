@@ -20,7 +20,7 @@ export function useAuditMode() {
 }
 export function AuditModeControl() {
   const { enabled, setEnabled } = useAuditMode();
-  return <div className="cx-audit-preference"><strong>Audit mode</strong><p>Show available metric metadata. Access permissions stay the same.</p><div role="group" aria-label="Audit mode">
+  return <div className="cx-audit-preference"><strong>Audit mode</strong><p>Show metric grain, date basis and evidence states alongside the report. Open Audit evidence for the visual trace and calculation.</p><div role="group" aria-label="Audit mode">
     <button type="button" className="cx-button-secondary" aria-pressed={!enabled} onClick={() => setEnabled(false)}>Off</button>
     <button type="button" className="cx-button-secondary" aria-pressed={enabled} onClick={() => setEnabled(true)}>On</button>
   </div></div>;
@@ -32,7 +32,7 @@ export function AuditMetadata({ metricId, grain, dateBasis, validationStatus, de
     { label: 'Metric ID', value: metricId, technical: true },
     { label: 'Grain', value: grain || definition?.countingGrain },
     { label: 'Date basis', value: dateBasis || definition?.dateBasis },
-    { label: 'Validation', value: validationStatus || definition?.reconciliationStatus, technical: true },
+    { label: 'Validation', value: metricId || validationStatus ? validationStatus || 'NOT_VERIFIED' : undefined, technical: true },
     { label: 'Definition', value: definitionVersion, technical: true },
     { label: 'Response generated', value: generatedAt, technical: true },
     { label: 'Source', value: source, technical: true },

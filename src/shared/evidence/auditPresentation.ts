@@ -1,4 +1,4 @@
-import { getAllowedParamsForTarget, UNIVERSAL_SCOPE_PARAMS } from '../../app/navigation/ScopePreservingRedirect';
+import { buildPreservedDestination, getAllowedParamsForTarget, UNIVERSAL_SCOPE_PARAMS, INVESTIGATION_SCOPE_PARAMS } from '../../app/navigation/ScopePreservingRedirect';
 
 export interface AuditScope {
   clientId: string;
@@ -6,6 +6,8 @@ export interface AuditScope {
   startDate?: string;
   endDate?: string;
   filters?: Record<string, unknown>;
+  /** Exact saved case predicates. An empty object deliberately clears inherited case narrowing. */
+  narrowing?: Record<string, string>;
 }
 export interface AuditDefinition {
   meaning?: string;
@@ -43,18 +45,42 @@ export function buildScopeSearch(scope?: AuditScope): string {
     else if (value !== undefined && value !== null) structured[key] = value;
   }
   if (Object.keys(structured).length) params.set('filters', JSON.stringify(structured));
+  for (const [key, value] of Object.entries(scope.narrowing || {})) {
+    if ((INVESTIGATION_SCOPE_PARAMS.has(key) || key === 'search') && value) params.set(key, value);
+  }
   return params.size ? `?${params}` : '';
 }
-export function scopedViewPath(pathname: string, search: string, scope?: AuditScope): string {
+/** Only established public scope parameters can travel; selected lead IDs stay local. */
+export function auditScopeSearch(search: string, scope?: AuditScope): string {
+  const result = new URLSearchParams(search);
+  result.delete('leadId');
+  result.delete('lead_id');
+  if (scope) {
+    for (const key of UNIVERSAL_SCOPE_PARAMS) if (key !== 'workspace') result.delete(key);
+    if (scope.narrowing !== undefined) {
+      for (const key of [...INVESTIGATION_SCOPE_PARAMS, 'search']) result.delete(key);
+    }
+    for (const [key, value] of new URLSearchParams(buildScopeSearch(scope))) result.set(key, value);
+  }
+  return result.toString();
+}
+export function auditDestination(path: string, search: string, scope?: AuditScope): string {
+  return buildPreservedDestination(path, auditScopeSearch(search, scope));
+}
+/** Do not turn a private record search/identity-filter population into a shareable URL. */
+export function canShareAuditScope(search: string): boolean {
   const params = new URLSearchParams(search);
+  if (['search', 'leadId', 'lead_id', 'consumerId'].some(key => params.has(key))) return false;
+  try {
+    const filters = JSON.parse(params.get('filters') || '{}');
+    return !Object.keys(filters).some(key => /lead.?id|consumer.?id|transaction/i.test(key));
+  } catch { return false; }
+}
+export function scopedViewPath(pathname: string, search: string, scope?: AuditScope): string {
+  const params = new URLSearchParams(auditScopeSearch(search, scope));
   const allowed = getAllowedParamsForTarget(pathname, params.toString());
   const result = new URLSearchParams();
   for (const [key, value] of params) if (allowed.has(key)) result.append(key, value);
-  if (scope) {
-    // The observed result's explicit scope wins over potentially newer controls.
-    for (const key of UNIVERSAL_SCOPE_PARAMS) if (key !== 'workspace') result.delete(key);
-    for (const [key, value] of new URLSearchParams(buildScopeSearch(scope))) if (allowed.has(key)) result.append(key, value);
-  }
   return pathname + (result.size ? `?${result}` : '');
 }
 export function filterDescription(value: unknown): string {
@@ -68,7 +94,7 @@ export function filterDescription(value: unknown): string {
   return JSON.stringify(value);
 }
 export function resultState(value: string | number | null | undefined) {
-  if (value == null || (typeof value === 'number' && !Number.isFinite(value)) || (typeof value === 'string' && /^(?:$|—(?:\s|$)|Unavailable$|Not (?:recorded|supplied)$)/i.test(value.trim()))) return 'Unavailable';
+  if (value == null || (typeof value === 'number' && !Number.isFinite(value)) || (typeof value === 'string' && /^(?:$|—(?:\s|$)|(?:Unavailable|Timestamp unavailable)(?:\s|%|$)|Not (?:recorded|supplied|measured|calculable)$)/i.test(value.trim()))) return 'Unavailable';
   if (value === 0 || (typeof value === 'string' && /^(?:(?:[A-Z]{3}|R|[$€£])\s*)?[+-]?0+(?:[.,]0+)?(?:\s*(?:%|leads?|records?|s|m|h))?$/i.test(value.trim()))) return 'Measured zero';
   return 'Observed';
 }
