@@ -60,7 +60,7 @@ export default function SalesActivationPage() {
   } = useSalesActivationModel();
 
   return (
-    <AnalyticsPageLayout className="cx-sales-page" ariaLabel="Sales & activation workspace" title="Sales & activation" description={<>Recorded outcomes for the selected operational intake cohort. Understand confirmed sales, independent activation fulfilment, post-sale queue ageing, and source-recorded revenue.</>} actions={<ReportActions aboutContent={<div className="space-y-3 text-xs text-slate-600 leading-relaxed">
+    <AnalyticsPageLayout className="cx-sales-page" ariaLabel="Sales & activation workspace" title="Sales & activation" description={<>Recorded outcomes for the selected operational intake cohort. Understand recorded sales, independently recorded activations, post-sale queue ageing, and source-recorded revenue.</>} actions={<ReportActions aboutContent={<div className="space-y-3 text-xs text-slate-600 leading-relaxed">
             <section className="space-y-1">
               <h3 className="font-semibold text-slate-900">Operational Cohort Scope</h3>
               <p>

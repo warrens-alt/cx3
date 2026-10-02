@@ -32,7 +32,7 @@ export function LifecycleFunnelPanel({ data }: { data: LifecycleDiagnostics }) {
       steps={funnelSteps}
     />}
     <section className="cx-command-panel"><header><div><span className="cx-command-section-kicker">Lifecycle loss</span><h2>Transition evidence</h2><p>{data.largestDeterioration ? `Largest matched-period deterioration: ${data.largestDeterioration.from} → ${data.largestDeterioration.to}, ${signed(data.largestDeterioration.deteriorationPp, 'pp')}.` : 'Exact transition populations remain available below the visual.'}</p></div></header>
-      <div className="cx-performance-table-wrap"><table className="cx-performance-table"><thead><tr><th>Transition</th><th>Population</th><th>With both events</th><th>Conversion</th><th>Lost</th><th>Loss</th><th>Prior change</th><th>Evidence</th></tr></thead><tbody>{data.transitions.map(r => <tr key={r.from}><th>{r.from} → {r.to}</th><td>{formatTableNumber(r.population)}</td><td>{formatTableNumber(r.converted)}</td><td>{formatPercent(r.conversionRate)}</td><td>{formatTableNumber(r.lost)}</td><td>{formatPercent(r.lossRate)}</td><td>{signed(r.deteriorationPp, 'pp')}</td><td>{r.status === 'NON_NESTED' ? 'Downstream events also exist without this prior stage' : 'Observed'}</td></tr>)}</tbody></table></div>
+      <div className="cx-performance-table-wrap"><table className="cx-performance-table"><thead><tr><th>Transition</th><th>Population</th><th>Qualified transition</th><th>Conversion</th><th>Lost</th><th>Loss</th><th>Prior change</th><th>Evidence</th></tr></thead><tbody>{data.transitions.map(r => <tr key={r.from}><th>{r.from} → {r.to}</th><td>{formatTableNumber(r.population)}</td><td>{formatTableNumber(r.converted)}</td><td>{formatPercent(r.conversionRate)}</td><td>{formatTableNumber(r.lost)}</td><td>{formatPercent(r.lossRate)}</td><td>{signed(r.deteriorationPp, 'pp')}</td><td>{r.status === 'NON_NESTED' ? 'Downstream recorded events also exist outside this qualified transition' : 'Observed'}</td></tr>)}</tbody></table></div>
     </section>
   </>;
 }
@@ -121,6 +121,6 @@ export function LifecycleSegmentsPanel({ data, initialDimension = 'vendor' }: { 
       }</PaginatedAnalysisTable>
       <p className="cx-control-note">{contribution.method}</p>
     </>}
-    <p className="cx-control-note">{data.methodology} Complete source-recorded revenue is unavailable when any included lead has incomplete revenue evidence; missing values are not imputed. The missing-revenue column counts leads without any recorded revenue, not all incomplete nested source values. Campaign and channel segmentation are unavailable until an approved operational mapping exists.</p>
+    <p className="cx-control-note">{data.methodology} Complete source-recorded revenue is unavailable when any included lead has incomplete revenue evidence; missing values are not imputed. The missing-revenue column counts leads with incomplete revenue evidence, including unresolved keys, currencies and conflicts; a known subtotal does not establish a complete total. Campaign and channel segmentation are unavailable until an approved operational mapping exists.</p>
   </section>;
 }

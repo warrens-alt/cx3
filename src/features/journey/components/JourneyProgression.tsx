@@ -64,7 +64,7 @@ export default function JourneyProgression({
                   <button type="button" onClick={() => onInspectTransition(t.from, t.to, t.lost!, lossKey)} aria-label={`Inspect ${t.from} to ${t.to}: ${t.lost} without progression`}>{formatTableNumber(t.lost)} without progression <ChevronRight size={12} aria-hidden="true" /></button>
                   : <span>{formatTableNumber(t.lost)} without progression</span>}
               </div>
-              {t.status === 'NON_NESTED' && <p className="cx-viz-caution"><AlertCircle size={12} aria-hidden="true" />Non-nested: the next-stage total includes leads outside this prior stage.</p>}
+              {t.status === 'NON_NESTED' && <p className="cx-viz-caution"><AlertCircle size={12} aria-hidden="true" />Non-nested: downstream recorded events also exist outside this qualified transition.</p>}
             </article>;
           })}
           {!transitions.length && <p className="cx-viz-empty">Transition intersections are unavailable.</p>}
