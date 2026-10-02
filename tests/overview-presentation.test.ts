@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import React, { act } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { JSDOM } from 'jsdom';
+import FirstCallResponse from '../src/features/overview/components/FirstCallResponse';
+import OverviewChanges from '../src/features/overview/components/OverviewChanges';
 import OutcomeStrip from '../src/features/overview/components/OutcomeStrip';
 import JourneySummary, { type FunnelStageItem } from '../src/features/overview/components/JourneySummary';
 
@@ -115,5 +117,40 @@ test('Overview viewer rail uses evidence buttons without record links and passes
     await app.render(React.createElement(JourneySummary, { stages: [], isAdmin: false }));
     assert.match(app.container.textContent!, /No lifecycle counts are supplied/);
     assert.equal(app.container.querySelector('.cx-overview-stage-count'), null);
+  });
+});
+
+
+test('Overview first-call response displays exact supplied measurements and preserves scoped navigation', async () => {
+  await withRenderedComponent(async app => {
+    const props = { sla: { firstDialTargetMinutes: 17, complianceRate: 0, medianDeliveryToDial: '0s', p90DeliveryToDial: '41m' }, backlog: { awaitingFirstDial: 0, over60Minutes: 9, buckets: [], byVendor: [] } };
+    const before = JSON.stringify(props);
+    await app.render(React.createElement(FirstCallResponse, props));
+    assert.match(app.container.textContent!, /within 17 minutes/);
+    assert.equal(app.container.querySelector('strong')!.textContent, '0.0%');
+    assert.deepEqual([...app.container.querySelectorAll('dd')].map(value => value.textContent), ['0s', '41m', '0', '9']);
+    const link = new URL(app.container.querySelector('a')!.href, 'https://synthetic.invalid');
+    assert.equal(link.pathname, '/speed-to-lead');
+    assert.equal(link.searchParams.get('clientId'), 'synthetic-a');
+    assert.equal(link.searchParams.get('vendor'), 'Synthetic vendor');
+    assert.equal(JSON.stringify(props), before);
+    await app.render(React.createElement(FirstCallResponse, { sla: undefined, backlog: undefined } as any));
+    assert.match(app.container.textContent!, /unavailable/);
+    assert.equal(app.container.querySelector('strong')!.textContent, '—');
+    assert.deepEqual([...app.container.querySelectorAll('dd')].map(value => value.textContent), ['—', '—', '—', '—']);
+  });
+});
+
+test('Overview What changed preserves supplied deltas and gates investigation on comparison evidence', async () => {
+  await withRenderedComponent(async app => {
+    const calls: string[] = [];
+    const props = { changes: [{ label: 'Lead volume', value: 0, unit: '%', metric: 'fetchedLeads' as const }, { label: 'Delivery rate', value: -4.2, unit: 'pp', metric: 'deliveryRate' as const }], onInvestigate: (metric: string) => calls.push(metric) };
+    await app.render(React.createElement(OverviewChanges, { ...props, hasComparison: false }));
+    assert.equal(app.container.querySelector('button'), null);
+    assert.match(app.container.textContent!, /Comparison evidence is unavailable for the selected reporting scope/);
+    await app.render(React.createElement(OverviewChanges, { ...props, hasComparison: true, comparisonWindow: { startDate: '2026-09-15', endDate: '2026-09-21' } }));
+    assert.deepEqual([...app.container.querySelectorAll('strong')].map(value => value.textContent), ['0%', '-4.2pp']);
+    for (const button of app.container.querySelectorAll('button')) await app.click(button);
+    assert.deepEqual(calls, ['fetchedLeads', 'deliveryRate']);
   });
 });

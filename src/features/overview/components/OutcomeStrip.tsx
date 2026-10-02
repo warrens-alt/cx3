@@ -174,7 +174,7 @@ export default function OutcomeStrip({
   ];
 
   return (
-    <section aria-label="Principal operational outcomes" className="cx-outcome-strip grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <section aria-label="Principal operational outcomes" className="cx-outcome-strip">
       {outcomes.map(item => {
         const presentation = outcomePresentation[item.id as keyof typeof outcomePresentation];
         const Icon = presentation.icon;
@@ -182,17 +182,17 @@ export default function OutcomeStrip({
         <article
           key={item.id}
           data-series={presentation.series}
-          className="cx-outcome-card cx-metric-card enterprise-card bg-surface border border-border hover:border-action/50 rounded-xl p-5 shadow-xs hover:shadow-sm transition-all duration-200 flex flex-col justify-between group"
+          className="cx-outcome-card cx-metric-card"
         >
           <div className="cx-outcome-heading flex items-start justify-between">
-            <span className="text-[11px] font-semibold text-text-sec">
+            <span className="cx-metric-label">
               {item.label}
             </span>
             <span className="cx-outcome-icon" aria-hidden="true"><Icon size={16} strokeWidth={1.8} /></span>
           </div>
 
           <div className="my-3">
-            <button type="button" onClick={() => onInspect(item.inspectContent)} className="cx-metric-primary cx-outcome-value text-3xl lg:text-[34px] font-bold cx-tabular text-text-main block hover:text-action transition-colors font-mono tracking-tight leading-tight" aria-label={`Inspect evidence: ${item.label}`}>{item.value}</button>
+            <button type="button" onClick={() => onInspect(item.inspectContent)} className="cx-metric-primary cx-outcome-value text-3xl lg:text-[34px] font-bold cx-tabular text-text-main block hover:text-action transition-colors tracking-tight leading-tight" aria-label={`Inspect evidence: ${item.label}`}>{item.value}</button>
 
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <span className="text-xs text-text-sec font-medium">{item.subnote}</span>

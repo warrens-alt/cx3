@@ -114,7 +114,7 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
   };
 
   return (
-    <section className="cx-trend-panel enterprise-card bg-surface border border-border p-5 rounded-lg flex flex-col justify-between shadow-xs" aria-label="Performance trend">
+    <section className="cx-trend-panel cx-report-panel" aria-label="Performance trend">
       <div className="cx-trend-heading flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
           <h2 className="text-base font-bold text-text-main">Performance trend</h2>

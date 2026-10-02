@@ -35,7 +35,7 @@ export default function AttentionList({ items = [], isAdmin }: AttentionListProp
   };
 
   return (
-    <section className="cx-attention-panel cx-card p-5 flex flex-col justify-between" aria-label="Exceptions needing attention">
+    <section className="cx-attention-panel cx-report-panel" aria-label="Exceptions needing attention">
       <div>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-1.5">
@@ -66,7 +66,7 @@ export default function AttentionList({ items = [], isAdmin }: AttentionListProp
                       : scoped(item.path)
                   }
                   data-severity={item.severity}
-                  className="cx-attention-row p-2.5 rounded-lg border border-border-subtle bg-surface-subtle hover:bg-surface-sec hover:border-brand-primary/40 transition-colors flex items-center justify-between gap-3 text-xs group"
+                  className="cx-attention-row flex items-center justify-between gap-3 text-xs group"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span className={`w-2 h-2 rounded-full shrink-0 ${severityDot(item.severity)}`} />

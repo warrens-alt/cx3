@@ -1,6 +1,9 @@
+import AnalyticsPageLayout from '../../components/AnalyticsPageLayout';
+import OverviewChanges from './components/OverviewChanges';
+import FirstCallResponse from './components/FirstCallResponse';
 import { STAGE_METRIC_IDS } from '../../shared/evidence/auditPresentation';
 import React, { useMemo } from 'react';
-import { ArrowRight, RefreshCw, Settings2, ChevronDown, Clock3, TrendingUp, TrendingDown, Search } from 'lucide-react';
+import { RefreshCw, Settings2, ChevronDown } from 'lucide-react';
 import { useOverviewModel, type RootMetric } from './model/useOverviewModel';
 import { useFilters } from '../../lib/FilterContext';
 import OutcomeStrip from './components/OutcomeStrip';
@@ -102,26 +105,10 @@ export default function OverviewPage() {
   }, [data?.comparison]);
 
   return (
-    <div className="cx-command-page cx-overview-page" aria-label="Overview workspace">
-      <div className="cx-command-content space-y-6">
-        {/* Page Header */}
-        <header className="cx-workspace-heading flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-2 border-b border-border-subtle">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-text-main mt-1">
-              Overview
-            </h1>
-            <p className="text-xs text-text-sec mt-1 max-w-2xl leading-relaxed">
-              Intake, delivery, sales and activation for the selected cohort.
-            </p>
-          </div>
-
-          <ReportActions aboutContent={<p>Overview evidence: {statusLabel(data?.validationStatus || 'NOT_VERIFIED')}</p>} />
-        </header>
-
-        <ReportingScopeBar
-          onRefresh={refreshAll}
-          onExportCsv={data ? handleExportOverviewCsv : undefined}
-        />
+    <AnalyticsPageLayout className="cx-overview-page" ariaLabel="Overview workspace"
+      title="Overview" description="Intake, delivery, sales and activation for the selected cohort."
+      actions={<ReportActions aboutContent={<p>Overview evidence: {statusLabel(data?.validationStatus || 'NOT_VERIFIED')}</p>} />}
+      scope={<ReportingScopeBar onRefresh={refreshAll} onExportCsv={data ? handleExportOverviewCsv : undefined} />}>
 
       {/* Error state */}
       {error && (
@@ -165,7 +152,27 @@ export default function OverviewPage() {
             hasComparison={hasComparison}
           />
 
-          {/* Existing lifecycle counts, immediately after the primary outcomes. */}
+          {data.kpis?.fetchedLeads === 0 && (
+            <OperationalEmpty title="No leads in this selection">
+              Try a different period or remove a filter. Measured counts remain zero; rates without a population are unavailable.
+            </OperationalEmpty>
+          )}
+
+          <div className="cx-overview-primary">
+            <PerformanceTrend data={data.dailyTrends} comparisonWindow={data.comparisonWindow} />
+            <OverviewChanges changes={meaningfulChanges} hasComparison={hasComparison}
+              comparisonWindow={data.comparisonWindow} onInvestigate={investigate} />
+          </div>
+
+          <div className="cx-overview-secondary">
+            <AttentionList items={data.attention} isAdmin={isAdmin} />
+            <FirstCallResponse sla={data.sla} backlog={data.backlog} />
+          </div>
+
+          <section className="cx-overview-more" aria-label="Explore more analysis">
+            <h2>Explore more analysis</h2>
+            <details className="cx-report-disclosure cx-overview-lifecycle-disclosure">
+              <summary>Lifecycle progression <small>Stage populations and transition evidence</small></summary>
           <JourneySummary
             stages={data.funnelStages}
             funnelLeak={data.funnelLeak}
@@ -218,74 +225,7 @@ export default function OverviewPage() {
               });
             }}
           />
-
-          {data.kpis?.fetchedLeads === 0 && (
-            <OperationalEmpty title="No leads in this selection">
-              Try a different period or remove a filter. Measured counts remain zero; rates without a population are unavailable.
-            </OperationalEmpty>
-          )}
-
-          {/* 2. Primary 8/4 Layout: Performance Trend (2/3) + Needs Attention (1/3) */}
-          <div className="cx-overview-primary grid grid-cols-1 lg:grid-cols-12 gap-5">
-            <div className="lg:col-span-8">
-              <PerformanceTrend
-                data={data.dailyTrends}
-                comparisonWindow={data.comparisonWindow}
-              />
-            </div>
-            <div className="lg:col-span-4">
-              <AttentionList
-                items={data.attention}
-                isAdmin={isAdmin}
-              />
-            </div>
-          </div>
-
-          {/* Meaningful Matched-Period Changes Banner (when comparison is active) */}
-          {hasComparison && meaningfulChanges.length > 0 && (
-            <section
-              aria-label="Meaningful outcome changes"
-              className="cx-change-rail p-3.5 rounded-lg bg-surface-subtle border border-border-subtle flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs"
-            >
-              <div className="flex items-center gap-2 text-text-sec shrink-0">
-                <Clock3 size={15} className="text-brand-primary" />
-                <span className="font-semibold text-text-main">Meaningful changes:</span>
-                <span className="text-text-mute hidden lg:inline">
-                  Ranked by shift vs {data.comparisonWindow?.startDate} – {data.comparisonWindow?.endDate}
-                </span>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {meaningfulChanges.map(change => {
-                  const val = Number(change.value);
-                  const isPos = val > 0;
-                  const isZero = val === 0;
-                  const Icon = isPos ? TrendingUp : isZero ? ArrowRight : TrendingDown;
-                  return (
-                    <button
-                      key={change.label}
-                      type="button"
-                      onClick={() => investigate(change.metric)}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface border border-border-subtle hover:border-brand-primary/40 hover:text-brand-primary transition-colors cursor-pointer group"
-                      title={`Investigate ${change.label} shift`}
-                    >
-                      <span className="text-text-sec">{change.label}:</span>
-                      <span
-                        className={`font-semibold cx-tabular inline-flex items-center gap-0.5 ${
-                          isPos ? 'text-semantic-pos' : isZero ? 'text-text-mute' : 'text-semantic-neg'
-                        }`}
-                      >
-                        <Icon size={11} />
-                        <span>{isPos ? '+' : ''}{change.value}{change.unit}</span>
-                      </span>
-                      <span className="text-xs text-text-mute group-hover:text-brand-primary inline-flex items-center ml-0.5">
-                        Why? <Search size={11} className="ml-0.5" />
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          )}
+            </details>
 
           {/* 4. Segment Comparison (Receives verified lifecycle segments, no backlog fallback!) */}
           <details className="cx-report-disclosure"><summary>Segment breakdowns</summary>
@@ -417,6 +357,7 @@ export default function OverviewPage() {
               </div>
             )}
           </details>
+          </section>
         </>
       )}
 
@@ -433,7 +374,6 @@ export default function OverviewPage() {
         metric={rootMetric}
         onClose={() => setRootMetric(null)}
       />
-      </div>
-    </div>
+    </AnalyticsPageLayout>
   );
 }
