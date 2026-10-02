@@ -11,6 +11,7 @@ import './styles/product.css';
 import './styles/reporting.css';
 import './styles/overview.css';
 import './styles/visuals.css';
+import './styles/outcomeBranchMap.css';
 import './styles/journeyContactVisuals.css';
 import './styles/salesCommercialVisuals.css';
 import './styles/timeAgentCampaignVisuals.css';

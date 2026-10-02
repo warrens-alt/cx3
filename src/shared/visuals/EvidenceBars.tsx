@@ -9,6 +9,7 @@ export interface EvidenceBarItem {
   displayValue?: string;
   detail?: string;
   color?: string;
+  appearance?: 'unrecorded' | 'invalid' | 'queue';
 }
 
 /** Geometry only. Never substitute zero for absent evidence or inflate a small bar. */
@@ -39,7 +40,7 @@ export default function EvidenceBars({ title, description, items, onSelect, maxi
           const value = width === null ? 'Unavailable' : item.displayValue ?? formatTableNumber(item.value);
           const content = <>
             <span className="cx-evidence-bar-label">{item.label}{item.detail && <small>{item.detail}</small>}</span>
-            <span className="cx-evidence-bar-track" aria-hidden="true" data-state={width === null ? 'unknown' : width === 0 ? 'zero' : 'observed'}>
+            <span className="cx-evidence-bar-track" data-appearance={item.appearance} aria-hidden="true" data-state={width === null ? 'unknown' : width === 0 ? 'zero' : 'observed'}>
               {width !== null && <span className="cx-evidence-bar-fill" style={{ width: `${width}%`, background: item.color || 'var(--cx-action)' }} />}
             </span>
             <span className="cx-evidence-bar-value">{value}{onSelect && <ArrowUpRight size={13} aria-hidden="true" />}</span>

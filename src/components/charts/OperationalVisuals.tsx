@@ -1,3 +1,4 @@
+import ChartTooltip from '../../shared/visuals/ChartTooltip';
 import React, { useMemo } from 'react';
 import {
   Bar,
@@ -18,13 +19,13 @@ import { CategoryAxisTick, CategoryChartFrame, categoryPlotWidth, chartTooltipWr
 
 export const ANALYTICS_COLORS = {
   volume: 'var(--cx-data-fetched)',
-  secondary: '#64748B',
+  secondary: 'var(--cx-text-muted)',
   rpc: 'var(--cx-data-rpc)',
   sale: 'var(--cx-data-sales)',
   activation: 'var(--cx-data-activation)',
-  warning: '#F97316',
-  critical: '#EF4444',
-  neutral: '#64748B',
+  warning: 'var(--cx-warning)',
+  critical: 'var(--cx-critical)',
+  neutral: 'var(--cx-text-muted)',
 } as const;
 
 export function EmptyChartState({ message = 'No observations recorded for the active filters.' }: { message?: string }) {
@@ -91,24 +92,10 @@ export function VolumeRateComboChart({
 
   const tooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
-    return (
-      <div className="cx-analytics-tooltip">
-        <strong className="text-text-main font-mono block pb-1 border-b border-border-subtle mb-1.5">{label}</strong>
-        <div className="space-y-1">
-          {payload.map((item: any) => (
-            <div key={item.dataKey} className="flex items-center justify-between gap-3">
-              <span className="flex items-center gap-1.5 text-text-sec">
-                <i className="inline-block w-2 h-2 rounded-xs" style={{ background: item.color }} />
-                <span>{item.name}</span>
-              </span>
-              <b className="font-mono text-text-main tabular-nums">
-                {item.dataKey === volumeKey ? formatTableNumber(item.value) : item.value == null || !Number.isFinite(Number(item.value)) ? '—' : formatPercent(item.value, 2)}
-              </b>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+    return <ChartTooltip title={label} rows={payload.map((item: any) => ({
+      label: item.name, color: item.color,
+      value: item.dataKey === volumeKey ? formatTableNumber(item.value) : item.value == null || !Number.isFinite(Number(item.value)) ? 'Unavailable' : formatPercent(item.value, 2),
+    }))} />;
   };
 
   return (
