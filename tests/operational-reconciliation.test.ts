@@ -64,3 +64,32 @@ test('dry-run does not run a service or warehouse result query; source denial ca
   await assert.rejects(runReconciliation({ ...options, dryRun: false }, deps), /Denied configured source/);
   assert.equal(queries, 1); assert.equal(services, 0);
 });
+
+test('opt-in reconciliation emits scope-specific evidence, job identity and exact monetary strings', async () => {
+  const options = parseReconciliationArgs([...args, '--compare-service'])!;
+  const metrics = { fetched: '2', qualifiedDelivered: '1', qualifiedDialled: '1', rpc: '0', recordedSales: '1', recordedActivations: '1', callCountUnrecorded: '1', completeRevenueTotal: null, knownRevenueSubtotal: '12345678901234567890.123456789' };
+  let comparisons = 0;
+  const result = await runReconciliation(options, {
+    client: { createQueryJob: async (request: any) => {
+      readOnlyQueryOptions(request);
+      assert.equal(request.params.startDate, options.scope.startDate);
+      return [{ id: 'synthetic-read-only-job', getQueryResults: async () => [[metrics]] }];
+    } } as any,
+    service: (async (scope: any, settings: any) => {
+      comparisons++;
+      assert.deepEqual(scope, options.scope);
+      assert.equal(settings.includeDiagnostics, false);
+      return { kpis: { fetchedLeads: 2, deliveredLeads: 1, dialledLeads: 1, contactedLeads: 0, saleLeads: 1, activatedLeads: 1, unrecordedCallLeads: 1 } };
+    }) as any,
+  });
+  assert.equal(comparisons, 1);
+  assert.equal(result.reconciliationStatus, 'RECONCILED_FOR_SCOPE');
+  assert.equal(result.validationStatus, 'NOT_VERIFIED');
+  assert.equal(result.sourceContractStatus, 'BUSINESS_MEANING_NOT_VERIFIED');
+  assert.equal(result.tenant, 'mtn');
+  assert.deepEqual(result.sourceTables, [getClientConfig('mtn').semanticMappings.tables.leads]);
+  assert.equal('warehouseQueryId' in result && result.warehouseQueryId, 'synthetic-read-only-job');
+  assert.equal('metrics' in result && result.metrics.knownRevenueSubtotal, '12345678901234567890.123456789');
+  assert.equal('metrics' in result && result.metrics.completeRevenueTotal, null);
+  assert.equal(result.truncation, false);
+});
