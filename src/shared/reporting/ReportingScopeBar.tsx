@@ -454,7 +454,7 @@ function OperationalScopeBar({
         </div>
       </div>
 
-      {editorOpen && (customPeriod || visibleChips.length > 0) && <div className="cx-scopebar-meta">
+      {(customPeriod || visibleChips.length > 0) && <div className="cx-scopebar-meta">
         {(customPeriod || visibleChips.length > 0) && (
           <div className="cx-scope-chips" aria-label="Active reporting filters">
             {customPeriod && (

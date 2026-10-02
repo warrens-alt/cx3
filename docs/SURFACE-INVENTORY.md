@@ -6,6 +6,31 @@
 
 | Route | Current target |
 | --- | --- |
+| `/command` | OverviewPage |
+| `/journey` | JourneyPage |
+| `/journey/acquisition` | CampaignIntelligence |
+| `/journey/qualification` | Vetting |
+| `/journey/routing` | RoutingIntelligence |
+| `/journey/process` | OffershopProcessObservability |
+| `/journey/vendors` | VendorLeadQuality |
+| `/journey/cohorts` | Cohorts |
+| `/journey/outcomes` | SalesActivationPage |
+| `/journey/consumers` | ConsumerReentry |
+| `/operations` | ContactPage |
+| `/operations/contact` | ContactPage |
+| `/operations/response` | SpeedPage |
+| `/operations/dispositions` | ContactPage |
+| `/operations/cli` | CliPerformance |
+| `/operations/agents` | AgentPerformanceIntelligence |
+| `/operations/time` | TemporalIntelligence |
+| `/evidence` | DataIntegrityIntelligence |
+| `/evidence/sources` | DataIntegrityIntelligence |
+| `/evidence/metrics` | DataIntegrityIntelligence |
+| `/evidence/reconciliation` | DataIntegrityIntelligence |
+| `/evidence/releases` | VersionedReports |
+| `/evidence/warehouse` | WarehouseAnalytics |
+| `/evidence/vendors` | VendorPerformance |
+| `/commercial/reconciliation` | CommercialReconciliation |
 | `/` | OverviewPage |
 | `/overview` | OverviewPage |
 | `/funnel` | JourneyPage |
@@ -66,34 +91,39 @@ Area → page → section. See [frontend design architecture](FRONTEND-DESIGN-AR
 
 | Route | Page | Business area | Navigation visibility |
 | --- | --- | --- | --- |
-| `/overview` | Overview | Overview | Authenticated workspace access |
-| `/funnel` | Progression | Lead journey | Authenticated workspace access |
-| `/campaigns` | Acquisition | Lead journey | Authenticated workspace access |
-| `/vetting` | Qualification | Lead journey | Authenticated workspace access |
-| `/routing` | Routing | Lead journey | Authenticated workspace access |
-| `/offershop-flow` | Process flow | Lead journey | Authenticated workspace access |
-| `/vendor-quality` | Vendor quality | Lead journey | Authenticated workspace access |
-| `/cohorts` | Cohort maturation | Lead journey | Authenticated workspace access |
-| `/contact-strategy` | Contact effort | Contact centre | Authenticated workspace access |
-| `/speed-to-lead` | Response speed | Contact centre | Authenticated workspace access |
-| `/cli-performance` | Caller ID | Contact centre | Authenticated workspace access |
-| `/agent-performance` | Agent activity | Contact centre | Authenticated workspace access |
-| `/temporal` | Time & day | Contact centre | Authenticated workspace access |
-| `/sales-activation` | Sales & activation | Sales & activation | Authenticated workspace access |
+| `/command` | Command | Command | Authenticated workspace access |
+| `/journey` | Lifecycle | Journey | Authenticated workspace access |
+| `/journey/acquisition` | Acquisition | Journey | Authenticated workspace access |
+| `/journey/qualification` | Qualification | Journey | Authenticated workspace access |
+| `/journey/routing` | Routing | Journey | Authenticated workspace access |
+| `/journey/process` | Process flow | Journey | Authenticated workspace access |
+| `/journey/vendors` | Vendor quality | Journey | Authenticated workspace access |
+| `/journey/cohorts` | Cohort maturation | Journey | Authenticated workspace access |
+| `/operations/contact` | Contact effort | Operations | Authenticated workspace access |
+| `/operations/response` | Response speed | Operations | Authenticated workspace access |
+| `/operations/cli` | Caller ID | Operations | Authenticated workspace access |
+| `/operations/agents` | Agent activity | Operations | Authenticated workspace access |
+| `/operations/time` | Time & day | Operations | Authenticated workspace access |
+| `/journey/outcomes` | Sales & activation | Journey | Authenticated workspace access |
 | `/commercial` | Commercial overview | Commercial | Authenticated workspace access |
-| `/reconciliation` | Reconciliation | Commercial | Authenticated workspace access |
-| `/investigate` | Investigation inbox | Investigate | Authenticated workspace access |
+| `/commercial/reconciliation` | Reconciliation | Commercial | Authenticated workspace access |
+| `/investigate` | Investigate | Investigate | Authenticated workspace access |
 | `/lead-explorer` | Lead Evidence | Investigate | Administrator only |
-| `/data-integrity` | Data confidence | Investigate | Authenticated workspace access |
-| `/reports` | Evidence reports | Investigate | Authenticated workspace access |
-| `/vendors` | Vendor evidence | Investigate | Authenticated workspace access |
-| `/admin` | Settings | Settings & Admin | Authenticated workspace access |
-| `/access-control` | Access control | Settings & Admin | Administrator only |
-| `/warehouse` | Cloud warehouse | Settings & Admin | Authenticated workspace access |
-| `/visuals` | Visual workspace | Overview | Authenticated workspace access |
-| `/consumers` | Consumer re-entry | Lead journey | Authenticated workspace access |
-| `/ai-insights` | AI Insights | Overview | Authenticated workspace access |
-| `/validation` | Validation suite | Settings & Admin | Administrator only |
+| `/evidence` | Overview | Evidence | Authenticated workspace access |
+| `/evidence/releases` | Releases & replay | Evidence | Authenticated workspace access |
+| `/evidence/vendors` | Vendor evidence | Evidence | Authenticated workspace access |
+| `/operations` | Overview | Operations | Authenticated workspace access |
+| `/operations/dispositions` | Vendor outcomes | Operations | Authenticated workspace access |
+| `/evidence/sources` | Sources | Evidence | Authenticated workspace access |
+| `/evidence/metrics` | Metrics | Evidence | Authenticated workspace access |
+| `/evidence/reconciliation` | Reconciliation | Evidence | Authenticated workspace access |
+| `/admin` | Settings | Settings | Authenticated workspace access |
+| `/access-control` | Access control | Settings | Administrator only |
+| `/evidence/warehouse` | Warehouse | Evidence | Authenticated workspace access |
+| `/visuals` | Visual workspace | Command | Authenticated workspace access |
+| `/journey/consumers` | Consumer re-entry | Journey | Authenticated workspace access |
+| `/ai-insights` | Ask ConversionX | Investigate | Authenticated workspace access |
+| `/validation` | Validation suite | Settings | Administrator only |
 
 ## API routes
 

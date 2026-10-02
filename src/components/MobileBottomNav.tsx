@@ -31,21 +31,21 @@ export default function MobileBottomNav({ onOpenMenu, menuOpen = false }: Mobile
     >
       <div className="cx-mobile-nav-items">
         <Link
-          to={navigationTarget('/overview', location.pathname, location.search)}
-          aria-current={isOverview ? (currentPath === '/overview' ? 'page' : 'location') : undefined}
+          to={navigationTarget('/command', location.pathname, location.search)}
+          aria-current={isOverview ? (currentPath === '/command' ? 'page' : 'location') : undefined}
           className={itemClass(isOverview)}
-          data-navigation-area={getAreaForPath('/overview').id}
+          data-navigation-area={getAreaForPath('/command').id}
         >
           <LayoutDashboard size={18} aria-hidden="true" />
-          <span>Overview</span>
+          <span>Command</span>
           {isOverview && dot}
         </Link>
 
         <Link
-          to={navigationTarget('/funnel', location.pathname, location.search)}
-          aria-current={isJourney ? (currentPath === '/funnel' ? 'page' : 'location') : undefined}
+          to={navigationTarget('/journey', location.pathname, location.search)}
+          aria-current={isJourney ? (currentPath === '/journey' ? 'page' : 'location') : undefined}
           className={itemClass(isJourney)}
-          data-navigation-area={getAreaForPath('/funnel').id}
+          data-navigation-area={getAreaForPath('/journey').id}
         >
           <GitFork size={18} aria-hidden="true" />
           <span>Journey</span>
@@ -53,13 +53,13 @@ export default function MobileBottomNav({ onOpenMenu, menuOpen = false }: Mobile
         </Link>
 
         <Link
-          to={navigationTarget('/contact-strategy', location.pathname, location.search)}
-          aria-current={isContact ? (currentPath === '/contact-strategy' ? 'page' : 'location') : undefined}
+          to={navigationTarget('/operations', location.pathname, location.search)}
+          aria-current={isContact ? (currentPath === '/operations' ? 'page' : 'location') : undefined}
           className={itemClass(isContact)}
-          data-navigation-area={getAreaForPath('/contact-strategy').id}
+          data-navigation-area={getAreaForPath('/operations').id}
         >
           <PhoneCall size={18} aria-hidden="true" />
-          <span>Contact</span>
+          <span>Operations</span>
           {isContact && dot}
         </Link>
 

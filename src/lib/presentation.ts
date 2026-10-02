@@ -1,4 +1,4 @@
-import { buildPreservedDestination, UNIVERSAL_SCOPE_PARAMS, SETTINGS_SCOPE_PARAMS, RELEASE_SCOPE_PARAMS, INVESTIGATION_PATHS, INVESTIGATION_SCOPE_PARAMS } from '../app/navigation/ScopePreservingRedirect';
+import { buildPreservedDestination, UNIVERSAL_SCOPE_PARAMS, SETTINGS_SCOPE_PARAMS, RELEASE_SCOPE_PARAMS, INVESTIGATION_PATHS, INVESTIGATION_SCOPE_PARAMS, isReleasePath } from '../app/navigation/ScopePreservingRedirect';
 export type TableDensity = 'comfortable' | 'compact';
 export const DENSITY_KEY = 'cx.presentation.density.v1';
 export const SIDEBAR_COLLAPSED_KEY = 'cx.presentation.sidebar-collapsed.v1';
@@ -25,8 +25,8 @@ export function isCurrentPage(pathname: string, path: string, currentSearch?: st
 export function navigationTarget(target: string, currentPath: string, search: string) {
   const targetPath = target.split('?')[0];
   const current = new URLSearchParams(search);
-  const sourceIsRelease = currentPath === '/reports' || currentPath === '/vendors';
-  const targetIsRelease = targetPath === '/reports' || targetPath === '/vendors';
+  const sourceIsRelease = isReleasePath(currentPath);
+  const targetIsRelease = isReleasePath(targetPath);
   const allowed = sourceIsRelease && !targetIsRelease ? SETTINGS_SCOPE_PARAMS
     : sourceIsRelease && targetIsRelease ? RELEASE_SCOPE_PARAMS
     : INVESTIGATION_PATHS.has(currentPath) && INVESTIGATION_PATHS.has(targetPath)

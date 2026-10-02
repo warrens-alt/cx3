@@ -85,6 +85,7 @@
   --cx-area-sales: #15803D;
   --cx-area-commercial: #7C3AED;
   --cx-area-investigate: #C2410C;
+  --cx-area-evidence: #475569;
   --cx-area-admin: #64748B;
   --cx-area-overview-soft: color-mix(in srgb, var(--cx-area-overview) 7%, var(--cx-surface));
   --cx-area-journey-soft: color-mix(in srgb, var(--cx-area-journey) 7%, var(--cx-surface));
@@ -92,6 +93,7 @@
   --cx-area-sales-soft: color-mix(in srgb, var(--cx-area-sales) 7%, var(--cx-surface));
   --cx-area-commercial-soft: color-mix(in srgb, var(--cx-area-commercial) 7%, var(--cx-surface));
   --cx-area-investigate-soft: color-mix(in srgb, var(--cx-area-investigate) 7%, var(--cx-surface));
+  --cx-area-evidence-soft: color-mix(in srgb, var(--cx-area-evidence) 7%, var(--cx-surface));
   --cx-area-admin-soft: var(--cx-surface-subtle);
 
   /* Quantitative Semantics */
@@ -283,6 +285,7 @@
   --cx-area-sales: #86EFAC;
   --cx-area-commercial: #C4B5FD;
   --cx-area-investigate: #FDBA74;
+  --cx-area-evidence: #CBD5E1;
   --cx-area-admin: #CBD5E1;
   --cx-area-overview-soft: color-mix(in srgb, var(--cx-area-overview) 7%, var(--cx-surface));
   --cx-area-journey-soft: color-mix(in srgb, var(--cx-area-journey) 7%, var(--cx-surface));
@@ -290,6 +293,7 @@
   --cx-area-sales-soft: color-mix(in srgb, var(--cx-area-sales) 7%, var(--cx-surface));
   --cx-area-commercial-soft: color-mix(in srgb, var(--cx-area-commercial) 7%, var(--cx-surface));
   --cx-area-investigate-soft: color-mix(in srgb, var(--cx-area-investigate) 7%, var(--cx-surface));
+  --cx-area-evidence-soft: color-mix(in srgb, var(--cx-area-evidence) 7%, var(--cx-surface));
   --cx-area-admin-soft: var(--cx-surface-subtle);
 
   /* Quantitative Semantics (Dark) */

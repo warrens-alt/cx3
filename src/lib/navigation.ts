@@ -19,21 +19,21 @@ export interface NavigationPage {
 }
 
 export const SECTION_NAMES: Record<NavigationSection, string> = {
-  overview: 'Overview',
-  funnel: 'Lead journey',
-  contact: 'Contact centre',
-  performance: 'Lead journey',
-  sales: 'Sales & activation',
+  overview: 'Command',
+  funnel: 'Journey',
+  contact: 'Operations',
+  performance: 'Journey',
+  sales: 'Journey',
   commercial: 'Commercial',
   exceptions: 'Investigate',
-  evidence: 'Investigate',
+  evidence: 'Evidence',
   explore: 'Investigate',
-  settings: 'Settings & Admin',
+  settings: 'Settings',
 };
 
 export function primarySection(section: NavigationSection): NavigationSection {
-  if (section === 'performance') return 'funnel';
-  if (section === 'evidence' || section === 'explore') return 'exceptions';
+  if (section === 'performance' || section === 'sales') return 'funnel';
+  if (section === 'explore') return 'exceptions';
   return section;
 }
 
@@ -70,7 +70,7 @@ export const NAVIGATION_PAGES: NavigationPage[] = ROUTE_MANIFEST.map(item => ({
     name: item.name,
     path: item.path,
     description: LEGACY_PAGE_DESCRIPTIONS[item.path] || item.description,
-    section: ({ overview: 'overview', journey: 'funnel', contact: 'contact', sales: 'sales', commercial: 'commercial', investigate: 'exceptions', settings: 'settings' } as const)[item.area],
+    section: ({ overview: 'overview', journey: 'funnel', contact: 'contact', evidence: 'evidence', commercial: 'commercial', investigate: 'exceptions', settings: 'settings' } as const)[item.area],
     icon: item.icon,
     aliases: item.searchTerms,
     adminOnly: item.adminOnly,

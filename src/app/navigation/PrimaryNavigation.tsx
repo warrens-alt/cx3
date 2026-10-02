@@ -21,7 +21,7 @@ export default function PrimaryNavigation({
   onClose, onSearch, searchShortcut = 'Ctrl K', collapsed = false, areaIds,
 }: PrimaryNavigationProps) {
   const location = useLocation();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, isAdmin } = useAuth();
   const currentArea = getAreaForPath(location.pathname);
   const currentRoute = getRouteItem(location.pathname);
   const areas = BUSINESS_AREAS.filter(area => !areaIds || areaIds.includes(area.id));
@@ -31,7 +31,7 @@ export default function PrimaryNavigation({
 
   return <aside className="cx-sidebar" data-collapsed={collapsed}>
     <div className="cx-brand">
-      <Link to={navigationTarget('/overview', location.pathname, location.search)} onClick={onClose}
+      <Link to={navigationTarget('/command', location.pathname, location.search)} onClick={onClose}
         aria-label={`${BRAND.name} home`} title={`${BRAND.name} home`} className="cx-brand-link">
         <ConversionXBrand variant={collapsed ? 'symbol' : 'wordmark'} tone="light" />
       </Link>
@@ -61,6 +61,15 @@ export default function PrimaryNavigation({
       </ul>)}
     </nav>
 
+    {isAdmin && <nav className="cx-sidebar-admin-tools" aria-label="Administration">
+      {['/access-control', '/validation'].map(path => {
+        const item = getRouteItem(path)!; const Icon = item.icon;
+        return <Link key={path} to={navigationTarget(path, location.pathname, location.search)} onClick={onClose}
+          aria-label={item.name} title={item.name} aria-current={currentRoute?.path === path ? 'page' : undefined}>
+          <Icon size={16} aria-hidden="true" /><span>{item.name}</span>
+        </Link>;
+      })}
+    </nav>}
     <div className="cx-sidebar-footer">
       <div className="cx-account-identity" title={`${user?.displayName || 'Team member'} · ${profile?.role || 'authenticated'}`}>
         <span className="cx-account-avatar" aria-hidden="true">{initials}</span>

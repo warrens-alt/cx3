@@ -80,7 +80,7 @@ export default function AppRouter() {
             <p>
               {isChunkError
                 ? 'A newer version of ConversionX was deployed. Reloading will fetch the latest page.'
-                : error?.message || 'Navigation is still available. Retry the page or return to Overview.'}
+                : error?.message || 'Navigation is still available. Retry the page or return to Command.'}
             </p>
             <div>
               <button
@@ -91,7 +91,7 @@ export default function AppRouter() {
                 {isChunkError ? 'Reload page' : 'Retry page'}
               </button>
               <Link className="cx-button-secondary" to="/">
-                Overview
+                Command
               </Link>
             </div>
           </section>
@@ -112,6 +112,33 @@ export default function AppRouter() {
         <AnalyticsReadinessPanel />
         <SourceCapabilityNotice warningsOnly />
         <Routes>
+          {/* Canonical workspace paths. Existing URLs below remain adapters. */}
+          <Route path="/command" element={<OverviewPage key={selectedClient} />} />
+          <Route path="/journey" element={<JourneyPage key={selectedClient} />} />
+          <Route path="/journey/acquisition" element={<CampaignIntelligence key={selectedClient} />} />
+          <Route path="/journey/qualification" element={<Vetting key={selectedClient} />} />
+          <Route path="/journey/routing" element={<RoutingIntelligence key={selectedClient} />} />
+          <Route path="/journey/process" element={<OffershopProcessObservability key={selectedClient} />} />
+          <Route path="/journey/vendors" element={<VendorLeadQuality key={selectedClient} />} />
+          <Route path="/journey/cohorts" element={<Cohorts key={selectedClient} />} />
+          <Route path="/journey/outcomes" element={<SalesActivationPage key={selectedClient} />} />
+          <Route path="/journey/consumers" element={<ConsumerReentry key={selectedClient} />} />
+          <Route path="/operations" element={<ContactPage key={selectedClient} />} />
+          <Route path="/operations/contact" element={<ContactPage key={selectedClient} />} />
+          <Route path="/operations/response" element={<SpeedPage key={selectedClient} />} />
+          <Route path="/operations/dispositions" element={<ContactPage key={selectedClient} />} />
+          <Route path="/operations/cli" element={<CliPerformance key={selectedClient} />} />
+          <Route path="/operations/agents" element={<AgentPerformanceIntelligence key={selectedClient} />} />
+          <Route path="/operations/time" element={<TemporalIntelligence key={selectedClient} />} />
+          <Route path="/evidence" element={<DataIntegrityIntelligence key={selectedClient} />} />
+          <Route path="/evidence/sources" element={<DataIntegrityIntelligence key={selectedClient} />} />
+          <Route path="/evidence/metrics" element={<DataIntegrityIntelligence key={selectedClient} />} />
+          <Route path="/evidence/reconciliation" element={<DataIntegrityIntelligence key={selectedClient} />} />
+          <Route path="/evidence/releases" element={<VersionedReports key={selectedClient} />} />
+          <Route path="/evidence/warehouse" element={<WarehouseAnalytics key={selectedClient} />} />
+          <Route path="/evidence/vendors" element={<VendorPerformance key={selectedClient} />} />
+          <Route path="/commercial/reconciliation" element={<CommercialReconciliation key={selectedClient} />} />
+
           {/* PRIMARY OFFERNET OPERATIONAL INTELLIGENCE PLATFORM ROUTES */}
           <Route path="/" element={<OverviewPage key={selectedClient} />} />
           <Route path="/overview" element={<OverviewPage key={selectedClient} />} />
@@ -183,7 +210,7 @@ export default function AppRouter() {
                 <h1>Page not found</h1>
                 <p>The requested workspace page does not exist.</p>
                 <Link className="cx-button-primary" to="/">
-                  Open Overview
+                  Open Command
                 </Link>
               </section>
             }

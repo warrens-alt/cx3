@@ -48,7 +48,7 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
   }, [location.pathname, isAdmin]);
 
   const activeArea = getAreaForPath(location.pathname);
-  const currentPath = location.pathname === '/' ? '/overview' : location.pathname;
+  const currentPath = getRouteItem(location.pathname)?.path || location.pathname;
 
   // Filter out admin-only pages if user is not admin
   const primaryTabs = activeArea.primaryTabs.filter(tab => !tab.adminOnly || isAdmin);
@@ -82,7 +82,7 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
 
   const normalize = (p: string) => {
     const clean = p.split('?')[0].replace(/\/+$/, '') || '/';
-    return clean === '/' ? '/overview' : clean;
+    return getRouteItem(clean)?.path || clean;
   };
 
   const isCurrent = (path: string) => {
@@ -95,7 +95,7 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
     return false;
   };
 
-  const moreLabel = activeArea.id === 'investigate' ? 'Evidence & Audit' : 'More analyses';
+  const moreLabel = activeArea.id === 'evidence' ? 'Evidence tools' : 'More analyses';
   const isMoreViewActive = moreViews.some(v => isCurrent(v.path));
 
   return (

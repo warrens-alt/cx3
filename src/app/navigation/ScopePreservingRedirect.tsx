@@ -32,7 +32,7 @@ export const INVESTIGATION_SCOPE_PARAMS = new Set([
 ]);
 
 export const INVESTIGATION_PATHS = new Set([
-  '/investigate', '/exceptions', '/lead-explorer', '/data-integrity', '/ai-insights', '/lead-ledger',
+  '/investigate', '/exceptions', '/lead-explorer', '/data-integrity', '/evidence', '/evidence/sources', '/evidence/metrics', '/evidence/reconciliation', '/ai-insights', '/lead-ledger',
 ]);
 
 // Explore / Lead drill down parameters (compatible report-local state)
@@ -55,6 +55,10 @@ export const DISPOSITION_REPORT_PARAMS = new Set([
 ]);
 
 // Fixed release scope parameters for /reports and /vendors
+export function isReleasePath(path: string): boolean {
+  return ['/reports', '/vendors', '/evidence/releases', '/evidence/vendors'].includes(path);
+}
+
 export const RELEASE_SCOPE_PARAMS = new Set([
   'clientId',
   'workspace',
@@ -77,7 +81,7 @@ export const SETTINGS_SCOPE_PARAMS = new Set([
  */
 export function getAllowedParamsForTarget(targetPath: string, targetQuery?: string): Set<string> {
   // 1. Fixed evidence release reports
-  if (targetPath === '/reports' || targetPath === '/vendors') {
+  if (isReleasePath(targetPath)) {
     return RELEASE_SCOPE_PARAMS;
   }
 
@@ -97,10 +101,10 @@ export function getAllowedParamsForTarget(targetPath: string, targetQuery?: stri
   }
 
   // 4. Contact strategy with vendor dispositions tab
-  if (targetPath === '/contact-strategy') {
-    const isVendorDispositions = targetQuery
+  if (targetPath === '/contact-strategy' || targetPath === '/operations/contact' || targetPath === '/operations/dispositions') {
+    const isVendorDispositions = targetPath === '/operations/dispositions' || (targetQuery
       ? new URLSearchParams(targetQuery).get('tab') === 'vendor_dispositions'
-      : false;
+      : false);
     if (isVendorDispositions) {
       return new Set([...UNIVERSAL_SCOPE_PARAMS, ...DISPOSITION_REPORT_PARAMS, 'tab']);
     }

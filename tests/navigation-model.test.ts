@@ -4,12 +4,12 @@ import fs, { readFileSync } from 'node:fs';
 import { NAV_GROUPS, NAVIGATION_PAGES, navigationPage, primarySection, relatedPages, searchNavigation } from '../src/lib/navigation';
 
 test('plain-language questions and legacy acronyms find the intended page', () => {
-  for (const [query, path] of [['first call', '/speed-to-lead'], ['caller id', '/cli-performance'], ['CLI', '/cli-performance'], ['agent performance', '/agent-performance'], ['appearance', '/admin'], ['media spend', '/campaigns'], ['why is conversion down', '/overview'], ['stuck sales', '/sales-activation']]) {
+  for (const [query, path] of [['first call', '/operations/response'], ['caller id', '/operations/cli'], ['CLI', '/operations/cli'], ['agent performance', '/operations/agents'], ['appearance', '/admin'], ['media spend', '/journey/acquisition'], ['why is conversion down', '/command'], ['stuck sales', '/journey/outcomes']]) {
     assert.ok(searchNavigation(query, false).some(page => page.path === path), query);
   }
   assert.deepEqual(searchNavigation('page that does not exist', true), []);
-  assert.equal(searchNavigation('sales activation', false)[0].path, '/sales-activation');
-  assert.equal(searchNavigation('caller ID performance', false)[0].path, '/cli-performance');
+  assert.equal(searchNavigation('sales activation', false)[0].path, '/journey/outcomes');
+  assert.equal(searchNavigation('caller ID performance', false)[0].path, '/operations/cli');
 });
 test('administrative and record-level links retain role-based visibility', () => {
   assert.ok(searchNavigation('users', true).some(page => page.path === '/access-control'));
@@ -33,18 +33,18 @@ test('Lead Evidence is one destination for both current and legacy record search
   assert.equal(NAVIGATION_PAGES.find(page => page.path === '/lead-explorer')?.description, 'Inspect analytical lead populations, journeys, outcomes, audit evidence and original source records.');
 });
 test('six business destinations replace competing primary dashboards without retiring routes', () => {
-  assert.deepEqual(NAV_GROUPS[0].items.map(item => item.name), ['Overview', 'Lead journey', 'Contact centre', 'Sales & activation', 'Commercial', 'Investigate']);
-  assert.equal(navigationPage('/')?.path, '/overview');
+  assert.deepEqual(NAV_GROUPS[0].items.map(item => item.name), ['Command', 'Journey', 'Operations', 'Investigate', 'Commercial', 'Evidence']);
+  assert.equal(navigationPage('/')?.path, '/command');
   assert.equal(navigationPage('/users')?.path, '/access-control');
   assert.equal(navigationPage('/settings')?.path, '/admin');
-  assert.equal(navigationPage('/cohorts')?.section, 'funnel');
-  assert.equal(navigationPage('/agent-performance')?.section, 'contact');
-  assert.equal(navigationPage('/campaigns')?.section, 'funnel');
-  assert.equal(navigationPage('/sales-activation')?.section, 'sales');
+  assert.equal(navigationPage('/journey/cohorts')?.section, 'funnel');
+  assert.equal(navigationPage('/operations/agents')?.section, 'contact');
+  assert.equal(navigationPage('/journey/acquisition')?.section, 'funnel');
+  assert.equal(navigationPage('/journey/outcomes')?.section, 'funnel');
   assert.equal(navigationPage('/commercial')?.section, 'commercial');
   assert.equal(primarySection('performance'), 'funnel');
-  assert.equal(primarySection('evidence'), 'exceptions');
-  assert.ok(relatedPages('funnel', false).some(page => page.path === '/vendor-quality'));
+  assert.equal(primarySection('evidence'), 'evidence');
+  assert.ok(relatedPages('funnel', false).some(page => page.path === '/journey/vendors'));
   assert.ok(!relatedPages('contact', false).some(page => page.path === '/commercial'));
   const routerFile = fs.existsSync(new URL('../src/app/AppRouter.tsx', import.meta.url))
     ? '../src/app/AppRouter.tsx'
@@ -67,8 +67,8 @@ test('every supported route is searchable under one canonical area and contextua
     const owners = BUSINESS_AREAS.filter(area => [...area.primaryTabs, ...area.moreViews].some(page => page.path === route.path));
     assert.deepEqual(owners.map(area => area.id), route.isPrimaryTab || route.isMoreView ? [route.area] : []);
   }
-  assert.equal(navigationPage('/warehouse')?.section, 'settings');
-  assert.equal(navigationPage('/ai-insights')?.section, 'overview');
+  assert.equal(navigationPage('/evidence/warehouse')?.section, 'evidence');
+  assert.equal(navigationPage('/ai-insights')?.section, 'exceptions');
   assert.ok(!searchNavigation('Validation suite', false).some(page => page.path === '/validation'));
   assert.ok(searchNavigation('Validation suite', true).some(page => page.path === '/validation'));
 });

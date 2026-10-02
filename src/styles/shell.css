@@ -241,3 +241,12 @@
 @media print { .cx-topbar, .cx-desktop-sidebar, .cx-area-nav, .cx-mobile-bottom-nav { display: none; } .cx-app, .cx-main { height: auto; overflow: visible; } }
 
 @media(min-width:761px) { .cx-main { scroll-padding-top:calc(var(--cx-sticky-scope-height,44px) + 12px); } }
+
+/* Evidence is a workspace identity, separate from metric and validation colours. */
+[data-navigation-area="evidence"] { --cx-nav-accent: var(--cx-area-evidence); --cx-nav-soft: var(--cx-area-evidence-soft); }
+.cx-sidebar-admin-tools { padding: 8px 16px; border-top: 1px solid var(--cx-shell-border); display: grid; gap: 4px; }
+.cx-sidebar-admin-tools a { display: flex; align-items: center; gap: 10px; color: var(--cx-shell-muted); min-height: 36px; font-size: 12px; border-radius: 4px; padding: 6px 8px; }
+.cx-sidebar-admin-tools a:hover, .cx-sidebar-admin-tools a[aria-current] { color: var(--cx-shell-strong); background: var(--cx-shell-hover); }
+.cx-sidebar[data-collapsed="true"] .cx-sidebar-admin-tools { padding: 8px; }
+.cx-sidebar[data-collapsed="true"] .cx-sidebar-admin-tools a { justify-content: center; }
+.cx-sidebar[data-collapsed="true"] .cx-sidebar-admin-tools span { display: none; }

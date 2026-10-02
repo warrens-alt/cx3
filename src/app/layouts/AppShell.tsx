@@ -169,7 +169,7 @@ export default function AppShell({ children }: AppShellProps) {
       >
         <PrimaryNavigation
           onClose={() => setMobile(null)}
-          areaIds={mobile === 'more' ? ['sales', 'commercial', 'settings'] : undefined}
+          areaIds={mobile === 'more' ? ['commercial', 'evidence', 'settings'] : undefined}
           onSearch={openSearch}
           searchShortcut={searchShortcut}
         />
@@ -226,14 +226,14 @@ export default function AppShell({ children }: AppShellProps) {
             <button
               type="button"
               className="cx-search-trigger"
-              aria-label="Search pages"
+              aria-label="Search workspaces"
               aria-haspopup="dialog"
               aria-keyshortcuts="Control+K Meta+K"
-              title={`Find a page (${searchShortcut})`}
+              title={`Search workspaces (${searchShortcut})`}
               onClick={openSearch}
             >
               <Search size={16} aria-hidden="true" />
-              <span>Find a page</span>
+              <span>Search workspaces</span>
               <kbd aria-hidden="true">{searchShortcut}</kbd>
             </button>
 
