@@ -680,7 +680,7 @@ const complexAuditFilters = {vendor:{operator:'in',values:['Synthetic vendor','O
 const auditContent = {type:'metric',metricId:'sales_per_fetched_rate',title:'Supplied rate',value:'35.7%',numeratorCount:570,denominatorCount:1597,scope:{clientId:'synthetic-a',clientLabel:'Synthetic workspace',startDate:'2026-09-22',endDate:'2026-09-28',filters:complexAuditFilters}};
 
 test('universal audit renders exact components, all scope, progressive sections and reproducible copied link without requests',async()=>{
-  const app=await mount('/__fixture/audit'+scope+'&workspace=alpha&workspace=beta&search=stale',{auditContent});try{
+  const app=await mount('/__fixture/audit'+scope+'&workspace=alpha&workspace=beta',{auditContent});try{
     await app.wait(()=>app.find('.cx-audit-drawer'));
     const drawer=app.find('.cx-audit-drawer');
     assert.deepEqual(Array.from(drawer.querySelectorAll('.cx-audit-disclosure > summary'),(e:any)=>e.textContent),['How this is calculated','Reporting scope & filters','Data provenance','Metric definition & technical details']);
@@ -739,7 +739,7 @@ test('Audit mode is local, safe for viewers, and adds no analytical requests acr
     assert.equal(app.find('a[href*="lead-ledger"]'),undefined);
     assert.doesNotMatch(Array.from(app.w.document.querySelectorAll('.cx-audit-metadata'),(e:any)=>e.textContent).join(' '),/SELECT |FROM |queryJob|@|SYNTHETIC-LEAD/);
     await app.click('button','Display preferences');
-    await app.click('.cx-outcome-card button','Inspect evidence');
+    await app.click('.cx-outcome-card .cx-audit-evidence-control','Audit evidence');
     await app.wait(()=>app.find('.cx-audit-drawer'));
     assert.equal(app.find('a','Inspect supporting records'),undefined);
     await app.click('summary','Metric definition & technical details');
@@ -755,10 +755,10 @@ test('Contact audits supplied bucket ratios and exact high-attempt predicate wit
   const app=await mount('/contact-strategy'+scope,{payloads:{'/api/analytics/offernet/contact-strategy':data}});try{
     await app.wait(()=>app.find('summary','View exact call-effort evidence'));
     await app.click('summary','View exact call-effort evidence');
-    await app.wait(()=>app.find('button','Inspect evidence: One-call share'));
+    await app.wait(()=>app.find('button','Audit evidence: One-call share'));
     const before=app.w.__fixture.requests.length;
     assert.equal(app.find('button','Why changed?'),undefined);
-    await app.click('button','Inspect evidence: One-call share');
+    await app.click('button','Audit evidence: One-call share');
     assert.equal(app.find('.cx-audit-result strong').textContent,'125.0%');
     assert.deepEqual(Array.from(app.w.document.querySelectorAll('.cx-audit-calculation dd'),(e:any)=>e.textContent),['50','40']);
     assert.doesNotMatch(app.find('.cx-audit-drawer').textContent,/one_call_dialled_share/);
@@ -780,8 +780,8 @@ test('reduction: Audit Mode off hides metadata, whole-card evidence opens, and a
     await app.wait(()=>app.find('.cx-outcome-strip'));
     const before=[...app.w.__fixture.requests];
     assert.equal(app.w.document.querySelectorAll('.cx-audit-metadata').length,0);
-    assert.equal(app.w.document.querySelectorAll('.cx-outcome-card button').length,4);
-    assert.equal(app.find('.cx-outcome-card .cx-outcome-actions'),undefined);
+    assert.equal(app.w.document.querySelectorAll('.cx-outcome-card .cx-metric-primary').length,4);
+    assert.equal(app.w.document.querySelectorAll('.cx-outcome-card .cx-audit-evidence-control').length,4);
     const trigger=await app.click('.cx-outcome-card .cx-metric-primary');
     assert.ok(app.find('.cx-audit-support a','Inspect supporting records'));
     assert.equal(app.w.document.querySelectorAll('.cx-audit-disclosure[open]').length,0);
@@ -820,7 +820,7 @@ test('reduction: scope summary reveals exact existing editor without requests or
 
 for(const [route,labels,first] of [
   ['/commercial',['Summary','Attribution','Economics','Evidence'],'Summary'],
-  ['/data-integrity',['Overview','Issues','Sources','Diagnostics'],'Overview'],
+  ['/data-integrity',['Overview','Integrity','Source evidence','Metric evidence','Reconciliation','Definitions','Diagnostics'],'Overview'],
 ] as const)test(`reduction: ${route} presentation sections retain scope and cause zero new requests`,async()=>{
   const app=await mount(route+scope,{payloads:reductionPayloads});try{
     await app.wait(()=>app.find('[role="tabpanel"] .cx-unified-metric'));
@@ -857,7 +857,7 @@ test('reduction: integrity overview separates gap checks and limitations, preser
     assert.match(app.find('.cx-integrity-attention').textContent,/Missing source contract/);
     assert.ok(app.find('[role="tabpanel"]:not([hidden]) .cx-evidence-matrix'));
     assert.equal(app.find('[role="tabpanel"]:not([hidden]) .cx-source-evidence-table'),undefined);
-    const before=[...app.w.__fixture.requests];await app.click('[role="tab"]','Issues');
+    const before=[...app.w.__fixture.requests];await app.click('[role="tab"]','Integrity');
     assert.equal(app.w.document.querySelectorAll('#measured-discrepancies tbody tr').length,10);
     await app.click('button','View all measured discrepancies');assert.equal(app.w.document.querySelectorAll('#measured-discrepancies tbody tr').length,13);
     await app.click('#evidence-limitations button','Inspect evidence for Synthetic check 14');
@@ -1020,3 +1020,51 @@ for (const route of ['/consumers', '/vetting']) {
     } finally { app.close(); }
   });
 }
+
+test('visual audit supporting preview is an explicit admin action and does not reload on reopening the metric',async()=>{
+  const app=await mount('/overview'+scope+'&vendor=Synthetic+vendor');try{
+    await app.wait(()=>app.find('.cx-outcome-card .cx-audit-evidence-control'));
+    const baseline=[...app.w.__fixture.requests];
+    await app.click('.cx-outcome-card .cx-audit-evidence-control');
+    assert.deepEqual([...app.w.__fixture.requests],baseline);
+    assert.equal(app.find('.cx-audit-record-preview'),undefined);
+    await app.click('button','Load supporting preview');
+    await app.wait(()=>app.find('[aria-label="Supporting record preview"]'));
+    const raw=app.w.__fixture.requests.filter((url:string)=>url.includes('/raw-leads'));
+    assert.equal(raw.length,1);
+    const query=new URL(raw[0],'https://synthetic.invalid').searchParams;
+    assert.equal(query.get('clientId'),'synthetic-a');
+    assert.equal(query.get('startDate'),'2026-09-28');
+    assert.equal(query.get('endDate'),'2026-09-28');
+    assert.deepEqual(JSON.parse(query.get('filters')!).vendor,{operator:'in',values:['Synthetic vendor']});
+    assert.equal(query.get('drill'),'funnel-stage');assert.equal(query.get('drillValue'),'fetched');
+    assert.equal(query.get('limit'),'10');
+    assert.equal(app.w.document.querySelectorAll('.cx-audit-record-preview tbody tr').length<=5,true);
+    assert.doesNotMatch(app.find('.cx-audit-record-preview').textContent,/SYNTHETIC-LEAD-/);
+    const loaded=[...app.w.__fixture.requests];
+    await app.click('button','Close inspector');
+    await app.click('.cx-outcome-card .cx-audit-evidence-control');
+    assert.equal(app.find('.cx-audit-record-preview'),undefined);
+    assert.ok(app.find('button','Load supporting preview'));
+    assert.deepEqual([...app.w.__fixture.requests],loaded);
+  }finally{app.close();}
+  const viewer=await mount('/overview'+scope,{nonAdmin:true});try{
+    await viewer.wait(()=>viewer.find('.cx-outcome-card .cx-audit-evidence-control'));
+    const baseline=[...viewer.w.__fixture.requests];
+    await viewer.click('.cx-outcome-card .cx-audit-evidence-control');
+    assert.equal(viewer.find('button','Load supporting preview'),undefined);
+    assert.equal(viewer.find('a','Inspect supporting records'),undefined);
+    assert.deepEqual([...viewer.w.__fixture.requests],baseline);
+  }finally{viewer.close();}
+});
+test('visual audit private narrowed scope preserves record search locally without a shareable link',async()=>{
+  const app=await mount('/__fixture/audit'+scope,{auditContent:{...auditContent,scope:{...auditContent.scope,narrowing:{drill:'awaiting-first-dial',segmentSource:'synthetic-source',search:'PRIVATE-RECORD-SEARCH'}},recordDrill:{drill:'awaiting-first-dial'}}});try{
+    await app.wait(()=>app.find('.cx-audit-drawer'));
+    const href=new URL(app.find('a','Inspect supporting records').href);
+    assert.equal(href.searchParams.get('search'),'PRIVATE-RECORD-SEARCH');
+    assert.equal(href.searchParams.get('segmentSource'),'synthetic-source');
+    assert.equal(app.find('button','Copy scoped link'),undefined);
+    assert.doesNotMatch(app.find('.cx-audit-drawer').textContent,/https:\/\/.*PRIVATE-RECORD-SEARCH/);
+    assert.match(app.find('.cx-audit-drawer').textContent,/cannot be copied as a shareable link/);
+  }finally{app.close();}
+});

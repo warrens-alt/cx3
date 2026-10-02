@@ -686,8 +686,8 @@ test('R2: SegmentComparison defines typed segment model, sorts by volume with st
 
 test('R2: InspectorHost preserves reporting scope on evidence drill navigation', () => {
   const inspector = read('src/shared/evidence/InspectorHost.tsx');
-  assert.match(inspector, /useScopedNavigationTarget/);
-  assert.match(inspector, /to=\{scoped\(drillPath\)\}/);
+  assert.match(inspector, /auditDestination\(path, location.search, content.scope\)/);
+  assert.match(inspector, /to=\{recordPath\}/);
 });
 
 test('R2 closeout: OverviewPage binds lifecycle-segment drill and attaches explicit reporting scope to inspector activations', () => {

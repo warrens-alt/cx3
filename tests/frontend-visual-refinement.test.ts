@@ -34,6 +34,8 @@ test('outcome presentation offers audit-first buttons to administrators and view
   for (const isAdmin of [true, false]) {
     const html = render(React.createElement(OutcomeStrip, { data, isAdmin, onInspect: () => {} }));
     assert.doesNotMatch(html, /href="\/lead-explorer\?/);
+    assert.equal((html.match(/cx-audit-evidence-control/g) || []).length, 4);
+    assert.equal((html.match(/aria-label="Audit evidence:/g) || []).length, 7);
     assert.equal((html.match(/aria-label="Inspect evidence:/g) || []).length, 4);
     assert.equal((html.match(/>Inspect evidence</g) || []).length, 0);
     assert.equal((html.match(/cx-metric-primary/g) || []).length, 4);

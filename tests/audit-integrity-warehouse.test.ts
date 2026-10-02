@@ -172,7 +172,7 @@ test('speed timing audit uses the selected returned event pair and opens without
     assert.equal(app.find('[role="dialog"] a[href*="lead-explorer"]'), undefined);
     assert.equal(app.w.__fixture.requests.length, count);
     await app.click('button', 'Close inspector');
-    await app.click('button', 'Inspect evidence: P90 First Dial');
+    await app.click('button', 'Audit evidence: P90 First Dial');
     assert.equal(app.find('.cx-audit-result>strong').textContent, '8.4h');
     assert.match(app.find('[role="dialog"]').textContent, /Delivery → First Dial/);
     assert.equal(app.w.__fixture.requests.length, count);
