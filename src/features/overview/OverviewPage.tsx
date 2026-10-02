@@ -59,12 +59,23 @@ export default function OverviewPage() {
       ['Outcomes', 'Dialled leads', data.kpis.dialledLeads, `${formatPercent(data.kpis.dialRate)} dial rate`],
       ['Outcomes', 'Right-party contact (RPC)', data.kpis.contactedLeads, `${formatPercent(data.kpis.contactRate)} contact rate`],
       ['Outcomes', 'Recorded sales', data.kpis.saleLeads, `${formatPercent(data.kpis.leadToSaleRate)} lead-to-sale rate`],
-      ['Outcomes', 'Activations', data.kpis.activatedLeads, `${formatPercent(data.kpis.activationRate)} of recorded sales`],
+      ['Outcomes', 'Recorded activations', data.kpis.activatedLeads, `${formatPercent(data.kpis.activationRate)} of recorded sales`],
       ...(data.funnelStages || []).map(stage => [
         'Lifecycle Journey',
         stage.name,
         stage.volume,
         stage.transitionRate != null ? `${formatPercent(stage.transitionRate)} from prior` : 'Intake population',
+      ]),
+      ['Contact controls', 'Zero calls', controls.data?.summary.zeroCallLeads ?? null, 'Explicit recorded cumulative zero; unavailable when controls are not loaded'],
+      ['Contact controls', 'Call count unrecorded', controls.data?.summary.unrecordedCallLeads ?? null, 'No valid non-negative cumulative call counter'],
+      ['Contact controls', 'Qualified dialled leads', controls.data?.summary.dialledLeads ?? null, 'Denominator for one-call and multi-call shares'],
+      ['Contact controls', 'Dialled leads with call count unrecorded', controls.data?.summary.dialledUnrecordedCallLeads ?? null, formatPercent(controls.data?.summary.dialledUnrecordedCallSharePct)],
+      ['Contact controls', 'One-call share', controls.data?.summary.singleAttemptSharePct ?? null, 'Exactly one recorded call / qualified dialled leads (%)'],
+      ['Contact controls', 'Multi-call share', controls.data?.summary.multiAttemptSharePct ?? null, 'Two or more recorded calls / qualified dialled leads (%)'],
+      ...(controls.data?.vendorControls || []).flatMap(vendor => [
+        ['Vendor contact controls', `${vendor.vendor}: Zero calls`, vendor.zeroCallLeads, 'Explicit recorded cumulative zero'],
+        ['Vendor contact controls', `${vendor.vendor}: Call count unrecorded`, vendor.unrecordedCallLeads, 'No valid non-negative cumulative call counter'],
+        ['Vendor contact controls', `${vendor.vendor}: Dialled call count unrecorded`, vendor.dialledUnrecordedCallLeads, formatPercent(vendor.dialledUnrecordedCallSharePct)],
       ]),
       ...(data.attention || []).map(att => [
         'Attention Queue',
@@ -81,6 +92,11 @@ export default function OverviewPage() {
       filters: filters,
       validationStatus: data.validationStatus || 'NOT_VERIFIED',
       dateBasis: 'lead_capture_cohort',
+      definitionVersion: data.definitionVersion,
+      countingGrain: 'distinct scoped lead',
+      timezone: data.timezone,
+      generatedAt: data.generatedAt,
+      truncated: false,
       definitions: ['fetched_leads', 'delivery_rate', 'dial_rate', 'rpc_rate', 'sales_per_fetched_rate', 'activation_rate'],
     });
   };

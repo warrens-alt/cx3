@@ -50,6 +50,6 @@ export function leadSourceRelation(client: TenantConfiguration): string {
       CAST(NULL AS STRING) AS status,
       ${transactionStrings.map(field => `src.${field} AS ${field}`).join(',\n      ')},
       ${transactionNumbers.map(field => `src.${field} AS ${field}`).join(',\n      ')},
-      SAFE_CAST(src.revenue_generated AS FLOAT64) AS revenue_generated)] AS hlc_details
+      SAFE_CAST(src.revenue_generated AS NUMERIC) AS revenue_generated)] AS hlc_details
     FROM ${tableIdentifier(physical)} src)`;
 }

@@ -86,8 +86,8 @@ void TIME_TO_DIAL_SOURCE_FIELDS;
 const DEFAULT_OPERATIONAL_CONFIG: ClientOperationalConfig = {
   operatingHours: { start: '08:00', end: '17:30', workdays: [1, 2, 3, 4, 5] },
   grading: ['Gold', 'Silver', 'Bronze', 'Standard'],
-  salesDefinition: 'Contract Verified & QA Passed',
-  activationDefinition: 'First Monthly Debit / SIM Active',
+  salesDefinition: 'Recorded sale: a valid source sale timestamp exists; billing, collection, underwriting and commercial completion are not inferred',
+  activationDefinition: 'Recorded activation: a valid source activation timestamp exists; billing, collection and active recurring status are not inferred',
   currency: 'ZAR',
   dispositionMapping: {
     SALE: 'Sale',
@@ -235,7 +235,7 @@ const TENANTS: Record<string, TenantConfiguration> = {
     capabilities: { marketing: true, leads: true, calls: true, sales: true, activation: true, revenue: true },
     semanticMappings: { tables: tenantTables(CONTRACT_LEAD_VIEWS.mondo), fields: {}, partners: ['mondo'] },
     marketing: marketingContract('MAPPED', ['Mondo', 'Mondo Deals']),
-    operationalConfig: { ...DEFAULT_OPERATIONAL_CONFIG, salesDefinition: 'Cellular Postpaid / Sim-Only Handset Sale' },
+    operationalConfig: { ...DEFAULT_OPERATIONAL_CONFIG },
   },
   mtn: {
     id: 'mtn',
@@ -249,7 +249,7 @@ const TENANTS: Record<string, TenantConfiguration> = {
     capabilities: { marketing: true, leads: true, calls: true, sales: true, activation: true, revenue: true },
     semanticMappings: { tables: tenantTables(CONTRACT_LEAD_VIEWS.mtn), fields: {}, partners: ['mtn'] },
     marketing: marketingContract('MAPPED', ['MTN', 'MTN SA']),
-    operationalConfig: { ...DEFAULT_OPERATIONAL_CONFIG, salesDefinition: 'MTN Subscriber Upgrade / New Line Contract' },
+    operationalConfig: { ...DEFAULT_OPERATIONAL_CONFIG },
   },
   ontact_blc: {
     id: 'ontact_blc',
@@ -266,7 +266,6 @@ const TENANTS: Record<string, TenantConfiguration> = {
     operationalConfig: {
       ...DEFAULT_OPERATIONAL_CONFIG,
       operatingHours: { start: '08:00', end: '17:00', workdays: [1, 2, 3, 4, 5] },
-      salesDefinition: 'BLC Financial Service Policy Issued',
     },
   },
   vodacom_bizvoip: {
@@ -284,7 +283,6 @@ const TENANTS: Record<string, TenantConfiguration> = {
     operationalConfig: {
       ...DEFAULT_OPERATIONAL_CONFIG,
       operatingHours: { start: '08:30', end: '17:00', workdays: [1, 2, 3, 4, 5] },
-      salesDefinition: 'Vodacom Fibre & Fixed LTE Agreement',
     },
   },
   real_promotions: {

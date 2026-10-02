@@ -10,6 +10,7 @@ import {
   type SourceInventoryData, type SourceMappingsData, type SourceReadinessData,
   type SourceReadinessCheckResult, type OntactSummaryData, type OnvestTouchpointsData
 } from '../lib/dataIntakeClient';
+import { formatTableNumber } from '../lib/formatters';
 import type { RawSourceProfileResult } from '../../server/bigquery/warehouseRegistry';
 
 interface DataIntakePanelProps {
@@ -43,6 +44,13 @@ export const DataIntakePanel: React.FC<DataIntakePanelProps> = ({ clientId, isAd
 
   useEffect(() => {
     let mounted = true;
+    setInventory(null);
+    setMappings(null);
+    setReadiness(null);
+    setOntact(null);
+    setOnvest(null);
+    setProfileResult(null);
+    setProbeResults({});
     Promise.all([
       fetchSourceInventory(clientId).catch(() => null),
       fetchSourceMappings(clientId).catch(() => null),
@@ -201,7 +209,7 @@ export const DataIntakePanel: React.FC<DataIntakePanelProps> = ({ clientId, isAd
             onClick={() => handleTabChange('inventory')}
             className={`px-3 py-1 font-medium rounded transition-colors ${activeTab === 'inventory' ? 'bg-white text-blue-700 shadow-2xs font-semibold' : 'text-slate-600 hover:text-slate-900'}`}
           >
-            Inventory ({inventory?.totalObjects || 65})
+            Inventory ({formatTableNumber(inventory?.totalObjects)})
           </button>
           <button
             type="button"
@@ -729,11 +737,11 @@ export const DataIntakePanel: React.FC<DataIntakePanelProps> = ({ clientId, isAd
             </div>
             <div className="p-3 bg-slate-50 rounded border border-slate-200">
               <span className="text-slate-500 text-[11px] block">Physical Tables</span>
-              <strong className="text-sm font-bold text-slate-900">{inventory.tableTypeCounts.TABLE || 18}</strong>
+              <strong className="text-sm font-bold text-slate-900">{formatTableNumber(inventory.tableTypeCounts.TABLE)}</strong>
             </div>
             <div className="p-3 bg-slate-50 rounded border border-slate-200">
               <span className="text-slate-500 text-[11px] block">Views / Pipelines</span>
-              <strong className="text-sm font-bold text-slate-900">{inventory.tableTypeCounts.VIEW || 47}</strong>
+              <strong className="text-sm font-bold text-slate-900">{formatTableNumber(inventory.tableTypeCounts.VIEW)}</strong>
             </div>
             <div className="p-3 bg-slate-50 rounded border border-slate-200">
               <span className="text-slate-500 text-[11px] block">Raw JSON Sources</span>

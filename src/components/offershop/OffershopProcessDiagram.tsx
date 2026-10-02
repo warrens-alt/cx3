@@ -458,7 +458,7 @@ export function OffershopProcessDiagram({ stages, selectedStage, onSelectStage }
               </div>
               <h4 className="text-sm font-bold text-slate-900 mb-1">Commercial Sales & Activations</h4>
               <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
-                Reported partner sales, first-month debit order / SIM active verified activations, and commercial recognition.
+                Recorded partner sales and activation timestamps. Billing, collection, SIM status and commercial completion are not inferred.
               </p>
               <div className="mt-3 pt-2.5 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs font-mono">
                 <div>

@@ -499,7 +499,13 @@ export function scopedAnalysisRows(rows: AnalysisCell[][], scope: AnalysisExport
     scope.validationStatus || 'NOT_VERIFIED',
     scope.dateBasis || 'lead_capture_cohort',
     Array.isArray(scope.definitions) ? scope.definitions.join('; ') : scope.definitions || null,
-    scope.truncated ?? false,
+    scope.definitionVersion || null,
+    scope.countingGrain || null,
+    scope.timezone || null,
+    scope.generatedAt || null,
+    scope.sourceCutoff || null,
+    new Date().toISOString(),
+    scope.truncated ?? null,
   ];
   return [
     [
@@ -511,6 +517,12 @@ export function scopedAnalysisRows(rows: AnalysisCell[][], scope: AnalysisExport
       'Validation status',
       'Date basis',
       'Metric definitions',
+      'Definition version',
+      'Counting grain',
+      'Reporting timezone',
+      'Server generated at',
+      'Source cutoff',
+      'Export generated at',
       'Detail truncated',
     ],
     ...rows.slice(1).map(row => [...row, ...audit]),

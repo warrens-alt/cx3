@@ -112,7 +112,7 @@ export function useSalesActivationModel() {
         setInspectorContent({
           type: 'metric',
           title: 'Recorded activations',
-          subtitle: 'Independent count of confirmed activation events in the selected cohort.',
+          subtitle: 'Independent count of recorded activation timestamps in the selected cohort.',
           value: model.summary.totalActivations.toLocaleString(),
           unit: 'activations',
           reportPath: '/sales-activation',
@@ -136,7 +136,7 @@ export function useSalesActivationModel() {
         setInspectorContent({
           type: 'metric',
           title: 'Sales without recorded activation',
-          subtitle: 'Observed sale records that have no confirmed activation timestamp.',
+          subtitle: 'Observed sale records that have no recorded activation timestamp.',
           value: model.summary.salesWithoutActivation !== null ? model.summary.salesWithoutActivation.toLocaleString() : '—',
           unit: 'unactivated sales',
           reportPath: '/sales-activation',
