@@ -61,7 +61,7 @@
 }
 
 .cx-overview-skeleton.cx-command-loading { display:block; justify-items:stretch; padding:0; background:transparent; border:0; }
-.cx-overview-page .cx-outcome-strip { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0; background:var(--cx-surface); border:1px solid var(--cx-border-subtle); border-radius:10px; overflow:visible; }
+.cx-overview-page .cx-outcome-strip { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0; background:transparent; border-block:1px solid var(--cx-border-subtle); border-inline:0; border-radius:0; overflow:visible; }
 .cx-overview-page .cx-outcome-card { --outcome-color:var(--cx-data-fetched); padding:18px 20px; border:0; border-radius:0; background:transparent; box-shadow:none; }
 .cx-overview-page .cx-outcome-card + .cx-outcome-card { border-left:1px solid var(--cx-border-subtle); }
 .cx-overview-page .cx-outcome-card[data-series="delivered"] { --outcome-color:var(--cx-data-delivered); }

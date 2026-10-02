@@ -1,4 +1,5 @@
 import LifecyclePath from '../../shared/visuals/LifecyclePath';
+import { AuditMetadata } from '../../shared/evidence/AuditMode';
 import { lifecyclePresentation, type LifecycleStage } from '../../shared/visuals/lifecyclePresentation';
 import AnalyticsPageLayout from '../../components/AnalyticsPageLayout';
 import OverviewChanges from './components/OverviewChanges';
@@ -175,6 +176,8 @@ export default function OverviewPage() {
               Try a different period or remove a filter. Measured counts remain zero; rates without a population are unavailable.
             </OperationalEmpty>
           )}
+
+          <AuditMetadata grain="Distinct scoped lead" dateBasis="Lead capture cohort" validationStatus={data.validationStatus} definitionVersion={data.definitionVersion} generatedAt={data.generatedAt} />
 
           <LifecyclePath title="Lifecycle overview" compact
             stages={(data.funnelStages || []).filter(stage => stage.key in lifecyclePresentation).map(stage => ({ ...stage, key: stage.key as LifecycleStage }))}

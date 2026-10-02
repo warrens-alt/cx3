@@ -1,3 +1,4 @@
+import TelemetryRail from '../../../shared/visuals/TelemetryRail';
 import { AuditMetadata } from '../../../shared/evidence/AuditMode';
 import React from 'react';
 import { lifecyclePresentation } from '../../../shared/visuals/lifecyclePresentation';
@@ -178,7 +179,7 @@ export default function OutcomeStrip({
   ];
 
   return (
-    <section aria-label="Principal operational outcomes" className="cx-outcome-strip">
+    <TelemetryRail label="Principal operational outcomes" className="cx-outcome-strip">
       {outcomes.map(item => {
         const presentation = outcomePresentation[item.id as keyof typeof outcomePresentation];
         const Icon = presentation.icon;
@@ -211,6 +212,6 @@ export default function OutcomeStrip({
         </article>
         );
       })}
-    </section>
+    </TelemetryRail>
   );
 }

@@ -21,7 +21,8 @@ import {
 import ReportingScopeBar from '../../shared/reporting/ReportingScopeBar';
 import InspectorHost from '../../shared/evidence/InspectorHost';
 import RootCauseDrawer from '../../components/RootCauseDrawer';
-import UnifiedMetricCard from '../../components/UnifiedMetricCard';
+import VisualSkeleton from '../../shared/visuals/VisualSkeleton';
+import { AuditMetadata } from '../../shared/evidence/AuditMode';
 import { OperationalError, ReportSkeleton } from '../../components/OperationalState';
 import { formatPercent, formatRatioPercent, formatTableNumber } from '../../lib/formatters';
 import { MatchedPeriodPanel } from '../../components/LifecycleDiagnostics';
@@ -56,6 +57,14 @@ export default function JourneyPage() {
   // Authoritative journey display adapter separating stage totals from transition intersections
   const { headline, stages, transitions } = useMemo(() => adaptJourneyData(data), [data]);
   const [rootMetric, setRootMetric] = useState<RootCauseData['metric']['id'] | null>(null);
+  const rateEvidence = [
+    { label: 'Acquired demand', value: formatTableNumber(headline.totalVolume), metricId: 'fetched_leads', numerator: headline.totalVolume, denominator: null, basis: 'Intake cohort', stage: 'fetched' },
+    { label: 'Delivery rate', value: headline.deliveryPct !== null ? `${headline.deliveryPct.toFixed(1)}%` : '—', metricId: 'delivery_rate', numerator: headline.deliveredVolume, denominator: headline.totalVolume, basis: 'Delivered / fetched', stage: 'delivered' },
+    { label: 'Dial coverage', value: headline.dialPct !== null ? `${headline.dialPct.toFixed(1)}%` : '—', metricId: 'dial_rate', numerator: headline.dialledVolume, denominator: headline.deliveredVolume, basis: 'Dialled / delivered', stage: 'dialled' },
+    { label: 'Contact rate (RPC)', value: headline.rpcPct !== null ? `${headline.rpcPct.toFixed(1)}%` : '—', metricId: 'rpc_rate', numerator: headline.rpcVolume, denominator: headline.dialledVolume, basis: 'RPC / dialled', stage: 'rpc' },
+    { label: 'Lead → Sale', value: headline.salePct !== null ? `${headline.salePct.toFixed(2)}%` : '—', metricId: 'sales_per_fetched_rate', numerator: headline.salesVolume, denominator: headline.totalVolume, basis: 'Sales / fetched', stage: 'sales' },
+    { label: 'Activations', value: formatTableNumber(headline.activationsVolume), metricId: 'activated_leads', numerator: headline.activationsVolume, denominator: null, basis: 'Recorded activations', stage: 'activated' },
+  ];
 
   const handleInspectStage = (stage: StageItem) => {
     const isSupported = ['fetched', 'delivered', 'dialled', 'rpc', 'sales', 'activated'].includes(stage.key);
@@ -140,7 +149,7 @@ export default function JourneyPage() {
   };
 
   return (
-    <AnalyticsPageLayout className="cx-journey-visual-workspace" title="Progression" description={<>See where acquired demand progresses or drops off across intake, delivery, dialling, contact, and sales.</>} actions={<ReportActions>
+    <AnalyticsPageLayout className="cx-journey-visual-workspace" title="Progression" description={<>Stage populations, qualified transitions and timing.</>} actions={<ReportActions>
           <Link
             to={scoped('/offershop-flow')}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-subtle bg-surface hover:bg-surface-subtle transition-colors text-xs font-medium text-text-sec hover:text-text-main shadow-xs"
@@ -173,78 +182,11 @@ export default function JourneyPage() {
 
       {/* Loading state */}
       {loading && !data && (
-        <ReportSkeleton label="Loading stage progression and cohort evidence" metricCount={6} />
+        <VisualSkeleton kind="lifecycle" label="Loading stage progression and cohort evidence" />
       )}
 
       {data && (
         <>
-          {/* Outcome Summary KPI Strip: Authoritative Independent Stage Totals & True Rates */}
-          <div className="cx-visual-metric-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-            <UnifiedMetricCard
-              label="Acquired Demand"
-              auditContent={{ type: 'metric', metricId: 'fetched_leads', title: 'Acquired Demand', value: headline.totalVolume !== null ? formatTableNumber(headline.totalVolume) : '—', scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters }, recordDrill: { drill: 'funnel-stage', drillValue: 'fetched' } }}
-              value={headline.totalVolume !== null ? formatTableNumber(headline.totalVolume) : '—'}
-              note="Intake cohort"
-              onAbout={stages[0] ? () => handleInspectStage(stages[0]) : undefined}
-              to={scoped('/lead-explorer?drill=funnel-stage&drillValue=fetched')}
-              inspectLabel="Inspect"
-            />
-
-            <UnifiedMetricCard
-              label="Delivery Rate"
-              auditContent={{ type: 'metric', metricId: 'delivery_rate', title: 'Delivery Rate', value: headline.deliveryPct !== null ? `${headline.deliveryPct.toFixed(1)}%` : '—', scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters }, recordDrill: { drill: 'funnel-stage', drillValue: 'delivered' }, numeratorCount: headline.deliveredVolume, denominatorCount: headline.totalVolume }}
-              value={headline.deliveryPct !== null ? `${headline.deliveryPct.toFixed(1)}%` : '—'}
-              note={headline.deliveredVolume !== null ? `${formatTableNumber(headline.deliveredVolume)} delivered` : 'Delivered'}
-              denominatorLabel="Fetched leads"
-              onAbout={stages[1] ? () => handleInspectStage(stages[1]) : undefined}
-              to={scoped('/lead-explorer?drill=funnel-stage&drillValue=delivered')}
-              inspectLabel="Inspect"
-            />
-
-            <UnifiedMetricCard
-              label="Dial Coverage"
-              auditContent={{ type: 'metric', metricId: 'dial_rate', title: 'Dial Coverage', value: headline.dialPct !== null ? `${headline.dialPct.toFixed(1)}%` : '—', scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters }, recordDrill: { drill: 'funnel-stage', drillValue: 'dialled' }, numeratorCount: headline.dialledVolume, denominatorCount: headline.deliveredVolume }}
-              value={headline.dialPct !== null ? `${headline.dialPct.toFixed(1)}%` : '—'}
-              note={headline.dialledVolume !== null ? `${formatTableNumber(headline.dialledVolume)} dialled` : 'Dialled'}
-              denominatorLabel="Delivered leads"
-              onAbout={stages[2] ? () => handleInspectStage(stages[2]) : undefined}
-              to={scoped('/lead-explorer?drill=funnel-stage&drillValue=dialled')}
-              inspectLabel="Inspect"
-            />
-
-            <UnifiedMetricCard
-              label="Contact Rate (RPC)"
-              auditContent={{ type: 'metric', metricId: 'rpc_rate', title: 'Contact Rate (RPC)', value: headline.rpcPct !== null ? `${headline.rpcPct.toFixed(1)}%` : '—', scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters }, recordDrill: { drill: 'funnel-stage', drillValue: 'rpc' }, numeratorCount: headline.rpcVolume, denominatorCount: headline.dialledVolume }}
-              value={headline.rpcPct !== null ? `${headline.rpcPct.toFixed(1)}%` : '—'}
-              note={headline.rpcVolume !== null ? `${formatTableNumber(headline.rpcVolume)} contacted` : 'Contacted'}
-              denominatorLabel="Dialled leads"
-              onAbout={stages[3] ? () => handleInspectStage(stages[3]) : undefined}
-              to={scoped('/lead-explorer?drill=funnel-stage&drillValue=rpc')}
-              inspectLabel="Inspect"
-            />
-
-            <UnifiedMetricCard
-              label="Lead → Sale"
-              auditContent={{ type: 'metric', metricId: 'sales_per_fetched_rate', title: 'Lead → Sale', value: headline.salePct !== null ? `${headline.salePct.toFixed(2)}%` : '—', scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters }, recordDrill: { drill: 'funnel-stage', drillValue: 'sales' }, numeratorCount: headline.salesVolume, denominatorCount: headline.totalVolume }}
-              value={headline.salePct !== null ? `${headline.salePct.toFixed(2)}%` : '—'}
-              note={headline.salesVolume !== null ? `${formatTableNumber(headline.salesVolume)} sales` : 'Sales'}
-              denominatorLabel="Fetched leads"
-              onAbout={stages[4] ? () => handleInspectStage(stages[4]) : undefined}
-              to={scoped('/lead-explorer?drill=funnel-stage&drillValue=sales')}
-              inspectLabel="Inspect"
-            />
-
-            <UnifiedMetricCard
-              label="Activations"
-              auditContent={{ type: 'metric', metricId: 'activated_leads', title: 'Activations', value: headline.activationsVolume !== null ? formatTableNumber(headline.activationsVolume) : '—', scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters }, recordDrill: { drill: 'funnel-stage', drillValue: 'activated' } }}
-              value={headline.activationsVolume !== null ? formatTableNumber(headline.activationsVolume) : '—'}
-              note="Fulfilled deals"
-              onAbout={stages[5] ? () => handleInspectStage(stages[5]) : undefined}
-              to={scoped('/lead-explorer?drill=funnel-stage&drillValue=activated')}
-              inspectLabel="Inspect"
-            />
-          </div>
-
           {/* Region A: Progression Rail and Transition Evidence */}
           <section id="journey-progression" aria-labelledby="progression-heading">
             <h2 id="progression-heading" className="sr-only">
@@ -258,6 +200,16 @@ export default function JourneyPage() {
               onInspectTransition={handleInspectTransition}
             />
           </section>
+
+          <details className="cx-report-disclosure">
+            <summary>View stage metrics and rate definitions</summary>
+            <div className="cx-viz-table-scroll" role="region" aria-label="Stage metric evidence" tabIndex={0}>
+              <table className="cx-viz-table"><caption className="sr-only">Independent stage metrics retain their original numerator and denominator definitions.</caption>
+                <thead><tr><th>Measure</th><th>Value</th><th>Numerator</th><th>Denominator</th><th>Basis</th></tr></thead>
+                <tbody>{rateEvidence.map(item => <tr key={item.metricId}><th scope="row"><button type="button" className="cx-button-quiet" onClick={() => setInspectorContent({ type: 'metric', metricId: item.metricId, title: item.label, value: item.value, numeratorCount: item.numerator, denominatorCount: item.denominator, scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters }, recordDrill: { drill: 'funnel-stage', drillValue: item.stage } })}>{item.label}</button><AuditMetadata metricId={item.metricId}/></th><td>{item.value}</td><td>{formatTableNumber(item.numerator)}</td><td>{formatTableNumber(item.denominator)}</td><td>{item.basis}</td></tr>)}</tbody>
+              </table>
+            </div>
+          </details>
 
           {/* Region C: Operational Timing & Velocity */}
           <section id="journey-timing" aria-labelledby="velocity-heading">
