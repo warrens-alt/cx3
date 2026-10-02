@@ -157,11 +157,14 @@ test('Journey has one six-stage visualization with disclosed exact metrics, whil
   try {
     w.eval(routedScript); await wait(() => doc.querySelectorAll('#journey-progression .cx-lifecycle-node').length === 6);
     assert.deepEqual([...doc.querySelectorAll('#journey-progression .cx-lifecycle-node strong')].map((node: any) => node.textContent), ['120', '100', '80', '12', '30', '0']);
-    assert.equal(doc.querySelectorAll('.cx-journey-visual-workspace .cx-unified-metric').length, 0);
+    assert.ok(doc.querySelector('.cx-journey-workbench'));
+    assert.equal(doc.querySelectorAll('.cx-journey-workbench .cx-unified-metric').length, 0);
     const rates = doc.querySelector('[aria-label="Stage metric evidence"]');
     assert.ok(rates.closest('details')); assert.equal(rates.closest('details').open, false);
     assert.equal(rates.querySelectorAll('tbody tr').length, 6);
     assert.match(rates.querySelectorAll('tbody tr')[3].textContent, /Contact rate \(RPC\).*12.*80.*RPC \/ dialled/);
+    assert.equal(rates.querySelectorAll('tbody tr')[3].querySelectorAll('td')[0].textContent, 'Unavailable', 'an absent supplied rate is not recomputed from stage populations');
+    assert.equal(rates.querySelectorAll('tbody tr')[5].querySelectorAll('td')[0].textContent, '0', 'recorded zero activations remain zero');
     const scope = doc.querySelector('.cx-scope-controls');
     const vendor = scope.querySelector('select[aria-label="Vendor"]');
     const before = JSON.stringify(w.__fixture.requests), beforeUrl = w.__fixture.location;

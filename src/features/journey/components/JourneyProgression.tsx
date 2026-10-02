@@ -13,6 +13,7 @@ interface JourneyProgressionProps {
   totalPopulation?: number | null;
   onInspectStage?: (stage: StageItem) => void;
   onInspectTransition?: (from: string, to: string, lost: number, lossKey: string) => void;
+  showPath?: boolean;
 }
 
 const LOSS_KEYS: Record<string, string> = {
@@ -28,6 +29,7 @@ export default function JourneyProgression({
   transitions = [],
   onInspectStage,
   onInspectTransition,
+  showPath = true,
 }: JourneyProgressionProps) {
   if ((!stages || stages.length === 0) && (!transitions || transitions.length === 0)) {
     return (
@@ -39,10 +41,10 @@ export default function JourneyProgression({
 
   return (
     <div className="space-y-6">
-      <LifecyclePath stages={stages} transitions={transitions}
+      {showPath && <LifecyclePath stages={stages} transitions={transitions}
         onSelectStage={onInspectStage ? key => { const stage = stages.find(item => item.key === key); if (stage) onInspectStage(stage); } : undefined}
         onSelectTransition={onInspectTransition ? (transition, key) => onInspectTransition(transition.from, transition.to, transition.lost!, key) : undefined}
-      />
+      />}
 
       {/* 2. Transition Definitions Table */}
       {transitions.length > 0 && (

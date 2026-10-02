@@ -221,14 +221,16 @@ test('sales-activation adapter: maturation curve is withheld and displays explic
   assert.equal(adapted.maturation.curve.length, 0, 'must not fabricate synthetic D7/D14 curve');
 });
 
-test('sales-activation router & compatibility: mounts SalesActivationPage and preserves aliases', () => {
+test('sales-activation router & compatibility: Journey Outcomes mounts the canonical SalesActivationPage and preserves aliases', () => {
   const appRouterSource = fs.readFileSync(path.join(process.cwd(), 'src/app/AppRouter.tsx'), 'utf-8');
+  const journeyWorkspaceSource = fs.readFileSync(path.join(process.cwd(), 'src/workspaces/journey/JourneyWorkspace.tsx'), 'utf-8');
 
-  // Verify route mounting
+  // Both public routes use the same lazy feature owner through the workspace lens.
   assert.ok(
-    appRouterSource.includes('<Route path="/sales-activation" element={<SalesActivationPage key={selectedClient} />} />'),
-    'AppRouter must mount SalesActivationPage at /sales-activation with key={selectedClient}'
+    appRouterSource.includes('<Route path="/sales-activation" element={<JourneyWorkspace key={selectedClient} lens="outcomes" />} />'),
+    'AppRouter must retain /sales-activation as the Outcomes lens with key={selectedClient}'
   );
+  assert.ok(appRouterSource.includes('<Route path="/journey/outcomes" element={<JourneyWorkspace key={selectedClient} />} />'));
 
   // Verify /outcomes scope-preserving alias
   assert.ok(
@@ -236,6 +238,9 @@ test('sales-activation router & compatibility: mounts SalesActivationPage and pr
     'AppRouter must preserve /outcomes alias to /sales-activation'
   );
 
-  // Compatibility is owned by the public URL alias, never a second page wrapper.
-  assert.ok(appRouterSource.includes("import('../features/sales/SalesActivationPage')"));
+  assert.ok(journeyWorkspaceSource.includes("const Outcomes = lazy(() => import('../../features/sales/SalesActivationPage'))"));
+  assert.match(journeyWorkspaceSource, /outcomes: Outcomes/);
+  assert.match(journeyWorkspaceSource, /const active = lens \|\| location.pathname.split\('\/'\)\[2\]/);
+  assert.match(journeyWorkspaceSource, /const Specialist = specialists\[active\]/);
+  assert.match(journeyWorkspaceSource, /Specialist \? <Specialist \/>/);
 });
