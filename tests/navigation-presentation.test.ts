@@ -237,6 +237,14 @@ test('palette area headings preserve option indexes, intent searches and admin v
       await app.click('button', 'Search pages');
       await app.input(app.find('input', 'Search pages and navigation'), 'Lead ledger');
       assert.equal(app.w.document.querySelectorAll('[role="option"]').length, admin ? 1 : 0);
+      if (admin) {
+        assert.equal(app.find('[role="option"] strong').textContent, 'Lead Evidence');
+        app.find('[role="option"]').click();
+        await app.wait(() => app.w.__navigation.location.startsWith('/lead-explorer?'));
+        const destination = new URL(app.w.__navigation.location, 'https://synthetic.invalid');
+        assert.equal(destination.searchParams.get('clientId'), 'synthetic');
+        assert.deepEqual(destination.searchParams.getAll('workspace'), ['one', 'two']);
+      }
     } finally { app.close(); }
   }
   for (const [query, destination] of [
@@ -263,7 +271,7 @@ test('palette appearance group retains Dark theme keyboard action', async () => 
 });
 
 test('canonical and alias routes agree across area links, contextual navigation and compact breadcrumb', async () => {
-  for (const route of ['/insights', '/acquisition', '/calls', '/outcomes', '/reconciliation', '/explorer', '/settings', '/validation', '/ai-insights']) {
+  for (const route of ['/insights', '/acquisition', '/calls', '/outcomes', '/reconciliation', '/explorer', '/lead-ledger', '/settings', '/validation', '/ai-insights']) {
     const app = await mount(route + scope, true);
     try {
       const area = getAreaForPath(route);

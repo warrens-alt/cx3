@@ -27,7 +27,7 @@ export default function LeadSourceEvidence({ lead, focusFields = [] }: { lead: L
       <div className="cx-ledger-section-body"><p>Summary from the first returned source record. Other source records remain available below.</p><SourceFields raw={first} labels={['Lead ID', 'Consumer ID', 'Offershop Source', 'Fetched', 'Offershop Grade', 'Offershop Color Vetting']} /></div>
     </details>
     <details className="cx-ledger-inspector-section">
-      <summary>Journey / milestones</summary>
+      <summary>Original timestamp fields</summary>
       <div className="cx-ledger-section-body"><p>Snapshot milestones, not a complete call or status-change history. Naive timestamps are interpreted as UTC.</p>
         {lead.records.map((record, index) => <article className="cx-ledger-record" key={index}>
           <RecordHeading record={record} index={index} />

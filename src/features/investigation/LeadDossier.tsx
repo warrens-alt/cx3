@@ -1,36 +1,32 @@
-import React, { useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { X, Pin } from 'lucide-react';
 import { useClient } from '../../lib/ClientContext';
 import { useFilters } from '../../lib/FilterContext';
 import { useAuth } from '../../lib/AuthContext';
 import { useOperationalData } from '../../lib/useOperationalData';
 import { fetchOffernetJson, type LeadTimelineData, type RawLeadsData } from '../../lib/offernetClient';
-import { analyseLedgerLead, type LedgerReplicaReport } from '../../../contracts/leadLedgerReplica';
+import { analyseLedgerLead, type LedgerLead, type LedgerReplicaReport } from '../../../contracts/leadLedgerReplica';
 import LeadJourney from '../leadLedger/LeadJourney';
 import LeadSourceEvidence from '../leadLedger/LeadSourceEvidence';
 import { buildLedgerTimeline, type LedgerTimelineEvent } from '../leadLedger/timeline';
 import { returnedEvidenceFields } from '../leadLedger/EvidenceExportPreflight';
-import { evidenceText, outcomeText, inclusionReason, leadDelay, type InvestigationLead } from './InvestigationRecordList';
+import { evidenceText, outcomeText, inclusionReason, type InvestigationLead } from './InvestigationRecordList';
 import { ledgerCalls } from '../../lib/leadLedgerValues';
 import { useInvestigationModel } from './InvestigationContextBar';
 import { pinnedAuditScope } from './pinnedAuditEvidence';
 import { formatCurrency } from '../../lib/formatters';
-import '../leadLedger/ledger.css';
+import EvidenceTrace, { AuditDimensions } from '../../shared/evidence/EvidenceTrace';
+import { buildDossierAuditEvidence } from './dossierAuditEvidence';
+import '../leadEvidence/leadEvidence.css';
 
 export type DossierPin = { type: 'lead' | 'timeline-event'; label: string; value: string; definition: string; identifier: string; observedAt?: string; provenance: string[] };
-const qualificationText = (value: unknown) => value === true ? 'Qualified' : value === false ? 'Excluded from qualified progression' : 'Unavailable';
-const chronologyText = (row: InvestigationLead) => {
-  const flags = [
-    ['delivery_before_capture', 'Delivery before capture'], ['first_dial_before_capture', 'First dial before capture'],
-    ['first_dial_before_delivery', 'First dial before delivery'], ['sale_before_capture', 'Sale before capture'],
-    ['activation_before_sale', 'Activation before sale'],
-  ] as const;
-  const anomalies = flags.filter(([key]) => row[key] === true).map(([, label]) => label);
-  return anomalies.length ? `Invalid: ${anomalies.join('; ')}` : flags.every(([key]) => row[key] === false) ? 'No recorded ordering anomaly; qualification also requires predecessor evidence' : 'Unavailable';
-};
-type Tab = 'Summary' | 'Journey' | 'Calls' | 'Outcomes' | 'Evidence' | 'Source';
-const tabs: Tab[] = ['Summary', 'Journey', 'Calls', 'Outcomes', 'Evidence', 'Source'];
+export type DossierTab = 'Summary' | 'Journey' | 'Calls' | 'Outcomes' | 'Audit' | 'Source';
+const tabs: DossierTab[] = ['Summary', 'Journey', 'Calls', 'Outcomes', 'Audit', 'Source'];
 const fields = (entries: Array<[string, unknown]>) => <dl className="cx-dossier-fields">{entries.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{evidenceText(value)}</dd></div>)}</dl>;
+
+function SuppliedSource({ lead, report, focusFields }: { lead: LedgerLead; report?: LedgerReplicaReport; focusFields: string[] }) {
+  return <><p className="cx-dossier-note">Original source evidence · {report?.metadata.validationStatus || 'Validation not supplied'}. Records stay separate. The investigation qualifies the analytical lead; source records do not independently establish that every transaction meets its predicate.</p>{report && <details><summary>Source scope and provenance</summary>{fields(returnedEvidenceFields(report).map(field => [field.label, field.value]))}<p>{report.metadata.coverage?.source || 'Source unavailable'}</p><p>{report.metadata.timestampInterpretation}</p>{report.metadata.coverage?.missing.length > 0 && <p>Unavailable source fields: {report.metadata.coverage.missing.join(', ')}. Coverage remains partial.</p>}</details>}<LeadSourceEvidence lead={lead} focusFields={focusFields} /></>;
+}
 
 /** Auth is checked again here before mounting a raw-source request. Exact lead matching
  * protects the inspector from the replica endpoint's substring-search semantics. */
@@ -53,39 +49,66 @@ function DossierSource({ leadId, focusFields, scopeKey, segmentVendor }: { leadI
   const segmentRecords = matched?.records.filter(record => !segmentVendor || (String(record.raw['HLC Vendor'] ?? 'Unknown').trim() || 'Unrecorded') === segmentVendor);
   const lead = matched && segmentVendor ? analyseLedgerLead(matched.key, (segmentRecords || []).map(record => record.raw), Date.parse(data.metadata.generatedAt)) : matched;
   if (!lead?.records.length) return <p>No exact source lead match was returned in this scope.{data.metadata.hasMore ? ' The source search returned a partial page; no other lead is substituted.' : ''}</p>;
-  return <><p className="cx-dossier-note">Original source evidence · {data.metadata.validationStatus || 'Validation not supplied'}. Records stay separate. The investigation qualifies the lead; source records do not independently establish that every transaction meets its predicate.</p><details><summary>Source scope and provenance</summary>{fields(returnedEvidenceFields(data).map(field => [field.label, field.value]))}<p>{data.metadata.coverage?.source || 'Source unavailable'}</p><p>{data.metadata.timestampInterpretation}</p>{data.metadata.coverage?.missing.length > 0 && <p>Unavailable source fields: {data.metadata.coverage.missing.join(', ')}. Coverage remains partial.</p>}{segmentVendor && <p>Source records narrowed to vendor: {segmentVendor}.</p>}</details><LeadSourceEvidence lead={lead} focusFields={focusFields} /></>;
+  return <>{segmentVendor && <p>Source records narrowed to vendor: {segmentVendor}.</p>}<SuppliedSource lead={lead} report={data} focusFields={focusFields} /></>;
 }
 
-export default function LeadDossier({ row, result, investigation, scopeKey, timeline, loading, error, id, onClose, onPin, segmentVendor }: {
-  row: InvestigationLead;
-  result: RawLeadsData;
+export interface LeadDossierProps {
+  row?: InvestigationLead;
+  result?: RawLeadsData;
   investigation?: string | null;
   scopeKey: string;
-  timeline: LeadTimelineData | null;
-  loading: boolean;
-  error: string | null;
+  timeline?: LeadTimelineData | null;
+  loading?: boolean;
+  error?: string | null;
   id: string;
   onClose: () => void;
   onPin?: (pin: DossierPin) => void;
   segmentVendor?: string;
-}) {
+  sourceLead?: LedgerLead;
+  sourceReport?: LedgerReplicaReport;
+  /** Source-mode ownership: even an absent exact match must not trigger a second query. */
+  sourceResolved?: boolean;
+  initialTab?: 'Summary' | 'Source';
+  sourceFocusFields?: string[];
+  onOpenSource?: (leadId: string, fields: string[]) => void;
+  onRequestAnalytical?: () => void;
+  onOpenAnalytical?: () => void;
+  analyticalLoading?: boolean;
+  analyticalError?: string | null;
+}
+
+export default function LeadDossier({ row, result, investigation, scopeKey, timeline, loading = false, error, id, onClose, onPin, segmentVendor, sourceLead, sourceReport, sourceResolved = false, initialTab = 'Summary', sourceFocusFields, onOpenSource, onRequestAnalytical, onOpenAnalytical, analyticalLoading = false, analyticalError }: LeadDossierProps) {
   const { isAdmin } = useAuth();
-  const [tab, setTab] = useState<Tab>('Summary');
-  const [focusFields, setFocusFields] = useState<string[]>([]);
+  const { selectedClient } = useClient();
+  const [tab, setTab] = useState<DossierTab>(initialTab);
+  const [focusFields, setFocusFields] = useState<string[]>(sourceFocusFields || []);
+  const previousInitialTab = useRef(initialTab);
+  useEffect(() => { if (previousInitialTab.current !== initialTab) { previousInitialTab.current = initialTab; setTab(initialTab); } }, [initialTab]);
+  useEffect(() => { if (sourceFocusFields) setFocusFields(sourceFocusFields); }, [sourceFocusFields]);
   const root = useRef<HTMLElement>(null);
   const tabsId = useId();
   const visibleTabs = isAdmin ? tabs : tabs.filter(value => value !== 'Source');
-  const activeTab = !isAdmin && tab === 'Source' ? 'Evidence' : tab;
-  const journey = buildLedgerTimeline(row);
-  const validation = result.validationStatus || result.metadata?.validationStatus || 'NOT_VERIFIED';
+  const activeTab = !isAdmin && tab === 'Source' ? 'Audit' : tab;
+  const analytical = row && row.lead_id != null && String(row.lead_id).trim() && result?.clientId === selectedClient && result.rows.some(returned => String(returned.lead_id) === String(row.lead_id)) ? { row, result } : null;
+  const sourceIdentity = sourceLead?.leadId == null ? '' : String(sourceLead.leadId);
+  const leadId = analytical ? String(analytical.row.lead_id) : sourceIdentity;
+  const suppliedSource = sourceResolved || sourceLead !== undefined || sourceReport !== undefined;
+  const currentSourceReport = sourceReport?.metadata.clientId === selectedClient ? sourceReport : undefined;
+  const currentSourceLead = sourceLead && sourceIdentity === leadId && (!sourceReport || currentSourceReport) ? sourceLead : undefined;
+  const journey = analytical ? buildLedgerTimeline(analytical.row) : null;
+  const validation = analytical?.result.validationStatus || analytical?.result.metadata?.validationStatus || currentSourceReport?.metadata.validationStatus || 'NOT_VERIFIED';
   const auditModel = useInvestigationModel({ validationStatus: validation });
-  const reason = inclusionReason(row, investigation);
+  const audit = buildDossierAuditEvidence(analytical?.row, analytical?.result, currentSourceLead, currentSourceReport);
+  const reason = analytical ? inclusionReason(analytical.row, investigation) : 'Original source identity in the current source population. Analytical inclusion has not been established.';
   const source = (requested: string[]) => { if (!isAdmin) return; setFocusFields(requested); setTab('Source'); };
-  const currentTimeline = timeline?.leadId === String(row.lead_id) ? timeline : null;
-  const pinEvent = (event: LedgerTimelineEvent) => onPin?.({ type: 'timeline-event', label: `${row.lead_id} · ${event.title}`, value: event.timestamp || 'Timestamp unavailable', definition: event.description, identifier: String(row.lead_id), observedAt: event.timestamp || undefined, provenance: event.evidenceFields.map(field => `${field.label}: ${evidenceText(field.value)}`) });
-  return <aside ref={root} id={id} className="cx-lead-dossier" tabIndex={-1} aria-label={`Lead dossier for ${row.lead_id}`}>
-    <header className="cx-dossier-heading"><div><span className="cx-command-section-kicker">Lead dossier</span><h2>{row.lead_id}</h2><p>{validation} · same investigation scope</p></div><button type="button" onClick={onClose} aria-label="Close lead dossier"><X size={17} /></button></header>
-    <div className="cx-dossier-inclusion"><strong>Why included</strong><p>{reason}</p>{row.investigationReason?.detail && <small>{row.investigationReason.detail}</small>}{onPin && <button type="button" className="cx-button-secondary" onClick={() => onPin({ type: 'lead', label: String(row.lead_id), value: reason, definition: row.investigationReason?.detail || 'Returned investigation record', identifier: String(row.lead_id), observedAt: result.generatedAt, provenance: returnedEvidenceFields(result).map(field => `${field.label}: ${field.value}`) })}><Pin size={13} />Pin lead evidence</button>}</div>
+  const currentTimeline = analytical && timeline?.leadId === leadId ? timeline : null;
+  const pinEvent = (event: LedgerTimelineEvent) => onPin?.({ type: 'timeline-event', label: `${leadId} · ${event.title}`, value: event.timestamp || 'Timestamp unavailable', definition: event.description, identifier: leadId, observedAt: event.timestamp || undefined, provenance: event.evidenceFields.map(field => `${field.label}: ${evidenceText(field.value)}`) });
+  const analyticalUnavailable = <><p>Normalized analytical evidence is unavailable for this source identity. Original source fields remain in Source; they are not substituted for analytical milestones, qualification, calls or outcomes.</p>{onRequestAnalytical && <button type="button" className="cx-button-secondary" disabled={analyticalLoading} onClick={onRequestAnalytical}>{analyticalLoading ? 'Loading analytical evidence…' : 'Load analytical evidence'}</button>}{analyticalLoading && <p role="status">Looking for an exact analytical lead match in the current population…</p>}{analyticalError && <p role="alert">{analyticalError}</p>}</>;
+  return <aside ref={root} id={id} className="cx-lead-dossier" tabIndex={-1} aria-label={isAdmin ? `Lead dossier for ${leadId || 'unresolved source lead'}` : 'Lead dossier'}>
+    <header className="cx-dossier-heading"><div><span className="cx-command-section-kicker">Lead dossier</span><h2>{isAdmin ? leadId || (sourceLead ? 'Unresolved source lead' : 'Lead identity unavailable') : 'Restricted evidence'}</h2>{isAdmin && <p>{validation} · {analytical ? 'normalized lead evidence' : 'original source evidence'}</p>}</div><button type="button" onClick={onClose} aria-label="Close lead dossier"><X size={17} /></button></header>
+    {!isAdmin ? <p role="status">Lead evidence is restricted to authorised administrators.</p> : <>
+    <div className="cx-dossier-inclusion"><strong>{analytical ? 'Why included' : 'Source population'}</strong><p>{reason}</p>{analytical?.row.investigationReason?.detail && <small>{analytical.row.investigationReason.detail}</small>}{onPin && analytical && <button type="button" className="cx-button-secondary" onClick={() => onPin({ type: 'lead', label: leadId, value: reason, definition: analytical.row.investigationReason?.detail || 'Returned investigation record', identifier: leadId, observedAt: analytical.result.generatedAt, provenance: returnedEvidenceFields(analytical.result).map(field => `${field.label}: ${field.value}`) })}><Pin size={13} />Pin lead evidence</button>}</div>
+    <p className="cx-dossier-note">{analytical ? 'One normalized lead row' : 'No normalized lead row loaded'}{currentSourceLead ? ` · ${currentSourceLead.records.length} original source records` : ' · original source records not loaded'}. These evidence grains remain separate; matching identifiers do not establish reconciliation.</p>
     <div role="tablist" aria-label="Lead dossier sections" className="cx-dossier-tabs" onKeyDown={event => {
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
@@ -94,15 +117,20 @@ export default function LeadDossier({ row, result, investigation, scopeKey, time
       setTab(next); document.getElementById(`${tabsId}-${next}-tab`)?.focus();
     }}>{visibleTabs.map(value => <button key={value} type="button" id={`${tabsId}-${value}-tab`} role="tab" aria-selected={activeTab === value} aria-controls={`${tabsId}-${value}-panel`} tabIndex={activeTab === value ? 0 : -1} onClick={() => setTab(value)}>{value}</button>)}</div>
     <section className="cx-dossier-body" role="tabpanel" id={`${tabsId}-${activeTab}-panel`} aria-labelledby={`${tabsId}-${activeTab}-tab`} tabIndex={0}>
-      {activeTab === 'Summary' && <>{fields([
-        ['Lead ID', row.lead_id], ['Vendor', row.vendor], ['Source', row.source], ['Grade', row.grade], ['Furthest recorded stage', journey.currentStage?.title],
-        ['Fetched timestamp', row.fetched], ['Recorded delivery timestamp', row.delivered_time], ['Recorded first dial timestamp', row.first_call_time], ['Delivery qualification', qualificationText(row.qualified_delivery)], ['First dial qualification', qualificationText(row.dialled)], ['Recorded sale timestamp', row.sale_time], ['Recorded activation timestamp', row.activation_time], ['Sale → activation qualification', qualificationText(row.qualified_activation)], ['Chronology', chronologyText(row)], ['Delivery → first dial', leadDelay(row)], ['Total recorded calls', ledgerCalls(row.total_calls)], ['RPC', outcomeText(row.contacted)], ['Sale', outcomeText(row.sale)], ['Activated', outcomeText(row.activated)], ['Source-recorded revenue', row.revenue == null ? 'Unavailable' : formatCurrency(row.revenue)], ['Validation status', validation],
-      ])}<p className="cx-dossier-note">Recorded events remain visible when chronology is invalid. Qualified delivery requires delivery at or after capture; qualified first dial also requires dial at or after delivery. Missing predecessors cannot establish qualification. Sales and activations do not certify billing or collection.</p>{isAdmin && <button type="button" className="cx-button-secondary" onClick={() => source([])}>View source evidence</button>}</>}
-      {activeTab === 'Journey' && <><LeadJourney row={row} validationStatus={validation} auditScope={pinnedAuditScope(auditModel)} onViewSource={isAdmin ? source : undefined} sourceEvents={currentTimeline?.events} onPinEvent={onPin ? pinEvent : undefined} />{loading && <p role="status">Loading scoped source milestones…</p>}{error && <p role="alert">Source milestone request failed: {error}</p>}{currentTimeline?.callEvidence && <p className="cx-dossier-note">{currentTimeline.callEvidence.status}: {currentTimeline.callEvidence.reason}</p>}</>}
-      {activeTab === 'Calls' && <><h3>Recorded call aggregates</h3>{fields([['Total calls', ledgerCalls(row.total_calls)], ['First dial', row.first_call_time], ['Last disposition', row.last_dialer_status], ['RPC', outcomeText(row.contacted)]])}<p>Individual attempt timestamps, dispositions per attempt and RPC attempt number are unavailable. The aggregate count is not an attempt history.</p>{currentTimeline?.callEvidence && <p>{currentTimeline.callEvidence.reason}</p>}{isAdmin && <button type="button" className="cx-button-secondary" onClick={() => source(['HLC Total Calls', 'HLC First Call Date', 'HLC Last Dialer Status', 'HLC RPC'])}>View call source fields</button>}</>}
-      {activeTab === 'Outcomes' && <><h3>Recorded outcome evidence</h3>{fields([['RPC · contacted', outcomeText(row.contacted)], ['Sale · sale', outcomeText(row.sale)], ['Activation · activated', outcomeText(row.activated)], ['Last disposition · last_dialer_status', row.last_dialer_status], ['Source-recorded revenue · revenue', row.revenue == null ? 'Unavailable' : formatCurrency(row.revenue)]])}<p>Missing evidence remains unavailable. A recorded downstream outcome does not create an upstream event, collected cash or a confirmed event time.</p>{isAdmin && <button type="button" className="cx-button-secondary" onClick={() => source(['HLC RPC', 'HLC Sale', 'HLC Activated', 'HLC Revenue Generated', 'HLC Last Dialer Status'])}>View outcome source fields</button>}</>}
-      {activeTab === 'Evidence' && <><h3>Evidence definition and scope</h3>{fields(returnedEvidenceFields(result).map(field => [field.label, field.value]))}{fields([['Metric', result.metricId || result.metadata?.metricId], ['Definition version', result.definitionVersion || result.metadata?.definitionVersion], ['Source tables', result.metadata?.sourceTables ? JSON.stringify(result.metadata.sourceTables) : result.metadata?.source], ['Validation', validation]])}<p>{row.investigationReason?.detail || 'No additional inclusion definition was returned for this record.'}</p><h3>Limitations</h3><ul>{journey.limitations.map(limit => <li key={limit}>{limit}</li>)}</ul>{journey.anomalies.length > 0 && <div role="note"><h3>Timestamp anomalies</h3>{journey.anomalies.map((anomaly, index) => <p key={index}>{anomaly.field}: {anomaly.message}</p>)}</div>}<details><summary>All returned analytical evidence fields</summary>{fields(Object.entries(row).map(([key, value]) => [key, value !== null && typeof value === 'object' ? JSON.stringify(value) : value]))}</details></>}
-      {activeTab === 'Source' && isAdmin && <DossierSource key={scopeKey + row.lead_id} leadId={String(row.lead_id)} focusFields={focusFields} scopeKey={scopeKey} segmentVendor={segmentVendor} />}
+      {activeTab === 'Summary' && <>{analytical ? fields([
+        ['Lead ID', leadId],
+        ...(analytical.row.consumer_id != null && analytical.row.consumer_id !== '' ? [['Consumer ID', analytical.row.consumer_id] as [string, unknown]] : []),
+        ['Representative vendor', analytical.row.vendor], ['Source', analytical.row.source], ['Grade', analytical.row.grade],
+        ...(analytical.row.vetting != null && analytical.row.vetting !== '' ? [['Vetting', analytical.row.vetting] as [string, unknown]] : []),
+        ...(analytical.row.fetched != null && analytical.row.fetched !== '' ? [['Fetched timestamp', analytical.row.fetched] as [string, unknown]] : []),
+        ['Furthest recorded stage', journey?.currentStage?.title], ['Validation status', validation],
+      ]) : <>{fields([['Source lead ID', leadId], ['Original source records', currentSourceLead?.records.length], ['First-record Offershop Source', currentSourceLead?.records[0]?.raw['Offershop Source']], ['First-record Offershop Grade', currentSourceLead?.records[0]?.raw['Offershop Grade']], ['Normalized current stage', 'Unavailable'], ['Validation status', validation]])}{analyticalUnavailable}</>}<p className="cx-dossier-note">Summary describes the selected evidence. Journey contains recorded milestones; Calls and Outcomes retain their own details. Qualification and limitations remain in Audit.</p><button type="button" className="cx-button-secondary" onClick={() => source([])}>View source evidence</button>{analytical && suppliedSource && onOpenAnalytical && <button type="button" className="cx-button-secondary" onClick={onOpenAnalytical}>Open analytical lead</button>}</>}
+      {activeTab === 'Journey' && (analytical ? <><LeadJourney row={analytical.row} validationStatus={validation} auditScope={pinnedAuditScope(auditModel)} onViewSource={source} sourceEvents={currentTimeline?.events} onPinEvent={onPin ? pinEvent : undefined} />{loading && <p role="status">Loading scoped source milestones…</p>}{error && <p role="alert">Source milestone request failed: {error}</p>}{currentTimeline?.callEvidence && <p className="cx-dossier-note">{currentTimeline.callEvidence.status}: {currentTimeline.callEvidence.reason}</p>}</> : analyticalUnavailable)}
+      {activeTab === 'Calls' && (analytical ? <><h3>Recorded call aggregates</h3>{fields([['Total calls', ledgerCalls(analytical.row.total_calls)], ['First dial', analytical.row.first_call_time], ['Last disposition', analytical.row.last_dialer_status], ['RPC', outcomeText(analytical.row.contacted)]])}<p>Individual attempt timestamps, dispositions per attempt and RPC attempt number are unavailable. The aggregate count is not an attempt history.</p>{currentTimeline?.callEvidence && <p>{currentTimeline.callEvidence.reason}</p>}<button type="button" className="cx-button-secondary" onClick={() => source(['HLC Total Calls', 'HLC First Call Date', 'HLC Last Dialer Status', 'HLC RPC'])}>View call source fields</button></> : analyticalUnavailable)}
+      {activeTab === 'Outcomes' && (analytical ? <><h3>Recorded outcome evidence</h3>{fields([['RPC · contacted', outcomeText(analytical.row.contacted)], ['Sale · sale', outcomeText(analytical.row.sale)], ['Activation · activated', outcomeText(analytical.row.activated)], ['Last disposition · last_dialer_status', analytical.row.last_dialer_status], ['Source-recorded revenue · revenue', analytical.row.revenue == null ? 'Unavailable' : formatCurrency(analytical.row.revenue)]])}<p>Missing evidence remains unavailable. A recorded downstream outcome does not create an upstream event, collected cash or a confirmed event time.</p><button type="button" className="cx-button-secondary" onClick={() => source(['HLC RPC', 'HLC Sale', 'HLC Activated', 'HLC Revenue Generated', 'HLC Last Dialer Status'])}>View outcome source fields</button></> : analyticalUnavailable)}
+      {activeTab === 'Audit' && <><AuditDimensions dimensions={audit.dimensions} label="Selected evidence state" /><EvidenceTrace nodes={audit.trace} label="Selected evidence lineage" /><h3>Supplied qualification flags</h3>{fields(audit.qualifications.map(item => [`${item.label} · ${item.field}`, item.value]))}<p>Qualification is shown only when supplied in the analytical row. Original source records stay separate; the investigation qualifies the lead, not every attached transaction.</p>{audit.chronology.length > 0 && <section aria-label="Recorded chronology anomalies"><h3>Chronology anomalies</h3>{audit.chronology.map((anomaly, index) => <p key={index}>{anomaly}</p>)}</section>}<details><summary>Evidence definition, scope and limitations</summary>{analytical && <>{fields(returnedEvidenceFields(analytical.result).map(field => [field.label, field.value]))}{fields([['Metric', analytical.result.metricId || analytical.result.metadata?.metricId], ['Definition version', analytical.result.definitionVersion || analytical.result.metadata?.definitionVersion], ['Source tables', analytical.result.metadata?.sourceTables ? JSON.stringify(analytical.result.metadata.sourceTables) : analytical.result.metadata?.source], ['Validation', validation]])}<p>{analytical.row.investigationReason?.detail || 'No additional inclusion definition was returned for this record.'}</p><ul>{journey?.limitations.map(limit => <li key={limit}>{limit}</li>)}</ul></>}{currentSourceReport && <>{fields(returnedEvidenceFields(currentSourceReport).map(field => [`Source · ${field.label}`, field.value]))}<p>{currentSourceReport.metadata.timestampInterpretation}</p></>}<p>Missing evidence remains unavailable. An original source identity match does not verify normalized chronology or business completion.</p></details>{analytical && <details><summary>All returned analytical evidence fields</summary>{fields(Object.entries(analytical.row).map(([key, value]) => [key, value !== null && typeof value === 'object' ? JSON.stringify(value) : value]))}</details>}</>}
+      {activeTab === 'Source' && <>{onOpenSource && leadId && <button type="button" className="cx-button-secondary" onClick={() => onOpenSource(leadId, focusFields)}>Open in Source Evidence</button>}{analytical && onOpenAnalytical && <button type="button" className="cx-button-secondary" onClick={onOpenAnalytical}>Open analytical lead</button>}{!analytical && onRequestAnalytical && analyticalUnavailable}{suppliedSource ? currentSourceLead?.records.length ? <SuppliedSource lead={currentSourceLead} report={currentSourceReport} focusFields={focusFields} /> : <p>{currentSourceReport ? 'No exact source lead match was returned in the current source scope.' : 'Source evidence has not been returned for this selection.'}{currentSourceReport?.metadata.hasMore ? ' The source population is a partial page; no other lead is substituted.' : ''}</p> : analytical ? <DossierSource key={scopeKey + leadId} leadId={leadId} focusFields={focusFields} scopeKey={scopeKey} segmentVendor={segmentVendor} /> : <p>Source evidence unavailable for this selection.</p>}</>}
     </section>
+    </>}
   </aside>;
 }

@@ -20,13 +20,17 @@ test('administrative and record-level links retain role-based visibility', () =>
   assert.ok(!relatedPages('exceptions', false).some(page => page.path === '/lead-explorer'));
   assert.ok(relatedPages('exceptions', true).some(page => page.path === '/lead-explorer'));
 });
-test('Lead Ledger is discoverable by its title and alias only for administrators', () => {
-  for (const query of ['Lead Ledger', 'ledger']) {
-    assert.equal(searchNavigation(query, true)[0]?.path, '/lead-ledger');
-    assert.ok(!searchNavigation(query, false).some(page => page.path === '/lead-ledger'));
+test('Lead Evidence is one destination for both current and legacy record searches', () => {
+  for (const query of ['Lead Evidence', 'Lead Ledger', 'ledger', 'source ledger', 'analytical ledger', 'raw source', 'record explorer', 'timeline']) {
+    const results = searchNavigation(query, true);
+    assert.equal(results.filter(page => page.path === '/lead-explorer').length, 1, query);
+    assert.ok(!results.some(page => page.path === '/lead-ledger'), query);
+    assert.ok(!searchNavigation(query, false).some(page => page.path === '/lead-explorer'), query);
   }
-  assert.ok(relatedPages('exceptions', true).some(page => page.path === '/lead-ledger'));
-  assert.ok(!relatedPages('exceptions', false).some(page => page.path === '/lead-ledger'));
+  assert.equal(navigationPage('/lead-ledger')?.path, '/lead-explorer');
+  assert.equal(navigationPage('/lead-ledger')?.name, 'Lead Evidence');
+  assert.ok(!relatedPages('exceptions', true).some(page => page.path === '/lead-ledger'));
+  assert.equal(NAVIGATION_PAGES.find(page => page.path === '/lead-explorer')?.description, 'Inspect analytical lead populations, journeys, outcomes, audit evidence and original source records.');
 });
 test('six business destinations replace competing primary dashboards without retiring routes', () => {
   assert.deepEqual(NAV_GROUPS[0].items.map(item => item.name), ['Overview', 'Lead journey', 'Contact centre', 'Sales & activation', 'Commercial', 'Investigate']);

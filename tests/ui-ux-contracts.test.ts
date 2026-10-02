@@ -131,6 +131,7 @@ test('duplicate legacy routes redirect to maintained product surfaces', () => {
   for (const [from, to] of redirects) {
     assert.ok(
       app.includes(`path="${from}" element={<ScopePreservingRedirect to="${to}" replace />}`) ||
+      (from === '/explore' && app.includes(`path="${from}" element={<ScopePreservingRedirect to="${to}" extraParams={{ view: 'population' }} replace />}`)) ||
       app.includes(`path="${from}" element={<Navigate to="${to}" replace />}`),
       `missing redirect ${from} -> ${to}`
     );
@@ -158,7 +159,8 @@ test('remaining analysis dialogs use shared accessibility and Explorer uses a fo
     assert.match(source, /useDialogAccessibility/);
     assert.match(source, /aria-modal="true"/);
   }
-  const explorer = read('src/pages/LeadExplorerIntelligence.tsx');
+  const explorer = read('src/features/leadEvidence/LeadEvidenceWorkspace.tsx');
+  assert.match(read('src/pages/LeadExplorerIntelligence.tsx'), /export default LeadEvidenceWorkspace/);
   const dossier = read('src/features/investigation/LeadDossier.tsx');
   assert.match(explorer, /<LeadDossier/);
   assert.match(explorer, /requestAnimationFrame/);
@@ -258,10 +260,12 @@ test('selected client is URL-addressable and preserved through evidence navigati
 });
 
 test('Explorer record loading follows applied URL search state', () => {
-  const explorer = read('src/pages/LeadExplorerIntelligence.tsx');
+  const explorer = read('src/features/leadEvidence/LeadPopulationBrowser.tsx');
+  const workspace = read('src/features/leadEvidence/LeadEvidenceWorkspace.tsx');
   assert.match(explorer, /const appliedSearch = params\.get\('search'\) \|\| ''/);
-  assert.match(explorer, /search: appliedSearch \|\| undefined/);
-  assert.match(explorer, /\[selectedClient, startDate, endDate, filters, drill, drillValue, appliedSearch\]/);
+  assert.match(explorer, /search: appliedSearch \|\| focusLeadId \|\| undefined/);
+  assert.match(workspace, /const boundary = JSON\.stringify\(\[session, isAdmin, selectedClient, startDate, endDate, filters, caseScope, params\.get\('search'\)/);
+  assert.match(explorer, /pagination\.scopeKey === populationKey \? pagination\.page : 0/);
   assert.match(explorer, /offset: page \* pageSize/);
   assert.match(explorer, /useOperationalData<RawLeadsData>/);
   assert.match(explorer, /setSearch\(appliedSearch\)/);
@@ -311,7 +315,7 @@ test('contact strategy exposes observed effort controls without prescriptive red
 });
 
 test('Explore uses shared labels for OfferNet contact-governance drill populations', () => {
-  const explorer = read('src/pages/LeadExplorerIntelligence.tsx');
+  const explorer = read('src/features/leadEvidence/LeadPopulationBrowser.tsx');
   assert.match(explorer, /investigationLabel\(params\)/);
   assert.equal(investigationLabel(new URLSearchParams({ drill: 'high-attempt-no-rpc' })), '5+ calls without RPC');
   assert.equal(investigationLabel(new URLSearchParams({ drill: 'one-call-only' })), 'One-call-only leads');
@@ -728,7 +732,7 @@ test('R2 closeout: InspectorHost binds content.scope to search query params', as
 });
 
 test('Explorer supports lifecycle-segment drill values through the shared investigation label contract', () => {
-  const explorer = read('src/pages/LeadExplorerIntelligence.tsx');
+  const explorer = read('src/features/leadEvidence/LeadPopulationBrowser.tsx');
   assert.match(explorer, /drillValue: drillValue \|\| undefined/);
   assert.match(explorer, /investigationLabel\(params\)/);
   assert.equal(investigationLabel(new URLSearchParams({ drill: 'lifecycle-segment', drillValue: 'vendor:BLC' })), 'Lifecycle segment · vendor:BLC');
@@ -792,6 +796,4 @@ test('R3: SpeedPage provides latency distributions, undialled backlog counters, 
   assert.match(speed, /Awaiting First Dial/);
   assert.match(speed, /CaptureTurnaroundPanel/);
 });
-
-
 

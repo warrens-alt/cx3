@@ -55,7 +55,7 @@ export default function AnalysisGuide({ additionalContent, analysisContext }: { 
         <section><h3>How to interpret missing values</h3><p>{analysisContext?.nullMeaning || first?.nullMeaning || 'Missing outcomes are not failures. Compare feed completeness and follow-up age.'}</p><p>Review each metric’s numerator and denominator in Metric definitions. Unsupported filters are rejected, not silently removed.</p></section>
         <section><h3>Known source limitations</h3><SourceCapabilityNotice /><p>Source availability does not establish freshness or independent reconciliation. Check Data status for the existing evidence.</p></section>
         {additionalContent}
-        <section><h3>{analysisContext?.originalSource ? 'Source field definitions' : 'Metric definitions'}</h3>{analysisContext?.originalSource ? <p>Raw fields retain their original source labels and values. Normalised metric definitions and lineage belong to the separate Operational analysis view.</p> : <AnalyticsDefinitions />}</section>
+        <section><h3>{analysisContext?.originalSource ? 'Source field definitions' : 'Metric definitions'}</h3>{analysisContext?.originalSource ? <p>Raw fields retain their original source labels and values. Normalised metric definitions and lineage are available in Population mode and the Lead Dossier Audit tab.</p> : <AnalyticsDefinitions />}</section>
         <nav aria-label="Continue this investigation">{next.map(item => <Link key={item.path} to={scoped(item.path)} onClick={() => setOpen(false)}>{item.name}</Link>)}<Link to={scoped('/data-integrity')} onClick={() => setOpen(false)}>Check evidence</Link></nav>
       </div>
     </section>}

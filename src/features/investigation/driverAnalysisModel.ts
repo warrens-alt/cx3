@@ -22,8 +22,10 @@ export function driverScope(params: URLSearchParams): Record<string, string> {
 /** Narrowing is independent of global filters and keeps the original population predicate intact. */
 export function driverSegmentLink(params: URLSearchParams, dimension: DriverDimension, name: string, recordsAllowed: boolean, metric?: string | null): string {
   const next = new URLSearchParams(params);
-  for (const key of ['page', 'search', 'leadId', 'selectedLead', 'selectedLeadId', 'id']) next.delete(key);
+  for (const key of ['page', 'search', 'sourceSearch', 'sourceMode', 'view', 'preset', 'leadId', 'lead_id', 'selectedLead', 'selectedLeadId', 'selectedIDs', 'id']) next.delete(key);
+  for (const key of [...next.keys()]) if (/^(consumer[_-]?id|transaction[_-]?id)$/i.test(key)) next.delete(key);
   next.set(DRIVER_SEGMENT_PARAMS[dimension], !name.trim() ? 'Unrecorded' : name);
   if (metric && driverMetricKind(metric)) next.set('investigationMetric', metric);
+  if (recordsAllowed) next.set('view', 'population');
   return `${recordsAllowed ? '/lead-explorer' : '/investigate'}?${next.toString()}`;
 }

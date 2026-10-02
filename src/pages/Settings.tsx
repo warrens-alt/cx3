@@ -104,7 +104,7 @@ export default function Settings() {
           {data && <p className="cx-readiness-note">Service check generated at <time dateTime={data.timestamp}>{new Date(data.timestamp).toISOString()} (UTC)</time>. This is a check timestamp, not the source ingestion time.</p>}
           <details className="cx-settings-technical"><summary>Technical source details</summary><p>Credentials and source mappings are server-managed. This screen cannot change cloud permissions, enable integrations or edit source records. No credential values are displayed.</p></details>
         </div>
-        {isAdmin && <footer className="cx-settings-ledger"><div><BookOpen size={18} aria-hidden="true" /><div><strong>Inspect the lead ledger</strong><p>Open bounded records using the current reporting scope.</p></div></div><Link to={navigationTarget('/lead-ledger', location.pathname, location.search)} className="cx-button-secondary">Open scoped ledger</Link></footer>}
+        {isAdmin && <footer className="cx-settings-ledger"><div><BookOpen size={18} aria-hidden="true" /><div><strong>Inspect original source records</strong><p>Open Source Evidence in Lead Evidence using the current reporting scope.</p></div></div><Link to={navigationTarget('/lead-explorer?view=source', location.pathname, location.search)} className="cx-button-secondary">Open Source Evidence</Link></footer>}
       </section>
     </div>
   </AnalyticsPageLayout>;

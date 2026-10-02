@@ -55,7 +55,6 @@ const LEGACY_PAGE_DESCRIPTIONS: Record<string, string> = {
   '/commercial': 'What spend and commercial outcomes are actually evidenced?',
   '/reconciliation': 'Which commercial populations and values do not reconcile?',
   '/investigate': 'Which recorded populations need investigation?',
-  '/lead-explorer': 'Inspect the exact records and timelines behind a number.',
   '/data-integrity': 'Are source feeds complete, mapped and fresh enough to interpret?',
   '/warehouse': 'Analytics across all Google Cloud projects, BigQuery datasets, and tables.',
   '/reports': 'Inspect published evidence and reporting-release status.',

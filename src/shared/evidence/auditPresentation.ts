@@ -70,7 +70,7 @@ export function auditDestination(path: string, search: string, scope?: AuditScop
 /** Do not turn a private record search/identity-filter population into a shareable URL. */
 export function canShareAuditScope(search: string): boolean {
   const params = new URLSearchParams(search);
-  if (['search', 'leadId', 'lead_id', 'consumerId'].some(key => params.has(key))) return false;
+  if (['search', 'sourceSearch', 'leadId', 'lead_id', 'consumerId', 'selectedLead', 'selectedLeadId', 'selectedIDs'].some(key => params.has(key))) return false;
   try {
     const filters = JSON.parse(params.get('filters') || '{}');
     return !Object.keys(filters).some(key => /lead.?id|consumer.?id|transaction/i.test(key));

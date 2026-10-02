@@ -24,7 +24,7 @@ function canonicalFilters(value: unknown): SavedInvestigationFilters {
 /** Only explicit analytical definition fields are projected. Never serialize the UI model or tray. */
 export function buildSavedInvestigationDraft(model: InvestigationModel, params: URLSearchParams, name: string): SavedInvestigationDraft {
   validateInvestigationUrlScope(params);
-  if (model.search || [...params.keys()].some(key => /^(search|lead[_-]?id|consumer[_-]?id|transaction[_-]?id|selectedLead(Id)?)$/i.test(key))) throw new Error('Clear private record search or identifier scope before saving this investigation. No restriction will be dropped automatically.');
+  if (model.search || [...params.keys()].some(key => /^(search|sourceSearch|lead[_-]?id|consumer[_-]?id|transaction[_-]?id|selectedLead(Id)?|selectedIDs)$/i.test(key))) throw new Error('Clear private record search or identifier scope before saving this investigation. No restriction will be dropped automatically.');
   if (params.has('clientId') && params.get('clientId') !== model.clientId) throw new Error('Workspace selection does not match the current investigation.');
   if (['startDate', 'endDate'].some(key => params.has(key) && params.get(key) !== model[key as 'startDate' | 'endDate'])) throw new Error('Reporting dates do not match the current investigation.');
   const filters = canonicalFilters(model.filters);

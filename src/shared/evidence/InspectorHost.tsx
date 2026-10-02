@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, ExternalLink } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useDialogAccessibility } from '../../hooks/useDialogAccessibility';
@@ -74,7 +75,7 @@ export default function InspectorHost({ open, onClose, content }: { open: boolea
   const grain = provenance?.countingGrain || definition?.grain || contract?.countingGrain;
   const dateBasis = provenance?.dateBasis || definition?.dateBasis || contract?.dateBasis;
   const state = resultState(content.value);
-  const drillPath = content.recordDrill ? `/lead-explorer?${new URLSearchParams({ drill: content.recordDrill.drill, ...(content.recordDrill.drillValue ? { drillValue: content.recordDrill.drillValue } : {}) })}` : null;
+  const drillPath = content.recordDrill ? `/lead-explorer?${new URLSearchParams({ view: 'population', drill: content.recordDrill.drill, ...(content.recordDrill.drillValue ? { drillValue: content.recordDrill.drillValue } : {}) })}` : null;
   const technical = [
     ['Metric ID', content.metricId], ['Metric version', provenance?.metricVersion || contract?.version],
     ['Query job ID', provenance?.queryJobId], ['Report version', provenance?.reportVersion],
@@ -88,7 +89,7 @@ export default function InspectorHost({ open, onClose, content }: { open: boolea
   const visual = buildAuditPanelModel(content, scopeDescription);
   const recordPath = drillPath ? scoped(drillPath) : null;
   const currentPreviewKey = JSON.stringify([content.title, recordPath]);
-  return <div className="cx-audit-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+  const panel = <div className="cx-audit-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
     <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="inspector-title" className="cx-audit-drawer">
       <header><div><span className="cx-audit-eyebrow">Audit evidence</span><h2 id="inspector-title">{content.title}</h2>{content.subtitle && <p>{content.subtitle}</p>}</div><button type="button" className="cx-icon-button" onClick={onClose} aria-label="Close inspector"><X size={18}/></button></header>
       <div className="cx-audit-body">
@@ -134,4 +135,7 @@ export default function InspectorHost({ open, onClose, content }: { open: boolea
       </div><footer><button type="button" className="cx-button-secondary" onClick={onClose}>Close</button></footer>
     </div>
   </div>;
+  // A dossier is sticky, scrollable and a size container. Its stacking context
+  // must not trap a modal audit overlay or the dialog's background/focus locks.
+  return typeof document === 'undefined' ? panel : createPortal(panel, document.body);
 }

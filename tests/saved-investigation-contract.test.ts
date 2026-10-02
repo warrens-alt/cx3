@@ -81,7 +81,7 @@ test('saved definitions reject invalid population, metric, date, release and rev
 });
 
 test('draft creation never broadens private, duplicate, conflicting or unsupported current scope', () => {
-  for (const key of ['search', 'leadId', 'lead_id', 'consumerId', 'consumer-id', 'transaction_id', 'selectedLeadId']) {
+  for (const key of ['search', 'sourceSearch', 'leadId', 'lead_id', 'consumerId', 'consumer-id', 'transaction_id', 'selectedLeadId', 'selectedIDs']) {
     const url = params(); url.set(key, 'PRIVATE'); assert.throws(() => buildSavedInvestigationDraft(model(), url, 'Unsafe'), /private|identifier/i, key);
   }
   assert.throws(() => buildSavedInvestigationDraft({ ...model(), search: 'PRIVATE' }, params(), 'Unsafe'), /private|identifier/i);

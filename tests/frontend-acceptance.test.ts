@@ -25,7 +25,7 @@ async function mount(route:string,options:any={}) {
   console.on('error',(...args:any[])=>errors.push(args.map(String).join(' ')));
   const dom=new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>',{url:'https://synthetic.invalid',runScripts:'outside-only',pretendToBeVisual:true,virtualConsole:console});
   const w=dom.window as any;
-  Object.assign(w,{Response,Request,Headers,AbortController,TextEncoder,TextDecoder,ReadableStream,ResizeObserver:class {observe(){}unobserve(){}disconnect(){}},__fixture:{initialRoute:route,...options}});
+  Object.assign(w,{Response,Request,Headers,AbortController,TextEncoder,TextDecoder,ReadableStream,structuredClone,ResizeObserver:class {observe(){}unobserve(){}disconnect(){}},__fixture:{initialRoute:route,...options}});
   w.matchMedia=(query:string)=>({matches:false,media:query,addEventListener(){},removeEventListener(){},addListener(){},removeListener(){}});
   w.HTMLElement.prototype.scrollIntoView=()=>{};w.HTMLElement.prototype.scrollTo=()=>{}; w.scrollTo=()=>{};
   // JSDOM has no layout. Model rendered boxes for focus visibility; real geometry is browser-tested.
@@ -56,15 +56,16 @@ test('navigation uses destination scope policies and preserves repeated workspac
   assert.equal(new URLSearchParams(navigationTarget('/overview','/reports',query+'&release=r1').search).get('startDate'),null);
 });
 
-test('quick navigation opens Lead Ledger by keyboard and retains reporting scope',async()=>{
+test('quick navigation opens the single Lead Evidence destination by its Ledger alias and retains reporting scope',async()=>{
   const app=await mount('/lead-explorer'+scope+'&workspace=alpha&workspace=beta&drill=awaiting-first-dial&search=old');try{
     await app.click('button','Search pages');
     await app.wait(()=>app.find('input','Search pages and navigation'));
     const input=app.find('input','Search pages and navigation');
     await app.input(input,'Lead Ledger');
-    await app.wait(()=>app.find('[role="option"]','Lead ledger'),'Lead Ledger must appear in quick navigation');
+    await app.wait(()=>app.find('[role="option"]','Lead Evidence'),'Lead Evidence must appear for the Ledger alias in quick navigation');
+    assert.equal(app.w.document.querySelectorAll('[role="option"]').length,1);
     input.dispatchEvent(new app.w.KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
-    await app.wait(()=>app.w.__fixture.location.startsWith('/lead-ledger?')&&!!app.find('.cx-ledger-lead'));
+    await app.wait(()=>app.w.__fixture.location.startsWith('/lead-explorer?')&&!!app.find('.cx-investigation-records'));
     assert.equal(app.find('[role="dialog"]'),undefined);
     const params=new URL(app.w.__fixture.location,'https://synthetic.invalid').searchParams;
     assert.equal(params.get('clientId'),'synthetic-a');
@@ -116,27 +117,27 @@ test('actual Speed route exposes numeric timing, zero geometry and existing cont
   }finally{app.close();}
 });
 
-test('source and analytical Ledger are distinct panels with exact source evidence',async()=>{
+test('Source Evidence and Population retain distinct grains in one Lead Evidence workspace',async()=>{
   const app=await mount('/lead-ledger'+scope);try{
-    await app.wait(()=>app.text().includes('2 leads')||app.find('.cx-ledger-lead'));
-    await app.click('.cx-ledger-lead summary');
+    await app.wait(()=>app.find('.cx-ledger-source-table tbody tr'));
+    await app.click('.cx-ledger-source-table button','Inspect source lead SYNTHETIC-LEAD-0001');
     await app.wait(()=>app.text().includes('1234567890.123456789'));
     assert.match(app.text(),/repeated|duplicate/i);
-    await app.click('button','Operational analysis');
-    await app.wait(()=>app.find('input','Search analytical ledger'));
+    await app.click('[role="tab"]','Population');
+    await app.wait(()=>app.find('input','Search lead records'));
     await app.wait(()=>app.text().includes('SYNTHETIC-LEAD-0001'));
-    assert.ok(!app.find('.cx-ledger-lead'));
+    assert.ok(!app.find('.cx-ledger-source-table'));
     assert.match(app.text(),/Unavailable/);
   }finally{app.close();}
 });
 
 test('source Ledger paging and submitted search preserve full filtered summary counts',async()=>{
   const app=await mount('/lead-ledger'+scope,{sourceLeadCount:26});try{
-    await app.wait(()=>app.w.document.querySelectorAll('.cx-ledger-lead').length===25);
+    await app.wait(()=>app.w.document.querySelectorAll('.cx-ledger-source-table tbody tr').length===25);
     assert.match(app.text(),/26 leads in scope/);
     for(const [metric,value] of [['leads','26'],['rows','27'],['lead-only','25'],['exceptions','2']])assert.equal(app.find(`[data-metric="${metric}"] strong`).textContent,value);
     await app.click('button','Next');
-    await app.wait(()=>app.w.document.querySelectorAll('.cx-ledger-lead').length===1);
+    await app.wait(()=>app.w.document.querySelectorAll('.cx-ledger-source-table tbody tr').length===1);
     assert.match(app.text(),/SYNTHETIC-SOURCE-0026/);
     assert.match(app.text(),/26 leads in scope/);
     for(const [metric,value] of [['leads','26'],['rows','27'],['lead-only','25'],['exceptions','2']])assert.equal(app.find(`[data-metric="${metric}"] strong`).textContent,value);
@@ -151,9 +152,9 @@ test('source Ledger paging and submitted search preserve full filtered summary c
 test('partial source coverage preserves its boundary and export choices',async()=>{
   const coverage={compatible:false,available:LEDGER_HEADERS.filter(h=>h!=='HLC Last Call Date'),missing:['HLC Last Call Date'],source:'Synthetic partial source',richViewEnabled:false};
   const app=await mount('/lead-ledger'+scope,{payloads:{'/api/analytics/lead-ledger/replica/coverage':coverage}});try{
-    await app.wait(()=>app.find('button','Export all rows · partial fields'));
-    assert.equal(app.find('button','Export complete 63-column CSV').disabled,true);
-    await app.wait(()=>!app.find('button','Export all rows · partial fields').disabled);
+    await app.wait(()=>app.find('button','Export source data with available fields'));
+    assert.equal(app.find('button','Export source-compatible data').disabled,true);
+    await app.wait(()=>!app.find('button','Export source data with available fields').disabled);
     assert.match(app.text(),/HLC Last Call Date/);
   }finally{app.close();}
 });
@@ -228,28 +229,27 @@ test('root-cause contribution region preserves record links, scope and keyboard 
 });
 
 test('analytical Ledger scope changes reset paging across a scope round trip',async()=>{
-  const app=await mount('/lead-ledger'+scope);try{
-    await app.click('button','Operational analysis');
-    await app.wait(()=>app.find('input','Search analytical ledger'));
+  const app=await mount('/lead-explorer'+scope+'&preset=full');try{
+    await app.wait(()=>app.find('input','Search lead records'));
     await app.wait(()=>app.text().includes('SYNTHETIC-LEAD-0001'));
-    const next=app.w.document.querySelector('button[title="Next Page"]');assert.ok(next);next.click();
+    await app.click('.cx-explorer-pagination button','Next');
     await app.wait(()=>app.w.__fixture.requests.some((r:string)=>r.includes('raw-leads')&&r.includes('offset=50')));
-    app.w.__fixture.navigate('/lead-ledger?clientId=synthetic-b&startDate=2026-09-28&endDate=2026-09-28');
+    app.w.__fixture.navigate('/lead-explorer?clientId=synthetic-b&startDate=2026-09-28&endDate=2026-09-28&preset=full');
     await app.wait(()=>app.w.__fixture.requests.some((r:string)=>r.includes('raw-leads')&&r.includes('clientId=synthetic-b')));
     assert.ok(app.w.__fixture.requests.filter((r:string)=>r.includes('raw-leads')&&r.includes('clientId=synthetic-b')).every((r:string)=>r.includes('offset=0')));
-    app.w.__fixture.navigate('/lead-ledger'+scope);
+    app.w.__fixture.navigate('/lead-explorer'+scope+'&preset=full');
     await app.wait(()=>app.text().includes('SYNTHETIC-LEAD-0001'));
     assert.equal(app.w.document.querySelectorAll('[role="dialog"]').length,0);
-    assert.ok(app.find('button','First page')?.disabled||app.w.document.querySelector('button[title="First Page"]')?.disabled);
+    assert.equal(app.find('.cx-explorer-pagination button','First').disabled,true);
   }finally{app.close();}
 });
 
 test('analytical search submits exact existing query and shows matched rows',async()=>{
-  const app=await mount('/lead-ledger'+scope);try{
-    await app.click('button','Operational analysis');await app.wait(()=>app.find('input','Search analytical ledger'));
+  const app=await mount('/lead-explorer'+scope+'&preset=full');try{
+    await app.wait(()=>app.find('input','Search lead records'));
     await app.wait(()=>app.text().includes('SYNTHETIC-LEAD-0001'));
-    await app.input(app.find('input','Search analytical ledger'),'SYNTHETIC-LEAD-0002');
-    app.find('form').dispatchEvent(new app.w.Event('submit',{bubbles:true,cancelable:true}));
+    await app.input(app.find('input','Search lead records'),'SYNTHETIC-LEAD-0002');
+    app.find('.cx-explorer-search').dispatchEvent(new app.w.Event('submit',{bubbles:true,cancelable:true}));
     await app.wait(()=>app.w.__fixture.requests.some((r:string)=>r.includes('search=SYNTHETIC-LEAD-0002')));
     await app.wait(()=>app.text().includes('SYNTHETIC-LEAD-0002')&&!app.text().includes('SYNTHETIC-LEAD-0001'));
     assert.match(app.text(),/SYNTHETIC-LEAD-0002/);
@@ -258,19 +258,22 @@ test('analytical search submits exact existing query and shows matched rows',asy
 });
 
 test('loaded-row timeline reports unavailable evidence and returns keyboard focus',async()=>{
-  const app=await mount('/lead-ledger'+scope);try{
-    await app.click('button','Operational analysis');await app.wait(()=>app.find('input','Search analytical ledger'));
+  const app=await mount('/lead-explorer'+scope+'&preset=journey');try{
+    await app.wait(()=>app.find('input','Search lead records'));
     await app.wait(()=>app.text().includes('SYNTHETIC-LEAD-0001'));
-    const requests=app.w.__fixture.requests.length;
-    const trigger=await app.click('button[title="Inspect lead timeline"]');
+    const requests=app.w.__fixture.requests.filter((request:string)=>request.includes('raw-leads')).length;
+    const trigger=await app.click('.cx-investigation-records button.cx-record-open');
+    await app.wait(()=>app.find('.cx-lead-dossier'));
+    await app.wait(()=>app.find('.cx-lead-dossier').contains(app.w.document.activeElement),'Inspector receives initial focus');
+    await app.click('.cx-dossier-tabs [role="tab"]','Journey');
     await app.wait(()=>app.find('.cx-ledger-journey'));
-    const inspector=app.find('[aria-label="Selected operational lead"]');
+    const inspector=app.find('.cx-lead-dossier');
     assert.match(inspector.textContent,/Evidence unavailable/);
     assert.match(inspector.textContent,/count unavailable/);
     assert.doesNotMatch(inspector.textContent,/undefined total/);
-    assert.equal(app.w.__fixture.requests.length,requests,'Already loaded row needs no timeline request');
-    await app.wait(()=>inspector.contains(app.w.document.activeElement),'Inspector receives initial focus');
-    await app.click('button','Clear selected operational lead');
+    assert.equal(app.w.__fixture.requests.filter((request:string)=>request.includes('raw-leads')).length,requests,'Already loaded normalized row is reused');
+    assert.equal(app.w.__fixture.requests.filter((request:string)=>request.includes('lead-timeline')).length,1,'The canonical dossier retains its selected scoped timeline query');
+    await app.click('button','Close lead dossier');
     await app.wait(()=>!app.find('.cx-ledger-journey'));
     await app.wait(()=>app.w.document.activeElement===trigger,'Focus returns to its trigger');
     assert.equal(app.w.document.activeElement===trigger,true,'Focus returns to its trigger');
@@ -278,8 +281,7 @@ test('loaded-row timeline reports unavailable evidence and returns keyboard focu
 });
 
 test('request failure is not rendered as an empty analytical ledger',async()=>{
-  const app=await mount('/lead-ledger'+scope,{fail:['raw-leads']});try{
-    await app.click('button','Operational analysis');
+  const app=await mount('/lead-explorer'+scope,{fail:['raw-leads']});try{
     await app.wait(()=>app.find('[role="alert"]'));
     assert.doesNotMatch(app.text(),/No records match/);
     assert.match(app.text(),/unavailable|could not|failure/i);
@@ -589,11 +591,11 @@ test('Clear segments retains dates; Reset all clears dates and segment filters',
 
 test('desktop source inspector retains every field and duplicate record without a request',async()=>{
   const app=await mount('/lead-ledger'+scope);try{
-    await app.wait(()=>app.find('.cx-ledger-master-detail'));
+    await app.wait(()=>app.find('.cx-source-evidence-master-detail'));
     const before=app.w.__fixture.requests.length;
-    await app.click('.cx-ledger-master-detail button','Inspect source lead SYNTHETIC-LEAD-0001');
-    await app.click('.cx-ledger-inspector summary','View all 63 raw source fields');
-    const records=[...app.w.document.querySelectorAll('.cx-ledger-inspector .cx-ledger-raw-record')];
+    await app.click('.cx-source-evidence-master-detail button','Inspect source lead SYNTHETIC-LEAD-0001');
+    await app.click('.cx-lead-dossier summary','View all 63 raw source fields');
+    const records=[...app.w.document.querySelectorAll('.cx-lead-dossier .cx-ledger-raw-record')];
     assert.equal(records.length,2);
     for(const record of records as any[]){
       const fields=[...record.querySelectorAll('[data-raw-field]')] as any[];
@@ -601,26 +603,28 @@ test('desktop source inspector retains every field and duplicate record without 
       const value=(header:string)=>fields.find(f=>f.querySelector('dt').textContent===header).querySelector('dd').textContent;
       assert.equal(value('HLC Revenue Generated'),'1234567890.123456789');assert.equal(value('HLC Total Calls'),'0');assert.equal(value('HLC RPC'),'Not recorded');
     }
-    await app.click('.cx-ledger-master-detail button','Inspect source lead SYNTHETIC-LEAD-0002');
+    await app.click('.cx-source-evidence-master-detail button','Inspect source lead SYNTHETIC-LEAD-0002');
     assert.equal(app.w.__fixture.requests.length,before);
-    assert.ok(!app.find('.cx-ledger-inspector').textContent.includes('1234567890.123456789'));
+    assert.ok(!app.find('.cx-lead-dossier').textContent.includes('1234567890.123456789'));
   }finally{app.close();}
 });
 
 test('desktop source selection clears on page and scope round trips; switching views retains scope',async()=>{
   const app=await mount('/lead-ledger'+scope+'&vendor=Synthetic+vendor',{sourceLeadCount:26});try{
-    await app.wait(()=>app.find('.cx-ledger-master-detail'));
-    await app.click('.cx-ledger-master-detail button','Inspect source lead SYNTHETIC-LEAD-0001');
+    await app.wait(()=>app.find('.cx-source-evidence-master-detail'));
+    await app.click('.cx-source-evidence-master-detail button','Inspect source lead SYNTHETIC-LEAD-0001');
     await app.click('button','Next');
     await app.wait(()=>app.text().includes('Page 2'));
     assert.equal(app.w.document.querySelectorAll('tr[data-selected="true"]').length,0);
     await app.click('button','Previous');await app.wait(()=>app.text().includes('Page 1'));
     assert.equal(app.w.document.querySelectorAll('tr[data-selected="true"]').length,0);
-    const location=app.w.__fixture.location;
-    await app.click('button','Operational analysis');await app.wait(()=>app.find('input','Search analytical ledger'));
-    assert.equal(app.w.__fixture.location,location);
-    await app.click('button','Source evidence');await app.wait(()=>app.find('.cx-ledger-master-detail'));
-    assert.equal(app.w.__fixture.location,location);
+    const originalScope=new URL(app.w.__fixture.location,'https://synthetic.invalid').searchParams;
+    await app.click('[role="tab"]','Population');await app.wait(()=>app.find('input','Search lead records'));
+    assert.equal(new URL(app.w.__fixture.location,'https://synthetic.invalid').searchParams.get('view'),'population');
+    await app.click('[role="tab"]','Source Evidence');await app.wait(()=>app.find('.cx-source-evidence-master-detail'));
+    const current=new URL(app.w.__fixture.location,'https://synthetic.invalid').searchParams;
+    assert.equal(current.get('view'),'source');
+    for(const key of ['clientId','startDate','endDate','vendor'])assert.equal(current.get(key),originalScope.get(key));
     assert.equal(app.w.document.querySelectorAll('tr[data-selected="true"]').length,0);
     assert.equal(app.w.__fixture.requests.filter((r:string)=>r.includes('source-observability')).length,0);
   }finally{app.close();}
@@ -641,14 +645,14 @@ test('active non-admin sees no admin-only entry in sidebar, analyses or intent s
 
 test('source About uses original fetched-cohort evidence, separate from analytical metric lineage',async()=>{
   const app=await mount('/lead-ledger'+scope);try{
-    await app.wait(()=>app.find('.cx-ledger-browser'));
+    await app.wait(()=>app.find('.cx-ledger-source-table'));
     await app.click('summary','More actions');
     await app.click('button','About this analysis');
     const about=app.find('.cx-analysis-help-panel');
     assert.match(about.textContent,/Original lead\/vendor source records/);
     assert.match(about.textContent,/Fetched date selects the cohort/);
     assert.match(about.textContent,/Naive timestamps are UTC/);
-    assert.match(about.textContent,/Normalised metric definitions and lineage belong to the separate Operational analysis view/);
+    assert.match(about.textContent,/Normalised metric definitions and lineage.*Population/);
     assert.equal(app.find('button','Metric definitions'),undefined);
     assert.equal(app.w.document.querySelectorAll('select').length>0,true);
     assert.ok(app.find('label','Source dataset'));
@@ -942,12 +946,12 @@ for (const route of ['/overview','/funnel','/campaigns','/vetting','/routing','/
       assert.equal(app.w.document.querySelectorAll('main h1').length, 1);
       assert.equal(app.find('.cx-viz-jump-nav, .cx-analysis-jump-nav'), undefined);
       if (route === '/lead-ledger') {
-        assert.ok(scopeBar.compareDocumentPosition(app.find('.cx-ledger-tabs')) & app.w.Node.DOCUMENT_POSITION_FOLLOWING);
-        await app.click('.cx-ledger-tabs button', 'Operational analysis');
-        await app.wait(() => app.find('.cx-ledger-analysis-page .cx-page-header h1'));
-        const analyticalTitle = app.find('.cx-ledger-analysis-page .cx-page-header h1');
+        assert.ok(scopeBar.compareDocumentPosition(app.find('.cx-lead-evidence-mode-tabs')) & app.w.Node.DOCUMENT_POSITION_FOLLOWING);
+        await app.click('.cx-lead-evidence-mode-tabs button', 'Population');
+        await app.wait(() => app.find('.cx-investigation-records'));
+        const analyticalTitle = app.find('.cx-analytics-page .cx-page-header h1');
         assert.equal(analyticalTitle.textContent, getRouteItem(route)?.name);
-        assert.ok(analyticalTitle.compareDocumentPosition(app.find('.cx-ledger-analysis-page .cx-scopebar')) & app.w.Node.DOCUMENT_POSITION_FOLLOWING);
+        assert.ok(analyticalTitle.compareDocumentPosition(app.find('.cx-analytics-page .cx-scopebar')) & app.w.Node.DOCUMENT_POSITION_FOLLOWING);
         assert.equal(app.w.document.querySelectorAll('main h1').length, 1);
       }
     } finally { app.close(); }

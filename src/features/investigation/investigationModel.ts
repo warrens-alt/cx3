@@ -2,6 +2,7 @@ import type { AiInsightsData } from '../../lib/offernetClient';
 import { INVESTIGATION_LABELS } from '../../../contracts/investigation';
 import type { Filters } from '../../../contracts/filters';
 import { filterDescription } from '../../shared/evidence/auditPresentation';
+import { EXPLORE_REPORT_PARAMS } from '../../app/navigation/ScopePreservingRedirect';
 
 export const SEGMENT_KEYS = ['segmentVendor', 'segmentSource', 'segmentGrade', 'segmentLeadAge'] as const;
 export const INVESTIGATION_KEYS = ['drill', 'drillValue', 'investigationMetric', ...SEGMENT_KEYS] as const;
@@ -29,21 +30,28 @@ export function clearInvestigationParams(params: URLSearchParams) {
 }
 export function investigationPath(path: string, params: URLSearchParams, changes: Record<string, string | null> = {}) {
   const next = new URLSearchParams(params);
-  next.delete('leadId'); next.delete('page');
+  for (const key of [...next.keys()]) if (/^(lead[_-]?id|consumer[_-]?id|transaction[_-]?id|selectedLead(Id)?|selectedIDs|id)$/i.test(key)) next.delete(key);
+  next.delete('page');
+  // Investigation record actions always use the analytical population. Source
+  // search remains a separate local restriction and cannot become case scope.
+  if (path === '/lead-explorer') next.set('view', 'population');
+  else for (const key of ['view', 'preset', 'sourceSearch', 'sourceMode']) next.delete(key);
   for (const [key, value] of Object.entries(changes)) value === null ? next.delete(key) : next.set(key, value);
   return `${path}${next.size ? `?${next}` : ''}`;
 }
 /** Copy only an exact, safe scope. Search/identity filters cannot be dropped silently. */
 export function shareableInvestigationPath(path: string, params: URLSearchParams): string | null {
-  if (params.has('search') || params.has('leadId') || params.has('consumerId')) return null;
+  if ([...params.keys()].some(key => /^(search|sourceSearch|lead[_-]?id|consumer[_-]?id|transaction[_-]?id|selectedLead(Id)?|selectedIDs|id)$/i.test(key))) return null;
   try {
     const filters = JSON.parse(params.get('filters') || '{}');
     if (Object.keys(filters).some(key => /lead.?id|consumer.?id|transaction/i.test(key))) return null;
   } catch { return null; }
   const allowed = new Set(['clientId', 'workspace', 'startDate', 'endDate', 'filters', 'vendor', 'source', 'grade', 'medium', 'cli', 'campaign', 'channel', 'adset', 'agent', ...INVESTIGATION_KEYS]);
+  if (path === '/lead-explorer' || path === '/lead-ledger') for (const key of EXPLORE_REPORT_PARAMS) allowed.add(key);
   const safe = new URLSearchParams();
   for (const [key, value] of params) if (allowed.has(key)) safe.append(key, value);
-  return investigationPath(path, safe);
+  // A scoped view link restores its mode and preset; it is not a record action.
+  return investigationPath(path, safe, path === '/lead-explorer' && safe.has('view') ? { view: safe.get('view') } : {});
 }
 export function investigationScopeText(model: InvestigationModel) {
   return [model.clientLabel, `${model.startDate || 'Open start'} – ${model.endDate || 'Open end'}`,

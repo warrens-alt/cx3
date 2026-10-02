@@ -78,7 +78,10 @@ export function installFixture() {
       const matching=rawRows.filter(row=>Object.values(row).some(v=>String(v??'').toLowerCase().includes(search)));
       return response({clientId:url.searchParams.get('clientId'),rows:matching.slice(offset,offset+limit),totalCount:matching.length,limit,offset,metadata:{clientId:url.searchParams.get('clientId'),startDate:url.searchParams.get('startDate'),endDate:url.searchParams.get('endDate'),filters:{},validationStatus:'NOT_VERIFIED'}});
     }
-    if(url.pathname.startsWith('/api/analytics/lead-timeline/'))return response([{vendor:'Synthetic vendor',transaction_id:'SYNTHETIC-TX',capture_timestamp:'2026-09-28T09:00:00Z',first_call_timestamp:'2026-09-28T10:00:00Z',rpc:true,sale:true,activation:true}]);
+    if(url.pathname.startsWith('/api/analytics/offernet/lead-timeline/')){
+      if(Object.hasOwn(f.payloads,url.pathname))return response(f.payloads[url.pathname]);
+      return response({leadId:decodeURIComponent(url.pathname.split('/').at(-1)!),consumerId:0,vendor:'',source:'',grade:'',events:[],callEvidence:{status:'UNAVAILABLE',rowLimit:0,displayedCalls:0,reason:'Individual synthetic call times are not supplied. Aggregate evidence is not an attempt history.'}});
+    }
     if(Object.hasOwn(f.payloads,url.pathname))return response(f.payloads[url.pathname]);
     return response(null,422);
   };

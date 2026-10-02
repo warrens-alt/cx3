@@ -42,6 +42,10 @@ export const EXPLORE_REPORT_PARAMS = new Set([
   'drillValue',
   'page',
   'pageSize',
+  'view',
+  'preset',
+  'sourceSearch',
+  'sourceMode',
 ]);
 
 // Vendor dispositions local parameters
@@ -82,7 +86,8 @@ export function getAllowedParamsForTarget(targetPath: string, targetQuery?: stri
     return SETTINGS_SCOPE_PARAMS;
   }
 
-  // 3. Lead Explorer and Lead Ledger (inspecting exact lead records, ledger, and drilldowns)
+  // 3. Lead Evidence and its source-ledger compatibility route. These view keys
+  // remain report-local and never become operational dimension filters.
   if (targetPath === '/lead-explorer' || targetPath === '/lead-ledger') {
     return new Set([...UNIVERSAL_SCOPE_PARAMS, ...INVESTIGATION_SCOPE_PARAMS, ...EXPLORE_REPORT_PARAMS]);
   }
@@ -176,6 +181,21 @@ export function buildPreservedDestination(
   return `${targetPath}${searchStr}`;
 }
 
+/** The old source search remains local, with its meaning retained in Source mode. */
+export function buildLeadLedgerDestination(sourceSearch: string): string {
+  const legacy = new URLSearchParams(sourceSearch);
+  if (!legacy.has('sourceSearch') && legacy.has('search')) {
+    for (const value of legacy.getAll('search')) legacy.append('sourceSearch', value);
+  }
+  return buildPreservedDestination('/lead-explorer?view=source', legacy.toString());
+}
+
+/** Existing Ledger bookmarks open the canonical workspace, never a second UI. */
+export function LeadLedgerCompatibilityRedirect() {
+  const location = useLocation();
+  return <Navigate to={buildLeadLedgerDestination(location.search)} replace />;
+}
+
 /**
  * Redirects to a canonical URL while preserving compatible analytical context
  * (clientId, reporting dates, structured filters, dimension parameters)
@@ -190,4 +210,3 @@ export default function ScopePreservingRedirect({
   const destination = buildPreservedDestination(to, location.search, extraParams);
   return <Navigate to={destination} replace={replace} />;
 }
-

@@ -6,7 +6,7 @@ import path from 'node:path';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { buildAcceptanceFixture } from '../scripts/build-frontend-acceptance-fixture.mjs';
 import { LEDGER_HEADERS, ledgerCsvCell, analyseLedgerLead } from '../contracts/leadLedgerReplica';
-import { buildLeadLedgerExport } from '../src/lib/leadLedgerExport';
+import { buildLeadEvidenceExport } from '../src/lib/analysisExport';
 
 const output = await mkdtemp(path.join(tmpdir(), 'cx3-ledger-audit-'));
 await buildAcceptanceFixture(output);
@@ -57,7 +57,7 @@ async function mount(route: string, options: any = {}) {
   return { w, text, find, wait, click, input, blobText, blobs, filenames, errors, close() { w.__fixture.unmount(); dom.window.close(); assert.deepEqual(errors, []); } };
 }
 
-test('Explorer embeds exact source evidence and retains scope without putting the selected identifier in navigation', async () => {
+test('Population embeds exact source evidence and retains scope without putting the selected identifier in navigation', async () => {
   const filters = { vendor: { operator: 'in', values: ['Synthetic vendor', 'Other vendor'] }, grade: { operator: 'not_equals', value: 'D' } };
   const query = scope + '&workspace=alpha&workspace=beta&filters=' + encodeURIComponent(JSON.stringify(filters)) + '&drill=awaiting-first-dial&search=SYNTHETIC-LEAD-0001';
   const app = await mount('/lead-explorer' + query, { sourceLeadCount: 26 });
@@ -88,13 +88,13 @@ test('Explorer embeds exact source evidence and retains scope without putting th
 });
 
 test('source search URL changes reset pagination synchronously and support back / forward without stale search', async () => {
-  const app = await mount('/lead-ledger' + scope, { sourceLeadCount: 26 });
+  const app = await mount('/lead-explorer' + scope + '&view=source', { sourceLeadCount: 26 });
   try {
     await app.wait(() => app.find('.cx-ledger-source-table tbody tr'));
     await app.click('.cx-ledger-pagination button', 'Next');
     await app.wait(() => app.text().includes('SYNTHETIC-SOURCE-0026'));
     const before = app.w.__fixture.requests.length;
-    app.w.__fixture.navigate('/lead-ledger' + scope + '&search=SYNTHETIC-SOURCE-0026');
+    app.w.__fixture.navigate('/lead-explorer' + scope + '&view=source&sourceSearch=SYNTHETIC-SOURCE-0026');
     await app.wait(() => app.find('#ledger-search')?.value === 'SYNTHETIC-SOURCE-0026' && app.find('.cx-ledger-pagination')?.textContent.includes('Page 1'));
     const queries = app.w.__fixture.requests.slice(before).filter((request: string) => request.startsWith(replicaPath + '?'));
     assert.deepEqual(Array.from(queries), [replicaPath + '?' + new URLSearchParams({ clientId: 'synthetic-a', startDate: '2026-09-28', endDate: '2026-09-28', filters: '{}', sourceMode: 'configured', search: 'SYNTHETIC-SOURCE-0026', limit: '25', offset: '0' })]);
@@ -106,15 +106,15 @@ test('source search URL changes reset pagination synchronously and support back 
     await app.input(app.find('#ledger-search'), 'SYNTHETIC-SOURCE-0025');
     assert.equal(app.w.__fixture.requests.length, beforeDraft);
     app.find('#ledger-search').form.dispatchEvent(new app.w.Event('submit', { bubbles: true, cancelable: true }));
-    await app.wait(() => app.w.__fixture.location.includes('search=SYNTHETIC-SOURCE-0025') && app.find('.cx-ledger-source-table tbody')?.textContent.includes('SYNTHETIC-SOURCE-0025'));
+    await app.wait(() => app.w.__fixture.location.includes('sourceSearch=SYNTHETIC-SOURCE-0025') && app.find('.cx-ledger-source-table tbody')?.textContent.includes('SYNTHETIC-SOURCE-0025'));
     await app.click('.cx-ledger-toolbar button', 'Clear');
-    await app.wait(() => !new URL(app.w.__fixture.location, 'https://synthetic.invalid').searchParams.has('search') && app.find('#ledger-search')?.value === '');
+    await app.wait(() => !new URL(app.w.__fixture.location, 'https://synthetic.invalid').searchParams.has('sourceSearch') && app.find('#ledger-search')?.value === '');
     assert.equal(app.find('#ledger-search').value, '');
   } finally { app.close(); }
 });
 
 test('source snapshot distinguishes generated time from freshness and retains all 63 raw fields and exact values', async () => {
-  const app = await mount('/lead-ledger' + scope);
+  const app = await mount('/lead-explorer' + scope + '&view=source');
   try {
     await app.wait(() => app.find('[aria-label="Source snapshot"]'));
     const snapshot = app.find('[aria-label="Source snapshot"]');
@@ -125,8 +125,9 @@ test('source snapshot distinguishes generated time from freshness and retains al
     assert.equal([...snapshot.querySelectorAll('dt')].some((element: any) => element.textContent === 'Query job ID'), false, 'Absent optional metadata has no empty row');
     const before = app.w.__fixture.requests.length;
     await app.click('button', `Inspect source lead ${leadId}`);
-    await app.click('.cx-ledger-inspector summary', 'View all 63 raw source fields');
-    const records = [...app.w.document.querySelectorAll('.cx-ledger-inspector .cx-ledger-raw-record')] as any[];
+    await app.wait(() => app.find('.cx-lead-dossier .cx-ledger-inspector-sections'));
+    await app.click('.cx-lead-dossier summary', 'View all 63 raw source fields');
+    const records = [...app.w.document.querySelectorAll('.cx-lead-dossier .cx-ledger-raw-record')] as any[];
     assert.equal(records.length, 2, 'Repeated returned source records stay separate');
     for (const record of records) {
       const fields = [...record.querySelectorAll('[data-raw-field]')] as any[];
@@ -136,7 +137,7 @@ test('source snapshot distinguishes generated time from freshness and retains al
       assert.equal(record.querySelector('[data-raw-field="HLC Total Calls"] dd').textContent, '0');
       assert.equal(record.querySelector('[data-raw-field="HLC RPC"] dd').textContent, 'Not recorded');
     }
-    assert.match(app.find('.cx-ledger-inspector').textContent, /Raw source value/);
+    assert.match(app.find('.cx-lead-dossier').textContent, /Raw source value/);
     assert.equal(app.w.__fixture.requests.length, before);
   } finally { app.close(); }
 });
@@ -147,13 +148,11 @@ function analyticalResult() {
 
 test('analytical export review is local, result-bound, keyboard dismissible and downloads unchanged CSV once', async () => {
   const result = analyticalResult();
-  const app = await mount('/lead-ledger' + scope, { payloads: { '/api/analytics/offernet/raw-leads': result } });
+  const app = await mount('/lead-explorer' + scope, { payloads: { '/api/analytics/offernet/raw-leads': result } });
   try {
-    await app.click('button', 'Operational analysis');
     await app.wait(() => app.text().includes('SYNTHETIC-EXPORT'));
     const before = app.w.__fixture.requests.length;
-    await app.click('summary', 'More actions');
-    const trigger = await app.click('button', 'Export Page CSV');
+    const trigger = await app.click('button', 'Export current analytical page');
     await app.wait(() => app.find('[role="dialog"][aria-label="Export current evidence"]'));
     const dialog = app.find('[role="dialog"][aria-label="Export current evidence"]');
     assert.match(dialog.textContent, /Current returned page/);
@@ -168,19 +167,19 @@ test('analytical export review is local, result-bound, keyboard dismissible and 
     app.w.document.dispatchEvent(new app.w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     await app.wait(() => !app.find('[aria-label="Export current evidence"]'));
     await app.wait(() => app.w.document.activeElement === trigger);
-    await app.click('button', 'Export Page CSV');
+    await app.click('button', 'Export current analytical page');
     await app.click('button', 'Download CSV');
     await app.wait(() => app.blobs.length === 1);
     assert.equal(app.w.__fixture.requests.length, before);
-    const expected = buildLeadLedgerExport(result);
+    const expected = buildLeadEvidenceExport(result);
     assert.equal((await app.blobText(app.blobs[0])).replace(/^\uFEFF/, ''), expected.csv.replace(/^\uFEFF/, ''));
-    assert.deepEqual(app.filenames, [expected.filename]);
+    assert.deepEqual(app.filenames, [expected.filename + '.csv']);
     assert.equal(app.find('[aria-label="Export current evidence"]'), undefined);
   } finally { app.close(); }
 });
 
 test('source preflight adds no request and confirms the existing complete source export URL and CSV unchanged', async () => {
-  const app = await mount('/lead-ledger' + scope + '&search=' + encodeURIComponent(leadId), { sourceLeadCount: 26 });
+  const app = await mount('/lead-explorer' + scope + '&view=source&sourceSearch=' + encodeURIComponent(leadId), { sourceLeadCount: 26 });
   try {
     await app.wait(() => app.find('.cx-ledger-source-table tbody tr'));
     const before = app.w.__fixture.requests.length;
@@ -193,14 +192,14 @@ test('source preflight adds no request and confirms the existing complete source
       app.w.__fixture.requests.push(url.pathname + url.search);
       return new Response(csv, { headers: { 'Content-Type': 'text/csv', 'X-Export-Truncated': 'false', 'X-Export-Row-Count': '1', 'X-Export-Query-Job': 'synthetic-export-job', 'Content-Disposition': 'attachment; filename="synthetic-source.csv"' } });
     };
-    await app.click('button', 'Export complete 63-column CSV');
+    await app.click('button', 'Export source-compatible data');
     await app.wait(() => app.find('[aria-label="Export current evidence"]'));
     assert.match(app.find('[aria-label="Export current evidence"]').textContent, /separate single query snapshot/);
     assert.match(app.find('[aria-label="Export current evidence"]').textContent, /Current page limits do not limit this export/);
     assert.equal(app.w.__fixture.requests.length, before);
     await app.click('button', 'Cancel');
     assert.equal(app.w.__fixture.requests.length, before);
-    await app.click('button', 'Export complete 63-column CSV');
+    await app.click('button', 'Export source-compatible data');
     await app.click('button', 'Download CSV');
     await app.wait(() => app.blobs.length === 1);
     const expected = replicaPath + '/export?' + new URLSearchParams({ clientId: 'synthetic-a', startDate: '2026-09-28', endDate: '2026-09-28', filters: '{}', sourceMode: 'configured', search: leadId, mode: 'compatible' });
@@ -211,26 +210,26 @@ test('source preflight adds no request and confirms the existing complete source
 });
 
 test('a source export review cannot survive a scope change or request failure', async () => {
-  const app = await mount('/lead-ledger' + scope);
+  const app = await mount('/lead-explorer' + scope + '&view=source');
   try {
     await app.wait(() => app.find('.cx-ledger-source-table tbody tr'));
-    await app.click('button', 'Export complete 63-column CSV');
+    await app.click('button', 'Export source-compatible data');
     await app.wait(() => app.find('[aria-label="Export current evidence"]'));
     app.w.__fixture.fail = ['lead-ledger/replica'];
-    app.w.__fixture.navigate('/lead-ledger?clientId=synthetic-a&startDate=2026-09-27&endDate=2026-09-28');
+    app.w.__fixture.navigate('/lead-explorer?clientId=synthetic-a&startDate=2026-09-27&endDate=2026-09-28&view=source');
     await app.wait(() => !app.find('[aria-label="Export current evidence"]') && app.find('[role="alert"]'));
-    assert.equal(app.find('button', 'Export complete 63-column CSV').disabled, true);
+    assert.equal(app.find('button', 'Export source-compatible data').disabled, true);
     assert.equal(app.w.__fixture.requests.some((request: string) => request.includes('/replica/export')), false);
     assert.equal(app.blobs.length, 0);
   } finally { app.close(); }
 });
 
-test('Explorer review does not invent absent export metadata or bypass existing export validation', async () => {
+test('Population review does not invent absent export metadata or bypass existing export validation', async () => {
   const app = await mount('/lead-explorer' + scope);
   try {
-    await app.wait(() => app.find('button', 'Export current view'));
+    await app.wait(() => app.find('button', 'Export current analytical page') && !app.find('button', 'Export current analytical page').disabled);
     const before = app.w.__fixture.requests.length;
-    await app.click('button', 'Export current view');
+    await app.click('button', 'Export current analytical page');
     await app.wait(() => app.find('[aria-label="Export current evidence"]'));
     const dialog = app.find('[aria-label="Export current evidence"]');
     assert.match(dialog.textContent, /Current returned page/);
@@ -244,7 +243,7 @@ test('Explorer review does not invent absent export metadata or bypass existing 
   } finally { app.close(); }
 });
 
-test('non-admin Explorer fails closed without analytical record, timeline or source requests', async () => {
+test('non-admin Population fails closed without analytical record, timeline or source requests', async () => {
   const app = await mount('/lead-explorer' + scope, { nonAdmin: true });
   try {
     await app.wait(() => app.text().includes('Record access is restricted'));
@@ -256,12 +255,12 @@ test('non-admin Explorer fails closed without analytical record, timeline or sou
 
 test('partial source export retains its warning and existing available-fields export mode', async () => {
   const coverage = { source: 'synthetic partial source', available: LEDGER_HEADERS.filter(header => header !== 'HLC RPC'), missing: ['HLC RPC'], compatible: false, richViewEnabled: false };
-  const app = await mount('/lead-ledger' + scope, { payloads: { [replicaPath + '/coverage']: coverage } });
+  const app = await mount('/lead-explorer' + scope + '&view=source', { payloads: { [replicaPath + '/coverage']: coverage } });
   try {
-    await app.wait(() => app.find('button', 'Export all rows · partial fields'));
-    assert.equal(app.find('button', 'Export complete 63-column CSV').disabled, true);
+    await app.wait(() => app.find('button', 'Export source data with available fields'));
+    assert.equal(app.find('button', 'Export source-compatible data').disabled, true);
     const before = app.w.__fixture.requests.length;
-    await app.click('button', 'Export all rows · partial fields');
+    await app.click('button', 'Export source data with available fields');
     await app.wait(() => app.find('[aria-label="Export current evidence"]'));
     const dialog = app.find('[aria-label="Export current evidence"]');
     assert.match(dialog.textContent, /HLC RPC/);
@@ -287,7 +286,7 @@ test('dossier reuses the loaded journey, preserves unavailable evidence and supp
     const trigger = await app.click('button', 'Open dossier for lead SYNTHETIC-EXPORT');
     await app.wait(() => app.find('.cx-lead-dossier'));
     assert.match(app.find('.cx-dossier-inclusion').textContent, /Delivered · no recorded first dial/);
-    assert.match(app.find('.cx-lead-dossier').textContent, /Recorded first dial timestampUnavailable/);
+    assert.doesNotMatch(app.find('.cx-dossier-body').textContent, /Recorded first dial timestamp|First dial qualification/, 'Concise Summary does not duplicate journey or audit detail');
     assert.match(app.find('.cx-lead-dossier').textContent, /NOT_VERIFIED/);
     const summary = app.find('[role="tab"]', 'Summary');
     summary.focus(); summary.dispatchEvent(new app.w.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
@@ -295,15 +294,19 @@ test('dossier reuses the loaded journey, preserves unavailable evidence and supp
     assert.equal(app.w.document.activeElement, app.find('.cx-dossier-tabs [role="tab"]', 'Journey'));
     assert.match(app.find('.cx-ledger-journey').textContent, /Timeline unavailable/);
     await app.click('.cx-dossier-tabs [role="tab"]', 'Calls');
+    await app.wait(() => app.find('.cx-dossier-body').textContent.includes('Recorded call aggregates'));
+    assert.match(app.find('.cx-dossier-body').textContent, /First dialUnavailable/);
     assert.match(app.find('.cx-dossier-body').textContent, /Individual attempt timestamps.*unavailable/);
     assert.equal(app.find('.cx-dossier-body').querySelectorAll('.cx-journey-event').length, 0);
+    await app.click('.cx-dossier-tabs [role="tab"]', 'Audit');
+    await app.wait(() => app.find('.cx-dossier-body').textContent.includes('Supplied qualification flags'));
+    assert.match(app.find('.cx-dossier-body').textContent, /First dial · dialledQualification not supplied/);
     await app.click('button', 'Close lead dossier');
-    assert.equal(app.find('.cx-lead-dossier'), undefined);
-    assert.equal(app.w.document.activeElement, trigger);
+    await app.wait(() => !app.find('.cx-lead-dossier') && app.w.document.activeElement === trigger);
   } finally { app.close(); }
 });
 
-test('Explorer scope changes clear selection and pagination; stale timeline and source completions cannot leak', async () => {
+test('Population scope changes clear selection and pagination; stale timeline and source completions cannot leak', async () => {
   const timelinePath = '/api/analytics/offernet/lead-timeline/SYNTHETIC-LEAD-0051';
   const app = await mount('/lead-explorer' + scope + '&drill=awaiting-first-dial', { defer: [timelinePath, replicaPath] });
   try {
@@ -326,7 +329,7 @@ test('Explorer scope changes clear selection and pagination; stale timeline and 
   } finally { app.close(); }
 });
 
-test('Explorer search and clear controls preserve the correct investigation and reporting scope', async () => {
+test('Population search and clear controls preserve the correct investigation and reporting scope', async () => {
   const app = await mount('/lead-explorer' + scope + '&drill=one-call-only&segmentGrade=A');
   try {
     await app.wait(() => app.find('button', `Open dossier for lead ${leadId}`));
@@ -409,12 +412,23 @@ test('dossier retains recorded anomalous timestamps and distinguishes qualified 
     await app.wait(() => app.find('button', 'Open dossier for lead SYNTHETIC-EXPORT'));
     await app.click('button', 'Open dossier for lead SYNTHETIC-EXPORT');
     await app.wait(() => app.find('.cx-lead-dossier'));
-    const text = app.find('.cx-lead-dossier').textContent;
-    assert.match(text, /Recorded first dial timestamp2026-09-28T09:00:00Z/);
-    assert.match(text, /First dial qualificationExcluded from qualified progression/);
-    assert.match(text, /Invalid: First dial before capture; First dial before delivery; Activation before sale/);
-    assert.match(text, /SaleRecordedActivatedRecorded/);
-    assert.match(text, /Source-recorded revenue/);
-    assert.match(text, /Sales and activations do not certify billing or collection/);
+    await app.click('.cx-dossier-tabs [role="tab"]', 'Journey');
+    await app.wait(() => app.find('.cx-journey-event[data-stage="call"]'));
+    await app.click('.cx-journey-event[data-stage="call"]');
+    await app.wait(() => app.find('.cx-journey-evidence').textContent.includes('first_call_time'));
+    assert.match(app.find('.cx-journey-evidence').textContent, /first_call_time2026-09-28T09:00:00Z/);
+    assert.match(app.find('.cx-journey-anomalies').textContent, /First dial precedes delivered/);
+    await app.click('.cx-dossier-tabs [role="tab"]', 'Audit');
+    await app.wait(() => app.find('.cx-dossier-body').textContent.includes('Supplied qualification flags'));
+    const audit = app.find('.cx-dossier-body');
+    assert.match(audit.textContent, /First dial · dialledExcluded from qualified progression/);
+    for (const anomaly of ['First dial before capture', 'First dial before delivery', 'Activation before sale']) assert.match(audit.querySelector('[aria-label="Recorded chronology anomalies"]').textContent, new RegExp(anomaly));
+    assert.match(audit.textContent, /do not certify billing, collection or business completion/);
+    await app.click('.cx-dossier-tabs [role="tab"]', 'Outcomes');
+    await app.wait(() => app.find('.cx-dossier-body').textContent.includes('Recorded outcome evidence'));
+    const outcomes = app.find('.cx-dossier-body');
+    assert.match(outcomes.textContent, /Sale · saleRecordedActivation · activatedRecorded/);
+    assert.match(outcomes.textContent, /Source-recorded revenue/);
+    assert.match(outcomes.textContent, /does not create an upstream event, collected cash or a confirmed event time/);
   } finally { app.close(); }
 });

@@ -2,12 +2,14 @@ import React from 'react';
 import { fetchRawLeads, type RawLeadsData } from '../../lib/offernetClient';
 import { useOperationalData } from '../../lib/useOperationalData';
 import { useAuth } from '../../lib/AuthContext';
+import { UNIVERSAL_SCOPE_PARAMS, INVESTIGATION_SCOPE_PARAMS } from '../../app/navigation/ScopePreservingRedirect';
 
 /** Mount only after an explicit request. The existing API retains authorization and drill semantics. */
 export default function SupportingRecordPreview({ recordPath }: { recordPath: string }) {
   const { isAdmin } = useAuth();
   const search = new URL(recordPath, 'https://scope.invalid').searchParams;
-  const params: Record<string, string | number> = Object.fromEntries(search);
+  const analyticalParams = new Set([...UNIVERSAL_SCOPE_PARAMS, ...INVESTIGATION_SCOPE_PARAMS, 'search']);
+  const params: Record<string, string | number> = Object.fromEntries([...search].filter(([key]) => analyticalParams.has(key)));
   // Existing raw-leads API minimum page size is ten; render at most five masked records.
   params.limit = 10;
   params.offset = 0;

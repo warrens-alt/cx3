@@ -23,7 +23,6 @@ import {
   Shield,
   Eye,
   Bot,
-  Layers,
   type LucideIcon,
 } from 'lucide-react';
 import { BRAND } from '../../contracts/naming';
@@ -304,16 +303,16 @@ export const ROUTE_MANIFEST: RouteItem[] = [
   },
   {
     id: 'lead-explorer',
-    name: 'Record explorer',
+    name: 'Lead Evidence',
     path: '/lead-explorer',
-    description: 'Inspect exact lead records, timeline events, and drill populations.',
+    description: 'Inspect analytical lead populations, journeys, outcomes, audit evidence and original source records.',
     area: 'investigate',
     icon: Search,
     scopePolicy: 'operational',
     isPrimaryTab: true,
     adminOnly: true,
-    searchTerms: ['records', 'consumer', 'timeline', 'lead explorer', 'explore'],
-    urlAliases: ['/explore', '/explorer', '/leads'],
+    searchTerms: ['lead', 'record', 'records', 'explorer', 'ledger', 'source ledger', 'analytical ledger', 'raw source', 'lead evidence', 'timeline', 'consumer', 'lead explorer', 'explore'],
+    urlAliases: ['/explore', '/explorer', '/leads', '/lead-ledger'],
     legacySection: 'explore',
   },
   {
@@ -353,20 +352,6 @@ export const ROUTE_MANIFEST: RouteItem[] = [
     searchTerms: ['partners', 'vendor evidence'],
     legacySection: 'evidence',
   },
-  {
-    id: 'lead-ledger',
-    name: 'Lead ledger',
-    path: '/lead-ledger',
-    description: 'Inspect original source records and normalised lead timelines.',
-    area: 'investigate',
-    icon: Layers,
-    scopePolicy: 'diagnostics',
-    isMoreView: true,
-    adminOnly: true,
-    searchTerms: ['ledger', 'lead ledger'],
-    legacySection: 'explore',
-  },
-
   // --- SETTINGS & ADMINISTRATION ---
   {
     id: 'admin',
