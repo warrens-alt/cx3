@@ -110,3 +110,20 @@ export interface EvidenceReportResult extends Omit<ReportResult, 'request' | 'to
   replay: { status: 'AVAILABLE' | 'NOT_CONFIGURED' | 'NOT_REPLAYABLE'; expiresAt: string | null; reason: string | null };
   evidence: { observed: boolean; mapped: boolean; scoped: boolean; reproduced: 'NOT_RUN'; independentlyReconciled: 'NOT_VERIFIED'; businessVerified: 'NOT_VERIFIED' };
 }
+
+export const REPORT_REPLAY_VERSION = 'cx.report-replay.1' as const;
+export interface ReportReplayRequest { contractVersion: typeof REPORT_REPLAY_VERSION; tenantId: string; token: string; }
+export interface ImmutableReportComparison {
+  resultHash: string; generatedAt: string; request: VersionedReportRequest;
+  totals: MetricResult[]; groups: MetricResult[];
+}
+export interface ReportReplayResult {
+  contractVersion: typeof REPORT_REPLAY_VERSION;
+  status: 'MATCH' | 'MISMATCH' | 'RELEASE_UNAVAILABLE' | 'REPLAY_INVALID' | 'NOT_REPLAYABLE';
+  reason: string;
+  original: ImmutableReportComparison | null;
+  replayed: ImmutableReportComparison | null;
+  comparedAt: string;
+  comparisonKind: 'IMMUTABLE_REPRODUCTION';
+  reconciliationStatus: 'NOT_VERIFIED'; businessMeaningStatus: 'NOT_VERIFIED';
+}

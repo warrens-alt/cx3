@@ -110,6 +110,7 @@ export async function executeReport(repo: ReportRepository, principal: Principal
     const result = await repo.query(compileSnapshotReport(request, release, eligible));
     const validated = validateRows(result.rows, request, release, eligible);
     report.totals.push(...validated.totals); report.groups = validated.groups;
+    if (report.totals.length + report.groups.length > REPORT_MAX_ROWS) throw new RequestError('Report evidence exceeds the bounded result size; select fewer metrics or groups', 422);
     report.queryJobId = result.jobId;
     report.queryEvidence = result.evidence || { durationMs: 0, bytesProcessed: null, cacheHit: null, subqueryCount: 0, completion: 'COMPLETED' };
     report.status = report.totals.some(row => row.calculationStatus === 'CHECKED') ? 'AVAILABLE' : 'UNAVAILABLE';

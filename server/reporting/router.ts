@@ -5,9 +5,10 @@ import { RequestError } from '../bigquery/filters';
 import { exceptionCatalogue } from '../../contracts/operations';
 import { requireTenant } from '../securityPolicy';
 import { executeReport, reportingPrincipal } from './service';
-import { reportIdentity } from './scope';
+import { allowedKeys, reportIdentity } from './scope';
 import { REPORT_DEFINITION_HASH } from './fingerprint';
 import { METRIC_VERSION, MODEL_VERSION } from '../../contracts/reporting';
+import { attachReplayToken, replayConfigured, replayReport } from './replay';
 
 export function createReportingRouter(repoFactory?: (() => BigQueryReportRepository) | BigQueryReportRepository | any) {
   const router = Router();
@@ -23,8 +24,10 @@ export function createReportingRouter(repoFactory?: (() => BigQueryReportReposit
   router.get('/catalogue', analyticalRoute(async (req: Request, res: Response, next: NextFunction) => {
     try {
       const repo = getRepo();
+      allowedKeys(req.query, ['tenantId', 'releaseId'], 'catalogue');
       const tenant = tenantFor(req, res, req.query.tenantId);
-      const release = await repo.release(tenant);
+      const releaseId = req.query.releaseId === undefined ? undefined : reportIdentity(req.query.releaseId, 'releaseId');
+      const release = await repo.release(tenant, releaseId);
       res.json({
         success: true,
         data: {
@@ -37,6 +40,7 @@ export function createReportingRouter(repoFactory?: (() => BigQueryReportReposit
             definitionHash: REPORT_DEFINITION_HASH,
             reason: release?.execution ? undefined : 'An approved immutable aggregate snapshot execution contract is required.',
           },
+          replayConfigured: replayConfigured(),
         },
       });
     } catch (err) {
@@ -47,6 +51,7 @@ export function createReportingRouter(repoFactory?: (() => BigQueryReportReposit
   router.get('/exceptions', analyticalRoute(async (req: Request, res: Response, next: NextFunction) => {
     try {
       const repo = getRepo();
+      allowedKeys(req.query, ['tenantId', 'releaseId'], 'exception catalogue');
       const tenant = tenantFor(req, res, req.query.tenantId);
       const releaseId = req.query.releaseId === undefined ? undefined : reportIdentity(req.query.releaseId, 'releaseId');
       const release = await repo.release(tenant, releaseId);
@@ -81,7 +86,7 @@ export function createReportingRouter(repoFactory?: (() => BigQueryReportReposit
 
   router.post('/', analyticalRoute(async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await executeReport(getRepo(), res.locals.principal, req.body);
+      const result = attachReplayToken(await executeReport(getRepo(), res.locals.principal, req.body));
       return res.json({ success: true, data: result });
     } catch (err) {
       next(err);
@@ -90,12 +95,8 @@ export function createReportingRouter(repoFactory?: (() => BigQueryReportReposit
 
   router.post('/replay', analyticalRoute(async (req: Request, res: Response, next: NextFunction) => {
     try {
-      tenantFor(req, res, req.body?.tenantId);
-      return res.status(501).json({
-        success: false,
-        error: 'Evidence replay is not implemented in this repository revision',
-        status: 'NOT_IMPLEMENTED',
-      });
+      const result = await replayReport(getRepo(), res.locals.principal, req.body);
+      return res.json({ success: true, data: result });
     } catch (err) {
       next(err);
     }

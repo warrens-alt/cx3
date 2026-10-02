@@ -117,6 +117,8 @@ test('repository enforces approved reporting dataset, immutable metadata and Big
     await assert.rejects(repository.assertSnapshots(outside), /outside the approved/);
     const replaced = fixtureRelease(); replaced.execution!.snapshot.createdAt = '2026-09-05T00:00:00Z';
     await assert.rejects(repository.assertSnapshots(replaced), /replaced/);
+    const nanoseconds = fixtureRelease(); nanoseconds.execution!.snapshot.snapshotTime = '2026-09-03T00:00:00.000001Z';
+    await assert.rejects(repository.assertSnapshots(nanoseconds), /replaced/);
     await repository.query({ query: 'SELECT 1', params: {} }); assert.equal(queryOptions.maximumBytesBilled, '900'); assert.equal(queryOptions.useLegacySql, false);
     await assert.rejects(repository.query({ query: 'DELETE FROM `x.y.z` WHERE true', params: {} }), /Read-only/);
   } finally {
