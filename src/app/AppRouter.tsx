@@ -52,7 +52,6 @@ export const ConsumerReentry = React.lazy(() => safeImport(() => import('../page
 export const VendorPerformance = React.lazy(() => safeImport(() => import('../pages/VendorPerformance')));
 export const Exceptions = React.lazy(() => safeImport(() => import('../pages/Exceptions')));
 export const CommercialReconciliation = React.lazy(() => safeImport(() => import('../pages/CommercialReconciliation')));
-export const LeadLedger = React.lazy(() => safeImport(() => import('../features/leadLedger/LeadLedgerWorkspace')));
 export const WarehouseAnalytics = React.lazy(() => safeImport(() => import('../pages/WarehouseAnalytics')));
 export const OffershopProcessObservability = React.lazy(() => safeImport(() => import('../pages/OffershopProcessObservability')));
 
