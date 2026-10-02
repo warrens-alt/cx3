@@ -1,16 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getBigQueryClient } from '../server/bigquery/client';
-import { getClientConfig } from '../server/bigquery/config';
+import { AnalyticsBigQueryClient } from '../server/bigquery/client';
 import { getDataIntegrityAnalytics } from '../server/analytics/integrity/completeness';
 
 const scope = { clientId: 'default_tenant', startDate: '2026-09-01', endDate: '2026-09-30', vendor: 'Scoped vendor' };
 test('Data Confidence exposes all five canonical chronology populations, overlapping evidence and no certification score', async context => {
-  const client = getBigQueryClient(getClientConfig(scope.clientId).bigQueryProject);
-  context.mock.method(client, 'dataset', () => ({ table: () => ({ getMetadata: async () => [{ schema: { fields: [] } }] }) }) as any);
+  context.mock.method(AnalyticsBigQueryClient.prototype, 'dataset', () => ({ table: () => ({ getMetadata: async () => [{ schema: { fields: [] } }] }) }) as any);
+  context.mock.method(AnalyticsBigQueryClient.prototype, 'createQueryJob', async () => { throw new Error('Unexpected warehouse job in offline fixture'); });
   const queries: any[] = [];
   let counts: Record<string, number | null> = { delivery_before_capture: 1, first_dial_before_capture: 2, first_dial_before_delivery: 3, sale_before_capture: 0, activation_before_sale: 4 };
-  context.mock.method(client, 'query', async (request: any) => {
+  context.mock.method(AnalyticsBigQueryClient.prototype, 'query', async (request: any) => {
     queries.push(request);
     if (request.query.includes('lead_quality AS (')) return [[{ total_leads: 10, out_of_order_timestamps: 5, ...counts }]] as any;
     return [[]] as any;
