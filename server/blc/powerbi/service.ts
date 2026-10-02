@@ -304,7 +304,8 @@ export class RubixPowerBiService {
     const live = powerBiReport.metadata.provenance === 'LIVE_POWERBI';
     return {
       version: RUBIX_POWERBI_VERSION,
-      reconciledAt: new Date().toISOString(), // Check time, not a claim of reconciliation.
+      reconciledAt: null, // No cross-source reconciliation has taken place.
+      checkedAt: new Date().toISOString(),
       clientId: userContext.clientId, dateRange: { startDate: dates.startDate, endDate: dates.endDate },
       warehouseActivations: {
         sourceTable: 'dashboards-422710.lead_ledger.tbl_blc_activations',

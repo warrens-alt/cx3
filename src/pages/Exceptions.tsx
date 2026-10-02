@@ -1,10 +1,12 @@
-import InvestigationContextBar from '../features/investigation/InvestigationContextBar';
+import InvestigationWorkflow from '../features/investigation/InvestigationWorkflow';
+import InvestigationQuickStarts from '../features/investigation/InvestigationQuickStarts';
+import { useInvestigationAnalysis } from '../features/investigation/useInvestigationAnalysis';
 import DriverAnalysis from '../features/investigation/DriverAnalysis';
 import EvidenceConfidence from '../features/investigation/EvidenceConfidence';
 import EvidenceTray, { useEvidenceTray } from '../features/investigation/EvidenceTray';
 import InvestigationAI from '../features/investigation/InvestigationAI';
 import SavedInvestigations from '../features/investigation/SavedInvestigations';
-import { investigationPath, investigationRequest, clearInvestigationParams } from '../features/investigation/investigationModel';
+import { investigationPath, investigationRequest } from '../features/investigation/investigationModel';
 import { ReportSkeleton } from '../components/OperationalState';
 import { ReportActions } from '../shared/reporting/ReportPresentation';
 import { useOperationalData } from '../lib/useOperationalData';
@@ -44,6 +46,7 @@ export default function Exceptions() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { pin, items: pinnedEvidence } = useEvidenceTray();
+  const analysis = useInvestigationAnalysis();
   const activeDrill = searchParams.get('drill');
   const activeMetric = searchParams.get('investigationMetric');
   const showOverview = !activeDrill && !activeMetric;
@@ -104,19 +107,11 @@ export default function Exceptions() {
           </div>
           <ReportActions aboutContent={<p>Operational rules: {queue.data?.validationStatus || data?.validationStatus || 'NOT_VERIFIED'}</p>} />
 </header>
-      <OffernetFilterBar onRefresh={async () => { await Promise.all([queue.loadData(true), ...(showOverview ? [loadData(true), controls.refetch()] : [])]); }} />
-        <div className="cx-investigation-workflow" aria-label="Investigation workflow">{['Signal', 'Diagnose', 'Segment', 'Records', 'Evidence', 'Conclusion'].map(step => <span key={step}>{step}</span>)}</div>
-        <InvestigationContextBar evidenceCount={pinnedEvidence.length} populationCount={selectedException?.count} validationStatus={queue.data?.validationStatus} loading={queue.loading} receivedAt={queue.receivedAt} />
+      <OffernetFilterBar onRefresh={async () => { analysis.refresh(); await Promise.all([queue.loadData(true), ...(showOverview ? [loadData(true), controls.refetch()] : [])]); }} />
+        <InvestigationWorkflow analysis={analysis.summary} requestError={activeMetric ? analysis.summary?.state === 'unavailable' ? analysis.summary.detail : null : queue.error} evidenceCount={pinnedEvidence.length} populationCount={selectedException?.count} validationStatus={activeMetric ? analysis.summary?.validationStatus : queue.data?.validationStatus} loading={activeMetric ? !analysis.summary || analysis.summary.state === 'loading' : queue.loading} receivedAt={activeMetric ? undefined : queue.receivedAt} />
         <SavedInvestigations />
-        <nav className="cx-investigation-starts" aria-label="Start an investigation">
-          <Link to={investigationPath('/investigate', clearInvestigationParams(searchParams), { investigationMetric: 'fetchedLeads', search: null })}>What changed?<ArrowRight size={14}/></Link>
-          <Link to={investigationPath('/investigate', clearInvestigationParams(searchParams), { drill: 'awaiting-first-dial', search: null })}>Where are leads getting stuck?<ArrowRight size={14}/></Link>
-          <a href="#exception-workbench">Which exceptions need attention?<ArrowRight size={14}/></a>
-          <Link to={investigationPath('/investigate', clearInvestigationParams(searchParams), { investigationMetric: 'leadToSaleRate', search: null })}>Which vendor or source contributes most?<ArrowRight size={14}/></Link>
-          {isAdmin && <Link to={investigationPath('/lead-explorer', clearInvestigationParams(searchParams), { search: null })}>Find a specific lead<ArrowRight size={14}/></Link>}
-          <Link to={investigationPath('/data-integrity', searchParams)}>Can I trust this evidence?<ArrowRight size={14}/></Link>
-        </nav>
-        {(activeDrill || activeMetric) && <><DriverAnalysis exceptionData={activeMetric ? undefined : queue.data} exceptionError={queue.error} onPin={item => pin(item, { validationStatus: queue.data?.validationStatus || 'NOT_VERIFIED' })} />
+        <InvestigationQuickStarts />
+        {(activeDrill || activeMetric) && <><DriverAnalysis summaryScopeKey={analysis.scopeKey} refreshToken={analysis.refreshToken} onSummary={analysis.onSummary} exceptionData={activeMetric ? undefined : queue.data} exceptionError={queue.error} onPin={item => pin(item, { validationStatus: queue.data?.validationStatus || 'NOT_VERIFIED' })} />
           {isAdmin && <p className="mb-4"><Link className="cx-button-primary" to={investigationPath('/lead-explorer', searchParams)}>Inspect affected records<ArrowRight size={14}/></Link></p>}
           <EvidenceConfidence />
         </>}

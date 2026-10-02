@@ -19,6 +19,13 @@ registerQueryClientForSessionIsolation(queryClient);
 updateAnalyticalSession({uid:'synthetic-user',role:(window as any).__fixture.nonAdmin?'analyst':'admin',status:'active',allowedTenants:['synthetic-a','synthetic-b'],isAdmin:!(window as any).__fixture.nonAdmin,isActive:true});
 function Harness() {
   const navigate=useNavigate(); const location=useLocation();
+  const [, refreshAccess] = React.useReducer(value => value + 1, 0);
+  (window as any).__fixture.setAccess=(access: { nonAdmin?: boolean; uid?: string; active?: boolean }) => {
+    const fixture = (window as any).__fixture;
+    if (access.nonAdmin !== undefined) fixture.nonAdmin = access.nonAdmin;
+    updateAnalyticalSession({uid:access.uid || 'synthetic-user',role:fixture.nonAdmin?'analyst':'admin',status:access.active === false?'suspended':'active',allowedTenants:['synthetic-a','synthetic-b'],isAdmin:!fixture.nonAdmin,isActive:access.active !== false});
+    refreshAccess();
+  };
   (window as any).__fixture.navigate=navigate;
   (window as any).__fixture.refresh=()=>queryClient.refetchQueries();
   (window as any).__fixture.location=location.pathname+location.search+location.hash;

@@ -85,6 +85,7 @@ test('Rubix PowerBI router requires authentication and authorized tenant scope',
     const capBody = await capRes.json();
     assert.equal(capBody.success, true);
     assert.equal(capBody.data.capabilities.length, 10);
+    assert.ok(capBody.data.capabilities.every((capability: any) => capability.status !== 'VERIFIED'));
     assert.ok(capBody.data.supportedFilters.includes('team'));
     assert.ok(capBody.data.unsupportedFilters.includes('vendor'));
 
@@ -136,6 +137,8 @@ test('Rubix PowerBI router requires authentication and authorized tenant scope',
     const reconBody = await reconRes.json();
     assert.equal(reconBody.success, true);
     assert.equal(reconBody.data.reconciliationStatus, 'UNVERIFIED');
+    assert.equal(reconBody.data.reconciledAt, null);
+    assert.ok(Number.isFinite(Date.parse(reconBody.data.checkedAt)));
     assert.equal(reconBody.data.warehouseActivations.verifiedMandates, null);
     assert.equal(reconBody.data.powerBiActivations.totalReported, null);
     assert.equal(reconBody.data.variance.deltaCount, null);

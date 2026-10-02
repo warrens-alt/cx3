@@ -146,7 +146,8 @@ export interface RubixCapabilitiesResponse {
 
 export interface RubixReconciliationResponse {
   version: string;
-  reconciledAt: string;
+  reconciledAt: string | null;
+  checkedAt: string;
   clientId: string;
   dateRange: { startDate: string; endDate: string };
   warehouseActivations: {

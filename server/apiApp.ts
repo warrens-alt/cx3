@@ -48,7 +48,8 @@ export async function mountApi(app: Application, options: ApiMountOptions = {}) 
           subject: 'dev-user',
           email: process.env.DEV_USER_EMAIL || 'dev@example.invalid',
           tenants: (process.env.CX_DEV_TENANTS || 'default_tenant').split(',').map(value => value.trim()).filter(Boolean),
-          role: process.env.CX_DEV_ROLE === 'viewer' ? 'viewer' : 'admin',
+          // Analyst has viewer API capabilities; unknown roles must not gain authority.
+          role: process.env.CX_DEV_ROLE === 'admin' ? 'admin' : 'viewer',
         };
         next();
       }
@@ -66,32 +67,6 @@ export async function mountApi(app: Application, options: ApiMountOptions = {}) 
     res.setHeader('X-Analytics-Status', 'UNVERIFIED');
     next();
   }, createCliImportRouter(options.cliArchiveBackend), analyticsRouter, createLeadLedgerRouter(), createBlcRouter());
-
-  app.get('/api/users', async (_req, res) => {
-    try {
-      const { getUsers } = await import('../src/db/users.ts');
-      const users = await getUsers();
-      res.json({ success: true, data: users });
-    } catch (error: any) {
-      console.error('Failed to fetch users from Cloud SQL:', error);
-      res.status(500).json({ success: false, error: error.message || 'Failed to fetch users' });
-    }
-  });
-
-  app.post('/api/users/sync', async (req, res) => {
-    try {
-      const { uid, email } = req.body || {};
-      if (!uid || !email) {
-        return res.status(400).json({ success: false, error: 'uid and email are required' });
-      }
-      const { getOrCreateUser } = await import('../src/db/users.ts');
-      const user = await getOrCreateUser(String(uid), String(email));
-      res.json({ success: true, data: user });
-    } catch (error: any) {
-      console.error('Failed to sync user with Cloud SQL:', error);
-      res.status(500).json({ success: false, error: error.message || 'Failed to sync user' });
-    }
-  });
 
   app.use('/api/bq', (_req, res) => res.status(410).json({
     success: false,

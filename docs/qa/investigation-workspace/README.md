@@ -1,5 +1,10 @@
 # Investigation workspace verification — 2 October 2026
 
+For the subsequent consolidation, active workspace stages, current-view refresh,
+access-change selection clearing and new responsive evidence, see
+[the consolidation QA record](../consolidation/README.md). Counts below describe the
+original Investigation rebuild before that follow-up.
+
 The implementation was built on `main` at `5bf8637` in `codex/investigation-workspace`. It connects Signal → Diagnose → Segment → Records → Evidence → Conclusion while retaining existing reporting contracts, source controls and administrator restrictions.
 
 ## Browser verification

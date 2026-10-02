@@ -17,6 +17,31 @@ const scope = { clientId: 'mtn' };
 const grainKey = (row: Media) => JSON.stringify([row.date, row.client, row.channel, row.campaign, row.adset]);
 const groupKey = (row: Media) => JSON.stringify([row.client, row.channel, row.campaign, row.adset]);
 
+test('unreadable live marketing schema fails closed without historical catalogue substitution or cached failure', async context => {
+  const config = getClientConfig('mtn');
+  const client = getBigQueryClient(config.bigQueryProject);
+  const contract = config.marketing!;
+  marketingContractCache.clear();
+  context.after(() => marketingContractCache.clear());
+  let available = false;
+  const queries: string[] = [];
+  context.mock.method(client, 'query', async (request: any) => {
+    queries.push(request.query);
+    if (!available) throw new Error('Synthetic permission failure');
+    return [[{ column_name: contract.clientNameField }]] as any;
+  });
+  await assert.rejects(resolveMarketingContract(client, contract), (error: any) =>
+    error.status === 503 && /Live marketing schema/.test(error.message));
+  assert.equal(marketingContractCache.size, 0);
+  assert.ok(queries.every(query => query.includes('INFORMATION_SCHEMA.COLUMNS')));
+  available = true;
+  const recovered = await resolveMarketingContract(client, contract);
+  assert.deepEqual(recovered.columns, [contract.clientNameField]);
+  assert.equal(recovered.spendColumn, null);
+  assert.ok(recovered.missingRequired.length > 0);
+  assert.equal(queries.length, 2, 'A schema failure must release its single-flight entry for retry');
+});
+
 /** Independent fixture oracle for mocked warehouse rows; SQL structure is asserted separately. These are not live warehouse tests. */
 function fixture(context: TestContext, media: Media[], options: { columns?: string[]; attributionRows?: any[] | ((selected: Media[]) => any[]); overrideSummary?: Record<string, unknown>; rootCauseRows?: any[] } = {}) {
   const contract = getClientConfig(scope.clientId).marketing!;

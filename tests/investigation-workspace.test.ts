@@ -43,14 +43,14 @@ const output=await mkdtemp(path.join(tmpdir(),'cx3-investigation-'));
 await buildAcceptanceFixture(output);
 const script=await readFile(path.join(output,'fixture.js'),'utf8');
 test.after(()=>rm(output,{recursive:true,force:true}));
-async function mount(){
+async function mount(route='/lead-explorer?'+query, fixture:Record<string,unknown>={}, waitForRecords=true){
   const errors:string[]=[];const console=new VirtualConsole();console.on('jsdomError',(error:Error)=>{if(!error.message.includes('navigation'))errors.push(error.message)});console.on('error',(...args:unknown[])=>errors.push(args.map(String).join(' ')));
   const dom=new JSDOM('<!doctype html><div id="root"></div>',{url:'https://test.invalid',runScripts:'outside-only',pretendToBeVisual:true,virtualConsole:console});const w=dom.window as any;
-  Object.assign(w,{Response,Request,Headers,AbortController,TextEncoder,TextDecoder,ReadableStream,structuredClone,ResizeObserver:class{observe(){}unobserve(){}disconnect(){}},__fixture:{initialRoute:'/lead-explorer?'+query}});
+  Object.assign(w,{Response,Request,Headers,AbortController,TextEncoder,TextDecoder,ReadableStream,structuredClone,ResizeObserver:class{observe(){}unobserve(){}disconnect(){}},__fixture:{initialRoute:route,...fixture}});
   w.matchMedia=(q:string)=>({matches:false,media:q,addEventListener(){},removeEventListener(){}});w.HTMLElement.prototype.scrollIntoView=()=>{};w.HTMLElement.prototype.scrollTo=()=>{};w.scrollTo=()=>{};
   const wait=async(check:()=>unknown)=>{for(let i=0;i<150;i++){if(check())return;await new Promise(r=>setTimeout(r,20));}throw new Error(w.document.body.textContent?.slice(0,2000)+' '+errors.join(';'));};
   const find=(selector:string,text='')=>[...w.document.querySelectorAll(selector)].find((el:any)=>(el.getAttribute('aria-label')||el.textContent||'').includes(text)) as any;
-  w.eval(script);await wait(()=>find('button','Open dossier for lead'));
+  w.eval(script);await wait(()=>find(waitForRecords ? 'button' : '[aria-label="Investigation workflow"]',waitForRecords ? 'Open dossier for lead' : ''));
   return {w,find,wait,close(){w.__fixture.unmount();dom.window.close();assert.deepEqual(errors,[])}};
 }
 test('evidence tray pins preserve scope across routes and clear at workspace boundary',async()=>{
@@ -81,4 +81,167 @@ test('contextual confidence never certifies an absent delivery source or unknown
     const content=a.find('[aria-label="Evidence confidence for this question"]').textContent;
     assert.match(content,/NOT_VERIFIED/);assert.match(content,/Delivery evidence/);assert.match(content,/coverage is not supplied/);assert.doesNotMatch(content,/VERIFIED ✓|healthy/i);
   }finally{a.close()}
+});
+
+const exceptionPayload = {
+  validationStatus:'NOT_VERIFIED', comparison:null, comparisonReason:'No matched period supplied.', populationNote:'Overlapping exception populations.',
+  exceptions:[{id:'awaiting-first-dial',title:'Awaiting first dial',detail:'Delivered with no first dial.',count:7,previousCount:null,absoluteChange:null,percentageChange:null,severity:'medium',byVendor:[{name:'Vendor A',count:7}],bySource:[{name:'Source A',count:7}]}],
+};
+const exceptions = {'/api/analytics/offernet/exceptions':exceptionPayload};
+const stage = (app:Awaited<ReturnType<typeof mount>>, name:string) => app.find(`[data-stage="${name}"]`);
+function input(app:Awaited<ReturnType<typeof mount>>, element:HTMLInputElement|HTMLTextAreaElement, value:string) {
+  const prototype=element.tagName==='TEXTAREA'?app.w.HTMLTextAreaElement.prototype:app.w.HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(prototype,'value')!.set!.call(element,value);
+  element.dispatchEvent(new app.w.Event('input',{bubbles:true}));
+}
+
+test('six-stage workspace uses returned scope and driver values without adding analytical requests',async()=>{
+  const app=await mount('/investigate?'+query,{payloads:exceptions},false);try{
+    await app.wait(()=>stage(app,'signal')?.textContent.includes('Current 7'));
+    assert.deepEqual([...app.w.document.querySelectorAll('[data-stage]')].map((el:any)=>el.dataset.stage),['signal','diagnose','segment','records','evidence','conclusion']);
+    assert.match(stage(app,'signal').textContent,/previous Unavailable.*change Unavailable.*medium severity/);
+    assert.match(stage(app,'segment').textContent,/Source: Source A/);
+    assert.equal(stage(app,'segment').getAttribute('aria-current'),'step');
+    assert.match(stage(app,'diagnose').textContent,/Vendor.*current concentration/);
+    assert.match(stage(app,'records').textContent,/Inspect records to establish availability/);
+    assert.match(stage(app,'evidence').textContent,/0 session observations pinned.*NOT_VERIFIED/);
+    assert.match(stage(app,'conclusion').textContent,/Conclusion incomplete.*unknowns not yet recorded/);
+    assert.match(app.find('.cx-investigation-support-boundary').textContent,/sufficiency has not been established/);
+    const requests=app.w.__fixture.requests as string[];
+    assert.equal(requests.filter(url=>url.includes('/exceptions?')).length,1,'Header and driver must reuse the queue response');
+    assert.equal(requests.filter(url=>/raw-leads|lead-timeline|root-cause|offernet\/overview|operating-controls|ai-insights/.test(url)).length,0);
+    assert.equal(requests.filter(url=>url.includes('/data-integrity?')).length,1);
+    stage(app,'diagnose').click();await app.wait(()=>stage(app,'diagnose').getAttribute('aria-current')==='step');
+    stage(app,'segment').click();await app.wait(()=>app.w.document.activeElement?.id==='investigation-segment');
+    assert.equal(new URL(app.w.__fixture.location,'https://test.invalid').searchParams.get('segmentSource'),'Source A');
+    stage(app,'evidence').click();await app.wait(()=>app.find('#investigation-evidence-tray').open);
+    const requestCount=requests.length;
+    stage(app,'conclusion').click();await app.wait(()=>app.w.document.activeElement?.id==='investigation-conclusion');
+    input(app,app.find('textarea'),'A review is needed; source evidence remains incomplete.');
+    input(app,app.w.document.querySelectorAll('textarea')[1],'Delivery coverage remains unknown.');
+    await app.wait(()=>stage(app,'conclusion').textContent.includes('open questions recorded'));
+    assert.match(stage(app,'conclusion').textContent,/Analyst note exists/);
+    assert.match(stage(app,'evidence').textContent,/NOT_VERIFIED/);
+    assert.equal(requests.length,requestCount,'Stage navigation and notes must not request analytics');
+    assert.match(app.find('#investigation-evidence-tray').textContent,/No pinned observations support a conclusion yet/);
+  }finally{app.close()}
+});
+
+test('metric signal reports the loaded metric and preserves unavailable values without claiming a population',async()=>{
+  const route='/investigate?clientId=synthetic-a&startDate=2026-09-01&endDate=2026-09-30&investigationMetric=fetchedLeads';
+  const app=await mount(route,{payloads:exceptions},false);try{
+    await app.wait(()=>stage(app,'signal').textContent.includes('Current 120'));
+    assert.match(stage(app,'signal').textContent,/previous 100.*change \+20 leads/);
+    assert.match(app.find('.cx-investigation-heading').textContent,/Population unavailable/);
+    assert.equal(app.w.__fixture.requests.filter((url:string)=>url.includes('/root-cause?')).length,1);
+    const result=app.w.__fixture.payloads['/api/analytics/offernet/root-cause'];
+    app.w.__fixture.payloads['/api/analytics/offernet/root-cause']={...result,metric:{...result.metric,currentValue:null,previousValue:null,delta:null}};
+    app.w.__fixture.navigate(route+'&segmentSource=Missing');
+    await app.wait(()=>stage(app,'signal').textContent.includes('Current Unavailable'));
+    assert.match(stage(app,'signal').textContent,/previous Unavailable.*change Unavailable/);
+    assert.doesNotMatch(stage(app,'signal').textContent,/Current 0|previous 0/);
+  }finally{app.close()}
+});
+
+test('current-view refresh reloads active metric drivers on both pages and keeps inactive overview requests idle',async()=>{
+  for (const page of ['/investigate','/lead-explorer']) {
+    const app=await mount(page+'?clientId=synthetic-a&startDate=2026-09-01&endDate=2026-09-30&investigationMetric=fetchedLeads',{payloads:exceptions},false);try{
+      await app.wait(()=>stage(app,'signal').textContent.includes('Current 120'));
+      const count=(endpoint:string)=>(app.w.__fixture.requests as string[]).filter(url=>url.includes(endpoint+'?')).length;
+      const before={drivers:count('/root-cause'),queue:count('/exceptions'),records:count('/raw-leads')};
+      const result=app.w.__fixture.payloads['/api/analytics/offernet/root-cause'];
+      app.w.__fixture.payloads['/api/analytics/offernet/root-cause']={...result,metric:{...result.metric,currentValue:141,delta:41}};
+      app.find('button','Refresh current view').click();
+      await app.wait(()=>stage(app,'signal').textContent.includes('Current 141'));
+      assert.match(stage(app,'signal').textContent,/change \+41 leads/);
+      assert.equal(count('/root-cause'),before.drivers+1,'Refresh bypasses the resolved driver cache exactly once');
+      assert.equal(count('/exceptions'),before.queue+(page==='/investigate'?1:0));
+      assert.equal(count('/raw-leads'),before.records+(page==='/lead-explorer'?1:0));
+      assert.equal(count('/overview'),0);assert.equal(count('/operating-controls'),0);
+    }finally{app.close()}
+  }
+});
+
+test('refreshing a supplied exception population reuses the refreshed queue without a duplicate driver request',async()=>{
+  const app=await mount('/investigate?'+query,{payloads:exceptions},false);try{
+    await app.wait(()=>stage(app,'signal').textContent.includes('Current 7'));
+    const before=app.w.__fixture.requests.filter((url:string)=>url.includes('/exceptions?')).length;
+    app.w.__fixture.payloads['/api/analytics/offernet/exceptions']={...exceptionPayload,exceptions:[{...exceptionPayload.exceptions[0],count:9}]};
+    app.find('button','Refresh current view').click();
+    await app.wait(()=>stage(app,'signal').textContent.includes('Current 9'));
+    assert.equal(app.w.__fixture.requests.filter((url:string)=>url.includes('/exceptions?')).length,before+1);
+    assert.equal(app.w.__fixture.requests.some((url:string)=>/root-cause|offernet\/overview|operating-controls/.test(url)),false);
+  }finally{app.close()}
+});
+
+test('a later explicit refresh fences an obsolete driver response even if its transport resolves after cancellation',async()=>{
+  const endpoint='/api/analytics/offernet/root-cause';
+  const app=await mount('/investigate?clientId=synthetic-a&startDate=2026-09-01&endDate=2026-09-30&investigationMetric=fetchedLeads',{payloads:exceptions},false);try{
+    await app.wait(()=>stage(app,'signal').textContent.includes('Current 120'));
+    app.w.__fixture.defer=[endpoint];
+    app.find('button','Refresh current view').click();await app.wait(()=>app.w.__fixture.pending?.[endpoint]);
+    const obsolete=app.w.__fixture.pending[endpoint];
+    await app.wait(()=>app.find('button','Refresh current view') && !app.find('button','Refresh current view').disabled);
+    app.find('button','Refresh current view').click();await app.wait(()=>app.w.__fixture.pending[endpoint]!==obsolete);
+    const current=app.w.__fixture.pending[endpoint];
+    const result=app.w.__fixture.payloads[endpoint];
+    app.w.__fixture.payloads[endpoint]={...result,metric:{...result.metric,currentValue:141,delta:41}};
+    current();await app.wait(()=>stage(app,'signal').textContent.includes('Current 141'));
+    app.w.__fixture.payloads[endpoint]={...result,metric:{...result.metric,currentValue:999,delta:899}};
+    obsolete();await new Promise(resolve=>setTimeout(resolve,50));
+    assert.match(stage(app,'signal').textContent,/Current 141/);
+    assert.doesNotMatch(stage(app,'signal').textContent,/999/);
+    assert.equal(app.w.__fixture.requests.filter((url:string)=>url.includes('/root-cause?')).length,3);
+  }finally{app.close()}
+});
+
+test('narrowing navigation survives history and clearing the investigation preserves independent global scope',async()=>{
+  const app=await mount('/investigate?'+query,{payloads:exceptions},false);try{
+    await app.wait(()=>stage(app,'signal').textContent.includes('Current 7'));
+    app.find('button','Remove investigation Source').click();await app.wait(()=>!new URL(app.w.__fixture.location,'https://test.invalid').searchParams.has('segmentSource'));
+    await app.wait(()=>stage(app,'diagnose').getAttribute('aria-current')==='step');
+    app.w.__fixture.navigate(-1);await app.wait(()=>stage(app,'segment').textContent.includes('Source A'));
+    app.w.__fixture.navigate(1);await app.wait(()=>stage(app,'segment').textContent.includes('No additional narrowing'));
+    app.w.__fixture.navigate(-1);await app.wait(()=>stage(app,'segment').textContent.includes('Source A'));
+    app.find('button','Clear investigation').click();await app.wait(()=>stage(app,'signal').getAttribute('aria-current')==='step');
+    const params=new URL(app.w.__fixture.location,'https://test.invalid').searchParams;
+    assert.equal(params.has('drill'),false);assert.equal(params.has('segmentSource'),false);
+    assert.equal(params.get('vendor'),'Vendor A');assert.equal(params.get('startDate'),'2026-09-01');
+  }finally{app.close()}
+});
+
+test('empty and failed record populations are distinct and never imply successful evidence',async()=>{
+  for(const failed of [false,true]){
+    const app=await mount('/lead-explorer?'+query,failed?{fail:['raw-leads']}:{payloads:{...exceptions,'/api/analytics/offernet/raw-leads':{clientId:'synthetic-a',rows:[],totalCount:0,validationStatus:'NOT_VERIFIED'}}},false);try{
+      await app.wait(()=>stage(app,'records').textContent.includes(failed?'Record evidence unavailable':'No matching records'));
+      assert.match(stage(app,'evidence').textContent,/NOT_VERIFIED/);
+      assert.match(stage(app,'conclusion').textContent,/Conclusion incomplete/);
+      if(failed){assert.match(stage(app,'signal').textContent,/Current evidence unavailable/);assert.doesNotMatch(app.find('.cx-investigation-heading').textContent,/0 affected leads/);}
+      else assert.match(app.find('.cx-investigation-heading').textContent,/0 affected leads/);
+    }finally{app.close()}
+  }
+});
+
+test('record search disables comparison and selected dossiers stay private across role/session boundaries',async()=>{
+  const app=await mount('/lead-explorer?'+query,{payloads:exceptions});try{
+    app.find('button','Open dossier for lead').click();await app.wait(()=>stage(app,'records').textContent.includes('dossier open'));
+    assert.ok([...app.w.document.querySelectorAll('[data-stage]')].every((el:any)=>!el.href?.includes('SYNTHETIC-LEAD')));
+    assert.equal(new URL(app.w.__fixture.location,'https://test.invalid').searchParams.has('leadId'),false);
+    app.find('button','Pin lead evidence').click();await app.wait(()=>stage(app,'evidence').textContent.includes('1 session observation'));
+    app.w.__fixture.setAccess({nonAdmin:true});await app.wait(()=>app.find('[role="status"]','Record access is restricted'));
+    const requestCount=app.w.__fixture.requests.filter((url:string)=>url.includes('raw-leads')).length;
+    app.w.__fixture.navigate('/investigate?'+query);await app.wait(()=>stage(app,'records'));
+    assert.equal(stage(app,'records').getAttribute('aria-disabled'),'true');
+    assert.match(stage(app,'evidence').textContent,/0 session observations/);
+    assert.equal(app.w.__fixture.requests.filter((url:string)=>url.includes('raw-leads')).length,requestCount);
+    app.w.__fixture.setAccess({nonAdmin:false,uid:'synthetic-other-user'});
+    app.w.__fixture.navigate('/lead-explorer?'+query);await app.wait(()=>app.find('button','Open dossier for lead'));
+    assert.doesNotMatch(stage(app,'records').textContent,/dossier open/);
+    assert.match(stage(app,'evidence').textContent,/0 session observations/);
+    input(app,app.find('input','Search lead records'),'SYNTHETIC-LEAD-0002');
+    app.find('.cx-explorer-search').dispatchEvent(new app.w.Event('submit',{bubbles:true,cancelable:true}));
+    await app.wait(()=>stage(app,'diagnose').textContent.includes('record-text search'));
+    assert.equal(app.find('button','Copy scoped link').disabled,true);
+    assert.match(stage(app,'segment').textContent,/Source: Source A/);
+  }finally{app.close()}
 });

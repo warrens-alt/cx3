@@ -3,7 +3,6 @@ import { getClientConfig, type MarketingSourceContract } from '../../bigquery/co
 import type { OffernetQueryParams } from './types';
 import { RequestError } from '../../bigquery/filters';
 import { parseConfiguredTable, safeWarehouseColumn } from './warehouse';
-import { SHARED_SOURCE_COLUMNS } from '../../../contracts/warehouseSchemaSnapshot';
 
 export const marketingContractCache = new Map<string, { expiresAt: number; signature: string; value: any }>();
 const marketingContractFlights = new Map<string, Promise<any>>();
@@ -38,10 +37,7 @@ async function loadMarketingContract(client: ReturnType<typeof getBigQueryClient
     });
     rows = result || [];
   } catch {
-    const fallbackCols = SHARED_SOURCE_COLUMNS[parsed.table];
-    if (fallbackCols) {
-      rows = Object.keys(fallbackCols).map(column_name => ({ column_name }));
-    }
+    throw new RequestError('Live marketing schema could not be inspected. Historical catalogue columns cannot establish current source availability.', 503);
   }
 
   const byLower = new Map<string, string>(

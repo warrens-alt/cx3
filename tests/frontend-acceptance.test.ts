@@ -343,11 +343,27 @@ test('failed access subscriptions never invent an account; view buttons change t
   }finally{app.close();}
 });
 
-test('validation quotes endpoint claims without certification and changes reference panels',async()=>{
+test('validation displays non-certified references and exports the same truthful evidence status',async()=>{
   const app=await mount('/validation'+scope);try{
-    await app.wait(()=>app.text().includes('Independent validation not established'));
-    assert.doesNotMatch(app.text(),/0 Discrepancy|Reconciled:/);
-    assert.match(app.text(),/Endpoint timestamp: Not reported/);
+    await app.wait(()=>app.text().includes('Synthetic reference metric'));
+    assert.match(app.text(),/Independent validation not established/);
+    assert.match(app.text(),/Historical reference values · NOT_VERIFIED/);
+    assert.match(app.text(),/HISTORICAL_REFERENCE/);
+    assert.match(app.text(),/Verified atNot performed/);
+    assert.match(app.text(),/Reconciled atNot performed/);
+    assert.match(app.text(),/Independently verified measurementsUNAVAILABLE/);
+    assert.match(app.text(),/Current warehouse evidenceUNAVAILABLE/);
+    assert.doesNotMatch(app.text(),/EVIDENCE_CHECKED|unverified claim|0 Discrepancy/);
+    assert.equal(app.w.__fixture.requests.filter((r:string)=>r.includes('/warehouse/tables')).length,0);
+    await app.click('button','Export reference matrix');
+    assert.equal(app.blobs.length,1);
+    const csv=await new Promise<string>((resolve,reject)=>{const reader=new app.w.FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(reader.error);reader.readAsText(app.blobs[0]);});
+    assert.match(csv,/"HISTORICAL_REFERENCE"/);
+    assert.match(csv,/"NOT_VERIFIED","NOT_VERIFIED","",""/);
+    assert.doesNotMatch(csv,/"VERIFIED"|EVIDENCE_CHECKED/);
+    await app.click('button','Warehouse catalogue');
+    await app.wait(()=>app.w.__fixture.requests.some((r:string)=>r.includes('/warehouse/tables')));
+    assert.match(app.text(),/Saved schema registration does not establish live source access/);
     await app.click('button','Validation rules');assert.match(app.text(),/No clean-data percentage/);
     assert.ok(!app.find('table'));
   }finally{app.close();}
@@ -467,14 +483,16 @@ test('signed exact bars retain labels, represent negative extent and expose nati
   }finally{dom.window.close();}
 });
 
-test('legacy Lead Engine route identifies its blocked boundary and removes static portfolio cards',async()=>{
-  const app=await mount('/lead-engine'+scope);try{
-    await app.wait(()=>app.text().includes('Summary metrics unavailable in this legacy view'));
-    assert.match(app.w.document.body.textContent,/Legacy reference workspace/);
-    assert.doesNotMatch(app.text(),/350,573|91\.4%|64\.2%|4,892,100/);
-  }finally{app.close();}
+test('retired Lead Engine route and nested legacy paths render page not found',async()=>{
+  for(const route of ['/lead-engine','/lead-engine/ledger']){
+    const app=await mount(route+scope);try{
+      await app.wait(()=>app.text().includes('Page not found'));
+      assert.doesNotMatch(app.w.document.body.textContent,/Legacy reference workspace|LEAD ENGINE/);
+      assert.equal(app.w.__fixture.requests.some((r:string)=>/api\/(quality|commercial\/simulator|settings\/status|table-data)/.test(r)),false);
+      assert.equal(app.w.document.querySelector('a[href^="/lead-engine"]'),null);
+    }finally{app.close();}
+  }
 });
-
 
 test('failed exception evidence cannot claim an empty vendor backlog',async()=>{
   const app=await mount('/exceptions'+scope,{fail:['overview','exceptions']});try{
@@ -880,4 +898,26 @@ test('reduction: Commercial Why changed requires returned comparison, eligible s
       assert.equal(app.w.__fixture.requests.some((url:string)=>url.includes('root-cause')),false);
     }finally{app.close();}
   }
+});
+
+
+test('visual catalogue controls never turn missing analytics into chart values',async()=>{
+  const app=await mount('/visuals'+scope);try{
+    await app.wait(()=>app.text().includes('No analytical dataset is connected'));
+    assert.match(app.text(),/No plottable values/);
+    assert.doesNotMatch(app.text(),/Verified Sales|Range:|Selected Point/);
+    assert.equal(app.find('.cx-viz-canvas'),undefined);
+    const before=[...app.w.__fixture.requests];
+    const select=app.find('select','Catalogue measure');
+    assert.ok(select);
+    select.value='sales';select.dispatchEvent(new app.w.Event('change',{bubbles:true}));
+    for(const kind of ['bar','line','area','donut','column']){
+      await app.click('button',kind);
+      assert.equal(app.find('button',kind).getAttribute('aria-pressed'),'true');
+      assert.match(app.text(),/No plottable values/);
+      assert.equal(app.find('.cx-viz-canvas'),undefined);
+    }
+    assert.equal(select.value,'sales');
+    assert.deepEqual([...app.w.__fixture.requests],before,'Presentation controls cannot fetch or fabricate analytical data');
+  }finally{app.close();}
 });

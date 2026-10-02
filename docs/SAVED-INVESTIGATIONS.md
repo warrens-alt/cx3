@@ -1,5 +1,10 @@
 # Persistent personal investigation definitions
 
+The supported server variables are listed together in [`.env.example`](../.env.example).
+Keep them blank for an intentionally unconfigured deployment. The UI distinguishes that state
+from configured-but-empty storage, loading, access failures and revision conflicts; it does not
+show an application error merely because persistence has not been activated.
+
 Saved investigations retain a named reporting scope, supported predicate, metric and additive
 narrowing. They do not contain lead IDs, private search, record or event rows, evidence pins,
 result counts, AI text or notes. Reopening a definition queries current observations through

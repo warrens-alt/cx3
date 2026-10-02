@@ -101,9 +101,9 @@ export const RUBIX_CAPABILITIES_LIST: RubixCapabilityDefinition[] = [
     metricId: spec.metricId,
     eventDateField: spec.eventDateField,
     dimension: spec.dimensions.join(', '),
-    status: 'VERIFIED' as const,
+    status: 'NOT_VERIFIED' as const,
     staffDetailRequired: spec.staffDetailRequired,
-    notes: spec.notes,
+    notes: `${spec.notes} Registered query template only; independent source reconciliation has not been performed.`,
   })),
   {
     id: 'rubix.nett_apps',

@@ -1,4 +1,5 @@
-import InvestigationContextBar from '../features/investigation/InvestigationContextBar';
+import InvestigationWorkflow from '../features/investigation/InvestigationWorkflow';
+import { useInvestigationAnalysis } from '../features/investigation/useInvestigationAnalysis';
 import DriverAnalysis from '../features/investigation/DriverAnalysis';
 import EvidenceConfidence from '../features/investigation/EvidenceConfidence';
 import EvidenceTray, { useEvidenceTray } from '../features/investigation/EvidenceTray';
@@ -32,6 +33,7 @@ export default function LeadExplorerIntelligence() {
   const { selectedClient } = useClient();
   const { startDate, endDate, filters } = useFilters();
   const [params, setParams] = useSearchParams();
+  const analysis = useInvestigationAnalysis();
   const drill = params.get('drill') || '';
   const drillValue = params.get('drillValue') || '';
   const appliedSearch = params.get('search') || '';
@@ -42,7 +44,7 @@ export default function LeadExplorerIntelligence() {
   const segmentGrade = params.get('segmentGrade') || '';
   const segmentLeadAge = params.get('segmentLeadAge') || '';
   const reportingScopeKey = JSON.stringify([selectedClient, startDate, endDate, filters, drill, drillValue, appliedSearch]);
-  const scopeKey = JSON.stringify([reportingScopeKey, segmentVendor, segmentSource, segmentGrade, segmentLeadAge, params.get('investigationMetric')]);
+  const scopeKey = JSON.stringify([analysis.sessionKey, isAdmin, reportingScopeKey, segmentVendor, segmentSource, segmentGrade, segmentLeadAge, params.get('investigationMetric')]);
   const [pagination, setPagination] = useState({ scopeKey, page: 0 });
   const page = pagination.scopeKey === scopeKey ? pagination.page : 0;
   const setPage = (value: number | ((previous: number) => number)) => {
@@ -148,7 +150,7 @@ export default function LeadExplorerIntelligence() {
     requestAnimationFrame(() => {
       const dossier = document.getElementById(dossierId);
       dossier?.focus({ preventScroll: true });
-      if (window.matchMedia('(max-width: 1000px)').matches) dossier?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      if (window.matchMedia('(max-width: 1000px)').matches) dossier?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
     });
   };
 
@@ -190,15 +192,15 @@ export default function LeadExplorerIntelligence() {
           </div>
                   <ReportActions />
 </header>
-      <OffernetFilterBar onRefresh={() => loadData(true)} onExportCsv={isExportAvailable ? () => { if (data) setExportReview({ scopeKey, result: data }); } : undefined} />
+      <OffernetFilterBar onRefresh={() => { analysis.refresh(); return loadData(true); }} onExportCsv={isExportAvailable ? () => { if (data) setExportReview({ scopeKey, result: data }); } : undefined} />
 
-        <InvestigationContextBar evidenceCount={pinnedEvidence.length} populationCount={data?.totalCount} validationStatus={data?.validationStatus || data?.metadata?.validationStatus} dateBasis={data?.dateBasis || data?.metadata?.dateBasis} countingGrain={data?.countingGrain || data?.metadata?.countingGrain} loading={loading} receivedAt={receivedAt} selectedLead={selectedLead} onClearLead={closeTimeline} />
-        {investigation && <DriverAnalysis onPin={item => pin(item, { validationStatus: data?.validationStatus || 'NOT_VERIFIED' })} />}
+        <InvestigationWorkflow analysis={analysis.summary} recordsLoaded={isCurrentClientData && !error} requestError={error} evidenceCount={pinnedEvidence.length} populationCount={data?.totalCount} validationStatus={data?.validationStatus || data?.metadata?.validationStatus} dateBasis={data?.dateBasis || data?.metadata?.dateBasis} countingGrain={data?.countingGrain || data?.metadata?.countingGrain} loading={loading} receivedAt={receivedAt} selectedLead={selectedLead} onClearLead={closeTimeline} />
+        {investigation && <DriverAnalysis summaryScopeKey={analysis.scopeKey} refreshToken={analysis.refreshToken} onSummary={analysis.onSummary} onPin={item => pin(item, { validationStatus: data?.validationStatus || 'NOT_VERIFIED' })} />}
         {error && <div className="cx-command-error" role="alert"><AlertTriangle size={17} /><span>{error}</span></div>}
         {exportError && <div className="cx-command-error" role="alert"><AlertTriangle size={17} /><span>{exportError}</span></div>}
 
         <div className="cx-investigation-record-workspace" data-has-selection={Boolean(selection)}>
-        <section ref={recordsPanel} className="cx-command-panel cx-investigation-list-panel">
+        <section id="investigation-records" tabIndex={-1} ref={recordsPanel} className="cx-command-panel cx-investigation-list-panel">
           <header>
             <div>
               <span className="cx-command-section-kicker">Records</span>
