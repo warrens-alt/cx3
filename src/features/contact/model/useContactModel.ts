@@ -30,7 +30,7 @@ import type { InspectorContent } from '../../../shared/evidence/InspectorHost';
 
 export type ContactTab = 'call_counts' | 'vendor_dispositions';
 
-export function useContactModel() {
+export function useContactModel(initialTab?: ContactTab) {
   const { selectedClient, clientConfig } = useClient();
   const { user, profile } = useAuth();
   const { startDate, endDate, filters, setVendor } = useFilters();
@@ -38,10 +38,10 @@ export function useContactModel() {
 
   // Authoritative URL state: vendor inspection direct links preserve active vendor_dispositions tab
   const tabParam = searchParams.get('tab');
-  const activeTab: ContactTab =
+  const activeTab: ContactTab = initialTab ?? (
     tabParam === 'vendor_dispositions' || (!tabParam && searchParams.has('inspectVendor'))
       ? 'vendor_dispositions'
-      : 'call_counts';
+      : 'call_counts');
 
   const modeParam = searchParams.get('mode');
   const dispositionMode: DispositionReportingMode = modeParam === 'call_records' ? 'call_records' : 'lead_status';

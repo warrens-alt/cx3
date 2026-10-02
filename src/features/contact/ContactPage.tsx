@@ -17,13 +17,13 @@ import VisualSkeleton from '../../shared/visuals/VisualSkeleton';
 import { OperationalError } from '../../components/OperationalState';
 import { formatTableNumber } from '../../lib/formatters';
 import { useScopedNavigationTarget } from '../../hooks/useScopedNavigationTarget';
-import { useContactModel } from './model/useContactModel';
+import { useContactModel, type ContactTab } from './model/useContactModel';
 import CallEffortReport from './components/CallEffortReport';
 import VendorDispositionReport from './components/VendorDispositionReport';
 import VendorOutcomeInspector from './components/VendorOutcomeInspector';
 import type { RootCauseData } from '../../lib/offernetClient';
 
-export default function ContactPage() {
+export default function ContactPage({ initialTab, workspace = false }: { initialTab?: ContactTab; workspace?: boolean }) {
   const scoped = useScopedNavigationTarget();
   const {
     activeTab,
@@ -55,7 +55,7 @@ export default function ContactPage() {
     handleExportOutcomeComparison,
     handleExportVendorRawBreakdown,
     handleExportVendorSelectedBreakdown,
-  } = useContactModel();
+  } = useContactModel(initialTab);
 
   const [rootMetric, setRootMetric] = useState<RootCauseData['metric']['id'] | null>(null);
 
@@ -119,11 +119,11 @@ export default function ContactPage() {
       : undefined;
 
   return (
-    <AnalyticsPageLayout className="cx-contact-visual-workspace" title="Contact effort" description={<>Recorded call effort and vendor outcomes.</>} actions={<ReportActions />} scope={<ReportingScopeBar onRefresh={refreshAll} onExportCsv={handleExportCsv} />}>
+    <AnalyticsPageLayout className="cx-contact-visual-workspace" title={workspace && isVendorDispositionsTab ? 'Vendor outcomes' : 'Contact effort'} description={<>Recorded call effort and vendor outcomes.</>} actions={<ReportActions />} scope={<ReportingScopeBar onRefresh={refreshAll} onExportCsv={handleExportCsv} />}>
 
 <nav className="cx-report-secondary-actions" aria-label="Contact analyses">
           {/* Tab Switcher */}
-          <div className="cx-segmented-control">
+          {!workspace && <div className="cx-segmented-control">
             <button
               type="button"
               onClick={() => handleTabChange('call_counts')}
@@ -142,7 +142,7 @@ export default function ContactPage() {
               <BarChart3 size={13} />
               <span>Vendor outcomes</span>
             </button>
-          </div>
+          </div>}
 
 
 
