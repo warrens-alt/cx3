@@ -51,8 +51,21 @@
 .cx-trust-disclosure>summary:hover{color:var(--cx-action)}
 .cx-trust-disclosure>.cx-command-panel{border:0;box-shadow:none;border-top:1px solid var(--cx-border-subtle)}
 .cx-trust-comparison{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.9fr);gap:18px;align-items:start}
-.cx-check-explanation{padding:20px;position:sticky;top:145px;min-width:0}
-.cx-check-explanation>.cx-trust-heading{padding:0;margin-bottom:20px;align-items:center}
+.cx-trust-discrepancy-canvas,.cx-source-observability{min-width:0;border:1px solid var(--cx-border-subtle);border-radius:8px;overflow:hidden}
+.cx-trust-discrepancy-canvas>.cx-chart-frame:not(.is-focused),.cx-source-observability>.cx-chart-frame:not(.is-focused){border:0;box-shadow:none;background:transparent}
+.cx-trust-discrepancy-canvas .cx-trust-comparison{gap:20px}
+.cx-trust-discrepancy-canvas .cx-evidence-bars{border:0;background:transparent;box-shadow:none;padding:0;border-radius:0}
+.cx-trust-discrepancy-canvas .cx-evidence-bar-list{gap:4px}
+.cx-trust-discrepancy-canvas .cx-evidence-bar-row{min-height:44px;padding-block:6px}
+.cx-source-observability .cx-evidence-matrix :is(td,th){padding:10px 16px}
+.cx-source-observability .cx-evidence-matrix-cell{gap:7px}
+.cx-source-observability .cx-evidence-matrix-cell>svg{width:15px;height:15px}
+.cx-source-observability .cx-evidence-matrix-key{padding-block:10px;gap:8px 16px}
+.cx-source-observability .cx-chart-frame-header p{font-size:11px;color:var(--cx-text-secondary);margin-top:4px}
+.cx-source-observability .cx-chart-frame-header h2{font-size:16px;font-weight:650}
+.cx-check-explanation{padding:16px;min-width:0;border-left:2px solid var(--cx-action);background:var(--cx-surface)}
+@media(min-width:1051px){.cx-check-explanation{position:sticky;top:calc(var(--cx-sticky-scope-height,44px) + 16px)}.cx-chart-frame.is-focused .cx-check-explanation{top:76px}}
+.cx-check-explanation>.cx-trust-heading{padding:0;margin-bottom:12px;align-items:center}
 .cx-check-explanation h3{font-size:19px;font-weight:650;line-height:1.4;margin:5px 0 16px}
 .cx-trust-big-number{display:block;font-size:34px;font-weight:700;line-height:1.2;letter-spacing:-.035em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .cx-trust-definition{display:grid;gap:18px;margin:22px 0}
@@ -131,7 +144,7 @@
 .cx-integrity-boundary>svg { flex-shrink:0; margin-top:2px; }
 .cx-integrity-boundary h2 { font-size:13px; font-weight:600; }
 .cx-integrity-boundary p { margin-top:4px; font-size:12px; line-height:1.6; }
-.cx-integrity-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--cx-card-gap); }
+.cx-integrity-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .cx-integrity-attention { color: var(--cx-text); }
 .cx-integrity-attention h2 { font-size: 16px; font-weight: 650; }
 .cx-integrity-attention p { font-size: 13px; color: var(--cx-text-secondary); line-height: 1.6; margin-block: 6px; }

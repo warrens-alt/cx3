@@ -4,6 +4,8 @@ import type { SourceObservabilityData } from '../../../lib/offernetClient';
 import { formatTableNumber } from '../../../lib/formatters';
 import { statusLabel } from '../../../lib/statusPresentation';
 import EvidenceMatrix, { type EvidenceMatrixState } from '../../../shared/visuals/EvidenceMatrix';
+import ChartFrame from '../../../shared/visuals/ChartFrame';
+import ReportingScopeSummary from '../../../shared/reporting/ReportingScopeSummary';
 
 type Source = SourceObservabilityData['sources'][number];
 
@@ -28,9 +30,8 @@ function matrixState(status: string): EvidenceMatrixState {
 }
 
 export default function SourceEvidenceMatrix({ sources, renderSourceAction, summaryOnly = false }: { sources: Source[] | undefined; renderSourceAction?: (source: Source) => React.ReactNode; summaryOnly?: boolean }) {
-  return <section className="cx-trust-panel" id="source-evidence" aria-labelledby="source-evidence-heading">
-    <header className="cx-trust-heading"><div><span className="cx-command-section-kicker">Source observations</span><h2 id="source-evidence-heading">Source evidence at a glance</h2>
-      <p>All tenant-owned records, not just the selected capture cohort. Connection, timestamps and validation are separate observations.</p></div><Database size={18} aria-hidden="true" /></header>
+  return <section className="cx-source-observability cx-analytical-canvas" id="source-evidence" aria-labelledby="source-evidence-heading">
+    <ChartFrame title="Source evidence at a glance" scope={<><ReportingScopeSummary /><p>These source observations cover all tenant-owned records, independent of the selected capture cohort.</p></>} header={<div><span className="cx-command-section-kicker">Source observations</span><h2 id="source-evidence-heading">Source evidence at a glance</h2><p>All tenant-owned records · independent of the selected capture cohort.</p></div>} actions={<Database size={18} aria-hidden="true" />}>
     <EvidenceMatrix label="Source evidence matrix" columns={[{ key: 'rows', label: 'Returned rows' }, { key: 'status', label: 'Reported status' }, { key: 'time', label: 'Timestamp evidence' }]} emptyLabel={sources ? 'No source observations returned for this workspace.' : 'Source observations were not supplied in this response.'}
       rows={(sources || []).map((source, index) => ({ key: `${source.key}-${index}`, label: source.label, action: renderSourceAction?.(source), cells: {
         rows: { state: source.rowCount == null ? 'unavailable' : 'observed', label: source.rowCount == null ? 'Unavailable' : `${formatTableNumber(source.rowCount)} rows`, detail: 'Source grain; completeness not inferred' },
@@ -53,5 +54,6 @@ export default function SourceEvidenceMatrix({ sources, renderSourceAction, summ
         </table>
       </div></details>}
     <p className="cx-trust-note">Timestamps are shown as returned. Source row counts have different grains and must not be added together. An observed record is not proof of a current feed or a verified report.</p>
+    </ChartFrame>
   </section>;
 }

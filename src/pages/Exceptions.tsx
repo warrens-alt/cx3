@@ -105,8 +105,8 @@ export default function Exceptions() {
       scope={<OffernetFilterBar onRefresh={async () => { analysis.refresh(); await Promise.all([queue.loadData(true), ...(showOverview ? [loadData(true), controls.refetch()] : [])]); }} />}>
         <InvestigationWorkflow analysis={analysis.summary} requestError={activeMetric ? analysis.summary?.state === 'unavailable' ? analysis.summary.detail : null : queue.error} evidenceCount={pinnedEvidence.length} populationCount={selectedException?.count} validationStatus={activeMetric ? analysis.summary?.validationStatus : queue.data?.validationStatus} loading={activeMetric ? !analysis.summary || analysis.summary.state === 'loading' : queue.loading} receivedAt={activeMetric ? undefined : queue.receivedAt} />
         <InvestigationEvidenceWorkspace confidence={activeDrill || activeMetric ? <EvidenceConfidence /> : undefined}>
-        <SavedInvestigations />
-        <details className="cx-investigation-new-signal" open={!activeDrill && !activeMetric}><summary>{activeDrill || activeMetric ? 'Start another investigation' : 'Start an investigation'}</summary><InvestigationQuickStarts /></details>
+        <div className="cx-investigation-case-tools"><SavedInvestigations />
+        <details className="cx-investigation-new-signal" open={!activeDrill && !activeMetric}><summary>{activeDrill || activeMetric ? 'Start another investigation' : 'Start an investigation'}</summary><InvestigationQuickStarts /></details></div>
         {(activeDrill || activeMetric) && <><DriverAnalysis summaryScopeKey={analysis.scopeKey} refreshToken={analysis.refreshToken} onSummary={analysis.onSummary} exceptionData={activeMetric ? undefined : queue.data} exceptionError={queue.error} onPin={item => pin(item, { validationStatus: queue.data?.validationStatus || 'NOT_VERIFIED' })} />
           {isAdmin && <p className="mb-4"><Link className="cx-button-primary" to={investigationPath('/lead-explorer', searchParams)}>Inspect affected records<ArrowRight size={14}/></Link></p>}
         </>}

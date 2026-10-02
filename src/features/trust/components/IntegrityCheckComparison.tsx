@@ -4,6 +4,8 @@ import type { DataIntegrityData } from '../../../lib/offernetClient';
 import { formatTableNumber } from '../../../lib/formatters';
 import EvidenceBars from '../../../shared/visuals/EvidenceBars';
 import { EvidenceStatus } from './SourceEvidenceMatrix';
+import ChartFrame from '../../../shared/visuals/ChartFrame';
+import ReportingScopeSummary from '../../../shared/reporting/ReportingScopeSummary';
 
 type Check = DataIntegrityData['checks'][number];
 
@@ -13,12 +15,13 @@ export default function IntegrityCheckComparison({ checks, onViewDetails }: { ch
   const ordered = checks.map((check, index) => ({ check, key: String(index) }))
     .sort((a, b) => (b.check.discrepancyCount ?? -1) - (a.check.discrepancyCount ?? -1));
   const current = ordered.find(item => item.key === selected) || ordered[0];
-  return <section id="integrity-comparison" aria-label="Discrepancy comparison" className="cx-trust-comparison">
-    <EvidenceBars title="Measured discrepancy counts" description="Select a check to read its exact definition. A missing count is not a measured zero."
+  return <section id="integrity-comparison" aria-label="Discrepancy comparison" className="cx-trust-discrepancy-canvas cx-analytical-canvas">
+    <ChartFrame title="Measured discrepancy counts" subtitle="Select a check to inspect its evidence. Unavailable counts remain unknown." scope={<ReportingScopeSummary />}>
+    <div className="cx-trust-comparison"><EvidenceBars title="Measured discrepancy counts" description="Select a check to read its exact definition. A missing count is not a measured zero." hideHeading selectedKey={current?.key}
       items={ordered.map(({ check, key }) => ({ key, label: check.checkName, detail: check.category,
         value: check.discrepancyCount, color: current?.key === key ? 'var(--cx-action)' : 'var(--cx-text-secondary)' }))}
       onSelect={setSelected} scaleNote="Bar length compares returned discrepancy counts only. Populations can overlap; these are not additive losses." />
-    <aside className="cx-trust-panel cx-check-explanation" aria-label="Selected check evidence" aria-live="polite">
+    <aside className="cx-check-explanation cx-selected-state" aria-label="Selected check evidence" aria-live="polite">
       {current ? <><header className="cx-trust-heading"><SearchCheck size={18} aria-hidden="true" /><EvidenceStatus status={current.check.status} /></header>
         <span className="cx-trust-meta">Selected check · {current.check.category}</span>
         <h3>{current.check.checkName}</h3>
@@ -29,5 +32,6 @@ export default function IntegrityCheckComparison({ checks, onViewDetails }: { ch
         {onViewDetails ? <button type="button" onClick={onViewDetails} className="cx-trust-link">View all check details and export</button> : <a href="#integrity-checks" className="cx-trust-link">View all check details and export</a>}
       </> : <p className="cx-trust-empty">No discrepancy checks were returned.</p>}
     </aside>
+    </div></ChartFrame>
   </section>;
 }

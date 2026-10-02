@@ -38,12 +38,13 @@ export default function LeadJourney({ row, validationStatus, onViewSource, sourc
     const stage = lifecyclePresentation[timelineStages[event.kind]];
     const Icon = stage.Icon;
     const anomalies = journey.anomalies.filter(anomaly => anomaly.field.endsWith(`→ ${event.kind}`) || event.evidenceFields.some(field => field.label === anomaly.field));
-    return <button type="button" className="cx-journey-event" data-stage={event.kind} data-certainty={event.timestampStatus} data-anomaly={anomalies.length > 0 || undefined} style={{ '--journey-stage': stage.color } as React.CSSProperties} aria-pressed={selectedId === event.id} aria-controls={`${id}-evidence`} onClick={() => selectEvent(event)}>
+    return <button type="button" className={`cx-journey-event${selectedId === event.id ? ' cx-selected-state' : ''}`} data-stage={event.kind} data-certainty={event.timestampStatus} data-anomaly={anomalies.length > 0 || undefined} style={{ '--journey-stage': stage.color } as React.CSSProperties} aria-pressed={selectedId === event.id} aria-controls={`${id}-evidence`} onClick={() => selectEvent(event)}>
+    <span className="cx-journey-time-column">{event.timestamp ? <time dateTime={event.timestamp}><span>{timeLabel(event.timestamp)}</span>{!compact && <span>{dateLabel(event.timestamp)}</span>}</time> : <span className="cx-journey-untimed">Timestamp unavailable</span>}</span>
     <span className="cx-journey-node" aria-hidden="true"><Icon size={16} /></span>
-    <strong>{event.title}</strong>
-    {event.timestamp ? <time dateTime={event.timestamp}>{!compact && <span>{dateLabel(event.timestamp)}</span>}<span>{timeLabel(event.timestamp)}</span></time> : <span className="cx-journey-untimed">Timestamp unavailable</span>}
+    <span className="cx-journey-event-copy"><strong>{event.title}</strong>
     <small>{event.timestampStatus === 'observed' ? 'Observed timestamp' : 'Recorded · untimed'}</small>
     {anomalies.map((anomaly, index) => <span className="cx-journey-inline-anomaly" key={index}><AlertTriangle size={12} aria-hidden="true"/><span>{anomaly.message}</span></span>)}
+    {selectedId === event.id && <span className="cx-journey-selected-label">Selected event</span>}</span>
   </button>;
   };
   const copy = selected ? [`Lead ID: ${valueText(row.lead_id)}`, selected.title, selected.timestamp || 'Timestamp unavailable', `Validation: ${validation}`, 'Layer: Normalised operational evidence', selected.description, ...selected.evidenceFields.map(field => `${field.label}: ${valueText(field.value)}`)].join('\n') : '';
@@ -63,7 +64,7 @@ export default function LeadJourney({ row, validationStatus, onViewSource, sourc
     }}>{(['journey', 'events'] as const).map(value => <button key={value} type="button" role="tab" id={`${id}-${value}-tab`} aria-selected={mode === value} aria-controls={`${id}-${value}-panel`} tabIndex={mode === value ? 0 : -1} onClick={() => setMode(value)}>{value === 'journey' ? 'Journey' : 'Events'}</button>)}</div>
 
     {!journey.timedEvents.length && <div className="cx-journey-empty"><h3>Timeline unavailable</h3><p>This lead has source records, but the current dataset does not provide enough timestamped lifecycle evidence to construct a chronological timeline.</p>{onViewSource && <button type="button" className="cx-button-secondary" onClick={() => onViewSource([])}>View source evidence</button>}</div>}
-    <section role="tabpanel" id={`${id}-journey-panel`} aria-labelledby={`${id}-journey-tab`} hidden={mode !== 'journey'} tabIndex={0}>
+    <section className="cx-journey-forensic-canvas cx-analytical-canvas" role="tabpanel" id={`${id}-journey-panel`} aria-labelledby={`${id}-journey-tab`} hidden={mode !== 'journey'} tabIndex={0}>
       {journey.timedEvents.length > 0 ? <>
         <ol className="cx-journey-spine" aria-label="Recorded lifecycle milestones">{journey.milestones.map((event, index) => {
           const transition = journey.transitions.find(item => item.toId === event.id);
@@ -85,7 +86,7 @@ export default function LeadJourney({ row, validationStatus, onViewSource, sourc
       <dl className="cx-journey-outcomes">{journey.outcomes.map(outcome => { const stage = lifecyclePresentation[timelineStages[outcome.kind]]; const Icon = stage.Icon; return <div key={outcome.kind} data-state={outcome.state}><dt><Icon size={14} aria-hidden="true" style={{ color: outcome.state === 'recorded' ? stage.color : undefined }}/>{outcome.title}</dt><dd>{outcome.state === 'recorded' ? 'Recorded' : outcome.state === 'not-recorded' ? 'Not recorded in returned evidence' : 'Evidence unavailable'}</dd></div>; })}</dl>
     </section>
 
-    <section role="tabpanel" id={`${id}-events-panel`} aria-labelledby={`${id}-events-tab`} hidden={mode !== 'events'} tabIndex={0}>
+    <section className="cx-journey-forensic-canvas cx-analytical-canvas" role="tabpanel" id={`${id}-events-panel`} aria-labelledby={`${id}-events-tab`} hidden={mode !== 'events'} tabIndex={0}>
       <p className="cx-journey-caption">Available snapshot milestones, not a complete call or status history.</p>
       {dates.map(date => <section className="cx-journey-date" key={date}><h3>{dateLabel(date + 'T00:00:00Z')} <small>UTC</small></h3><ol>{journey.timedEvents.filter(event => event.timestamp!.startsWith(date)).map(event => <li key={event.id}>{eventButton(event, true)}</li>)}</ol></section>)}
       {journey.untimedEvents.length > 0 && <section className="cx-journey-undated"><h3>Timestamp unavailable</h3><p>These recorded outcomes have no known chronological order.</p><ul>{journey.untimedEvents.map(event => <li key={event.id}>{eventButton(event)}</li>)}</ul></section>}

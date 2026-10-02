@@ -8,6 +8,10 @@ import { extractOffernetFilters, useFilters } from '../../lib/FilterContext';
 import { formatTableNumber } from '../../lib/formatters';
 import { fetchExceptions, fetchMarketingRootCause, fetchRootCause, type ExceptionAnalyticsData, type MarketingRootCauseData, type RootCauseData } from '../../lib/offernetClient';
 import { driverMetricKind, driverScope, driverSegmentLink, type DriverDimension } from './driverAnalysisModel';
+import ChartFrame from '../../shared/visuals/ChartFrame';
+import VisualSkeleton from '../../shared/visuals/VisualSkeleton';
+import ReportingScopeSummary from '../../shared/reporting/ReportingScopeSummary';
+import { SEGMENT_KEYS, SEGMENT_LABELS } from './investigationModel';
 import type { InvestigationAnalysisSummary } from './useInvestigationAnalysis';
 import '../../styles/investigationDrivers.css';
 
@@ -56,6 +60,7 @@ export function DriverBreakdown({ label, rows, unit, compared, concentration, re
   label: string; rows: BreakdownRow[]; unit: string; compared: boolean; concentration: boolean;
   recordsAllowed: boolean; decomposition?: boolean; contributionLabel?: string; href?: (name: string) => string; onInspect?: () => void; onPin?: (row: BreakdownRow) => void;
 }) {
+  const [selectedRow, setSelectedRow] = useState<string | null>(null);
   const max = rows.reduce((largest, row) => Math.max(largest, Math.abs(concentration ? row.current ?? 0 : row.contribution ?? 0)), 1);
   const ranked = [...rows].sort((left, right) => Math.abs(concentration ? right.current ?? 0 : right.contribution ?? 0) - Math.abs(concentration ? left.current ?? 0 : left.contribution ?? 0));
   return <>
@@ -63,17 +68,18 @@ export function DriverBreakdown({ label, rows, unit, compared, concentration, re
       <p className="cx-driver-visual-caption">{concentration ? 'Largest returned populations' : `${contributionLabel} · centred on zero`}{rows.length > 6 ? ' · top six' : ''}</p>
       {ranked.slice(0, 6).map(row => {
         const value = concentration ? row.current : row.contribution;
-        return <div className="cx-driver-bar" key={row.name} data-state={value == null ? 'unavailable' : value === 0 ? 'zero' : value < 0 ? 'negative' : 'positive'}>
-          <span>{href ? <Link to={href(row.name)} onClick={onInspect}>{row.name}</Link> : row.name}</span><div className="cx-driver-bar-track" aria-hidden="true">{value != null && <i style={{ width: `${(concentration ? 100 : 50) * Math.abs(value) / max}%`, ...(!concentration ? { left: value < 0 ? `${50 - 50 * Math.abs(value) / max}%` : '50%' } : {}) }} />}</div>
+        return <div className={`cx-driver-bar${selectedRow === row.name ? ' cx-selected-state' : ''}`} key={row.name} data-state={value == null ? 'unavailable' : value === 0 ? 'zero' : value < 0 ? 'negative' : 'positive'}>
+          <span>{href ? <Link to={href(row.name)} onClick={onInspect}>{row.name}</Link> : row.name}</span><button type="button" className="cx-driver-bar-select" aria-label={`Highlight ${row.name} evidence`} aria-pressed={selectedRow === row.name} onClick={() => setSelectedRow(selectedRow === row.name ? null : row.name)}><span className="cx-driver-bar-track" aria-hidden="true">{value != null && <i style={{ width: `${(concentration ? 100 : 50) * Math.abs(value) / max}%`, ...(!concentration ? { left: value < 0 ? `${50 - 50 * Math.abs(value) / max}%` : '50%' } : {}) }} />}</span></button>
           <strong>{concentration ? number(row.current) : signed(row.contribution, unit)}{concentration && row.share != null && <small>{number(row.share)}% of population</small>}</strong>
         </div>;
       })}
     </div>
+    {selectedRow && <p className="cx-driver-selection" role="status">Selected: {selectedRow}<button type="button" onClick={() => setSelectedRow(null)}>Clear selection</button></p>}
     <div className="cx-driver-table-scroll" role="region" aria-label={`${label} exact breakdown`} tabIndex={0}>
       <table className="cx-driver-table">
         <caption>{label} · {concentration ? 'current affected population' : 'matched-period evidence'}</caption>
         <thead><tr><th scope="col">Segment</th><th scope="col">Current{concentration ? ' leads' : ''}</th>{compared && <th scope="col">Previous</th>}{decomposition && <th scope="col">Segment change</th>}<th scope="col">{concentration ? 'Share of population' : contributionLabel}</th>{decomposition && <th scope="col">Share of delta</th>}{href && <th scope="col"><span className="sr-only">Narrow investigation</span></th>}{onPin && <th scope="col"><span className="sr-only">Pin evidence</span></th>}</tr></thead>
-        <tbody>{rows.map(row => <tr key={row.name}>
+        <tbody>{rows.map(row => <tr key={row.name} className={selectedRow === row.name ? 'cx-selected-state' : undefined} data-selected={selectedRow === row.name || undefined}>
           <th scope="row">{row.name}</th>
           <td>{number(row.current)}{row.current != null && unit === 'pp' ? '%' : ''}{row.population !== undefined && <small>Denominator {number(row.population)}</small>}</td>
           {compared && <td>{number(row.previous)}{row.previous != null && unit === 'pp' ? '%' : ''}{row.previousPopulation !== undefined && <small>Denominator {number(row.previousPopulation)}</small>}</td>}
@@ -162,14 +168,15 @@ export default function DriverAnalysis({ metric: suppliedMetric, metricLabel, ex
   }, [summaryScopeKey, onSummary, error, ready, methodology, current, previous, delta, unit, valueSuffix, status, dimensionLabel, severity]);
   const pin = (row?: BreakdownRow) => onPin?.({ kind: row ? operational ? 'driver' : 'segment' : exception ? 'exception' : 'metric', label: row ? `${dimension?.label}: ${row.name}` : title, value: row ? operational ? `${signed(row.contribution, unit)} contribution` : `${number(row.current)}${valueSuffix}` : `${number(current)}${valueSuffix}`, definition: row ? `${dimension?.label} breakdown of ${title}. Current ${number(row.current)}${row.current != null ? valueSuffix : ''}; previous ${number(row.previous)}${row.previous != null ? valueSuffix : ''}. ${operational ? `Share of delta: ${row.shareOfDelta == null ? 'Unavailable' : `${number(row.shareOfDelta)}%`}. ` : ''}Descriptive evidence; no causal claim.` : exception?.detail || methodology, provenance: exception ? '/api/analytics/offernet/exceptions' : marketing ? '/api/analytics/offernet/marketing-root-cause' : '/api/analytics/offernet/root-cause', identifier: row ? `${dimension?.key}:${row.name}` : metric || drill || '', observedAt: operational?.generatedAt || marketing?.generatedAt || exceptions?.generatedAt });
 
-  return <section id={summaryScopeKey ? 'investigation-diagnose' : undefined} tabIndex={summaryScopeKey ? -1 : undefined} className="cx-driver-analysis" aria-labelledby={headingId} aria-busy={!error && !ready}>
-    <header><div><p className="cx-driver-eyebrow">Where is it happening?</p><h2 id={headingId}>{title}</h2></div>{ready && <span className="cx-driver-status">{status}</span>}</header>
-    {error ? <p className="cx-driver-note" role={activeResult?.error ? 'alert' : undefined}>{error}</p> : !ready ? <p className="cx-driver-note" role="status">Loading the scoped population breakdown…</p> : <>
+  return <section id={summaryScopeKey ? 'investigation-diagnose' : undefined} tabIndex={summaryScopeKey ? -1 : undefined} className="cx-driver-analysis cx-analytical-canvas" aria-labelledby={headingId} aria-busy={!error && !ready}>
+    <ChartFrame title={title} scope={<><ReportingScopeSummary /><p className="cx-driver-focus-predicate">Investigation: {title}{SEGMENT_KEYS.filter(key => scope[key]).map(key => <span key={key}> · {SEGMENT_LABELS[key]}: {scope[key]}</span>)}</p></>} header={<div><p className="cx-driver-eyebrow">Where is it happening?</p><h2 id={headingId}>{title}</h2></div>} actions={ready && <span className="cx-driver-status">{status}</span>}>
+    {error ? <p className="cx-driver-note" role={activeResult?.error ? 'alert' : undefined}>{error}</p> : !ready ? <VisualSkeleton kind="bars" label="Loading the scoped population breakdown…" /> : <>
       <div className="cx-driver-summary"><div><span>Current</span><strong>{number(current)}{current != null ? valueSuffix : ''}</strong><small>{currentWindow ? `${currentWindow.startDate} → ${currentWindow.endDate}` : 'Current reporting scope'}</small></div><div><span>Matched previous</span><strong>{number(previous)}{previous != null ? valueSuffix : ''}</strong><small>{previousWindow ? `${previousWindow.startDate} → ${previousWindow.endDate}` : 'Comparison unavailable'}</small></div><div><span>Change</span><strong>{signed(delta, unit)}</strong><small>{exception ? `Affected distinct leads · Percentage change: ${exception.percentageChange == null ? 'Unavailable' : `${signed(exception.percentageChange)}%`}` : 'Returned metric difference'}</small></div>{onPin && <button type="button" className="cx-driver-pin" onClick={() => pin()}><Pin size={13} aria-hidden="true" /> Pin evidence</button>}</div>
       <p className="cx-driver-note">{exception ? 'Current concentration by vendor and source. Segment comparisons, grade and age breakdowns are unavailable for this exception.' : marketing ? 'Segment changes describe observed media differences; they are not an additive decomposition and do not establish a cause. Dimensions must not be added together.' : 'Descriptive contribution shows where the observed difference is concentrated; matched periods do not establish a cause. Each dimension describes the same population and must not be added to another dimension.'}</p>
       <div className="cx-driver-dimensions" role="group" aria-label="Breakdown dimension">{dimensions.map(item => <button type="button" key={item.key} aria-pressed={dimension?.key === item.key} onClick={() => setSelectedDimension(item.key)}>{item.label}</button>)}</div>
-      {dimension && <DriverBreakdown label={dimension.label} rows={rows} unit={unit} compared={!exception} concentration={Boolean(exception)} decomposition={Boolean(operational)} contributionLabel={marketing ? 'Segment change' : 'Descriptive contribution'} recordsAllowed={isAdmin} href={marketing ? undefined : name => { const recordParams = new URLSearchParams(params); if (!recordParams.has('clientId')) recordParams.set('clientId', selectedClient); return driverSegmentLink(recordParams, dimension.key as DriverDimension, name, isAdmin, metric); }} onInspect={onInspect} onPin={onPin ? row => pin(row) : undefined} />}
+      {dimension && <DriverBreakdown key={`${requestKey}:${dimension.key}`} label={dimension.label} rows={rows} unit={unit} compared={!exception} concentration={Boolean(exception)} decomposition={Boolean(operational)} contributionLabel={marketing ? 'Segment change' : 'Descriptive contribution'} recordsAllowed={isAdmin} href={marketing ? undefined : name => { const recordParams = new URLSearchParams(params); if (!recordParams.has('clientId')) recordParams.set('clientId', selectedClient); return driverSegmentLink(recordParams, dimension.key as DriverDimension, name, isAdmin, metric); }} onInspect={onInspect} onPin={onPin ? row => pin(row) : undefined} />}
       <details className="cx-driver-method"><summary>Method, reconciliation and limitations</summary><p>{methodology}</p>{exception && <p>{exceptions?.populationNote}</p>}{operationalDimension && <p>Reconciliation: {operationalDimension.reconciliationStatus || 'NOT_VERIFIED'} · Residual: {signed(operationalDimension.residual, unit)}. Reconciliation describes arithmetic agreement and does not verify source evidence.</p>}<p>Validation: {status}. Missing evidence and unavailable denominators remain unavailable.</p></details>
     </>}
+    </ChartFrame>
   </section>;
 }

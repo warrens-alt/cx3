@@ -22,6 +22,7 @@ import { useAuth } from '../lib/AuthContext';
 import BlcLifecycleCard from '../components/BlcLifecycleCard';
 import { useScopedNavigationTarget } from '../hooks/useScopedNavigationTarget';
 import UnifiedMetricCard from '../components/UnifiedMetricCard';
+import TelemetryRail from '../shared/visuals/TelemetryRail';
 import SourceEvidenceMatrix, { EvidenceStatus } from '../features/trust/components/SourceEvidenceMatrix';
 import IntegrityCheckComparison from '../features/trust/components/IntegrityCheckComparison';
 import IntegrityAuditChecks from '../features/trust/components/IntegrityAuditChecks';
@@ -61,11 +62,11 @@ export default function DataIntegrityIntelligence() {
         {loading && !data && <ReportSkeleton label="Loading data integrity" metricCount={3} />}
 
         <ReportSections label="Data integrity sections" value={section} onChange={setSection} sections={[
-          { id: 'overview', label: 'Overview', content: data && <><section className="cx-integrity-summary" aria-label="Data integrity overview metrics">
+          { id: 'overview', label: 'Overview', content: data && <><TelemetryRail className="cx-integrity-summary" label="Data integrity overview metrics">
               <UnifiedMetricCard label="Checks with measured gaps" value={gaps.length} note="Returned checks with a positive gap count" onInspect={() => setSection('issues')} inspectLabel="Inspect issues" />
               <UnifiedMetricCard label="Evidence limitations" value={groups.limitations.length} note="Checks with unavailable or unverified evidence" onInspect={() => setSection('issues')} inspectLabel="Inspect limitations" />
               <UnifiedMetricCard label="Observed Data Sources" value={data.sources?.length ?? 'Unavailable'} note="Returned source entries; observation does not establish health" onInspect={() => setSection('sources')} inspectLabel="Inspect sources" />
-            </section>
+            </TelemetryRail>
             <SourceEvidenceMatrix sources={data.sources} summaryOnly />
             <IntegrityCheckComparison key={JSON.stringify([selectedClient, startDate, endDate, filters])} checks={data.checks} onViewDetails={() => setSection('issues')} />
             <section className="cx-integrity-attention" aria-label="Integrity needs attention">
