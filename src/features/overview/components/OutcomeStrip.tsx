@@ -19,6 +19,7 @@ interface OutcomeStripProps {
   onWhyChanged?: (metric: RootMetric) => void;
   isAdmin: boolean;
   hasComparison?: boolean;
+  includeUnavailableStages?: boolean;
 }
 
 // Presentation only: keep each outcome aligned with the established chart series.
@@ -64,6 +65,7 @@ export default function OutcomeStrip({
   onWhyChanged,
   isAdmin,
   hasComparison = false,
+  includeUnavailableStages = false,
 }: OutcomeStripProps) {
   const kpis = data.kpis;
   const comparison = data.comparison;
@@ -226,7 +228,7 @@ export default function OutcomeStrip({
   ];
 
   return (
-    <TelemetryRail label="Principal operational outcomes" className="cx-outcome-strip">
+    <TelemetryRail label="Principal operational outcomes" className={`cx-outcome-strip${includeUnavailableStages ? ' cx-command-lifecycle' : ''}`}>
       <header className="cx-outcome-rail-heading"><h2>Lead lifecycle</h2><p>Observed stage populations · recorded sales and activations remain independent evidence.</p></header>
       {outcomes.map(item => {
         const presentation = outcomePresentation[item.id as keyof typeof outcomePresentation];
@@ -249,8 +251,13 @@ export default function OutcomeStrip({
           anatomy: { kind: item.id === 'activations' ? 'independent_ratio' : 'ratio', label: item.id === 'activations' ? 'Activations / recorded sales' : item.subnote, value: item.rateValue, numerator: { key: 'numerator', label: item.label, value: count }, denominator: { key: 'denominator', label: denominatorLabel, value: denominator } },
         };
         return (
+        <React.Fragment key={item.id}>
+        {includeUnavailableStages && item.id === 'delivered_leads' && ['Qualified', 'Routed'].map(label => <article className="cx-command-stage-unavailable" key={label} data-evidence="unavailable">
+          <span className="cx-metric-label">{label}</span><strong>Unavailable</strong>
+          <p>No authoritative stage population supplied.</p>
+          <button type="button" className="cx-audit-evidence-control" aria-label={`Audit evidence: ${label}`} onClick={() => onInspect({ type: 'stage', title: `${label} population`, value: 'Unavailable', subtitle: 'This operational response does not supply an authoritative population for this stage.', reportPath: label === 'Qualified' ? '/journey/qualification' : '/journey/routing', reportLabel: `Open ${label === 'Qualified' ? 'qualification' : 'routing'} evidence` })}>Audit evidence</button>
+        </article>)}
         <article
-          key={item.id}
           data-series={presentation.series}
           className="cx-outcome-card cx-metric-card"
         >
@@ -266,7 +273,7 @@ export default function OutcomeStrip({
 
             <div className="cx-outcome-context">
               {rateEvidence ? <button type="button" className="cx-button-quiet cx-outcome-rate" onClick={() => onInspect(rateEvidence)} aria-label={`Audit evidence: ${rateEvidence.title}`}>{item.subnote}</button> : <span>{item.subnote}</span>}
-              <DeltaBadge delta={item.delta} unit={item.deltaUnit} />
+              {hasComparison && onWhyChanged && Number.isFinite(item.delta) ? <button type="button" className="cx-command-movement" onClick={() => onWhyChanged(item.rootMetric)} aria-label={`Investigate ${item.label} movement`}><DeltaBadge delta={item.delta} unit={item.deltaUnit} /><Search size={11} aria-hidden="true" /></button> : <DeltaBadge delta={item.delta} unit={item.deltaUnit} />}
             </div>
           </div>
 
@@ -274,8 +281,8 @@ export default function OutcomeStrip({
           <AuditMetadata metricId={item.inspectContent.metricId} />
           <button type="button" className="cx-audit-evidence-control" onClick={() => onInspect(countEvidence)} aria-label={`Audit evidence: ${item.label}`}>Audit evidence</button>
           <ArrowRight className="cx-metric-chevron" size={14} aria-hidden="true" />
-          {hasComparison && item.id === 'fetched_leads' && onWhyChanged && Number.isFinite(item.delta) && <button type="button" className="cx-why-btn cx-metric-context-action" onClick={() => onWhyChanged(item.rootMetric)} title={`Investigate why ${item.label.toLowerCase()} changed`}>Why changed? <Search size={12} aria-hidden="true" /></button>}
-        </article>
+          {hasComparison && onWhyChanged && Number.isFinite(item.delta) && <button type="button" className="cx-why-btn cx-metric-context-action" onClick={() => onWhyChanged(item.rootMetric)} title={`Investigate why ${item.label.toLowerCase()} changed`}>Why changed? <Search size={12} aria-hidden="true" /></button>}
+        </article></React.Fragment>
         );
       })}
     </TelemetryRail>

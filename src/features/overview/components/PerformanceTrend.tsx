@@ -29,7 +29,7 @@ export interface DailyTrendRow {
   [key: string]: any;
 }
 
-export type SelectableTrendMetric = 'leads' | 'delivered' | 'sales';
+export type SelectableTrendMetric = 'leads' | 'delivered' | 'dialled' | 'contacted' | 'sales' | 'activations' | 'revenue';
 
 export interface PerformanceTrendPoint {
   date: string;
@@ -62,16 +62,21 @@ export function adaptDailyTrends(rows: DailyTrendRow[] = []): PerformanceTrendPo
 
 export interface PerformanceTrendProps {
   data?: DailyTrendRow[];
+  onAudit?: (metricId: string, label: string) => void;
   comparisonWindow?: {
     startDate: string;
     endDate: string;
   } | null;
 }
 
-const METRIC_CONFIGS: Record<SelectableTrendMetric, { label: string; color: string }> = {
-  leads: { label: 'Fetched leads', color: 'var(--cx-data-fetched)' },
-  delivered: { label: 'Delivered leads', color: 'var(--cx-data-delivered)' },
-  sales: { label: 'Recorded sales', color: 'var(--cx-data-sales)' },
+const METRIC_CONFIGS: Record<SelectableTrendMetric, { label: string; color: string; metricId: string }> = {
+  leads: { metricId: 'fetched_leads', label: 'Fetched leads', color: 'var(--cx-data-fetched)' },
+  delivered: { metricId: 'delivered_leads', label: 'Delivered leads', color: 'var(--cx-data-delivered)' },
+  dialled: { metricId: 'dialled_leads', label: 'Dialled leads', color: 'var(--cx-data-dialled)' },
+  contacted: { metricId: 'rpc_leads', label: 'RPC leads', color: 'var(--cx-data-rpc)' },
+  activations: { metricId: 'activated_leads', label: 'Activations', color: 'var(--cx-data-activation)' },
+  revenue: { metricId: 'recorded_revenue', label: 'Recorded revenue', color: 'var(--cx-chart-category-7)' },
+  sales: { metricId: 'sale_leads', label: 'Recorded sales', color: 'var(--cx-data-sales)' },
 };
 
 interface TrendTooltipProps {
@@ -88,7 +93,7 @@ function TrendTooltip({ active, payload, label, metricLabel }: TrendTooltipProps
   return <ChartTooltip title={label} rows={[{ label: metricLabel, value: value != null ? formatTableNumber(value) : 'Unavailable' }]} />;
 }
 
-export default function PerformanceTrend({ data = [], comparisonWindow }: PerformanceTrendProps) {
+export default function PerformanceTrend({ data = [], comparisonWindow, onAudit }: PerformanceTrendProps) {
   const [activeMetric, setActiveMetric] = useState<SelectableTrendMetric>('leads');
 
   const chartId = useId();
@@ -109,7 +114,7 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
   };
 
   return (
-    <ChartFrame title="Performance trend" className="cx-trend-panel" scope={<ReportingScopeSummary />} header={
+    <ChartFrame title="Performance trend" className="cx-trend-panel" actions={onAudit && <button type="button" className="cx-button-quiet" onClick={() => onAudit(currentConfig.metricId, currentConfig.label)}>Evidence</button>} scope={<ReportingScopeSummary />} header={
       <div className="cx-trend-heading">
         <div>
           <h2>Performance trend</h2>
@@ -143,7 +148,7 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
         </div>
       </div>}
       footer={<div className="cx-trend-context"><Clock3 size={13} aria-hidden="true" /><span>{comparisonWindow
-        ? `Plotting ${currentConfig.label}. Preceding matched comparison window (${comparisonWindow.startDate} – ${comparisonWindow.endDate}) provides page-level delta context.`
+        ? `Plotting ${currentConfig.label}. Preceding matched comparison window (${comparisonWindow.startDate} – ${comparisonWindow.endDate}) provides aggregate delta context; no previous daily series is supplied.`
         : `Plotting ${currentConfig.label}. Comparison evidence is unavailable for the selected period.`}</span></div>}>
 
       {/* Chart Canvas */}
@@ -192,8 +197,8 @@ export default function PerformanceTrend({ data = [], comparisonWindow }: Perfor
 
       <details className="cx-report-disclosure cx-trend-evidence"><summary>View exact daily evidence</summary>
         <div className="cx-viz-table-scroll" role="region" aria-label="Daily trend evidence" tabIndex={0}>
-          <table className="cx-viz-table"><caption className="sr-only">Returned daily observations for Overview outcomes.</caption><thead><tr><th scope="col">Date</th><th scope="col">Fetched</th><th scope="col">Delivered</th><th scope="col">Sales</th><th scope="col">Activations</th></tr></thead>
-            <tbody>{chartData.map((point, index) => <tr key={`${point.date}-${index}`}><th scope="row">{point.date}</th>{(['leads','delivered','sales','activations'] as const).map(key => <td key={key}>{point[key] == null ? 'Unavailable' : formatTableNumber(point[key])}</td>)}</tr>)}</tbody>
+          <table className="cx-viz-table"><caption className="sr-only">Returned daily observations for Overview outcomes.</caption><thead><tr><th scope="col">Date</th><th scope="col">Fetched</th><th scope="col">Delivered</th><th scope="col">Dialled</th><th scope="col">RPC</th><th scope="col">Sales</th><th scope="col">Activations</th><th scope="col">Recorded revenue</th></tr></thead>
+            <tbody>{chartData.map((point, index) => <tr key={`${point.date}-${index}`}><th scope="row">{point.date}</th>{(['leads','delivered','dialled','contacted','sales','activations','revenue'] as const).map(key => <td key={key}>{point[key] == null ? 'Unavailable' : formatTableNumber(point[key])}</td>)}</tr>)}</tbody>
           </table>
         </div>
       </details>

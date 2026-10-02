@@ -21,6 +21,8 @@ import { ExportPresentation } from './ReportPresentation';
 
 export interface ReportingScopeBarProps {
   policy?: ScopePolicy;
+  /** Supplied matched window only; absence never implies a completed comparison. */
+  comparisonWindow?: { startDate: string; endDate: string } | null;
   onRefresh?: () => void | Promise<void>;
   onExportCsv?: () => void;
   showVendorFilter?: boolean;
@@ -145,6 +147,7 @@ function ReleaseScopeBar({ onRefresh, className = '' }: { onRefresh?: () => void
 }
 
 function OperationalScopeBar({
+  comparisonWindow,
   onRefresh,
   onExportCsv,
   showVendorFilter = true,
@@ -352,6 +355,7 @@ function OperationalScopeBar({
           <span>{filters.vendor ? `Vendor: ${scopeFilterSummary(filters.vendor)}` : 'All vendors'}</span>
           <span>{filters.source ? `Source: ${scopeFilterSummary(filters.source)}` : 'All sources'}</span>
           {visibleChips.filter(item => !['vendor', 'source'].includes(item.key)).map(item => <span key={item.key}>{item.label}: {item.value}</span>)}
+          {comparisonWindow && <span className="cx-scope-comparison">Compared with {comparisonWindow.startDate} – {comparisonWindow.endDate}</span>}
           {datesDirty && <small>Date changes not applied</small>}
         </div>
 

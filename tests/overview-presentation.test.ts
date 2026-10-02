@@ -54,9 +54,9 @@ test('Overview Why changed requires comparison evidence and dispatches the exist
     assert.deepEqual(inspected, ['fetched_leads']);
     assert.deepEqual(investigations, []);
     await app.render(React.createElement(OutcomeStrip, { ...props, hasComparison: true }));
-    assert.equal(whyButtons().length, 1);
+    assert.equal(whyButtons().length, 6);
     for (const button of whyButtons()) await app.click(button);
-    assert.deepEqual(investigations, ['fetchedLeads']);
+    assert.deepEqual(investigations, ['fetchedLeads', 'deliveryRate', 'dialRate', 'contactRate', 'leadToSaleRate', 'activationRate']);
     await app.render(React.createElement(OutcomeStrip, { ...props, hasComparison: false }));
     assert.equal(whyButtons().length, 0);
     await app.render(React.createElement(OutcomeStrip, { ...props, hasComparison: true, onWhyChanged: undefined }));

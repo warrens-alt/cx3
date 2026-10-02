@@ -39,7 +39,6 @@ export function useOverviewModel() {
   const { isAdmin } = useAuth();
 
   const [inspectorContent, setInspectorContent] = useState<InspectorContent | null>(null);
-  const [rootMetric, setRootMetric] = useState<RootMetric | null>(null);
   const [controlsExpanded, setControlsExpanded] = useState(false);
   const [commercialExpanded, setCommercialExpanded] = useState(false);
 
@@ -82,25 +81,16 @@ export function useOverviewModel() {
 
   const hasComparison = Boolean(startDate && endDate && data?.comparisonWindow);
 
-  const investigate = (metric: RootMetric) => {
-    if (hasComparison) {
-      setRootMetric(metric);
-    }
-  };
-
   return {
     data,
     loading,
     error,
     refreshAll,
     hasComparison,
-    investigate,
     isAdmin,
     inspectorContent,
     setInspectorContent,
     closeInspector: () => setInspectorContent(null),
-    rootMetric,
-    setRootMetric,
     commercial: commercialQuery,
     controls,
     controlsExpanded,

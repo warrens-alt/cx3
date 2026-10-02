@@ -27,7 +27,7 @@ export function navigationTarget(target: string, currentPath: string, search: st
   const current = new URLSearchParams(search);
   const sourceIsRelease = isReleasePath(currentPath);
   const targetIsRelease = isReleasePath(targetPath);
-  const allowed = sourceIsRelease && !targetIsRelease ? SETTINGS_SCOPE_PARAMS
+  const allowed = sourceIsRelease && !targetIsRelease ? UNIVERSAL_SCOPE_PARAMS
     : sourceIsRelease && targetIsRelease ? RELEASE_SCOPE_PARAMS
     : INVESTIGATION_PATHS.has(currentPath) && INVESTIGATION_PATHS.has(targetPath)
       ? new Set([...UNIVERSAL_SCOPE_PARAMS, ...INVESTIGATION_SCOPE_PARAMS])

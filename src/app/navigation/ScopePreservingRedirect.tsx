@@ -56,10 +56,11 @@ export const DISPOSITION_REPORT_PARAMS = new Set([
 
 // Fixed release scope parameters for /reports and /vendors
 export function isReleasePath(path: string): boolean {
-  return ['/reports', '/vendors', '/evidence/releases', '/evidence/vendors'].includes(path);
+  return ['/reports', '/vendors', '/evidence/releases', '/evidence/vendors', '/reconciliation', '/commercial/reconciliation'].includes(path);
 }
 
 export const RELEASE_SCOPE_PARAMS = new Set([
+  ...UNIVERSAL_SCOPE_PARAMS,
   'clientId',
   'workspace',
   'release',

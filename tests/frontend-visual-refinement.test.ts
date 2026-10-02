@@ -61,10 +61,10 @@ test('long metric labels stay complete, escaped and not line-clamped', () => {
 
 test('trend tablist exposes linked panels and only the selected tab is tabbable', () => {
   const html = render(React.createElement(PerformanceTrend, { data: [] }));
-  assert.equal((html.match(/role="tab"/g) || []).length, 3);
+  assert.equal((html.match(/role="tab"/g) || []).length, 7);
   assert.equal((html.match(/aria-selected="true"/g) || []).length, 1);
   assert.equal((html.match(/role="tab"[^>]*tabindex="0"/gi) || []).length, 1);
-  assert.equal((html.match(/tabindex="-1"/gi) || []).length, 2);
+  assert.equal((html.match(/tabindex="-1"/gi) || []).length, 6);
   assert.match(html, /role="tabpanel"/);
   assert.match(html, /aria-controls=/);
   assert.match(html, /No daily trend data available in this scope/);

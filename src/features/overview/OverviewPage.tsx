@@ -1,3 +1,4 @@
+import ConcentrationPanel from '../../workspaces/command/ConcentrationPanel';
 import LifecyclePath from '../../shared/visuals/LifecyclePath';
 import { AuditMetadata } from '../../shared/evidence/AuditMode';
 import { lifecyclePresentation, type LifecycleStage } from '../../shared/visuals/lifecyclePresentation';
@@ -21,7 +22,6 @@ import ReportingScopeBar from '../../shared/reporting/ReportingScopeBar';
 import { ReportActions } from '../../shared/reporting/ReportPresentation';
 import { OperationalEmpty, OperationalError, OverviewSkeleton } from '../../components/OperationalState';
 import { statusLabel } from '../../lib/statusPresentation';
-import RootCauseDrawer from '../../components/RootCauseDrawer';
 import { formatPercent, formatTableNumber } from '../../lib/formatters';
 import { downloadAnalysisCsv, type AnalysisCell } from '../../lib/analysisExport';
 import { OperatingControlStrip } from '../../components/OfferNetControlPanels';
@@ -38,13 +38,10 @@ export default function OverviewPage() {
     error,
     refreshAll,
     hasComparison,
-    investigate,
     isAdmin,
     inspectorContent,
     setInspectorContent,
     closeInspector,
-    rootMetric,
-    setRootMetric,
     commercial,
     controls,
     controlsExpanded,
@@ -129,10 +126,10 @@ export default function OverviewPage() {
   }, [data?.comparison]);
 
   return (
-    <AnalyticsPageLayout className="cx-overview-page" ariaLabel="Overview workspace"
-      title="Overview" description="Intake, delivery, sales and activation for the selected cohort."
-      actions={<ReportActions aboutContent={<p>Overview evidence: {statusLabel(data?.validationStatus || 'NOT_VERIFIED')}</p>} />}
-      scope={<ReportingScopeBar onRefresh={refreshAll} onExportCsv={data ? handleExportOverviewCsv : undefined} />}>
+    <AnalyticsPageLayout className="cx-overview-page" ariaLabel="Command workspace"
+      title="Command" description="Observe the operation. Follow the evidence."
+      actions={<ReportActions aboutContent={<p>Command evidence: {statusLabel(data?.validationStatus || 'NOT_VERIFIED')}</p>} />}
+      scope={<ReportingScopeBar comparisonWindow={data?.comparisonWindow} onRefresh={refreshAll} onExportCsv={data ? handleExportOverviewCsv : undefined} />}>
 
       {/* Error state */}
       {error && (
@@ -171,7 +168,8 @@ export default function OverviewPage() {
                 filters,
               },
             })}
-            onWhyChanged={investigate}
+            onWhyChanged={metric => navigate(scoped(`/investigate?investigationMetric=${encodeURIComponent(metric)}`))}
+            includeUnavailableStages
             isAdmin={isAdmin}
             hasComparison={hasComparison}
           />
@@ -185,15 +183,17 @@ export default function OverviewPage() {
           <AuditMetadata grain="Distinct scoped lead" dateBasis="Lead capture cohort" validationStatus={data.validationStatus} definitionVersion={data.definitionVersion} generatedAt={data.generatedAt} />
 
           <div className="cx-overview-primary">
-            <PerformanceTrend data={data.dailyTrends} comparisonWindow={data.comparisonWindow} />
-            <OverviewChanges changes={meaningfulChanges} hasComparison={hasComparison}
-              comparisonWindow={data.comparisonWindow} onInvestigate={metric => navigate(scoped(`/investigate?investigationMetric=${encodeURIComponent(metric)}`))} />
+            <PerformanceTrend data={data.dailyTrends} comparisonWindow={data.comparisonWindow} onAudit={(metricId, label) => setInspectorContent({ type: 'metric', metricId, title: `${label} daily evidence`, subtitle: 'Current capture-cohort daily observations. A previous daily series is not supplied.', provenance: { validationStatus: data.validationStatus, generatedAt: data.generatedAt, metricVersion: data.definitionVersion, timezone: data.timezone }, scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters } })} />
+            <AttentionList items={data.attention} isAdmin={isAdmin} />
           </div>
 
           <div className="cx-overview-secondary">
-            <AttentionList items={data.attention} isAdmin={isAdmin} />
+            <OverviewChanges changes={meaningfulChanges} hasComparison={hasComparison}
+              comparisonWindow={data.comparisonWindow} onInvestigate={metric => navigate(scoped(`/investigate?investigationMetric=${encodeURIComponent(metric)}`))} />
             <FirstCallResponse sla={data.sla} backlog={data.backlog} deliveredCount={data.kpis.deliveredLeads} onInspect={content => setInspectorContent({ ...content, provenance: { validationStatus: data.validationStatus, generatedAt: data.generatedAt, metricVersion: data.definitionVersion, timezone: data.timezone }, scope: { clientId: scope.clientId, startDate: scope.startDate, endDate: scope.endDate, filters } })} />
           </div>
+
+          <ConcentrationPanel lifecycle={data.lifecycle} />
 
           <section className="cx-overview-more" aria-label="Explore more analysis">
             <h2>Explore more analysis</h2>
@@ -400,12 +400,6 @@ export default function OverviewPage() {
         content={inspectorContent}
       />
 
-      {/* Root Cause Drawer for drilldowns */}
-      <RootCauseDrawer
-        open={rootMetric !== null}
-        metric={rootMetric}
-        onClose={() => setRootMetric(null)}
-      />
     </AnalyticsPageLayout>
   );
 }
