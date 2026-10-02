@@ -34,6 +34,7 @@ import { suppliedProvenance, vendorAudit } from '../features/evidenceWorkspace/s
 import VendorComparison from '../features/vendors/components/VendorComparison';
 import '../styles/journeyContactVisuals.css';
 import '../styles/trustQualityVisuals.css';
+import '../styles/acquisitionEvidenceVisuals.css';
 
 import { formatPercent, formatTableNumber } from '../lib/formatters';
 
@@ -133,16 +134,16 @@ export default function VendorLeadQuality() {
         {data && (
           <>
             {vendorSummary && (
-              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6" aria-label="Vendor performance summary">
+              <section className="grid grid-cols-1 sm:grid-cols-2 gap-3" aria-label="Vendor performance summary">
                 <UnifiedMetricCard
-                  label="Captured Demand"
+                  label="Lead counts across vendor groups"
                   value={formatTableNumber(vendorSummary.totalLeads)}
                   note={`${vendorSummary.vendorCount} active vendors`}
                   onInspect={() => setAudit({ type: 'metric', title: 'Captured demand across vendor groups', value: vendorSummary.totalLeads, scope: auditScope, definition: { meaning: 'Sum of the returned vendor lead counts. Vendor populations can overlap, so this is not the distinct workspace fetched-lead count.', grain: 'Lead within vendor group', dateBasis: 'Lead intake cohort', nullMeaning: 'Missing vendor results do not establish zero demand.' }, provenance: suppliedProvenance(data), detailLimitation: 'No distinct portfolio record population is supplied for this sum.' })}
                   inspectLabel="Inspect evidence"
                 />
 
-                <div className="cx-control-note sm:col-span-2">
+                <div className="cx-control-note">
                   Combined rates and latency are not supplied for this population. Compare the returned vendor measures below; subgroup rates and medians do not establish a portfolio result.
                 </div>
               </section>
@@ -152,6 +153,7 @@ export default function VendorLeadQuality() {
             <VendorComparison key={JSON.stringify([selectedClient, startDate, endDate, filters])} vendors={data.vendors}
               onSelectVendor={vendor => setFilter('vendor', { operator: 'in', values: [vendor] })}
               onInspectVendor={(vendor, measure) => setAudit(vendorAudit(vendor, measure, auditScope, data))} />
+            <details className="cx-evidence-disclosure"><summary>View grade composition and lifecycle evidence</summary>
             <div className="cx-analytics-visual-grid">
               {vendorGradeVisual.data.length > 0 && <StackedCompositionChart
                 title="Vendor grade composition"
@@ -165,11 +167,12 @@ export default function VendorLeadQuality() {
             {data.lifecycle && <LifecycleSegmentsPanel data={data.lifecycle} />}
             {data.vendorGrades && <section className="cx-command-panel"><header><div><h2>Vendor grade distribution</h2><p>{data.qualityEvidence}</p></div><ExportAnalysisButton filename="vendor_grade_distribution" rows={[["Vendor","Grade","Leads"], ...data.vendorGrades.map(r=>[r.vendor,r.grade,r.leads])]} definitions={[data.qualityEvidence || 'Lead/vendor grain']} /></header><TablePreview rows={data.vendorGrades} label="vendor grade rows">{visibleRows => <div className="cx-performance-table-wrap"><table className="cx-performance-table"><thead><tr><th>Vendor</th><th>Grade</th><th>Leads</th></tr></thead><tbody>{visibleRows.map(r => <tr key={`${r.vendor}-${r.grade}`}><th>{r.vendor}</th><td>{r.grade}</td><td>{fmt(r.leads)}</td></tr>)}</tbody></table></div>}</TablePreview></section>}
 
+            </details>
             <section className="cx-command-panel" id="vendor-speed">
               <header>
                 <div>
                   <span className="cx-command-section-kicker">Diagnose</span>
-                  <h2>Vendor operating matrix</h2>
+                  <h2>Observed response speed and contact</h2>
                   <p>Median delivery-to-first-dial speed versus RPC / dialled. Bubble size represents fetched lead volume.</p>
                 </div>
               </header>
@@ -219,6 +222,7 @@ export default function VendorLeadQuality() {
               ) : <div className="cx-command-empty">Measured first-dial latency and RPC rate are both required for this chart.</div>}
             </section>
 
+            <details className="cx-evidence-disclosure"><summary>View source, quality and operating evidence</summary>
             {controls.data && <VendorControlsPanel data={controls.data} />}
 
             <section className="cx-command-panel" id="source-performance">
@@ -273,6 +277,7 @@ export default function VendorLeadQuality() {
                 rows={data.vetting.map(row => ({ label: row.vetting_color, ...row }))}
               />
             </div>
+            </details>
           </>
         )}
 

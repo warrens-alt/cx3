@@ -2,16 +2,17 @@ import React, { useMemo, useState } from 'react';
 import { ArrowUpRight, Search, X } from 'lucide-react';
 import type { VendorQualityData } from '../../../lib/offernetClient';
 import { formatTableNumber, formatPercent } from '../../../lib/formatters';
+import { lifecyclePresentation } from '../../../shared/visuals/lifecyclePresentation';
 import EvidenceBars from '../../../shared/visuals/EvidenceBars';
 
 type Vendor = VendorQualityData['vendors'][number];
 const measures = {
-  leads: { label: 'Fetched leads', rate: false },
-  deliveryRate: { label: 'Delivery rate', rate: true },
-  dialRate: { label: 'Dial / delivered', rate: true },
-  contactRate: { label: 'RPC / dialled', rate: true },
-  saleRate: { label: 'Sale / RPC', rate: true },
-  activationRate: { label: 'Activation / sale', rate: true },
+  leads: { label: 'Fetched leads', rate: false, color: lifecyclePresentation.fetched.color },
+  deliveryRate: { label: 'Delivery rate', rate: true, color: lifecyclePresentation.delivered.color },
+  dialRate: { label: 'Dial / delivered', rate: true, color: lifecyclePresentation.dialled.color },
+  contactRate: { label: 'RPC / dialled', rate: true, color: lifecyclePresentation.rpc.color },
+  saleRate: { label: 'Sale / RPC', rate: true, color: lifecyclePresentation.sales.color },
+  activationRate: { label: 'Activation / sale', rate: true, color: lifecyclePresentation.activated.color },
 } as const;
 type Measure = keyof typeof measures;
 
@@ -30,6 +31,7 @@ function RateCell({ value }: { value: number | null | undefined }) {
 }
 
 export default function VendorComparison({ vendors, onSelectVendor, onInspectVendor }: { vendors: Vendor[]; onSelectVendor: (vendor: string) => void; onInspectVendor?: (vendor: Vendor, measure: Measure) => void }) {
+  const [showAll, setShowAll] = useState(false);
   const [search, setSearch] = useState('');
   const [measure, setMeasure] = useState<Measure>('leads');
   const [descending, setDescending] = useState(true);
@@ -52,12 +54,30 @@ export default function VendorComparison({ vendors, onSelectVendor, onInspectVen
       <button type="button" className="cx-trust-sort" onClick={() => setDescending(value => !value)}>{descending ? 'Highest first' : 'Lowest first'}</button>
       <span className="cx-trust-meta">{rows.length} of {vendors.length} vendors · search affects this view only</span>
     </div>
+    <div className="cx-trust-matrix-heading"><h3>Lifecycle performance matrix</h3><span className="cx-trust-meta">Bar length = returned percentage; stage colours identify evidence, not a grade.</span></div>
+    <div className="cx-vendor-lifecycle-scroll" role="region" aria-label="Vendor lifecycle performance matrix" tabIndex={0}>
+      <table className="cx-vendor-lifecycle-matrix"><caption>Independent returned rates. Each column names its own denominator; unavailable is not zero.</caption>
+        <thead><tr><th scope="col">Vendor</th><th scope="col">Fetched leads</th>{[
+          { key: 'delivered', label: 'Delivery' }, { key: 'dialled', label: 'Dial / delivered' }, { key: 'rpc', label: 'RPC / dialled' }, { key: 'sales', label: 'Sale / RPC' }, { key: 'activated', label: 'Activation / sale' },
+        ].map(column => { const stage = lifecyclePresentation[column.key as keyof typeof lifecyclePresentation]; return <th scope="col" key={column.key}><span><stage.Icon size={15} aria-hidden="true" style={{ color: stage.color }} />{column.label}</span></th>; })}</tr></thead>
+        <tbody>{(showAll ? rows : rows.slice(0, 12)).map(({ vendor, key }) => <tr key={key}>
+          <th scope="row"><button type="button" className="cx-trust-link" onClick={() => onSelectVendor(vendor.vendor)} aria-label={`Filter to vendor ${vendor.vendor}`}>{vendor.vendor}<ArrowUpRight size={12} aria-hidden="true" /></button></th>
+          <td>{formatTableNumber(vendor.leads)}</td>
+          <LifecycleRate value={vendor.deliveryRate} color={lifecyclePresentation.delivered.color} />
+          <LifecycleRate value={vendor.dialRate} color={lifecyclePresentation.dialled.color} />
+          <LifecycleRate value={vendor.contactRate} color={lifecyclePresentation.rpc.color} />
+          <LifecycleRate value={vendor.saleRate} color={lifecyclePresentation.sales.color} />
+          <LifecycleRate value={vendor.activationRate} color={lifecyclePresentation.activated.color} />
+        </tr>)}</tbody>
+      </table>
+    </div>
+    {rows.length > 12 && <button type="button" className="cx-button-secondary" onClick={() => setShowAll(value => !value)}>{showAll ? 'Show top 12' : `Show all ${rows.length} vendors`}</button>}
     <EvidenceBars title={definition.label} description={definition.rate ? 'Fixed 0–100% display scale. Exact returned percentages remain in the table, including any outside this range.' : 'Common count scale across the displayed vendor population.'}
       maximum={definition.rate ? 100 : undefined}
-      items={rows.map(({ vendor, key }) => ({ key, label: vendor.vendor, value: vendor[measure], displayValue: definition.rate ? formatPercent(vendor[measure]) : formatTableNumber(vendor[measure]), detail: definition.rate ? `${formatTableNumber(vendor.leads)} fetched leads` : undefined }))}
+      items={(showAll ? rows : rows.slice(0, 12)).map(({ vendor, key }) => ({ key, label: vendor.vendor, value: vendor[measure], color: definition.color, displayValue: definition.rate ? formatPercent(vendor[measure]) : formatTableNumber(vendor[measure]), detail: definition.rate ? `${formatTableNumber(vendor.leads)} fetched leads` : undefined }))}
       onSelect={key => { const selected = rows.find(row => row.key === key); if (selected) { if (onInspectVendor) onInspectVendor(selected.vendor, measure); else onSelectVendor(selected.vendor.vendor); } }}
       scaleNote={onInspectVendor ? "Select a bar to inspect its exact returned measure. Vendor-name controls apply the report filter. Missing is not zero." : "Selecting a bar applies the existing vendor filter to the whole report. Missing measures are not replaced with zero."} />
-    <div className="cx-trust-matrix-heading"><h3>Operational performance matrix</h3><span className="cx-trust-meta">Darker blue = higher percentage, not better performance. No target or pass/fail threshold.</span></div>
+    <details className="cx-evidence-disclosure"><summary>View exact vendor evidence</summary>
     <div className="cx-trust-table-scroll" role="region" aria-label="Vendor performance matrix" tabIndex={0}>
       <table className="cx-trust-table cx-vendor-matrix">
         <caption className="sr-only">All returned vendor measures. Text values are available independently of colour.</caption>
@@ -71,6 +91,17 @@ export default function VendorComparison({ vendors, onSelectVendor, onInspectVen
         </tr>)}</tbody>
       </table>
     </div>
+    </details>
     {!rows.length && <p className="cx-trust-empty">{vendors.length ? 'No vendors match this search. Clear the search to restore the full returned list.' : 'No vendor observations returned for this scope.'}</p>}
   </section>;
+}
+
+function LifecycleRate({ value, color }: { value: number | null | undefined; color: string }) {
+  const intensity = rateIntensity(value);
+  const missing = value == null || !Number.isFinite(value);
+  return <td><div className="cx-vendor-stage-cell" data-state={missing ? 'unknown' : value === 0 ? 'zero' : intensity == null ? 'outside-scale' : 'observed'} title={missing ? 'Unavailable' : `${formatPercent(value)} returned rate`}>
+    <span>{missing ? 'Unavailable' : formatPercent(value)}</span>
+    <i aria-hidden="true">{intensity != null && <b style={{ width: `${intensity * 100}%`, background: color }} />}</i>
+    {!missing && intensity == null && <small>Outside 0–100% scale</small>}
+  </div></td>;
 }

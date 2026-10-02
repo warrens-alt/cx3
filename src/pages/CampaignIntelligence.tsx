@@ -1,3 +1,5 @@
+import AcquisitionFlow from '../features/campaigns/AcquisitionFlow';
+import '../styles/acquisitionEvidenceVisuals.css';
 import AnalyticsPageLayout from '../components/AnalyticsPageLayout';
 import { ReportSkeleton } from '../components/OperationalState';
 import TablePreview from '../shared/reporting/TablePreview';
@@ -99,60 +101,6 @@ export default function CampaignIntelligence() {
 
         {data && (
           <>
-            <section className="cx-command-panel cx-spend-status" id="campaign-evidence">
-              <header>
-                <div>
-                  <span className="cx-command-section-kicker">Data contract</span>
-                  <h2>Financial measurement: {data.status || 'PARTIAL'}</h2>
-                  <p>{data.reason}</p>
-                </div>
-                <ShieldCheck size={17} className="text-slate-400"/>
-              </header>
-              <div className="cx-spend-source">
-                <div><span>Spend field</span><strong>{data.spendSource?.column || 'Unavailable'}</strong></div>
-                <div><span>Tenant mapping</span><strong>{data.mappingStatus || 'Unavailable'}</strong><small>{data.attribution?.status || 'UNCONFIGURED'} attribution</small></div>
-                <div><span>Spend grain</span><strong>{data.grainStatus || 'Unavailable'}</strong><small>{data.grainDiagnostics?.duplicateGrainRows ? `${data.grainDiagnostics.duplicateGrainRows.toLocaleString()} duplicate grain rows` : 'Contracted API-table grain'}</small></div>
-              </div>
-            </section>
-
-            <SpendReconciliationPanel reconciliation={data.reconciliation} grain={data.grainDiagnostics} />
-
-            {isAdmin && discovery && (
-              <section className="cx-command-panel">
-                <header>
-                  <div>
-                    <span className="cx-command-section-kicker">Admin contract discovery</span>
-                    <h2>Marketing API-table mapping</h2>
-                    <p>{discovery.reason}</p>
-                  </div>
-                </header>
-                <div className="cx-marketing-discovery">
-                  <div className="cx-marketing-contract-grid">
-                    <div><span>Table</span><strong>{discovery.contract?.table || 'Unavailable'}</strong></div>
-                    <div><span>Resolved spend field</span><strong>{discovery.contract?.resolvedSpendField || 'Unavailable'}</strong></div>
-                    <div><span>Configured client_name</span><strong>{discovery.contract?.configuredClientNames?.join(', ') || 'Not mapped'}</strong></div>
-                  </div>
-                  {discovery.availableClientNames.length > 0 && (
-                    <>
-                      <h3>Observed client_name values</h3>
-                      <div className="cx-marketing-clientnames">
-                        {discovery.availableClientNames.map(item => (
-                          <div key={item.value}>
-                            <strong>{item.value}</strong>
-                            <span>{item.rows.toLocaleString()} rows</span>
-                            <small>{item.earliestDate || '—'} → {item.latestDate || '—'}</small>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="cx-contract-note">
-                        Approve exact values in <code>CX_MARKETING_CLIENT_MAP_JSON</code>. CX3 does not infer tenant identity from display names.
-                      </p>
-                    </>
-                  )}
-                </div>
-              </section>
-            )}
-
             {data.denominatorDiagnostics?.some(item => item.missingRows > 0) && <div className="cx-control-note" role="status">Platform metrics with missing or invalid observations are unavailable: {data.denominatorDiagnostics.filter(item => item.missingRows > 0).map(item => `${item.metric}: ${item.missingRows} of ${item.rows} rows`).join('; ')}. Their derived ratios are withheld.</div>}
             {summary && (
               <section className="cx-command-metrics cx-media-metrics" aria-label="Media performance summary">
@@ -164,7 +112,10 @@ export default function CampaignIntelligence() {
               </section>
             )}
 
+            <AcquisitionFlow data={data} />
+
             <AuditMetadata grain={data.grainDiagnostics?.fields?.join(" × ")} dateBasis="Marketing reporting date" validationStatus={suppliedProvenance(data).validationStatus} />
+            <details className="cx-evidence-disclosure"><summary>View reach and engagement evidence</summary>
             {summary && (
               <section className="cx-command-panel">
                 <header>
@@ -214,6 +165,7 @@ export default function CampaignIntelligence() {
               </section>
             )}
 
+            </details>
             {data.campaigns.length > 0 && <>
               <section className="cx-command-panel cx-campaign-comparison" id="campaign-comparison" aria-label="Campaign comparison">
                 <div className="cx-viz-toolbar">
@@ -223,10 +175,10 @@ export default function CampaignIntelligence() {
                     <p>Rank the returned campaign/adset groups by one existing platform measure. Budget remains excluded from performance comparisons.</p>
                   </div>
                   <div className="cx-segmented-control" role="group" aria-label="Campaign comparison metric">
-                    <button type="button" data-active={campaignMeasure === 'leads'} onClick={() => setCampaignMeasure('leads')}>Lead events</button>
-                    <button type="button" data-active={campaignMeasure === 'spend'} onClick={() => setCampaignMeasure('spend')}>Spend</button>
-                    <button type="button" data-active={campaignMeasure === 'ctr'} onClick={() => setCampaignMeasure('ctr')}>CTR</button>
-                    <button type="button" data-active={campaignMeasure === 'cpl'} onClick={() => setCampaignMeasure('cpl')}>CPL</button>
+                    <button type="button" aria-pressed={campaignMeasure === 'leads'} data-active={campaignMeasure === 'leads'} onClick={() => setCampaignMeasure('leads')}>Lead events</button>
+                    <button type="button" aria-pressed={campaignMeasure === 'spend'} data-active={campaignMeasure === 'spend'} onClick={() => setCampaignMeasure('spend')}>Spend</button>
+                    <button type="button" aria-pressed={campaignMeasure === 'ctr'} data-active={campaignMeasure === 'ctr'} onClick={() => setCampaignMeasure('ctr')}>CTR</button>
+                    <button type="button" aria-pressed={campaignMeasure === 'cpl'} data-active={campaignMeasure === 'cpl'} onClick={() => setCampaignMeasure('cpl')}>CPL</button>
                   </div>
                 </div>
                 <EvidenceBars
@@ -242,7 +194,7 @@ export default function CampaignIntelligence() {
                 />
               </section>
 
-              <div className="cx-analytics-visual-grid">
+              <details className="cx-evidence-disclosure"><summary>View volume, response and planning detail</summary><div className="cx-analytics-visual-grid">
               <VolumeRateComboChart
                 title="Campaign lead volume and response rate"
                 subtitle="Platform lead events by campaign/adset with CTR and click → lead overlaid. Select a bar to filter to that campaign."
@@ -282,16 +234,16 @@ export default function CampaignIntelligence() {
                   if (row.campaign) setFilter('campaign', { operator: 'in', values: [String(row.campaign)] });
                 }}
               />
-            </div></>}
+            </div></details></>}
 
             {data.comparison ? (
               <p className="cx-media-comparison-note">
                 Spend change: {money(data.comparison.spendDelta ?? null)} · Platform leads change: {data.comparison.leadsDelta == null ? '—' : num(data.comparison.leadsDelta)}. Compared with {data.comparison.previousStartDate} → {data.comparison.previousEndDate}. {data.comparison.ctrDeltaPp == null ? 'CTR comparison unavailable.' : `CTR changed ${data.comparison.ctrDeltaPp > 0 ? '+' : ''}${data.comparison.ctrDeltaPp}pp.`}
               </p>
             ) : null}
-            {data.comparisonReason && <div className="cx-command-error"><AlertTriangle size={15}/>{data.comparisonReason}</div>}
+            {data.comparisonReason && <div className="cx-control-note" role="note">{data.comparisonReason}</div>}
 
-            <section className="cx-command-panel" id="campaigns-table">
+            <details className="cx-evidence-disclosure"><summary>View exact campaign evidence</summary><section className="cx-command-panel" id="campaigns-table">
               <header>
                 <div>
                   <span className="cx-command-section-kicker">Campaign detail</span>
@@ -363,7 +315,63 @@ export default function CampaignIntelligence() {
                   </tbody>
                 </table>
               </div>}</TablePreview>
+            </section></details>
+            <details className="cx-evidence-disclosure"><summary>View source contracts and reconciliation</summary>
+            <section className="cx-command-panel cx-spend-status" id="campaign-evidence">
+              <header>
+                <div>
+                  <span className="cx-command-section-kicker">Data contract</span>
+                  <h2>Financial measurement: {data.status || 'PARTIAL'}</h2>
+                  <p>{data.reason}</p>
+                </div>
+                <ShieldCheck size={17} className="text-slate-400"/>
+              </header>
+              <div className="cx-spend-source">
+                <div><span>Spend field</span><strong>{data.spendSource?.column || 'Unavailable'}</strong></div>
+                <div><span>Tenant mapping</span><strong>{data.mappingStatus || 'Unavailable'}</strong><small>{data.attribution?.status || 'UNCONFIGURED'} attribution</small></div>
+                <div><span>Spend grain</span><strong>{data.grainStatus || 'Unavailable'}</strong><small>{data.grainDiagnostics?.duplicateGrainRows ? `${data.grainDiagnostics.duplicateGrainRows.toLocaleString()} duplicate grain rows` : 'Contracted API-table grain'}</small></div>
+              </div>
             </section>
+
+            <SpendReconciliationPanel reconciliation={data.reconciliation} grain={data.grainDiagnostics} />
+
+            {isAdmin && discovery && (
+              <section className="cx-command-panel">
+                <header>
+                  <div>
+                    <span className="cx-command-section-kicker">Admin contract discovery</span>
+                    <h2>Marketing API-table mapping</h2>
+                    <p>{discovery.reason}</p>
+                  </div>
+                </header>
+                <div className="cx-marketing-discovery">
+                  <div className="cx-marketing-contract-grid">
+                    <div><span>Table</span><strong>{discovery.contract?.table || 'Unavailable'}</strong></div>
+                    <div><span>Resolved spend field</span><strong>{discovery.contract?.resolvedSpendField || 'Unavailable'}</strong></div>
+                    <div><span>Configured client_name</span><strong>{discovery.contract?.configuredClientNames?.join(', ') || 'Not mapped'}</strong></div>
+                  </div>
+                  {discovery.availableClientNames.length > 0 && (
+                    <>
+                      <h3>Observed client_name values</h3>
+                      <div className="cx-marketing-clientnames">
+                        {discovery.availableClientNames.map(item => (
+                          <div key={item.value}>
+                            <strong>{item.value}</strong>
+                            <span>{item.rows.toLocaleString()} rows</span>
+                            <small>{item.earliestDate || '—'} → {item.latestDate || '—'}</small>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="cx-contract-note">
+                        Approve exact values in <code>CX_MARKETING_CLIENT_MAP_JSON</code>. CX3 does not infer tenant identity from display names.
+                      </p>
+                    </>
+                  )}
+                </div>
+              </section>
+            )}
+
+            </details>
           </>
         )}
 
