@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { Route, Routes, Link, useLocation, Navigate } from 'react-router-dom';
+import { Route, Routes, Link, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
 import { AlertCircle } from 'lucide-react';
 import { useClient } from '../lib/ClientContext';
@@ -28,13 +28,9 @@ export const OverviewPage = React.lazy(() => safeImport(() => import('../feature
 export const JourneyPage = React.lazy(() => safeImport(() => import('../features/journey/JourneyPage')));
 export const ContactPage = React.lazy(() => safeImport(() => import('../features/contact/ContactPage')));
 export const SpeedPage = React.lazy(() => safeImport(() => import('../features/contact/SpeedPage')));
-export const FunnelIntelligence = React.lazy(() => safeImport(() => import('../pages/FunnelIntelligence')));
-export const SpeedToLeadIntelligence = React.lazy(() => safeImport(() => import('../pages/SpeedToLeadIntelligence')));
-export const ContactStrategyIntelligence = React.lazy(() => safeImport(() => import('../pages/ContactStrategyIntelligence')));
 export const VendorLeadQuality = React.lazy(() => safeImport(() => import('../pages/VendorLeadQuality')));
 export const TemporalIntelligence = React.lazy(() => safeImport(() => import('../pages/TemporalIntelligence')));
 export const SalesActivationPage = React.lazy(() => safeImport(() => import('../features/sales/SalesActivationPage')));
-export const SalesActivationIntelligence = React.lazy(() => safeImport(() => import('../pages/SalesActivationIntelligence')));
 export const CommercialIntelligence = React.lazy(() => safeImport(() => import('../pages/CommercialIntelligence')));
 export const DataIntegrityIntelligence = React.lazy(() => safeImport(() => import('../pages/DataIntegrityIntelligence')));
 export const AgentPerformanceIntelligence = React.lazy(() => safeImport(() => import('../pages/AgentPerformanceIntelligence')));

@@ -18,7 +18,6 @@ import { useFilters } from '../../lib/FilterContext';
 import { useTableDensity } from '../../lib/useTableDensity';
 import { navigationPage } from '../../lib/navigation';
 import { navigationTarget, SIDEBAR_COLLAPSED_KEY } from '../../lib/presentation';
-import { DEMO_ENTRY_URL } from '../../lib/applicationMode';
 import { useDevice } from '../../hooks/useDevice';
 import PrimaryNavigation from '../navigation/PrimaryNavigation';
 import AreaNavigation from '../navigation/AreaNavigation';
@@ -339,11 +338,7 @@ export default function AppShell({ children }: AppShellProps) {
                   <button type="button" className="cx-button-primary" onClick={retryClient}>
                     Retry workspace access
                   </button>
-                  <a className="cx-button-secondary" href={DEMO_ENTRY_URL}>
-                    View demo data
-                  </a>
                 </div>
-                <p>The demo is a separate, synthetic workspace. It does not access your live data.</p>
               </div>
             </section>
           )}

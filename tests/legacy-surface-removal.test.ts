@@ -41,3 +41,39 @@ test('unconsumed duplicate legacy implementations cannot reintroduce numeric fal
   }
   assert.equal(existsSync('server/bigquery/legacy/cohorts.ts'), true);
 });
+
+test('diagnostic routes mount their canonical owners after unused lazy exports are retired', () => {
+  const router = readFileSync('src/app/AppRouter.tsx', 'utf8');
+  for (const [path, component] of [['/funnel', 'JourneyPage'], ['/speed-to-lead', 'SpeedPage'], ['/contact-strategy', 'ContactPage'], ['/sales-activation', 'SalesActivationPage']]) {
+    assert.ok(router.includes(`path="${path}" element={<${component} key={selectedClient}`), `${path} still mounts ${component}`);
+  }
+  for (const name of ['SpeedToLeadIntelligence', 'ContactStrategyIntelligence', 'SalesActivationIntelligence']) {
+    assert.equal(existsSync(`src/pages/${name}.tsx`), false, name);
+    assert.ok(!router.includes(name), `${name} is not bundled by the router`);
+  }
+  assert.equal(existsSync('src/pages/FunnelIntelligence.tsx'), true, 'unresolved vendor-ratio semantics remain reference-only');
+  assert.doesNotMatch(router, /pages\/FunnelIntelligence/);
+  assert.match(router, /path="\/outcomes" element=\{<ScopePreservingRedirect to="\/sales-activation"/);
+  assert.match(router, /path="\/lead-ledger" element=\{<LeadLedgerCompatibilityRedirect/);
+  assert.match(router, /attemptChunkRecovery\(\)/);
+  assert.match(router, /<ErrorBoundary/);
+  assert.match(router, /<Suspense/);
+});
+
+test('unused access duplicates are retired while mounted access capabilities retain their owners', () => {
+  for (const name of ['AccessInvitesTab', 'AccessPoliciesTab', 'AuditLogTab', 'PreAuthorizeModal', 'TenantScopeModal', 'UsersDirectoryTab']) {
+    assert.equal(existsSync(`src/components/users/${name}.tsx`), false, name);
+  }
+  const management = readFileSync('src/pages/UserManagement.tsx', 'utf8');
+  for (const owner of ['UserDirectory', 'AccessInvites', 'AccessPolicies', 'AccessAuditLog', 'UserAccessEditor']) {
+    assert.ok(management.includes(`features/access/${owner}`), owner);
+  }
+});
+
+test('workspace failure retains recovery without advertising an unimplemented synthetic demo', () => {
+  assert.equal(existsSync('src/pages/DemoWorkspace.tsx'), false);
+  const shell = readFileSync('src/app/layouts/AppShell.tsx', 'utf8');
+  assert.doesNotMatch(shell, /DEMO_ENTRY_URL|View demo data|demo is a separate, synthetic workspace/);
+  assert.match(shell, /onClick=\{retryClient\}/);
+  assert.match(shell, /No fallback tenant or substitute analytical data is being displayed/);
+});
