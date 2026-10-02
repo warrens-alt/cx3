@@ -123,3 +123,47 @@ certify live warehouse data or production authentication.
 The convergence preserves unavailable, `PARTIAL` and `NOT_VERIFIED` states. Backend
 queries, metric calculations, source contracts, authentication, investigation
 predicates and API response semantics are outside this presentation change.
+
+## Visual Audit Evidence — 2 October 2026
+
+`InspectorHost` is the canonical Audit Evidence panel for metric, lifecycle,
+commercial, integrity and pinned Investigation evidence. It composes shared
+`EvidenceTrace`, `MetricAnatomy`, `EvidenceCoverage`, `EvidenceExclusions`,
+`ReconciliationView` and `AuditDependencyMap` primitives. These receive explicit
+presentation models and never fetch analytical data. `EvidenceMatrix` also
+supports independent metric evidence dimensions and accessible exact text.
+
+Evidence layers are **Observed → mapped → scoped → reconciled → business
+verified**, with independent partial, mismatch, not verified and unavailable
+states. The arrow describes questions to inspect, not an automatic promotion.
+A returned source aggregate and approved field mapping can coexist with absent
+independent reconciliation and unapproved source business meaning. No combined
+confidence score is calculated. Declared registry sources/fields are labelled
+contract metadata, not measured physical-source field coverage.
+
+The panel preserves the result's explicit tenant, dates, filters and saved case
+narrowing. The Audit evidence action opens it in place. Existing dialog focus
+trapping, Escape dismissal and return-to-trigger behavior remain canonical.
+Audit Mode adds compact grain/date/definition affordances and a Journey evidence
+lens without changing queries or the normal performance view.
+
+All detail uses the response already returned until an administrator explicitly
+chooses **Load supporting preview**. Only then is the existing `raw-leads` drill
+requested at its existing ten-row minimum, displaying at most five masked rows,
+with the exact supported drill and scope. Preview
+identifiers are masked and never certify completeness. Full record inspection
+uses existing Record Explorer authorization and predicate semantics. Private
+search/identity-filter scope cannot be copied as a shareable audit link.
+
+Coverage composition requires declared mutually exclusive populations at the
+same grain and scope. Overlapping diagnostics and qualified/recorded populations
+use separate bars; excluded totals are never inferred from unrelated counts.
+Reconciliation distinguishes independent-source comparison, delivery consistency,
+formula checks and business approval. Missing historical runs/events produce no
+trend or timeline. Source observations in Data Confidence retain their tenant-wide
+scope; their timestamps are not tied to component rendering or capture cohorts.
+
+Audit layout uses existing tokens in light/dark themes. Ordered lineage nodes
+have semantic text and keyboard actions; connectors are decorative. Mobile traces
+are vertical, ratio populations stack, and comparison/record tables scroll inside
+their own regions. Exact values and state names remain available without hover.

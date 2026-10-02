@@ -1,5 +1,73 @@
 # Implementation status — 2 October 2026
 
+## Visual Audit Evidence
+
+This pass fetched `origin/main` and confirmed HEAD and the remote at
+`e335ad582cd62cce0b57ee92de2b666a97ea5a41`; there were no intervening commits.
+Implementation uses the maintained components on local `main`.
+
+The existing canonical inspector now presents independent source, mapping, scope,
+reconciliation and business-meaning dimensions; metric anatomy; declared lineage;
+supplied coverage/qualification; exact signed comparisons; dependencies and bounded
+supporting evidence. Shared `EvidenceTrace`, `MetricAnatomy`, `EvidenceCoverage`,
+`EvidenceExclusions`, `ReconciliationView` and `AuditDependencyMap` reuse design
+tokens, accessible exact text and the existing drawer/focus lifecycle. The
+`EvidenceMatrix` retains its prior consumers and supports independent audit states.
+
+Audit Mode adds metadata and consistent **Audit evidence** actions while keeping
+normal reports. Overview, Journey's optional lens, Speed, Sales and Commercial
+use the same panel. Data Confidence's existing `ReportSections` now include Source
+evidence, Metric evidence, Integrity, Reconciliation and Definitions; source-wide
+observations and metadata-only definitions disclose their separate scope.
+Investigation pins retain immutable original scopes. Selected Lead Journey events
+reuse already-loaded timestamps, supplied qualification flags and anomalies.
+
+Opening audit evidence and changing its presentation add no analytical requests.
+Only an explicit administrator preview loads existing scoped `raw-leads` evidence:
+the endpoint minimum is ten rows and at most five masked rows are rendered.
+Tenant/dates/full filters and supported Investigation predicates are preserved.
+Private search or identifier scopes cannot generate shareable links, and selected
+lead identities stay local. Existing record authorization is unchanged.
+
+Evidence gaps remain explicit: no persisted reconciliation history or audit-event
+contract was found; no trend/events are invented. Same-query marketing agreement
+is delivery consistency, never independent source reconciliation. Missing exclusion
+reasons, field population completeness, Speed RPC denominators and financial cost
+inputs remain unavailable. Zero, unknown and non-nested activation/sale populations
+remain distinct. Decimal strings and tiny finite numeric values preserve supplied
+precision; unsafe integer numbers cannot establish exact differences.
+
+No backend query, API contract, analytical metric definition, formula, denominator,
+source mapping or lifecycle qualification changed. No live production reconciliation
+or business approval is claimed. See [the evidence model](AUDIT-EVIDENCE.md) and
+[the reproducible QA record](qa/audit-evidence/README.md). The dated verification
+sections below retain their original counts and scope.
+
+Final visual audit verification completed on 2 October 2026:
+
+| Executed command/check | Result |
+| --- | --- |
+| `npm ci` | Passed; 524 packages installed; no dependency or lockfile changes. |
+| `npm run lint` | Passed. |
+| `npm test` | Passed on final source through `verify`: **1,194 passed, 0 failed, 1 skipped** (1,195 tests). |
+| `npm run docs:surfaces:check` | Passed. |
+| `npm run build` | Passed; frontend, server and static warehouse catalogue artifacts generated. |
+| `npm run verify` | **Passed**; lint, full suite, surface check and production build. |
+| Four dedicated visual audit suites | **51 passed, 0 failed, 0 skipped**; included in the full suite. |
+| Investigation workspace suite after request-settling correction | **19 passed, 0 failed, 0 skipped**; included in the full suite. |
+| Existing frontend convergence browser acceptance | **147/147 passed**, no page/console errors. |
+| Focused visual audit browser acceptance | **56/56 passed**, no page/console errors. |
+
+The skipped test requires `FIRESTORE_EMULATOR_HOST`; no emulator was configured.
+Browser QA used local synthetic fixtures with the existing Playwright/Chromium
+runtime because the Browser plugin was unavailable. Both runners cover
+1440×1000, 820×1180 and 390×844 in light/dark themes. Focused acceptance asserts
+the app's resolved theme, exact scope, bounded explicit loading, viewer gates,
+focus/Escape/return-to-trigger and no document/drawer overflow. Earlier runner
+failures were corrected and the complete matrix rerun; final JSON and screenshots
+are outside Git in `../visual-audit-evidence-2026-10-02/`. The full verify log is
+`../visual-audit-verify.log`. No production reconciliation was executed.
+
 ## Numerical accuracy and data-truthfulness hardening
 
 This pass started after fetching `origin/main` and confirming

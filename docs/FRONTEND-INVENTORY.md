@@ -178,3 +178,26 @@ Durable, uncommitted evidence is stored outside the repository in the sibling `f
 ## Saved investigation definitions
 
 `SavedInvestigations` is a compact inbox disclosure, loaded only when opened. `savedInvestigationModel` projects exact supported scope into a strict versioned definition and builds a fresh URL when reopening it. `savedInvestigations` uses the existing authenticated fetch layer and validates returned workspace/revision/schema before displaying or applying a response. Session/workspace transitions abort requests and clear component state; reporting-scope changes invalidate pending action feedback. Name/save/open/rename/delete controls include distinct unavailable, loading, empty, failure and conflict states, responsive forms and status announcements. Evidence pins and notes remain separate local state.
+
+## Visual Audit Evidence — current shared ownership, 2 October 2026
+
+- `shared/evidence/InspectorHost.tsx`: canonical Audit Evidence panel; result,
+  independent evidence dimensions, metric anatomy, declared lineage, supplied
+  coverage/qualification/dependencies, reconciliation boundary and record actions.
+- `shared/evidence/auditPanelModel.ts`: conservative defaults from registered
+  definitions and supplied response content; never invents API endpoints,
+  independent comparisons, excluded populations or history.
+- `shared/evidence/{EvidenceTrace,MetricAnatomy,EvidenceCoverage,EvidenceExclusions,ReconciliationView,AuditDependencyMap}.tsx`:
+  request-free shared visuals with exact accessible values and explicit states.
+- `shared/evidence/SupportingRecordPreview.tsx`: administrator-only, user-triggered,
+  five-row existing record drill. Masked identifiers and sample limitations.
+- `shared/evidence/auditPresentation.ts`: explicit saved scope/narrowing overrides,
+  destination policies and private-scope sharing protection.
+- `UnifiedMetricCard` and `AuditEvidenceButton`: consistent Audit evidence control.
+  Existing value-click inspectors remain usable in normal presentation.
+
+Overview, Journey, Response Speed, Sales and Commercial pass available populations
+into shared models. Data Confidence connects declared metric/source dependencies,
+measured integrity and definitions without introducing a new navigation layer.
+Pinned Investigation evidence retains its saved case scope; selected Lead Ledger
+record evidence reuses `LeadJourney`. See [visual audit boundaries](AUDIT-EVIDENCE.md).
