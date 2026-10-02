@@ -210,7 +210,7 @@ export default function AppShell({ children }: AppShellProps) {
           </button>
 
           {/* Breadcrumb: Brand / Area / Title */}
-          <nav className="cx-breadcrumb" aria-label="Breadcrumb">
+          <nav className="cx-breadcrumb" aria-label="Breadcrumb" data-navigation-area={currentArea.id}>
             <Link
               to={navigationTarget('/overview', location.pathname, location.search)}
               className="hover:text-text-main transition-colors font-medium text-text-sec"
@@ -223,7 +223,7 @@ export default function AppShell({ children }: AppShellProps) {
                 <span aria-hidden="true" className="text-text-mute">/</span>
                 <Link
                   to={navigationTarget(currentArea.landingPath, location.pathname, location.search)}
-                  className="text-text-mute hover:text-text-main transition-colors hidden sm:inline"
+                  className="cx-breadcrumb-area transition-colors hidden sm:inline"
                   title={currentArea.name}
                 >
                   {currentArea.name}

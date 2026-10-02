@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { BRAND } from '../../../contracts/naming';
 import { navigationTarget } from '../../lib/presentation';
-import { getAreaForPath, BUSINESS_AREAS } from '../routeManifest';
+import { getAreaForPath, getRouteItem, BUSINESS_AREAS } from '../routeManifest';
 import { useClient } from '../../lib/ClientContext';
 import { useAuth } from '../../lib/AuthContext';
 import ReviewLauncher from '../../components/ReviewLauncher';
@@ -34,6 +34,8 @@ export default function PrimaryNavigation({
   const { user, profile, isAdmin, signOut } = useAuth();
 
   const currentArea = getAreaForPath(location.pathname);
+  const currentRoute = getRouteItem(location.pathname);
+  const settingsActive = currentArea.id === 'settings' && !['warehouse', 'access-control'].includes(currentRoute?.id || '');
 
   const businessNavItems = BUSINESS_AREAS.slice(0, 6).map(area => ({
     id: area.id,
@@ -109,7 +111,7 @@ export default function PrimaryNavigation({
             {group.items.map(item => {
               const Icon = item.icon;
               const isCurrentArea = currentArea.id === item.id;
-              const isExactPage = location.pathname === item.path || (item.path === '/overview' && location.pathname === '/');
+              const isExactPage = currentRoute?.path === item.path;
               return (
                 <li key={item.id}>
                   <div className="cx-nav-goal-row">
@@ -117,6 +119,7 @@ export default function PrimaryNavigation({
                       to={navigationTarget(item.path, location.pathname, location.search)}
                       aria-current={isExactPage ? 'page' : isCurrentArea ? 'location' : undefined}
                       data-current-section={isCurrentArea || undefined}
+                      data-navigation-area={item.id}
                       onClick={onClose}
                       className="cx-nav-link"
                       title={item.desc}
@@ -140,13 +143,14 @@ export default function PrimaryNavigation({
               <div className="cx-nav-goal-row">
                 <Link
                   to={navigationTarget('/admin', location.pathname, location.search)}
-                  aria-current={location.pathname === '/admin' || location.pathname === '/settings' ? 'page' : undefined}
+                  aria-current={currentRoute?.id === 'admin' ? 'page' : settingsActive ? 'location' : undefined}
                   onClick={onClose}
                   className="cx-nav-link"
+                  data-navigation-area={getAreaForPath('/admin').id}
                   title="Workspace configuration and preferences"
                 >
                   <Settings size={16} aria-hidden="true" />
-                  <span className="cx-nav-copy"><strong>Settings</strong><small className={['/admin', '/settings'].includes(location.pathname) ? undefined : 'sr-only'}>Workspace &amp; preferences</small></span>
+                  <span className="cx-nav-copy"><strong>Settings</strong><small className={settingsActive ? undefined : 'sr-only'}>Workspace &amp; preferences</small></span>
                 </Link>
               </div>
             </li>
@@ -157,6 +161,7 @@ export default function PrimaryNavigation({
                   aria-current={location.pathname === '/warehouse' || location.pathname === '/warehouse-analytics' ? 'page' : undefined}
                   onClick={onClose}
                   className="cx-nav-link"
+                  data-navigation-area={getAreaForPath('/warehouse').id}
                   title="Google Cloud BigQuery warehouse tables, live API puller & schemas"
                 >
                   <Database size={16} aria-hidden="true" />
@@ -172,6 +177,7 @@ export default function PrimaryNavigation({
                     aria-current={location.pathname === '/access-control' || location.pathname === '/users' ? 'page' : undefined}
                     onClick={onClose}
                     className="cx-nav-link"
+                    data-navigation-area={getAreaForPath('/access-control').id}
                     title="Manage user access and roles"
                   >
                     <Shield size={16} aria-hidden="true" />

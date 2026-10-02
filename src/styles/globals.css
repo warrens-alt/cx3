@@ -54,6 +54,16 @@ th[data-numeric="true"],
   z-index: 20;
 }
 
+/* Local navigation identity. These variables are deliberately scoped to
+   navigation elements, never the app/report or lifecycle evidence canvas. */
+[data-navigation-area="overview"] { --cx-nav-accent: var(--cx-area-overview); --cx-nav-soft: var(--cx-area-overview-soft); }
+[data-navigation-area="journey"] { --cx-nav-accent: var(--cx-area-journey); --cx-nav-soft: var(--cx-area-journey-soft); }
+[data-navigation-area="contact"] { --cx-nav-accent: var(--cx-area-contact); --cx-nav-soft: var(--cx-area-contact-soft); }
+[data-navigation-area="sales"] { --cx-nav-accent: var(--cx-area-sales); --cx-nav-soft: var(--cx-area-sales-soft); }
+[data-navigation-area="commercial"] { --cx-nav-accent: var(--cx-area-commercial); --cx-nav-soft: var(--cx-area-commercial-soft); }
+[data-navigation-area="investigate"] { --cx-nav-accent: var(--cx-area-investigate); --cx-nav-soft: var(--cx-area-investigate-soft); }
+[data-navigation-area="settings"] { --cx-nav-accent: var(--cx-area-admin); --cx-nav-soft: var(--cx-area-admin-soft); }
+
 /* Area Navigation Bar */
 .cx-area-nav {
   background-color: var(--cx-surface);
@@ -89,13 +99,27 @@ th[data-numeric="true"],
 
 .cx-area-nav-item[aria-current="page"],
 .cx-area-nav-item.active {
-  color: var(--cx-action-hover);
+  color: var(--cx-nav-accent);
   background: transparent;
-  border-bottom-color: var(--cx-action);
-  font-weight: 600;
+  border-bottom-color: var(--cx-nav-accent);
+  font-weight: 700;
 }
+.cx-area-nav :is(a, button):focus-visible { outline: 2px solid var(--cx-focus); outline-offset: -2px; }
+.cx-area-more-trigger { color: var(--cx-text-secondary); border-color: var(--cx-border); background: var(--cx-surface); }
+.cx-area-more-trigger:hover { color: var(--cx-text); background: var(--cx-surface-subtle); }
+.cx-area-more-trigger[data-current-section="true"] { color: var(--cx-nav-accent); background: var(--cx-nav-soft); border-color: var(--cx-nav-accent); font-weight: 700; }
 .cx-area-more-menu { width: min(320px, calc(100vw - 32px)); max-height: min(480px, 70dvh); overflow-y: auto; }
-.cx-area-more-description { margin-top: 4px; font-size: 12px; line-height: 1.45; white-space: normal; overflow-wrap: anywhere; color: var(--cx-text-muted); }
+.cx-area-more-heading { margin: 6px 12px 8px; padding-left: 8px; border-left: 3px solid var(--cx-nav-accent); color: var(--cx-nav-accent); font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.cx-area-more-item { color: var(--cx-text); }
+.cx-area-more-item:hover { background: var(--cx-surface-subtle); }
+.cx-area-more-item[aria-current="page"] { font-weight: 700; background: var(--cx-surface-subtle); }
+.cx-area-more-indicator { background: var(--cx-nav-accent); }
+.cx-area-more-description { margin-top: 4px; font-size: 12px; line-height: 1.45; white-space: normal; overflow-wrap: anywhere; color: var(--cx-text-secondary); }
+
+/* Mobile destinations retain the same local area identity and neutral idle state. */
+.cx-mobile-nav-item.cx-mobile-nav-active { color: var(--cx-nav-accent); font-weight: 700; }
+.cx-mobile-nav-dot { background: var(--cx-nav-accent); }
+.cx-mobile-bottom-nav :is(a, button):focus-visible { outline: 2px solid var(--cx-focus); outline-offset: -3px; border-radius: 6px; }
 
 /* Compact Reporting Scope Bar */
 .cx-reporting-scope-bar {

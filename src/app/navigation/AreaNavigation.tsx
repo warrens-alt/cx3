@@ -75,6 +75,7 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
     <nav
       className={`cx-area-nav bg-surface border-b border-border z-20 ${className}`}
       aria-label={`${activeArea.name} navigation`}
+      data-navigation-area={activeArea.id}
     >
       <div className="cx-area-nav-inner max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-2 w-full min-w-0">
         <div className="flex items-center gap-1 overflow-x-auto min-w-0 flex-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pt-1">
@@ -85,11 +86,7 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
                 key={tab.path}
                 to={scoped(tab.path)}
                 aria-current={active ? 'page' : undefined}
-                className={`cx-area-nav-item inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs whitespace-nowrap transition-all border-b-2 rounded-t-md ${
-                  active
-                    ? 'border-blue-600 dark:border-blue-400 text-blue-700 dark:text-blue-300 font-bold bg-blue-50/80 dark:bg-blue-950/40 -mb-[1px]'
-                    : 'border-transparent text-text-sec hover:text-blue-600 dark:hover:text-blue-400 hover:bg-surface-subtle/80 font-medium'
-                }`}
+                className="cx-area-nav-item rounded-t-md"
                 title={tab.description}
               >
                 <span>{tab.name}</span>
@@ -106,11 +103,8 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
               onClick={() => setMoreOpen(prev => !prev)}
               aria-expanded={moreOpen}
               aria-controls="area-more-menu"
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
-                isMoreViewActive
-                  ? 'border-action/40 bg-action/5 text-action font-semibold'
-                  : 'border-border bg-surface hover:bg-surface-subtle text-text-sec hover:text-text-main'
-              }`}
+              data-current-section={isMoreViewActive || undefined}
+              className="cx-area-more-trigger inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer"
             >
               <span>More analyses</span>
               <ChevronDown size={13} aria-hidden="true" className={`transition-transform duration-150 ${moreOpen ? 'rotate-180' : ''}`} />
@@ -123,6 +117,7 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
                 role="group"
                 aria-label="More analyses"
               >
+                <p className="cx-area-more-heading">More {activeArea.name} analysis</p>
                 {moreViews.map(view => {
                   const active = isCurrent(view.path);
                   return (
@@ -131,14 +126,12 @@ export default function AreaNavigation({ className = '' }: AreaNavigationProps) 
                       to={scoped(view.path)}
                       aria-current={active ? 'page' : undefined}
                       onClick={() => setMoreOpen(false)}
-                      className={`block px-3.5 py-2.5 hover:bg-surface-subtle transition-colors ${
-                        active ? 'text-action font-semibold bg-action/10' : 'text-text-main'
-                      }`}
+                      className="cx-area-more-item block px-3.5 py-2.5 transition-colors"
                       title={view.description}
                     >
                       <div className="font-semibold text-xs flex items-center justify-between">
                         <span>{view.name}</span>
-                        {active && <span className="w-1.5 h-1.5 rounded-full bg-action" />}
+                        {active && <span className="cx-area-more-indicator w-1.5 h-1.5 rounded-full" aria-hidden="true" />}
                       </div>
                       <div className="cx-area-more-description">{view.description}</div>
                     </Link>

@@ -5,6 +5,7 @@ import { searchNavigation, SECTION_NAMES, NAV_GROUPS } from '../lib/navigation';
 import { useAuth } from '../lib/AuthContext';
 import { isCurrentPage, navigationTarget } from '../lib/presentation';
 import { useTheme } from '../lib/ThemeContext';
+import { getAreaForPath } from '../app/routeManifest';
 import Modal from './Modal';
 
 export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: () => void; onOpenFilters?: () => void }) {
@@ -78,9 +79,10 @@ export default function CommandPalette({ isOpen, onClose }: { isOpen: boolean; o
         return <React.Fragment key={item.path}>
           {group !== previousGroup && <div className="cx-command-group-label" role="presentation">{group}</div>}
           <div role="option" aria-selected={optionIndex === index} id={`${id}-option-${optionIndex}`} data-index={optionIndex}
+          data-navigation-area={item.isAction ? undefined : getAreaForPath(item.path).id}
           onMouseMove={event => { if (event.movementX || event.movementY) setIndex(optionIndex); }} onMouseDown={event => event.preventDefault()}
           onClick={() => handleSelect(item)} className="cx-command-option">
-          <Icon size={18} aria-hidden="true" />
+          <Icon size={18} aria-hidden="true" className="cx-command-area-icon" />
           <span>
             <strong>{item.name}</strong>
             <small>{item.description}</small>
