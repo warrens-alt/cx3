@@ -1,9 +1,11 @@
 import React from 'react';
 import type { AuditScope } from '../../../shared/evidence/auditPresentation';
 import type { InspectorContent } from '../../../shared/evidence/InspectorHost';
+import AuditEvidenceButton from '../../../shared/evidence/AuditEvidenceButton';
 import ContactCoverage from './ContactCoverage';
 import CallEffortDistribution from './CallEffortDistribution';
-import { Download, ExternalLink, Info, PhoneCall } from 'lucide-react';
+import { AlertTriangle, Database, Download, Repeat2 } from 'lucide-react';
+import { lifecyclePresentation } from '../../../shared/visuals/lifecyclePresentation';
 import { formatPercent, formatTableNumber } from '../../../lib/formatters';
 import { VolumeRateComboChart } from '../../../components/charts/OperationalVisuals';
 import UnifiedMetricCard from '../../../components/UnifiedMetricCard';
@@ -41,33 +43,20 @@ export default function CallEffortReport({
 
   return (
     <div className="cx-effort-report space-y-6">
-      {summary && <ContactCoverage summary={summary} onInspectBucket={onInspectBucket} />}
       {/* 1. Summary of Observed Population and Effort */}
       {summary && (
         <section aria-label="Contact governance summary" className="cx-visual-metric-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <UnifiedMetricCard
-            label="Zero-call leads"
-            auditContent={audit('Zero-call leads', formatTableNumber(summary.zeroCallLeads), { recordDrill: { drill: 'zero-call-leads' } })}
-            value={formatTableNumber(summary.zeroCallLeads)}
-            note="Explicitly recorded zero calls"
-            onInspect={onInspectBucket ? () => onInspectBucket('0 calls', summary.zeroCallLeads) : undefined}
-            inspectLabel="Inspect evidence"
-            onAbout={onInspectBucket ? () => onInspectBucket('0 calls', summary.zeroCallLeads) : undefined}
-          />
-
-          <UnifiedMetricCard
-            label="One-call share"
-            auditContent={audit('One-call share', formatPercent(summary.singleAttemptSharePct), { numeratorCount: summary.oneCallLeads, numeratorLabel: 'Leads with one recorded call', denominatorCount: summary.dialledLeads, denominatorLabel: 'Dialled leads', recordDrill: { drill: 'call-effort', drillValue: '1 call' } })}
-            value={formatPercent(summary.singleAttemptSharePct)}
-            note={`${formatTableNumber(summary.oneCallLeads)} leads · share of dialled`}
-            denominatorLabel="Dialled leads"
-            onInspect={onInspectBucket ? () => onInspectBucket('1 call', summary.oneCallLeads) : undefined}
-            inspectLabel="Inspect evidence"
-            onAbout={onInspectBucket ? () => onInspectBucket('1 call', summary.oneCallLeads) : undefined}
+            label="Dialled leads"
+            icon={lifecyclePresentation.dialled.Icon}
+            auditContent={audit('Dialled leads', formatTableNumber(summary.dialledLeads))}
+            value={formatTableNumber(summary.dialledLeads)}
+            note="Returned dialled population"
           />
 
           <UnifiedMetricCard
             label="Multi-call share"
+            icon={Repeat2}
             auditContent={audit('Multi-call share', formatPercent(summary.multiAttemptSharePct), { numeratorCount: summary.multiAttemptLeads, numeratorLabel: 'Leads with two or more recorded calls', denominatorCount: summary.dialledLeads, denominatorLabel: 'Dialled leads', detailLimitation: 'A combined two-or-more-call record drill is not supplied by the existing drill route.' })}
             value={formatPercent(summary.multiAttemptSharePct)}
             note={`${formatTableNumber(summary.multiAttemptLeads)} leads · 2+ calls`}
@@ -79,6 +68,7 @@ export default function CallEffortReport({
 
           <UnifiedMetricCard
             label="5+ calls, no RPC"
+            icon={AlertTriangle}
             auditContent={audit('5+ calls, no RPC', formatTableNumber(summary.fivePlusNoRpcLeads), { recordDrill: { drill: 'high-attempt-no-rpc' } })}
             value={formatTableNumber(summary.fivePlusNoRpcLeads)}
             note="High effort without contact"
@@ -87,46 +77,50 @@ export default function CallEffortReport({
             inspectLabel="Inspect evidence"
             onAbout={onInspectBucket ? () => onInspectBucket('5+ calls', summary.fivePlusNoRpcLeads) : undefined}
           />
+          <UnifiedMetricCard
+            label="Call count unrecorded"
+            icon={Database}
+            auditContent={audit('Call count unrecorded', formatTableNumber(summary.unrecordedCallLeads))}
+            value={formatTableNumber(summary.unrecordedCallLeads)}
+            note="Separate from recorded zero calls"
+            onInspect={onInspectBucket ? () => onInspectBucket('Unrecorded', summary.unrecordedCallLeads) : undefined}
+            inspectLabel="Inspect unrecorded"
+          />
         </section>
       )}
 
-      {/* Unrecorded & Descriptive Note */}
-      {summary && summary.unrecordedCallLeads > 0 && (
-        <div className="p-3 bg-surface-sec border border-border-subtle rounded-lg text-xs text-text-sec flex items-center gap-2">
-          <Info size={14} className="text-brand-primary shrink-0" />
-          <span>
-            <strong>{formatTableNumber(summary.unrecordedCallLeads)} leads</strong> have unrecorded call counts and are shown separately from verified zero-call leads.
-          </span>
-        </div>
-      )}
-
-      <p className="text-xs text-text-sec italic">
-        Observed yield by call-count bucket: descriptive, not a recommended stop-threshold model. Call effort reflects cumulative counters and does not infer sequential dialing attempts.
-      </p>
-
       {/* 2. Visual Outcome Charts */}
-      <div className="cx-effort-chart-grid grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="cx-contact-hero">
         <CallEffortDistribution rows={data.attemptPerformance} onInspectBucket={onInspectBucket} />
-        <div className="cx-effort-yield-scroll" role="region" aria-label="Call-count yield chart. Scroll horizontally on narrow screens." tabIndex={0}>
-        <VolumeRateComboChart
-          title="Observed yield by call-count bucket"
-          subtitle="Lead volume is shown as bars; RPC, sale and activation rates remain descriptive associations, not a recommended stop-threshold model."
-          data={data.attemptPerformance}
-          xKey="bucket"
-          volumeKey="leads"
-          volumeLabel="Leads"
-          onSelect={onInspectBucket ? (bucket, row) => onInspectBucket(bucket, row.leads) : undefined}
-          rateSeries={[
-            { key: 'contactRate', label: 'RPC rate', color: 'var(--cx-data-rpc)' },
-            { key: 'saleRate', label: 'Sale rate', color: 'var(--cx-data-sales)' },
-            { key: 'activationRate', label: 'Activation rate', color: 'var(--cx-data-activation)' },
-          ]}
-        />
-        </div>
       </div>
+      {summary && <ContactCoverage summary={summary} onInspectBucket={onInspectBucket} />}
+      <details className="cx-contact-evidence-disclosure">
+        <summary>Compare volume and downstream yield</summary>
+        <div className="cx-effort-yield-scroll" role="region" aria-label="Call-count yield chart. Scroll horizontally on narrow screens." tabIndex={0}>
+          <VolumeRateComboChart
+            title="Observed yield by call-count bucket"
+            subtitle="RPC, sale and activation rates describe associations, not recommended stop thresholds or the outcome of a particular attempt."
+            data={data.attemptPerformance}
+            xKey="bucket"
+            volumeKey="leads"
+            volumeLabel="Leads"
+            onSelect={onInspectBucket ? (bucket, row) => onInspectBucket(bucket, row.leads) : undefined}
+            rateSeries={[
+              { key: 'contactRate', label: 'RPC rate', color: lifecyclePresentation.rpc.color },
+              { key: 'saleRate', label: 'Sale rate', color: lifecyclePresentation.sales.color },
+              { key: 'activationRate', label: 'Activation rate', color: lifecyclePresentation.activated.color },
+            ]}
+          />
+        </div>
+      </details>
 
-      {/* 3. Supporting Effort Distribution Table */}
-      <div className="bg-surface rounded-xl border border-border-subtle overflow-hidden">
+      {/* Exact evidence remains immediately available. */}
+      <details className="cx-contact-evidence-disclosure">
+        <summary>View exact call-effort evidence</summary>
+        {summary && <div className="p-4 flex items-center gap-2 text-xs text-text-sec">
+          <span>One-call share: <strong>{formatPercent(summary.singleAttemptSharePct)}</strong> · {formatTableNumber(summary.oneCallLeads)} one-call leads / {formatTableNumber(summary.dialledLeads)} dialled leads</span>
+          <AuditEvidenceButton content={audit('One-call share', formatPercent(summary.singleAttemptSharePct), { numeratorCount: summary.oneCallLeads, numeratorLabel: 'Leads with one recorded call', denominatorCount: summary.dialledLeads, denominatorLabel: 'Dialled leads', recordDrill: { drill: 'call-effort', drillValue: '1 call' } })} />
+        </div>}
         <div className="p-4 border-b border-border-subtle bg-surface-sec flex items-center justify-between">
           <div>
             <h3 className="text-xs font-semibold text-text-mute uppercase tracking-wider">
@@ -186,7 +180,7 @@ export default function CallEffortReport({
                     {formatTableNumber(row.sales)}
                   </td>
                   <td className="px-4 py-3 text-right cx-tabular font-semibold text-brand-primary">
-                    {formatPercent(row.saleRate)}
+                    {formatPercent(row.saleRate, 2)}
                   </td>
                   <td className="px-4 py-3 text-right cx-tabular text-text-sec">
                     {formatTableNumber(row.activations)}
@@ -207,7 +201,7 @@ export default function CallEffortReport({
             </tbody>
           </table>
         </div>
-      </div>
+      </details>
     </div>
   );
 }

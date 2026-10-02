@@ -122,7 +122,7 @@ export default function VendorDispositionReport({
       for (const g of activeGroupsList) {
         const cnt = groupMap.get(g) || 0;
         countRow[g] = cnt;
-        pctRow[g] = base > 0 ? Number(((cnt / base) * 100).toFixed(1)) : 0;
+        pctRow[g] = base > 0 ? Number(((cnt / base) * 100).toFixed(1)) : null;
         pctRow[`${g}_count`] = cnt;
       }
 
@@ -213,6 +213,7 @@ export default function VendorDispositionReport({
           <button
             type="button"
             onClick={() => onModeChange('lead_status')}
+            aria-pressed={!isCallMode}
             className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
               !isCallMode
                 ? 'bg-brand-primary text-white shadow-2xs font-semibold'
@@ -224,6 +225,7 @@ export default function VendorDispositionReport({
           <button
             type="button"
             onClick={() => onModeChange('call_records')}
+            aria-pressed={isCallMode}
             className={`px-3 py-1.5 rounded-md transition-colors cursor-pointer ${
               isCallMode
                 ? 'bg-brand-primary text-white shadow-2xs font-semibold'
@@ -279,10 +281,10 @@ export default function VendorDispositionReport({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border-subtle">
           <div>
             <h3 className="text-xs font-semibold text-text-mute uppercase tracking-wider">
-              Standardized Vendor Outcome Comparison
+              Vendor disposition composition
             </h3>
             <p className="text-xs text-text-sec mt-0.5">
-              Standardized outcome composition across authorized vendors.
+              Returned disposition groups across the top vendors by population. Select a segment to inspect the existing vendor evidence.
             </p>
           </div>
 
@@ -292,6 +294,7 @@ export default function VendorDispositionReport({
               <button
                 type="button"
                 onClick={() => setChartViewMode('percent')}
+                aria-pressed={chartViewMode === 'percent'}
                 className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
                   chartViewMode === 'percent'
                     ? 'bg-surface text-text-main shadow-2xs font-semibold'
@@ -303,6 +306,7 @@ export default function VendorDispositionReport({
               <button
                 type="button"
                 onClick={() => setChartViewMode('count')}
+                aria-pressed={chartViewMode === 'count'}
                 className={`px-2.5 py-1 rounded transition-colors cursor-pointer ${
                   chartViewMode === 'count'
                     ? 'bg-surface text-text-main shadow-2xs font-semibold'
@@ -329,7 +333,7 @@ export default function VendorDispositionReport({
         </div>
 
         <HorizontalStackedOutcomeChart
-          data={displayedChartRows}
+          data={chartViewMode === 'percent' ? displayedChartRows.filter(row => row.base > 0) : displayedChartRows}
           categoryKey="vendor"
           series={activeGroups.map((g) => ({
             key: g,
@@ -340,6 +344,22 @@ export default function VendorDispositionReport({
           onSelect={(vendor, group) => onSelectVendor(vendor, group)}
           tooltipBaseLabel={isCallMode ? 'Total calls' : 'Dialled leads'}
         />
+
+        {chartViewMode === 'percent' && displayedChartRows.some(row => !(row.base > 0)) && <p className="cx-viz-footnote">Share unavailable for {displayedChartRows.filter(row => !(row.base > 0)).map(row => row.vendor).join(', ')}: no positive returned denominator. Exact counts remain available below.</p>}
+        <details className="cx-vendor-composition-detail">
+          <summary>Inspect exact composition by vendor and group</summary>
+          <ul>{displayedChartRows.map(row => <li key={row.vendor}>
+            <strong>{row.vendor} · {formatTableNumber(row.base)} {isCallMode ? 'call events' : 'dialled leads'}</strong>
+            <div className="cx-vendor-composition-actions">{activeGroups.map(group => {
+              const count = chartViewMode === 'percent' ? row[`${group}_count`] : row[group];
+              const label = APPROVED_DISPOSITION_GROUPS[group]?.label || group;
+              return <button type="button" key={group} onClick={() => onSelectVendor(row.vendor, group)} aria-label={`Inspect ${row.vendor}: ${label}, ${formatTableNumber(count)}`}>
+                <i style={{ background: APPROVED_DISPOSITION_GROUPS[group]?.color || 'var(--cx-neutral)' }} aria-hidden="true" />
+                <span>{label}</span><b>{formatTableNumber(count)}{chartViewMode === 'percent' ? ` · ${row[group] == null ? 'Share unavailable' : formatPercent(row[group])}` : ''}</b>
+              </button>;
+            })}</div>
+          </li>)}</ul>
+        </details>
 
         {chartRows.length > 8 && (
           <div className="flex justify-end pt-2">
@@ -388,8 +408,8 @@ export default function VendorDispositionReport({
         </div>
       )}
 
-      {/* 4. Sortable Vendor Disposition Table */}
-      <div className="bg-surface rounded-xl border border-border-subtle overflow-hidden">
+      <details className="cx-contact-evidence-disclosure">
+        <summary>View exact vendor disposition evidence</summary>
         <div className="p-4 border-b border-border-subtle bg-surface-sec flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h3 className="text-xs font-semibold text-text-mute uppercase tracking-wider">
@@ -430,77 +450,53 @@ export default function VendorDispositionReport({
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-border-subtle bg-surface-subtle/40 text-text-mute font-semibold">
-                <th
-                  onClick={() => handleSort('vendor')}
-                  className="px-4 py-2.5 cursor-pointer hover:text-text-main transition-colors"
-                >
-                  <div className="flex items-center gap-1">
+                <th scope="col" className="px-4 py-2.5 cursor-pointer hover:text-text-main transition-colors" aria-sort={sortKey === 'vendor' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" onClick={() => handleSort('vendor')} className="w-full flex items-center gap-1">
                     <span>Vendor</span>
                     <ArrowUpDown size={11} />
-                  </div>
+                  </button>
                 </th>
-                <th
-                  onClick={() => handleSort('totalPopulation')}
-                  className="px-4 py-2.5 text-right cursor-pointer hover:text-text-main transition-colors"
-                >
-                  <div className="flex items-center justify-end gap-1">
+                <th scope="col" className="px-4 py-2.5 text-right cursor-pointer hover:text-text-main transition-colors" aria-sort={sortKey === 'totalPopulation' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" onClick={() => handleSort('totalPopulation')} className="w-full flex items-center justify-end gap-1">
                     <span>{isCallMode ? 'Total Calls' : 'Total Population'}</span>
                     <ArrowUpDown size={11} />
-                  </div>
+                  </button>
                 </th>
-                <th
-                  onClick={() => handleSort('dialledCount')}
-                  className="px-4 py-2.5 text-right cursor-pointer hover:text-text-main transition-colors"
-                >
-                  <div className="flex items-center justify-end gap-1">
+                <th scope="col" className="px-4 py-2.5 text-right cursor-pointer hover:text-text-main transition-colors" aria-sort={sortKey === 'dialledCount' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" onClick={() => handleSort('dialledCount')} className="w-full flex items-center justify-end gap-1">
                     <span>{isCallMode ? 'Dialled Attempts' : 'Dialled Base'}</span>
                     <ArrowUpDown size={11} />
-                  </div>
+                  </button>
                 </th>
-                <th
-                  onClick={() => handleSort('dispositionCoveragePct')}
-                  className="px-4 py-2.5 text-right cursor-pointer hover:text-text-main transition-colors"
-                >
-                  <div className="flex items-center justify-end gap-1">
+                <th scope="col" className="px-4 py-2.5 text-right cursor-pointer hover:text-text-main transition-colors" aria-sort={sortKey === 'dispositionCoveragePct' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" onClick={() => handleSort('dispositionCoveragePct')} className="w-full flex items-center justify-end gap-1">
                     <span>Disposition Cov %</span>
                     <ArrowUpDown size={11} />
-                  </div>
+                  </button>
                 </th>
-                <th
-                  onClick={() => handleSort('mappingCoveragePct')}
-                  className="px-4 py-2.5 text-right cursor-pointer hover:text-text-main transition-colors"
-                >
-                  <div className="flex items-center justify-end gap-1">
+                <th scope="col" className="px-4 py-2.5 text-right cursor-pointer hover:text-text-main transition-colors" aria-sort={sortKey === 'mappingCoveragePct' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" onClick={() => handleSort('mappingCoveragePct')} className="w-full flex items-center justify-end gap-1">
                     <span>Mapping Cov %</span>
                     <ArrowUpDown size={11} />
-                  </div>
+                  </button>
                 </th>
-                <th
-                  onClick={() => handleSort('rpcCount')}
-                  className="px-4 py-2.5 text-right cursor-pointer hover:text-text-main transition-colors"
-                >
-                  <div className="flex items-center justify-end gap-1">
+                <th scope="col" className="px-4 py-2.5 text-right cursor-pointer hover:text-text-main transition-colors" aria-sort={sortKey === 'rpcCount' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" onClick={() => handleSort('rpcCount')} className="w-full flex items-center justify-end gap-1">
                     <span>RPC Count</span>
                     <ArrowUpDown size={11} />
-                  </div>
+                  </button>
                 </th>
-                <th
-                  onClick={() => handleSort('saleCount')}
-                  className="px-4 py-2.5 text-right cursor-pointer hover:text-text-main transition-colors"
-                >
-                  <div className="flex items-center justify-end gap-1">
+                <th scope="col" className="px-4 py-2.5 text-right cursor-pointer hover:text-text-main transition-colors" aria-sort={sortKey === 'saleCount' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" onClick={() => handleSort('saleCount')} className="w-full flex items-center justify-end gap-1">
                     <span>Sale Count</span>
                     <ArrowUpDown size={11} />
-                  </div>
+                  </button>
                 </th>
-                <th
-                  onClick={() => handleSort('callbackCount')}
-                  className="px-4 py-2.5 text-right cursor-pointer hover:text-text-main transition-colors"
-                >
-                  <div className="flex items-center justify-end gap-1">
+                <th scope="col" className="px-4 py-2.5 text-right cursor-pointer hover:text-text-main transition-colors" aria-sort={sortKey === 'callbackCount' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                  <button type="button" onClick={() => handleSort('callbackCount')} className="w-full flex items-center justify-end gap-1">
                     <span>Callbacks</span>
                     <ArrowUpDown size={11} />
-                  </div>
+                  </button>
                 </th>
                 <th className="px-4 py-2.5 text-right">Actions</th>
               </tr>
@@ -554,6 +550,7 @@ export default function VendorDispositionReport({
                             onClick={() => onFilterReportByVendor(v.vendor)}
                             className="p-1 text-text-mute hover:text-text-main hover:bg-surface rounded transition-colors cursor-pointer"
                             title={`Filter report by ${v.vendor}`}
+                            aria-label={`Filter report by ${v.vendor}`}
                           >
                             <Filter size={12} />
                           </button>
@@ -566,7 +563,7 @@ export default function VendorDispositionReport({
             </tbody>
           </table>
         </div>
-      </div>
+      </details>
     </div>
   );
 }

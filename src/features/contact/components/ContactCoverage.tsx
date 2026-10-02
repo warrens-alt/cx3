@@ -1,5 +1,6 @@
 import React from 'react';
-import { PhoneCall, PhoneOff, CircleHelp } from 'lucide-react';
+import { PhoneOff, CircleHelp } from 'lucide-react';
+import { lifecyclePresentation } from '../../../shared/visuals/lifecyclePresentation';
 import type { ContactStrategyData } from '../../../lib/offernetClient';
 import { formatTableNumber } from '../../../lib/formatters';
 
@@ -8,7 +9,7 @@ export default function ContactCoverage({ summary, onInspectBucket }: {
   onInspectBucket?: (bucket: string, leads: number) => void;
 }) {
   const parts = [
-    { name: 'Dialled leads', count: summary.dialledLeads, color: 'var(--cx-data-dialled)', icon: PhoneCall },
+    { name: 'Dialled leads', count: summary.dialledLeads, color: lifecyclePresentation.dialled.color, icon: lifecyclePresentation.dialled.Icon },
     { name: 'Recorded zero calls', count: summary.zeroCallLeads, color: 'var(--cx-warning)', icon: PhoneOff, bucket: '0 calls' },
     { name: 'Call count unrecorded', count: summary.unrecordedCallLeads, color: 'var(--cx-text-muted)', icon: CircleHelp, bucket: 'Unrecorded' },
   ];
@@ -19,7 +20,7 @@ export default function ContactCoverage({ summary, onInspectBucket }: {
     <header className="cx-viz-panel-heading"><div><h3>Recorded call-count coverage</h3><p>Keep confirmed zero-call records separate from missing feedback.</p></div>
       <span className="cx-viz-population"><strong>{formatTableNumber(summary.totalLeads)}</strong> leads in scope</span></header>
     <div className="cx-coverage-track" aria-hidden="true" data-state={complete ? 'observed' : 'unknown'}>
-      {complete && parts.map(part => <span key={part.name} style={{ width: `${part.count / summary.totalLeads * 100}%`, background: part.color }} />)}
+      {complete && parts.map(part => <span key={part.name} data-appearance={part.bucket === 'Unrecorded' ? 'unrecorded' : undefined} style={{ width: `${part.count / summary.totalLeads * 100}%`, background: part.color }} />)}
     </div>
     {!complete && <p className="cx-viz-footnote">{summary.totalLeads === 0 ? 'No lead population in this selection.' : 'A complete partition is unavailable; the returned counts remain separate.'}</p>}
     <div className="cx-coverage-legend">{parts.map(part => {

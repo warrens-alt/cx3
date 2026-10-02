@@ -1,16 +1,14 @@
 import AnalyticsPageLayout from '../../components/AnalyticsPageLayout';
 import { ReportActions } from '../../shared/reporting/ReportPresentation';
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Timer,
-  Zap,
   Clock3,
   AlertTriangle,
   ArrowRight,
   PhoneCall,
   BarChart3,
-  CalendarDays,
   ChevronDown,
 } from 'lucide-react';
 import ReportingScopeBar from '../../shared/reporting/ReportingScopeBar';
@@ -18,7 +16,11 @@ import { OperationalError, ReportSkeleton } from '../../components/OperationalSt
 import { formatPercent, formatTableNumber } from '../../lib/formatters';
 import { VolumeRateComboChart } from '../../components/charts/OperationalVisuals';
 import UnifiedMetricCard from '../../components/UnifiedMetricCard';
-import EvidenceBars, { evidenceBarWidth } from '../../shared/visuals/EvidenceBars';
+import EvidenceBars from '../../shared/visuals/EvidenceBars';
+import PercentileRail from '../../shared/visuals/PercentileRail';
+import { lifecyclePresentation } from '../../shared/visuals/lifecyclePresentation';
+import LatencyDistribution from './components/LatencyDistribution';
+import '../../styles/contactTemporalVisuals.css';
 import {
   CaptureTurnaroundPanel,
   SlaBandsPanel,
@@ -46,10 +48,6 @@ export default function SpeedPage() {
   const auditScopeKey = JSON.stringify(auditScope);
   const [selectedTiming, setSelectedTiming] = useState<{ scopeKey: string; stage: SpeedData['timingStages'][number] } | null>(null);
 
-  const cohortMax = useMemo(
-    () => Math.max(1, ...(data?.cohorts || []).map((row) => row.leads)),
-    [data?.cohorts]
-  );
   const primaryStage = data?.timingStages?.find((stage) => stage.stage === 'Delivery → First Dial');
   const auditContent = (title: string, value: InspectorContent['value'], meaning: string): InspectorContent => ({
     type: 'custom', title, value, scope: auditScope,
@@ -109,15 +107,16 @@ export default function SpeedPage() {
 
       {/* Loading state */}
       {loading && !data && (
-        <ReportSkeleton label="Calculating latency distributions and first-dial SLA compliance" metricCount={6} />
+        <ReportSkeleton label="Calculating latency distributions and first-dial SLA compliance" metricCount={4} />
       )}
 
       {data && (
         <React.Fragment key={auditScopeKey}>
           {/* KPI Strip */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <UnifiedMetricCard
               label="Median First Dial"
+              icon={Clock3}
               auditContent={timingContent(primaryStage, 'median', 'Median First Dial')}
               value={primaryStage?.median || '—'}
               note={primaryStage?.stage || 'Delivery → First Dial'}
@@ -126,16 +125,8 @@ export default function SpeedPage() {
             />
 
             <UnifiedMetricCard
-              label="P75 First Dial"
-              auditContent={timingContent(primaryStage, 'p75', 'P75 First Dial')}
-              value={primaryStage?.p75 || '—'}
-              note="75% within this latency"
-              to={scoped('/contact-strategy')}
-              inspectLabel="Review contact"
-            />
-
-            <UnifiedMetricCard
               label="P90 First Dial"
+              icon={Timer}
               auditContent={timingContent(primaryStage, 'p90', 'P90 First Dial')}
               value={primaryStage?.p90 || '—'}
               note="Tail latency threshold"
@@ -145,6 +136,7 @@ export default function SpeedPage() {
 
             <UnifiedMetricCard
               label="Awaiting First Dial"
+              icon={lifecyclePresentation.dialled.Icon}
               auditContent={{ ...auditContent('Awaiting First Dial', data.backlog?.awaitingFirstDial, 'Delivered leads in the selected cohort without a recorded first dial.'), recordDrill: { drill: 'awaiting-first-dial' }, detailLimitation: 'The existing awaiting-first-dial drill opens this backlog for authorized administrators.' }}
               value={data.backlog?.awaitingFirstDial !== undefined
                 ? formatTableNumber(data.backlog.awaitingFirstDial)
@@ -156,35 +148,33 @@ export default function SpeedPage() {
 
             <UnifiedMetricCard
               label="Current 15m Breaches"
+              icon={AlertTriangle}
               auditContent={{ ...auditContent('Current 15m Breaches', data.backlog?.currentSlaBreaches, 'Delivered, undialled leads waiting more than 15 minutes in the selected cohort.'), reportPath: '/exceptions' }}
               value={data.backlog?.currentSlaBreaches !== undefined
                 ? formatTableNumber(data.backlog.currentSlaBreaches)
                 : '—'}
-              note="Waiting > 15 minutes"
+              note="15-minute SLA · awaiting first dial"
               isPositiveGood={false}
               to={scoped('/exceptions')}
               inspectLabel="Review SLA queues"
             />
 
-            <UnifiedMetricCard
-              label="Oldest Undialled"
-              auditContent={{ ...auditContent('Oldest Undialled', data.backlog?.oldestUndialled, 'The returned age since delivery for the oldest undialled lead. This is a duration, not the size of the backlog.'), reportPath: '/exceptions' }}
-              value={data.backlog?.oldestUndialled || '—'}
-              note="Age since delivery"
-              isPositiveGood={false}
-              to={scoped('/lead-explorer?drill=awaiting-first-dial')}
-              inspectLabel="Inspect backlog"
-            />
           </div>
 
-          {data.methodology && (
-            <p className="text-xs text-text-sec italic bg-surface-sec p-3 rounded-lg border border-border-subtle">
-              {data.methodology}
-            </p>
-          )}
+          <section className="cx-contact-hero cx-speed-story" aria-label="First-dial response story">
+            <LatencyDistribution rows={data.cohorts} />
+            <PercentileRail title="Delivery to first dial" description="Returned timing percentiles for the delivered cohort with measured first-dial latency."
+              unitLabel="s"
+              points={[
+                { key: 'median', label: 'Median', value: primaryStage?.medianSec, displayValue: primaryStage?.median },
+                { key: 'p75', label: 'P75', value: primaryStage?.p75Sec, displayValue: primaryStage?.p75 },
+                { key: 'p90', label: 'P90', value: primaryStage?.p90Sec, displayValue: primaryStage?.p90 },
+              ]} />
+          </section>
 
-          {/* Visual Outcome Chart */}
-          <div className="bg-surface rounded-xl border border-border-subtle p-5">
+          <details className="cx-contact-evidence-disclosure">
+            <summary>Compare latency and downstream outcomes</summary>
+            <div className="p-5">
             <VolumeRateComboChart
               title="Lead age vs downstream outcomes"
               subtitle="Lead volume is shown as bars; RPC, sale and activation rates remain descriptive associations."
@@ -198,7 +188,8 @@ export default function SpeedPage() {
                 { key: 'activationRate', label: 'Activation rate' },
               ]}
             />
-          </div>
+            </div>
+          </details>
 
           <section className="cx-speed-latency-visual bg-surface rounded-xl border border-border-subtle">
             <EvidenceBars title="Median latency by stage" description="Existing numeric timing evidence; exact reported durations remain in the table."
@@ -207,8 +198,8 @@ export default function SpeedPage() {
               scaleNote="Longer bars mean a longer measured median duration. Missing numeric duration is unavailable; formatted durations are not parsed into new precision." />
           </section>
 
-          {/* Timing Stages Table */}
-          <div className="bg-surface rounded-xl border border-border-subtle overflow-hidden">
+          <details className="cx-contact-evidence-disclosure">
+            <summary>View exact lifecycle timing evidence</summary>
             <div className="p-4 border-b border-border-subtle bg-surface-sec flex items-center justify-between">
               <div>
                 <h3 className="text-xs font-semibold text-text-mute uppercase tracking-wider">
@@ -225,14 +216,14 @@ export default function SpeedPage() {
               <table className="cx-performance-table w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-border-subtle bg-surface-subtle/40 text-text-mute font-semibold">
-                    <th className="px-4 py-2.5">Stage</th>
-                    <th className="px-4 py-2.5">Definition</th>
-                    <th className="px-4 py-2.5 text-right">Average</th>
-                    <th className="px-4 py-2.5 text-right">Median</th>
-                    <th className="px-4 py-2.5 text-right">P75</th>
-                    <th className="px-4 py-2.5 text-right">P90</th>
-                    <th className="px-4 py-2.5 text-right">P95</th>
-                    <th className="px-4 py-2.5">Audit</th>
+                    <th scope="col" className="px-4 py-2.5">Stage</th>
+                    <th scope="col" className="px-4 py-2.5">Definition</th>
+                    <th scope="col" className="px-4 py-2.5 text-right">Average</th>
+                    <th scope="col" className="px-4 py-2.5 text-right">Median</th>
+                    <th scope="col" className="px-4 py-2.5 text-right">P75</th>
+                    <th scope="col" className="px-4 py-2.5 text-right">P90</th>
+                    <th scope="col" className="px-4 py-2.5 text-right">P95</th>
+                    <th scope="col" className="px-4 py-2.5">Audit</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle text-text-main">
@@ -240,7 +231,7 @@ export default function SpeedPage() {
                     <tr key={`${stage.stage}-${idx}`} className="hover:bg-surface-subtle/50 transition-colors">
                       <td className="px-4 py-3 font-semibold">
                         <div className="flex items-center gap-1.5">
-                          <Zap size={13} className="text-brand-primary" />
+                          <Clock3 size={13} className="text-text-mute" aria-hidden="true" />
                           <span>{stage.stage}</span>
                         </div>
                       </td>
@@ -256,67 +247,28 @@ export default function SpeedPage() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </details>
 
-          {/* Outcome by Time to First Dial Rail */}
-          <div className="bg-surface rounded-xl border border-border-subtle overflow-hidden">
-            <div className="p-4 border-b border-border-subtle bg-surface-sec">
-              <h3 className="text-xs font-semibold text-text-mute uppercase tracking-wider">
-                Outcome by Time to First Dial
-              </h3>
-              <p className="text-xs text-text-sec mt-0.5">
-                Each cohort combines population size with RPC, sale and activation yield.
-              </p>
+          <details className="cx-contact-evidence-disclosure">
+            <summary>View exact latency cohort evidence</summary>
+            <div className="cx-performance-table-wrap" role="region" aria-label="Latency cohort evidence" tabIndex={0}>
+              <table className="cx-performance-table">
+                <caption className="sr-only">Returned counts and outcome rates for every first-dial latency cohort, including undialled and invalid timing.</caption>
+                <thead><tr><th scope="col">Cohort</th><th scope="col">Leads</th><th scope="col">RPC</th><th scope="col">RPC rate</th><th scope="col">Sales</th><th scope="col">Sale rate</th><th scope="col">Activations</th><th scope="col">Activation rate</th><th scope="col">Audit</th></tr></thead>
+                <tbody>{data.cohorts.map((row, idx) => <tr key={`${row.cohort}-${idx}`}>
+                  <th scope="row">{row.cohort}</th><td>{formatTableNumber(row.leads)}</td><td>{formatTableNumber(row.contacted)}</td><td>{formatPercent(row.contactRate)}</td><td>{formatTableNumber(row.sales)}</td><td>{formatPercent(row.saleRate, 2)}</td><td>{formatTableNumber(row.activations)}</td><td>{formatPercent(row.activationRate)}</td>
+                  <td><AuditEvidenceButton content={{ ...auditContent(row.cohort, row.leads, data.methodology || 'Returned lead population and outcomes for this first-dial timing group.'), unit: 'leads', definition: { meaning: data.methodology || 'Returned outcome associations for this first-dial timing group.', grain: 'Leads in the returned timing group.', calculation: 'Counts and rates are supplied by the response. The dialled population used for RPC rate is not separately supplied in this cohort object.', nullMeaning: 'An unavailable rate is not zero. A zero population is retained as returned.', limitations: ['Timing groups describe association with outcomes; they do not establish causation.'] }, details: <dl><div><dt>RPC count / returned RPC rate</dt><dd>{formatTableNumber(row.contacted)} / {formatPercent(row.contactRate)}</dd></div><div><dt>Sale count / returned sale rate</dt><dd>{formatTableNumber(row.sales)} / {formatPercent(row.saleRate, 2)}</dd></div><div><dt>Activation count / returned activation rate</dt><dd>{formatTableNumber(row.activations)} / {formatPercent(row.activationRate)}</dd></div></dl> }} /></td>
+                </tr>)}</tbody>
+              </table>
             </div>
-
-            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {data.cohorts.map((row, idx) => (
-                <div
-                  key={`${row.cohort}-${idx}`}
-                  className="p-3.5 bg-surface border border-border-subtle rounded-xl flex flex-col justify-between shadow-2xs"
-                >
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-text-main">{row.cohort}</span>
-                      <span className="text-xs text-text-sec cx-tabular font-medium">
-                        {formatTableNumber(row.leads)} leads
-                      </span>
-                    </div>
-
-                    <div className="w-full h-1.5 bg-surface-subtle rounded-full overflow-hidden mt-2">
-                      <div
-                        className="h-full bg-brand-primary rounded-full"
-                        data-state={row.leads == null ? 'unknown' : row.leads === 0 ? 'zero' : 'observed'}
-                        style={{ width: `${evidenceBarWidth(row.leads, cohortMax) ?? 0}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-border-subtle text-center text-xs">
-                    <div>
-                      <span className="text-[11px] text-text-mute block">RPC</span>
-                      <span className="font-semibold text-text-main cx-tabular mt-0.5 block">
-                        {formatPercent(row.contactRate)}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[11px] text-text-mute block">Sale</span>
-                      <span className="font-semibold text-brand-primary cx-tabular mt-0.5 block">
-                        {formatPercent(row.saleRate, 2)}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[11px] text-text-mute block">Activation</span>
-                      <span className="font-semibold text-text-sec cx-tabular mt-0.5 block">
-                        {formatPercent(row.activationRate)}
-                      </span>
-                    </div>
-                  </div>
-                  <AuditEvidenceButton content={{ ...auditContent(row.cohort, row.leads, data.methodology || 'Returned lead population and outcomes for this first-dial timing group.'), unit: 'leads', definition: { meaning: data.methodology || 'Returned outcome associations for this first-dial timing group.', grain: 'Leads in the returned timing group.', calculation: 'Counts and rates below are supplied by the response. The dialled population used for RPC rate is not separately supplied in this cohort object.', nullMeaning: 'An unavailable rate is not zero. A zero population is retained as returned.', limitations: ['Timing groups describe association with outcomes; they do not establish causation.'] }, details: <dl><div><dt>RPC count / returned RPC rate</dt><dd>{formatTableNumber(row.contacted)} / {formatPercent(row.contactRate)}</dd></div><div><dt>Sale count / returned sale rate</dt><dd>{formatTableNumber(row.sales)} / {formatPercent(row.saleRate, 2)}</dd></div><div><dt>Activation count / returned activation rate</dt><dd>{formatTableNumber(row.activations)} / {formatPercent(row.activationRate)}</dd></div></dl> }} />
-                </div>
-              ))}
+          </details>
+          <details className="cx-contact-evidence-disclosure">
+            <summary>Methodology and queue context</summary>
+            <div className="p-4 space-y-2 text-xs text-text-sec">
+              <p>Oldest undialled: <strong>{data.backlog?.oldestUndialled || 'Unavailable'}</strong> since delivery.</p>
+              <p>{data.methodology || 'Timing statistics and cohort outcomes are presented as returned.'}</p>
             </div>
-          </div>
+          </details>
 
           {/* Operating Controls */}
           <details

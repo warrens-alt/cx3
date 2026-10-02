@@ -1,6 +1,7 @@
 import AnalyticsPageLayout from '../../components/AnalyticsPageLayout';
 import { ReportActions } from '../../shared/reporting/ReportPresentation';
 import '../../styles/journeyContactVisuals.css';
+import '../../styles/contactTemporalVisuals.css';
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
