@@ -202,6 +202,15 @@ try {
   for (const theme of ['light', 'dark']) for (const viewport of viewports) {
     await scenario(`Lifecycle evidence interactions · ${viewport.name} · ${theme}`, { viewport, theme, kind: 'visual-interaction' }, async page => {
       await visit(page, '/overview');
+      if (viewport.name === 'mobile') {
+        const ribbon = page.locator('.cx-lifecycle-path');
+        const iconBox = await ribbon.locator('.cx-lifecycle-node-icon').first().boundingBox();
+        const countBox = await ribbon.locator('.cx-lifecycle-node strong').first().boundingBox();
+        assert.ok(countBox.x >= iconBox.x + iconBox.width, 'Compact mobile counts must clear the vertical connector');
+        const ribbonFile = `overview-ribbon-${viewport.name}-${theme}.png`;
+        await ribbon.screenshot({ path: path.join(output, ribbonFile) });
+        screenshots.push(ribbonFile);
+      }
       const tabs = page.getByRole('tablist', { name: 'Select metric to plot' });
       await tabs.getByRole('tab', { name: 'Fetched leads' }).focus();
       await page.keyboard.press('ArrowRight');
