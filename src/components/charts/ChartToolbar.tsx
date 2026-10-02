@@ -6,13 +6,13 @@ import React from 'react';
 export function ChartToolbar({
   auditTitle,
   auditContext,
-  auditGrain, 
-  title, 
+  auditGrain,
+  title,
   subtitle,
   children,
   visualData,
-}: { 
-  title: string; 
+}: {
+  title: string;
   subtitle?: string;
   children?: React.ReactNode;
   auditTitle?: string;
@@ -30,7 +30,7 @@ export function ChartToolbar({
     // Extract headers
     const firstItem = dataArray[0];
     if (typeof firstItem !== 'object' || firstItem === null) return;
-    
+
     const headers = Object.keys(firstItem);
     const quote = (val: any) => {
       if (val === null || val === undefined) return '""';
@@ -53,33 +53,33 @@ export function ChartToolbar({
   };
 
   return (
-    <div className="cx-chart-toolbar flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+    <div className="cx-chart-toolbar">
       <div className="cx-chart-toolbar-copy">
-        <h3 className="font-display text-sm sm:text-base font-semibold text-slate-900 dark:text-slate-100 tracking-tight">{title}</h3>
-        {subtitle && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-normal">{subtitle}</p>}
+        <h3 className="">{title}</h3>
+        {subtitle && <p className="">{subtitle}</p>}
       </div>
-      <div className="cx-chart-toolbar-actions flex items-center gap-2 flex-wrap shrink-0">
+      <div className="cx-chart-toolbar-actions">
         {children}
         {auditTitle && (
-          <button 
+          <button
             type="button"
-            onClick={() => setAuditOpen(true)} 
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700/80 hover:text-slate-900 dark:hover:text-white transition-colors shrink-0 shadow-2xs whitespace-nowrap focus-visible:ring-2 focus-visible:ring-indigo-500"
+            onClick={() => setAuditOpen(true)}
+            className="cx-button-quiet"
             title="Inspect supporting BigQuery evidence records"
           >
-            <TableIcon className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+            <TableIcon size={14} aria-hidden="true" />
             <span>View Data</span>
           </button>
         )}
         {visualData && (
-          <button 
+          <button
             type="button"
             onClick={handleExportCsv}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700/80 hover:text-slate-900 dark:hover:text-white transition-colors shrink-0 shadow-2xs whitespace-nowrap focus-visible:ring-2 focus-visible:ring-indigo-500" 
+            className="cx-button-quiet"
             title="Export chart data as CSV"
           >
-            <Download className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-            <span className="hidden sm:inline">Export CSV</span>
+            <Download size={14} aria-hidden="true" />
+            <span >Export CSV</span>
           </button>
         )}
       </div>

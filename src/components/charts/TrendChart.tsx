@@ -1,3 +1,6 @@
+import ChartFrame from '../../shared/visuals/ChartFrame';
+import ReportingScopeSummary from '../../shared/reporting/ReportingScopeSummary';
+import ChartTooltip from '../../shared/visuals/ChartTooltip';
 import React, { useId, useMemo } from 'react';
 import { formatChartAxis, formatTableNumber } from '../../lib/formatters';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -39,7 +42,7 @@ export function TrendChart({
   auditContext,
   auditGrain
 }: TrendChartProps) {
-  
+
   const gradientId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const safeData = useMemo(() => data || [], [data]);
 
@@ -59,132 +62,88 @@ export function TrendChart({
       deltaPct = Number(((deltaAbs / prevVal) * 100).toFixed(1));
     }
 
-    return (
-      <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl p-3 text-xs min-w-[200px] ring-1 ring-black/5 dark:ring-white/5 transition-all">
-        <div className="font-semibold text-slate-800 dark:text-slate-100 border-b border-slate-100 dark:border-slate-800 pb-1.5 mb-2 font-mono flex items-center justify-between">
-          <span>{label}</span>
-          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-sans font-normal">Observation</span>
-        </div>
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#315BCB] dark:bg-[#3B82F6] shrink-0" />
-              <span>Current</span>
-            </div>
-            <span className="font-mono font-bold text-slate-900 dark:text-slate-100 tabular-nums">
-              {currentVal !== undefined ? formatValue(Number(currentVal)) : '—'}
-            </span>
-          </div>
-
-          {comparisonKey && prevVal !== null && prevVal !== undefined && (
-            <div className="flex items-center justify-between gap-3 text-slate-500 dark:text-slate-400">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-0.5 bg-slate-400 dark:bg-slate-500 shrink-0" />
-                <span>Previous</span>
-              </div>
-              <span className="font-mono tabular-nums">
-                {formatValue(Number(prevVal))}
-              </span>
-            </div>
-          )}
-
-          {deltaPct !== null && deltaAbs !== null && (
-            <div className={`mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] font-semibold ${
-              deltaPct >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'
-            }`}>
-              <span className="flex items-center gap-0.5">
-                {deltaPct >= 0 ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
-                {deltaPct >= 0 ? `+${deltaPct}%` : `${deltaPct}%`}
-              </span>
-              <span className="font-mono text-[10px] font-normal text-slate-400 dark:text-slate-500">
-                ({deltaAbs >= 0 ? `+${formatValue(deltaAbs)}` : formatValue(deltaAbs)})
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-    );
+    return <ChartTooltip title={label} rows={[{ label: 'Current', value: currentVal !== undefined ? formatValue(Number(currentVal)) : '—', color: 'var(--cx-action)' }, ...(comparisonKey && prevVal !== null && prevVal !== undefined ? [{ label: 'Previous', value: formatValue(Number(prevVal)), color: 'var(--cx-text-muted)' }] : []), ...(deltaPct !== null && deltaAbs !== null ? [{ label: 'Change', value: `${deltaPct >= 0 ? '+' : ''}${deltaPct}% (${deltaAbs >= 0 ? '+' : ''}${formatValue(deltaAbs)})` }] : [])]} />;
   };
 
   return (
-    <div className="enterprise-card p-5 flex flex-col h-full w-full">
-      <ChartToolbar visualData={safeData} title={title} subtitle={subtitle} auditTitle={auditTitle} auditContext={auditContext} auditGrain={auditGrain}>
+    <ChartFrame title={title} className="cx-analytics-card" scope={<ReportingScopeSummary/>} header={<ChartToolbar visualData={safeData} title={title} subtitle={subtitle} auditTitle={auditTitle} auditContext={auditContext} auditGrain={auditGrain}>
         {options && (
-          <select 
+          <select
             aria-label={`${title} measure`}
             value={selectedOption}
             onChange={(e) => onOptionChange?.(e.target.value)}
-            className="border border-border-subtle rounded-lg px-3 py-1.5 bg-surface text-xs sm:text-sm font-medium text-text-main outline-none focus:border-[#315BCB] focus:ring-1 focus:ring-[#315BCB]/30 transition-all cursor-pointer shadow-2xs"
+            className="border border-border-subtle rounded-lg px-3 py-1.5 bg-surface text-xs sm:text-sm font-medium text-text-main outline-none focus:border-[var(--cx-action)] focus:ring-1 focus:ring-[var(--cx-action)]/30 transition-all cursor-pointer shadow-2xs"
           >
             {options.map(o => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
         )}
-      </ChartToolbar>
-      
+      </ChartToolbar>}>
+
+
       <div style={{ height, minHeight: height, width: '100%' }}>
         {!safeData.length ? (
-          <div className="h-full w-full flex flex-col items-center justify-center text-xs text-slate-400 bg-slate-50/50 dark:bg-slate-900/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-800 p-4">
-            <span className="font-medium text-slate-600 dark:text-slate-300 mb-1">No trend observations recorded.</span>
-            <span className="text-[11px] text-slate-400">Select a wider date range or check data filters.</span>
+          <div className="h-full w-full flex flex-col items-center justify-center text-xs text-text-mute bg-surface-subtle  rounded-lg border border-dashed border-border-subtle  p-4">
+            <span className="font-medium text-text-sec  mb-1">No trend observations recorded.</span>
+            <span className="text-[11px] text-text-mute">Select a wider date range or check data filters.</span>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%" minWidth={0} debounce={50}>
             <AreaChart data={safeData} margin={{ top: 12, right: 14, left: 0, bottom: 4 }}>
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#315BCB" stopOpacity={0.24}/>
-                <stop offset="95%" stopColor="#315BCB" stopOpacity={0.01}/>
+                <stop offset="5%" stopColor="var(--cx-action)" stopOpacity={0.24}/>
+                <stop offset="95%" stopColor="var(--cx-action)" stopOpacity={0.01}/>
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8EDF3" />
-            <XAxis 
-              dataKey={xAxisKey} 
-              axisLine={false} 
-              tickLine={false} 
-              tick={{ fontSize: 11, fill: '#64748b' }}
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--cx-border-subtle)" />
+            <XAxis
+              dataKey={xAxisKey}
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 11, fill: 'var(--cx-text-secondary)' }}
               tickFormatter={(val) => formatChartAxis(val)}
               dy={10}
             />
-            <YAxis 
-              axisLine={false} 
-              tickLine={false} 
-              tick={{ fontSize: 11, fill: '#64748b' }}
+            <YAxis
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 11, fill: 'var(--cx-text-secondary)' }}
               tickFormatter={(val) => `${valuePrefix}${formatChartAxis(val)}${valueSuffix}`}
-              dx={-6} 
+              dx={-6}
             />
             <RechartsTooltip content={<CustomTooltip />} />
-            
+
             {comparisonKey && (
-              <Area 
+              <Area
                 isAnimationActive={false}
-                type="monotone" 
-                dataKey={comparisonKey} 
-                stroke="#94a3b8" 
+                type="monotone"
+                dataKey={comparisonKey}
+                stroke="var(--cx-text-muted)"
                 strokeWidth={1.8}
                 strokeDasharray="4 4"
-                fill="none" 
+                fill="none"
                 name="Previous Period"
                 connectNulls={true}
               />
             )}
-            
-            <Area 
+
+            <Area
               isAnimationActive={false}
-              type="monotone" 
-              dataKey={currentKey} 
-              stroke="#315BCB" 
-              strokeWidth={2.5} 
-              activeDot={{ r: 5, fill: '#315BCB', stroke: '#ffffff', strokeWidth: 2 }}
-              fillOpacity={1} 
-              fill={`url(#${gradientId})`} 
+              type="monotone"
+              dataKey={currentKey}
+              stroke="var(--cx-action)"
+              strokeWidth={2.5}
+              activeDot={{ r: 5, fill: 'var(--cx-action)', stroke: 'var(--cx-surface)', strokeWidth: 2 }}
+              fillOpacity={1}
+              fill={`url(#${gradientId})`}
               name="Current Period"
               connectNulls={true}
             />
             {comparisonKey && (
-              <Legend 
-                wrapperStyle={{ fontSize: '11px', paddingTop: '12px' }} 
+              <Legend
+                wrapperStyle={{ fontSize: '11px', paddingTop: '12px' }}
                 iconType="plainline"
               />
             )}
@@ -192,6 +151,6 @@ export function TrendChart({
         </ResponsiveContainer>
         )}
       </div>
-    </div>
+    </ChartFrame>
   );
 }
