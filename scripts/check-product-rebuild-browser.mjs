@@ -61,6 +61,13 @@ try {
           const geometry = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth, main: document.querySelector('main').clientWidth, mainScroll: document.querySelector('main').scrollWidth }));
           assert.ok(geometry.document <= width + 1, JSON.stringify(geometry));
           assert.ok(geometry.mainScroll <= geometry.main + 1, JSON.stringify(geometry));
+          if (route === '/evidence') {
+            const spacing = await page.evaluate(() => ({
+              headingBottom: document.querySelector('.cx-product-workspace-heading').getBoundingClientRect().bottom,
+              dateTop: document.querySelector('.cx-scope-summary > span').getBoundingClientRect().top,
+            }));
+            assert.ok(spacing.dateTop >= spacing.headingBottom + 8, `Evidence date must clear the workspace description: ${JSON.stringify(spacing)}`);
+          }
           if ([1440,390,320].includes(width)) {
             const name = `${route.slice(1)}-${theme}-${width}.png`; await page.screenshot({ path: path.join(output, name) }); screenshots.push(name);
           }

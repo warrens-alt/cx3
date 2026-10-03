@@ -2,6 +2,7 @@
 .cx-product-workspace-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:0}
 .cx-product-workspace-heading h1{margin:0 0 8px;font-size:clamp(22px,2.3vw,var(--cx-type-page));line-height:1.25;font-weight:700;letter-spacing:-.025em}
 .cx-product-workspace-heading p{max-width:76ch;font-size:13px;line-height:1.6;color:var(--cx-text-secondary);margin:0}
+.cx-evidence-product-workspace>.cx-product-workspace-heading{margin-bottom:var(--cx-space-6)}
 .cx-evidence-lineage-explorer select:focus-visible{outline:2px solid var(--cx-action);outline-offset:3px}
 .cx-product-workspace-panel,.cx-evidence-active-lens{min-width:0;display:grid;gap:var(--cx-section-gap)}
 .cx-product-workspace-panel>.cx-page,.cx-product-workspace-panel>.cx-page-shell,.cx-product-workspace-panel>.cx-command-page{padding:0;max-width:none;margin:0}
