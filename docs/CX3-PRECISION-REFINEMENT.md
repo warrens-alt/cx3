@@ -80,3 +80,51 @@ Production HTTP smoke tests pass all six compiled launch variants, including can
 Browser acceptance uses explicit synthetic analytical/source responses. The compiled matrix serves the actual production Vite chunks and CSS with a synthetic Firebase module boundary and synthetic API responses; it verifies compiled routing/rendering, not real Firebase authentication or customer warehouse contents. No production deployment, production-data certification, or live source reconciliation is claimed.
 
 Full analytical describes the fields returned in the **currently loaded population page**, not an unreturned warehouse schema. Column choices are local to the current view and reset on preset changes. The existing audited CSV remains its established 17-column export.
+
+## Final precision pass — 3 October 2026
+
+Starting SHA: `7b45dd71d7547d538d6cb700d43214087a1a6d35`, fetched and confirmed identical to `origin/main`. The brief's reviewed SHA was `51827335af88b34c993457ab44e68981eb3b98f1`; current main also contained the requested dark-default change. Diffs from `64fa173`, `8ca71ab`, and `5182733` were inspected before editing. Dark remains the default, and saved theme preferences remain honored.
+
+Final implementation SHA: `1788401a8477595946e6b4629c9f311b79ca6553`. The following documentation-only delivery commit is verified separately; its SHA and actual GitHub results are recorded in `../final-precision-evidence-2026-10-03/completion.json`. This section cannot contain the hash of its own commit.
+
+### Currency presentation
+
+`formatAnalyticalRevenue(row, revenueField)` is the single analytical lead revenue formatter. Summary, dossier Outcomes, curated analytical tables/cards, Full analytical, and All parameters use it. Returned decimal strings retain every digit and trailing zero; explicit numeric zero remains zero. Currency is appended only when the returned row supplies it. Thus `"123.4500"` with `"USD"` displays `123.4500 USD`, ZAR uses the same convention, and an amount without currency remains an amount without an assumed currency. Missing or invalid revenue displays Unavailable. The complete-field model still distinguishes a missing key (Not supplied) from a returned null (Unavailable).
+
+The legacy hardcoded `R` formatter was removed from Lead Evidence. Commercial aggregate currency contracts, raw source values, and established analytical/source export builders are unchanged. Timeline copy and lead pins do not contain monetary values; the copied timeline evidence keeps its existing contract.
+
+### Dossier and Full analytical
+
+Summary has one closed-by-default **View all analytical parameters** disclosure. Audit retains independent evidence state, lineage, qualification, anomalies, source relationship, provenance, and reconciliation boundaries without duplicating the inspector. All returned keys, grouped known fields, Additional returned fields, name/group search, nulls, exact identifiers/decimals, escaped structured values, and secondary raw JSON remain available.
+
+Full analytical now explicitly says **All returned analytical fields on this page**. Columns explains that selection affects presentation only, does not change the population, and requests no new data. Its available returned fields are the loaded-page union; curated preset fields retain their existing unavailable or supported derived values. Search, selected/matching counts, Restore preset, Select all, Clear optional fields, required Lead ID, native checkboxes, and Escape focus return are preserved.
+
+Known fields retain semantic group order, with additional keys ordered alphabetically. Wide tables have bounded horizontal and vertical scrolling (`min(560px, 65dvh)`), sticky header/Lead ID, numeric alignment, and the selected-row state. Summary uses fine separators and the existing 8/12/16/20px spacing relationships. Narrow source inspectors stack labels above exact raw values. Every separate source record and all 63 raw fields remain intact.
+
+### Timeline presentation
+
+The chronological spine uses consistent timestamp/node dimensions, aligned connectors, and elapsed labels aligned with event titles. Recorded stages without timestamps appear as disconnected cards beneath an explicit time-unavailable heading. Event log is a secondary factual dated list without a second chronology connector.
+
+Selected event evidence separates event title, observed/untimed state, UTC timestamp, validation, normalized evidence, original source fields, and actions. Browser review found that the old nearest-edge scroll could hide the selected title behind the sticky dossier header. Selection now measures the actual wrapped header and current sticky scope/context rails so the evidence heading remains visible; focus still moves to the evidence region. Audit, source handoff, pinning, and copying remain available without an analytical request. `timeline.ts`, event ordering, timestamp interpretation, durations, anomalies, and call-history limitations are byte-unchanged.
+
+### Verification and browser evidence
+
+Evidence is saved outside the repository at `../final-precision-evidence-2026-10-03/`. The clean install used pinned npm 10.9.8 with `ci --ignore-scripts --no-audit`, matching CI. Separate lint, regression, surface, and build checks were run, followed by full `npm run verify` on the delivery HEAD. The final suite has 1,373 tests: 1,372 passed, zero failed, and one emulator-dependent local skip. `npm audit --audit-level=high` reports zero vulnerabilities. Production HTTP smoke covers six compiled launch variants; Google runtime smoke covers five development/preview/bundle modes.
+
+Local Firestore execution was attempted through the established rules runner but could not start because this workstation has no Java runtime. The delivery's ConversionX CI runs the actual Firestore access lifecycle with Java 21. Actual delivery workflow conclusions, including Cloudflare Worker validation, are recorded in the companion completion evidence; no previous run is reused.
+
+| Browser suite | Passing checks/scenarios | Evidence directory |
+| --- | --- | --- |
+| Product rebuild | 63/63 | `product-rebuild/` |
+| Investigation | 20/20 | `investigation/` |
+| Lead Evidence | 120/120 checks across ten scenarios; 120 screenshots | `lead-evidence/` |
+| Ledger visual | 10/10 scenarios; 60 screenshots | `ledger-visual/` |
+| Audit evidence | 92/92 | `audit-evidence/` |
+
+Matrices cover 1440, 1024, 820, 390, and 320 pixels in both light and dark. Actual screenshots were manually reviewed for Summary, Outcomes, Full analytical, Columns, All parameters, chronology, Event log, selected event evidence, and Source. The Lead Evidence browser suite asserts exact USD decimals in all four requested views, semantic field order, alignment, sticky identity, preserved rows, inspector location, safe structured values, untimed connector absence, connector/title geometry, visible selected-event headings, keyboard/focus behavior, pin/copy/audit/source actions, and the request-free presentation flow. No page overflow or relevant browser runtime/console errors remains in passing final runs. Initial obsolete test selectors were migrated to the single Summary inspector and the disconnected untimed structure; transient parallel-run timeouts were rerun under lower concurrency.
+
+### Protected files and limits
+
+`protected-check.json` compares 536 protected files with the starting SHA and records zero content changes. This includes every contract/server file, security/environment/dependency files, timestamp/source/auth/metric/query/export code, and frontend files outside the nine individually reviewed presentation files. Baseline and final protected manifest SHA-256 is `40ac3641c6d0f8a03af317c5a39402023d18f8a1a6beaec789886c933ad3135c`. Package files, Vite configuration, canonical brand asset/geometry, and the dark-default setting remain unchanged.
+
+Browser QA uses the existing Playwright/Chromium runtime because the Browser plugin is unavailable; no dependency was installed for browser QA. Fixtures supply explicit synthetic analytical and separate source responses. These checks verify presentation, scope, and interaction behavior; they do not certify real Firebase authentication, production warehouse contents, live production-data reconciliation, or deployment. Full analytical remains limited to the currently loaded analytical page, and aggregate call counts still cannot establish individual attempt history.
