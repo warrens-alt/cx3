@@ -26,8 +26,19 @@ test('forensic rows align existing raw timestamps separately from stage copy and
   assert.deepEqual(nodes.map(node => node.querySelector('strong')?.textContent), ['Captured', 'First dial', 'Delivered']);
   assert.deepEqual([...doc.querySelectorAll('.cx-journey-elapsed')].map(node => node.textContent), ['Time unavailable', 'Time unavailable'], 'Reordered anomalous milestones cannot acquire invented positive intervals');
   assert.match(doc.querySelector('.cx-journey-spine [data-stage=call] .cx-journey-inline-anomaly')!.textContent!, /precedes delivered/);
-  assert.equal(doc.querySelectorAll('.cx-journey-spine .cx-journey-untimed').length, 0);
-  assert.equal(doc.querySelectorAll('[id$="-journey-panel"] .cx-journey-undated .cx-journey-untimed').length, 3);
+  assert.equal(doc.querySelectorAll('.cx-journey-spine [data-certainty=unavailable]').length, 0);
+  const untimed = doc.querySelector('[aria-label="Recorded stages without timestamps"]')!;
+  const recordedStages = [...untimed.querySelectorAll('ul > li > .cx-journey-event')];
+  assert.equal(recordedStages.length, timeline.untimedEvents.length);
+  assert.deepEqual(recordedStages.map(node => node.getAttribute('data-stage')), ['rpc', 'sale', 'activation']);
+  recordedStages.forEach((node, index) => {
+    assert.equal(node.getAttribute('data-certainty'), 'unavailable');
+    assert.equal(node.querySelector('.cx-journey-event-copy strong')?.textContent, timeline.untimedEvents[index].title);
+    assert.equal(node.querySelector('.cx-journey-event-copy small')?.textContent, 'Recorded, timestamp unavailable');
+    assert.ok(node.querySelector('.cx-journey-node svg'));
+  });
+  assert.match(untimed.textContent!, /no known chronological order/);
+  assert.equal(untimed.querySelectorAll('time,.cx-journey-time-column,.cx-journey-elapsed,.cx-journey-spine').length, 0, 'Untimed stages have no timestamp column or chronological spine');
 });
 
 test('compact source observability keeps unavailable contracts neutral, zero explicit and exact source evidence accessible', () => {

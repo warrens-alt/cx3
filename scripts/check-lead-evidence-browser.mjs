@@ -46,7 +46,7 @@ try {
         total_calls: 4, dialled: true, qualified_delivery: true, qualified_rpc: true, qualified_sale: false, qualified_activation: false,
         recorded_delivery: true, recorded_first_dial: true, recorded_sale: true, recorded_activation: true,
         delivery_before_capture: false, first_dial_before_capture: false, first_dial_before_delivery: false, sale_before_capture: false, activation_before_sale: false,
-        sale_time: null, activation_time: null, contacted: true, sale: true, activated: true, revenue: '1234567890.123456789', currency: 'ZAR',
+        sale_time: null, activation_time: null, contacted: true, sale: true, activated: true, revenue: '1234567890.123456789', currency: 'USD',
         investigationReason: { code: 'FUNNEL_STAGE', label: 'Capture recorded in the selected cohort', detail: 'Synthetic returned capture-cohort population; outcome times are not supplied.' },
         synthetic_extra_null: null, synthetic_extra_nested: { note: '<script>synthetic text only</script>', array: [0, null, 'exact'], metadata: { supplied: false } },
       }, { lead_id: 'SYNTHETIC-LEAD-0002', source: 'synthetic-source', fetched: '2026-09-28T10:00:00Z', contacted: false, total_calls: 0, synthetic_second_row_only: false }];
@@ -105,10 +105,20 @@ try {
         await page.locator('.cx-investigation-table-wrap[data-preset=full] .cx-investigation-records[data-preset=full]').waitFor();
         const returned = await page.evaluate(() => [...new Set(window.__leadEvidenceQaRows.flatMap(row => Object.keys(row)))].sort());
         assert.deepEqual((await page.locator('.cx-investigation-records thead th[data-parameter-key]').evaluateAll(elements => elements.map(element => element.dataset.parameterKey))).sort(), returned);
+        const ordered = await page.locator('.cx-investigation-records thead th[data-parameter-key]').evaluateAll(elements => elements.map(element => element.dataset.parameterKey));
+        const groupAnchors = ['lead_id', 'source', 'grade', 'vendor', 'total_calls', 'sale', 'revenue', 'sale_time', 'investigationReason', 'delivery_before_capture', 'synthetic_extra_nested'];
+        assert.ok(groupAnchors.slice(1).every((key, index) => ordered.indexOf(key) > ordered.indexOf(groupAnchors[index])), 'Full fields retain semantic group order');
+        assert.deepEqual(ordered.filter(key => key.startsWith('synthetic_')), ['synthetic_extra_nested', 'synthetic_extra_null', 'synthetic_second_row_only']);
+        assert.match(await page.locator('.cx-record-view>span').innerText(), /All returned analytical fields on this page/);
         assert.equal(await page.locator('.cx-investigation-records thead th').count(), returned.length + 1);
+        assert.equal(await page.locator('.cx-investigation-records tbody tr').first().locator('[data-parameter-key=revenue]').innerText(), '1234567890.123456789 USD');
         assert.match(await page.locator('.cx-investigation-records tbody tr').first().locator('[data-parameter-key=synthetic_extra_null]').innerText(), /Unavailable/);
         assert.match(await page.locator('.cx-investigation-records tbody tr').first().locator('[data-parameter-key=synthetic_second_row_only]').innerText(), /Not supplied/);
         const scroll = page.locator('.cx-investigation-table-wrap[data-preset=full]');
+        assert.equal(await page.locator('.cx-investigation-records tbody tr').first().locator('[data-parameter-key=revenue]').evaluate(element => getComputedStyle(element).textAlign), 'right');
+        assert.equal(await page.locator('.cx-investigation-records tbody tr').first().locator('[data-parameter-key=consumer_id]').evaluate(element => getComputedStyle(element).textAlign), 'left');
+        assert.equal(await scroll.evaluate(element => getComputedStyle(element).overflowX), 'auto');
+        assert.notEqual(await scroll.evaluate(element => getComputedStyle(element).maxHeight), 'none');
         assert.equal(await scroll.evaluate(element => element.scrollWidth > element.clientWidth), true);
         const identityHeader = page.locator('.cx-investigation-records thead th').first();
         const start = await identityHeader.boundingBox();
@@ -119,6 +129,7 @@ try {
       });
       await check('Column manager supports search, show/hide, restore, all/optional controls and keyboard focus without requests', async () => {
         const before = await requests(page);
+        const rowIds = await page.locator('.cx-investigation-records tbody .cx-record-open').evaluateAll(elements => elements.map(element => element.dataset.leadId));
         const manager = page.locator('.cx-analytical-column-manager');
         const trigger = manager.locator(':scope > summary'); await trigger.click();
         const fields = () => page.locator('.cx-investigation-records thead th[data-parameter-key]').evaluateAll(elements => elements.map(element => element.dataset.parameterKey));
@@ -131,6 +142,7 @@ try {
         await optional.check(); assert.equal((await fields()).includes('synthetic_extra_nested'), true);
         await manager.getByRole('button', { name: 'Clear optional fields', exact: true }).click();
         assert.deepEqual(await fields(), ['lead_id']);
+        assert.deepEqual(await page.locator('.cx-investigation-records tbody .cx-record-open').evaluateAll(elements => elements.map(element => element.dataset.leadId)), rowIds);
         await manager.getByRole('button', { name: 'Select all', exact: true }).click();
         assert.deepEqual((await fields()).sort(), complete);
         await manager.getByRole('button', { name: 'Restore Full analytical preset', exact: true }).click();
@@ -156,8 +168,12 @@ try {
         const summary = dossier.locator('.cx-dossier-body[data-section=summary]');
         assert.deepEqual(await summary.locator('[data-summary-group] h3').allTextContents(), ['Identity', 'Current state', 'Qualification', 'Contact', 'Outcomes', 'Timing']);
         assert.match(await summary.locator('[data-summary-group=timing]').innerText(), /19h 37m/);
-        await summary.getByText('All parameters', { exact: true }).click();
+        assert.match(await summary.locator('[data-summary-group=outcomes]').innerText(), /1234567890\.123456789 USD/);
+        assert.equal(await summary.locator('.cx-dossier-all-parameters').count(), 1);
+        assert.equal(await summary.locator('.cx-dossier-all-parameters').evaluate(element => element.open), false);
+        await summary.getByText('View all analytical parameters', { exact: true }).click();
         const inspector = summary.getByRole('region', { name: 'All analytical parameters', exact: true });
+        assert.equal((await inspector.locator('[data-parameter-key=revenue] dd').textContent()).trim(), '1234567890.123456789 USD');
         const expected = await page.evaluate(() => Object.keys(window.__leadEvidenceQaRows[0]).sort());
         assert.deepEqual((await inspector.locator('[data-parameter-key]').evaluateAll(elements => elements.map(element => element.dataset.parameterKey))).sort(), expected);
         const groups = await inspector.locator('.cx-analytical-parameter-group > summary').allTextContents();
@@ -177,7 +193,7 @@ try {
         await inspector.getByRole('searchbox', { name: 'Search parameter names', exact: true }).fill('');
         assert.equal(await inspector.locator('[data-parameter-key]').count(), expected.length);
         assert.deepEqual(await requests(page), before);
-        await summary.getByText('All parameters', { exact: true }).click();
+        await summary.getByText('View all analytical parameters', { exact: true }).click();
       });
       await check('One dossier, six keyboard tabs, Audit adds no request', async () => {
         const dossier = page.locator('.cx-lead-dossier');
@@ -192,6 +208,11 @@ try {
         assert.equal(await lifecycle.locator('[data-evidence-state=untimed]').count(), 3);
         assert.match(await dossier.locator('.cx-lead-evidence-summary').innerText(), /Calls: 4/);
         await settle(page); await shot('population-summary');
+        await dossier.getByRole('tab', { name: 'Outcomes', exact: true }).click();
+        assert.match(await dossier.locator('.cx-dossier-body[data-section=outcomes]').innerText(), /1234567890\.123456789 USD/);
+        assert.doesNotMatch(await dossier.locator('.cx-dossier-body[data-section=outcomes]').innerText(), /R 123/);
+        await shot('population-outcomes');
+        await dossier.getByRole('tab', { name: 'Summary', exact: true }).click();
         await dossier.getByRole('tab', { name: 'Summary', exact: true }).focus(); await page.keyboard.press('ArrowRight');
         assert.equal(await dossier.locator('.cx-dossier-tabs').getByRole('tab', { name: 'Timeline', exact: true }).evaluate(element => element === document.activeElement), true);
         assert.match(await dossier.innerText(), /attempt history|Individual synthetic call times/);
@@ -199,6 +220,7 @@ try {
         await settle(page); await shot('population-journey');
         await dossier.getByRole('tab', { name: 'Audit', exact: true }).click();
         assert.equal(await dossier.locator('.cx-evidence-trace').count(), 1);
+        assert.equal(await dossier.locator('.cx-dossier-all-parameters,.cx-analytical-all-parameters').count(), 0);
         assert.deepEqual(await requests(page), before);
         await dossier.scrollIntoViewIfNeeded(); await settle(page);
         if (viewport.width >= 1180) {
@@ -223,17 +245,41 @@ try {
         const chronology = dossier.getByRole('list', { name: 'Observed chronology', exact: true });
         assert.equal(await chronology.locator('.cx-journey-event').count(), 3);
         assert.match(await chronology.innerText(), /4m.*19h 37m/s);
+        const spineGeometry = await chronology.locator(':scope > li').evaluateAll(elements => elements.map((element, index) => {
+          const box = element.getBoundingClientRect();
+          const node = element.querySelector('.cx-journey-node').getBoundingClientRect();
+          const title = element.querySelector('.cx-journey-event-copy').getBoundingClientRect();
+          const elapsed = element.querySelector('.cx-journey-elapsed')?.getBoundingClientRect();
+          return { connector: index < elements.length - 1 ? box.x + Number.parseFloat(getComputedStyle(element, '::after').left) : null, node: node.x + node.width / 2, title: title.x, elapsed: elapsed?.x };
+        }));
+        assert.ok(spineGeometry.every(row => row.connector === null || Math.abs(row.connector - row.node) <= 1), 'Chronology connectors align with lifecycle node centers');
+        assert.ok(spineGeometry.every(row => row.elapsed === undefined || Math.abs(row.elapsed - row.title) <= 1), 'Elapsed labels align with their event titles');
         const untimed = dossier.getByRole('region', { name: 'Recorded stages without timestamps', exact: true });
         assert.equal(await untimed.locator('.cx-journey-event').count(), 3);
         assert.equal(await untimed.locator('time').count(), 0);
         assert.match(await untimed.innerText(), /no known chronological order.*Right-party contact.*Sale.*Activation/s);
+        const untimedLines = await untimed.locator('li').evaluateAll(elements => elements.flatMap(element => ['::before', '::after'].map(pseudo => getComputedStyle(element, pseudo).content)));
+        assert.ok(untimedLines.every(content => content === 'none' || content === 'normal'), 'Untimed stages have no chronology connector');
         const timelineViews = dossier.getByRole('tablist', { name: 'Timeline views', exact: true });
         assert.deepEqual(await timelineViews.getByRole('tab').allTextContents(), ['Chronology', 'Event log']);
         await timelineViews.getByRole('tab', { name: 'Event log', exact: true }).focus(); await page.keyboard.press('Enter');
+        await dossier.locator('[id$="-events-panel"]:not([hidden])').scrollIntoViewIfNeeded();
+        await overflow(page); await shot('timeline-event-log');
         await timelineViews.getByRole('tab', { name: 'Chronology', exact: true }).click();
         await chronology.locator('.cx-journey-event[data-stage=call]').click();
         const selected = dossier.getByRole('region', { name: 'Selected event evidence', exact: true });
+        await settle(page);
+        const evidenceHeading = await selected.locator('.cx-journey-evidence-heading').evaluate(element => {
+          const dossier = element.closest('.cx-lead-dossier');
+          const main = element.closest('.cx-main');
+          const context = document.querySelector('.cx-investigation-context[data-compact=true]');
+          const bounds = element.getBoundingClientRect();
+          const header = dossier.querySelector('.cx-dossier-heading').getBoundingClientRect();
+          return { top: bounds.top, bottom: bounds.bottom, visibleTop: Math.max(main.getBoundingClientRect().top, header.bottom, context && getComputedStyle(context).position === 'sticky' ? context.getBoundingClientRect().bottom : 0), visibleBottom: Math.min(main.getBoundingClientRect().bottom, dossier.getBoundingClientRect().bottom) };
+        });
+        assert.ok(evidenceHeading.top >= evidenceHeading.visibleTop - 1 && evidenceHeading.bottom <= evidenceHeading.visibleBottom + 1, `Selected event title remains visible below sticky headers: ${JSON.stringify(evidenceHeading)}`);
         assert.match(await selected.innerText(), /First dial.*Observed timestamp.*Normalized evidence.*Original source fields/s);
+        await shot('timeline-selected-event');
         await selected.getByRole('button', { name: /^Audit evidence:/ }).click();
         const audit = page.getByRole('dialog'); await audit.waitFor();
         assert.match(await audit.innerText(), /NOT_VERIFIED/);

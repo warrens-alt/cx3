@@ -5,8 +5,8 @@ import type { RawLeadsData } from '../../lib/offernetClient';
 import LeadEvidenceSummary from './LeadEvidenceSummary';
 import AnalyticalColumnManager from './AnalyticalColumnManager';
 import AnalyticalParameterValue from './AnalyticalParameterValue';
-import { analyticalParameter, discoverAnalyticalParameters, evidenceText, recordedRevenue, type AnalyticalParameter } from './analyticalParameters';
-export { evidenceText, outcomeText, recordedRevenue } from './analyticalParameters';
+import { analyticalParameter, discoverAnalyticalParameters, evidenceText, formatAnalyticalRevenue, type AnalyticalParameter } from './analyticalParameters';
+export { evidenceText, outcomeText } from './analyticalParameters';
 
 export type InvestigationLead = RawLeadsData['rows'][number];
 export type InvestigationRecordPreset = 'investigation' | 'journey' | 'contact' | 'outcomes' | 'full';
@@ -40,7 +40,7 @@ const curatedValues: Record<string, { label?: string; value: (row: Investigation
   '@delay': { label: 'Delivery → first dial', value: row => leadDelay(row) },
   grade: { value: row => suppliedField(row.grade, row.offershop_grade) },
   vetting: { value: row => suppliedField(row.vetting, row.offershop_color_vetting) },
-  revenue: { value: row => recordedRevenue(row.revenue) },
+  revenue: { value: row => formatAnalyticalRevenue(row) },
 };
 const presets: Record<Exclude<InvestigationRecordPreset, 'full'>, string[]> = {
   investigation: ['lead_id', 'investigationReason', 'vendor', 'source', '@delay'],
@@ -121,7 +121,7 @@ export default function InvestigationRecordList({ rows, selectedLeadId, investig
     return <button type="button" className="cx-record-copy" disabled={row.lead_id == null || row.lead_id === ''} onClick={() => void copyLeadId(row)} aria-label={`Copy lead ID ${row.lead_id}`} aria-describedby={currentCopyStatus?.leadId === String(row.lead_id) ? copyStatusId : undefined} title={copied ? 'Lead ID copied' : 'Copy lead ID'}>{copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}</button>;
   };
   return <>
-    <div className="cx-record-view"><label htmlFor={viewId}>Record view</label><select id={viewId} value={view} onChange={event => { const next = event.target.value as InvestigationRecordPreset; setCustomColumns(null); if (preset === undefined) setLocalPreset(next); onPresetChange?.(next); }}>{INVESTIGATION_RECORD_PRESETS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select><span>{schema.length} returned parameters{customColumns?.view === view ? ' · Custom columns' : view === 'full' ? ' · All shown' : ' · All parameters in the dossier'}</span><AnalyticalColumnManager fields={availableFields} selected={selectedKeys} presetLabel={viewLabel} onChange={keys => setCustomColumns({ view, keys })} onRestore={() => setCustomColumns(null)} /></div>
+    <div className="cx-record-view"><label htmlFor={viewId}>Record view</label><select id={viewId} value={view} onChange={event => { const next = event.target.value as InvestigationRecordPreset; setCustomColumns(null); if (preset === undefined) setLocalPreset(next); onPresetChange?.(next); }}>{INVESTIGATION_RECORD_PRESETS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select><span>{view === 'full' ? `All returned analytical fields on this page · ${schema.length} fields` : `${schema.length} returned parameters on this page`}{customColumns?.view === view ? ' · Custom columns' : view === 'full' ? ' · All shown' : ' · All parameters in the dossier'}</span><AnalyticalColumnManager fields={availableFields} selected={selectedKeys} returnedFieldCount={schema.length} presetLabel={viewLabel} onChange={keys => setCustomColumns({ view, keys })} onRestore={() => setCustomColumns(null)} /></div>
     <span id={copyStatusId} role="status" aria-live="polite" className="cx-record-copy-status">{currentCopyStatus ? currentCopyStatus.state === 'copied' ? 'Lead ID copied.' : 'Could not copy the lead ID. Select the displayed ID to copy it manually.' : ''}</span>
     <div className="cx-investigation-table-wrap" data-preset={view} data-complete={wideTable} role="region" tabIndex={0} aria-label={`${viewLabel} records`}><table className="cx-investigation-records" data-preset={view} data-dynamic-schema={wideTable || customColumns?.view === view} aria-label={`${viewLabel} records`}><thead><tr>{columns.map(column => <th key={column.key} scope="col" data-parameter-key={column.key} data-numeric={column.numeric || undefined}>{column.label}</th>)}<th scope="col">{view === 'full' ? 'Action' : 'Evidence'}</th></tr></thead><tbody>{rows.map(row => <tr key={String(row.lead_id)} data-selected={selectedLeadId === String(row.lead_id)}>{columns.map(column => column.key === 'lead_id' ? <th key={column.key} scope="row"><div className="cx-record-identity">{value(column, row)}{copyButton(row)}</div></th> : <td key={column.key} data-parameter-key={column.key} data-numeric={column.numeric || undefined}>{value(column, row)}</td>)}<td>{selectButton(row)}</td></tr>)}</tbody></table></div>
     {!wideTable && <ul className="cx-investigation-record-cards" aria-label={`${viewLabel} record list`}>{rows.map(row => <li key={String(row.lead_id)} data-selected={selectedLeadId === String(row.lead_id)}><div className="cx-record-card-heading"><div className="cx-record-identity">{curatedValues.lead_id.value(row)}{copyButton(row)}</div>{selectButton(row)}</div><dl>{columns.filter(column => column.key !== 'lead_id').map(column => <div key={column.key}><dt>{column.label}</dt><dd>{value(column, row)}</dd></div>)}</dl></li>)}</ul>}

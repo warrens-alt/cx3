@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { JSDOM } from 'jsdom';
 import { buildLeadEvidenceSummary } from '../src/features/investigation/leadEvidenceSummaryModel';
 import LeadEvidenceSummary from '../src/features/investigation/LeadEvidenceSummary';
-import { recordedRevenue } from '../src/features/investigation/InvestigationRecordList';
+import { formatAnalyticalRevenue } from '../src/features/investigation/analyticalParameters';
 
 const now = Date.parse('2026-10-02T12:00:00Z');
 test('lifecycle reading guide preserves six independent positions, missing evidence and literal zero', () => {
@@ -57,10 +57,10 @@ test('compact and expanded lifecycle positions have text alternatives and no col
   }
 });
 
-test('recorded monetary evidence retains exact decimal strings and unavailable states', () => {
-  assert.equal(recordedRevenue('1234567890.123456789'), 'R 1234567890.123456789');
-  assert.equal(recordedRevenue(0), 'R 0');
-  assert.equal(recordedRevenue(null), 'Unavailable');
-  assert.equal(recordedRevenue('unknown'), 'Unavailable');
-  assert.equal(recordedRevenue(Number.NaN), 'Unavailable');
+test('recorded monetary evidence retains exact decimals and never invents a currency', () => {
+  assert.equal(formatAnalyticalRevenue({ revenue: '1234567890.123456789' }), '1234567890.123456789');
+  assert.equal(formatAnalyticalRevenue({ revenue: 0, currency: 'USD' }), '0 USD');
+  assert.equal(formatAnalyticalRevenue({ revenue: null }), 'Unavailable');
+  assert.equal(formatAnalyticalRevenue({ revenue: 'unknown' }), 'Unavailable');
+  assert.equal(formatAnalyticalRevenue({ revenue: Number.NaN }), 'Unavailable');
 });

@@ -28,6 +28,18 @@ test('the shared schema includes every own returned key exactly once, with known
   assert.equal(fields.some(field => field.key === 'activation_time'), false, 'No field is fabricated from the canonical registry');
 });
 
+test('Full analytical keeps semantic group order and sorts only additional returned keys alphabetically', () => {
+  const fields = discoverAnalyticalParameters([{
+    unknown_z: false, metadata: {}, sale: false, source: 'Returned source', currency: 'USD',
+    lead_id: 'EXACT-ID', unknown_a: 0, delivered_time: null, total_calls: 0, grade: 'A',
+    sale_time: null, investigationReason: null,
+  }]);
+  assert.deepEqual(fields.map(field => field.key), [
+    'lead_id', 'source', 'grade', 'delivered_time', 'total_calls', 'sale', 'currency',
+    'sale_time', 'investigationReason', 'metadata', 'unknown_a', 'unknown_z',
+  ]);
+});
+
 test('presentation preserves null, absent, zero, negative and exact decimal evidence without borrowing alias values', () => {
   const value = (key: string, data = row as Record<string, unknown>) => analyticalParameterText(data, analyticalParameter(key));
   assert.equal(value('total_calls'), '0'); assert.equal(value('dialled'), 'Not recorded');

@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { buildLedgerTimeline } from '../leadLedger/timeline';
 import { ledgerCalls } from '../../lib/leadLedgerValues';
 import { evidenceText, outcomeText, type InvestigationLead } from './InvestigationRecordList';
-import { analyticalParameter, analyticalParameterText } from './analyticalParameters';
+import { formatAnalyticalRevenue } from './analyticalParameters';
 import LeadEvidenceSummary from './LeadEvidenceSummary';
 
 /** A concise reading of the loaded analytical row. The existing timeline owns durations. */
@@ -14,7 +14,7 @@ export default function LeadDossierSummary({ row, validation }: { row: Investiga
     { title: 'Current state', fields: [['Furthest recorded stage', timeline.currentStage?.title], ['Evidence state', validation]] },
     { title: 'Qualification', fields: [['Grade', row.grade], ['Vetting', row.vetting]] },
     { title: 'Contact', fields: [['Recorded calls', ledgerCalls(row.total_calls)], ['RPC', outcomeText(row.contacted)], ['Latest disposition', row.last_dialer_status]] },
-    { title: 'Outcomes', fields: [['Recorded sale', outcomeText(row.sale)], ['Recorded activation', outcomeText(row.activated)], ['Recorded revenue', analyticalParameterText(row, analyticalParameter('revenue'))]] },
+    { title: 'Outcomes', fields: [['Recorded sale', outcomeText(row.sale)], ['Recorded activation', outcomeText(row.activated)], ['Recorded revenue', formatAnalyticalRevenue(row)]] },
     { title: 'Timing', fields: [['Captured', row.fetched], ['Delivered', row.delivered_time], ['First dial', row.first_call_time], ['Delivery → first dial', deliveryToDial?.label || 'Time unavailable']] },
   ];
   return <div className="cx-dossier-summary">

@@ -339,7 +339,9 @@ try {
     assertCaseScope();
     await dossier.getByRole('tab', { name: 'Audit', exact: true }).click();
     assert.match(await dossier.innerText(), /Supplied qualification flags.*Qualified/s);
-    await dossier.getByText('All parameters', { exact: true }).click();
+    assert.equal(await dossier.locator('.cx-analytical-all-parameters').count(), 0);
+    await dossier.getByRole('tab', { name: 'Summary', exact: true }).click();
+    await dossier.getByText('View all analytical parameters', { exact: true }).click();
     const parameters = dossier.getByRole('region', { name: 'All analytical parameters', exact: true });
     await parameters.getByLabel('Search parameter names', { exact: true }).fill('contacted');
     assert.match(await parameters.locator('[data-parameter-key="contacted"]').innerText(), /Not recorded/);

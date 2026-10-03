@@ -38,6 +38,7 @@ test('Full analytical represents every returned key with one selectable row and 
   assert.equal(doc.querySelector('tbody th')?.getAttribute('scope'), 'row');
   assert.equal(doc.querySelector('tbody tr')?.getAttribute('data-selected'), 'true');
   assert.equal(doc.querySelector('button[aria-label^="Open dossier"]')?.getAttribute('aria-controls'), 'lead-dossier');
+  assert.match(doc.querySelector('.cx-record-view')!.textContent!, /All returned analytical fields on this page/);
 });
 
 test('Journey and Outcomes show independent recorded outcomes without treating missing evidence as negative or zero', () => {
@@ -47,7 +48,7 @@ test('Journey and Outcomes show independent recorded outcomes without treating m
   const absent = render('outcomes', [{ ...lead, revenue: null, contacted: null, activated: '2' }]);
   assert.deepEqual([...absent.querySelectorAll('tbody td')].slice(0, 4).map(element => element.textContent), ['Unavailable', 'Unavailable', 'Unavailable', 'Unavailable']);
   const zero = render('outcomes', [{ ...lead, revenue: 0, sale: 0, activated: false }]);
-  assert.deepEqual([...zero.querySelectorAll('tbody td')].slice(0, 4).map(element => element.textContent), ['Not recorded', 'Not recorded', 'Not recorded', 'R 0']);
+  assert.deepEqual([...zero.querySelectorAll('tbody td')].slice(0, 4).map(element => element.textContent), ['Not recorded', 'Not recorded', 'Not recorded', '0']);
 });
 
 test('Investigation retains the supplied inclusion reason and removes the metadata-only Source preset', () => {

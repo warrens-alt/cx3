@@ -69,7 +69,8 @@ async function mount(props: Record<string, unknown>, extra: Record<string, unkno
   virtualConsole.on('error', (...items) => errors.push(items.map(String).join(' ')));
   const dom = new JSDOM('<div id="root"></div>', { url: 'https://synthetic.invalid', runScripts: 'outside-only', pretendToBeVisual: true, virtualConsole });
   const w = dom.window as any;
-  Object.assign(w, { structuredClone, __dossier: { props, loads: [], ...extra } });
+  Object.assign(w, { structuredClone, __dossier: { props, loads: [], requests: [], ...extra } });
+  w.fetch = (...args: unknown[]) => { w.__dossier.requests.push(args); throw new Error('Local dossier presentation must not fetch analytical data'); };
   w.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
   w.HTMLElement.prototype.scrollIntoView = () => {};
   w.eval(script);
@@ -114,7 +115,8 @@ test('Summary exposes independent lifecycle evidence and Outcomes retain the exa
     assert.match(stages[4].textContent, /Unavailable/);
     assert.match(stages[5].getAttribute('aria-label'), /Not recorded.*Qualification not supplied/);
     await app.click('Outcomes');
-    assert.match(app.text(), /R 1234567890\.123456789/);
+    assert.match(app.text(), /Source-recorded revenue · revenue1234567890\.123456789/);
+    assert.doesNotMatch(app.text(), /R 1234567890/);
     assert.equal(app.w.__dossier.loads.length, 0);
   } finally { app.close(); }
 });
@@ -172,7 +174,7 @@ test('dossier summary groups returned evidence and exposes every analytical para
     assert.match(app.w.document.querySelector('[data-summary-group="outcomes"]').textContent, /Recorded revenueUnavailable/);
     assert.match(app.w.document.querySelector('[data-summary-group="timing"]').textContent, /Delivery → first dialTiming anomaly/);
     const all = app.w.document.querySelector('.cx-dossier-all-parameters');
-    assert.equal(all.querySelector('summary').textContent, 'All parameters');
+    assert.equal(all.querySelector('summary').textContent, 'View all analytical parameters');
     assert.equal(all.querySelectorAll('[data-parameter-key]').length, Object.keys(extendedRow).length);
     assert.equal(all.querySelector('[data-parameter-key="additional_numeric_zero"] dd').textContent, '0');
     assert.match(all.querySelector('[data-parameter-key="additional_unavailable"] dd').textContent, /Unavailable/);
@@ -188,6 +190,83 @@ test('Summary retains exact revenue and only the currency returned with the anal
     assert.match(outcomes.textContent, /Recorded revenue1234567890\.123456789 USD/);
     assert.doesNotMatch(outcomes.textContent, /R 1234567890/);
     assert.equal(app.w.__dossier.loads.length, 0);
+  } finally { app.close(); }
+});
+
+test('Summary, Outcomes and the canonical parameter inspector share returned-currency presentation', async () => {
+  const cases = [
+    { name: 'USD preserves decimal precision', values: { revenue: '123.4500', currency: 'USD' }, expected: '123.4500 USD' },
+    { name: 'ZAR stays explicit', values: { revenue: '123.4500', currency: 'ZAR' }, expected: '123.4500 ZAR' },
+    { name: 'missing currency stays absent', values: { revenue: '123.4500' }, expected: '123.4500' },
+    { name: 'zero stays zero', values: { revenue: 0, currency: 'USD' }, expected: '0 USD' },
+    { name: 'long decimal stays exact', values: { revenue: '1234567890.123456789', currency: 'USD' }, expected: '1234567890.123456789 USD' },
+    { name: 'null revenue stays unavailable', values: { revenue: null, currency: 'USD' }, expected: 'Unavailable' },
+    { name: 'invalid revenue stays unavailable', values: { revenue: 'not a number', currency: 'USD' }, expected: 'Unavailable' },
+  ];
+  for (const example of cases) {
+    const revenueRow = { ...row, ...example.values };
+    const app = await mount({ row: revenueRow, result: { ...result, rows: [revenueRow] } });
+    const value = (label: string) => [...app.w.document.querySelectorAll('dt')].find((item: any) => item.textContent === label)?.nextElementSibling?.textContent;
+    try {
+      assert.equal(value('Recorded revenue'), example.expected, `${example.name}: Summary`);
+      const disclosure = app.w.document.querySelector('.cx-dossier-all-parameters');
+      disclosure.querySelector('summary').click();
+      assert.equal(disclosure.open, true);
+      assert.equal(disclosure.querySelector('[data-parameter-key="revenue"] dd').textContent, example.expected, `${example.name}: All parameters`);
+      await app.click('Outcomes');
+      assert.equal(value('Source-recorded revenue · revenue'), example.expected, `${example.name}: Outcomes`);
+      assert.equal(app.w.__dossier.loads.length, 0);
+      assert.equal(app.w.__dossier.requests.length, 0);
+    } finally { app.close(); }
+  }
+});
+
+test('the single Summary parameter disclosure retains exact keys, search and safe values while Audit stays focused', async () => {
+  const extendedRow = { ...row, consumer_id: '9007199254740993', additional_null: null, additional_nested: { note: '<script>not executable</script>', items: [0, null, false] } };
+  const app = await mount({ row: extendedRow, result: { ...result, rows: [extendedRow] } });
+  try {
+    const dossier = app.w.document.querySelector('.cx-lead-dossier');
+    const disclosure = dossier.querySelector('.cx-dossier-all-parameters');
+    const trigger = disclosure.querySelector('summary');
+    assert.equal(dossier.querySelectorAll('.cx-dossier-all-parameters').length, 1);
+    assert.equal(disclosure.closest('[role=tabpanel]').dataset.section, 'summary');
+    assert.equal(disclosure.open, false);
+    assert.equal(trigger.textContent, 'View all analytical parameters');
+    trigger.focus(); trigger.click();
+    assert.equal(disclosure.open, true);
+    assert.equal(app.w.document.activeElement, trigger);
+    const inspector = disclosure.querySelector('[aria-label="All analytical parameters"]');
+    const keys = () => [...inspector.querySelectorAll('[data-parameter-key]')].map((item: any) => item.dataset.parameterKey).sort();
+    assert.deepEqual(keys(), Object.keys(extendedRow).sort());
+    assert.equal(inspector.querySelector('[data-parameter-key="consumer_id"] dd').textContent, '9007199254740993');
+    assert.equal(inspector.querySelector('[data-parameter-key="additional_null"] dd').textContent, 'Unavailable');
+    assert.equal(inspector.querySelector('[data-parameter-key="absent_field"]'), null);
+    assert.equal(inspector.querySelector('script'), null);
+    assert.match(inspector.querySelector('[data-parameter-key="additional_nested"]').textContent, /<script>not executable<\/script>/);
+    const input = inspector.querySelector('input[type=search]');
+    assert.match(app.w.document.getElementById(input.getAttribute('aria-describedby')).textContent, /this analytical lead/);
+    const search = async (query: string) => {
+      Object.getOwnPropertyDescriptor(app.w.HTMLInputElement.prototype, 'value')!.set!.call(input, query);
+      input.dispatchEvent(new app.w.Event('input', { bubbles: true }));
+      await new Promise(resolve => setTimeout(resolve, 20));
+    };
+    await search('additional_'); assert.deepEqual(keys(), ['additional_nested', 'additional_null']);
+    assert.equal(inspector.querySelector('.cx-analytical-parameter-group').open, true);
+    await search('no matching field'); assert.equal(keys().length, 0);
+    await search(''); assert.deepEqual(keys(), Object.keys(extendedRow).sort());
+    trigger.click(); assert.equal(disclosure.open, false);
+    await app.click('Audit');
+    assert.equal(dossier.querySelector('.cx-analytical-all-parameters'), null);
+    assert.equal(dossier.querySelector('.cx-dossier-all-parameters'), null);
+    assert.ok(dossier.querySelector('[aria-label="Selected evidence state"]'));
+    assert.ok(dossier.querySelector('[aria-label="Selected evidence lineage"]'));
+    assert.match(dossier.textContent, /Supplied qualification flags.*Evidence definition, scope and limitations/s);
+    assert.equal(dossier.getAttribute('aria-label'), `Lead dossier for ${leadId}`);
+    assert.equal(dossier.querySelectorAll('.cx-dossier-tabs [role=tab]').length, 6);
+    await app.click('Summary');
+    assert.equal(dossier.querySelectorAll('.cx-dossier-all-parameters').length, 1);
+    assert.equal(app.w.__dossier.loads.length, 0);
+    assert.equal(app.w.__dossier.requests.length, 0);
   } finally { app.close(); }
 });
 

@@ -1,5 +1,4 @@
 import { ledgerCalls, ledgerOutcome, ledgerValidation } from '../../lib/leadLedgerValues';
-import { formatAuditValue } from '../../shared/evidence/auditVisualModel';
 
 export type AnalyticalRow = Readonly<Record<string, unknown>>;
 export const ANALYTICAL_PARAMETER_GROUPS = [
@@ -32,10 +31,14 @@ for (const [group, fields] of definitions) for (const [key, label, kind = 'text'
 
 export const evidenceText = (value: unknown) => value == null || value === '' ? 'Unavailable' : String(value);
 export const outcomeText = (value: unknown) => ledgerOutcome(value) === 'TRUE' ? 'Recorded' : ledgerOutcome(value) === 'FALSE' ? 'Not recorded' : 'Unavailable';
-export function recordedRevenue(value: unknown) {
-  if (typeof value === 'number') return Number.isFinite(value) ? `R ${formatAuditValue(value)}` : 'Unavailable';
-  if (typeof value !== 'string' || !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(value.trim())) return 'Unavailable';
-  return `R ${value}`;
+/** Lead-level presentation only: no assumed currency, rounding, or numeric coercion of returned decimals. */
+export function formatAnalyticalRevenue(row: AnalyticalRow, revenueField = 'revenue'): string {
+  const value = Object.hasOwn(row, revenueField) ? row[revenueField] : undefined;
+  const amount = typeof value === 'number' && Number.isFinite(value) ? String(value)
+    : typeof value === 'string' && /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(value.trim()) ? value : null;
+  if (amount === null) return 'Unavailable';
+  const currency = Object.hasOwn(row, 'currency') ? row.currency : undefined;
+  return typeof currency === 'string' && currency.trim() ? `${amount} ${currency}` : amount;
 }
 export function analyticalParameter(key: string): AnalyticalParameter {
   return known.get(key) || { key, label: key, group: 'additional', kind: 'text', numeric: false };
@@ -75,6 +78,7 @@ export function analyticalParameterJson(value: unknown): string {
 }
 export function analyticalParameterText(row: AnalyticalRow, field: AnalyticalParameter): string {
   if (!Object.hasOwn(row, field.key)) return 'Not supplied';
+  if (field.kind === 'revenue') return formatAnalyticalRevenue(row, field.key);
   const value = row[field.key];
   if (value == null || value === '') return 'Unavailable';
   if (typeof value === 'object') {
@@ -84,12 +88,6 @@ export function analyticalParameterText(row: AnalyticalRow, field: AnalyticalPar
   if (field.kind === 'outcome') return outcomeText(value);
   if (field.kind === 'validation') return ledgerValidation(value);
   if (field.kind === 'calls') return String(ledgerCalls(value));
-  if (field.kind === 'revenue') {
-    const amount = typeof value === 'number' && Number.isFinite(value) ? String(value)
-      : typeof value === 'string' && /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(value.trim()) ? value : null;
-    if (amount === null) return 'Unavailable';
-    return typeof row.currency === 'string' && row.currency.trim() ? `${amount} ${row.currency}` : amount;
-  }
   if (typeof value === 'number' && !Number.isFinite(value)) return 'Unavailable';
   if (typeof value === 'function' || typeof value === 'symbol') return `Unsupported ${typeof value}`;
   return String(value);
