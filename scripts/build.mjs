@@ -13,6 +13,7 @@ console.log('[build] Starting production build...');
 const distDir = path.join(rootDir, 'dist');
 const distHtml = path.join(distDir, 'index.html');
 const distAssets = path.join(distDir, 'assets');
+const distBrand = path.join(distDir, 'brand');
 
 // 1. Resolve and execute Vite build
 let viteBin = path.join(rootDir, 'node_modules', 'vite', 'bin', 'vite.js');
@@ -50,6 +51,10 @@ for (const clientDir of [distClientDir, buildDir, outDir]) {
   fs.copyFileSync(distHtml, path.join(clientDir, 'index.html'));
   fs.rmSync(path.join(clientDir, 'assets'), { recursive: true, force: true });
   fs.cpSync(distAssets, path.join(clientDir, 'assets'), { recursive: true, force: true });
+  fs.rmSync(path.join(clientDir, 'brand'), { recursive: true, force: true });
+  if (fs.existsSync(distBrand)) {
+    fs.cpSync(distBrand, path.join(clientDir, 'brand'), { recursive: true, force: true });
+  }
 }
 
 // 3. Bundle server.ts with esbuild for production Node execution
@@ -122,7 +127,7 @@ for (const filename of ['server.mjs', 'server.cjs']) {
 console.log('[build] Verification passed:');
 console.log(` - dist/index.html (${htmlSize} bytes)`);
 console.log(` - dist/assets/ (${assetCount} assets)`);
-console.log(' - dist/client/, build/, out/ (populated with index.html and assets)');
+console.log(' - dist/client/, build/, out/ (populated with index.html, assets and brand)');
 console.log(' - dist/server/server.mjs, build/server/server.mjs');
 console.log(' - dist/server.mjs, build/server.mjs (compatibility copies)');
 console.log('[build] Build completed successfully with valid non-empty artifacts.');

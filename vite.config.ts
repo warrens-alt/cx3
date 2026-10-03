@@ -14,6 +14,7 @@ function artifactMirrorPlugin() {
       const distDir = path.join(rootDir, 'dist');
       const distHtml = path.join(distDir, 'index.html');
       const distAssets = path.join(distDir, 'assets');
+      const distBrand = path.join(distDir, 'brand');
 
       if (!fs.existsSync(distHtml)) return;
 
@@ -30,6 +31,11 @@ function artifactMirrorPlugin() {
           const targetAssets = path.join(targetDir, 'assets');
           fs.rmSync(targetAssets, { recursive: true, force: true });
           fs.cpSync(distAssets, targetAssets, { recursive: true, force: true });
+        }
+        const targetBrand = path.join(targetDir, 'brand');
+        fs.rmSync(targetBrand, { recursive: true, force: true });
+        if (fs.existsSync(distBrand)) {
+          fs.cpSync(distBrand, targetBrand, { recursive: true, force: true });
         }
       }
     },

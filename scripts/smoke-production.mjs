@@ -11,7 +11,12 @@ import { setTimeout as delay } from 'node:timers/promises';
 // import, external-service configuration or deployment is performed here.
 const root = fileURLToPath(new URL('../', import.meta.url));
 const entries = ['dist/server/server.mjs', 'dist/server.mjs', 'dist/server/server.cjs', 'dist/server.cjs'];
+const launches = [
+  ...entries.map(entry => ({ entry, clientDir: null })),
+  ...['build', 'out'].map(clientDir => ({ entry: entries[0], clientDir })),
+];
 const expectedHtml = readFileSync(resolve(root, 'dist/index.html'), 'utf8');
+const expectedBrand = readFileSync(resolve(root, 'public/brand/conversionx-grey.png'));
 const assetPath = expectedHtml.match(/(?:src|href)="(\/assets\/[^"?]+\.js)"/)?.[1];
 assert.ok(assetPath, 'The production HTML must reference a compiled JavaScript asset');
 assert.equal(existsSync(resolve(root, 'server.js')), false, 'The build must not generate a root launcher');
@@ -27,7 +32,8 @@ async function unusedPort() {
   return port;
 }
 
-for (const entry of entries) {
+for (const { entry, clientDir } of launches) {
+  const label = `${entry} (${clientDir ? `CLIENT_DIR=${clientDir}` : 'default dist/client'})`;
   const port = await unusedPort();
   // Do not inherit tokens, credential paths or integration enablement flags.
   const env = {
@@ -38,6 +44,7 @@ for (const entry of entries) {
     CX_AUTH_MODE: 'firebase',
     CX_ALLOW_DEV_AUTH: 'false',
     PORT: String(port),
+    ...(clientDir ? { CLIENT_DIR: resolve(root, clientDir) } : {}),
   };
   const child = spawn(process.execPath, [resolve(root, entry)], { cwd: root, env, stdio: ['ignore', 'pipe', 'pipe'] });
   let output = '';
@@ -55,7 +62,7 @@ for (const entry of entries) {
     const deadline = Date.now() + 20000;
     while (Date.now() < deadline) {
       if (spawnError) throw spawnError;
-      assert.equal(child.exitCode, null, `${entry} exited before becoming ready: ${output}`);
+      assert.equal(child.exitCode, null, `${label} exited before becoming ready: ${output}`);
       try {
         const response = await request('/api/health');
         const body = await response.json();
@@ -64,10 +71,10 @@ for (const entry of entries) {
       if (ready) break;
       await delay(100);
     }
-    assert.ok(ready, `${entry} did not become ready: ${output}`);
+    assert.ok(ready, `${label} did not become ready: ${output}`);
     for (const path of ['/', '/sales-activation']) {
       const response = await request(path);
-      assert.equal(response.status, 200, `${entry}: ${path}`);
+      assert.equal(response.status, 200, `${label}: ${path}`);
       assert.equal(await response.text(), expectedHtml);
       assert.match(response.headers.get('cache-control') || '', /no-cache/);
     }
@@ -75,22 +82,26 @@ for (const entry of entries) {
     assert.equal(asset.status, 200);
     assert.ok((await asset.text()).length > 0);
     assert.match(asset.headers.get('cache-control') || '', /immutable/);
+    const brand = await request('/brand/conversionx-grey.png');
+    assert.equal(brand.status, 200, `${label}: canonical brand asset must be served`);
+    assert.match(brand.headers.get('content-type') || '', /^image\/png(?:;|$)/i, `${label}: brand asset must be a PNG`);
+    assert.deepEqual(Buffer.from(await brand.arrayBuffer()), expectedBrand, `${label}: brand bytes must match the supplied asset`);
     for (const path of [
       '/api/analytics/cli-performance?clientId=default_tenant',
       '/api/analytics/offernet/raw-leads?clientId=default_tenant',
     ]) {
       const response = await request(path);
-      assert.equal(response.status, 401, `${entry} must reject unauthenticated ${path}`);
+      assert.equal(response.status, 401, `${label} must reject unauthenticated ${path}`);
       await response.arrayBuffer();
     }
     for (const path of ['/server/server.mjs', '/server.cjs', '/server.mjs.map', '/package.json', '/.env']) {
       const response = await request(path);
-      assert.equal(response.status, 404, `${entry} must not serve ${path}`);
+      assert.equal(response.status, 404, `${label} must not serve ${path}`);
       await response.arrayBuffer();
     }
-    console.log(`[production-smoke] PASS ${entry}: startup, assets, SPA, authentication and private-file boundaries`);
+    console.log(`[production-smoke] PASS ${label}: startup, assets, brand, SPA, authentication and private-file boundaries`);
   } catch (error) {
-    console.error(`[production-smoke] FAIL ${entry}\n${output}`);
+    console.error(`[production-smoke] FAIL ${label}\n${output}`);
     throw error;
   } finally {
     if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
