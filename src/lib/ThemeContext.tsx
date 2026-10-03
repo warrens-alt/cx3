@@ -20,7 +20,7 @@ function getSystemTheme(): ResolvedTheme {
 }
 
 function getInitialTheme(): Theme {
-  if (typeof window === 'undefined') return 'light';
+  if (typeof window === 'undefined') return 'dark';
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved === 'light' || saved === 'dark' || saved === 'system') {
@@ -29,7 +29,7 @@ function getInitialTheme(): Theme {
   } catch {
     // LocalStorage access might fail in restricted sandboxes
   }
-  return 'light';
+  return 'dark';
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
