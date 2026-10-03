@@ -98,21 +98,21 @@
 .cx-page-shell { width:100%; min-width:0; color:var(--cx-text); }
 .cx-page-shell:not(.cx-analytics-page) { max-width:var(--cx-page-max-width,1600px); margin-inline:auto; padding:24px var(--cx-page-padding-x,24px) 48px; }
 .cx-command-page { min-width:0; background:var(--cx-canvas); color:var(--cx-text); }
-.cx-command-content { width:100%;--cx-chapter-gap:32px;max-width:var(--cx-page-max-width,1600px); margin:0 auto; padding:28px var(--cx-page-padding-x,24px) 48px; display:flex; flex-direction:column; gap:var(--cx-chapter-gap); min-width:0; }
+.cx-command-content { width:100%;--cx-chapter-gap:var(--cx-section-gap);max-width:var(--cx-page-max-width,1600px); margin:0 auto; padding:24px var(--cx-page-padding-x,24px) 48px; display:flex; flex-direction:column; gap:var(--cx-chapter-gap); min-width:0; }
 .cx-analytics-page-content > * { min-width:0; }
 .cx-command-content.space-y-6 > :not(:last-child) { margin-block-end:0; }
 .cx-page-header, .cx-command-hero { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; margin:0; padding:0; border:0; }
 .cx-page-heading, .cx-page-header > div, .cx-command-hero > div { min-width:0; }
 .cx-page-heading { flex:1; }
-.cx-page-header h1, .cx-command-hero h1 { color:var(--cx-text); margin:0; font-size:clamp(24px,2.3vw,30px); font-weight:700; line-height:1.2; letter-spacing:-.035em; text-wrap:balance; }
-.cx-page-header p, .cx-command-hero p { margin:7px 0 0; max-width:76ch; color:var(--cx-text-secondary); font-size:14px; line-height:1.55; }
+.cx-page-header h1, .cx-command-hero h1 { color:var(--cx-text); margin:0; font-size:clamp(22px,2.3vw,var(--cx-type-page)); font-weight:700; line-height:1.25; letter-spacing:-.025em; text-wrap:balance; }
+.cx-page-header p, .cx-command-hero p { margin:var(--cx-space-2) 0 0; max-width:76ch; color:var(--cx-text-secondary); font-size:13px; line-height:1.55; }
 .cx-page-actions, .cx-operational-page-actions { flex-shrink:0; display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:8px; }
 .cx-page-category, .cx-command-eyebrow, .cx-command-section-kicker { display:block; margin-bottom:5px; font-size:12px; font-weight:600; color:var(--cx-text-secondary); letter-spacing:0; text-transform:none; }
 .cx-page-badges { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; font-size:12px; color:var(--cx-text-secondary); }
 .cx-page-badge { font-weight:600; }
 
 /* Independent metrics retain a surface; related measures form connected telemetry below. */
-.cx-metric-card, .cx-command-metric { position:relative; min-width:0; padding:18px; background:var(--cx-surface); border:1px solid var(--cx-border-subtle); border-radius:var(--cx-radius-md); box-shadow:none; }
+.cx-metric-card, .cx-command-metric { position:relative; min-width:0; padding:var(--cx-panel-padding); background:var(--cx-surface); border:1px solid var(--cx-border-subtle); border-radius:var(--cx-radius-md); box-shadow:none; }
 .cx-metric-card { display:flex; flex-direction:column; justify-content:space-between; height:100%; }
 .cx-metric-label, .cx-command-metric > span, .cx-command-metric > div > span { display:block; color:var(--cx-text-secondary); font-size:12px; font-weight:600; line-height:1.45; letter-spacing:0; text-transform:none; overflow-wrap:anywhere; }
 .cx-metric-value, .cx-command-metric > strong, .cx-command-metric > div > strong { color:var(--cx-text); font-family:var(--font-sans); font-size:clamp(26px,2.3vw,32px); font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:-.035em; line-height:1.2; overflow-wrap:anywhere; }
@@ -128,7 +128,7 @@
 .cx-metric-card:has(.cx-metric-primary):hover { border-color:var(--cx-action); }
 .cx-command-metrics { display:grid;grid-template-columns:repeat(5,minmax(0,1fr)); }
 :where(.cx-command-metrics,.cx-visual-metric-grid,.grid:has(>.cx-unified-metric),section:has(>.cx-unified-metric)) { gap:0;background:transparent;border-block:1px solid var(--cx-border);border-radius:0;box-shadow:none;overflow:visible; }
-:where(.cx-command-metrics,.cx-visual-metric-grid,.grid,section)>.cx-metric-card { padding:18px 20px;border:0;border-inline-end:1px solid var(--cx-border-subtle);border-radius:0;background:transparent;box-shadow:none; }
+:where(.cx-command-metrics,.cx-visual-metric-grid,.grid,section)>.cx-metric-card { padding:var(--cx-space-4);border:0;border-inline-end:1px solid var(--cx-border-subtle);border-radius:0;background:transparent;box-shadow:none; }
 :where(.cx-command-metrics,.cx-visual-metric-grid,.grid,section)>.cx-metric-card:last-child { border-inline-end:0; }
 .cx-kpi-tools { display:flex; gap:2px; }
 .cx-kpi-tools button { min-width:28px; min-height:28px; }
@@ -145,11 +145,11 @@
 
 /* Supported legacy panels converge on the same surface while retaining their feature layouts. */
 .enterprise-card, .cx-report-panel, .cx-command-panel { background:var(--cx-surface); border:1px solid var(--cx-border-subtle); border-radius:var(--cx-radius-md); box-shadow:none; min-width:0; }
-.cx-report-panel { padding:18px; }
+.cx-report-panel { padding:var(--cx-panel-padding); }
 .cx-command-panel { overflow:hidden; }
 .cx-command-grid { display:grid; gap:20px; }
 .cx-command-panel > header, .cx-report-panel-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; }
-.cx-command-panel > header { padding:18px; border-bottom:1px solid var(--cx-border-subtle); }
+.cx-command-panel > header { padding:var(--cx-panel-padding); border-bottom:1px solid var(--cx-border-subtle); }
 .cx-command-panel > header > div, .cx-report-panel-heading > div { min-width:0; }
 .cx-command-panel > header h2, .cx-report-panel h2 { margin:0; color:var(--cx-text); font-size:16px; font-weight:650; line-height:1.4; letter-spacing:-.015em; }
 .cx-command-panel > header p, .cx-report-panel-heading p { margin:5px 0 0; color:var(--cx-text-secondary); font-size:12px; line-height:1.6; max-width:76ch; }
@@ -399,7 +399,7 @@
   gap: 8px 14px;
   max-width: 100%;
   margin: 0 auto;
-  padding: 4px var(--cx-page-padding-x, 24px) 10px;
+  padding: var(--cx-space-1) 0 var(--cx-space-2);
 }
 .cx-scope-controls .cx-scope-chips {
   display: flex;
@@ -543,7 +543,7 @@
   .cx-scope-controls .cx-scope-more { order: 3; grid-column: 1 / -1; justify-self: start; min-height: 38px; }
   .cx-scope-controls .cx-scopebar-actions { order: 0; grid-column: 2; justify-self: end; margin-left: 0; gap: 6px; }
   .cx-scope-controls .cx-scopebar-actions button { min-width: 38px; min-height: 38px; }
-  .cx-scopebar-meta { padding: 0 12px 10px; gap: 8px; }
+  .cx-scopebar-meta { padding: 0 0 8px; gap: 8px; }
   .cx-scope-controls .cx-scopebar-more { padding: 16px 12px; gap: 16px; }
   .cx-scope-date-editor { flex-basis: 100%; width: 100%; }
   .cx-scope-controls .cx-scope-custom-dates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }

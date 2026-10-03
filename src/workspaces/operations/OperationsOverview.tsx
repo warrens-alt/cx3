@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Clock3, Search } from 'lucide-react';
 import AnalyticsPageLayout from '../../components/AnalyticsPageLayout';
 import ReportingScopeBar from '../../shared/reporting/ReportingScopeBar';
+import { ReportStatusSlot } from '../../shared/reporting/ReportPresentation';
 import ReportingScopeSummary from '../../shared/reporting/ReportingScopeSummary';
 import ChartFrame from '../../shared/visuals/ChartFrame';
 import EvidenceBars from '../../shared/visuals/EvidenceBars';
@@ -46,7 +47,7 @@ export default function OperationsOverview() {
   ];
   const vendorLabel = vendorMeasure === 'rpcRate' ? 'RPC / dialled' : vendorMeasure === 'leadToSaleRate' ? 'Sale / fetched' : 'Zero-call leads';
   return <AnalyticsPageLayout title="Operations" description="Understand what happened after delivery: contact coverage, recorded effort, response and outcomes." className="cx-operations-overview"
-    actions={<Link className="cx-button-secondary" to={scoped('/investigate')}><Search size={14} aria-hidden="true" />Investigate</Link>}
+    actions={<><Link className="cx-button-secondary" to={scoped('/investigate')}><Search size={14} aria-hidden="true" />Investigate</Link><ReportStatusSlot /></>}
     scope={<ReportingScopeBar onRefresh={refresh} comparisonWindow={data?.comparisonWindow} />}>
     {overview.error && <OperationalError message={overview.error} onRetry={() => { void overview.loadData(true); }} />}
     {overview.loading && !data && <VisualSkeleton kind="bars" label="Loading operational populations" />}

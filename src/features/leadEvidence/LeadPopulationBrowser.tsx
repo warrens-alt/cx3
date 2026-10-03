@@ -174,9 +174,10 @@ export default function LeadPopulationBrowser({ navigation, selection, onSelect,
           </header>
 
           <button type="button" className="cx-button-secondary cx-analytical-export" disabled={!isExportAvailable} onClick={() => { if (data) setExportReview({ scopeKey, result: data }); }}>Export current analytical page</button>
-          <form onSubmit={handleSearchSubmit} className="cx-explorer-search">
+          <form onSubmit={handleSearchSubmit} className="cx-explorer-search cx-record-search">
             <label>
-              <Search size={14} />
+              <span className="cx-record-search-label">Record search</span>
+              <Search size={14} aria-hidden="true" />
               <input aria-label="Search lead records"
                 type="text"
                 value={search}

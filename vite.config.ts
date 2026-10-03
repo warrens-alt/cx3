@@ -76,13 +76,7 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks(id) {
-            if (
-              id.includes('/pages/Exceptions') ||
-              id.includes('Exceptions.tsx') ||
-              id.includes('ExceptionWorkbench')
-            ) {
-              return 'investigation-workbench';
-            }
+            // Let route imports define application chunks; manual grouping is for vendors only.
             if (id.includes('node_modules/recharts')) {
               return 'vendor-recharts';
             }
@@ -102,15 +96,6 @@ export default defineConfig(({ mode }) => {
             if (id.includes('node_modules/firebase') || id.includes('node_modules/@firebase')) {
               return 'vendor-firebase';
             }
-          },
-          chunkFileNames(chunkInfo) {
-            const name = chunkInfo.name.replace(/Exceptions/gi, 'investigations');
-            return `assets/${name}-[hash].js`;
-          },
-          assetFileNames(assetInfo) {
-            const rawName = (assetInfo.names?.[0] || assetInfo.name || 'asset').replace(/\.[^/.]+$/, '');
-            const sanitized = rawName.replace(/Exceptions/gi, 'investigations');
-            return `assets/${sanitized}-[hash][extname]`;
           },
         },
       },

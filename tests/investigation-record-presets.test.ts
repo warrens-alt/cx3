@@ -21,13 +21,17 @@ const render = (preset: InvestigationRecordPreset, suppliedRows = rows) => new J
   rows: suppliedRows, preset, selectedLeadId: lead.lead_id, dossierId: 'lead-dossier', investigation: 'awaiting-first-dial', onSelect() {},
 }))).window.document;
 
-test('Full analytical preserves the old table field set as 17 columns with one selectable row and exact values', () => {
+test('Full analytical represents every returned key with one selectable row and preserves exact values', () => {
   const doc = render('full');
-  const headers = [...doc.querySelectorAll('thead th')].map(element => element.textContent);
-  assert.deepEqual(headers, ['Lead ID', 'Consumer ID', 'Fetched', 'Source', 'Vendor', 'Grade', 'Vetting', 'ID valid', 'Phone valid', 'Dialled', 'RPC', 'Calls', 'Last disposition', 'Sale', 'Activation', 'Source-recorded revenue', 'Action']);
-  const cells = [...doc.querySelectorAll('tbody tr>th,tbody tr>td')].map(element => element.textContent);
-  assert.deepEqual(cells.slice(1, 16), ['9007199254740993', '2026-09-28T07:00:00Z', 'Returned source', 'Returned vendor', 'A', 'Unavailable', 'Invalid (2)', 'Unavailable', 'Not recorded', 'Not recorded', '0', 'Unavailable', 'Unavailable', 'Recorded', 'R 1234567890.123456789']);
-  assert.equal(doc.querySelectorAll('button[aria-label^="Open dossier"]').length, 1, 'Full mode renders one table rather than duplicating 17 fields and actions in mobile cards');
+  const keys = [...doc.querySelectorAll('thead th[data-parameter-key]')].map(element => element.getAttribute('data-parameter-key'));
+  assert.deepEqual([...keys].sort(), Object.keys(lead).sort());
+  assert.equal(doc.querySelectorAll('thead th').length, Object.keys(lead).length + 1);
+  const cell = (key: string) => doc.querySelector(`tbody td[data-parameter-key="${key}"]`)?.textContent;
+  assert.deepEqual(['consumer_id', 'fetched', 'source', 'vendor', 'grade', 'vetting', 'valid_idno', 'phone_valid', 'dialled', 'contacted', 'total_calls', 'last_dialer_status', 'sale', 'activated', 'revenue'].map(cell), ['9007199254740993', '2026-09-28T07:00:00Z', 'Returned source', 'Returned vendor', 'A', 'Unavailable', 'Invalid (2)', 'Unavailable', 'Not recorded', 'Not recorded', '0', 'Unavailable', 'Unavailable', 'Recorded', '1234567890.123456789']);
+  assert.equal(cell('delivered_time'), '2026-09-28T08:00:00Z');
+  assert.equal(cell('first_call_time'), '2026-09-28T08:10:00Z');
+  assert.match(cell('investigationReason')!, /Returned inclusion reason.*The supplied predicate explanation/s);
+  assert.equal(doc.querySelectorAll('button[aria-label^="Open dossier"]').length, 1, 'Full mode renders one bounded table without duplicate actions in mobile cards');
   assert.equal(doc.querySelectorAll('button[aria-label^="Copy lead ID"]').length, 1);
   assert.equal(doc.querySelector('.cx-investigation-record-cards'), null);
   assert.equal(doc.querySelector('[role="region"]')?.getAttribute('tabindex'), '0', 'Keyboard users can focus and scroll the wide analytical table');
@@ -57,7 +61,19 @@ test('Investigation retains the supplied inclusion reason and removes the metada
   assert.equal(doc.querySelectorAll('tbody [data-evidence-stage]').length, 6);
   assert.match(doc.querySelector('tbody [data-evidence-stage="rpc"]')!.getAttribute('aria-label')!, /Not recorded/);
   assert.match(doc.querySelector('tbody [data-evidence-stage="sale"]')!.getAttribute('aria-label')!, /Unavailable/);
-  assert.equal(render('full').querySelector('[data-evidence-stage]'), null, 'Full analytical retains its exact original table presentation');
+  assert.equal(render('full').querySelector('[data-evidence-stage]'), null, 'Full analytical shows returned parameters without inserting derived lifecycle columns');
+});
+
+test('Full analytical discovers the complete page union without substituting alias or absent fields', () => {
+  const doc = render('full', [{ ...lead, source: null, offershop_source: 'Separate returned source', extra_evidence: { note: '<script>untrusted</script>', numbers: [0, null] } }, { lead_id: 'LEAD-2', later_page_field: false }]);
+  const keys = [...doc.querySelectorAll('thead th[data-parameter-key]')].map(element => element.getAttribute('data-parameter-key'));
+  assert.ok(keys.includes('offershop_source')); assert.ok(keys.includes('extra_evidence')); assert.ok(keys.includes('later_page_field'));
+  const first = doc.querySelector('tbody tr')!;
+  assert.equal(first.querySelector('[data-parameter-key="source"]')?.textContent, 'Unavailable');
+  assert.equal(first.querySelector('[data-parameter-key="offershop_source"]')?.textContent, 'Separate returned source');
+  assert.equal(first.querySelector('[data-parameter-key="later_page_field"]')?.textContent, 'Not supplied');
+  assert.equal(doc.querySelector('script'), null);
+  assert.doesNotMatch(doc.body.textContent!, /\[object Object\]/);
 });
 
 const bundle = await build({
@@ -123,6 +139,52 @@ test('controlled presentation changes preserve the exact loaded selection and do
     assert.deepEqual(Array.from(app.fixture.presetChanges), ['journey', 'contact', 'outcomes', 'full', 'investigation']);
     assert.equal(app.fixture.selections.length, 1);
     assert.equal(JSON.stringify(rows), original);
+    assert.equal(app.fixture.requests.length, 0);
+  } finally { app.close(); }
+});
+
+test('column manager supports grouped search, optional visibility, restoration and Escape without queries or selection loss', async () => {
+  const app = await mount();
+  const button = (label: string) => {
+    const element = [...app.w.document.querySelectorAll('.cx-analytical-column-manager button')].find((item: any) => item.textContent === label) as any;
+    assert.ok(element, label); element.click();
+  };
+  const keys = () => [...app.w.document.querySelectorAll('thead th[data-parameter-key]')].map((item: any) => item.dataset.parameterKey);
+  try {
+    app.click(`Open dossier for lead ${lead.lead_id}`);
+    await app.wait(() => app.w.document.querySelector('tbody tr')?.dataset.selected === 'true');
+    const manager = app.w.document.querySelector('.cx-analytical-column-manager');
+    manager.querySelector('summary').click();
+    assert.equal(manager.open, true);
+    const labels = [...manager.querySelectorAll('legend')].map((item: any) => item.textContent);
+    for (const label of ['Identity', 'Acquisition', 'Qualification', 'Contact', 'Investigation']) assert.ok(labels.includes(label), label);
+    const identity = [...manager.querySelectorAll('label')].find((item: any) => item.textContent.includes('Lead ID')) as any;
+    assert.equal(identity.querySelector('input').disabled, true);
+    button('Clear optional fields'); await app.wait(() => keys().length === 1); assert.deepEqual(keys(), ['lead_id']);
+    button('Select all'); await app.wait(() => keys().includes('first_call_time'));
+    assert.ok(keys().includes('phone_valid'));
+    const search = manager.querySelector('input[type=search]');
+    Object.getOwnPropertyDescriptor(app.w.HTMLInputElement.prototype, 'value')!.set!.call(search, 'phone_valid');
+    search.dispatchEvent(new app.w.Event('input', { bubbles: true }));
+    await app.wait(() => manager.querySelectorAll('input[type=checkbox]').length === 1);
+    assert.match(manager.querySelector('fieldset').textContent, /Qualification.*Phone valid/s);
+    manager.querySelector('input[type=checkbox]').click(); await app.wait(() => !keys().includes('phone_valid'));
+    button('Restore Investigation preset'); await app.wait(() => keys().length === 5);
+    assert.deepEqual(keys(), ['lead_id', 'investigationReason', 'vendor', 'source', '@delay']);
+    search.dispatchEvent(new app.w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    assert.equal(manager.open, false); assert.equal(app.w.document.activeElement, manager.querySelector('summary'));
+    assert.equal(app.w.document.querySelector('tbody tr')?.dataset.selected, 'true');
+    assert.equal(app.fixture.requests.length, 0); assert.equal(app.fixture.selections.length, 1);
+  } finally { app.close(); }
+});
+
+test('the unmodified Full analytical preset includes new returned keys after a response refresh', async () => {
+  const app = await mount();
+  try {
+    await app.changePreset('full');
+    app.fixture.replaceRows([{ ...lead, new_returned_parameter: null }]);
+    await app.wait(() => app.w.document.querySelector('thead [data-parameter-key="new_returned_parameter"]'));
+    assert.equal(app.w.document.querySelector('tbody [data-parameter-key="new_returned_parameter"]').textContent, 'Unavailable');
     assert.equal(app.fixture.requests.length, 0);
   } finally { app.close(); }
 });

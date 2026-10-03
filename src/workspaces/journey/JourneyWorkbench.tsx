@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Download, GitBranch, Search } from 'lucide-react';
 import AnalyticsPageLayout from '../../components/AnalyticsPageLayout';
 import ReportingScopeBar from '../../shared/reporting/ReportingScopeBar';
+import { ReportStatusSlot } from '../../shared/reporting/ReportPresentation';
 import ReportingScopeSummary from '../../shared/reporting/ReportingScopeSummary';
 import ChartFrame from '../../shared/visuals/ChartFrame';
 import EvidenceBars from '../../shared/visuals/EvidenceBars';
@@ -73,7 +74,7 @@ export default function JourneyWorkbench({ selection, onSelect }: { selection: J
     setLens(value === 'delivered-to-dialled' || value === 'sales-to-activated' ? 'timing' : 'comparison');
   };
   return <AnalyticsPageLayout title="Journey" description="Follow the lead population. Select a stage or transition to understand its evidence." className="cx-journey-workbench"
-    actions={<><Link className="cx-button-secondary" to={scoped('/investigate')}><Search size={14} aria-hidden="true" />Investigate</Link>{data && <button type="button" className="cx-button-secondary" onClick={handleExportCsv}><Download size={14} aria-hidden="true" />Export CSV</button>}</>}
+    actions={<><Link className="cx-button-secondary" to={scoped('/investigate')}><Search size={14} aria-hidden="true" />Investigate</Link>{data && <button type="button" className="cx-button-secondary" onClick={handleExportCsv}><Download size={14} aria-hidden="true" />Export CSV</button>}<ReportStatusSlot /></>}
     scope={<ReportingScopeBar onRefresh={refreshWorkspace} comparisonWindow={data?.lifecycle?.period?.previous} />}>
     {error && <OperationalError message={error} onRetry={() => { void refreshAll(); }} />}
     {loading && !data && <VisualSkeleton kind="lifecycle" label="Loading lifecycle evidence" />}

@@ -1,10 +1,12 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Check, Copy, Eye } from 'lucide-react';
-import { ledgerCalls, ledgerOutcome, ledgerValidation } from '../../lib/leadLedgerValues';
-import { formatAuditValue } from '../../shared/evidence/auditVisualModel';
 import { buildLedgerTimeline, formatLedgerDuration } from '../leadLedger/timeline';
 import type { RawLeadsData } from '../../lib/offernetClient';
 import LeadEvidenceSummary from './LeadEvidenceSummary';
+import AnalyticalColumnManager from './AnalyticalColumnManager';
+import AnalyticalParameterValue from './AnalyticalParameterValue';
+import { analyticalParameter, discoverAnalyticalParameters, evidenceText, recordedRevenue, type AnalyticalParameter } from './analyticalParameters';
+export { evidenceText, outcomeText, recordedRevenue } from './analyticalParameters';
 
 export type InvestigationLead = RawLeadsData['rows'][number];
 export type InvestigationRecordPreset = 'investigation' | 'journey' | 'contact' | 'outcomes' | 'full';
@@ -15,8 +17,6 @@ export const INVESTIGATION_RECORD_PRESETS: ReadonlyArray<{ value: InvestigationR
   { value: 'outcomes', label: 'Outcomes' },
   { value: 'full', label: 'Full analytical' },
 ];
-export const evidenceText = (value: unknown) => value == null || value === '' ? 'Unavailable' : String(value);
-export const outcomeText = (value: unknown) => ledgerOutcome(value) === 'TRUE' ? 'Recorded' : ledgerOutcome(value) === 'FALSE' ? 'Not recorded' : 'Unavailable';
 export function inclusionReason(row: InvestigationLead, investigation?: string | null) {
   return typeof row.investigationReason?.label === 'string' && row.investigationReason.label
     ? row.investigationReason.label : investigation ? 'Inclusion explanation unavailable' : 'Matches reporting scope and applied filters';
@@ -30,43 +30,23 @@ export function leadDelay(row: InvestigationLead) {
   return duration < 0 ? 'Timing anomaly' : formatLedgerDuration(duration);
 }
 
-export function recordedRevenue(value: unknown) {
-  if (typeof value === 'number') return Number.isFinite(value) ? `R ${formatAuditValue(value)}` : 'Unavailable';
-  if (typeof value !== 'string' || !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(value.trim())) return 'Unavailable';
-  return `R ${value}`;
-}
-
 const suppliedField = (...values: unknown[]) => evidenceText(values.find(value => value != null && value !== ''));
 
-type Column = { key: string; label: string; value: (row: InvestigationLead) => React.ReactNode };
-const columnMap: Record<string, Column> = {
-  lead: { key: 'lead', label: 'Lead / current state', value: row => <div className="cx-record-evidence-identity"><strong className="cx-record-id">{row.lead_id}</strong><small>{buildLedgerTimeline(row).currentStage?.title || 'Stage unavailable'}</small><LeadEvidenceSummary row={row} compact /></div> },
-  reason: { key: 'reason', label: 'Why included', value: () => null },
-  vendor: { key: 'vendor', label: 'Vendor', value: row => evidenceText(row.vendor) },
-  source: { key: 'source', label: 'Source', value: row => suppliedField(row.source, row.offershop_source) },
-  delay: { key: 'delay', label: 'Delivery → first dial', value: row => leadDelay(row) },
-  calls: { key: 'calls', label: 'Calls', value: row => ledgerCalls(row.total_calls) },
-  disposition: { key: 'disposition', label: 'Last disposition', value: row => evidenceText(row.last_dialer_status) },
-  fetched: { key: 'fetched', label: 'Fetched', value: row => evidenceText(row.fetched) },
-  delivered: { key: 'delivered', label: 'Delivered', value: row => evidenceText(row.delivered_time) },
-  dial: { key: 'dial', label: 'First dial', value: row => evidenceText(row.first_call_time) },
-  rpc: { key: 'rpc', label: 'RPC', value: row => outcomeText(row.contacted) },
-  sale: { key: 'sale', label: 'Sale', value: row => outcomeText(row.sale) },
-  activation: { key: 'activation', label: 'Activation', value: row => outcomeText(row.activated) },
-  revenue: { key: 'revenue', label: 'Source-recorded revenue', value: row => recordedRevenue(row.revenue) },
-  consumer: { key: 'consumer', label: 'Consumer ID', value: row => evidenceText(row.consumer_id) },
-  grade: { key: 'grade', label: 'Grade', value: row => suppliedField(row.grade, row.offershop_grade) },
-  vetting: { key: 'vetting', label: 'Vetting', value: row => suppliedField(row.vetting, row.offershop_color_vetting) },
-  validId: { key: 'validId', label: 'ID valid', value: row => ledgerValidation(row.valid_idno) },
-  validPhone: { key: 'validPhone', label: 'Phone valid', value: row => ledgerValidation(row.phone_valid) },
-  dialled: { key: 'dialled', label: 'Dialled', value: row => outcomeText(row.dialled) },
+type Column = AnalyticalParameter & { value: (row: InvestigationLead) => React.ReactNode };
+const curatedValues: Record<string, { label?: string; value: (row: InvestigationLead) => React.ReactNode }> = {
+  lead_id: { label: 'Lead / current state', value: row => <div className="cx-record-evidence-identity"><strong className="cx-record-id">{row.lead_id}</strong><small>{buildLedgerTimeline(row).currentStage?.title || 'Stage unavailable'}</small><LeadEvidenceSummary row={row} compact /></div> },
+  investigationReason: { value: () => null },
+  source: { value: row => suppliedField(row.source, row.offershop_source) },
+  '@delay': { label: 'Delivery → first dial', value: row => leadDelay(row) },
+  grade: { value: row => suppliedField(row.grade, row.offershop_grade) },
+  vetting: { value: row => suppliedField(row.vetting, row.offershop_color_vetting) },
+  revenue: { value: row => recordedRevenue(row.revenue) },
 };
-const presets: Record<InvestigationRecordPreset, string[]> = {
-  investigation: ['lead', 'reason', 'vendor', 'source', 'delay'],
-  journey: ['lead', 'fetched', 'delivered', 'dial', 'rpc', 'sale', 'activation'],
-  contact: ['lead', 'dial', 'calls', 'rpc', 'disposition', 'vendor'],
-  outcomes: ['lead', 'rpc', 'sale', 'activation', 'revenue'],
-  full: ['lead', 'consumer', 'fetched', 'source', 'vendor', 'grade', 'vetting', 'validId', 'validPhone', 'dialled', 'rpc', 'calls', 'disposition', 'sale', 'activation', 'revenue'],
+const presets: Record<Exclude<InvestigationRecordPreset, 'full'>, string[]> = {
+  investigation: ['lead_id', 'investigationReason', 'vendor', 'source', '@delay'],
+  journey: ['lead_id', 'fetched', 'delivered_time', 'first_call_time', 'contacted', 'sale', 'activated'],
+  contact: ['lead_id', 'first_call_time', 'total_calls', 'contacted', 'last_dialer_status', 'vendor'],
+  outcomes: ['lead_id', 'contacted', 'sale', 'activated', 'revenue'],
 };
 
 export default function InvestigationRecordList({ rows, selectedLeadId, investigation, dossierId, observedAt, preset, onPresetChange, onSelect }: {
@@ -83,6 +63,16 @@ export default function InvestigationRecordList({ rows, selectedLeadId, investig
   const view = preset ?? localPreset;
   const viewLabel = INVESTIGATION_RECORD_PRESETS.find(option => option.value === view)!.label;
   const viewId = useId();
+  const [customColumns, setCustomColumns] = useState<{ view: InvestigationRecordPreset; keys: string[] } | null>(null);
+  const schema = useMemo(() => discoverAnalyticalParameters(rows), [rows]);
+  const defaultKeys = useMemo(() => view === 'full' ? schema.map(field => field.key) : presets[view], [view, schema]);
+  const availableFields = useMemo(() => {
+    const fields = [...schema];
+    for (const key of defaultKeys) if (!fields.some(field => field.key === key)) fields.push(key === '@delay' ? { ...analyticalParameter(key), label: 'Age / delay', group: 'timing' } : analyticalParameter(key));
+    return fields;
+  }, [schema, defaultKeys]);
+  const selectedKeys = customColumns?.view === view ? customColumns.keys.filter(key => availableFields.some(field => field.key === key)) : defaultKeys;
+  const wideTable = view === 'full' || selectedKeys.length > 10;
   const copyStatusId = useId();
   const copyRequest = useRef(0);
   const copyRows = useRef(rows);
@@ -96,10 +86,14 @@ export default function InvestigationRecordList({ rows, selectedLeadId, investig
     }
     return () => { copyRequest.current += 1; };
   }, [rows]);
-  const columns = useMemo(() => presets[view].map(key => key === 'delay' && view === 'investigation' ? { ...columnMap.delay, label: 'Age / delay' } : key === 'lead' && view === 'full' ? { ...columnMap.lead, label: 'Lead ID', value: (row: InvestigationLead) => <strong className="cx-record-id">{evidenceText(row.lead_id)}</strong> } : columnMap[key]), [view]);
+  const columns: Column[] = selectedKeys.map(key => {
+    const field = availableFields.find(item => item.key === key)!;
+    if (view !== 'full' && Object.hasOwn(curatedValues, key)) return { ...field, ...curatedValues[key], label: key === '@delay' && view === 'investigation' ? 'Age / delay' : curatedValues[key].label || field.label };
+    return { ...field, value: row => key === 'lead_id' ? <strong className="cx-record-id">{evidenceText(row.lead_id)}</strong> : <AnalyticalParameterValue row={row} field={field} /> };
+  });
   const value = (column: Column, row: InvestigationLead) => {
-    if (column.key === 'reason') return <span title={row.investigationReason?.detail}>{inclusionReason(row, investigation)}</span>;
-    if (column.key === 'delay' && view === 'investigation') {
+    if (column.key === 'investigationReason' && view !== 'full') return <span title={row.investigationReason?.detail}>{inclusionReason(row, investigation)}</span>;
+    if (column.key === '@delay' && view === 'investigation') {
       const journey = buildLedgerTimeline(row);
       const delivery = journey.milestones.find(event => event.kind === 'delivery');
       const dial = journey.milestones.find(event => event.kind === 'call');
@@ -127,9 +121,9 @@ export default function InvestigationRecordList({ rows, selectedLeadId, investig
     return <button type="button" className="cx-record-copy" disabled={row.lead_id == null || row.lead_id === ''} onClick={() => void copyLeadId(row)} aria-label={`Copy lead ID ${row.lead_id}`} aria-describedby={currentCopyStatus?.leadId === String(row.lead_id) ? copyStatusId : undefined} title={copied ? 'Lead ID copied' : 'Copy lead ID'}>{copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}</button>;
   };
   return <>
-    <div className="cx-record-view"><label htmlFor={viewId}>Record view</label><select id={viewId} value={view} onChange={event => { const next = event.target.value as InvestigationRecordPreset; if (preset === undefined) setLocalPreset(next); onPresetChange?.(next); }}>{INVESTIGATION_RECORD_PRESETS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select><span>Additional evidence remains in each lead dossier.</span></div>
+    <div className="cx-record-view"><label htmlFor={viewId}>Record view</label><select id={viewId} value={view} onChange={event => { const next = event.target.value as InvestigationRecordPreset; setCustomColumns(null); if (preset === undefined) setLocalPreset(next); onPresetChange?.(next); }}>{INVESTIGATION_RECORD_PRESETS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select><span>{schema.length} returned parameters{customColumns?.view === view ? ' · Custom columns' : view === 'full' ? ' · All shown' : ' · All parameters in the dossier'}</span><AnalyticalColumnManager fields={availableFields} selected={selectedKeys} presetLabel={viewLabel} onChange={keys => setCustomColumns({ view, keys })} onRestore={() => setCustomColumns(null)} /></div>
     <span id={copyStatusId} role="status" aria-live="polite" className="cx-record-copy-status">{currentCopyStatus ? currentCopyStatus.state === 'copied' ? 'Lead ID copied.' : 'Could not copy the lead ID. Select the displayed ID to copy it manually.' : ''}</span>
-    <div className="cx-investigation-table-wrap" data-preset={view} role="region" tabIndex={0} aria-label={`${viewLabel} records`}><table className="cx-investigation-records" data-preset={view} aria-label={`${viewLabel} records`}><thead><tr>{columns.map(column => <th key={column.key} scope="col">{column.label}</th>)}<th scope="col">{view === 'full' ? 'Action' : 'Evidence'}</th></tr></thead><tbody>{rows.map(row => <tr key={String(row.lead_id)} data-selected={selectedLeadId === String(row.lead_id)}>{columns.map((column, index) => index === 0 ? <th key={column.key} scope="row"><div className="cx-record-identity">{value(column, row)}{copyButton(row)}</div></th> : <td key={column.key}>{value(column, row)}</td>)}<td>{selectButton(row)}</td></tr>)}</tbody></table></div>
-    {view !== 'full' && <ul className="cx-investigation-record-cards" aria-label={`${viewLabel} record list`}>{rows.map(row => <li key={String(row.lead_id)} data-selected={selectedLeadId === String(row.lead_id)}><div className="cx-record-card-heading"><div className="cx-record-identity">{columnMap.lead.value(row)}{copyButton(row)}</div>{selectButton(row)}</div><dl>{columns.filter(column => column.key !== 'lead').map(column => <div key={column.key}><dt>{column.label}</dt><dd>{value(column, row)}</dd></div>)}</dl></li>)}</ul>}
+    <div className="cx-investigation-table-wrap" data-preset={view} data-complete={wideTable} role="region" tabIndex={0} aria-label={`${viewLabel} records`}><table className="cx-investigation-records" data-preset={view} data-dynamic-schema={wideTable || customColumns?.view === view} aria-label={`${viewLabel} records`}><thead><tr>{columns.map(column => <th key={column.key} scope="col" data-parameter-key={column.key} data-numeric={column.numeric || undefined}>{column.label}</th>)}<th scope="col">{view === 'full' ? 'Action' : 'Evidence'}</th></tr></thead><tbody>{rows.map(row => <tr key={String(row.lead_id)} data-selected={selectedLeadId === String(row.lead_id)}>{columns.map(column => column.key === 'lead_id' ? <th key={column.key} scope="row"><div className="cx-record-identity">{value(column, row)}{copyButton(row)}</div></th> : <td key={column.key} data-parameter-key={column.key} data-numeric={column.numeric || undefined}>{value(column, row)}</td>)}<td>{selectButton(row)}</td></tr>)}</tbody></table></div>
+    {!wideTable && <ul className="cx-investigation-record-cards" aria-label={`${viewLabel} record list`}>{rows.map(row => <li key={String(row.lead_id)} data-selected={selectedLeadId === String(row.lead_id)}><div className="cx-record-card-heading"><div className="cx-record-identity">{curatedValues.lead_id.value(row)}{copyButton(row)}</div>{selectButton(row)}</div><dl>{columns.filter(column => column.key !== 'lead_id').map(column => <div key={column.key}><dt>{column.label}</dt><dd>{value(column, row)}</dd></div>)}</dl></li>)}</ul>}
   </>;
 }

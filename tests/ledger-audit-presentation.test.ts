@@ -291,7 +291,7 @@ test('dossier reuses the loaded journey, preserves unavailable evidence and supp
     const summary = app.find('[role="tab"]', 'Summary');
     summary.focus(); summary.dispatchEvent(new app.w.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
     await app.wait(() => app.find('.cx-ledger-journey'));
-    assert.equal(app.w.document.activeElement, app.find('.cx-dossier-tabs [role="tab"]', 'Journey'));
+    assert.equal(app.w.document.activeElement, app.find('.cx-dossier-tabs [role="tab"]', 'Timeline'));
     assert.match(app.find('.cx-ledger-journey').textContent, /Timeline unavailable/);
     await app.click('.cx-dossier-tabs [role="tab"]', 'Calls');
     await app.wait(() => app.find('.cx-dossier-body').textContent.includes('Recorded call aggregates'));
@@ -412,7 +412,7 @@ test('dossier retains recorded anomalous timestamps and distinguishes qualified 
     await app.wait(() => app.find('button', 'Open dossier for lead SYNTHETIC-EXPORT'));
     await app.click('button', 'Open dossier for lead SYNTHETIC-EXPORT');
     await app.wait(() => app.find('.cx-lead-dossier'));
-    await app.click('.cx-dossier-tabs [role="tab"]', 'Journey');
+    await app.click('.cx-dossier-tabs [role="tab"]', 'Timeline');
     await app.wait(() => app.find('.cx-journey-event[data-stage="call"]'));
     await app.click('.cx-journey-event[data-stage="call"]');
     await app.wait(() => app.find('.cx-journey-evidence').textContent.includes('first_call_time'));

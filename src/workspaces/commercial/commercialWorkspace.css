@@ -1,12 +1,12 @@
-.cx-commercial-evidence-bridge .cx-commercial-lineage{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:0 0 16px}
+.cx-commercial-evidence-bridge .cx-commercial-lineage{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--cx-card-gap);padding:0 0 16px}
 .cx-commercial-evidence-bridge .cx-lineage-marketing{grid-column:1;grid-row:1}
-.cx-commercial-evidence-bridge .cx-commercial-lineage>.cx-attribution-boundary{grid-column:2;grid-row:1;align-self:stretch;max-width:none;padding:14px;border:1px solid var(--cx-border);border-radius:6px;justify-self:stretch}
+.cx-commercial-evidence-bridge .cx-commercial-lineage>.cx-attribution-boundary{grid-column:2;grid-row:1;align-self:stretch;max-width:none;padding:var(--cx-panel-padding);border:1px solid var(--cx-border);border-radius:6px;justify-self:stretch}
 .cx-commercial-evidence-bridge .cx-commercial-lineage>.cx-attribution-boundary::before{display:none}
 .cx-commercial-evidence-bridge .cx-lineage-operations{grid-column:1/-1;grid-row:2}
 .cx-commercial-evidence-bridge .cx-lineage-matched-revenue{grid-column:1;grid-row:3}
 .cx-commercial-evidence-bridge .cx-lineage-cohort{grid-column:2;grid-row:3;margin:0}
 .cx-commercial-evidence-bridge .cx-lineage-matched-revenue::before{display:none}
-.cx-commercial-evidence-bridge .cx-commercial-lineage>article{padding:15px;border-radius:6px}
+.cx-commercial-evidence-bridge .cx-commercial-lineage>article{padding:var(--cx-panel-padding);border-radius:6px}
 .cx-commercial-evidence-bridge .cx-commercial-lineage h3{margin-bottom:9px}
 .cx-commercial-outcome-rail{list-style:none;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:0;padding:0;margin:14px 0 8px}
 .cx-commercial-outcome-rail>li{padding:10px;min-width:0;border:1px solid var(--cx-border);background:var(--cx-surface);margin-left:-1px}
@@ -19,10 +19,10 @@
 .cx-commercial-outcome-rail>li[data-state="unavailable"]>strong{font-size:11px;line-height:29px;letter-spacing:.01em;color:var(--cx-text-secondary)}
 .cx-commercial-outcome-rail .cx-audit-evidence-control{font-size:10px;min-height:28px}
 .cx-commercial-settlement{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:12px}
-.cx-commercial-settlement>article{display:flex;flex-direction:column;gap:5px;border:1px dashed var(--cx-border);border-radius:6px;background:var(--cx-surface-subtle);padding:14px;min-width:0}
+.cx-commercial-settlement>article{display:flex;flex-direction:column;gap:5px;border:1px dashed var(--cx-border);border-radius:6px;background:var(--cx-surface-subtle);padding:var(--cx-panel-padding);min-width:0}
 .cx-commercial-settlement span{font-size:12px;font-weight:600}.cx-commercial-settlement strong{font-size:12px;color:var(--cx-text-secondary)}.cx-commercial-settlement p{font-size:11px;color:var(--cx-text-secondary);line-height:1.55}
-.cx-commercial-evidence-bridge .cx-commercial-missing-inputs{padding:0;margin-bottom:18px}
+.cx-commercial-evidence-bridge .cx-commercial-missing-inputs{padding:0;margin-bottom:16px}
 .cx-commercial-evidence-bridge .cx-commercial-missing-inputs strong{font-size:13px;overflow-wrap:anywhere}
-@media(max-width:1200px){.cx-commercial-outcome-rail{grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.cx-commercial-outcome-rail>li{margin:0;border-radius:5px}}
+@media(max-width:1200px){.cx-commercial-outcome-rail{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.cx-commercial-outcome-rail>li{margin:0;border-radius:5px}}
 @media(max-width:700px){.cx-commercial-evidence-bridge .cx-commercial-lineage{grid-template-columns:minmax(0,1fr)}.cx-commercial-evidence-bridge .cx-commercial-lineage>article,.cx-commercial-evidence-bridge .cx-commercial-lineage>.cx-attribution-boundary{grid-column:1;grid-row:auto;order:initial}.cx-commercial-outcome-rail{grid-template-columns:repeat(2,minmax(0,1fr))}.cx-commercial-settlement{grid-template-columns:minmax(0,1fr)}.cx-commercial-evidence-bridge .cx-commercial-missing-inputs{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:360px){.cx-commercial-outcome-rail,.cx-commercial-evidence-bridge .cx-commercial-missing-inputs{grid-template-columns:minmax(0,1fr)}.cx-commercial-outcome-rail h4{min-height:0}}

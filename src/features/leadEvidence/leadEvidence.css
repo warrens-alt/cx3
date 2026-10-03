@@ -1,3 +1,4 @@
+@import '../investigation/analyticalParameters.css';
 /* Canonical Lead Evidence workspace, dossier, source-field and timeline presentation owner. */
 /* Population browser and selected case file share the same analytical canvas. */
 .cx-investigation-record-workspace { display:grid; grid-template-columns:minmax(0,1fr); gap:16px; align-items:start; }
@@ -50,8 +51,8 @@
 .cx-investigation-record-cards dt { font-size:11px; color:var(--cx-text-secondary); }
 .cx-investigation-record-cards dd { margin:4px 0 0; font-size:12px; overflow-wrap:anywhere; }
 .cx-investigation-record-cards dd>small { display:block; color:var(--cx-text-secondary); margin-top:3px; }
-.cx-lead-dossier { background:var(--cx-surface); color:var(--cx-text); border:1px solid var(--cx-border); border-radius:6px; position:sticky; top:12px; max-height:calc(100vh - 24px); overflow:auto; scrollbar-width:thin; scroll-margin-top:16px; }
-.cx-dossier-heading { display:flex; align-items:start; justify-content:space-between; gap:12px; padding:18px 18px 14px; border-bottom:1px solid var(--cx-border); }
+.cx-lead-dossier { background:var(--cx-surface); color:var(--cx-text); border:1px solid var(--cx-border); border-radius:6px; position:sticky; top:12px; max-height:calc(100vh - 24px); overflow:auto; scrollbar-width:thin; scroll-margin-top:calc(var(--cx-dossier-context-height,0px) + 16px); }
+.cx-dossier-heading { display:flex; align-items:start; justify-content:space-between; gap:12px; padding:16px; border-bottom:1px solid var(--cx-border); }
 .cx-dossier-heading>div { min-width:0; flex:1; }
 .cx-dossier-heading .cx-command-section-kicker { font-size:11px; color:var(--cx-text-secondary); font-weight:600; letter-spacing:0; text-transform:none; }
 .cx-dossier-heading h2 { font-family:var(--font-mono); font-size:14px; line-height:1.55; font-weight:600; overflow-wrap:anywhere; margin:7px 0; }
@@ -59,15 +60,11 @@
 .cx-dossier-heading button { flex-shrink:0; display:flex; align-items:center; justify-content:center; width:32px; min-height:32px; padding:6px; border-radius:4px; color:var(--cx-text-secondary); }
 .cx-dossier-heading button:hover { background:var(--cx-surface-subtle); color:var(--cx-text); }
 .cx-dossier-heading>.cx-dossier-window-actions { display:flex; flex-wrap:wrap; gap:2px; flex:0 0 auto; }
+.cx-lead-dossier>.cx-dossier-heading { position:sticky; top:0; z-index:3; background:var(--cx-surface); }
 .cx-lead-dossier.is-focused { position:fixed; inset:16px; z-index:45; max-height:calc(100dvh - 32px); max-width:960px; margin-inline:auto; overflow:auto; box-shadow:var(--cx-shadow-elevated); }
 .cx-lead-dossier.is-focused>.cx-dossier-heading { position:sticky; top:0; z-index:3; background:var(--cx-surface); }
-.cx-lead-dossier.is-focused>.cx-dossier-heading .cx-dossier-identity { display:none; }
-@media(max-width:900px) { .cx-lead-dossier:not(.is-focused) { min-height:calc(100dvh - 120px); }.cx-lead-dossier.is-focused { inset:8px; max-height:calc(100dvh - 16px); } }
-.cx-dossier-identity { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px 14px; margin:13px 0 0; padding-top:12px; border-top:1px solid var(--cx-border-subtle); }
-.cx-dossier-identity>div { min-width:0; }
-.cx-dossier-identity dt { color:var(--cx-text-secondary); font-size:10px; line-height:1.5; }
-.cx-dossier-identity dd { margin:2px 0 0; font-size:11px; line-height:1.5; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
-.cx-dossier-inclusion { padding:12px 18px; border-bottom:1px solid var(--cx-border-subtle); background:var(--cx-surface-subtle); font-size:12px; line-height:1.6; }
+@media(max-width:900px) { .cx-lead-dossier:not(.is-focused) { min-height:0; }.cx-lead-dossier.is-focused { inset:8px; max-height:calc(100dvh - 16px); } }
+.cx-dossier-inclusion { padding:12px 16px; border-bottom:1px solid var(--cx-border-subtle); background:var(--cx-surface-subtle); font-size:12px; line-height:1.6; }
 .cx-dossier-inclusion>strong { font-size:11px; color:var(--cx-text-secondary); font-weight:600; }
 .cx-dossier-inclusion p { margin:4px 0; }
 .cx-dossier-inclusion small { display:block; color:var(--cx-text-secondary); font-size:11px; }
@@ -76,7 +73,7 @@
 .cx-dossier-tabs button { flex:1 0 auto; font-size:11px; line-height:1.5; padding:10px 6px; border-bottom:2px solid transparent; border-radius:0; color:var(--cx-text-secondary); min-height:44px; background:transparent; transition:color 150ms ease,border-color 150ms ease; }
 .cx-dossier-tabs button:hover { color:var(--cx-text); }
 .cx-dossier-tabs button[aria-selected=true] { background:transparent; color:var(--cx-action); font-weight:650; border-bottom-color:var(--cx-action); box-shadow:none; }
-.cx-dossier-body { padding:18px; font-size:12px; line-height:1.65; overflow-wrap:anywhere; }
+.cx-dossier-body { padding:16px; font-size:12px; line-height:1.65; overflow-wrap:anywhere; }
 .cx-dossier-body h3 { font-size:13px; font-weight:650; margin:0 0 10px; }
 .cx-dossier-body p { margin:8px 0 12px; }
 .cx-dossier-body ul { padding-left:20px; }
@@ -86,8 +83,20 @@
 .cx-dossier-fields>div { min-width:0; padding:10px 0; border-bottom:1px solid var(--cx-border-subtle); }
 .cx-dossier-fields dt { font-size:11px; color:var(--cx-text-secondary); }
 .cx-dossier-fields dd { margin:4px 0 0; overflow-wrap:anywhere; font-size:12px; font-variant-numeric:tabular-nums; }
+.cx-dossier-summary-groups { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin-top:16px; }
+.cx-dossier-summary-group { min-width:0; }
+.cx-dossier-summary-group[data-summary-group=identity],.cx-dossier-summary-group[data-summary-group=timing] { grid-column:1/-1; }
+.cx-dossier-summary-group h3 { padding-bottom:8px; margin:0; border-bottom:1px solid var(--cx-border); font-size:12px; }
+.cx-dossier-summary-group dl { display:grid; gap:8px 16px; margin:8px 0 0; }
+.cx-dossier-summary-group[data-summary-group=identity] dl,.cx-dossier-summary-group[data-summary-group=timing] dl { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.cx-dossier-summary-group dl>div { min-width:0; }
+.cx-dossier-summary-group dt { font-size:11px; color:var(--cx-text-secondary); }
+.cx-dossier-summary-group dd { margin:2px 0 0; font-size:12px; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.cx-dossier-summary-group[data-summary-group=identity] dd,.cx-dossier-summary-group[data-summary-group=timing] dd { font-family:var(--font-mono); font-size:11px; }
+.cx-dossier-summary-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.cx-dossier-all-parameters>summary { color:var(--cx-action); }
 .cx-dossier-note { font-size:11px; color:var(--cx-text-secondary); line-height:1.6; }
-.cx-lead-dossier>.cx-dossier-note { padding:10px 18px; margin:0; }
+.cx-lead-dossier>.cx-dossier-note { padding:12px 16px; margin:0; }
 .cx-dossier-body[data-section=audit]>.cx-dossier-fields dd,.cx-dossier-body[data-section=source] .cx-dossier-fields dd { font-family:var(--font-mono); font-size:11px; }
 .cx-dossier-body[data-section=calls]>.cx-dossier-fields>div:first-child dd { font-size:24px;font-weight:650;line-height:1.3; }.cx-dossier-body[data-section=source] .cx-ledger-inspector-section { border-top:0;padding:0; }.cx-dossier-body[data-section=source] .cx-ledger-inspector-section>summary { padding:12px 0; }.cx-dossier-body[data-section=source] .cx-ledger-section-body { padding:0 0 12px; }.cx-dossier-body[data-section=source] .cx-ledger-section-body :is(.cx-ledger-evidence,.cx-ledger-fields) { grid-template-columns:minmax(0,1fr); gap:0; }.cx-dossier-body[data-section=outcomes]>.cx-dossier-fields { grid-template-columns:1fr; padding-left:14px; border-left:1px solid var(--cx-border-strong); }
 .cx-dossier-body[data-section=outcomes]>.cx-dossier-fields>div { position:relative; }
@@ -110,6 +119,10 @@
 .cx-investigation-list-panel .cx-explorer-search input{background:var(--cx-surface-subtle);color:var(--cx-ink);border-color:var(--cx-control-border)}
 .cx-investigation-list-panel .cx-record-open{background:var(--cx-surface);color:var(--cx-action)}
 .cx-investigation-list-panel .cx-record-open:hover{background:var(--cx-selected-bg)}
+.cx-record-search { align-items:flex-end; }
+.cx-record-search>label { position:relative; }
+.cx-record-search>label>svg { top:auto; bottom:10px; }
+.cx-record-search-label { display:block; margin-bottom:4px; font-size:11px; line-height:16px; font-weight:600; color:var(--cx-text-secondary); white-space:nowrap; }
 
 /* Source Evidence presentation. Original records, fields and export semantics stay separate from the analytical population. */
 .cx-ledger-workspace{max-width:1680px;margin:auto;padding:26px 28px 44px;display:grid;gap:18px;color:var(--cx-text)}
@@ -181,6 +194,13 @@
 .cx-ledger-section-body .cx-ledger-evidence,.cx-ledger-section-body .cx-ledger-fields{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:0}
 .cx-ledger-section-body .cx-ledger-record{padding:14px 0;margin-top:14px}.cx-ledger-section-body .cx-ledger-record h3{font-size:12px;line-height:1.5;display:grid;gap:3px;margin:0}
 .cx-ledger-section-body .cx-ledger-record h3 small{overflow-wrap:anywhere;font-family:var(--font-mono);font-size:10px;color:var(--cx-text-secondary)}
+.cx-ledger-record-heading { padding:12px; border:1px solid var(--cx-border); border-radius:4px; background:var(--cx-surface-subtle); }
+.cx-ledger-record-heading dl { display:grid; grid-template-columns:minmax(0,1fr); gap:4px; margin:8px 0 0; }
+.cx-ledger-record-heading dl>div { display:grid; grid-template-columns:76px minmax(0,1fr); gap:8px; min-width:0; }
+.cx-ledger-record-heading dt { color:var(--cx-text-secondary); font-size:11px; }
+.cx-ledger-record-heading dd { margin:0; font-family:var(--font-mono); font-size:11px; overflow-wrap:anywhere; }
+.cx-ledger-field-group h4 { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+.cx-ledger-field-group h4>span { color:var(--cx-text-muted); font-weight:400; white-space:nowrap; font-size:10px; }
 .cx-ledger-section-body .cx-ledger-events li{grid-template-columns:1fr;gap:4px;padding-top:9px;padding-bottom:9px}
 .cx-ledger-raw-record .cx-ledger-fields>div,.cx-lead-dossier .cx-ledger-evidence>div{display:grid;grid-template-columns:minmax(100px,.85fr) minmax(0,1.15fr);gap:10px}.cx-ledger-fields dt,.cx-ledger-evidence dt{font-size:11px;color:var(--cx-text-secondary);font-weight:400;line-height:1.6}.cx-ledger-fields dd,.cx-ledger-evidence dd{margin:0;font-family:var(--font-mono);font-size:11px;font-weight:400;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}.cx-ledger-field-group{margin-top:18px}.cx-ledger-field-group h4{margin:0;padding-bottom:6px;border-bottom:1px solid var(--cx-border);font-size:11px;font-weight:650;color:var(--cx-text)}
 .cx-ledger-section-body .cx-ledger-field-group .cx-ledger-fields{margin-top:8px}
@@ -237,9 +257,9 @@
 .cx-journey-tabs button{min-height:44px;border-bottom:3px solid transparent;font-weight:500;padding:10px 2px;color:var(--cx-text-secondary)}
 .cx-journey-tabs button[aria-selected=true]{border-color:var(--cx-text);font-weight:700;color:var(--cx-text)}
 .cx-ledger-journey [role=tabpanel][hidden]{display:none}
-.cx-journey-forensic-canvas{--journey-time-width:82px;--journey-node-width:30px;--journey-column-gap:10px;padding:12px 6px 0;min-width:0}
+.cx-journey-forensic-canvas{--journey-time-width:82px;--journey-node-width:30px;--journey-column-gap:12px;padding:12px 0 0;min-width:0}
 .cx-journey-spine{display:block;list-style:none;margin:0;padding:0 0 8px;min-width:0}
-.cx-journey-spine>li{position:relative;min-width:0;padding-top:22px}
+.cx-journey-spine>li{position:relative;min-width:0;padding-top:24px}
 .cx-journey-spine>li:first-child{padding-top:0}
 .cx-journey-spine>li:not(:last-child)::after{content:"";position:absolute;left:calc(var(--journey-time-width) + var(--journey-column-gap) + 23px);top:46px;bottom:-33px;border-left:1px solid var(--cx-border-strong);pointer-events:none}
 .cx-journey-spine>li:first-child::after{top:40px}
@@ -279,6 +299,13 @@
 .cx-journey-evidence{border-top:1px solid var(--cx-border);padding-top:14px;margin-top:16px;scroll-margin-block:20px}
 .cx-journey-evidence-actions{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap}.cx-journey-evidence-actions button{min-height:44px}
 .cx-journey-evidence h3{font-size:15px}
+.cx-journey-evidence-heading { display:flex; align-items:start; justify-content:space-between; gap:12px; }
+.cx-journey-evidence-heading>div>span { display:block; margin-bottom:4px; color:var(--cx-text-secondary); font-size:11px; }
+.cx-journey-evidence-state { color:var(--cx-text-secondary); font-size:11px; white-space:nowrap; }
+.cx-ledger-journey .cx-journey-evidence-time { font-family:var(--font-mono); color:var(--cx-text); font-size:12px; margin:8px 0; }
+.cx-journey-evidence h4 { font-size:11px; font-weight:600; margin:16px 0 8px; }
+.cx-journey-source-fields ul { display:flex; flex-wrap:wrap; gap:4px 8px; list-style:none; padding:0; margin:0 0 16px; }
+.cx-journey-source-fields li { font-family:var(--font-mono); font-size:11px; color:var(--cx-text-secondary); padding:4px 6px; border:1px solid var(--cx-border); border-radius:4px; }
 .cx-journey-context{border-top:1px solid var(--cx-border);margin-top:16px;padding-top:4px}
 .cx-journey-context summary{cursor:pointer;padding:12px 0;min-height:44px;font-weight:600}
 .cx-journey-context ul{padding-left:16px;list-style:disc;color:var(--cx-text-secondary)}
@@ -288,7 +315,7 @@
 .cx-journey-date ol{list-style:none;padding:8px 0;margin:0}
 .cx-journey-date li,.cx-journey-undated li{margin-top:4px}
 .cx-journey-date li{position:relative}.cx-journey-date li:not(:last-child)::before{content:"";position:absolute;top:36px;bottom:-15px;left:calc(var(--journey-time-width) + var(--journey-column-gap) + 23px);border-left:1px solid var(--cx-border)}
-.cx-journey-undated{margin:18px 0}.cx-journey-undated ul{list-style:none;padding:0}
+.cx-journey-undated{margin:20px 0 16px;padding-top:16px;border-top:1px dashed var(--cx-border-strong)}.cx-journey-undated ul{list-style:none;padding:0;margin:8px 0 0}.cx-journey-undated>p{font-size:11px}
 .cx-journey-empty{padding:12px;border:1px solid var(--cx-border);border-radius:6px;margin:12px 0}
 .cx-journey-empty .cx-button-secondary{min-height:44px}
 .cx-journey-anomalies{border-left:3px solid var(--cx-negative);padding:8px 12px;margin-top:14px;background:var(--cx-negative-bg)}
@@ -309,6 +336,7 @@
   .cx-journey-outcomes dd{margin:0;text-align:right}
 }
 @container(max-width:350px){.cx-ledger-journey dl{grid-template-columns:minmax(0,1fr)}}
+@container(max-width:350px){.cx-dossier-summary-groups{grid-template-columns:minmax(0,1fr)}.cx-dossier-summary-group[data-summary-group=identity] dl,.cx-dossier-summary-group[data-summary-group=timing] dl{grid-template-columns:minmax(0,1fr)}.cx-journey-evidence-heading{flex-wrap:wrap;gap:4px}.cx-record-search-label{flex-basis:100%}}
 
 /* The canonical reporting layout owns the outer page spacing. */
 .cx-ledger-workspace.cx-ledger-workspace-body { max-width:none; margin:0; padding:0; }
@@ -323,11 +351,15 @@
 
 /* Shared mode and master/detail presentation. Original evidence models stay separate. */
 .cx-lead-evidence-page{min-width:0}.cx-lead-evidence-mode-tabs{display:flex;gap:24px;border-bottom:1px solid var(--cx-border);margin:8px 0 18px}.cx-lead-evidence-mode-tabs button{padding:12px 4px;min-height:44px;border:0;border-bottom:2px solid transparent;background:none;color:var(--cx-text-secondary);font-size:13px;cursor:pointer}.cx-lead-evidence-mode-tabs button[aria-selected=true]{color:var(--cx-action);border-bottom-color:var(--cx-action);font-weight:650}.cx-lead-evidence-mode-tabs button:focus-visible{outline:2px solid var(--cx-action);outline-offset:3px}.cx-lead-evidence-boundary{padding:12px 0;font-size:12px;line-height:1.6;color:var(--cx-text-secondary)}
-.cx-lead-evidence-master-detail{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start;min-width:0}.cx-lead-evidence-master-detail[data-has-selection=true]{grid-template-columns:minmax(0,1fr) minmax(380px,440px)}.cx-lead-evidence-master-detail>*{min-width:0}.cx-lead-evidence-page .cx-ledger-workspace{padding:0;max-width:none}.cx-source-record-scroll{overflow:auto;max-width:100%}.cx-source-record-scroll table{min-width:580px}.cx-lead-evidence-master-detail .cx-lead-dossier:not(.is-focused){max-height:calc(100vh - 160px);top:12px}.cx-lead-evidence-page .cx-explorer-pagination{display:flex;gap:12px;flex-wrap:wrap}.cx-lead-evidence-page .cx-explorer-pagination>div{display:flex;gap:6px;flex-wrap:wrap}.cx-lead-evidence-page .cx-explorer-pagination select{background:var(--cx-surface);color:var(--cx-text);padding:6px;border:1px solid var(--cx-control-border);border-radius:var(--cx-radius-control)}.cx-analytical-export{margin:10px 16px 0}.cx-record-identity{display:flex;align-items:start;gap:6px}.cx-record-copy{padding:4px;color:var(--cx-text-secondary);background:var(--cx-surface);border:1px solid var(--cx-border);border-radius:4px}.cx-record-copy-status{font-size:11px;color:var(--cx-text-secondary);min-height:16px}.cx-investigation-table-wrap[data-preset=full]{display:block!important;overflow:auto;max-width:100%}.cx-investigation-records[data-preset=full]{min-width:1700px;table-layout:auto}.cx-investigation-records[data-preset=full] th:first-child{min-width:150px}
+.cx-lead-evidence-master-detail{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start;min-width:0}.cx-lead-evidence-master-detail[data-has-selection=true]{grid-template-columns:minmax(0,1fr) minmax(380px,440px);min-height:var(--cx-dossier-min-height,0px)}.cx-lead-evidence-master-detail>*{min-width:0}.cx-lead-evidence-page .cx-ledger-workspace{padding:0;max-width:none}.cx-source-record-scroll{overflow:auto;max-width:100%}.cx-source-record-scroll table{min-width:580px}.cx-lead-evidence-master-detail .cx-lead-dossier:not(.is-focused){top:var(--cx-dossier-sticky-top,calc(var(--cx-sticky-scope-height,44px) + 16px));max-height:calc(var(--cx-dossier-viewport-height,100dvh) - var(--cx-dossier-sticky-top,60px) - 16px)}.cx-lead-evidence-page .cx-explorer-pagination{display:flex;gap:12px;flex-wrap:wrap}.cx-lead-evidence-page .cx-explorer-pagination>div{display:flex;gap:6px;flex-wrap:wrap}.cx-lead-evidence-page .cx-explorer-pagination select{background:var(--cx-surface);color:var(--cx-text);padding:6px;border:1px solid var(--cx-control-border);border-radius:var(--cx-radius-control)}.cx-analytical-export{margin:10px 16px 0}.cx-record-identity{display:flex;align-items:start;gap:6px}.cx-record-copy{padding:4px;color:var(--cx-text-secondary);background:var(--cx-surface);border:1px solid var(--cx-border);border-radius:4px}.cx-record-copy-status{font-size:11px;color:var(--cx-text-secondary);min-height:16px}.cx-investigation-table-wrap[data-preset=full]{display:block!important;overflow:auto;max-width:100%}.cx-investigation-records[data-preset=full]{min-width:1700px;table-layout:auto}.cx-investigation-records[data-preset=full] th:first-child{min-width:150px}
 @media(max-width:1180px){.cx-lead-evidence-master-detail[data-has-selection=true]{grid-template-columns:minmax(0,1fr) minmax(340px,390px)}}
-@media(max-width:900px){.cx-lead-evidence-master-detail[data-has-selection=true]{grid-template-columns:minmax(0,1fr)}.cx-lead-evidence-master-detail .cx-lead-dossier:not(.is-focused){position:static;max-height:none}.cx-source-record-scroll table{min-width:520px}}
+@media(max-width:900px){.cx-lead-evidence-master-detail[data-has-selection=true]{grid-template-columns:minmax(0,1fr);min-height:0}.cx-lead-evidence-master-detail .cx-lead-dossier:not(.is-focused){position:static;max-height:none}.cx-source-record-scroll table{min-width:520px}}
 @media(max-width:420px){.cx-lead-evidence-mode-tabs{gap:16px}.cx-lead-evidence-page .cx-ledger-toolbar input{min-width:0;width:100%;max-width:100%}.cx-lead-evidence-page .cx-ledger-toolbar form{min-width:0;flex-wrap:wrap;flex-basis:100%}.cx-lead-evidence-page .cx-explorer-pagination{padding:12px}.cx-lead-evidence-page .cx-ledger-panel{padding:12px}.cx-lead-evidence-page .cx-ledger-toolbar{padding:10px}}
 
 /* Align the sticky dossier with the retained reporting scope and workflow rail. */
-@media(min-width:901px){.cx-lead-evidence-master-detail .cx-lead-dossier:not(.is-focused){top:calc(var(--cx-sticky-scope-height,44px) + 12px);max-height:calc(100dvh - 180px)}}
-@media(min-width:1180px){.cx-lead-evidence-page:has(.cx-investigation-context[data-compact=true]) .cx-lead-dossier:not(.is-focused){top:calc(var(--cx-sticky-scope-height,44px) + 164px);max-height:calc(100dvh - 324px)}}
+@media(min-width:901px){.cx-lead-evidence-master-detail .cx-lead-dossier:not(.is-focused){position:sticky}}
+/* Side-by-side evidence needs room after the investigation rails take their share. */
+@container investigation-analysis (max-width:820px){.cx-lead-evidence-master-detail[data-has-selection=true]{grid-template-columns:minmax(0,1fr);min-height:0}.cx-lead-evidence-master-detail .cx-lead-dossier:not(.is-focused){position:static;max-height:none}}
+@media(min-width:1180px){@container investigation-analysis (max-width:820px){.cx-lead-evidence-master-detail .cx-lead-dossier:not(.is-focused){max-height:calc(var(--cx-dossier-viewport-height,100dvh) - var(--cx-dossier-sticky-top,60px) - 16px)}}}
+
+.cx-journey-evidence-time>span{display:block;color:var(--cx-text-secondary);font-family:var(--font-sans);font-size:11px;margin-bottom:4px}

@@ -104,7 +104,7 @@ try {
     await trigger.click(); await page.getByRole('complementary', { name: /Lead dossier for/ }).waitFor();
     assert.match(await stageDescription('records'), /Lead dossier open/);
     assert.equal(new URL(page.url()).searchParams.has('leadId'), false);
-    for (const tab of ['Journey', 'Calls', 'Outcomes', 'Audit', 'Source', 'Summary']) await page.getByRole('tab', { name: tab, exact: true }).click();
+    for (const tab of ['Timeline', 'Calls', 'Outcomes', 'Audit', 'Source', 'Summary']) await page.getByRole('tab', { name: tab, exact: true }).click();
     await page.getByRole('button', { name: 'Close lead dossier' }).click();
     assert.equal(await trigger.evaluate(element => element === document.activeElement), true);
   });
@@ -224,8 +224,8 @@ try {
   await check('Dossier focus retains the same evidence and separate timeline events can both be pinned', async () => {
     await visit('/lead-explorer' + scope + '&drill=awaiting-first-dial');
     await page.getByRole('button', { name: /Open dossier for lead/ }).first().click();
-    await page.getByRole('tab', { name: 'Journey', exact: true }).click();
-    const events = page.locator('.cx-journey-spine .cx-journey-event');
+    await page.getByRole('tab', { name: 'Timeline', exact: true }).click();
+    const events = page.locator('.cx-journey-forensic-canvas:not([hidden]) .cx-journey-event');
     assert.ok(await events.count() >= 2);
     for (const index of [0, 1]) {
       await events.nth(index).click();
@@ -240,7 +240,7 @@ try {
     assert.equal(await dialog.getAttribute('aria-modal'), 'true');
     const focusedBounds = await dialog.boundingBox();
     assert.ok(focusedBounds && focusedBounds.y <= 17 && focusedBounds.height >= 900, 'Focused dossier must use the viewport rather than retain inline sticky offsets');
-    assert.equal(await dialog.getByRole('tablist', { name: 'Lead dossier sections', exact: true }).getByRole('tab', { name: 'Journey', exact: true }).getAttribute('aria-selected'), 'true');
+    assert.equal(await dialog.getByRole('tablist', { name: 'Lead dossier sections', exact: true }).getByRole('tab', { name: 'Timeline', exact: true }).getAttribute('aria-selected'), 'true');
     assert.equal(await page.evaluate(() => document.querySelector('.cx-main').style.overflow), 'hidden');
     await page.screenshot({ path: path.join(output, 'dossier-focus.png') }); screenshots.push('dossier-focus.png');
     await page.keyboard.press('Escape');
@@ -323,7 +323,7 @@ try {
     await dossier.waitFor();
     assert.match(await dossier.innerText(), /Selected vendor reporting population/);
     await dossier.getByRole('button', { name: 'Pin lead evidence', exact: true }).click();
-    await dossier.getByRole('tab', { name: 'Journey', exact: true }).click();
+    await dossier.getByRole('tab', { name: 'Timeline', exact: true }).click();
     await dossier.locator('.cx-journey-spine .cx-journey-event').first().click();
     await dossier.getByRole('button', { name: 'Pin timeline event', exact: true }).click();
     await dossier.getByRole('tablist', { name: 'Lead dossier sections', exact: true }).getByRole('tab', { name: 'Source', exact: true }).click();
@@ -339,8 +339,12 @@ try {
     assertCaseScope();
     await dossier.getByRole('tab', { name: 'Audit', exact: true }).click();
     assert.match(await dossier.innerText(), /Supplied qualification flags.*Qualified/s);
-    await dossier.getByText('All returned analytical evidence fields', { exact: true }).click();
-    assert.match(await dossier.innerText(), /contacted.*false.*sale.*Unavailable/s);
+    await dossier.getByText('All parameters', { exact: true }).click();
+    const parameters = dossier.getByRole('region', { name: 'All analytical parameters', exact: true });
+    await parameters.getByLabel('Search parameter names', { exact: true }).fill('contacted');
+    assert.match(await parameters.locator('[data-parameter-key="contacted"]').innerText(), /Not recorded/);
+    await parameters.getByLabel('Search parameter names', { exact: true }).fill('sale');
+    assert.match(await parameters.locator('[data-parameter-key="sale"]').innerText(), /Unavailable/);
     await step('conclusion').click();
     await page.getByLabel('Analyst conclusion · not validation').fill('Synthetic RPC decline is concentrated in the returned vendor comparison; causation is not established.');
     await page.getByLabel('What remains unknown?').fill('Individual call history is unavailable; independent source reconciliation is not supplied.');

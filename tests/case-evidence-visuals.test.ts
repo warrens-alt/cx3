@@ -55,12 +55,13 @@ test('lead timeline renders canonical lifecycle icons, timed and untimed node st
   } }));
   const stages = { capture: 'fetched', delivery: 'delivered', call: 'dialled', rpc: 'rpc', sale: 'sales', activation: 'activated' } as const;
   for (const [event, stage] of Object.entries(stages)) {
-    const node = document.querySelector(`.cx-journey-spine [data-stage=${event}].cx-journey-event`);
+    const node = document.querySelector(`[id$="-journey-panel"] [data-stage=${event}].cx-journey-event`);
     assert.ok(node?.querySelector('.cx-journey-node svg'));
     assert.ok(node?.getAttribute('style')?.includes(lifecyclePresentation[stage].color));
   }
   assert.equal(document.querySelectorAll('.cx-journey-spine [data-certainty=observed]').length, 3);
-  assert.equal(document.querySelectorAll('.cx-journey-spine [data-certainty=unavailable]').length, 3);
+  assert.equal(document.querySelectorAll('.cx-journey-spine [data-certainty=unavailable]').length, 0);
+  assert.equal(document.querySelectorAll('[id$="-journey-panel"] .cx-journey-undated [data-certainty=unavailable]').length, 3);
 });
 
 test('chronology anomaly is visible on the affected timeline event with its raw time retained', () => {
@@ -71,5 +72,6 @@ test('chronology anomaly is visible on the affected timeline event with its raw 
   assert.equal(event?.getAttribute('data-anomaly'), 'true');
   assert.equal(event?.querySelector('time')?.getAttribute('datetime'), '2020-01-01T08:00:00.000Z');
   assert.match(event?.querySelector('.cx-journey-inline-anomaly')?.textContent || '', /precedes captured/);
-  assert.equal(event?.parentElement?.getAttribute('data-connector'), 'anomaly');
+  assert.equal(event?.parentElement?.getAttribute('data-connector'), 'start');
+  assert.deepEqual([...document.querySelectorAll('.cx-journey-spine .cx-journey-event strong')].map(node => node.textContent), ['Delivered', 'Captured']);
 });

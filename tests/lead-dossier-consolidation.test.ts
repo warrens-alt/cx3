@@ -84,12 +84,17 @@ test('source mode supplies one canonical dossier and reuses all original records
   try {
     assert.equal(app.w.document.querySelectorAll('.cx-lead-dossier').length, 1);
     assert.equal(app.w.document.querySelectorAll('.cx-ledger-raw-record').length, 2);
+    for (const [index, record] of [...app.w.document.querySelectorAll('.cx-ledger-raw-record')].entries()) {
+      assert.equal((record as HTMLElement).querySelectorAll('[data-raw-field]').length, 63);
+      assert.equal((record as HTMLElement).querySelector('.cx-ledger-record-heading h3')?.textContent, `Source record ${index + 1}`);
+      assert.equal((record as HTMLElement).querySelector('[data-raw-field="HLC Total Calls"] dd')?.textContent, '0');
+    }
     assert.equal(app.w.document.querySelector('[data-raw-field="HLC Revenue Generated"] dd').textContent, '1234567890.123456789');
     assert.equal(app.w.document.querySelectorAll('[data-source-highlight="true"]').length, 2);
     assert.equal(app.w.__dossier.loads.length, 0);
     assert.match(app.w.document.querySelector('[aria-label="Source and analytical relationship"]').textContent, /2.*63 available.*Exact analytical match not loaded.*Not verified/);
-    assert.equal(app.w.document.querySelector('.cx-dossier-tabs').textContent, 'SummaryJourneyCallsOutcomesAuditSource');
-    await app.click('Journey');
+    assert.equal(app.w.document.querySelector('.cx-dossier-tabs').textContent, 'SummaryTimelineCallsOutcomesAuditSource');
+    await app.click('Timeline');
     assert.match(app.text(), /Normalized analytical evidence is unavailable/);
     assert.equal(app.w.document.querySelector('.cx-lead-journey'), null);
     await app.click('Audit');
@@ -105,9 +110,9 @@ test('Summary exposes independent lifecycle evidence and Outcomes retain the exa
   try {
     const stages = app.w.document.querySelectorAll('[data-evidence-stage]');
     assert.equal(stages.length, 6);
-    assert.match(stages[2].textContent, /Timing anomaly.*Excluded from qualified progression/);
+    assert.match(stages[2].getAttribute('aria-label'), /Timing anomaly.*Excluded from qualified progression/);
     assert.match(stages[4].textContent, /Unavailable/);
-    assert.match(stages[5].textContent, /Not recorded.*Qualification not supplied/);
+    assert.match(stages[5].getAttribute('aria-label'), /Not recorded.*Qualification not supplied/);
     await app.click('Outcomes');
     assert.match(app.text(), /R 1234567890\.123456789/);
     assert.equal(app.w.__dossier.loads.length, 0);
@@ -153,6 +158,51 @@ test('Population source loading stays lazy and exact while Audit and analytical 
     assert.equal(request.params.investigationScope, 'fixed-scope');
     assert.equal(app.w.location.search, '', 'The private selected lead never becomes URL state');
   } finally { app.close(); }
+});
+
+test('dossier summary groups returned evidence and exposes every analytical parameter without another load', async () => {
+  const extendedRow = { ...row, additional_numeric_zero: 0, additional_unavailable: null, additional_object: { status: 'returned', count: 0 } };
+  const app = await mount({ row: extendedRow, result: { ...result, rows: [extendedRow] } });
+  try {
+    const groups = [...app.w.document.querySelectorAll('[data-summary-group]')] as HTMLElement[];
+    assert.deepEqual(groups.map(group => group.getAttribute('data-summary-group')), ['identity', 'current state', 'qualification', 'contact', 'outcomes', 'timing']);
+    const contact = app.w.document.querySelector('[data-summary-group="contact"]');
+    assert.match(contact.textContent, /Recorded calls0/);
+    assert.match(contact.textContent, /RPCNot recorded/);
+    assert.match(app.w.document.querySelector('[data-summary-group="outcomes"]').textContent, /Recorded revenueUnavailable/);
+    assert.match(app.w.document.querySelector('[data-summary-group="timing"]').textContent, /Delivery → first dialTiming anomaly/);
+    const all = app.w.document.querySelector('.cx-dossier-all-parameters');
+    assert.equal(all.querySelector('summary').textContent, 'All parameters');
+    assert.equal(all.querySelectorAll('[data-parameter-key]').length, Object.keys(extendedRow).length);
+    assert.equal(all.querySelector('[data-parameter-key="additional_numeric_zero"] dd').textContent, '0');
+    assert.match(all.querySelector('[data-parameter-key="additional_unavailable"] dd').textContent, /Unavailable/);
+    assert.equal(app.w.__dossier.loads.length, 0);
+  } finally { app.close(); }
+});
+
+test('Summary retains exact revenue and only the currency returned with the analytical row', async () => {
+  const revenueRow = { ...row, revenue: '1234567890.123456789', currency: 'USD' };
+  const app = await mount({ row: revenueRow, result: { ...result, rows: [revenueRow] } });
+  try {
+    const outcomes = app.w.document.querySelector('[data-summary-group="outcomes"]');
+    assert.match(outcomes.textContent, /Recorded revenue1234567890\.123456789 USD/);
+    assert.doesNotMatch(outcomes.textContent, /R 1234567890/);
+    assert.equal(app.w.__dossier.loads.length, 0);
+  } finally { app.close(); }
+});
+
+test('Timeline label preserves the internal Journey identity and accepts either initial tab alias', async () => {
+  for (const initialTab of ['Journey', 'Timeline']) {
+    const app = await mount({ row, result, initialTab });
+    try {
+      const tab = app.w.document.querySelector('.cx-dossier-tabs [aria-selected=true]');
+      assert.equal(tab.textContent, 'Timeline');
+      assert.match(tab.id, /Journey-tab$/);
+      assert.equal(app.w.document.querySelector('.cx-dossier-body').getAttribute('data-section'), 'journey');
+      assert.deepEqual([...app.w.document.querySelectorAll('.cx-journey-tabs button')].map((item: any) => item.textContent), ['Chronology', 'Event log']);
+      assert.equal(app.w.__dossier.loads.length, 0);
+    } finally { app.close(); }
+  }
 });
 
 test('source-only analytical loading is explicit and Open analytical lead requires an exact loaded pair', async () => {

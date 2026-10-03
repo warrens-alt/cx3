@@ -66,7 +66,7 @@ async function openOperational(app: Awaited<ReturnType<typeof mount>>) {
 async function selectLead(app: Awaited<ReturnType<typeof mount>>, leadId: string) {
   const trigger = await app.click('.cx-investigation-records tbody tr button.cx-record-open', leadId);
   await app.wait(() => app.find('.cx-lead-dossier h2')?.textContent === leadId && app.w.document.activeElement === app.find('.cx-lead-dossier'));
-  await app.click('.cx-dossier-tabs [role="tab"]', 'Journey');
+  await app.click('.cx-dossier-tabs [role="tab"]', 'Timeline');
   await app.wait(() => app.find('.cx-ledger-journey'));
   return trigger;
 }
@@ -79,15 +79,17 @@ test('the actual operational page renders the loaded journey and all investigati
     const trigger = await selectLead(app, 'SYN-COMPLETE');
     const before = app.requests();
     assert.equal(trigger.getAttribute('aria-pressed'), 'true');
-    assert.equal(app.find('.cx-dossier-tabs [aria-selected="true"]').textContent, 'Journey');
-    assert.equal(app.find('.cx-journey-spine').children.length, 6);
+    assert.equal(app.find('.cx-dossier-tabs [aria-selected="true"]').textContent, 'Timeline');
+    assert.equal(app.find('.cx-journey-spine').children.length, 3);
+    assert.equal(app.find('[id$="-journey-panel"] .cx-journey-undated').querySelectorAll('.cx-journey-event').length, 3);
     assert.match(app.find('.cx-journey-summary').textContent, /Furthest recorded stageActivation/);
     assert.match(app.find('.cx-journey-summary').textContent, /Recorded attempts5/);
     assert.deepEqual(Array.from(app.w.document.querySelectorAll('.cx-journey-spine time'), (element: any) => element.dateTime), ['2026-09-28T09:04:13.000Z', '2026-09-28T09:11:24.000Z', '2026-09-28T09:29:51.000Z']);
-    assert.equal(app.w.document.querySelectorAll('.cx-journey-spine [data-certainty="unavailable"]').length, 3);
+    assert.equal(app.w.document.querySelectorAll('.cx-journey-spine [data-certainty="unavailable"]').length, 0);
+    assert.equal(app.find('[id$="-journey-panel"] .cx-journey-undated').querySelectorAll('time').length, 0);
 
-    const journeyTab = app.find('.cx-journey-tabs [role="tab"]', 'Journey');
-    const eventsTab = app.find('.cx-journey-tabs [role="tab"]', 'Events');
+    const journeyTab = app.find('.cx-journey-tabs [role="tab"]', 'Chronology');
+    const eventsTab = app.find('.cx-journey-tabs [role="tab"]', 'Event log');
     journeyTab.focus();
     await app.key(journeyTab, 'ArrowRight');
     assert.equal(eventsTab.getAttribute('aria-selected'), 'true');
@@ -115,9 +117,11 @@ test('the actual operational page renders the loaded journey and all investigati
     assert.match(app.find('.cx-journey-calls').textContent, /RPC attempt number unavailable/);
     assert.equal(app.find('.cx-journey-calls').querySelectorAll('time').length, 0);
 
-    await app.click('.cx-journey-spine button', 'Sale');
+    await app.click('[id$="-journey-panel"] .cx-journey-undated button', 'Sale');
     await app.wait(() => app.w.document.activeElement === app.find('.cx-journey-evidence'));
-    assert.match(app.find('.cx-journey-evidence').textContent, /Timestamp unavailable · Not verified/);
+    assert.match(app.find('.cx-journey-evidence').textContent, /Not verified/);
+    assert.equal(app.find('.cx-journey-evidence-time').textContent, 'Timestamp unavailable');
+    assert.match(app.find('.cx-journey-source-fields').textContent, /HLC Sale/);
     assert.equal(app.find('.cx-journey-evidence dt').textContent, 'sale');
     assert.equal(app.find('.cx-journey-evidence dd').textContent, 'true');
     await app.click('.cx-journey-evidence button', 'Copy evidence');
@@ -213,8 +217,8 @@ test('missing, partial, zero and untimed evidence remain distinct in the selecte
     assert.equal(app.find('.cx-journey-spine [data-stage="sale"]'), undefined);
 
     await selectLead(app, 'SYN-SALE-NO-ACTIVATION');
-    assert.equal(app.find('.cx-journey-spine button[data-stage="sale"]').getAttribute('data-certainty'), 'unavailable');
-    assert.equal(app.find('.cx-journey-spine button[data-stage="activation"]'), undefined);
+    assert.equal(app.find('[id$="-journey-panel"] .cx-journey-undated button[data-stage="sale"]').getAttribute('data-certainty'), 'unavailable');
+    assert.equal(app.find('[id$="-journey-panel"] .cx-journey-undated button[data-stage="activation"]'), undefined);
     assert.deepEqual(outcomes(), ['Recorded', 'Recorded', 'Evidence unavailable']);
 
     await selectLead(app, 'SYN-ZERO-CALLS');
@@ -232,7 +236,7 @@ test('missing, partial, zero and untimed evidence remain distinct in the selecte
     await selectLead(app, 'SYN-UNTIMED');
     assert.match(app.find('.cx-journey-empty').textContent, /Timeline unavailable/);
     assert.equal(app.find('.cx-journey-spine'), undefined);
-    const journeyPanel = app.w.document.getElementById(app.find('.cx-journey-tabs [role="tab"]', 'Journey').getAttribute('aria-controls'));
+    const journeyPanel = app.w.document.getElementById(app.find('.cx-journey-tabs [role="tab"]', 'Chronology').getAttribute('aria-controls'));
     assert.equal(journeyPanel.querySelectorAll('.cx-journey-undated button').length, 4);
     assert.equal(app.find('.cx-ledger-journey').querySelectorAll('time').length, 0, 'No generated time or source cutoff is substituted');
     assert.equal(app.find('.cx-journey-summary').textContent.includes('Observed time span'), false);
@@ -254,9 +258,11 @@ test('anomalous timestamps are called out, valid Events sort chronologically and
 
     await selectLead(app, 'SYN-REVERSED-TIME');
     assert.match(app.find('.cx-journey-anomalies').textContent, /First dial precedes delivered/);
-    assert.equal(app.find('.cx-journey-spine [data-connector="anomaly"] .cx-journey-elapsed').textContent, 'Timing anomaly');
-    await app.click('.cx-journey-tabs [role="tab"]', 'Events');
-    const eventsPanel = app.w.document.getElementById(app.find('.cx-journey-tabs [role="tab"]', 'Events').getAttribute('aria-controls'));
+    assert.deepEqual(Array.from(app.find('.cx-journey-spine').querySelectorAll('.cx-journey-event strong'), (element: any) => element.textContent), ['Captured', 'First dial', 'Delivered']);
+    assert.match(app.find('.cx-journey-spine [data-stage="call"] .cx-journey-inline-anomaly').textContent, /precedes delivered/);
+    assert.deepEqual(Array.from(app.find('.cx-journey-spine').querySelectorAll('.cx-journey-elapsed'), (element: any) => element.textContent), ['Time unavailable', 'Time unavailable']);
+    await app.click('.cx-journey-tabs [role="tab"]', 'Event log');
+    const eventsPanel = app.w.document.getElementById(app.find('.cx-journey-tabs [role="tab"]', 'Event log').getAttribute('aria-controls'));
     assert.deepEqual(Array.from(eventsPanel.querySelectorAll('.cx-journey-date .cx-journey-event strong'), (element: any) => element.textContent), ['Captured', 'First dial', 'Delivered']);
 
     await selectLead(app, 'SYN-INVALID-TIME');
@@ -266,7 +272,7 @@ test('anomalous timestamps are called out, valid Events sort chronologically and
 
     await selectLead(app, 'SYN-LONG-JOURNEY');
     assert.match(app.find('.cx-journey-summary').textContent, /Observed time span14d 1h/);
-    await app.click('.cx-journey-tabs [role="tab"]', 'Events');
+    await app.click('.cx-journey-tabs [role="tab"]', 'Event log');
     const dates = app.w.document.querySelectorAll('.cx-journey-date');
     assert.equal(dates.length, 3);
     assert.match(dates[0].textContent, /15 Sept 2026/);

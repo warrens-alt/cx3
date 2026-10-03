@@ -51,7 +51,7 @@
 .cx-sidebar[data-collapsed="true"] .cx-sidebar-tools { flex-direction: column; }
 
 /* One compact top bar: area/page, command search, workspace and preferences. */
-.cx-topbar { flex-shrink: 0; min-height: var(--cx-header-height); display: flex; align-items: center; gap: 12px; padding: 6px 22px; background: var(--cx-surface); border-bottom: 1px solid var(--cx-border-subtle); }
+.cx-topbar { flex-shrink: 0; min-height: var(--cx-header-height); display: flex; align-items: center; gap: 12px; padding: 6px var(--cx-page-padding-x); background: var(--cx-surface); border-bottom: 1px solid var(--cx-border-subtle); }
 .cx-shell-toggle { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 34px; height: 34px; padding: 5px; border: 0; border-radius: 5px; color: var(--cx-text-secondary); background: transparent; cursor: pointer; }
 .cx-shell-toggle:hover { color: var(--cx-text); background: var(--cx-surface-subtle); }
 .cx-desktop-toggle { display: none; }
@@ -78,7 +78,7 @@
 
 /* Contextual navigation owns only pages from the selected canonical area. */
 .cx-area-nav { flex-shrink: 0; position: relative; z-index: 20; min-width: 0; background: var(--cx-surface); border-bottom: 1px solid var(--cx-border-subtle); }
-.cx-area-nav-inner { display: flex; align-items: center; gap: 12px; max-width: 1600px; min-width: 0; margin: 0 auto; padding-inline: 22px; }
+.cx-area-nav-inner { display: flex; align-items: center; gap: 12px; max-width: 1600px; min-width: 0; margin: 0 auto; padding-inline: var(--cx-page-padding-x); }
 .cx-area-tabs { min-width: 0; flex: 1; display: flex; align-items: center; gap: 12px; overflow-x: auto; scrollbar-width: thin; }
 .cx-area-nav-item { display: inline-flex; align-items: center; min-height: 36px; padding: 6px 4px; border-bottom: 2px solid transparent; white-space: nowrap; text-decoration: none; font-size: 12px; line-height:1.5; color: var(--cx-text-secondary); }
 .cx-area-nav-item:hover { color: var(--cx-text); }

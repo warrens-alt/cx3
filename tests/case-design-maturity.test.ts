@@ -16,16 +16,18 @@ test('forensic rows align existing raw timestamps separately from stage copy and
   const doc = new JSDOM(renderToStaticMarkup(React.createElement(LeadJourney, { row }))).window.document;
   const timeline = buildLedgerTimeline(row);
   const nodes = [...doc.querySelectorAll('.cx-journey-spine .cx-journey-event')];
-  assert.equal(nodes.length, timeline.milestones.length);
+  assert.equal(nodes.length, timeline.timedEvents.length);
   nodes.forEach((node, index) => {
     assert.equal(node.firstElementChild?.className, 'cx-journey-time-column');
-    assert.equal(node.querySelector('time')?.getAttribute('datetime') ?? null, timeline.milestones[index].timestamp);
-    assert.equal(node.querySelector('.cx-journey-event-copy strong')?.textContent, timeline.milestones[index].title);
+    assert.equal(node.querySelector('time')?.getAttribute('datetime') ?? null, timeline.timedEvents[index].timestamp);
+    assert.equal(node.querySelector('.cx-journey-event-copy strong')?.textContent, timeline.timedEvents[index].title);
     assert.ok(node.querySelector('.cx-journey-node svg'));
   });
-  assert.deepEqual([...doc.querySelectorAll('.cx-journey-elapsed')].map(node => node.textContent), timeline.milestones.slice(1).map(event => timeline.transitions.find(item => item.toId === event.id)?.label || 'Time unavailable'));
+  assert.deepEqual(nodes.map(node => node.querySelector('strong')?.textContent), ['Captured', 'First dial', 'Delivered']);
+  assert.deepEqual([...doc.querySelectorAll('.cx-journey-elapsed')].map(node => node.textContent), ['Time unavailable', 'Time unavailable'], 'Reordered anomalous milestones cannot acquire invented positive intervals');
   assert.match(doc.querySelector('.cx-journey-spine [data-stage=call] .cx-journey-inline-anomaly')!.textContent!, /precedes delivered/);
-  assert.equal(doc.querySelectorAll('.cx-journey-spine .cx-journey-untimed').length, 3);
+  assert.equal(doc.querySelectorAll('.cx-journey-spine .cx-journey-untimed').length, 0);
+  assert.equal(doc.querySelectorAll('[id$="-journey-panel"] .cx-journey-undated .cx-journey-untimed').length, 3);
 });
 
 test('compact source observability keeps unavailable contracts neutral, zero explicit and exact source evidence accessible', () => {

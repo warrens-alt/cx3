@@ -194,10 +194,10 @@
   --cx-section-gap: 24px;
   --cx-card-gap: 16px;
   --cx-panel-padding: 16px;
-  --cx-page-padding-x: clamp(16px, 2vw, 32px);
+  --cx-page-padding-x: clamp(16px, 2vw, 24px);
 
   /* Shared reporting rhythm; technical content alone uses the mono face. */
-  --cx-type-page: 28px;
+  --cx-type-page: 26px;
   --cx-type-section: 17px;
   --cx-type-body: 14px;
   --cx-type-control: 13px;
@@ -206,6 +206,7 @@
   --cx-space-2: 8px;
   --cx-space-3: 12px;
   --cx-space-4: 16px;
+  --cx-space-5: 20px;
   --cx-space-6: 24px;
   --cx-space-8: 32px;
   --cx-row-padding: 12px;

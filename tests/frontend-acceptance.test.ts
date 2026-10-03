@@ -265,7 +265,7 @@ test('loaded-row timeline reports unavailable evidence and returns keyboard focu
     const trigger=await app.click('.cx-investigation-records button.cx-record-open');
     await app.wait(()=>app.find('.cx-lead-dossier'));
     await app.wait(()=>app.find('.cx-lead-dossier').contains(app.w.document.activeElement),'Inspector receives initial focus');
-    await app.click('.cx-dossier-tabs [role="tab"]','Journey');
+    await app.click('.cx-dossier-tabs [role="tab"]','Timeline');
     await app.wait(()=>app.find('.cx-ledger-journey'));
     const inspector=app.find('.cx-lead-dossier');
     assert.match(inspector.textContent,/Evidence unavailable/);
@@ -949,6 +949,12 @@ for (const route of ['/overview','/funnel','/campaigns','/vetting','/routing','/
       assert.ok(title.compareDocumentPosition(scopeBar) & app.w.Node.DOCUMENT_POSITION_FOLLOWING);
       assert.equal(app.w.document.querySelectorAll('main h1').length, 1);
       assert.equal(app.find('.cx-viz-jump-nav, .cx-analysis-jump-nav'), undefined);
+      if (['/overview', '/funnel', '/commercial'].includes(route)) {
+        await app.wait(() => app.find('header .cx-report-status-slot .cx-readiness'));
+        assert.equal(app.w.document.querySelectorAll('.cx-data-status-trigger').length, 1, 'The existing status control has one header home');
+        assert.equal(app.find('.cx-report-status-fallback'), undefined, 'Status does not add a second row above the workspace title');
+        assert.equal(app.w.__fixture.requests.filter((url: string) => url.includes('source-observability')).length, 0, 'Moving the control preserves lazy source checks');
+      }
       if (route === '/lead-ledger') {
         assert.ok(scopeBar.compareDocumentPosition(app.find('.cx-lead-evidence-mode-tabs')) & app.w.Node.DOCUMENT_POSITION_FOLLOWING);
         await app.click('.cx-lead-evidence-mode-tabs button', 'Population');

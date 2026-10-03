@@ -8,7 +8,7 @@ function SourceFields({ raw, labels }: { raw: LedgerLead['records'][number]['raw
   return <dl className="cx-ledger-evidence">{labels.map(label => <div key={label}><dt>{label}</dt><dd>{text(raw[label])}</dd></div>)}</dl>;
 }
 function RecordHeading({ record, index }: { record: LedgerLead['records'][number]; index: number }) {
-  return <h3><span>Source record {index + 1} · {text(record.raw['HLC Vendor'])}</span><small>Transaction {text(record.raw['HLC Transaction ID'])}</small></h3>;
+  return <header className="cx-ledger-record-heading"><h3>Source record {index + 1}</h3><dl><div><dt>Vendor</dt><dd>{text(record.raw['HLC Vendor'])}</dd></div><div><dt>Transaction</dt><dd>{text(record.raw['HLC Transaction ID'])}</dd></div></dl></header>;
 }
 export default function LeadSourceEvidence({ lead, focusFields = [] }: { lead: LedgerLead; focusFields?: string[] }) {
   const root = useRef<HTMLDivElement>(null);
@@ -60,7 +60,7 @@ export default function LeadSourceEvidence({ lead, focusFields = [] }: { lead: L
       <div className="cx-ledger-section-body"><p>Raw source value: exact returned content under its original field name. These are not necessarily canonical analytical fields. Source records are kept separate.</p>
         {lead.records.map((record, index) => <article className="cx-ledger-record cx-ledger-raw-record" data-source-record={index} key={index}>
           <RecordHeading record={record} index={index} />
-          {LEDGER_RAW_FIELD_GROUPS.map(group => <section className="cx-ledger-field-group" key={group.label}><h4>{group.label}</h4><dl className="cx-ledger-fields">{group.columns.map(column => <div key={column.label} data-raw-field={column.label} data-source-highlight={focusFields.includes(column.label)} tabIndex={focusFields.includes(column.label) ? -1 : undefined}><dt>{column.label}</dt><dd aria-label={`Raw source value for ${column.label}`}>{text(record.raw[column.label])}</dd></div>)}</dl></section>)}
+          {LEDGER_RAW_FIELD_GROUPS.map(group => <section className="cx-ledger-field-group" key={group.label} aria-label={`${group.label} · source record ${index + 1}`}><h4>{group.label}<span>{group.columns.length} fields</span></h4><dl className="cx-ledger-fields">{group.columns.map(column => <div key={column.label} data-raw-field={column.label} data-source-highlight={focusFields.includes(column.label)} tabIndex={focusFields.includes(column.label) ? -1 : undefined}><dt>{column.label}</dt><dd aria-label={`Raw source value for ${column.label}`}>{text(record.raw[column.label])}</dd></div>)}</dl></section>)}
         </article>)}
       </div>
     </details>

@@ -33,7 +33,7 @@
 /* One answer rail, one primary analytical surface, then operational detail. */
 .cx-overview-skeleton.cx-command-loading { display:block; justify-items:stretch; padding:0; background:transparent; border:0; }
 .cx-overview-page .cx-outcome-strip { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:0; padding:0; background:var(--cx-surface); border:1px solid var(--cx-border-subtle); border-radius:var(--cx-radius-card); overflow:visible; }
-.cx-overview-page .cx-outcome-strip > .cx-outcome-rail-heading { grid-column:1/-1; display:flex; align-items:baseline; flex-wrap:wrap; gap:6px 16px; padding:14px 18px; border:0; border-bottom:1px solid var(--cx-border-subtle); }
+.cx-overview-page .cx-outcome-strip > .cx-outcome-rail-heading { grid-column:1/-1; display:flex; align-items:baseline; flex-wrap:wrap; gap:6px 16px; padding:12px var(--cx-panel-padding); border:0; border-bottom:1px solid var(--cx-border-subtle); }
 .cx-outcome-rail-heading h2 { margin:0; color:var(--cx-text); font-size:14px; font-weight:650; }
 .cx-outcome-rail-heading p { margin:0; color:var(--cx-text-secondary); font-size:11px; line-height:1.6; }
 .cx-overview-page .cx-outcome-strip > .cx-outcome-card { --outcome-color:var(--cx-data-fetched); display:flex; flex-direction:column; justify-content:flex-start; position:relative; min-width:0; padding:16px 14px 12px; border:0; border-radius:0; background:transparent; box-shadow:none; }
@@ -59,7 +59,7 @@
 .cx-overview-primary { display:grid; grid-template-columns:minmax(0,68fr) minmax(240px,32fr); gap:0; min-width:0; border:1px solid var(--cx-border-subtle); border-radius:var(--cx-radius-card); background:var(--cx-surface); }
 .cx-overview-secondary { display:grid; grid-template-columns:minmax(0,56fr) minmax(0,44fr); gap:16px; }
 .cx-overview-primary > *, .cx-overview-secondary > * { min-width:0; }
-.cx-overview-page .cx-overview-primary > :not(.is-focused) { border:0; border-radius:0; background:transparent; box-shadow:none; padding:18px; }
+.cx-overview-page .cx-overview-primary > :not(.is-focused) { border:0; border-radius:0; background:transparent; box-shadow:none; padding:var(--cx-panel-padding); }
 .cx-overview-page .cx-overview-primary > .cx-change-rail { border-left:1px solid var(--cx-border-subtle); }
 .cx-overview-page :is(.cx-trend-heading,.cx-report-panel-heading) h2 { margin:0; color:var(--cx-text); font-size:15px; line-height:1.5; font-weight:650; }
 .cx-overview-page :is(.cx-trend-heading,.cx-report-panel-heading) p { margin:4px 0 0; color:var(--cx-text-secondary); font-size:12px; line-height:1.6; }

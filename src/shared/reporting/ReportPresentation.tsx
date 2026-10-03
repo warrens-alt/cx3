@@ -27,6 +27,12 @@ export function StatusPresentation({ children }: { children: React.ReactNode }) 
   return statusTarget ? createPortal(children, statusTarget) : <div className="cx-report-status-fallback">{children}</div>;
 }
 
+/** Receive the existing status control without taking ownership of its source query. */
+export function ReportStatusSlot() {
+  const { setStatusTarget } = useContext(ReportPresentationContext);
+  return <div ref={setStatusTarget} className="cx-report-status-slot" />;
+}
+
 export function ExportPresentation({ children }: { children: React.ReactNode }) {
   const { exportTarget } = useContext(ReportPresentationContext);
   return exportTarget ? createPortal(children, exportTarget) : <div className="cx-report-export-fallback">{children}</div>;
@@ -41,7 +47,7 @@ export function DataStatusDialog({ open, onClose, children }: { open: boolean; o
 }
 
 export function ReportActions({ children, statusEvidence, aboutContent, analysisContext }: { children?: React.ReactNode; statusEvidence?: React.ReactNode; aboutContent?: React.ReactNode; analysisContext?: AnalysisContext }) {
-  const { setStatusTarget, setExportTarget } = useContext(ReportPresentationContext);
+  const { setExportTarget } = useContext(ReportPresentationContext);
   const [open, setOpen] = useState(false);
   const scoped = useScopedNavigationTarget();
   return <div className="cx-report-actions">
@@ -49,6 +55,6 @@ export function ReportActions({ children, statusEvidence, aboutContent, analysis
     {statusEvidence ? <>
       <button type="button" className="cx-button-secondary cx-data-status-trigger" data-tone="unknown" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}><Info size={14} aria-hidden="true" />Data status · Not verified</button>
       <DataStatusDialog open={open} onClose={() => setOpen(false)}>{statusEvidence}<Link className="cx-button-secondary" to={scoped('/data-integrity')} onClick={() => setOpen(false)}>Inspect data evidence</Link></DataStatusDialog>
-    </> : <div ref={setStatusTarget} className="cx-report-status-slot" />}
+    </> : <ReportStatusSlot />}
   </div>;
 }

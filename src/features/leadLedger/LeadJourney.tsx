@@ -59,26 +59,28 @@ export default function LeadJourney({ row, validationStatus, onViewSource, sourc
       <div><span>Recorded attempts</span><strong>{journey.calls.count ?? 'Unavailable'}</strong></div>
       {journey.duration && <div><span>Observed time span</span><strong>{journey.duration.label}</strong></div>}
     </div>
-    <p className="cx-journey-caption">Normalised lifecycle evidence · times in UTC. Lifecycle positions do not establish the order of untimed outcomes.</p>
-    <div className="cx-journey-tabs" role="tablist" aria-label="Lead journey views" onKeyDown={event => {
+    <p className="cx-journey-caption">Normalised lifecycle evidence · times in UTC. Untimed outcomes are shown separately from the observed chronology.</p>
+    <div className="cx-journey-tabs" role="tablist" aria-label="Timeline views" onKeyDown={event => {
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
       const next = event.key === 'Home' ? 'journey' : event.key === 'End' ? 'events' : mode === 'journey' ? 'events' : 'journey';
       setMode(next); document.getElementById(`${id}-${next}-tab`)?.focus();
-    }}>{(['journey', 'events'] as const).map(value => <button key={value} type="button" role="tab" id={`${id}-${value}-tab`} aria-selected={mode === value} aria-controls={`${id}-${value}-panel`} tabIndex={mode === value ? 0 : -1} onClick={() => setMode(value)}>{value === 'journey' ? 'Journey' : 'Events'}</button>)}</div>
+    }}>{(['journey', 'events'] as const).map(value => <button key={value} type="button" role="tab" id={`${id}-${value}-tab`} aria-selected={mode === value} aria-controls={`${id}-${value}-panel`} tabIndex={mode === value ? 0 : -1} onClick={() => setMode(value)}>{value === 'journey' ? 'Chronology' : 'Event log'}</button>)}</div>
 
     {!journey.timedEvents.length && <div className="cx-journey-empty"><h3>Timeline unavailable</h3><p>This lead has source records, but the current dataset does not provide enough timestamped lifecycle evidence to construct a chronological timeline.</p>{onViewSource && <button type="button" className="cx-button-secondary" onClick={() => onViewSource([])}>View source evidence</button>}</div>}
     <section className="cx-journey-forensic-canvas cx-analytical-canvas" role="tabpanel" id={`${id}-journey-panel`} aria-labelledby={`${id}-journey-tab`} hidden={mode !== 'journey'} tabIndex={0}>
       {journey.timedEvents.length > 0 ? <>
-        <ol className="cx-journey-spine" aria-label="Recorded lifecycle milestones">{journey.milestones.map((event, index) => {
-          const transition = journey.transitions.find(item => item.toId === event.id);
-          return <li key={event.id} data-stage={event.kind} data-connector={transition?.state || 'start'}>
-            {index > 0 && <span className="cx-journey-elapsed" aria-label={`${journey.milestones[index - 1].title} to ${event.title}: ${transition?.label || 'Time unavailable'}`}>{transition?.label || 'Time unavailable'}</span>}
+        <ol className="cx-journey-spine" aria-label="Observed chronology">{journey.timedEvents.map((event, index) => {
+          const previous = journey.timedEvents[index - 1];
+          const transition = journey.transitions.find(item => item.toId === event.id && item.fromId === previous?.id);
+          return <li key={event.id} data-stage={event.kind} data-connector={transition?.state || (index > 0 ? 'unavailable' : 'start')}>
+            {index > 0 && <span className="cx-journey-elapsed" aria-label={`${previous.title} to ${event.title}: ${transition?.label || 'Time unavailable'}`}>{transition?.label || 'Time unavailable'}</span>}
             {eventButton(event)}
           </li>;
         })}</ol>
-        <p className="cx-journey-key"><span><i data-filled="true" />Observed time</span><span><i />Recorded, time unavailable</span>{journey.anomalies.length > 0 && <span><AlertTriangle size={12} aria-hidden="true"/>Chronology anomaly</span>}</p>
-      </> : journey.untimedEvents.length > 0 ? <div className="cx-journey-undated"><h3>Recorded stages · timestamps unavailable</h3><ul>{journey.untimedEvents.map(event => <li key={event.id}>{eventButton(event)}</li>)}</ul></div> : null}
+        <p className="cx-journey-key"><span><i data-filled="true" />Observed time</span>{journey.anomalies.length > 0 && <span><AlertTriangle size={12} aria-hidden="true"/>Chronology anomaly</span>}</p>
+      </> : null}
+      {journey.untimedEvents.length > 0 && <section className="cx-journey-undated" aria-label="Recorded stages without timestamps"><h3>Recorded stages · timestamps unavailable</h3><p>Lifecycle positions only. These outcomes have no known chronological order.</p><ul>{journey.untimedEvents.map(event => <li key={event.id}>{eventButton(event)}</li>)}</ul></section>}
       <details className="cx-journey-calls">
         <summary><span>Calls {journey.calls.count == null ? '· count unavailable' : `×${journey.calls.count}`}</span><small>Recorded aggregate · inspect evidence</small></summary>
         <p>{journey.calls.count == null ? 'Call count unavailable' : `${journey.calls.count} recorded attempts`}</p>
@@ -99,7 +101,7 @@ export default function LeadJourney({ row, validationStatus, onViewSource, sourc
     {sourceEvents && <details className="cx-journey-context"><summary>Supporting source milestones ({sourceEvents.length})</summary><p>Scoped warehouse milestones retain their original transaction evidence. They are separate from the lead-level journey and do not establish a complete call history.</p><ol className="cx-dossier-source-events">{sourceEvents.map((event, index) => <li key={`${event.stage}-${event.timestamp}-${index}`}><strong>{event.title}</strong><time>{event.timestamp || 'Timestamp unavailable'}</time><p>{event.details}</p></li>)}</ol></details>}
 
     <section ref={evidence} className="cx-journey-evidence" id={`${id}-evidence`} aria-label="Selected event evidence" tabIndex={-1}>
-      {selected ? <><p className="cx-ledger-eyebrow">EVENT EVIDENCE</p><h3>{selected.title}</h3><p>{selected.timestamp ? `${dateLabel(selected.timestamp)} · ${timeLabel(selected.timestamp)} UTC` : 'Timestamp unavailable'} · {validation}</p><p>{selected.description}</p><dl>{selected.evidenceFields.map(field => <div key={field.label}><dt>{field.label}</dt><dd>{valueText(field.value)}</dd></div>)}</dl><div className="cx-journey-evidence-actions"><AuditEvidenceButton key={selected.id} compact={false} content={recordEventAuditEvidence(row, selected, journey, validationStatus, auditScope, onViewSource)} />{onViewSource && <button type="button" className="cx-button-secondary" onClick={() => onViewSource(selected.sourceFields)}>View source fields</button>}{onPinEvent && <button type="button" className="cx-button-secondary" onClick={() => onPinEvent(selected)}>Pin timeline event</button>}<CopyEvidenceButton value={copy} label="Copy evidence" /></div><p className="cx-journey-caption">Normalised fields are shown above. Source evidence retains original field names and separate source records; a source match is not reconciliation.</p></> : <p>Select a milestone to inspect its supporting evidence.</p>}
+      {selected ? <><header className="cx-journey-evidence-heading"><div><span>Selected event evidence</span><h3>{selected.title}</h3></div><span className="cx-journey-evidence-state">{validation}</span></header><p className="cx-journey-evidence-time">{selected.timestamp ? <><span>Observed timestamp</span><time dateTime={selected.timestamp}>{dateLabel(selected.timestamp)} · {timeLabel(selected.timestamp)} UTC</time></> : 'Timestamp unavailable'}</p><p>{selected.description}</p><h4>Normalized evidence</h4><dl>{selected.evidenceFields.map(field => <div key={field.label}><dt>{field.label}</dt><dd>{valueText(field.value)}</dd></div>)}</dl><div className="cx-journey-source-fields"><h4>Original source fields</h4><ul>{selected.sourceFields.map(field => <li key={field}>{field}</li>)}</ul></div><div className="cx-journey-evidence-actions"><AuditEvidenceButton key={selected.id} compact={false} content={recordEventAuditEvidence(row, selected, journey, validationStatus, auditScope, onViewSource)} />{onViewSource && <button type="button" className="cx-button-secondary" onClick={() => onViewSource(selected.sourceFields)}>View source fields</button>}{onPinEvent && <button type="button" className="cx-button-secondary" onClick={() => onPinEvent(selected)}>Pin timeline event</button>}<CopyEvidenceButton value={copy} label="Copy evidence" /></div><p className="cx-journey-caption">Layer: normalised operational evidence. Original source values remain separate; a source match is not reconciliation.</p></> : <p>Select a milestone to inspect its supporting evidence.</p>}
     </section>
 
     {journey.anomalies.length > 0 && <section className="cx-journey-anomalies" aria-label="Timeline anomalies"><h3>Timestamp anomalies</h3>{journey.anomalies.map((anomaly, index) => <p key={index}><strong>{anomaly.field}</strong>: {valueText(anomaly.value)} — {anomaly.message}</p>)}</section>}

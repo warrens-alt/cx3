@@ -80,9 +80,9 @@ test('dossier focus preserves its selected tab and query owners while distinct t
   const app=await mount();try{
     app.w.HTMLElement.prototype.getClientRects=function(){return this.isConnected&&!this.closest('[hidden]')?[new app.w.DOMRect(0,0,100,30)]:[];};
     app.find('button','Open dossier for lead').click();await app.wait(()=>app.find('.cx-lead-dossier'));
-    app.find('[role=tab]','Journey').click();await app.wait(()=>app.find('.cx-journey-spine'));
+    app.find('[role=tab]','Timeline').click();await app.wait(()=>app.find('.cx-journey-spine'));
     const dossier=app.find('.cx-lead-dossier');
-    const milestones=[...dossier.querySelectorAll('.cx-journey-spine .cx-journey-event')] as HTMLButtonElement[];
+    const milestones=[...dossier.querySelectorAll('.cx-journey-forensic-canvas:not([hidden]) .cx-journey-event')] as HTMLButtonElement[];
     assert.ok(milestones.length>=2,'Fixture supplies at least two separate lifecycle milestones');
     for(const milestone of milestones.slice(0,2)){
       milestone.click();await app.wait(()=>app.find('button','Pin timeline event'));
@@ -95,7 +95,7 @@ test('dossier focus preserves its selected tab and query owners while distinct t
     const focus=app.find('button','Focus lead dossier');focus.focus();focus.click();
     await app.wait(()=>dossier.getAttribute('role')==='dialog');
     assert.equal(dossier.getAttribute('aria-modal'),'true');
-    assert.match(dossier.querySelector('[role=tab][aria-selected=true]').textContent,/Journey/);
+    assert.match(dossier.querySelector('[role=tab][aria-selected=true]').textContent,/Timeline/);
     app.w.document.dispatchEvent(new app.w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
     await app.wait(()=>!dossier.hasAttribute('role'));
     assert.equal(app.find('.cx-lead-dossier'),dossier);

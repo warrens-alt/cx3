@@ -78,9 +78,10 @@ export default function DataIntegrityIntelligence({ embedded = false, section: c
 
   const groups = groupIntegrityChecks(data?.checks || []);
   const gaps = groups.measured.filter(check => check.discrepancyCount != null && check.discrepancyCount > 0);
+  const embeddedHeader = !embedded ? undefined : section === 'overview' ? <></> : <div className="cx-workspace-panel-intro"><h2>{section === 'sources' ? 'Source evidence' : section === 'metrics' ? 'Metric definitions and lineage' : 'Reconciliation evidence'}</h2><p>See which measured discrepancies and source limitations need investigation.</p></div>;
 
   return (
-    <AnalyticsPageLayout className="cx-trust-workspace" ariaLabel="Data integrity workspace" title="Data confidence" header={embedded ? <div className="cx-workspace-panel-intro"><h2>{section === 'overview' ? 'Evidence overview' : section === 'sources' ? 'Source evidence' : section === 'metrics' ? 'Metric definitions and lineage' : 'Reconciliation evidence'}</h2><p>See which measured discrepancies and source limitations need investigation.</p></div> : undefined} description={<>See which measured discrepancies and source limitations need investigation.</>} actions={<ReportActions />} scope={<OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), ...(!controlledSection || controlledSection === 'sources' ? [controls.refetch()] : [])]); }} />}>
+    <AnalyticsPageLayout className="cx-trust-workspace" ariaLabel="Data integrity workspace" title="Data confidence" header={embeddedHeader} description={<>See which measured discrepancies and source limitations need investigation.</>} actions={<ReportActions />} scope={<OffernetFilterBar onRefresh={async () => { await Promise.all([loadData(true), ...(!controlledSection || controlledSection === 'sources' ? [controls.refetch()] : [])]); }} />}>
 
         {error && <div role="alert" className="cx-command-error"><AlertTriangle size={16}/>{error}</div>}
         {loading && !data && <ReportSkeleton label="Loading data integrity" metricCount={3} />}

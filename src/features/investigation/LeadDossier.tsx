@@ -17,12 +17,15 @@ import { useInvestigationModel } from './InvestigationContextBar';
 import { pinnedAuditScope } from './pinnedAuditEvidence';
 import EvidenceTrace, { AuditDimensions } from '../../shared/evidence/EvidenceTrace';
 import { buildDossierAuditEvidence, buildSourceRelationship } from './dossierAuditEvidence';
-import LeadEvidenceSummary from './LeadEvidenceSummary';
+import LeadDossierSummary from './LeadDossierSummary';
+import AnalyticalAllParameters from './AnalyticalAllParameters';
 import '../leadEvidence/leadEvidence.css';
 
 export type DossierPin = { type: 'lead' | 'timeline-event'; label: string; value: string; definition: string; identifier: string; observedAt?: string; provenance: string[] };
 export type DossierTab = 'Summary' | 'Journey' | 'Calls' | 'Outcomes' | 'Audit' | 'Source';
 const tabs: DossierTab[] = ['Summary', 'Journey', 'Calls', 'Outcomes', 'Audit', 'Source'];
+export const dossierTabLabel = (tab: DossierTab) => tab === 'Journey' ? 'Timeline' : tab;
+export const dossierTabIdentity = (tab: DossierTab | 'Timeline'): DossierTab => tab === 'Timeline' ? 'Journey' : tab;
 const fields = (entries: Array<[string, unknown]>) => <dl className="cx-dossier-fields">{entries.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{evidenceText(value)}</dd></div>)}</dl>;
 
 function SuppliedSource({ lead, report, focusFields, analyticalLeadId }: { lead: LedgerLead; report?: LedgerReplicaReport; focusFields: string[]; analyticalLeadId?: string }) {
@@ -69,7 +72,7 @@ export interface LeadDossierProps {
   sourceReport?: LedgerReplicaReport;
   /** Source-mode ownership: even an absent exact match must not trigger a second query. */
   sourceResolved?: boolean;
-  initialTab?: 'Summary' | 'Source';
+  initialTab?: DossierTab | 'Timeline';
   sourceFocusFields?: string[];
   onOpenSource?: (leadId: string, fields: string[]) => void;
   onRequestAnalytical?: () => void;
@@ -81,13 +84,55 @@ export interface LeadDossierProps {
 export default function LeadDossier({ row, result, investigation, scopeKey, timeline, loading = false, error, id, onClose, onPin, segmentVendor, sourceLead, sourceReport, sourceResolved = false, initialTab = 'Summary', sourceFocusFields, onOpenSource, onRequestAnalytical, onOpenAnalytical, analyticalLoading = false, analyticalError }: LeadDossierProps) {
   const { isAdmin } = useAuth();
   const { selectedClient } = useClient();
-  const [tab, setTab] = useState<DossierTab>(initialTab);
+  const [tab, setTab] = useState<DossierTab>(() => dossierTabIdentity(initialTab));
   const [focusFields, setFocusFields] = useState<string[]>(sourceFocusFields || []);
   const previousInitialTab = useRef(initialTab);
-  useEffect(() => { if (previousInitialTab.current !== initialTab) { previousInitialTab.current = initialTab; setTab(initialTab); } }, [initialTab]);
+  useEffect(() => { if (previousInitialTab.current !== initialTab) { previousInitialTab.current = initialTab; setTab(dossierTabIdentity(initialTab)); } }, [initialTab]);
   useEffect(() => { if (sourceFocusFields) setFocusFields(sourceFocusFields); }, [sourceFocusFields]);
   const [focused, setFocused] = useState(false);
   const root = useDialogAccessibility<HTMLElement>(focused, () => setFocused(false));
+  useEffect(() => {
+    const dossier = root.current;
+    if (!dossier) return;
+    const context = dossier.closest('.cx-lead-evidence-page')?.querySelector<HTMLElement>('.cx-investigation-context[data-compact="true"]');
+    const scrollport = dossier.closest<HTMLElement>('.cx-main');
+    const workspace = dossier.closest<HTMLElement>('.cx-lead-evidence-master-detail');
+    let frame: number | null = null;
+    const updateOffset = () => {
+      frame = null;
+      const contextStyle = context ? getComputedStyle(context) : null;
+      const contextHeight = context && contextStyle?.position === 'sticky' ? context.getBoundingClientRect().height : 0;
+      // Keep the scope variable live: its height changes when the reporting bar compacts.
+      dossier.style.setProperty('--cx-dossier-sticky-top', `calc(var(--cx-sticky-scope-height, 44px) + ${contextHeight + 16}px)`);
+      dossier.style.setProperty('--cx-dossier-context-height', `${contextHeight}px`);
+      const viewportHeight = scrollport?.clientHeight || window.innerHeight;
+      if (workspace && getComputedStyle(dossier).position === 'sticky') {
+        const offset = Number.parseFloat(getComputedStyle(dossier).top) || contextHeight + 60;
+        // Keep a short population from shrinking its own sticky containing block.
+        workspace.style.setProperty('--cx-dossier-min-height', `${Math.max(0, viewportHeight - offset - 16)}px`);
+        const scrollTop = scrollport?.getBoundingClientRect().top || 0;
+        // At the end of the grid, reduce the panel's scrollport instead of sliding its header under the rails.
+        const availableHeight = Math.min(viewportHeight, workspace.getBoundingClientRect().bottom - scrollTop + 16);
+        dossier.style.setProperty('--cx-dossier-viewport-height', `${Math.max(offset + 16, availableHeight)}px`);
+      } else {
+        workspace?.style.removeProperty('--cx-dossier-min-height');
+        dossier.style.setProperty('--cx-dossier-viewport-height', `${viewportHeight}px`);
+      }
+    };
+    const scheduleOffset = () => { if (frame === null) frame = requestAnimationFrame(updateOffset); };
+    updateOffset();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleOffset);
+    if (context) observer?.observe(context);
+    if (scrollport) observer?.observe(scrollport);
+    if (workspace) observer?.observe(workspace);
+    scrollport?.addEventListener('scroll', scheduleOffset, { passive: true });
+    window.addEventListener('resize', scheduleOffset);
+    return () => {
+      observer?.disconnect(); scrollport?.removeEventListener('scroll', scheduleOffset); window.removeEventListener('resize', scheduleOffset);
+      if (frame !== null) cancelAnimationFrame(frame);
+      workspace?.style.removeProperty('--cx-dossier-min-height');
+    };
+  }, [root, focused]);
   const tabsId = useId();
   const visibleTabs = isAdmin ? tabs : tabs.filter(value => value !== 'Source');
   const activeTab = !isAdmin && tab === 'Source' ? 'Audit' : tab;
@@ -102,19 +147,12 @@ export default function LeadDossier({ row, result, investigation, scopeKey, time
   const auditModel = useInvestigationModel({ validationStatus: validation });
   const audit = buildDossierAuditEvidence(analytical?.row, analytical?.result, currentSourceLead, currentSourceReport);
   const reason = analytical ? inclusionReason(analytical.row, investigation) : 'Original source identity in the current source population. Analytical inclusion has not been established.';
-  const identityFields: Array<[string, unknown]> = analytical ? [
-    ['Representative vendor', analytical.row.vendor], ['Source', analytical.row.source], ['Fetched timestamp', analytical.row.fetched],
-    ['Furthest recorded stage', journey?.currentStage?.title], ['Grade', analytical.row.grade],
-  ] : [
-    ['First-record vendor', currentSourceLead?.records[0]?.raw['HLC Vendor']], ['First-record Offershop Source', currentSourceLead?.records[0]?.raw['Offershop Source']],
-    ['First-record Fetched', currentSourceLead?.records[0]?.raw['Fetched']], ['First-record Offershop Grade', currentSourceLead?.records[0]?.raw['Offershop Grade']],
-  ];
   const source = (requested: string[]) => { if (!isAdmin) return; setFocusFields(requested); setTab('Source'); };
   const currentTimeline = analytical && timeline?.leadId === leadId ? timeline : null;
   const pinEvent = (event: LedgerTimelineEvent) => onPin?.({ type: 'timeline-event', label: `${leadId} · ${event.title}`, value: event.timestamp || 'Timestamp unavailable', definition: event.description, identifier: `${leadId}:${event.id}`, observedAt: event.timestamp || undefined, provenance: event.evidenceFields.map(field => `${field.label}: ${evidenceText(field.value)}`) });
   const analyticalUnavailable = <><p>Normalized analytical evidence is unavailable for this source identity. Original source fields remain in Source; they are not substituted for analytical milestones, qualification, calls or outcomes.</p>{onRequestAnalytical && <button type="button" className="cx-button-secondary" disabled={analyticalLoading} onClick={onRequestAnalytical}>{analyticalLoading ? 'Loading analytical evidence…' : 'Load analytical evidence'}</button>}{analyticalLoading && <p role="status">Looking for an exact analytical lead match in the current population…</p>}{analyticalError && <p role="alert">{analyticalError}</p>}</>;
   return <aside ref={root} id={id} className={`cx-lead-dossier${focused ? ' is-focused' : ''}`} role={focused ? 'dialog' : undefined} aria-modal={focused || undefined} tabIndex={-1} aria-label={isAdmin ? `Lead dossier for ${leadId || 'unresolved source lead'}` : 'Lead dossier'} onKeyDown={event => { if (event.key === 'Escape' && !focused && !document.querySelector('[role="dialog"][aria-modal="true"]')) { event.stopPropagation(); onClose(); } }}>
-    <header className="cx-dossier-heading"><div><span className="cx-command-section-kicker">Lead dossier</span><h2>{isAdmin ? leadId || (sourceLead ? 'Unresolved source lead' : 'Lead identity unavailable') : 'Restricted evidence'}</h2>{isAdmin && <><p>{validation} · {analytical ? 'normalized lead evidence' : 'original source evidence'}</p><dl className="cx-dossier-identity">{identityFields.filter(([, value]) => value != null && value !== '').map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{evidenceText(value)}</dd></div>)}</dl></>}</div><div className="cx-dossier-window-actions"><button type="button" onClick={() => setFocused(value => !value)} aria-label={focused ? 'Exit lead dossier focus' : 'Focus lead dossier'} aria-pressed={focused}>{focused ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button><button type="button" onClick={onClose} aria-label="Close lead dossier"><X size={17} /></button></div></header>
+    <header className="cx-dossier-heading"><div><span className="cx-command-section-kicker">Lead dossier</span><h2>{isAdmin ? leadId || (sourceLead ? 'Unresolved source lead' : 'Lead identity unavailable') : 'Restricted evidence'}</h2>{isAdmin && <p>{validation} · {analytical ? 'normalized lead evidence' : 'original source evidence'}</p>}</div><div className="cx-dossier-window-actions"><button type="button" onClick={() => setFocused(value => !value)} aria-label={focused ? 'Exit lead dossier focus' : 'Focus lead dossier'} aria-pressed={focused}>{focused ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button><button type="button" onClick={onClose} aria-label="Close lead dossier"><X size={17} /></button></div></header>
     {!isAdmin ? <p role="status">Lead evidence is restricted to authorised administrators.</p> : <>
     <div className="cx-dossier-inclusion"><strong>{analytical ? 'Why included' : 'Source population'}</strong><p>{reason}</p>{analytical?.row.investigationReason?.detail && <small>{analytical.row.investigationReason.detail}</small>}{onPin && analytical && <button type="button" className="cx-button-secondary" onClick={() => onPin({ type: 'lead', label: leadId, value: reason, definition: analytical.row.investigationReason?.detail || 'Returned investigation record', identifier: leadId, observedAt: analytical.result.generatedAt, provenance: returnedEvidenceFields(analytical.result).map(field => `${field.label}: ${field.value}`) })}><Pin size={13} />Pin lead evidence</button>}</div>
     <p className="cx-dossier-note">{analytical ? 'One normalized lead row' : 'No normalized lead row loaded'}{currentSourceLead ? ` · ${currentSourceLead.records.length} original source records` : ' · original source records not loaded'}. These evidence grains remain separate; matching identifiers do not establish reconciliation.</p>
@@ -124,20 +162,13 @@ export default function LeadDossier({ row, result, investigation, scopeKey, time
       const index = visibleTabs.indexOf(activeTab);
       const next = event.key === 'Home' ? visibleTabs[0] : event.key === 'End' ? visibleTabs[visibleTabs.length - 1] : visibleTabs[(index + (event.key === 'ArrowRight' ? 1 : visibleTabs.length - 1)) % visibleTabs.length];
       setTab(next); document.getElementById(`${tabsId}-${next}-tab`)?.focus();
-    }}>{visibleTabs.map(value => <button key={value} type="button" id={`${tabsId}-${value}-tab`} role="tab" aria-selected={activeTab === value} aria-controls={`${tabsId}-${value}-panel`} tabIndex={activeTab === value ? 0 : -1} onClick={() => setTab(value)}>{value}</button>)}</div>
+    }}>{visibleTabs.map(value => <button key={value} type="button" id={`${tabsId}-${value}-tab`} role="tab" aria-selected={activeTab === value} aria-controls={`${tabsId}-${value}-panel`} tabIndex={activeTab === value ? 0 : -1} onClick={() => setTab(value)}>{dossierTabLabel(value)}</button>)}</div>
     <section className="cx-dossier-body" data-section={activeTab.toLowerCase()} role="tabpanel" id={`${tabsId}-${activeTab}-panel`} aria-labelledby={`${tabsId}-${activeTab}-tab`} tabIndex={0}>
-      {activeTab === 'Summary' && <>{analytical ? <><LeadEvidenceSummary row={analytical.row} />{fields([['Last recorded disposition', analytical.row.last_dialer_status]])}<details><summary>Identity and returned context</summary>{fields([
-        ['Lead ID', leadId],
-        ...(analytical.row.consumer_id != null && analytical.row.consumer_id !== '' ? [['Consumer ID', analytical.row.consumer_id] as [string, unknown]] : []),
-        ['Representative vendor', analytical.row.vendor], ['Source', analytical.row.source], ['Grade', analytical.row.grade],
-        ...(analytical.row.vetting != null && analytical.row.vetting !== '' ? [['Vetting', analytical.row.vetting] as [string, unknown]] : []),
-        ...(analytical.row.fetched != null && analytical.row.fetched !== '' ? [['Fetched timestamp', analytical.row.fetched] as [string, unknown]] : []),
-        ['Furthest recorded stage', journey?.currentStage?.title], ['Validation status', validation],
-      ])}</details></> : <>{fields([['Source lead ID', leadId], ['Original source records', currentSourceLead?.records.length], ['First-record Offershop Source', currentSourceLead?.records[0]?.raw['Offershop Source']], ['First-record Offershop Grade', currentSourceLead?.records[0]?.raw['Offershop Grade']], ['Normalized current stage', 'Unavailable'], ['Validation status', validation]])}{analyticalUnavailable}</>}<p className="cx-dossier-note">Summary describes the selected evidence. Journey contains recorded milestones; Calls and Outcomes retain their own details. Qualification and limitations remain in Audit.</p><button type="button" className="cx-button-secondary" onClick={() => source([])}>View source evidence</button>{analytical && suppliedSource && onOpenAnalytical && <button type="button" className="cx-button-secondary" onClick={onOpenAnalytical}>Open analytical lead</button>}</>}
+      {activeTab === 'Summary' && <>{analytical ? <><LeadDossierSummary row={analytical.row} validation={validation} /><details className="cx-dossier-all-parameters"><summary>All parameters</summary><AnalyticalAllParameters row={analytical.row} /></details></> : <>{fields([['Source lead ID', leadId], ['Original source records', currentSourceLead?.records.length], ['First-record Offershop Source', currentSourceLead?.records[0]?.raw['Offershop Source']], ['First-record Offershop Grade', currentSourceLead?.records[0]?.raw['Offershop Grade']], ['Normalized current stage', 'Unavailable'], ['Validation status', validation]])}{analyticalUnavailable}</>}<p className="cx-dossier-note">Timeline contains recorded milestones. Audit explains qualification and limitations. Source retains the original records.</p><div className="cx-dossier-summary-actions"><button type="button" className="cx-button-secondary" onClick={() => source([])}>View source evidence</button>{analytical && suppliedSource && onOpenAnalytical && <button type="button" className="cx-button-secondary" onClick={onOpenAnalytical}>Open analytical lead</button>}</div></>}
       {activeTab === 'Journey' && (analytical ? <><LeadJourney row={analytical.row} validationStatus={validation} auditScope={pinnedAuditScope(auditModel)} onViewSource={source} sourceEvents={currentTimeline?.events} onPinEvent={onPin ? pinEvent : undefined} />{loading && <p role="status">Loading scoped source milestones…</p>}{error && <p role="alert">Source milestone request failed: {error}</p>}{currentTimeline?.callEvidence && <p className="cx-dossier-note">{currentTimeline.callEvidence.status}: {currentTimeline.callEvidence.reason}</p>}</> : analyticalUnavailable)}
       {activeTab === 'Calls' && (analytical ? <><h3>Recorded call aggregates</h3>{fields([['Total calls', ledgerCalls(analytical.row.total_calls)], ['First dial', analytical.row.first_call_time], ['Last disposition', analytical.row.last_dialer_status], ['RPC', outcomeText(analytical.row.contacted)]])}<p>Individual attempt timestamps, dispositions per attempt and RPC attempt number are unavailable. The aggregate count is not an attempt history.</p>{currentTimeline?.callEvidence && <p>{currentTimeline.callEvidence.reason}</p>}<button type="button" className="cx-button-secondary" onClick={() => source(['HLC Total Calls', 'HLC First Call Date', 'HLC Last Dialer Status', 'HLC RPC'])}>View call source fields</button></> : analyticalUnavailable)}
       {activeTab === 'Outcomes' && (analytical ? <><h3>Recorded outcome evidence</h3>{fields([['RPC · contacted', outcomeText(analytical.row.contacted)], ['Sale · sale', outcomeText(analytical.row.sale)], ['Activation · activated', outcomeText(analytical.row.activated)], ['Last disposition · last_dialer_status', analytical.row.last_dialer_status], ['Source-recorded revenue · revenue', recordedRevenue(analytical.row.revenue)]])}<p>Missing evidence remains unavailable. A recorded downstream outcome does not create an upstream event, collected cash or a confirmed event time.</p><button type="button" className="cx-button-secondary" onClick={() => source(['HLC RPC', 'HLC Sale', 'HLC Activated', 'HLC Revenue Generated', 'HLC Last Dialer Status'])}>View outcome source fields</button></> : analyticalUnavailable)}
-      {activeTab === 'Audit' && <><AuditDimensions dimensions={audit.dimensions} label="Selected evidence state" /><EvidenceTrace nodes={audit.trace} label="Selected evidence lineage" /><h3>Supplied qualification flags</h3>{fields(audit.qualifications.map(item => [`${item.label} · ${item.field}`, item.value]))}<p>Qualification is shown only when supplied in the analytical row. Original source records stay separate; the investigation qualifies the lead, not every attached transaction.</p>{audit.chronology.length > 0 && <section aria-label="Recorded chronology anomalies"><h3>Chronology anomalies</h3>{audit.chronology.map((anomaly, index) => <p key={index}>{anomaly}</p>)}</section>}<details><summary>Evidence definition, scope and limitations</summary>{analytical && <>{fields(returnedEvidenceFields(analytical.result).map(field => [field.label, field.value]))}{fields([['Metric', analytical.result.metricId || analytical.result.metadata?.metricId], ['Definition version', analytical.result.definitionVersion || analytical.result.metadata?.definitionVersion], ['Source tables', analytical.result.metadata?.sourceTables ? JSON.stringify(analytical.result.metadata.sourceTables) : analytical.result.metadata?.source], ['Validation', validation]])}<p>{analytical.row.investigationReason?.detail || 'No additional inclusion definition was returned for this record.'}</p><ul>{journey?.limitations.map(limit => <li key={limit}>{limit}</li>)}</ul></>}{currentSourceReport && <>{fields(returnedEvidenceFields(currentSourceReport).map(field => [`Source · ${field.label}`, field.value]))}<p>{currentSourceReport.metadata.timestampInterpretation}</p></>}<p>Missing evidence remains unavailable. An original source identity match does not verify normalized chronology or business completion.</p></details>{analytical && <details><summary>All returned analytical evidence fields</summary>{fields(Object.entries(analytical.row).map(([key, value]) => [key, value !== null && typeof value === 'object' ? JSON.stringify(value) : value]))}</details>}</>}
+      {activeTab === 'Audit' && <><AuditDimensions dimensions={audit.dimensions} label="Selected evidence state" /><EvidenceTrace nodes={audit.trace} label="Selected evidence lineage" /><h3>Supplied qualification flags</h3>{fields(audit.qualifications.map(item => [`${item.label} · ${item.field}`, item.value]))}<p>Qualification is shown only when supplied in the analytical row. Original source records stay separate; the investigation qualifies the lead, not every attached transaction.</p>{audit.chronology.length > 0 && <section aria-label="Recorded chronology anomalies"><h3>Chronology anomalies</h3>{audit.chronology.map((anomaly, index) => <p key={index}>{anomaly}</p>)}</section>}<details><summary>Evidence definition, scope and limitations</summary>{analytical && <>{fields(returnedEvidenceFields(analytical.result).map(field => [field.label, field.value]))}{fields([['Metric', analytical.result.metricId || analytical.result.metadata?.metricId], ['Definition version', analytical.result.definitionVersion || analytical.result.metadata?.definitionVersion], ['Source tables', analytical.result.metadata?.sourceTables ? JSON.stringify(analytical.result.metadata.sourceTables) : analytical.result.metadata?.source], ['Validation', validation]])}<p>{analytical.row.investigationReason?.detail || 'No additional inclusion definition was returned for this record.'}</p><ul>{journey?.limitations.map(limit => <li key={limit}>{limit}</li>)}</ul></>}{currentSourceReport && <>{fields(returnedEvidenceFields(currentSourceReport).map(field => [`Source · ${field.label}`, field.value]))}<p>{currentSourceReport.metadata.timestampInterpretation}</p></>}<p>Missing evidence remains unavailable. An original source identity match does not verify normalized chronology or business completion.</p></details>{analytical && <details className="cx-dossier-all-parameters"><summary>All parameters</summary><AnalyticalAllParameters row={analytical.row} /></details>}</>}
       {activeTab === 'Source' && <>{onOpenSource && leadId && <button type="button" className="cx-button-secondary" onClick={() => onOpenSource(leadId, focusFields)}>Open in Source Evidence</button>}{analytical && onOpenAnalytical && <button type="button" className="cx-button-secondary" onClick={onOpenAnalytical}>Open analytical lead</button>}{!analytical && onRequestAnalytical && analyticalUnavailable}{suppliedSource ? currentSourceLead?.records.length ? <SuppliedSource lead={currentSourceLead} report={currentSourceReport} focusFields={focusFields} analyticalLeadId={analytical ? leadId : undefined} /> : <p>{currentSourceReport ? 'No exact source lead match was returned in the current source scope.' : 'Source evidence has not been returned for this selection.'}{currentSourceReport?.metadata.hasMore ? ' The source population is a partial page; no other lead is substituted.' : ''}</p> : analytical ? <DossierSource key={scopeKey + leadId} leadId={leadId} focusFields={focusFields} scopeKey={scopeKey} segmentVendor={segmentVendor} /> : <p>Source evidence unavailable for this selection.</p>}</>}
     </section>
     </>}

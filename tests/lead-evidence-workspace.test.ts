@@ -96,7 +96,11 @@ test('direct Source Evidence mounts only source queries and selecting uses the l
 });
 
 test('URL presets reuse the loaded population and retain the exact selected dossier across back and forward', async () => {
-  const app = await mount();
+  const rows = [
+    { lead_id: firstLead, consumer_id: 'SYNTHETIC-CONSUMER', fetched: '2026-09-28T09:00:00Z', dialled: true, contacted: null, sale: false, activated: false, total_calls: 0, revenue: null, returned_detail: { code: 'exact' } },
+    { lead_id: 'SYNTHETIC-LEAD-0002', fetched: null, second_row_only: 'Preserved' },
+  ];
+  const app = await mount(undefined, { payloads: { [rawPath]: { rows, totalCount: rows.length, limit: 50, offset: 0 } } });
   try {
     await app.wait(() => app.find('button', `Open dossier for lead ${firstLead}`));
     await app.click('button', `Open dossier for lead ${firstLead}`);
@@ -113,7 +117,9 @@ test('URL presets reuse the loaded population and retain the exact selected doss
       assert.equal(app.find('button', `Open dossier for lead ${firstLead}`)?.getAttribute('aria-pressed'), 'true');
       assert.equal(app.w.__fixture.requests.length, requests);
     }
-    assert.equal(app.w.document.querySelectorAll('.cx-investigation-records thead th').length, 17);
+    const returnedKeys = [...new Set(rows.flatMap(row => Object.keys(row)))].sort();
+    assert.deepEqual([...app.w.document.querySelectorAll('.cx-investigation-records thead th[data-parameter-key]')].map((element: any) => element.dataset.parameterKey).sort(), returnedKeys);
+    assert.equal(app.w.document.querySelectorAll('.cx-investigation-records thead th').length, returnedKeys.length + 1, 'The complete returned schema is followed by one action column');
     app.w.__fixture.navigate(-1);
     await app.wait(() => app.find('.cx-record-view select')?.value === 'outcomes');
     assert.equal(app.find('.cx-lead-dossier'), dossier);
